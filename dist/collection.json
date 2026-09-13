@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "title": "A sense of space",
+    "image": "01-a-sense-of-space.jpg",
+    "description": "First third of a continuous architectural campaign: a silver doorway on a pale sculptural stage, with the title A sense of space."
+  },
+  {
+    "id": 2,
+    "title": "Step inside",
+    "image": "02-step-inside.jpg",
+    "description": "Centre of the architectural panorama: a monumental forest-green glass doorway. Title: Step inside."
+  },
+  {
+    "id": 3,
+    "title": "A new perspective",
+    "image": "03-a-new-perspective.jpg",
+    "description": "Right side of the continuous panorama: limestone portal, gallery light and long shadows. Title: A new perspective."
+  },
+  {
+    "id": 4,
+    "title": "Light considered",
+    "image": "04-light-considered.jpg",
+    "description": "Dark forest-green glass and brushed silver in extreme close-up, with limestone and a fine highlight. Text: Light, considered."
+  },
+  {
+    "id": 5,
+    "title": "Space in motion",
+    "image": "05-space-in-motion.jpg",
+    "description": "Deep-green film cover with nested doorway outlines and a play symbol. Text: Space, in motion."
+  },
+  {
+    "id": 6,
+    "title": "Depth by design",
+    "image": "06-depth-by-design.jpg",
+    "description": "Pale sage poster with layered perspective doorway planes over a fine drafting grid. Title: Depth. By design."
+  },
+  {
+    "id": 7,
+    "title": "Places with a story",
+    "image": "07-places-with-a-story.jpg",
+    "description": "Ivory editorial poster with the sculptural architectural panorama inset below the title Places with a story."
+  },
+  {
+    "id": 8,
+    "title": "Space makers",
+    "image": "08-space-makers.jpg",
+    "description": "Dark editorial contact sheet with three material and architectural concept images. Title: Space makers."
+  },
+  {
+    "id": 9,
+    "title": "A closer look",
+    "image": "09-a-closer-look.jpg",
+    "description": "Pale sage design poster with a portal mark over a close-up of glass, metal and limestone. Title: A closer look."
+  }
+]
