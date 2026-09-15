@@ -2,13 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "trailingSlash": false,
-  "outputDirectory": "dist",
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "veylet-site.vercel.app" }],
-      "destination": "https://veylet.com/:path*",
-      "permanent": true
-    }
-  ]
+  "outputDirectory": "dist"
 }
