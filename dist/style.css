@@ -1257,3 +1257,57 @@ footer > span {
     padding-inline: 20px;
   }
 }
+
+.form-page {
+  padding-block: 72px 96px;
+  max-width: 720px;
+}
+.form-page h1 {
+  font-size: 48px;
+  line-height: 1.08;
+  margin: 12px 0 16px;
+}
+.form-page .intro {
+  color: var(--muted);
+  margin-bottom: 36px;
+}
+.veylet-form {
+  display: grid;
+  gap: 18px;
+}
+.veylet-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+.veylet-form .check {
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: 10px;
+}
+.veylet-form input,
+.veylet-form textarea,
+.veylet-form select {
+  font: inherit;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 12px 14px;
+  min-height: 44px;
+}
+.veylet-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+.veylet-form .honey {
+  position: absolute;
+  left: -9999px;
+  height: 0;
+  width: 0;
+  overflow: hidden;
+}
+.veylet-form .button {
+  justify-self: start;
+  margin-top: 8px;
+}

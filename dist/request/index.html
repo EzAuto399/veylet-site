@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Request a Veylet walkthrough</title>
+    <meta
+      name="description"
+      content="Request a managed Veylet 3D walkthrough for a home, business or venue."
+    />
+    <meta name="theme-color" content="#10231d" />
+    <link rel="canonical" href="https://veylet-site.vercel.app/request" />
+    <link rel="icon" href="../media/studio-avatar.png" />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap">
+      <a class="brand" href="/" aria-label="Veylet Studio home"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+      <nav aria-label="Main">
+        <a href="/apply">Apply to use Veylet</a
+        ><a href="/#enquire">Start here</a>
+      </nav>
+    </header>
+    <main id="main" class="form-page wrap">
+      <p class="eyebrow">MANAGED WALKTHROUGH</p>
+      <h1>Request a walkthrough</h1>
+      <p class="intro">
+        Tell us the space type, general location, purpose and timing. We assess
+        a suitable pilot scope and quote. This is not a booking, payment or live
+        account.
+      </p>
+      <form
+        class="veylet-form"
+        action="https://formsubmit.co/yoda@yodalai.xyz"
+        method="POST"
+      >
+        <input type="hidden" name="_subject" value="Veylet — walkthrough enquiry" />
+        <input
+          type="hidden"
+          name="_next"
+          value="https://veylet-site.vercel.app/thanks"
+        />
+        <input type="hidden" name="_template" value="table" />
+        <input type="text" name="_honey" class="honey" tabindex="-1" autocomplete="off" />
+        <label>
+          Your name and business (or homeowner)
+          <input name="name_and_business" required maxlength="200" />
+        </label>
+        <label>
+          Email
+          <input name="email" type="email" required maxlength="200" />
+        </label>
+        <label>
+          Space category
+          <select name="space_category" required>
+            <option value="">Choose one</option>
+            <option>Home</option>
+            <option>Clinic</option>
+            <option>Hospitality</option>
+            <option>Venue</option>
+            <option>Showroom</option>
+            <option>Interior or installation</option>
+            <option>Other</option>
+          </select>
+        </label>
+        <label>
+          Approximate size and rooms or areas
+          <input name="size_and_rooms" required maxlength="300" />
+        </label>
+        <label>
+          Suburb, region or general location (no access codes)
+          <input name="location" required maxlength="200" />
+        </label>
+        <label>
+          Who will view it and what should they understand?
+          <textarea name="audience" required maxlength="1500" rows="3"></textarea>
+        </label>
+        <label>
+          Viewing purpose
+          <input name="purpose" required maxlength="300" />
+        </label>
+        <label>
+          Areas to include and areas to exclude
+          <textarea name="scope" maxlength="1500" rows="3"></textarea>
+        </label>
+        <label>
+          Permission or authority to arrange capture and sharing
+          <input name="permission" required maxlength="400" />
+        </label>
+        <label>
+          Preferred timing and any controlled capture window
+          <input name="timing" maxlength="300" />
+        </label>
+        <button class="button" type="submit">
+          Send enquiry <span aria-hidden="true">↗</span>
+        </button>
+      </form>
+      <p class="contact-note">
+        Goes to yoda@yodalai.xyz. Leave out access codes, identity documents and
+        private client images.
+      </p>
+    </main>
+    <footer class="wrap">
+      <a class="brand" href="/"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+      <p>Spaces people can understand.</p>
+      <span>© 2026 Veylet Studio</span>
+    </footer>
+  </body>
+</html>
