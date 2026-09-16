@@ -291,37 +291,49 @@ h2 {
 .gallery {
   display: none;
 }
-.panorama {
+.study-spread {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  overflow: hidden;
+  grid-template-columns: minmax(0, 0.9fr) minmax(200px, 1fr);
+  gap: clamp(28px, 6vw, 80px);
+  align-items: end;
 }
-.panorama a {
+.study-lead {
   display: block;
   min-width: 0;
+  max-width: 520px;
   aspect-ratio: 3 / 4;
   background: #10231d;
   overflow: hidden;
 }
-.panorama img {
+.study-lead img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: center;
 }
+.study-lead-copy {
+  max-width: 28ch;
+  padding-bottom: 6px;
+}
+.study-lead-copy .eyebrow {
+  margin-bottom: 14px;
+}
+.study-lead-copy p:last-child {
+  color: var(--muted);
+  font-size: 15px;
+}
 .study-rail {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   overflow-x: auto;
-  margin-top: 28px;
+  margin-top: 36px;
   padding-bottom: 8px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
 .study-rail .gallery-item {
-  flex: 0 0 min(32vw, 360px);
+  flex: 0 0 220px;
   aspect-ratio: 3 / 4;
   scroll-snap-align: start;
   display: block;
@@ -348,7 +360,8 @@ h2 {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
 }
 .open-hint {
   position: absolute;
@@ -754,16 +767,16 @@ dialog::backdrop {
   .gallery {
     gap: 3px;
   }
-  .panorama {
+  .study-spread {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 18px;
   }
-  .panorama a,
+  .study-lead {
+    max-width: 360px;
+  }
   .study-rail .gallery-item {
+    flex-basis: min(72vw, 280px);
     aspect-ratio: 3 / 4;
-  }
-  .study-rail .gallery-item {
-    flex-basis: min(78vw, 320px);
   }
   .sticky-cta {
     display: grid;
