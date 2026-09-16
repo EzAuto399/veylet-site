@@ -43,7 +43,7 @@ async function loadDesk(supabase) {
         .order('created_at', { ascending: false }),
       supabase
         .from('tours')
-        .select('id,status,property_id,created_at,share_token')
+        .select('id,status,property_id,created_at,share_token,storage_path')
         .order('created_at', { ascending: false }),
     ]);
   if (propErr) {
@@ -88,6 +88,10 @@ async function loadDesk(supabase) {
         item.append(line);
         if (tour.status === 'ready' || tour.status === 'draft') {
           const actions = document.createElement('p');
+          const preview = document.createElement('a');
+          preview.href = '/play/?id=' + encodeURIComponent(tour.id);
+          preview.textContent = 'Preview';
+          actions.append(preview);
           if (tour.share_token) {
             const link = document.createElement('a');
             link.href = handoffUrl(tour.share_token);

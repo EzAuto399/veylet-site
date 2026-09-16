@@ -1555,3 +1555,16 @@ footer > span {
 .dash-space ul {
   list-style: none;
 }
+.tour-frame {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: min(78vh, 720px);
+  margin: 18px 0 28px;
+  border: 0;
+  background: #10231d;
+}
+.dash-space a + .button,
+.dash-space .button {
+  margin: 8px 8px 0 0;
+}
