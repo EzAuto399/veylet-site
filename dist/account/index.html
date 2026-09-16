@@ -22,17 +22,15 @@
         ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
       >
       <nav aria-label="Main">
-        <a href="/apply">Apply to use Veylet</a
-        ><a href="/request">Request a walkthrough</a>
+        <a href="/apply">Apply</a>
       </nav>
     </header>
     <main id="main" class="form-page wrap">
       <p class="eyebrow">ACCOUNT</p>
-      <h1>One person. Website and iPhone.</h1>
+      <h1>Sign in.</h1>
       <p class="intro">
-        Email sign-in is the hosted identity. It does not approve you as an
-        operator, take payment, or publish a tour. Apply and request forms stay
-        the public doors.
+        Email link is the portal for website and iPhone. It does not approve an
+        operator, take payment, or share a tour with a client.
       </p>
       <p id="account-status" class="contact-note" role="status"></p>
       <form id="account-sign-in" class="veylet-form">
@@ -54,6 +52,12 @@
       <section id="account-home" hidden>
         <p class="contact-note" id="account-who"></p>
         <p class="contact-note" id="account-id"></p>
+        <ol class="dash-flow">
+          <li>Sign in (this page, same id on the iPhone).</li>
+          <li>Save a space (suburb or city only).</li>
+          <li>Capture and reconstruct in Veylet Capture — phone upload is not live yet.</li>
+          <li>A tour row can appear here as a private draft. Client share is not live.</li>
+        </ol>
         <form id="account-space" class="veylet-form">
           <label>
             Space name
@@ -69,13 +73,13 @@
           </label>
           <button class="button" type="submit">Save space</button>
         </form>
+        <h2 class="dash-heading">Your spaces</h2>
         <ul class="account-list" id="account-properties"></ul>
         <p class="contact-note">
-          Phone upload of a reconstructed tour is not live yet. Compare this
-          account id with the iPhone Account screen when testing sign-in.
-          Apply and request remain the public doors. Payment stays invoice.
+          Tours stay private on this account. There is no public client link yet.
+          Compare this account id with the iPhone when testing sign-in.
         </p>
-        <button class="button" type="button" id="account-sign-out">Sign out</button>
+        <button class="button button-ghost" type="button" id="account-sign-out">Sign out</button>
       </section>
     </main>
     <footer class="wrap">

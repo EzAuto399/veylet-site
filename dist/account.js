@@ -10,20 +10,40 @@ const idEl = document.getElementById('account-id');
 const list = document.getElementById('account-properties');
 const signOut = document.getElementById('account-sign-out');
 
+const TOUR_LABEL = {
+  draft: 'Private draft — not shared',
+  processing: 'Processing — not shared',
+  ready: 'Ready on this account — client share is not live',
+  revoked: 'Revoked',
+};
+
 function setStatus(text) {
   if (statusEl) statusEl.textContent = text;
 }
 
-async function loadProperties(supabase) {
+function tourLine(tour) {
+  const label = TOUR_LABEL[tour.status] || tour.status;
+  const when = tour.created_at ? new Date(tour.created_at).toISOString().slice(0, 10) : '';
+  return [label, when].filter(Boolean).join(' · ');
+}
+
+async function loadDesk(supabase) {
   if (!list) return;
-  const { data: properties, error } = await supabase
-    .from('properties')
-    .select('id,title,category,location_general,created_at')
-    .order('created_at', { ascending: false });
   list.replaceChildren();
-  if (error) {
+  const [{ data: properties, error: propErr }, { data: tours, error: tourErr }] =
+    await Promise.all([
+      supabase
+        .from('properties')
+        .select('id,title,category,location_general,created_at')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('tours')
+        .select('id,status,property_id,created_at')
+        .order('created_at', { ascending: false }),
+    ]);
+  if (propErr) {
     const li = document.createElement('li');
-    li.textContent = 'Properties could not load. Try again after the email link.';
+    li.textContent = 'Spaces could not load. Try again after the email link.';
     list.append(li);
     return;
   }
@@ -33,11 +53,36 @@ async function loadProperties(supabase) {
     list.append(li);
     return;
   }
+  const byProperty = new Map();
+  if (!tourErr && tours) {
+    for (const tour of tours) {
+      const bucket = byProperty.get(tour.property_id) || [];
+      bucket.push(tour);
+      byProperty.set(tour.property_id, bucket);
+    }
+  }
   for (const row of properties) {
     const li = document.createElement('li');
-    li.textContent = [row.title, row.category, row.location_general]
+    li.className = 'dash-space';
+    const title = document.createElement('strong');
+    title.textContent = [row.title, row.category, row.location_general]
       .filter(Boolean)
       .join(' · ');
+    li.append(title);
+    const spaceTours = byProperty.get(row.id) || [];
+    if (!spaceTours.length) {
+      const p = document.createElement('p');
+      p.textContent = 'No reconstructed tour on this account yet.';
+      li.append(p);
+    } else {
+      const ul = document.createElement('ul');
+      for (const tour of spaceTours) {
+        const item = document.createElement('li');
+        item.textContent = tourLine(tour);
+        ul.append(item);
+      }
+      li.append(ul);
+    }
     list.append(li);
   }
 }
@@ -66,12 +111,12 @@ if (!cfg?.url || !cfg?.anonKey) {
     if (home) home.hidden = false;
     if (who) who.textContent = session.user.email || 'signed in';
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
-    setStatus('Signed in. This is not operator approval or payment.');
+    setStatus('Signed in. This is not operator approval, payment, or a shared client tour.');
     if (location.pathname.startsWith('/auth/')) {
       location.replace('/account');
       return;
     }
-    await loadProperties(supabase);
+    await loadDesk(supabase);
   }
 
   const { data } = await supabase.auth.getSession();
@@ -116,7 +161,7 @@ if (!cfg?.url || !cfg?.anonKey) {
     }
     spaceForm.reset();
     setStatus('Space saved on this account.');
-    await loadProperties(supabase);
+    await loadDesk(supabase);
   });
 
   signOut?.addEventListener('click', async () => {
