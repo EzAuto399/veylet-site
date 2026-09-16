@@ -86,12 +86,24 @@ async function loadDesk(supabase) {
         const line = document.createElement('p');
         line.textContent = tourLine(tour);
         item.append(line);
-        if (tour.status === 'ready') {
+        if (tour.status === 'ready' || tour.status === 'draft') {
           const actions = document.createElement('p');
           if (tour.share_token) {
             const link = document.createElement('a');
             link.href = handoffUrl(tour.share_token);
-            link.textContent = 'Open handoff link';
+            link.textContent = 'Open handoff';
+            const copy = document.createElement('button');
+            copy.type = 'button';
+            copy.className = 'button button-ghost';
+            copy.textContent = 'Copy link';
+            copy.addEventListener('click', async () => {
+              try {
+                await navigator.clipboard.writeText(handoffUrl(tour.share_token));
+                setStatus('Handoff link copied.');
+              } catch {
+                setStatus(handoffUrl(tour.share_token));
+              }
+            });
             const revoke = document.createElement('button');
             revoke.type = 'button';
             revoke.className = 'button button-ghost';
@@ -104,7 +116,7 @@ async function loadDesk(supabase) {
               setStatus(error ? 'Could not revoke.' : 'Handoff revoked.');
               if (!error) await loadDesk(supabase);
             });
-            actions.append(link, revoke);
+            actions.append(link, copy, revoke);
           } else {
             const enable = document.createElement('button');
             enable.type = 'button';
@@ -116,7 +128,7 @@ async function loadDesk(supabase) {
                 p_tour_id: tour.id,
               });
               if (error || !data) {
-                setStatus('Could not create a handoff. Tour must be ready.');
+                setStatus('Could not create a handoff.');
                 return;
               }
               setStatus('Handoff link ready. Copy it from the space below.');
