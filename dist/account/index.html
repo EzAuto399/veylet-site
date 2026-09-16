@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Account — Veylet</title>
+    <meta
+      name="description"
+      content="Sign in to Veylet with email. Same person on website and iPhone. Not payment or operator approval."
+    />
+    <link rel="canonical" href="https://veylet.com/account" />
+    <meta name="theme-color" content="#10231d" />
+    <link rel="icon" href="/media/studio-avatar.png" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/brand-host.js"></script>
+    <script src="/supabase-public.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap">
+      <a class="brand" href="/" aria-label="Veylet Studio home"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+      <nav aria-label="Main">
+        <a href="/apply">Apply to use Veylet</a
+        ><a href="/request">Request a walkthrough</a>
+      </nav>
+    </header>
+    <main id="main" class="form-page wrap">
+      <p class="eyebrow">ACCOUNT</p>
+      <h1>One person. Website and iPhone.</h1>
+      <p class="intro">
+        Email sign-in is the hosted identity. It does not approve you as an
+        operator, take payment, or publish a tour. Apply and request forms stay
+        the public doors.
+      </p>
+      <p id="account-status" class="contact-note" role="status"></p>
+      <form id="account-sign-in" class="veylet-form">
+        <label>
+          Email
+          <input name="email" type="email" required maxlength="200" autocomplete="email" />
+        </label>
+        <label>
+          I am looking at Veylet as
+          <select name="role_intent">
+            <option value="owner">A space owner or company — I still Request a walkthrough</option>
+            <option value="operator">A capture professional — I still Apply to use Veylet</option>
+          </select>
+        </label>
+        <button class="button" type="submit">
+          Email me a sign-in link <span aria-hidden="true">↗</span>
+        </button>
+      </form>
+      <section id="account-home" hidden>
+        <p class="contact-note" id="account-who"></p>
+        <p class="contact-note" id="account-id"></p>
+        <form id="account-space" class="veylet-form">
+          <label>
+            Space name
+            <input name="title" required maxlength="120" />
+          </label>
+          <label>
+            Category
+            <input name="category" maxlength="80" placeholder="home, clinic, venue" />
+          </label>
+          <label>
+            General location
+            <input name="location_general" maxlength="200" placeholder="Suburb or city only" />
+          </label>
+          <button class="button" type="submit">Save space</button>
+        </form>
+        <ul class="account-list" id="account-properties"></ul>
+        <p class="contact-note">
+          Phone upload of a reconstructed tour is not live yet. Compare this
+          account id with the iPhone Account screen when testing sign-in.
+          Apply and request remain the public doors. Payment stays invoice.
+        </p>
+        <button class="button" type="button" id="account-sign-out">Sign out</button>
+      </section>
+    </main>
+    <footer class="wrap">
+      <a class="brand" href="/"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+      <p>Spaces people can understand.</p>
+      <nav aria-label="Legal">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </nav>
+    </footer>
+    <script type="module" src="/account.js"></script>
+  </body>
+</html>

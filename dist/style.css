@@ -1334,11 +1334,13 @@ footer > span {
 .form-page {
   padding-block: 72px 96px;
   max-width: 720px;
+  min-width: 0;
 }
 .form-page h1 {
-  font-size: 48px;
+  font-size: clamp(32px, 8vw, 48px);
   line-height: 1.08;
   margin: 12px 0 16px;
+  overflow-wrap: anywhere;
 }
 .form-page .intro {
   color: var(--muted);
@@ -1347,14 +1349,18 @@ footer > span {
 .veylet-form {
   display: grid;
   gap: 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 .veylet-form label {
   display: grid;
   gap: 6px;
   font-size: 14px;
+  min-width: 0;
 }
 .veylet-form .check {
-  grid-template-columns: 20px 1fr;
+  grid-template-columns: 20px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
 }
@@ -1368,6 +1374,13 @@ footer > span {
   border-radius: 2px;
   padding: 12px 14px;
   min-height: 44px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.veylet-form select {
+  text-overflow: ellipsis;
 }
 .veylet-form textarea {
   min-height: 96px;
@@ -1429,4 +1442,13 @@ footer > span {
   color: var(--muted);
   padding: 8px 0 12px;
   max-width: 62ch;
+}
+.account-list {
+  margin: 16px 0 28px;
+  padding-left: 1.1rem;
+  max-width: 62ch;
+}
+.account-list li {
+  margin: 8px 0;
+  min-height: 44px;
 }
