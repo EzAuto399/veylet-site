@@ -24,7 +24,12 @@ function setStatus(text) {
 function tourLine(tour) {
   const label = TOUR_LABEL[tour.status] || tour.status;
   const when = tour.created_at ? new Date(tour.created_at).toISOString().slice(0, 10) : '';
-  return [label, when].filter(Boolean).join(' · ');
+  const share = tour.share_token ? 'handoff on' : 'not handed off';
+  return [label, share, when].filter(Boolean).join(' · ');
+}
+
+function handoffUrl(token) {
+  return 'https://veylet.com/handoff/?t=' + encodeURIComponent(token);
 }
 
 async function loadDesk(supabase) {
@@ -38,7 +43,7 @@ async function loadDesk(supabase) {
         .order('created_at', { ascending: false }),
       supabase
         .from('tours')
-        .select('id,status,property_id,created_at')
+        .select('id,status,property_id,created_at,share_token')
         .order('created_at', { ascending: false }),
     ]);
   if (propErr) {
@@ -78,7 +83,49 @@ async function loadDesk(supabase) {
       const ul = document.createElement('ul');
       for (const tour of spaceTours) {
         const item = document.createElement('li');
-        item.textContent = tourLine(tour);
+        const line = document.createElement('p');
+        line.textContent = tourLine(tour);
+        item.append(line);
+        if (tour.status === 'ready') {
+          const actions = document.createElement('p');
+          if (tour.share_token) {
+            const link = document.createElement('a');
+            link.href = handoffUrl(tour.share_token);
+            link.textContent = 'Open handoff link';
+            const revoke = document.createElement('button');
+            revoke.type = 'button';
+            revoke.className = 'button button-ghost';
+            revoke.textContent = 'Revoke';
+            revoke.addEventListener('click', async () => {
+              setStatus('Revoking handoff…');
+              const { error } = await supabase.rpc('revoke_tour_share', {
+                p_tour_id: tour.id,
+              });
+              setStatus(error ? 'Could not revoke.' : 'Handoff revoked.');
+              if (!error) await loadDesk(supabase);
+            });
+            actions.append(link, revoke);
+          } else {
+            const enable = document.createElement('button');
+            enable.type = 'button';
+            enable.className = 'button';
+            enable.textContent = 'Create client handoff';
+            enable.addEventListener('click', async () => {
+              setStatus('Creating handoff…');
+              const { data, error } = await supabase.rpc('enable_tour_share', {
+                p_tour_id: tour.id,
+              });
+              if (error || !data) {
+                setStatus('Could not create a handoff. Tour must be ready.');
+                return;
+              }
+              setStatus('Handoff link ready. Copy it from the space below.');
+              await loadDesk(supabase);
+            });
+            actions.append(enable);
+          }
+          item.append(actions);
+        }
         ul.append(item);
       }
       li.append(ul);
