@@ -1564,6 +1564,9 @@ footer > span {
   border: 0;
   background: #10231d;
 }
+.tour-frame[hidden] {
+  display: none;
+}
 .dash-space a + .button,
 .dash-space .button {
   margin: 8px 8px 0 0;
