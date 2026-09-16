@@ -152,12 +152,27 @@ nav a:last-child {
 .button {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 38px;
+  justify-content: center;
+  gap: 12px;
   background: var(--ink);
   color: var(--paper);
-  padding: 17px 21px;
+  padding: 17px 24px;
   font-size: 13px;
+  min-width: 140px;
+  border: 1px solid var(--ink);
+}
+.button-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+.button-ghost:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+.hero-note a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .text-link {
   font-size: 13px;
