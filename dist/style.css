@@ -121,8 +121,8 @@ nav a:last-child {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(270px, 0.8fr);
   gap: 84px;
-  padding-top: 52px;
-  padding-bottom: 115px;
+  padding-top: 40px;
+  padding-bottom: 56px;
   align-items: center;
 }
 .hero h1 {
@@ -171,7 +171,7 @@ nav a:last-child {
   font-size: 11px;
   letter-spacing: 0.3px;
   color: var(--muted);
-  margin-top: 50px;
+  margin-top: 28px;
 }
 .hero-film {
   max-width: 375px;
@@ -274,7 +274,7 @@ h2 {
   color: var(--muted);
 }
 .work {
-  padding-bottom: 105px;
+  padding-bottom: 48px;
 }
 .collection-label {
   display: flex;
@@ -300,7 +300,7 @@ h2 {
 .study-lead {
   display: block;
   min-width: 0;
-  max-width: 520px;
+  max-width: 400px;
   aspect-ratio: 3 / 4;
   background: #10231d;
   overflow: hidden;
@@ -1237,6 +1237,10 @@ footer > span {
     max-width: 340px;
     justify-self: center;
   }
+  .door-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
   .hero-film figcaption small {
     font-size: 12px;
   }
@@ -1445,8 +1449,30 @@ footer > span {
 .enquiry-route-link:active {
   transform: scale(0.98);
 }
+.doors {
+  padding-bottom: 48px;
+}
+.doors h2 {
+  margin: 10px 0 28px;
+}
+.door-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px 56px;
+  border-top: 1px solid var(--line);
+}
+.door-grid article {
+  padding-top: 22px;
+  min-width: 0;
+}
+.door-grid p {
+  color: var(--muted);
+  font-size: 15px;
+  max-width: 42ch;
+  margin-top: 12px;
+}
 .faq-block {
-  padding-block: 64px 80px;
+  padding-block: 36px 56px;
   border-top: 1px solid var(--line);
 }
 .faq-block h2 {
