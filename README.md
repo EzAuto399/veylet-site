@@ -48,3 +48,34 @@ Local evidence for this revision: `.qa-review/verify_local.py` (36 page/viewport
 
 Deployed 17 September to Vercel production (`vercel --prod`, deployment `peo2dzEQwk4zdHrTgKYhnozsJXER`), aliased to `veylet.com`. After deploy, live checks confirmed: every page and asset byte-identical to `dist/` except the Cloudflare email rewrite on `/apply`, `/request`, `/privacy`, `/terms`, `/thanks`; `/play.js` and `/handoff.js` gone (404); a stubbed handoff renders `RECONSTRUCTED TOUR RENDERED` where it previously dumped source text; and no horizontal overflow at 390 or 1440. Still unverified, because they need owner credentials or the device: real share tokens, real sign-in, physical iPhone upload, FormSubmit delivery, Square.
 
+
+## Operating the site
+
+Two scripts exist so a break is noticed before a customer reports it.
+
+```sh
+node scripts/write-build-info.mjs        # writes dist/build-info.json (run before a deploy)
+scripts/health-check.sh                  # checks https://veylet.com
+scripts/health-check.sh http://127.0.0.1:8902
+```
+
+`health-check.sh` fetches every public route, every asset the player needs, and asserts the
+five things that have actually failed here: no third-party module host in the handoff,
+handoff still `noindex`, no operator sign-in on the client page, handoff not starting in a
+checking state, and the contact address not obfuscated by Cloudflare again. It exits
+non-zero, so any uptime monitor can run it on a schedule. 25 checks.
+
+`dist/build-info.json` carries the commit and build time; the homepage footer shows the
+short commit, so a report of a problem can name the revision it saw.
+
+### Decisions taken rather than left open
+
+- **Applications and enquiries are email-only.** `operator_applications` and
+  `walkthrough_requests` exist in the hosted schema with RLS and full status enums, and
+  nothing writes to them. That is a decision, not an oversight: recording an application
+  against a `user_id` would require the applicant to hold a session, and the site promises
+  in four places that applying does not create an account. The tables stay unused until the
+  product decides otherwise; the public copy is the promise that wins.
+- **No analytics.** Deliberate. The only signals are the `/thanks` page, the owner's inbox
+  and the health check.
+- **No public gallery.** Deliberate. Client tours are unlisted and revocable only.

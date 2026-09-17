@@ -61,3 +61,43 @@ window.VeyletPlace = (() => {
 
   return { generalLocationProblem, briefLocationProblem, guardDoubleSubmit };
 })();
+
+/*
+ * If a page fails to start, say so. A desk that silently does nothing is worse
+ * than one that admits it is broken, and this is the only notification a static
+ * site can produce without an analytics account.
+ */
+(() => {
+  let reported = false;
+  function report(what) {
+    if (reported) return;
+    reported = true;
+    const status =
+      document.getElementById('account-status') ||
+      document.getElementById('play-status') ||
+      document.getElementById('handoff-status') ||
+      document.getElementById('request-status') ||
+      document.getElementById('apply-status');
+    const message =
+      'This page did not finish loading. Reload it — if it still will not start, email yoda@yodalai.xyz and say what you were doing.';
+    if (status) {
+      status.textContent = message;
+      return;
+    }
+    // No status element on this page; a small banner is better than silence.
+    const banner = document.createElement('p');
+    banner.setAttribute('role', 'status');
+    banner.style.cssText =
+      'margin:16px 0;padding:12px 14px;border-left:2px solid #10231d;font:14px/1.5 system-ui,sans-serif;color:#10231d';
+    banner.textContent = message;
+    (document.querySelector('main') || document.body).prepend(banner);
+    void what;
+  }
+  window.addEventListener('error', (event) => {
+    // Resource errors (a missing image) are not page failures.
+    if (event.target && event.target !== window && event.target.tagName) return;
+    report(event.message);
+  });
+  window.addEventListener('unhandledrejection', () => report('rejection'));
+  window.VeyletReportFailure = report;
+})();

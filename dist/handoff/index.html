@@ -16,6 +16,7 @@
     <script src="/supabase-public.js"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js"></script>
     <script src="/vendor/jszip-3.10.2.min.js"></script>
+    <script src="/place-fields.js"></script>
     <script src="/tour-player.js"></script>
   </head>
   <body class="client-surface">
@@ -116,6 +117,9 @@
             'The walkthrough service did not answer. Check the connection and try again.',
         });
       }
+      window.addEventListener('unhandledrejection', () => {
+        if (window.VeyletReportFailure) window.VeyletReportFailure('boot');
+      });
     </script>
   </body>
 </html>
