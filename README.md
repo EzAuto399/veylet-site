@@ -79,3 +79,35 @@ short commit, so a report of a problem can name the revision it saw.
 - **No analytics.** Deliberate. The only signals are the `/thanks` page, the owner's inbox
   and the health check.
 - **No public gallery.** Deliberate. Client tours are unlisted and revocable only.
+
+## 17 September, evening — deployed revision
+
+Deployed to Vercel production and verified live: all fourteen public files and assets are
+byte-identical to `dist/`, `scripts/health-check.sh` passes 25/25 against `veylet.com`,
+and the two behaviours that were broken earlier in the day are confirmed on the real URL —
+a stubbed tour package renders inside `/handoff` instead of dumping its HTML source, and
+the client page shows no operator chrome with the tour starting 271px from the top.
+
+Included in this revision, beyond the earlier fixes:
+
+- The client handoff page is a client page: brand, space name, one privacy line, then the
+  walkthrough.
+- A first sign-in says it creates the account, on `/account`, `/privacy`, `/terms` and the
+  homepage FAQ plus its JSON-LD answer.
+- Sign-in and form edge cases: malformed addresses refused before any request, provider
+  errors read per phase, rate limiting named, a resend button with a cooldown, the code
+  form explaining the link is device-bound.
+- The desk enforces the privacy promise: an address-shaped General location is rejected
+  (verified: three bad forms blocked, three good ones saved), revoking takes two taps, and
+  account deletion is offered with its consequence stated.
+- An expired session returns to sign-in with "nothing on this account was changed" instead
+  of a desk that looks broken.
+- Every page, including both player surfaces, admits a failure to start rather than
+  sitting silent.
+- `operator_applications` and `walkthrough_requests` stay unused by decision, recorded
+  above.
+- The app gained a store-and-forward publish queue and session renewal on launch, with six
+  new tests; the native suite is 149 tests, 0 failures.
+
+Not verified and not claimed: a real share token, a real sign-in, a physical capture
+publish, FormSubmit delivery, Square, and screen-reader acceptance.

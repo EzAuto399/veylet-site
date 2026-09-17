@@ -39,7 +39,7 @@ const info = {
   shortCommit: short,
   dirty,
   builtAt: new Date().toISOString(),
-  environment: process.env.VERCEL_ENV || 'local',
+  environment: process.env.VERCEL_ENV || (process.env.VERCEL ? 'preview' : 'local'),
 };
 
 writeFileSync(join(root, 'dist', 'build-info.json'), JSON.stringify(info, null, 2) + '\n');
