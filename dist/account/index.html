@@ -15,6 +15,7 @@
     <script src="/brand-host.js"></script>
     <script src="/supabase-public.js"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js"></script>
+    <script src="/place-fields.js"></script>
     <script src="/account.js" defer></script>
   </head>
   <body>
@@ -29,10 +30,16 @@
     </header>
     <main id="main" class="form-page wrap">
       <p class="eyebrow">ACCOUNT</p>
-      <h1>Sign in.</h1>
+      <h1 id="account-title">Sign in or create your account.</h1>
       <p class="intro">
-        Email link is the portal for website and iPhone. It does not approve an
-        operator, take payment, or share a tour with a client.
+        One email address is the whole account. If you have not used Veylet
+        before, your first sign-in creates the account — and creating an account
+        is not operator approval, not payment, and not a client tour.
+      </p>
+      <p class="contact-note">
+        Capturing spaces for clients needs assessment first:
+        <a href="/apply">apply to use Veylet</a>. Asking us to capture for you
+        needs no account at all: <a href="/request">request a walkthrough</a>.
       </p>
       <p id="account-status" class="contact-note" role="status"></p>
       <form id="account-sign-in" class="veylet-form">
@@ -47,15 +54,16 @@
             <option value="operator">A capture professional — I still Apply to use Veylet</option>
           </select>
         </label>
-        <button class="button" type="submit">
+        <button class="button" type="submit" id="account-sign-in-submit">
           Email me a sign-in link <span aria-hidden="true">↗</span>
         </button>
       </form>
       <form id="account-verify" class="veylet-form" hidden>
         <p class="contact-note">
           Sent to <strong id="account-verify-email"></strong>. Open the link in
-          that email, or paste the six-digit code from it here. The code and the
-          link both expire, and each works once.
+          that email, or type the six-digit code from it below. The link and the
+          code both expire, and each works once. The link only signs in the
+          device you asked from, so open it on this one.
         </p>
         <label>
           Six-digit code
@@ -72,6 +80,9 @@
         <button class="button button-ghost" type="button" id="account-verify-restart">
           Use a different email
         </button>
+        <button class="button button-ghost" type="button" id="account-verify-resend">
+          Send a new link
+        </button>
       </form>
       <section id="account-home" hidden>
         <p class="contact-note" id="account-who"></p>
@@ -81,6 +92,17 @@
             Copy account id
           </button>
         </p>
+        <div class="gate-note" id="account-gate">
+          <p class="gate-note-title" id="account-gate-title">This is an email account, not an operator licence.</p>
+          <p id="account-gate-body">
+            Capturing spaces for clients needs assessment of your device and a
+            practice capture first.
+          </p>
+          <p class="gate-note-actions">
+            <a class="button" href="/apply">Apply to use Veylet</a>
+            <a class="text-link" href="/request">Or ask us to capture</a>
+          </p>
+        </div>
         <ol class="dash-flow">
           <li>Save a space. Suburb or city only — no street address.</li>
           <li>Capture and reconstruct in Veylet Capture on the iPhone, signed in with this same email.</li>
@@ -110,6 +132,17 @@
           stops it working.
         </p>
         <button class="button button-ghost" type="button" id="account-sign-out">Sign out</button>
+        <p class="contact-note">
+          Want this account and its records deleted?
+          <a
+            id="account-delete"
+            href="mailto:yoda@yodalai.xyz?subject=Veylet%20account%20deletion%20request"
+            >Ask for deletion</a
+          >
+          — we reply from that address and confirm before anything is removed.
+          Removing the account does not delete tours a client is still holding a
+          live link to, so revoke those first.
+        </p>
       </section>
     </main>
     <footer class="wrap">

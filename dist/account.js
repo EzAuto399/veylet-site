@@ -11,6 +11,10 @@
   const verifyForm = document.getElementById('account-verify');
   const verifyEmail = document.getElementById('account-verify-email');
   const verifyRestart = document.getElementById('account-verify-restart');
+  const verifyResend = document.getElementById('account-verify-resend');
+  const signInSubmit = document.getElementById('account-sign-in-submit');
+  const gateTitle = document.getElementById('account-gate-title');
+  const gateBody = document.getElementById('account-gate-body');
   const spaceForm = document.getElementById('account-space');
   const home = document.getElementById('account-home');
   const who = document.getElementById('account-who');
@@ -27,6 +31,67 @@
   };
 
   let lastEmail = '';
+  let resendTimer = null;
+
+  const generalLocationProblem = (value) => window.VeyletPlace.generalLocationProblem(value);
+
+  /** Turn a provider error into something a person can act on. */
+  function signInProblem(error, phase) {
+    const message = String((error && (error.message || error.error_description)) || '').toLowerCase();
+    const status = (error && (error.status || error.code)) || '';
+    if (message.includes('rate') || message.includes('too many') || status === 429) {
+      return 'Too many sign-in emails have been requested for that address. Wait about an hour and try again — the six-digit code in the email you already have still works.';
+    }
+    // Address problems are about the request, not about a code the person never received.
+    if (message.includes('validate email') || message.includes('invalid format') || message.includes('unable to validate')) {
+      return 'That email address was rejected. Check it for a typo and try again.';
+    }
+    if (phase === 'code') {
+      return 'That code is wrong or has expired. Send a new link, or use the six-digit code from the newest email.';
+    }
+    return 'Could not send the link. Check the email address and try again.';
+  }
+
+  function startResendCooldown(seconds) {
+    if (!verifyResend) return;
+    let remaining = seconds;
+    verifyResend.disabled = true;
+    verifyResend.textContent = `Send a new link (${remaining}s)`;
+    if (resendTimer) clearInterval(resendTimer);
+    resendTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(resendTimer);
+        resendTimer = null;
+        verifyResend.disabled = false;
+        verifyResend.textContent = 'Send a new link';
+        return;
+      }
+      verifyResend.textContent = `Send a new link (${remaining}s)`;
+    }, 1000);
+  }
+
+  function stopResendCooldown() {
+    if (resendTimer) clearInterval(resendTimer);
+    resendTimer = null;
+    if (verifyResend) {
+      verifyResend.disabled = false;
+      verifyResend.textContent = 'Send a new link';
+    }
+  }
+
+  async function requestLink(email) {
+    const result = await settled(
+      supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: 'https://veylet.com/auth/callback',
+          data: { role_intent: 'operator' },
+        },
+      })
+    );
+    return result.error || (result.value && result.value.error) || (result.timedOut ? new Error('timeout') : null);
+  }
 
   function setStatus(value) {
     if (statusEl) statusEl.textContent = value;
@@ -94,7 +159,9 @@
     }
     if (!properties || !properties.length) {
       const li = document.createElement('li');
-      li.textContent = 'No spaces yet. Save a name above — suburb or city only.';
+      li.className = 'dash-empty';
+      li.textContent =
+        'Nothing here yet. A space is just a name you will recognise — the property, venue or room you are about to capture. Save one above, then send it a tour from Veylet Capture on the iPhone.';
       list.append(li);
       return;
     }
@@ -153,7 +220,24 @@
               revoke.type = 'button';
               revoke.className = 'button button-ghost';
               revoke.textContent = 'Revoke';
+              // Revoking kills a link a client may be holding, so it takes two taps and
+              // the second one has to come quickly.
+              let armed = false;
+              let disarm = null;
               revoke.addEventListener('click', async () => {
+                if (!armed) {
+                  armed = true;
+                  revoke.textContent = 'Tap again to revoke';
+                  setStatus(
+                    'Revoking stops the client link working straight away. Tap again to confirm.'
+                  );
+                  disarm = setTimeout(() => {
+                    armed = false;
+                    revoke.textContent = 'Revoke';
+                  }, 6000);
+                  return;
+                }
+                if (disarm) clearTimeout(disarm);
                 setStatus('Revoking handoff…');
                 const result = await settled(
                   supabase.rpc('revoke_tour_share', { p_tour_id: tour.id })
@@ -232,6 +316,11 @@
     if (verifyForm) verifyForm.hidden = true;
     if (home) home.hidden = false;
     if (who) who.textContent = session.user.email || 'signed in';
+    if (gateTitle) gateTitle.textContent = 'This is an email account, not an operator licence.';
+    if (gateBody) {
+      gateBody.textContent =
+        'Capturing spaces for clients needs assessment of your device and a practice capture first. Until that is approved you can save spaces and preview your own tours, but nothing reaches a client.';
+    }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
     setStatus('Signed in. This is not operator approval, payment, or a shared client tour.');
     if (location.pathname.startsWith('/auth/')) {
@@ -268,23 +357,21 @@
     const form = new FormData(signInForm);
     const email = String(form.get('email') || '').trim();
     const role_intent = String(form.get('role_intent') || 'owner');
-    setStatus('Sending sign-in email…');
-    const result = await settled(
-      supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: 'https://veylet.com/auth/callback',
-          data: { role_intent },
-        },
-      })
-    );
-    if (result.timedOut) {
-      setStatus('No answer from the sign-in service. Check the connection and try again.');
+    const shapeOk = /^[^\s@]+@[^\s@.]+\.[^\s@]{2,}$/.test(email);
+    if (!shapeOk || email.length > 200) {
+      setStatus('That does not look like an email address. Check it for a typo and try again.');
       return;
     }
-    const error = result.error || (result.value && result.value.error);
+    setStatus('Sending sign-in email…');
+    if (signInSubmit) signInSubmit.disabled = true;
+    const error = await requestLink(email, role_intent);
+    if (signInSubmit) signInSubmit.disabled = false;
     if (error) {
-      setStatus('Could not send the link. Check the email address and try again.');
+      setStatus(
+        error.message === 'timeout'
+          ? 'No answer from the sign-in service. Check the connection and try again.'
+          : signInProblem(error, 'send')
+      );
       return;
     }
     lastEmail = email;
@@ -295,12 +382,35 @@
       verifyForm.hidden = false;
       verifyForm.querySelector('input[name="token"]')?.focus();
     }
+    startResendCooldown(45);
     setStatus(
-      'Check your email. Open the link there, or paste the six-digit code below — some mail scanners open links before you do.'
+      'Check your email. Open the link on this device, or type the six-digit code below — some mail scanners open links before you do. If this is your first time, that link creates the account.'
     );
   });
 
+  verifyResend?.addEventListener('click', async () => {
+    if (!lastEmail) {
+      setStatus('Enter the email address you want the link sent to.');
+      return;
+    }
+    setStatus('Sending another sign-in email…');
+    verifyResend.disabled = true;
+    const error = await requestLink(lastEmail);
+    if (error) {
+      setStatus(
+        error.message === 'timeout'
+          ? 'No answer from the sign-in service. Check the connection and try again.'
+          : signInProblem(error, 'send')
+      );
+      stopResendCooldown();
+      return;
+    }
+    startResendCooldown(45);
+    setStatus('Another link is on its way. Only the newest email works.');
+  });
+
   verifyRestart?.addEventListener('click', () => {
+    stopResendCooldown();
     if (signInForm) {
       signInForm.dataset.awaitingCode = 'no';
       signInForm.hidden = false;
@@ -323,7 +433,11 @@
     );
     const error = result.error || (result.value && result.value.error);
     if (result.timedOut || error) {
-      setStatus('That code did not work. Check the newest email, or send a new link.');
+      setStatus(
+        result.timedOut
+          ? 'No answer from the sign-in service. Check the connection and try again.'
+          : signInProblem(error, 'code')
+      );
       return;
     }
     if (signInForm) signInForm.dataset.awaitingCode = 'no';
@@ -334,12 +448,24 @@
   spaceForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(spaceForm);
+    const title = String(form.get('title') || '').trim();
+    const locationGeneral = String(form.get('location_general') || '').trim();
+    if (!title) {
+      setStatus('Give the space a name so you can recognise it later.');
+      return;
+    }
+    const locationProblem = generalLocationProblem(locationGeneral);
+    if (locationProblem) {
+      setStatus(locationProblem);
+      spaceForm.querySelector('input[name="location_general"]')?.focus();
+      return;
+    }
     setStatus('Saving space…');
     const result = await settled(
       supabase.rpc('create_space', {
-        p_title: String(form.get('title') || '').trim(),
+        p_title: title,
         p_category: String(form.get('category') || '').trim() || null,
-        p_location_general: String(form.get('location_general') || '').trim() || null,
+        p_location_general: locationGeneral || null,
       })
     );
     const error = result.error || (result.value && result.value.error);

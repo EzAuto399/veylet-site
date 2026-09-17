@@ -13,6 +13,7 @@
     <link rel="icon" href="../media/studio-avatar.png" />
     <link rel="stylesheet" href="../style.css" />
     <script src="/brand-host.js"></script>
+    <script src="/place-fields.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -99,10 +100,29 @@
           Send enquiry <span aria-hidden="true">↗</span>
         </button>
       </form>
+      <p class="contact-note" id="request-status" role="status"></p>
       <p class="contact-note">
-        Goes to yoda@yodalai.xyz. Leave out access codes, identity documents and
-        private client images.
+        Goes to yoda@yodalai.xyz. Leave out access codes, street numbers, identity
+        documents and private client images.
       </p>
+      <script>
+        (() => {
+          const form = document.querySelector('form.veylet-form');
+          const status = document.getElementById('request-status');
+          const location = form?.querySelector('input[name="location"]');
+          const place = window.VeyletPlace;
+          if (!form || !place) return;
+          place.guardDoubleSubmit(form, status);
+          form.addEventListener('submit', (event) => {
+            const problem = place.briefLocationProblem(location?.value);
+            if (!problem) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            if (status) status.textContent = problem;
+            location?.focus();
+          }, true);
+        })();
+      </script>
     </main>
     <footer class="wrap">
       <a class="brand" href="/"

@@ -23,6 +23,7 @@
     <link rel="icon" href="../media/studio-avatar.png" />
     <link rel="stylesheet" href="../style.css" />
     <script src="/brand-host.js"></script>
+    <script src="/place-fields.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -106,11 +107,18 @@
           Submit application <span aria-hidden="true">↗</span>
         </button>
       </form>
+      <p class="contact-note" id="apply-status" role="status"></p>
       <p class="contact-note">
         Goes to yoda@yodalai.xyz. Leave out access codes, identity documents and
-        private client images. First submission may need a one-time email
-        confirmation from FormSubmit.
+        private client images.
       </p>
+      <script>
+        (() => {
+          const form = document.querySelector('form.veylet-form');
+          const status = document.getElementById('apply-status');
+          if (form && window.VeyletPlace) window.VeyletPlace.guardDoubleSubmit(form, status);
+        })();
+      </script>
     </main>
     <footer class="wrap">
       <a class="brand" href="/"
