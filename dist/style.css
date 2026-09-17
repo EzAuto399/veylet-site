@@ -1073,11 +1073,6 @@ nav a:hover,
 .hero .intro {
   max-width: 530px;
 }
-.hero-actions {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 12px;
-}
 .hero-note {
   font-size: 14px;
   max-width: 370px;
@@ -1766,4 +1761,199 @@ footer > span {
 .build-tag {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* The tour is the product, so it sits in a shell rather than a bare iframe. */
+.tour-frame-wrap {
+  margin: 18px 0 26px;
+}
+.tour-frame-shell {
+  background: rgba(16, 35, 29, 0.06);
+  border: 1px solid rgba(16, 35, 29, 0.1);
+  border-radius: 18px;
+  padding: 10px;
+}
+.tour-frame-shell .tour-frame {
+  margin: 0;
+  border-radius: 10px;
+  background: #10231d;
+  height: min(74vh, 680px);
+}
+.tour-meta {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  margin: 6px 0 16px;
+}
+.tour-meta[hidden] {
+  display: none;
+}
+@media (max-width: 800px) {
+  .tour-frame-shell {
+    padding: 7px;
+    border-radius: 14px;
+  }
+  .tour-frame-shell .tour-frame {
+    border-radius: 8px;
+    height: 62vh;
+    min-height: 340px;
+  }
+}
+
+/* Mobile hero order: the film is the only thing that shows what Veylet makes, so
+   it leads on small screens. The DOM keeps copy first for screen readers. */
+@media (max-width: 800px) {
+  .hero {
+    display: flex;
+    flex-direction: column;
+  }
+  .hero-film {
+    order: -1;
+    margin-bottom: 28px;
+    max-width: 100%;
+    justify-self: stretch;
+  }
+}
+
+/* Two doors read as a choice only when they sit side by side. */
+@media (min-width: 801px) {
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+  }
+  .hero-actions .button {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* Mobile: the film leads, but as a teaser, not the whole viewport. Cropped to a
+   landscape band so the headline and both doors still sit above the fold. */
+@media (max-width: 800px) {
+  .hero-film {
+    justify-self: stretch;
+    max-width: 100%;
+  }
+  .hero-film video {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+}
+
+/* Mobile vertical rhythm: film, headline, one line of copy and both doors all fit
+   the first screen. Nothing here changes desktop. */
+@media (max-width: 800px) {
+  .hero {
+    padding-top: 4px;
+  }
+  .hero-film {
+    margin-bottom: 18px;
+  }
+  .hero-film video {
+    aspect-ratio: 16 / 9;
+  }
+  .hero h1 {
+    font-size: clamp(38px, 11vw, 46px);
+    line-height: 1.05;
+  }
+  .hero .intro {
+    margin-top: 12px;
+    max-width: 46ch;
+  }
+  .hero-actions {
+    margin-top: 18px;
+    gap: 10px;
+  }
+  .hero-note {
+    margin-top: 14px;
+    max-width: 100%;
+  }
+}
+
+/* Desk: state pills and a handoff row, so an operator reads status at a glance. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.5);
+}
+.pill-good {
+  border-color: rgba(16, 35, 29, 0.28);
+  color: var(--ink);
+  background: rgba(198, 220, 201, 0.5);
+}
+.pill-busy {
+  border-color: rgba(16, 35, 29, 0.2);
+  color: var(--ink);
+}
+.tour-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.tour-when {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+.tour-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.tour-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tour-action:hover {
+  border-color: rgba(16, 35, 29, 0.4);
+}
+.tour-action-primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.tour-action-quiet {
+  color: var(--muted);
+}
+
+/* Grouping a long form by intent, so it reads as three short asks not thirteen fields. */
+.form-group {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+  padding: 24px 0 0;
+  display: grid;
+  gap: 18px;
+}
+.form-group legend {
+  padding: 0;
+  font-size: 13px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
 }

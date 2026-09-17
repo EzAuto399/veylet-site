@@ -10,13 +10,13 @@
     if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close();
   });
   document.querySelector('#study-enquire').addEventListener('click', () => dialog.close());
-  // Name the revision this page is serving, so a report of a problem can say which one.
+  // Record the served revision on the document rather than in the customer's view.
+  // Anyone debugging can read it; nobody browsing has to look at it.
   fetch('build-info.json').then(r => r.ok ? r.json() : null).then(info => {
     if (!info || !info.shortCommit || info.shortCommit === 'unknown') return;
-    const tag = document.getElementById('build-tag');
-    if (!tag) return;
-    tag.textContent = '· ' + info.shortCommit + (info.dirty ? '+' : '');
-    tag.title = 'Served revision ' + info.shortCommit + (info.builtAt ? ', built ' + info.builtAt : '');
+    document.documentElement.dataset.veyletBuild = info.shortCommit;
+    const tag = document.getElementById('veylet-build');
+    if (tag) tag.setAttribute('content', info.shortCommit + (info.builtAt ? ' ' + info.builtAt : ''));
   }).catch(() => { /* the marker is a convenience, never a blocker */ });
 
   fetch('collection.json').then(response => {

@@ -23,11 +23,12 @@
   const list = document.getElementById('account-properties');
   const signOut = document.getElementById('account-sign-out');
 
-  const TOUR_LABEL = {
-    draft: 'Private draft — not shared',
-    processing: 'Processing — not shared',
-    ready: 'Ready on this account — create a handoff to share',
-    revoked: 'Revoked',
+  // A tour's state belongs in a pill, not in a sentence nobody reads twice.
+  const TOUR_STATE = {
+    draft: { label: 'Draft', tone: 'quiet' },
+    processing: { label: 'Processing', tone: 'busy' },
+    ready: { label: 'Ready', tone: 'good' },
+    revoked: { label: 'Revoked', tone: 'quiet' },
   };
 
   let lastEmail = '';
@@ -143,11 +144,30 @@
     setStatus(message);
   }
 
-  function tourLine(tour) {
-    const label = TOUR_LABEL[tour.status] || tour.status;
-    const when = tour.created_at ? new Date(tour.created_at).toISOString().slice(0, 10) : '';
-    const share = tour.share_token ? 'handoff on' : 'not handed off';
-    return [label, share, when].filter(Boolean).join(' · ');
+  function pill(text, tone) {
+    const span = document.createElement('span');
+    span.className = 'pill' + (tone ? ' pill-' + tone : '');
+    span.textContent = text;
+    return span;
+  }
+
+  function tourMeta(tour) {
+    const wrap = document.createElement('p');
+    wrap.className = 'tour-meta-row';
+    const state = TOUR_STATE[tour.status] || { label: tour.status, tone: 'quiet' };
+    wrap.append(pill(state.label, state.tone));
+    wrap.append(pill(tour.share_token ? 'Handoff on' : 'Not handed off', tour.share_token ? 'good' : 'quiet'));
+    if (tour.created_at) {
+      const when = document.createElement('span');
+      when.className = 'tour-when';
+      when.textContent = new Date(tour.created_at).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+      wrap.append(when);
+    }
+    return wrap;
   }
 
   function handoffUrl(token) {
@@ -227,22 +247,23 @@
         const ul = document.createElement('ul');
         for (const tour of spaceTours) {
           const item = document.createElement('li');
-          const line = document.createElement('p');
-          line.textContent = tourLine(tour);
-          item.append(line);
+          item.append(tourMeta(tour));
           if (tour.status === 'ready' || tour.status === 'draft') {
             const actions = document.createElement('p');
+            actions.className = 'tour-actions-row';
             const preview = document.createElement('a');
             preview.href = '/play/?id=' + encodeURIComponent(tour.id);
             preview.textContent = 'Preview';
+            preview.className = 'tour-action';
             actions.append(preview);
             if (tour.share_token) {
               const link = document.createElement('a');
               link.href = handoffUrl(tour.share_token);
               link.textContent = 'Open handoff';
+              link.className = 'tour-action';
               const copy = document.createElement('button');
               copy.type = 'button';
-              copy.className = 'button button-ghost';
+              copy.className = 'tour-action';
               copy.textContent = 'Copy link';
               copy.addEventListener('click', async () => {
                 const url = handoffUrl(tour.share_token);
@@ -256,7 +277,7 @@
               });
               const revoke = document.createElement('button');
               revoke.type = 'button';
-              revoke.className = 'button button-ghost';
+              revoke.className = 'tour-action tour-action-quiet';
               revoke.textContent = 'Revoke';
               // Revoking kills a link a client may be holding, so it takes two taps and
               // the second one has to come quickly.
@@ -295,7 +316,7 @@
             } else {
               const enable = document.createElement('button');
               enable.type = 'button';
-              enable.className = 'button';
+              enable.className = 'tour-action tour-action-primary';
               enable.textContent = 'Create client handoff';
               enable.addEventListener('click', async () => {
                 setStatus('Creating handoff…');

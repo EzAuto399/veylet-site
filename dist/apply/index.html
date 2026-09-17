@@ -70,34 +70,44 @@
           Service area
           <input name="service_area" required maxlength="200" />
         </label>
-        <label>
-          Exact phone or tablet model
-          <input name="device_model" required maxlength="200" />
-        </label>
-        <label>
-          Operating system version
-          <input name="os_version" required maxlength="80" />
-        </label>
-        <label>
-          LiDAR capability and other equipment
-          <textarea name="equipment" required maxlength="1000" rows="3"></textarea>
-        </label>
-        <label>
-          Interior or space capture experience
-          <textarea name="experience" required maxlength="2000" rows="4"></textarea>
-        </label>
-        <label>
-          Portfolio link (only work you have permission to share)
-          <input name="portfolio" type="url" maxlength="400" />
-        </label>
-        <label>
-          Typical availability
-          <input name="availability" maxlength="200" />
-        </label>
-        <label>
-          Why you want to work with Veylet
-          <textarea name="why" maxlength="1500" rows="3"></textarea>
-        </label>
+        <fieldset class="form-group">
+          <legend>Your capture equipment</legend>
+          <p class="contact-note">
+            Veylet Capture needs a rear LiDAR iPhone or iPad. Tell us the exact
+            device so we can check it rather than guess.
+          </p>
+          <label>
+            Exact phone or tablet model
+            <input name="device_model" required maxlength="200" />
+          </label>
+          <label>
+            Operating system version
+            <input name="os_version" required maxlength="80" />
+          </label>
+          <label>
+            LiDAR capability and other equipment
+            <textarea name="equipment" required maxlength="1000" rows="3"></textarea>
+          </label>
+        </fieldset>
+        <fieldset class="form-group">
+          <legend>Your practice</legend>
+          <label>
+            Interior or space capture experience
+            <textarea name="experience" required maxlength="2000" rows="4"></textarea>
+          </label>
+          <label>
+            Portfolio link (only work you have permission to share)
+            <input name="portfolio" type="url" maxlength="400" />
+          </label>
+          <label>
+            Typical availability
+            <input name="availability" maxlength="200" />
+          </label>
+          <label>
+            Why you want to work with Veylet
+            <textarea name="why" maxlength="1500" rows="3"></textarea>
+          </label>
+        </fieldset>
         <label class="check">
           <input type="checkbox" name="assessment_understood" value="yes" required />
           I understand assessment and a practice capture come before approval.
