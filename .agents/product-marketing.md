@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v1
+**Document version:** v2
 **Last updated:** 2026-09-17
 
 > **Provenance.** Auto-drafted from the live site (`~/veylet-site/dist/`), the product
@@ -266,12 +266,32 @@ walkthrough enquiry via `/request`; sign-in at `/account` for existing operators
 analytics installed (deliberately). Enquiries arrive by email to
 yoda@yodalai.xyz via FormSubmit, which is itself unverified end-to-end.
 
-**Known structural constraint:** the iPhone app is currently owner-only — a
-Personal-Team development profile covering four devices, no TestFlight or App Store
-path. Until that changes, "operators apply, pay, capture" cannot serve a second
-operator regardless of marketing.
+**Known structural constraints (audited 2026-09-17, read-only):**
+1. **The app cannot reach a second person.** Personal-Team development profile,
+   wildcard App ID, four provisioned devices, no TestFlight or App Store record, no
+   export pipeline, no CI for iOS. `build-native.sh` explicitly never touches
+   provisioning.
+2. **The app on the phone does not contain the hosted feature.** The installed build
+   was compiled 15 Sep; the hosted identity/publish code landed 16–17 Sep and its
+   `hosted-supabase.json` is absent from the Release-iphoneos bundle, so hosted sign-in
+   on the device reports "not configured in this build".
+3. **The app cannot produce a tour package.** It has no code that emits
+   `tour.html`/`manifest.json`/voxel data; the Mac/website pipeline does that and the
+   package is hand-imported. Capture itself is bound to a paired loopback studio
+   session on the owner's Mac.
+4. **Publish is mock-only.** The upload path's only coverage is simulator unit tests
+   against a mock transport; `URLSessionHostedTransport` is never exercised in a test.
+   It has never run against the real backend.
+5. **App sign-in has two live defects**: the magic-link path never sends `state` that
+   its own callback handler requires, and there is no refresh exchange, so a session
+   dies at token expiry (~1 hour).
+
+Until 1–3 change, "operators apply, pay, capture" cannot serve a second operator
+regardless of marketing, and the honest conversion action today is a **managed
+enquiry** (`/request`), not an operator application.
 
 ## Changelog
+- v2 (2026-09-17) — Added the audited iOS constraints in Goals: the app is owner-only, the installed build predates the hosted feature, and publish has never run against the real backend.
 - v1 (2026-09-17) — Initial context, auto-drafted from the live site and the product
   workspace docs after a read-only audit of both. Pricing marked internal and
   unpublished; competitive set taken from provider pages read 2026-09-13; all proof
