@@ -1761,3 +1761,9 @@ footer > span {
   padding: 18px 0;
   border-top: 1px solid var(--line);
 }
+
+/* Revision marker: small, quiet, and only useful when something is wrong. */
+.build-tag {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}

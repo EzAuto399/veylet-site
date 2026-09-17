@@ -111,6 +111,38 @@
     return result;
   }
 
+  /**
+   * A request can fail because the session died rather than because the call was
+   * wrong. Those need sign-in, not a retry, so they are classified separately.
+   */
+  function sessionGone(result) {
+    const candidates = [result && result.error, result && result.value && result.value.error];
+    return candidates.some((error) => {
+      if (!error) return false;
+      const text = String(error.message || error.error_description || '').toLowerCase();
+      const code = String(error.code || error.status || '');
+      return (
+        code === '401' ||
+        code === 'PGRST301' ||
+        text.includes('jwt expired') ||
+        text.includes('invalid jwt') ||
+        text.includes('token is expired') ||
+        text.includes('not signed in') ||
+        text.includes('refresh token')
+      );
+    });
+  }
+
+  function showSignedOut(message) {
+    if (signInForm) {
+      signInForm.dataset.awaitingCode = 'no';
+      signInForm.hidden = false;
+    }
+    if (verifyForm) verifyForm.hidden = true;
+    if (home) home.hidden = true;
+    setStatus(message);
+  }
+
   function tourLine(tour) {
     const label = TOUR_LABEL[tour.status] || tour.status;
     const when = tour.created_at ? new Date(tour.created_at).toISOString().slice(0, 10) : '';
@@ -151,9 +183,13 @@
       list.append(li);
       return;
     }
+    if (sessionGone(props) || sessionGone(tours)) {
+      showSignedOut('Your sign-in has expired. Enter your email for a new link — nothing on this account was changed.');
+      return;
+    }
     if (propsResult.error) {
       const li = document.createElement('li');
-      li.textContent = 'Spaces could not load. Sign in again and retry.';
+      li.textContent = 'Spaces could not load. Reload the page and try again.';
       list.append(li);
       return;
     }
@@ -209,11 +245,13 @@
               copy.className = 'button button-ghost';
               copy.textContent = 'Copy link';
               copy.addEventListener('click', async () => {
+                const url = handoffUrl(tour.share_token);
                 try {
-                  await navigator.clipboard.writeText(handoffUrl(tour.share_token));
+                  await navigator.clipboard.writeText(url);
                   setStatus('Handoff link copied. Send it to your client.');
                 } catch {
-                  setStatus(handoffUrl(tour.share_token));
+                  // Clipboard can be blocked; show the link so it can still be selected.
+                  setStatus(url);
                 }
               });
               const revoke = document.createElement('button');
@@ -242,9 +280,13 @@
                 const result = await settled(
                   supabase.rpc('revoke_tour_share', { p_tour_id: tour.id })
                 );
+                if (sessionGone(result)) {
+                  showSignedOut('Your sign-in has expired, so nothing was revoked. Sign in again and retry.');
+                  return;
+                }
                 setStatus(
                   result.timedOut || result.error || (result.value && result.value.error)
-                    ? 'Could not revoke. Try again while signed in.'
+                    ? 'Could not revoke. Check the connection and try again.'
                     : 'Handoff revoked. That link no longer opens.'
                 );
                 if (!result.timedOut && !result.error) await loadDesk(supabase);
@@ -262,8 +304,12 @@
                 );
                 const data = result.value && result.value.data;
                 const error = (result.value && result.value.error) || result.error;
+                if (sessionGone(result)) {
+                  showSignedOut('Your sign-in has expired, so no link was created. Sign in again and retry.');
+                  return;
+                }
                 if (result.timedOut || error || !data) {
-                  setStatus('Could not create a handoff. Try again while signed in.');
+                  setStatus('Could not create a handoff. Check the connection and try again.');
                   return;
                 }
                 setStatus('Handoff link ready. Copy it from this space.');
@@ -348,7 +394,11 @@
     await showSession(data?.value?.data?.session || null);
   }
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' && !session) {
+      showSignedOut('Signed out. Enter your email for a new sign-in link.');
+      return;
+    }
     showSession(session);
   });
 
@@ -469,8 +519,12 @@
       })
     );
     const error = result.error || (result.value && result.value.error);
+    if (sessionGone(result)) {
+      showSignedOut('Your sign-in has expired, so the space was not saved. Sign in again and retry.');
+      return;
+    }
     if (result.timedOut || error) {
-      setStatus('Could not save the space. Stay signed in and try again.');
+      setStatus('Could not save the space. Check the connection and try again.');
       return;
     }
     spaceForm.reset();
