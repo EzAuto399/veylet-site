@@ -1,6 +1,6 @@
 # Product Marketing Context
 
-**Document version:** v2
+**Document version:** v4
 **Last updated:** 2026-09-17
 
 > **Provenance.** Auto-drafted from the live site (`~/veylet-site/dist/`), the product
@@ -271,10 +271,11 @@ yoda@yodalai.xyz via FormSubmit, which is itself unverified end-to-end.
    wildcard App ID, four provisioned devices, no TestFlight or App Store record, no
    export pipeline, no CI for iOS. `build-native.sh` explicitly never touches
    provisioning.
-2. **The app on the phone does not contain the hosted feature.** The installed build
-   was compiled 15 Sep; the hosted identity/publish code landed 16–17 Sep and its
-   `hosted-supabase.json` is absent from the Release-iphoneos bundle, so hosted sign-in
-   on the device reports "not configured in this build".
+2. ~~**The app on the phone does not contain the hosted feature.**~~ — **fixed
+   2026-09-17**: a signed Release-iphoneos build (`0.1.0` build 12, compiled 19:10)
+   containing `hosted-supabase.json` was installed on the paired iPhone 17 Pro Max and
+   launched. The capture library in `Documents/Captures` survived the reinstall. Not yet
+   exercised: a real sign-in and a real publish from the device.
 3. **The app cannot produce a tour package.** It has no code that emits
    `tour.html`/`manifest.json`/voxel data; the Mac/website pipeline does that and the
    package is hand-imported. Capture itself is bound to a paired loopback studio
@@ -282,15 +283,18 @@ yoda@yodalai.xyz via FormSubmit, which is itself unverified end-to-end.
 4. **Publish is mock-only.** The upload path's only coverage is simulator unit tests
    against a mock transport; `URLSessionHostedTransport` is never exercised in a test.
    It has never run against the real backend.
-5. **App sign-in has two live defects**: the magic-link path never sends `state` that
-   its own callback handler requires, and there is no refresh exchange, so a session
-   dies at token expiry (~1 hour).
+5. ~~**App sign-in has two live defects**~~ — **fixed 2026-09-17** in commit `6ad319d`:
+   the email return is now accepted without a state the app never sent (mismatches are
+   still rejected), and a refresh exchange renews the session inside a 60-second skew
+   window. Seven new tests; full suite 143 passing. Still **not device-verified**.
 
 Until 1–3 change, "operators apply, pay, capture" cannot serve a second operator
 regardless of marketing, and the honest conversion action today is a **managed
 enquiry** (`/request`), not an operator application.
 
 ## Changelog
+- v4 (2026-09-17) — Recorded the device build that now contains the hosted config and is installed on the phone; capture library verified intact after reinstall.
+- v3 (2026-09-17) — Marked the two app sign-in defects fixed after commit 6ad319d, with seven new tests; noted they remain device-unverified.
 - v2 (2026-09-17) — Added the audited iOS constraints in Goals: the app is owner-only, the installed build predates the hosted feature, and publish has never run against the real backend.
 - v1 (2026-09-17) — Initial context, auto-drafted from the live site and the product
   workspace docs after a read-only audit of both. Pricing marked internal and
