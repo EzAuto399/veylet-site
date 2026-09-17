@@ -32,7 +32,7 @@ The ChatGPT Sites project in `.openai/hosting.json` is the **legacy** public URL
 
 The 14 September audience-expansion revision passed static browser checks at 320, 390, 768 and 1440 pixels: four audience groups, no horizontal overflow or card overlap, working internal anchors, complete managed enquiry fields and unchanged qualification language in the broadened partner brief. Desktop and 390-pixel audience layouts were visually inspected. Evidence is in the product workspace's ignored `.local/audience-expansion/public-verification.json` and screenshots. This is local static evidence, not a deployment or customer acceptance check.
 
-## 17 September hardening revision (prepared locally, not yet published)
+## 17 September hardening revision (deployed)
 
 A read-only walk of the published site found and this revision fixes:
 
@@ -44,5 +44,7 @@ A read-only walk of the published site found and this revision fixes:
 6. **Dead navigation and stale copy.** `/apply`'s "Capture partners" and `/request`'s "Start here" pointed at `#partners` and `#enquire`, neither of which existed; both now go to the homepage route section. The desk no longer claims "There is no public client link yet" or "not a 3D player yet", and `/privacy` no longer says phone upload is not live.
 7. **Concept campaign and route clarity.** All nine concept stills are now reachable (one 3:4 lead plus an eight-still rail), and the homepage explains the apply/request → assessment → pay → capture → handoff route, including that payment is invoiced until checkout is proven.
 
-Local evidence for this revision: `.qa-review/verify_local.py` (36 page/viewport combinations, zero overflow, zero console errors, zero page errors, no tap target under 44px), `.qa-review/player_scenes.py` (stubbed handoff: renders, token miss, service error, timeout), `.qa-review/account_states.py` (stubbed sign-in: initial, code entry, wrong code, signed in). These are local checks, not a deployment, customer acceptance or real-token verification. The live site still serves the previous revision until this is deployed.
+Local evidence for this revision: `.qa-review/verify_local.py` (36 page/viewport combinations, zero overflow, zero console errors, zero page errors, no tap target under 44px), `.qa-review/player_scenes.py` (stubbed handoff: renders, token miss, service error, timeout), `.qa-review/account_states.py` (stubbed sign-in: initial, code entry, wrong code, signed in), and `.qa-review/blob_mime_check.py` (the same stubbed package against live and local).
+
+Deployed 17 September to Vercel production (`vercel --prod`, deployment `peo2dzEQwk4zdHrTgKYhnozsJXER`), aliased to `veylet.com`. After deploy, live checks confirmed: every page and asset byte-identical to `dist/` except the Cloudflare email rewrite on `/apply`, `/request`, `/privacy`, `/terms`, `/thanks`; `/play.js` and `/handoff.js` gone (404); a stubbed handoff renders `RECONSTRUCTED TOUR RENDERED` where it previously dumped source text; and no horizontal overflow at 390 or 1440. Still unverified, because they need owner credentials or the device: real share tokens, real sign-in, physical iPhone upload, FormSubmit delivery, Square.
 
