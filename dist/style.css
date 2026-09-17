@@ -1707,3 +1707,22 @@ footer > span {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* Client handoff: the walkthrough is the page. No operator chrome, no
+   "Sign in" invitation for someone who will never have an account. */
+.client-header {
+  justify-content: flex-start;
+}
+.tour-frame-lead {
+  margin-top: 10px;
+  height: min(74vh, 680px);
+}
+@media (max-width: 800px) {
+  .client-surface .form-page {
+    padding-bottom: 24px;
+  }
+  .tour-frame-lead {
+    height: 62vh;
+    min-height: 340px;
+  }
+}

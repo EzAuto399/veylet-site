@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Handoff — Veylet</title>
+    <title>Private walkthrough — Veylet</title>
     <meta name="robots" content="noindex,nofollow" />
     <meta
       name="description"
@@ -18,37 +18,34 @@
     <script src="/vendor/jszip-3.10.2.min.js"></script>
     <script src="/tour-player.js"></script>
   </head>
-  <body>
+  <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
-    <header class="wrap">
+    <header class="wrap client-header">
       <a class="brand" href="/" aria-label="Veylet Studio home"
         ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
       >
-      <nav aria-label="Main">
-        <a href="/account">Sign in</a>
-      </nav>
     </header>
     <main id="main" class="form-page wrap">
       <p class="eyebrow">PRIVATE WALKTHROUGH</p>
       <h1 id="handoff-title">Private walkthrough</h1>
+      <p class="contact-note" id="handoff-status" role="status"></p>
+      <iframe
+        id="tour-frame"
+        class="tour-frame tour-frame-lead"
+        title="Reconstructed walkthrough"
+        hidden
+        allow="fullscreen"
+      ></iframe>
       <p class="intro" id="handoff-body">
         Unlisted and not indexed. This link opens the reconstructed walkthrough
         while the operator leaves it active.
       </p>
-      <p class="contact-note" id="handoff-status" role="status"></p>
       <p class="tour-actions" id="tour-actions" hidden>
         <button class="button button-ghost" type="button" id="tour-retry">
           Try again
         </button>
         <a class="text-link" href="/request">Ask Veylet Studio for help</a>
       </p>
-      <iframe
-        id="tour-frame"
-        class="tour-frame"
-        title="Reconstructed walkthrough"
-        hidden
-        allow="fullscreen"
-      ></iframe>
       <p class="contact-note" data-tour-help hidden>
         This is a private link, not a public gallery. It stops working when the
         operator revokes it.
@@ -74,7 +71,11 @@
 
       if (token.length < 16) {
         window.VeyletPlayer.showFailure(
-          { ...els, actions: document.getElementById('tour-actions'), retry: document.getElementById('tour-retry') },
+          {
+            ...els,
+            actions: document.getElementById('tour-actions'),
+            retry: document.getElementById('tour-retry'),
+          },
           {
             heading: 'This handoff is not available.',
             body: 'The link is missing or incomplete. Ask the operator to send the full link again.',
