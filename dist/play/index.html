@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="/style.css" />
     <script src="/brand-host.js"></script>
     <script src="/supabase-public.js"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
+    <script src="/vendor/jszip-3.10.2.min.js"></script>
+    <script src="/tour-player.js"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -23,11 +26,18 @@
     </header>
     <main id="main" class="form-page wrap">
       <p class="eyebrow">OWNER PREVIEW</p>
-      <h1 id="play-title">Your walkthrough</h1>
+      <h1 id="play-title">Owner preview</h1>
       <p class="intro" id="play-body">
-        Signed-in preview. Clients still need a private handoff link.
+        Signed-in preview of a tour on this account. Clients never use this
+        page — they get a private handoff link instead.
       </p>
       <p class="contact-note" id="play-status" role="status"></p>
+      <p class="tour-actions" id="tour-actions" hidden>
+        <button class="button button-ghost" type="button" id="tour-retry">
+          Try again
+        </button>
+        <a class="text-link" id="play-signin" href="/account">Sign in</a>
+      </p>
       <iframe
         id="tour-frame"
         class="tour-frame"
@@ -35,12 +45,78 @@
         hidden
         allow="fullscreen"
       ></iframe>
+      <p class="contact-note" data-tour-help hidden>
+        Clients never use this page. Send them the private handoff link from
+        your desk instead.
+      </p>
     </main>
     <footer class="wrap">
       <a class="brand" href="/"
         ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
       >
+      <nav aria-label="Legal">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </nav>
     </footer>
-    <script type="module" src="/play.js"></script>
+    <script type="module">
+      const els = {
+        title: document.getElementById('play-title'),
+        body: document.getElementById('play-body'),
+        status: document.getElementById('play-status'),
+        frame: document.getElementById('tour-frame'),
+      };
+      const actions = document.getElementById('tour-actions');
+      const retry = document.getElementById('tour-retry');
+      const signIn = document.getElementById('play-signin');
+      const tourId = new URLSearchParams(location.search).get('id') || '';
+
+      if (!tourId) {
+        window.VeyletPlayer.showFailure(
+          { ...els, actions, retry },
+          {
+            heading: 'Preview is not available.',
+            body: 'This address needs a tour id. Open Preview from your Veylet desk.',
+          }
+        );
+      } else {
+        window.VeyletPlayer.boot({
+          els,
+          auth: { persistSession: false, autoRefreshToken: false },
+          needsSession: true,
+          signedOutHeading: 'Sign in to preview.',
+          signedOutBody:
+            'Owner preview is only for the signed-in account that captured the space.',
+          signedOutLink: true,
+          resolve: async (authed) => {
+            const { data: tours, error } = await authed
+              .from('tours')
+              .select('id,storage_path,status,property_id')
+              .eq('id', tourId)
+              .limit(1);
+            const tour = tours && tours[0];
+            if (error) {
+              throw new window.VeyletPlayer.TourFailure('desk-unavailable', {
+                transient: true,
+              });
+            }
+            if (!tour || !tour.storage_path) {
+              throw new window.VeyletPlayer.TourFailure('tour-not-on-account', {
+                transient: false,
+              });
+            }
+            return {
+              storagePath: tour.storage_path,
+              title: 'Your walkthrough',
+              intro: 'Signed-in preview. Clients still need a private handoff link.',
+              footer: 'Owner preview. Not a client handoff.',
+            };
+          },
+          missingHeading: 'Preview is not available.',
+          missingBody: 'This tour is not on this account, or it has no stored package yet.',
+          transientBody: 'The desk did not answer. Check the connection and try again.',
+        });
+      }
+    </script>
   </body>
 </html>

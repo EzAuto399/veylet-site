@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="/style.css" />
     <script src="/brand-host.js"></script>
     <script src="/supabase-public.js"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
+    <script src="/account.js" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -49,14 +51,41 @@
           Email me a sign-in link <span aria-hidden="true">↗</span>
         </button>
       </form>
+      <form id="account-verify" class="veylet-form" hidden>
+        <p class="contact-note">
+          Sent to <strong id="account-verify-email"></strong>. Open the link in
+          that email, or paste the six-digit code from it here. The code and the
+          link both expire, and each works once.
+        </p>
+        <label>
+          Six-digit code
+          <input
+            name="token"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            required
+          />
+        </label>
+        <button class="button" type="submit">Sign in with code</button>
+        <button class="button button-ghost" type="button" id="account-verify-restart">
+          Use a different email
+        </button>
+      </form>
       <section id="account-home" hidden>
         <p class="contact-note" id="account-who"></p>
-        <p class="contact-note" id="account-id"></p>
+        <p class="contact-note" id="account-id-row">
+          <span id="account-id"></span>
+          <button class="button button-ghost" type="button" id="account-copy-id">
+            Copy account id
+          </button>
+        </p>
         <ol class="dash-flow">
-          <li>Sign in (this page, same id on the iPhone).</li>
-          <li>Save a space (suburb or city only).</li>
-          <li>Capture and reconstruct in Veylet Capture, or import the staged veylet-tour.zip from Files after sign-in.</li>
-          <li>Send to the website space. Then Create client handoff. The client page is a private record, not a 3D player yet.</li>
+          <li>Save a space. Suburb or city only — no street address.</li>
+          <li>Capture and reconstruct in Veylet Capture on the iPhone, signed in with this same email.</li>
+          <li>Send the tour package from the app to this space.</li>
+          <li>Preview it here, then Create client handoff. Only the person holding the unlisted link can open it, and you can revoke it at any time.</li>
         </ol>
         <form id="account-space" class="veylet-form">
           <label>
@@ -76,8 +105,9 @@
         <h2 class="dash-heading">Your spaces</h2>
         <ul class="account-list" id="account-properties"></ul>
         <p class="contact-note">
-          Tours stay private on this account. There is no public client link yet.
-          Compare this account id with the iPhone when testing sign-in.
+          Tours stay on this account until you create a handoff. A handoff is
+          unlisted: it is not a public gallery, it is not indexed, and Revoke
+          stops it working.
         </p>
         <button class="button button-ghost" type="button" id="account-sign-out">Sign out</button>
       </section>
@@ -92,6 +122,5 @@
         <a href="/terms">Terms</a>
       </nav>
     </footer>
-    <script type="module" src="/account.js"></script>
   </body>
 </html>

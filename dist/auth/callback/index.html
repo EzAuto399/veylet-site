@@ -10,13 +10,21 @@
     <link rel="stylesheet" href="/style.css" />
     <script src="/brand-host.js"></script>
     <script src="/supabase-public.js"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
+    <script src="/account.js" defer></script>
   </head>
   <body>
     <main class="form-page wrap">
       <p class="eyebrow">ACCOUNT</p>
       <h1>Returning to Veylet</h1>
-      <p class="intro" id="account-status">Completing sign-in…</p>
+      <p class="intro">
+        Sign-in link received. If you are not returned to your account in a
+        moment, request a new link — sign-in links are single use and expire.
+      </p>
+      <p class="contact-note" id="account-status" role="status"></p>
+      <p class="contact-note">
+        <a href="/account">Go to the account page</a> to request a new link.
+      </p>
     </main>
-    <script type="module" src="/account.js"></script>
   </body>
 </html>
