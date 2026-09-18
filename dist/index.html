@@ -139,6 +139,14 @@
             poster="media/launch-reel-poster.png"
             aria-label="Space, in motion — Veylet Studio concept film"
           >
+            <!-- On small screens the film is shown as a wide band, so the poster is
+                 framed to keep its headline rather than cropping the portrait one. -->
+            <source
+              src="media/launch-reel.mp4"
+              type="video/mp4"
+              media="(max-width: 800px)"
+              poster="media/launch-reel-poster-wide.png"
+            />
             <source src="media/launch-reel.mp4" type="video/mp4" />
             Your browser cannot play this film.
             <a href="media/launch-reel.mp4">Open the film</a>.

@@ -1957,3 +1957,12 @@ footer > span {
   color: var(--muted);
   margin-bottom: 12px;
 }
+
+/* The honeypot stays invisible to people and named for the audit. */
+.honey-label {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

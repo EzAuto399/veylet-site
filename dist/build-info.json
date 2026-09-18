@@ -1,9 +1,9 @@
 {
   "name": "veylet-site",
   "version": "0.0.0",
-  "commit": "9fc8b456667774e2f4f6ddf2a7f0f1d6ee84e2a0",
-  "shortCommit": "9fc8b45",
+  "commit": "b8aa12379cd6309dc2546ab780adb125d04d0d48",
+  "shortCommit": "b8aa123",
   "dirty": true,
-  "builtAt": "2026-09-17T21:38:46.282Z",
+  "builtAt": "2026-09-18T04:53:43.801Z",
   "environment": "local"
 }
