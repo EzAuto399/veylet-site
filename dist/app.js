@@ -10,6 +10,22 @@
     if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close();
   });
   document.querySelector('#study-enquire').addEventListener('click', () => dialog.close());
+  // The film shows as a wide band on small screens, so its poster is framed for that
+  // shape. `poster` on <source> is not standard, so the swap is done here too and
+  // relies on no browser extension of the spec.
+  (() => {
+    const video = document.getElementById('opening-film');
+    if (!video) return;
+    const portrait = video.getAttribute('poster');
+    const wide = 'media/launch-reel-poster-wide.png';
+    const apply = () => {
+      const want = window.matchMedia('(max-width: 800px)').matches ? wide : portrait;
+      if (video.getAttribute('poster') !== want) video.setAttribute('poster', want);
+    };
+    apply();
+    window.matchMedia('(max-width: 800px)').addEventListener?.('change', apply);
+  })();
+
   // Record the served revision on the document rather than in the customer's view.
   // Anyone debugging can read it; nobody browsing has to look at it.
   fetch('build-info.json').then(r => r.ok ? r.json() : null).then(info => {
