@@ -275,6 +275,24 @@
                   setStatus(url);
                 }
               });
+              const embed = document.createElement('button');
+              embed.type = 'button';
+              embed.className = 'tour-action';
+              embed.textContent = 'Copy embed';
+              embed.addEventListener('click', async () => {
+                const code =
+                  '<iframe src="https://veylet.com/embed?t=' +
+                  encodeURIComponent(tour.share_token) +
+                  '" title="Veylet walkthrough" style="width:100%;aspect-ratio:16 / 9;min-height:480px;border:0" allow="fullscreen" loading="lazy"></iframe>';
+                try {
+                  await navigator.clipboard.writeText(code);
+                  setStatus(
+                    'Embed code copied. It plays the same private tour and stops when you revoke.'
+                  );
+                } catch {
+                  setStatus(code);
+                }
+              });
               const revoke = document.createElement('button');
               revoke.type = 'button';
               revoke.className = 'tour-action tour-action-quiet';
@@ -312,7 +330,7 @@
                 );
                 if (!result.timedOut && !result.error) await loadDesk(supabase);
               });
-              actions.append(link, copy, revoke);
+              actions.append(link, copy, embed, revoke);
             } else {
               const enable = document.createElement('button');
               enable.type = 'button';

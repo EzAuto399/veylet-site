@@ -27,7 +27,7 @@ body_of() { curl -sL -m 25 --compressed "$1"; }
 echo "health check → $BASE"
 
 # 1. Every public route answers 200.
-for route in / /apply /request /account /privacy /terms /thanks /play /handoff /robots.txt /sitemap.xml /llms.txt; do
+for route in / /apply /request /account /privacy /terms /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
   c=$(code_of "$BASE$route")
   [ "$c" = "200" ] && ok "route $route" || bad "route $route → $c"
 done
@@ -51,6 +51,22 @@ hand=$(body_of "$BASE/handoff")
 echo "$hand" | grep -q 'noindex' && ok "handoff is noindex" || bad "handoff lost its noindex"
 echo "$hand" | grep -qi 'sign in' && bad "handoff shows an operator sign-in again" || ok "handoff has no operator sign-in"
 echo "$hand" | grep -qi 'Checking this link' && bad "handoff is stuck on a checking state" || ok "handoff does not start in a checking state"
+
+# 4b. Embed framing controls, and denial everywhere else (headers only cross the proxy).
+if [ "${BASE#https://}" != "$BASE" ]; then
+  emb_headers=$(curl -sI -m 25 "$BASE/embed")
+  if echo "$emb_headers" | grep -qi '^x-frame-options'; then
+    bad "embed sends X-Frame-Options — an agency page could not frame it"
+  else
+    ok "embed is frameable for agency pages"
+  fi
+  echo "$emb_headers" | grep -qi 'frame-ancestors' && ok "embed sets a frame-ancestors policy" || bad "embed lost its frame-ancestors policy"
+  home_headers=$(curl -sI -m 25 "$BASE/")
+  echo "$home_headers" | grep -qi 'x-frame-options: *DENY' && ok "site pages still refuse framing" || bad "site pages lost X-Frame-Options DENY"
+fi
+emb_body=$(body_of "$BASE/embed")
+echo "$emb_body" | grep -q 'noindex' && ok "embed is noindex" || bad "embed lost its noindex"
+echo "$emb_body" | grep -qi 'sign in' && bad "embed shows an operator sign-in" || ok "embed has no operator sign-in"
 
 # 5. Contact address must be readable, not obfuscated by the CDN.
 if body_of "$BASE/privacy" | grep -q 'email-protection'; then

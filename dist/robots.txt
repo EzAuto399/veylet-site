@@ -4,4 +4,5 @@ Disallow: /account
 Disallow: /auth
 Disallow: /handoff
 Disallow: /play
+Disallow: /embed
 Sitemap: https://veylet.com/sitemap.xml

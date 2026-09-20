@@ -6,7 +6,7 @@
     <title>Request a Veylet walkthrough</title>
     <meta
       name="description"
-      content="Request a managed Veylet 3D walkthrough for a home, business or venue."
+      content="Request a managed Veylet 3D walkthrough for a home, business, venue or a property agency's listings."
     />
     <meta name="theme-color" content="#10231d" />
     <link rel="canonical" href="https://veylet.com/request" />
@@ -30,9 +30,10 @@
       <p class="eyebrow">MANAGED WALKTHROUGH</p>
       <h1>Request a walkthrough</h1>
       <p class="intro">
-        Tell us the space type, general location, purpose and timing. We assess
-        a suitable pilot scope and quote. This is not a booking, payment or live
-        account.
+        Tell us the space type, general location, purpose and timing. Property
+        agencies: add your suburbs and roughly how many walkthroughs a month you
+        have in mind. We assess a suitable scope and quote. This is not a
+        booking, payment or live account.
       </p>
       <form
         class="veylet-form"
@@ -54,6 +55,21 @@
         <label>
           Email
           <input name="email" type="email" required maxlength="200" />
+        </label>
+        <label>
+          I am enquiring as
+          <select name="enquiry_as" required>
+            <option value="">Choose one</option>
+            <option>A property agency or team</option>
+            <option>A homeowner or occupier</option>
+            <option>A business or venue</option>
+            <option>Something else</option>
+          </select>
+        </label>
+        <label>
+          For agencies: agency name, suburbs covered, and roughly how many
+          walkthroughs a month you might want
+          <textarea name="agency_fit" maxlength="600" rows="2"></textarea>
         </label>
         <label>
           Space category
