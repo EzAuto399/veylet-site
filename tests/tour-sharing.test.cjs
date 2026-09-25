@@ -51,10 +51,11 @@ const hostingRow = overrides => ({ tour_id: 't1', sharing_on: true, released_at:
   guaranteed_until: '2027-09-23T04:00:00Z', extended_until: null, hosted_until: '2027-09-23T04:00:00Z', plan_active: true, ...overrides });
 const BEFORE = Date.parse('2027-01-01T00:00:00Z'), AFTER = Date.parse('2027-10-01T00:00:00Z');
 
-test('no hosting is sold without a plan: 14 days after it ends, and no further-year price', () => {
+test('hosting follows the plan: 14 days after it ends, and the shared words state no price', () => {
   const share = load();
   assert.equal(share.hostingGraceDays, 14);
-  assert.equal('hostingExtensionAud' in share, false, 'the A$49 hosting extension is retired');
+  // The A$49 extension (offer 2026-09-26.2) is the desk's request button, never a line these words carry.
+  assert.equal('hostingExtensionAud' in share, false);
 });
 test('hosting dates are the Brisbane day, a fixed three-letter month and the year', () => {
   const share = load();
@@ -99,6 +100,15 @@ test('the member hosting read wins when the row carries it', () => {
   assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'live_not_enforced', offline_at: null }), true, AFTER), 'Live while your plan is active.');
   assert.equal(share.hostingLine(read({ hosting_state: 'offline_on', offline_at: '2027-10-10T00:00:00Z' }), true, AFTER),
     'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  // live_with_extension (offer 2026-09-26.2): its extension's end day, from extended_until first.
+  const extended = read({ plan_active: false, hosting_state: 'live_with_extension', offline_on: '2027-11-02T00:00:00Z', extended_until: '2027-11-03T00:00:00Z' });
+  assert.deepEqual({ ...share.hostingState(extended, AFTER) }, { state: 'live_with_extension', date: '2027-11-03T00:00:00.000Z' });
+  assert.equal(share.hostingLine(extended, true, AFTER), 'Live until 3 Nov 2027 with a hosting extension.');
+  assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'live_with_extension', offline_on: '2027-11-02' }), true, AFTER),
+    'Live until 2 Nov 2027 with a hosting extension.');
+  assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'live_with_extension' }), true, AFTER), share.hostingUnavailable, 'no day, no invented date');
+  // The app's pages never name the extension.
+  assert.equal(share.hostingLine(extended, true, AFTER, { app: true }), 'Online until 3 Nov 2027.');
 });
 test('the app’s pages name no purchase path: restart in the app', () => {
   const share = load();

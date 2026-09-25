@@ -1547,21 +1547,34 @@ test('each hosting situation reads its own line on the card', async () => {
   assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.');
   assert.ok(planText(grace).includes('Your plan has ended. 1 live walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.'));
   assert.ok(grace.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
+  // Once the plan's answer says the plan ended, the card's fix shows: the filled restart and the extension request.
+  assert.equal(extensionFix(grace).hidden, false);
   const offline = await withPlan({ status: 'ended', current_period_ends_at: long, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
   assert.equal(hostingText(offline), 'Offline since ' + offlineDay(long) + '. Restart your plan and this link works again — same link, embed and QR.');
   assert.ok(offline.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'), 'the chip follows once the plan answers');
   // The member hosting read, when get_tour_hosting carries it, wins.
-  for (const [extra, line] of [
-    [{ hosting_state: 'live_with_plan', offline_on: null }, 'Live while your plan is active.'],
-    [{ hosting_state: 'offline_on', offline_on: '2027-10-10' }, 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.'],
-    [{ hosting_state: 'offline', offline_on: '2026-09-12' }, 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.'],
+  for (const [extra, line, ended] of [
+    [{ hosting_state: 'live_with_plan', offline_on: null }, 'Live while your plan is active.', false],
+    [{ hosting_state: 'offline_on', offline_on: '2027-10-10' }, 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.', true],
+    [{ hosting_state: 'offline', offline_on: '2026-09-12' }, 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.', true],
+    [{ hosting_state: 'live_with_extension', offline_on: '2027-10-01', extended_until: '2027-10-01T00:00:00Z' }, 'Live until 1 Oct 2027 with a hosting extension.', false],
   ]) {
     const h = await withHosting([hostingFor({ plan_active: false, ...extra })], { tours: [liveTour] });
     assert.equal(hostingText(h), line);
     assert.ok(byText(h, 'Copy link'), 'the card keeps its controls');
-    assert.doesNotMatch(h.text(), /A\$49|12 months|Guaranteed/);
+    assert.doesNotMatch(h.text(), /12 months|Guaranteed/);
+    // Offer 2026-09-26.2: an ended plan's card offers the filled restart and, beside it, the extension request by email.
+    const fix = extensionFix(h);
+    assert.equal(fix.hidden, !ended, line);
+    assert.deepEqual(fix.children.map(el => [el.textContent, el.className]), [['Restart your plan', 'tour-action tour-action-primary'],
+      ['Keep this walkthrough online (A$49 a year)', 'text-link tour-extension-request']]);
+    const mail = decodeURIComponent(fix.children[1].href);
+    assert.ok(mail.startsWith('mailto:yoda@yodalai.xyz?subject=Veylet hosting extension · walkthrough t1'), mail);
+    assert.match(mail, /Tour ID: t1\n/);
+    assert.equal(h.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'), extra.hosting_state !== 'offline', line);
   }
 });
+const extensionFix = h => h.all().find(el => el.className === 'tour-actions-row tour-hosting-fix');
 
 test('the member hosting read (get_tour_hosting_states) chooses the words when the backend has it', async () => {
   const states = rows => ({ get_tour_hosting_states: async () => ({ data: rows }) });
@@ -1570,6 +1583,10 @@ test('the member hosting read (get_tour_hosting_states) chooses the words when t
   const off = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'offline', offline_at: '2026-09-12T00:00:00Z', plan_active: false }]) });
   assert.equal(hostingText(off), 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.');
   assert.ok(off.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'));
+  // live_with_extension (offer 2026-09-26.2): no plan, a paid extension keeps this one online until extended_until.
+  const extended = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'live_with_extension', offline_at: '2027-11-02T00:00:00Z', extended_until: '2027-11-03T00:00:00Z', plan_active: false }]) });
+  assert.equal(hostingText(extended), 'Live until 3 Nov 2027 with a hosting extension.');
+  assert.ok(extended.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
   const unenforced = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'live_not_enforced', offline_at: null, plan_active: false }]) });
   assert.equal(hostingText(unenforced), 'Live while your plan is active.');
   // Absent (PGRST202) or odd: get_tour_hosting's plan_active decides, as before.

@@ -482,7 +482,12 @@ const ARTICLES = [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
       'Listing videos and stills are included in your plan. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
-    ] }],
+    ] }, {
+      // Offer 2026-09-26.2: the hosting extension is sold on request from the website only; the app's edition never
+      // names it. Help pages state no amount (help-pages.test.cjs): the offer page and the desk's button carry it.
+      edition: 'public',
+      paras: ['To keep a single walkthrough online without a plan, ask us for a hosting extension: use **Keep this walkthrough online** on its card in [your Veylet account](account), or email Veylet support with the walkthrough’s name. It is invoiced a year at a time, per walkthrough.'],
+    }],
     notWorking: [
       '**Offline** on a walkthrough means your plan ended more than 14 days ago, so its link shows "not available". Restart your plan and this link works again — same link, embed and QR.',
       'Deleting your Veylet account does not cancel an App Store subscription. Cancel it in Settings too.',
@@ -574,7 +579,17 @@ function footer(edition, index = false) {
     + '<span>© 2026 Veylet Studio</span></footer>';
 }
 
-function head({ title, description, canonical, edition, jsonLd, extra = '' }) {
+// A landscape share card (scripts/share-cards/build.mjs renders it) with its alt text; pages without one keep share-card.jpg.
+function shareImage(card) {
+  if (!card) return [`<meta property="og:image" content="${ORIGIN}/media/share-card.jpg">`];
+  const url = `${ORIGIN}/media/share/${card.name}.jpg?v=${assetHash(fs.readFileSync(path.join(DIST, 'media/share', card.name + '.jpg')))}`;
+  return [`<meta property="og:image" content="${url}">`, '<meta property="og:image:type" content="image/jpeg">',
+    '<meta property="og:image:width" content="1200">', '<meta property="og:image:height" content="630">',
+    `<meta property="og:image:alt" content="${escape(card.alt)}">`, `<meta name="twitter:image" content="${url}">`,
+    `<meta name="twitter:image:alt" content="${escape(card.alt)}">`];
+}
+
+function head({ title, description, canonical, edition, jsonLd, extra = '', card = null }) {
   const lines = [
     '<!doctype html>', '<html lang="en">', '<head>', '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
@@ -586,7 +601,7 @@ function head({ title, description, canonical, edition, jsonLd, extra = '' }) {
     lines.push(`<link rel="canonical" href="${canonical}">`,
       '<meta property="og:type" content="article">', '<meta property="og:site_name" content="Veylet Studio">', '<meta property="og:locale" content="en_AU">',
       `<meta property="og:title" content="${escape(title)}">`, `<meta property="og:description" content="${escape(description)}">`,
-      `<meta property="og:url" content="${canonical}">`, `<meta property="og:image" content="${ORIGIN}/media/share-card.jpg">`,
+      `<meta property="og:url" content="${canonical}">`, ...shareImage(card),
       '<meta name="twitter:card" content="summary_large_image">');
   }
   lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/studio-avatar.png">', stylesheets());
@@ -626,7 +641,7 @@ function renderArticle(article, edition) {
     `<nav class="crumbs" aria-label="Breadcrumb"><a href="${base}">Help</a><span aria-hidden="true">/</span><a href="${base}#${group.id}">${escape(group.title)}</a><span aria-hidden="true">/</span><span aria-current="page">${escape(plain(article.short))}</span></nav>`,
     `<header class="article-head"><h1>${inline(article.title, edition)}</h1><p class="article-answer">${inline(article.lead, edition)}</p></header>`,
     '<div class="article-body">',
-    ...article.body.map(section => block(section, edition)),
+    ...article.body.filter(section => !section.edition || section.edition === edition).map(section => block(section, edition)),
     block({ id: 'if-it-does-not-work', title: 'If it doesn’t work', paras: article.notWorking }, edition),
     '</div>',
     '<section class="article-next help-stuck" aria-labelledby="still-stuck">',
@@ -679,7 +694,8 @@ function renderIndex(edition) {
     '</body>',
     '</html>',
   ];
-  return head({ title: edition === 'public' ? 'Help centre — Veylet' : 'Help — Veylet', description, canonical, edition, jsonLd }) + '\n' + body.join('\n') + '\n';
+  const card = { name: 'help', alt: 'Veylet Studio help centre: Capture, send, share. Short answers for each step of Veylet Capture.' };
+  return head({ title: edition === 'public' ? 'Help centre — Veylet' : 'Help — Veylet', description, canonical, edition, jsonLd, card }) + '\n' + body.join('\n') + '\n';
 }
 
 // fix/<flag>: one line and a redirect to the flag's section of the shared article.

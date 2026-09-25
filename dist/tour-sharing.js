@@ -85,15 +85,20 @@ window.VeyletSharing = (() => {
    *
    * `row` is the walkthrough's get_tour_hosting row (null when it could not load);
    * `live` says its link is shared. The member hosting read
-   * (get_tour_hosting_states' state live_with_plan | offline_on | offline |
-   * live_not_enforced, with offline_at; the desk puts it on the row as
-   * hosting_state and offline_on) is used when the row carries it; until then the state is derived from plan_active and the day the
+   * (get_tour_hosting_states' state live_with_plan | live_with_extension |
+   * offline_on | offline | live_not_enforced, with offline_at and extended_until;
+   * the desk puts it on the row as hosting_state, offline_on and extended_until)
+   * is used when the row carries it. live_with_extension (offer 2026-09-26.2): no
+   * plan, and a paid hosting extension keeps this one walkthrough online until
+   * it ends. Only the read says so; the derived state never guesses it; until then the state is derived from plan_active and the day the
    * plan ended (the row's plan_ended_at, else `opts.planEndedAt`, which the desk
    * reads from its plan panel). `opts.app`: the pages the app opens name no
-   * purchase path, so the fix reads "Restart your plan in the app".
+   * purchase path, so the fix reads "Restart your plan in the app", and they
+   * never name the hosting extension: an extended walkthrough reads "Online until
+   * {date}." there.
    */
   const hostingGraceDays = 14;
-  const HOSTING_STATES = ['live_with_plan', 'offline_on', 'offline'];
+  const HOSTING_STATES = ['live_with_plan', 'live_with_extension', 'offline_on', 'offline'];
   // Enforcement switched off on the server: served whatever the plan, so it reads as live.
   const HOSTING_ALIASES = { live_not_enforced: 'live_with_plan' };
   const hostingUnavailable = 'Hosting dates could not load. Refresh to check.';
@@ -122,13 +127,15 @@ window.VeyletSharing = (() => {
     return Number.isNaN(at) ? null : at;
   }
   // { state, date } in the member hosting read's words, or null when neither the
-  // read nor the plan state can say. `date` is the offline day (ISO), or null when
-  // the plan's end day is unknown.
+  // read nor the plan state can say. `date` is the offline day (ISO; for
+  // live_with_extension, the day the extension ends), or null when it is unknown.
   function hostingState(row, now = Date.now(), planEndedAt = null) {
     if (!row || typeof row !== 'object') return null;
     const read = HOSTING_ALIASES[row.hosting_state] || row.hosting_state;
     if (HOSTING_STATES.includes(read)) {
-      const day = hostingInstant(row.offline_on) ?? hostingInstant(row.offline_at);
+      const day = read === 'live_with_extension'
+        ? hostingInstant(row.extended_until) ?? hostingInstant(row.offline_on) ?? hostingInstant(row.offline_at)
+        : hostingInstant(row.offline_on) ?? hostingInstant(row.offline_at);
       return { state: read, date: read === 'live_with_plan' || day === null ? null : new Date(day).toISOString() };
     }
     if (typeof row.plan_active !== 'boolean') return null;
@@ -154,6 +161,10 @@ window.VeyletSharing = (() => {
     if (!hosting) return hostingUnavailable;
     const day = hostingDate(hosting.date);
     if (hosting.state === 'live_with_plan') return 'Live while your plan is active.';
+    if (hosting.state === 'live_with_extension') {
+      if (!day) return hostingUnavailable;
+      return opts.app ? 'Online until ' + day + '.' : 'Live until ' + day + ' with a hosting extension.';
+    }
     if (hosting.state === 'offline_on') {
       return 'Your plan has ended. ' + (day ? 'This walkthrough goes offline on ' + day + '. ' : '') + restartWords(opts) + ' to keep it live.';
     }

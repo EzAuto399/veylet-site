@@ -372,7 +372,13 @@ test('each walkthrough row carries one state chip in the contract’s words', as
   const ended = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released({ plan_active: false, hosting_state: 'offline', offline_on: past })] });
   assert.ok(byText(ended.card('t1'), 'Copy link'));
   assert.deepEqual(ended.ids['account-next-step'].children.map(el => el.textContent), ['Your walkthrough is offline.',
-    'Offline since ' + day(past) + '. Restart your plan and this link works again — same link, embed and QR.', 'Restart your plan']);
+    'Offline since ' + day(past) + '. Restart your plan and this link works again — same link, embed and QR.', 'Restart your plan',
+    'Keep this walkthrough online (A$49 a year)']);
+  // Offer 2026-09-26.2: the secondary is the studio request by email with the walkthrough's id; the restart stays the button.
+  const ask = ended.ids['account-next-step'].children[3];
+  assert.equal(ask.tagName, 'A');
+  assert.equal(ask.dataset.control, 'hosting-extension');
+  assert.match(decodeURIComponent(ask.href), /^mailto:yoda@yodalai\.xyz\?subject=Veylet hosting extension · walkthrough t1[\s\S]*Tour ID: t1\n/);
   // Someone who cannot review reads whose turn it is.
   const operator = await load({ tours: [readyTour()], role: 'operator' });
   assert.equal(chipOf(operator.card('t1')).textContent, 'Ready for review');
@@ -1025,6 +1031,13 @@ test('app mode: the plan is its state in words, and no money function is even as
   assert.equal(byText(h.card('t1'), 'Full website guide'), undefined, 'no link out to the public site');
   const text = h.visible();
   for (const pattern of BANNED) assert.doesNotMatch(text, pattern);
+  // The app never names the hosting extension: no request, in any state, and an extended walkthrough is just online until a day.
+  assert.doesNotMatch(h.all().map(el => el.textContent).join('\n'), /extension|A\$49/i);
+  assert.equal(h.all().some(el => el.dataset.control === 'hosting-extension'), false);
+  const extended = await load({ markup: appMarkup, tours: [liveTour()], approved: true,
+    hosting: [released({ plan_active: false, hosting_state: 'live_with_extension', offline_on: '2027-10-01', extended_until: '2027-10-01T00:00:00Z' })] });
+  assert.equal(extended.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent, 'Online until 1 Oct 2027.');
+  assert.doesNotMatch(extended.all().map(el => el.textContent).join('\n'), /extension|A\$|\$\d/i);
   // Every plan state reads as its word; an unreadable one says so, with a refresh.
   for (const [status, word] of [['pending', 'Not started'], ['trial', 'Free months'], ['ended', 'Ended']]) {
     const other = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [{ ...plan, status }] }) } });

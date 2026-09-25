@@ -435,7 +435,8 @@
   };
   function failed(result) { return result.timedOut || result.error || result.value?.error; }
   function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
-  function guide(title, body, label, action) {
+  // `extra`: a secondary link beside the action ({ label, href, control }), never filled.
+  function guide(title, body, label, action, extra = null) {
     if (!nextStep) return;
     // The heading carries the panel; a tracked-caps kicker above it says nothing.
     const heading = document.createElement('h2'); heading.textContent = title;
@@ -447,6 +448,7 @@
     if (typeof action === 'string') {
       const link = document.createElement('a'); link.className = 'button button-ghost'; link.href = action; link.textContent = label; nextStep.append(link);
     } else nextStep.append(button(label, action));
+    if (extra) nextStep.append(extensionLinkNode(extra));
   }
 
   // Guidance describes already-visible records. It never approves, uploads,
@@ -484,7 +486,8 @@
         // pages name no purchase path, so there the line itself says where.
         if (phase === 'offline' || phase === 'offline_on') {
           guide(phase === 'offline' ? 'Your walkthrough is offline.' : 'Your plan has ended.', hostingWords(hosting, true),
-            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : focusPlan);
+            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : focusPlan,
+            APP_MODE ? null : extensionRequest(selected));
         } else guide('Your walkthrough is live.',
           'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
           'Open its sharing controls', open);
@@ -595,6 +598,38 @@
   function restartPlanButton() {
     const fix = button('Restart your plan', focusPlan); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
     return fix;
+  }
+  // Offer 2026-09-26.2: after the plan's 14 days, a paid hosting extension keeps one
+  // walkthrough online, A$49 a year, on request; the studio invoices it and records
+  // it from its desk. The request is an email with the walkthrough's id: no card,
+  // no form. The app's pages never name it or its price (APP_MODE draws nothing).
+  const EXTENSION_LABEL = 'Keep this walkthrough online (A$49 a year)';
+  function extensionRequest(tour) {
+    if (APP_MODE || !tour) return null;
+    return { label: EXTENSION_LABEL, control: 'hosting-extension', href: studioMail(tour, 'Veylet hosting extension', [
+      'Tour ID: ' + tour.id,
+      'Please keep this walkthrough online with a hosting extension (A$49 a year per walkthrough), and send the invoice to the account owner.',
+    ]) };
+  }
+  function extensionLinkNode(extra) {
+    const link = document.createElement('a'); link.className = 'text-link tour-extension-request';
+    link.href = extra.href; link.textContent = extra.label;
+    if (extra.control) link.dataset.control = extra.control;
+    return link;
+  }
+  // A live card's fix once the plan has ended: the filled "Restart your plan" and,
+  // beside it, the extension request. Shown only while the card is offline or goes
+  // offline on a date; the plan's answer can change that after the card is drawn.
+  function hostingFixRow(tour) {
+    if (APP_MODE) return null;
+    const row = document.createElement('p'); row.className = 'tour-actions-row tour-hosting-fix';
+    row.append(restartPlanButton(), extensionLinkNode(extensionRequest(tour)));
+    return row;
+  }
+  function hostingFixSync(entry) {
+    if (!entry?.fix) return;
+    const phase = hostingPhase(entry.hosting);
+    entry.fix.hidden = !(phase === 'offline' || phase === 'offline_on');
   }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
@@ -1591,13 +1626,19 @@
         if (ticket !== deskVersion) { if (pending) sharePending.set(tour.id, pending); return; }
       }
       const gate = canShare && (!live || paused) ? gateBlock(tour.property_id) : null;
+      let hostingFix = null;
       if (paused) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = PAUSED_LINE;
       } else if (live) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = hostingWords(hosting || null, true);
-        if (hosting) hostingCards.set(tour.id, { tour, hosting, line: status });
+        if (hosting) {
+          hostingFix = canShare ? hostingFixRow(tour) : null;
+          const entry = { tour, hosting, line: status, fix: hostingFix };
+          hostingFixSync(entry);
+          hostingCards.set(tour.id, entry);
+        }
         // Approved and shared in one press, whatever the first answer said: it is live.
         if (pending) say(LIVE_SAID);
       } else {
@@ -1612,6 +1653,8 @@
       if (render?.answers) renderDraw();
       // Its views sit under the state line, on a live or paused link.
       if (live) { const views = document.createElement('div'); item.append(views); tourViews(tour, views, supabase, ticket); }
+      // An ended plan's fix (Restart your plan, and the hosting extension request) follows, before the link controls.
+      if (hostingFix) item.append(hostingFix);
       if (canShare) {
         if (paused) resumeSharing(tour, item, supabase, ticket, gate);
         else if (live) liveSharing(tour, item, title);
@@ -2009,8 +2052,10 @@
     if (day === deskPlanEndedAt) return;
     deskPlanEndedAt = day;
     // The map is cleared with each desk, so every entry is on the page drawn now.
-    for (const { tour, hosting, line } of hostingCards.values()) {
+    for (const entry of hostingCards.values()) {
+      const { tour, hosting, line } = entry;
       line.textContent = hostingWords(hosting, true);
+      hostingFixSync(entry);
       if (hostingEnded(hosting) && tourChips.get(tour.id)?.chip?.textContent === 'Live') tourChip(tour, 'Offline', 'quiet');
     }
   }
@@ -6056,6 +6101,7 @@
         const row = state && typeof state === 'object' ? hostingRows.get(state.tour_id) : null;
         if (!row || typeof state.state !== 'string') continue;
         hostingRows.set(state.tour_id, { ...row, hosting_state: state.state, offline_on: state.offline_at ?? null,
+          extended_until: state.extended_until ?? null,
           plan_active: typeof state.plan_active === 'boolean' ? state.plan_active : row.plan_active });
       }
     }
