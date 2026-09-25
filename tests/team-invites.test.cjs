@@ -298,7 +298,7 @@ test('a teammate can leave the office, confirmed in place', async () => {
 });
 
 test('deleting an owner’s account while teammates remain points to Your team, only when the refusal says so', async () => {
-  const h = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001', message: 'transfer ownership or remove your teammates first' } }) } });
+  const h = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001', message: 'Transfer ownership or remove your teammates first.' } }) } });
   const panel = h.ids['account-deletion'];
   await h.button(panel, 'Delete my account').fire('click');
   await h.button(panel, 'Delete my account').fire('click'); await h.settle();
@@ -315,4 +315,11 @@ test('deleting an owner’s account while teammates remain points to Your team, 
   await generic.button(panel2, 'Delete my account').fire('click'); await generic.settle();
   assert.ok(generic.words(panel2).includes('The deletion request was not confirmed. Check again before asking a second time.'));
   assert.equal(generic.control(panel2, 'deletion-team'), null);
+  // Files left under this account after handing an office over: the server's sentence as it is.
+  const files = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001',
+    message: 'walkthrough files you uploaded to a workspace you handed over are stored under your account; the studio moves them before deletion' } }) } });
+  const panel3 = files.ids['account-deletion'];
+  await files.button(panel3, 'Delete my account').fire('click');
+  await files.button(panel3, 'Delete my account').fire('click'); await files.settle();
+  assert.ok(files.words(panel3).includes('Walkthrough files you uploaded to a workspace you handed over are stored under your account; the studio moves them before deletion.'));
 });

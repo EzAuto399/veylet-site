@@ -266,8 +266,8 @@
    * `member` sees Leave this office (leave_workspace). Remove and leave answer the draft's
    * counts with two shared links stopped. `&team-member=missing|fail|billing` answers those
    * three with PGRST202 or a failure, or refuses the transfer for a live subscription. While
-   * a member remains, the owner's request_account_deletion is refused with the wording the
-   * backend lane plans ('transfer ownership or remove your teammates first');
+   * a member remains, the owner's request_account_deletion is refused with the backend lane's
+   * wording (draft 20260926131000: "Transfer ownership or remove your teammates first.");
    * `&deletion-refusal=generic` uses today's one message for every condition instead. */
   const teamCase = params.get('team') || 'missing';
   const teamInviteCase = params.get('team-invite');
@@ -1240,7 +1240,7 @@
         // `?team=owner` with a member who joined: the office still has teammates.
         if (teamCase === 'owner' && teamOwnerNow && teamInvites.some(row => row.status === 'accepted' && !teamRemoved.has(row.user_id))) {
           return { data: null, error: { code: 'P0001', message: params.get('deletion-refusal') === 'generic' ? 'shared ownership requires reviewed transfer before deletion'
-            : 'transfer ownership or remove your teammates first' } };
+            : 'Transfer ownership or remove your teammates first.' } };
         }
         deletion = { user_id: 'synthetic-user', requested_at: new Date().toISOString(),
           reason: (args && args.p_reason) || null, status: 'requested', cancelled_at: null, completed_at: null };

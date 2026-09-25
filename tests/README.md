@@ -282,7 +282,7 @@ return from sign-in; `tests/join-page.test.cjs` covers `/join`:
   so the desk shows them only when the list names a member's account (the draft's list does not
   yet) and hides a control whose press answers PGRST202. Remove and leave say afterwards how many
   shared links stopped. `&team-member=missing|fail|billing`. While a member remains, the owner's
-  `request_account_deletion` is refused with the wording the backend lane plans, and the deletion
-  panel points to Your team; `&deletion-refusal=generic` (today's one message) keeps the old words.
+  `request_account_deletion` is refused with the backend lane's wording (draft 20260926131000,
+  "Transfer ownership or remove your teammates first."), and the deletion panel points to Your team; `&deletion-refusal=generic` (today's one message) keeps the old words.
 - `/join?i=…` has no QA route of its own; render it with `supabase-public.js` and the vendored
   client stubbed by the browser (a route intercept), never against the hosted project.

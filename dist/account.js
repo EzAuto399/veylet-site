@@ -5095,8 +5095,8 @@
    * two writes are read back before their result is stated.
    */
   const DELETION_STATUSES = ['requested', 'processing', 'cancelled', 'completed'];
-  // The refusal the backend lane plans for an owner whose office still has teammates
-  // ('transfer ownership or remove your teammates first'; the invites draft's notes).
+  // begin_account_deletion's refusal while an active or invited teammate remains (the backend
+  // lane's draft 20260926131000_account_deletion_followups), word for word.
   const DELETION_TEAM_FIRST = 'Transfer ownership or remove your teammates first.';
   const DELETION_KEEP = 'Keep my account';
   const DELETION_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
@@ -5158,11 +5158,17 @@
       if (ticket !== deskVersion) return;
       if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in and check whether the deletion was requested.'); return; }
       if (failed(reply)) {
-        // An owner whose office still has teammates hands it over or removes them first. Only a
-        // refusal that names that case says so: 'shared ownership requires reviewed transfer' is
-        // one message for many conditions and keeps the words below.
-        const words = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
-        if (words.includes('teammate')) { deletionTeamFirst(supabase); return; }
+        // An owner whose office still has teammates hands it over or removes them first. Only the
+        // refusal that names that case says so ('shared ownership requires reviewed transfer' is one
+        // message for many conditions and keeps the words below); files left under this account
+        // after handing an office over are the server's own sentence, said as it is.
+        const said = String((reply.value?.error || reply.error || {}).message || '').trim();
+        const words = said.toLowerCase();
+        if (words.includes(DELETION_TEAM_FIRST.toLowerCase().replace(/\.$/, ''))) { deletionTeamFirst(supabase); return; }
+        if (words.includes('workspace you handed over')) {
+          const sentence = said.charAt(0).toUpperCase() + said.slice(1) + (/[.!?]$/.test(said) ? '' : '.');
+          setStatus(sentence); deletionUnavailable(supabase, sentence); return;
+        }
         setStatus('The deletion request was not confirmed. Check again before asking a second time.');
         deletionUnavailable(supabase, 'The deletion request was not confirmed. Check again before asking a second time.');
         return;
