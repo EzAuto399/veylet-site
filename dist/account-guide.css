@@ -148,6 +148,13 @@
 .tour-manage .tour-pause .tour-actions-row { margin-top: 4px; }
 .desk .dash-tour .tour-pause-hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
 .tour-manage .tour-pause + .tour-actions-stop { margin-top: 18px; }
+/* The quality check's advice in the review, just above Approve and share: a plain
+   list in ink on a hairline, never styled as an error, since it never blocks. */
+.desk .tour-review .tour-flags { margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--line); max-width: 62ch; }
+.desk .tour-review .tour-flags-title { margin: 0; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+.desk .tour-review .tour-flags-list { margin: 8px 0 0; padding-left: 1.2rem; list-style: disc; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.desk .tour-review .tour-flags-list li { min-height: 0; margin: 4px 0; overflow-wrap: anywhere; }
+.desk .tour-review .tour-flags-note { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
 /* Views: two quiet lines under the state line, numbers tabular so a new count shifts nothing. */
 .desk .tour-views { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
 .desk .tour-views p { margin: 0; overflow-wrap: anywhere; }

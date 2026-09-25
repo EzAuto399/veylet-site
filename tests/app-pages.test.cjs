@@ -119,3 +119,29 @@ test('/app/support: support contact, help and deletion, all inside the app', () 
   assert.match(words(html), /Pause sharing keeps the same link: within a minute, the link, embed and QR show "not available" until you resume\./);
   assert.doesNotMatch(words(html), /studio|business day|working day/i, 'no studio and no promised turnaround');
 });
+
+test('the QA fixture holds waiting captures and flags the ready one, for each documented switch', async () => {
+  const vm = require('node:vm');
+  const source = fs.readFileSync(path.join(__dirname, 'account-browser-fixture.js'), 'utf8');
+  const jobs = async search => {
+    const context = { URLSearchParams, Response, location: { search, pathname: '/__qa/account/' }, localStorage: { getItem: () => null, setItem() {} },
+      document: { createElement: () => ({}), addEventListener() {} } };
+    context.window = context;
+    vm.runInNewContext(source, context);
+    const answer = await context.supabase.createClient().rpc('list_workspace_render_status', { p_workspace_id: 'synthetic-workspace' });
+    return JSON.parse(JSON.stringify(answer.data.spaces.map(space => space.job).filter(Boolean)));
+  };
+  for (const reason of ['admission', 'paused', 'weekly_limit']) {
+    const [job] = await jobs('?render=waiting&hold=' + reason);
+    assert.equal(job.state, 'waiting');
+    assert.equal(job.hold.reason, reason);
+    assert.equal(job.hold.until === null, reason !== 'weekly_limit', reason);
+  }
+  assert.equal((await jobs('?render=waiting'))[0].hold, null);
+  assert.equal((await jobs('?render=rendering&hold=paused'))[0].hold, null, 'only a queued job is held');
+  const [ready] = await jobs('?render=ready&flags=all');
+  assert.equal(ready.review_flags.length, 6);
+  assert.ok(ready.review_flags.every(flag => Object.keys(flag).join() === 'room,reason'), 'as the member read names them: no rule');
+  assert.deepEqual((await jobs('?render=ready'))[0].review_flags, []);
+  assert.equal((await jobs('?render=waiting&flags=all'))[0].review_flags, null, 'only a ready capture carries flags');
+});

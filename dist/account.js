@@ -523,7 +523,7 @@
   }
   function tourPreview(tour, item, revision) {
     const preview = document.createElement('a'); preview.className = 'tour-action';
-    preview.href = '/play/?id=' + encodeURIComponent(tour.id) + (revision ? '&review_revision=' + encodeURIComponent(revision) : '');
+    preview.href = '/play/?id=' + encodeURIComponent(tour.id) + (revision ? '&review_revision=' + encodeURIComponent(revision) : '') + (APP_MODE ? '&from=app' : '');
     preview.textContent = revision ? 'Open review preview' : 'Preview';
     if (revision) { preview.target = '_blank'; preview.rel = 'noopener noreferrer'; }
     item.append(preview); return preview;
@@ -1017,6 +1017,9 @@
     // link moves, or not), and the 12 months run from a first release only.
     const moves = lineage?.link_moves_on_approval === true;
     if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan runs and at least 12 months after today.', 'tour-state-help tour-share-terms');
+    // The quality check's advice for this walkthrough, if any: read, never a block.
+    const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
+    reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
     const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
@@ -4097,6 +4100,77 @@
     const room = typeof value.room === 'string' && value.room.trim() && value.room.length <= 80 ? value.room.trim() : null;
     return [{ room, reason: value.reason.trim().replace(/[.\s]+$/, '') }];
   }
+  /*
+   * Why a queued capture waits (migration 20260926110000, hold): admission (the account
+   * waits for a rendering place), paused (new renders are paused for everyone) or
+   * weekly_limit (this week's renders are used; the next starts at until). The job stays
+   * Waiting to render, with no failure and nothing to press. The contract's words.
+   */
+  const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit'];
+  function renderHold(value) {
+    if (!value || typeof value !== 'object' || !RENDER_HOLDS.includes(value.reason)) return null;
+    return { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
+  }
+  function renderHoldWords(hold) {
+    if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
+    if (hold.reason === 'paused') return 'Rendering is paused for a moment. Yours keeps its place in line.';
+    const day = hold.until ? window.VeyletSharing?.hostingDate?.(hold.until) || '' : '';
+    return 'You’ve used this week’s renders. ' + (day ? 'This one starts on ' + day + '.' : 'This one starts as soon as the week allows another.');
+  }
+  /*
+   * The quality check's advice (review_flags: [{room, reason}], 20260926110000): areas
+   * worth a look before sharing, shown in the review above Approve and share. Advice
+   * only: approving is never blocked by it. The member read names the gate's reason
+   * sentence (written for a recapture), so each is mapped to a short plain line by its
+   * rule when one is sent, else by the gate's own words; anything else reads "worth a
+   * closer look".
+   */
+  const REVIEW_FLAG_WORDS = {
+    photo_match: 'some areas may look blurry',
+    coverage: 'some corners may be missing',
+    few_views: 'few photos were taken here, so detail may be thin',
+    floaters: 'there may be stray smudges in the air',
+    no_floor: 'the floor may be hard to walk on',
+    not_connected: 'walking on to the next room may not work',
+    ai_visual: 'an automatic check noticed something to look at',
+  };
+  const REVIEW_FLAG_REASONS = [['few_views', /too few photos/i], ['coverage', /not photographed/i], ['photo_match', /does not match the photos/i],
+    ['floaters', /stray smudges/i], ['no_floor', /clear floor to walk on/i], ['not_connected', /clear path on the floor/i], ['ai_visual', /automatic visual check/i]];
+  function reviewFlagLines(flags) {
+    if (!Array.isArray(flags)) return [];
+    const lines = [];
+    for (const flag of flags.slice(0, 20)) {
+      if (!flag || typeof flag !== 'object') continue;
+      const rule = Object.prototype.hasOwnProperty.call(REVIEW_FLAG_WORDS, flag.rule) ? flag.rule
+        : (REVIEW_FLAG_REASONS.find(([, words]) => words.test(String(flag.reason || ''))) || [])[0];
+      const words = REVIEW_FLAG_WORDS[rule] || 'worth a closer look';
+      const room = typeof flag.room === 'string' ? flag.room.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+      const line = room ? room + ': ' + words : words.charAt(0).toUpperCase() + words.slice(1);
+      if (!lines.includes(line)) lines.push(line);
+    }
+    return lines;
+  }
+  // Per walkthrough: the latest advice from the render answer, and the review form's slot for it.
+  const reviewFlags = new Map(), reviewFlagSlots = new Map();
+  function paintReviewFlags(slot, flags) {
+    const lines = reviewFlagLines(flags);
+    // Each render read repaints nothing that has not changed, so a reader keeps their place.
+    const signature = lines.join('\n');
+    if (slot.dataset.flags === signature) return;
+    slot.dataset.flags = signature;
+    if (!lines.length) { slot.hidden = true; slot.replaceChildren(); return; }
+    slot.className = 'tour-flags';
+    const title = document.createElement('p'); title.className = 'tour-flags-title'; title.textContent = 'Worth a look before you share';
+    const list = document.createElement('ul'); list.className = 'tour-flags-list';
+    for (const text of lines) { const item = document.createElement('li'); item.textContent = text; list.append(item); }
+    const note = document.createElement('p'); note.className = 'tour-flags-note'; note.textContent = 'Open the preview to check these areas. They never stop you approving.';
+    slot.replaceChildren(title, list, note); slot.hidden = false;
+  }
+  function reviewFlagsFor(tourID, flags) {
+    reviewFlags.set(tourID, flags);
+    const slot = reviewFlagSlots.get(tourID);
+    if (slot) paintReviewFlags(slot, flags);
+  }
   function renderJobValid(job) {
     return Boolean(job) && typeof job === 'object' && typeof job.job_id === 'string' && Boolean(job.job_id) && typeof job.state === 'string';
   }
@@ -4119,7 +4193,11 @@
     const tourID = typeof job.tour_id === 'string' && job.tour_id ? job.tour_id : null;
     let view;
     if (key === 'uploading') view = { key, pct: renderInt(job.progress_pct, 0, 100) };
-    else if (key === 'waiting') view = { key, position: renderInt(job.queue_position, 1, 100000), wait: renderInt(job.typical_start_minutes, 1, 100000) };
+    // A held job stays Waiting to render; the hold replaces its place in line and minutes.
+    else if (key === 'waiting') {
+      const hold = renderHold(job.hold);
+      view = hold ? { key, position: null, wait: null, hold } : { key, position: renderInt(job.queue_position, 1, 100000), wait: renderInt(job.typical_start_minutes, 1, 100000) };
+    }
     // A render that has not checked in for 3 minutes (the server's stale) shows no live progress.
     else if (key === 'rendering') view = job.stale === true ? { key: 'stale', step }
       : { key, step, pct: renderInt(job.progress_pct, 0, 100), eta: renderInt(job.eta_seconds, 0, 7 * 86400) };
@@ -4139,14 +4217,14 @@
   // What the live region says when a capture changes state or step.
   function renderSpoken(view) {
     switch (view.key) {
-      case 'waiting': return 'Waiting to render.' + (view.position ? ' You’re ' + renderOrdinal(view.position) + ' in line.' : '');
+      case 'waiting': return 'Waiting to render.' + (view.hold ? ' ' + renderHoldWords(view.hold) : view.position ? ' You’re ' + renderOrdinal(view.position) + ' in line.' : '');
       case 'rendering': return view.step ? 'Rendering, step ' + view.step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[view.step - 1] + '.' : 'Rendering.';
       case 'retrying': return 'Retrying' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.');
       case 'failed': return 'Failed. Veylet support has been told; nothing was used.';
       default: return RENDER_TITLES[view.key] + '.';
     }
   }
-  function renderSignature(view) { return view ? [view.key, view.step || '', view.attempt || ''].join('|') : ''; }
+  function renderSignature(view) { return view ? [view.key, view.step || '', view.attempt || '', view.hold?.reason || ''].join('|') : ''; }
   function renderMeter(pct, label) {
     const meter = annualNode('div', 'render-meter');
     const bar = document.createElement('progress'); bar.className = 'render-progress';
@@ -4224,6 +4302,7 @@
         if (view.pct !== null) block.append(renderMeter(view.pct, 'Upload progress'));
         break;
       case 'waiting': {
+        if (view.hold) { line(renderHoldWords(view.hold)).classList.add('render-hold'); break; }
         const words = [view.position ? 'You’re ' + renderOrdinal(view.position) + ' in line.' : '',
           view.wait ? 'Usually starts within ' + renderMinutes(view.wait) + '.' : ''].filter(Boolean);
         line(words.length ? words.join(' ') : 'Your capture is in line.');
@@ -4296,7 +4375,7 @@
   // Signed out: nothing about this account's captures stays on the page or in memory.
   function renderForget() {
     renderHide();
-    renderSaid.clear(); renderOpen.clear(); renderAsked.clear(); renderApproved.clear();
+    renderSaid.clear(); renderOpen.clear(); renderAsked.clear(); renderApproved.clear(); reviewFlags.clear();
     renderPrimed = false; renderGuideSaid = ''; renderPendingReview = null;
     if (renderLiveEl) renderLiveEl.textContent = '';
   }
@@ -4314,9 +4393,10 @@
     const found = key => views.find(entry => entry.view.key === key);
     const recapture = found('recapture'), broken = found('failed');
     const moving = views.find(entry => RENDER_ACTIVE.includes(entry.view.key));
-    const said = recapture ? 'recapture' : broken ? 'failed' : moving ? (moving.view.key === 'uploading' ? 'uploading' : 'moving') : '';
+    const said = recapture ? 'recapture' : broken ? 'failed' : moving ? (moving.view.key === 'uploading' ? 'uploading' : moving.view.hold ? 'held-' + moving.view.hold.reason : 'moving') : '';
     if (!said || said === renderGuideSaid) return;
     renderGuideSaid = said;
+    if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
       guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. Recapturing it won’t use a walkthrough.', 'Show what to recapture', () => {
         const slot = renderSlots.get(recapture.propertyID);
@@ -4345,6 +4425,8 @@
         continue;
       }
       const row = answer.spaces.get(propertyID);
+      // The quality check's advice travels with the capture; its walkthrough's review shows it.
+      if (row && typeof row === 'object' && typeof row.tour_id === 'string' && row.tour_id) reviewFlagsFor(row.tour_id, row.review_flags);
       const view = row && renderJobValid(row) ? renderView(row, desk) : null;
       const title = space?.title || 'Untitled space';
       let signature, draw;
@@ -4498,7 +4580,7 @@
   // while it is worked out, and an empty list. Returns the new desk's ticket.
   function deskReset() {
     const ticket = ++deskVersion;
-    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear();
+    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear();
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget

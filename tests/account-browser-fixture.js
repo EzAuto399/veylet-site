@@ -703,6 +703,29 @@
     // No report for 5 minutes: the server's stale, with the step it last reported.
     stale: { state: 'rendering', status: 'processing', step: 3, stage: 'train', progress_pct: 64, eta_seconds: 420, heartbeat: 5 * 60, stale: true, attempt: 1 },
   };
+  /* Why a queued capture waits, and the quality check's advice (migration
+   * 20260926110000_admission_and_gate_policy.sql, not released). `?hold=admission|paused|
+   * weekly_limit` holds every waiting capture (`?render=waiting`, `all` or `walk`) with that
+   * reason; weekly_limit's until is 3 days from now. `?flags=all` gives the ready capture
+   * (`?render=ready` or `all`) one review flag per advice rule, as the member read names
+   * them ({room, reason}: the gate's own reason sentence, no rule), on five named rooms and
+   * one unnamed; `unknown` adds a reason this page does not know; without it the ready
+   * capture has none ([]). */
+  const holdCase = params.get('hold');
+  const flagsCase = params.get('flags');
+  const REVIEW_FLAGS = [
+    { room: 'Kitchen', reason: 'The 3D walkthrough does not match the photos closely enough (blur or movement). Recapture it moving slowly with the phone steady.' },
+    { room: 'Living room', reason: 'Parts of this room were not photographed from where you stood. Recapture it, turning a full circle at each spot.' },
+    { room: 'Bedroom 1', reason: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.' },
+    { room: 'Bathroom', reason: 'Stray smudges float in the air of the 3D walkthrough. Recapture moving slowly, with the lights on and nothing moving.' },
+    { room: 'Hallway', reason: 'We could not find a clear floor to walk on here. Recapture it, including the floor and doorways.' },
+    { room: '', reason: 'We could not find a clear path on the floor from here to the other rooms. Recapture the doorway and the floor between rooms.' },
+  ];
+  const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit'].includes(holdCase) ? null
+    : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
+  const renderFlagsOf = state => (!['ready_for_review', 'approved', 'live'].includes(state) ? null
+    : flagsCase === 'all' ? REVIEW_FLAGS.map(flag => ({ ...flag }))
+      : flagsCase === 'unknown' ? [...REVIEW_FLAGS.slice(0, 1), { room: 'Garage', reason: 'A check this page has never heard of found something.' }] : []);
   // `?render=walk`: one step on at every read of the account's workspace.
   const RENDER_WALK = [
     { state: 'uploading', status: 'uploading' },
@@ -726,6 +749,8 @@
       attempts_allowed: 2, recapture: null, tour_id: null, express, express_due_at: express ? expressLive.order.due_at : null,
       created_at: secondsAgo(3600), updated_at: secondsAgo(heartbeat === undefined ? 4 : heartbeat), ...fields };
     out.step_label = out.step ? RENDER_STEP_LABELS[out.step - 1] : null;
+    out.hold = renderHoldOf(out.status);
+    out.review_flags = renderFlagsOf(out.state);
     if (out.eta_seconds !== null && out.heartbeat_at) out.eta_at = new Date(Date.parse(out.heartbeat_at) + out.eta_seconds * 1000).toISOString();
     if (tour) out.tour_id = renderTourOf(state === 'walk' ? 'ready' : state);
     if (params.get('render-fields') === 'none') Object.assign(out, { step: null, step_label: null, stage: null, progress_pct: null,

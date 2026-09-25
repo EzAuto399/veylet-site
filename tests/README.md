@@ -212,3 +212,8 @@ not yet written, so every answer is the fixture's):
   `?pause=fail` fails every pause and resume.
 - `?views=zero|missing|error` on any route: view counts on the desk and the viewer
   beacon's `record_tour_view` (recorded in `window.VEYLET_QA_CALLS`, never sent).
+- `?render=waiting&hold=admission|paused|weekly_limit`: the waiting capture is held
+  (Waiting to render, with the hold's words and nothing to press). `?render=ready&flags=all`
+  (or `unknown`): the ready capture carries review flags, shown in its review as
+  "Worth a look before you share" above Approve and share.
+- `/__qa/play/?id=synthetic-tour&from=app`: the preview's links go to `/app/*`.

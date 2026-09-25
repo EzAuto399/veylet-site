@@ -78,6 +78,18 @@
       const retry = document.getElementById('tour-retry');
       const signIn = document.getElementById('play-signin');
       const params = new URLSearchParams(location.search);
+      // Opened from the app (its review preview carries from=app, or the app's own web
+      // view, which has no Safari token): every link stays on the app's pages, never
+      // the public site and its prices. Anywhere else the links are as written.
+      const agent = (navigator && navigator.userAgent) || '';
+      const fromApp = params.get('from') === 'app' || /VeyletCapture/i.test(agent) || (/\b(iPhone|iPad|iPod)\b/.test(agent) && !/Safari\//.test(agent));
+      if (fromApp) {
+        const inApp = { '/': '/app/account', '/account': '/app/account', '/privacy': '/app/privacy', '/terms': '/app/terms' };
+        for (const link of document.querySelectorAll('a[href]')) {
+          const to = inApp[link.getAttribute('href')];
+          if (to) link.setAttribute('href', to);
+        }
+      }
       const tourId = params.get('id') || '';
       const expectedRevision = params.get('review_revision');
       const reviewRecovery = document.getElementById('play-review-recovery');

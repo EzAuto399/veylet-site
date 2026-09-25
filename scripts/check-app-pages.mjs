@@ -187,6 +187,8 @@ export const APP_ACCOUNT_CASES = Object.freeze([
   '?express=offer&render=rendering', '?express=ordered&render=rendering', '?express=credit&render=waiting', '?render=all',
   '?referral=link&ref=0123456789ab', '?packs=credits', '?annual=scheduled', '?trial=choose&case=plan-pending',
   '?pause=paused', '?pause=missing', '?views=zero', '?contact=shown', '?case=correction', '?share=review',
+  '?render=waiting&hold=admission', '?render=waiting&hold=paused', '?render=waiting&hold=weekly_limit', '?render=ready&flags=all',
+  '?render=all&flags=unknown&hold=weekly_limit',
 ]);
 
 export async function checkAppPages(dist = join(REPO, 'dist')) {

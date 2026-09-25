@@ -1050,3 +1050,87 @@ test('the public desk is unchanged by app mode: its plan panel, offers and websi
   assert.ok(h.count('get_pack_offer') >= 1 || h.count('get_trial_offer') >= 1, 'the public desk still asks for its offers');
   assert.ok(byText(h.card('t1'), 'Full website guide'));
 });
+
+/* ---- Why a capture waits (hold) and the quality check's advice (review_flags) -------
+ * Migration 20260926110000_admission_and_gate_policy.sql (not released): a queued job
+ * carries hold {reason: admission | paused | weekly_limit, until}; a ready one carries
+ * review_flags [{room, reason}], advice that never blocks approval. */
+
+const renderAnswer = job => async () => ({ data: { active: job.state !== 'ready_for_review', spaces: [{ property_id: 'p1', job: { job_id: 'j1', property_id: 'p1', attempts_allowed: 2, ...job } }] } });
+const renderBlockOf = h => h.ids['account-properties'].all().find(el => /\brender-block\b/.test(el.className));
+const textOf = el => [el, ...el.all()].map(node => node.textContent).filter(Boolean).join(' ');
+
+test('a held capture stays Waiting to render with the contract’s words for its hold, no failure and nothing to press', async () => {
+  const words = {
+    admission: 'We’ll start your render as soon as a rendering place opens for your account.',
+    paused: 'Rendering is paused for a moment. Yours keeps its place in line.',
+    weekly_limit: 'You’ve used this week’s renders. This one starts on 2 Oct 2026.',
+  };
+  for (const [reason, said] of Object.entries(words)) {
+    const hold = { reason, until: reason === 'weekly_limit' ? '2026-10-02T03:00:00Z' : null };
+    const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 3, typical_start_minutes: 40, hold }) } });
+    const block = renderBlockOf(h);
+    assert.equal(block.dataset.state, 'waiting', reason);
+    assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
+    const lines = block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent);
+    assert.deepEqual(lines, [said], reason + ': the hold instead of the place in line and the minutes');
+    assert.equal(block.all().some(el => el.tagName === 'BUTTON' || el.tagName === 'A'), false, reason + ': nothing to press');
+    assert.doesNotMatch(textOf(block), /Failed|Try again|Retry|Contact Veylet support|You’re \d|Usually starts/, reason);
+    assert.equal(h.ids['account-next-step'].children[0].textContent, 'Your capture is waiting to start.', reason);
+    assert.equal(h.ids['account-next-step'].children[1].textContent, said + ' It shows on Sample space below.');
+  }
+  // A weekly limit without a readable date, and a hold this page does not know.
+  const undated = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', hold: { reason: 'weekly_limit', until: 'soon' } }) } });
+  assert.match(textOf(renderBlockOf(undated)), /You’ve used this week’s renders\. This one starts as soon as the week allows another\./);
+  const strange = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 3, hold: { reason: 'weather' } }) } });
+  assert.match(textOf(renderBlockOf(strange)), /You’re 3rd in line\./, 'an unknown hold reads as a place in line');
+});
+
+const GATE = {
+  photo_match: 'The 3D walkthrough does not match the photos closely enough (blur or movement). Recapture it moving slowly with the phone steady.',
+  coverage: 'Parts of this room were not photographed from where you stood. Recapture it, turning a full circle at each spot.',
+  few_views: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.',
+  floaters: 'Stray smudges float in the air of the 3D walkthrough. Recapture moving slowly, with the lights on and nothing moving.',
+  no_floor: 'We could not find a clear floor to walk on here. Recapture it, including the floor and doorways.',
+  not_connected: 'We could not find a clear path on the floor from here to the other rooms. Recapture the doorway and the floor between rooms.',
+};
+const flagsOf = card => card.all().find(el => el.className === 'tour-flags');
+
+test('the review shows the quality check’s advice as plain lines just above Approve and share, and approving still works', async () => {
+  const review_flags = [
+    { room: 'Kitchen', reason: GATE.photo_match }, { room: 'Living room', reason: GATE.coverage }, { room: 'Bedroom 1', reason: GATE.few_views },
+    { room: 'Bathroom', reason: GATE.floaters }, { room: 'Hallway', reason: GATE.no_floor }, { room: '', reason: GATE.not_connected },
+    { room: 'Kitchen', reason: GATE.photo_match }, { room: 'Garage', reason: 'A check this page has never heard of.' }, { room: 'Study', rule: 'coverage', reason: 'x' },
+  ];
+  const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', review_flags }) } });
+  await settle();
+  const form = reviewForm(h.card('t1'));
+  const flags = flagsOf(h.card('t1'));
+  assert.equal(flags.hidden, false);
+  assert.equal(flags.children[0].textContent, 'Worth a look before you share');
+  assert.deepEqual(flags.children[1].children.map(el => el.textContent), [
+    'Kitchen: some areas may look blurry', 'Living room: some corners may be missing', 'Bedroom 1: few photos were taken here, so detail may be thin',
+    'Bathroom: there may be stray smudges in the air', 'Hallway: the floor may be hard to walk on', 'Walking on to the next room may not work',
+    'Garage: worth a closer look', 'Study: some corners may be missing']);
+  assert.equal(flags.children[2].textContent, 'Open the preview to check these areas. They never stop you approving.');
+  const order = form.children.map(el => el.className || el.textContent);
+  assert.equal(order.indexOf('tour-flags') + 1, order.indexOf('button'), 'right above Approve and share');
+  assert.doesNotMatch(textOf(flags), /Recapture|Needs recapture|failed/i, 'advice, not the recapture words');
+  await approve(h);
+  assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name]) => name), ['review_tour_versioned', 'enable_tour_share'], 'flags never block');
+  // None: no block at all. A flag for another walkthrough stays on its own card.
+  const none = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', review_flags: [] }) } });
+  await settle();
+  assert.equal(flagsOf(none.card('t1')), undefined);
+  assert.doesNotMatch(none.visible(), /Worth a look/);
+  const other = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't9', review_flags }) } });
+  await settle();
+  assert.doesNotMatch(other.visible(), /Worth a look/);
+});
+
+test('app mode: the review preview opens /play with from=app, so its links stay on the app’s pages', async () => {
+  const h = await load({ markup: appMarkup, tours: [readyTour()] });
+  assert.match(byText(h.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}&from=app$/);
+  const site = await load({ tours: [readyTour()] });
+  assert.match(byText(site.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}$/);
+});
