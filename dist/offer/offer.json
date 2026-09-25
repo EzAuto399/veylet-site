@@ -1,8 +1,13 @@
 {
-  "version": "2026-09-26.2",
+  "version": "2026-09-26.3",
   "status": "current commercial offer; channel availability and release readiness are documented separately",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
+  "audience": {
+    "who": "anyone: agents, property managers and freelancers",
+    "separateTiers": false,
+    "rule": "open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget"
+  },
   "freeMonths": {
     "months": 3,
     "includedWalkthroughs": 6,
@@ -31,6 +36,14 @@
       "appStore": "Apple's 3-month free introductory offer (a payment method on the Apple Account is required)",
       "web": "Square card on file at trial start; the first charge is scheduled for the day the free months end (Square Sandbox until the card lane opens)",
       "invoice": "an agreed paid start date in writing"
+    },
+    "renderAttemptCap": 12,
+    "fairUse": {
+      "text": "up to 12 render attempts during the free months, including retries",
+      "counts": "every render attempt during the free months, including automatic retries and recaptures; the 6 included walkthroughs are unchanged",
+      "kind": "fair-use line in the terms; an internal cap, not a sold allowance",
+      "status": "offer term from 2026-09-26.3; server enforcement is not yet released",
+      "cap": "freeMonths.renderAttemptCap"
     }
   },
   "plans": [
@@ -152,7 +165,6 @@
   "counting": {
     "acceptedMeans": "the automatic quality check passed and the workspace approved the exact revision for release",
     "notGoodEnoughCounts": false,
-    "largeOrMultiLevelMayCountAsTwo": true,
     "rollover": true,
     "freeMonthsAllowanceIsTotal": true,
     "planAllowanceIsMonthly": true,
@@ -160,8 +172,8 @@
     "unitsPerAcceptedWalkthrough": 1,
     "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 6 in total",
     "annualAllowanceIsYearlyPool": true,
-    "largeHomeUnits": 2,
-    "largeHomeRule": "see walkthroughScope.countsAsTwo; declared at new listing and locked when capture starts"
+    "walkthroughsPerProperty": "max(1, ceil(rooms / 8)); see walkthroughScope",
+    "roomsRule": "counted automatically from the rooms captured at one property; a correction of the same walkthrough and a recapture of named rooms use none"
   },
   "devices": [
     "iPhone 12 Pro and later Pro or Pro Max models",
@@ -248,9 +260,14 @@
     "rule": "when a referred office becomes a paying account, both offices get 1 bonus walkthrough; the referrer shares their own link"
   },
   "walkthroughScope": {
-    "unit": "one visit to the interior rooms of one home",
-    "countsAsTwo": "5 or more bedrooms, a second dwelling, or more than 350 m² of floor area",
-    "declaredAt": "new listing; the count locks when capture starts"
+    "unit": "one property: one link and one QR code, counted by the rooms captured",
+    "roomsPerWalkthrough": 8,
+    "rule": "up to 8 rooms uses 1 walkthrough; each further 8 rooms uses 1 more",
+    "walkthroughs": "max(1, ceil(rooms / 8))",
+    "countedBy": "the app counts the rooms captured; nothing is declared",
+    "usesNone": "a correction of the same walkthrough, and a recapture of rooms the quality check names",
+    "linkPerProperty": "one link and one QR code per property, however many walkthroughs its rooms use",
+    "status": "offer terms from 2026-09-26.3; the database and app still count by the 2026-09-25.1 whole-home rule until release 2; the terms still need legal review"
   },
   "expressRender": {
     "code": "express",
@@ -262,7 +279,11 @@
     "channels": [
       "web"
     ],
-    "name": "Super fast render"
+    "name": "Super fast render",
+    "availability": "only while fast GPUs start quickly",
+    "availabilityRule": "sold only while fast GPUs in Sydney are starting quickly; otherwise the account says \"Super fast isn't available right now\" and nothing is charged",
+    "unavailableText": "Super fast isn't available right now",
+    "refundPromise": "unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically"
   },
   "anchor": {
     "text": "A photographer's 3D tour costs A$215–400 each",
@@ -282,6 +303,14 @@
     "qualityGate": "an automatic quality check (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms",
     "approval": "the account reviews and approves before sharing"
   },
+  "retiredTerms": {
+    "items": {
+      "walkthroughScope.countsAsTwo": "5 or more bedrooms, a second dwelling, or more than 350 m² of floor area",
+      "walkthroughScope.declaredAt": "new listing; the count locks when capture starts",
+      "counting.largeHomeUnits": 2
+    },
+    "rule": "not the terms for new captures from offer 2026-09-26.3: a property is counted by its rooms (walkthroughScope); listings declared under the earlier rule keep their count until release 2 moves counting to rooms"
+  },
   "history": [
     {
       "version": "2026-09-25.2",
@@ -294,6 +323,12 @@
       "replacedBy": "2026-09-26.2",
       "on": "2026-09-26",
       "change": "the A$49 hosting extension is kept (owner decision 26 September 2026) in a new role: after the plan's 14 days, a paid extension keeps one walkthrough online until the extension ends, A$49 a year per walkthrough, on request, by studio invoice recorded from the studio desk (website card purchase not built; never sold or mentioned in the app); hosting while a plan runs, the 14 days, listing exports and every price unchanged"
+    },
+    {
+      "version": "2026-09-26.2",
+      "replacedBy": "2026-09-26.3",
+      "on": "2026-09-26",
+      "change": "owner decisions 26 September 2026 (offer v9.1): a walkthrough is counted by rooms: one link and QR code per property, up to 8 rooms uses 1 walkthrough and each further 8 rooms 1 more, counted by the app (was: a home with 5 or more bedrooms, a second dwelling or more than 350 m² counts as 2, declared at the listing); Super fast is sold only while fast GPUs start quickly in Sydney, refund promise unchanged for orders taken; open to anyone (agents, property managers, freelancers) with no separate tier; a fair-use cap of 12 render attempts during the free months, including retries; prices, allowances, packs, the redo, hosting and the A$49 extension unchanged"
     }
   ]
 }

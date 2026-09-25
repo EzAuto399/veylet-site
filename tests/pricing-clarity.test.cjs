@@ -29,14 +29,26 @@ const between = (start, end) => {
 };
 const currentTerms = strategy.slice(strategy.indexOf('## The offer we can explain consistently'));
 
-test('the canonical offer is 2026-09-26.2 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-26.3 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
-  // never in the app. 2026-09-25.2's prices and allowances stand; both earlier versions are history.
-  assert.equal(record.version, '2026-09-26.2');
+  // never in the app. 2026-09-26.3 (owner, offer v9.1) counts walkthroughs by rooms, sells Super fast only
+  // while fast GPUs start quickly, opens sign-up to anyone and adds a fair-use cap of 12 render attempts
+  // to the free months. 2026-09-25.2's prices and allowances stand; every earlier version is history.
+  assert.equal(record.version, '2026-09-26.3');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3']]);
+  assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
+    rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
+  assert.equal(record.freeMonths.renderAttemptCap, 12);
+  assert.equal(record.freeMonths.fairUse.text, 'up to 12 render attempts during the free months, including retries');
+  assert.equal(record.freeMonths.fairUse.cap, 'freeMonths.renderAttemptCap');
+  assert.match(record.freeMonths.fairUse.kind, /^fair-use line in the terms; an internal cap, not a sold allowance$/);
+  assert.equal(record.expressRender.availability, 'only while fast GPUs start quickly');
+  assert.equal(record.expressRender.unavailableText, "Super fast isn't available right now");
+  assert.match(record.expressRender.availabilityRule, /fast GPUs in Sydney are starting quickly.*nothing is charged/);
+  assert.match(record.expressRender.refundPromise, /^unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically$/);
   assert.equal(record.freeMonths.hostingDaysAfterPlanEnds, 14);
   assert.equal(record.services.hostingPerWalkthroughPerFurtherYearAud, 49, 'the hosting extension is on sale again');
   assert.equal('hostingPerWalkthroughPerFurtherYearAud' in record.retiredServices.items, false);
@@ -129,19 +141,41 @@ test('current sales and onboarding copy cannot restore universal trial, a member
   }
 });
 
-test('service units: one accepted walkthrough, a whole home of 5+ bedrooms, a second dwelling or over 350 m² counts as 2', () => {
+// Offer 2026-09-26.3: a property is counted by its rooms: up to 8 rooms is 1 walkthrough, each further 8 rooms 1 more.
+const ROOMS_RULE = /One walkthrough covers up to 8 rooms of one property, counted automatically from your capture; each further 8 rooms uses one more\./;
+const RETIRED_HOME_RULE = /5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2/;
+
+test('service units: one accepted walkthrough; a property is counted by its rooms, 8 rooms a walkthrough', () => {
   assert.equal(record.counting.unit, 'accepted_walkthrough');
   assert.equal(record.counting.notGoodEnoughCounts, false);
-  assert.match(record.walkthroughScope.unit, /^one visit to the interior rooms of one home$/);
-  assert.match(record.walkthroughScope.countsAsTwo, /^5 or more bedrooms, a second dwelling, or more than 350 m² of floor area$/);
-  assert.match(record.walkthroughScope.declaredAt, /new listing; the count locks when capture starts/);
+  const scope = record.walkthroughScope;
+  assert.equal(scope.roomsPerWalkthrough, 8);
+  assert.equal(scope.walkthroughs, 'max(1, ceil(rooms / 8))');
+  assert.equal(scope.rule, 'up to 8 rooms uses 1 walkthrough; each further 8 rooms uses 1 more');
+  assert.match(scope.unit, /^one property: one link and one QR code, counted by the rooms captured$/);
+  assert.match(scope.countedBy, /^the app counts the rooms captured; nothing is declared$/);
+  assert.match(scope.usesNone, /a correction of the same walkthrough, and a recapture of rooms the quality check names/);
+  for (const key of ['countsAsTwo', 'declaredAt']) assert.equal(key in scope, false, `walkthroughScope.${key} is retired`);
+  for (const key of ['largeOrMultiLevelMayCountAsTwo', 'largeHomeUnits', 'largeHomeRule']) assert.equal(key in record.counting, false, key);
+  assert.equal(record.retiredTerms.items['walkthroughScope.countsAsTwo'], '5 or more bedrooms, a second dwelling, or more than 350 m² of floor area');
+  // The rule, as the offer states it: 1 to 8 rooms is 1 walkthrough, 9 to 16 is 2, 17 is 3.
+  const walkthroughs = (rooms) => Math.max(1, Math.ceil(rooms / scope.roomsPerWalkthrough));
+  assert.deepEqual([0, 1, 8, 9, 16, 17].map(walkthroughs), [1, 1, 1, 2, 2, 3]);
   assert.match(record.packRules.unit, /one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none/);
-  for (const file of ['dist/offer/index.html', 'dist/start/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
-    assert.match(current[file], /1 walkthrough is one visit to the interior rooms of one home/, `${file} states the unit`);
-    assert.match(current[file], /5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2/, `${file} states the whole-home rule`);
+  assert.match(current['dist/offer/index.html'], ROOMS_RULE, 'the offer page states the rooms rule');
+  assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
+  assert.doesNotMatch(current['dist/offer/index.html'], /One accepted walkthrough uses one allowance unit|scope of larger spaces/i);
+  assert.match(current['dist/offer/index.html'], /Fair use: up to 12 render attempts during the free months, including retries\./);
+  assert.match(current['dist/offer/index.html'], /Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren’t, your account says “Super fast isn’t available right now” and nothing is charged\./);
+  assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
+});
+
+test('the rooms rule reaches /start, /terms and llms.txt, and the bedroom rule it replaces is gone', () => {
+  for (const file of ['dist/start/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
+    assert.match(current[file], /up to 8 rooms/i, `${file} states the rooms rule`);
+    assert.doesNotMatch(current[file], RETIRED_HOME_RULE, `${file} still states the retired bedroom rule`);
     assert.doesNotMatch(current[file], /One accepted walkthrough uses one allowance unit|scope of larger spaces/i, `${file} keeps the retired one-unit wording`);
   }
-  assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
 });
 
 test('human and machine summaries keep renewal and exhausted-trial recovery truthful', () => {
@@ -180,7 +214,7 @@ test('the strategy’s current terms carry this offer and label unit economics a
   for (const phrase of ['**3 calendar months from activation, 6 accepted walkthroughs total**', 'unused ones roll over, at most 4 banked',
     `**${fmt(plan.webAud)}/month** website price`, `**${fmt(plan.appAud)}/month**`, '**2 accepted walkthroughs per monthly anniversary',
     `**${fmt(plan.annualAud)}/year**`, `**${fmt(plan.annualAppAud)}/year** in the App Store`, '**24 walkthroughs as a yearly pool**',
-    `**${bonus} bonus walkthroughs** and ${bonusExpress} express renders`, 'a home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2',
+    `**${bonus} bonus walkthroughs** and ${bonusExpress} express renders`, 'up to 8 rooms of one property is 1 walkthrough; each further 8 rooms is 1 more',
     'a reminder email 7 days before the first charge is planned, not operational', 'with the first charge on the day the free months end and nothing charged if cancelled before then',
     `**Super fast render ${fmt(record.expressRender.webAud)}**`, `"${record.guarantee.text}"`, `"${record.anchor.text}"`]) {
     assert.ok(currentTerms.includes(phrase), `current terms: ${phrase}`);

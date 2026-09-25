@@ -2388,7 +2388,12 @@ test('the capture queue reads no whole-home fields; the rule sits with its own c
   const note = markup.slice(markup.indexOf('id="studio-home"'), markup.indexOf('id="studio-home-body"')).replace(/\s+/g, ' ');
   assert.match(markup, /<h2 class="dash-heading" id="studio-home-title">Whole-home count<\/h2>/);
   assert.match(note, /1 walkthrough is one visit to the interior rooms of one home\. A home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2: the account declares it when it adds the listing, and the count locks when capture starts\./);
-  assert.match(offer.walkthroughScope.countsAsTwo, /5 or more bedrooms, a second dwelling, or more than 350 m²/);
+  // Offer 2026-09-26.3 counts a property by its rooms (8 rooms a walkthrough). Until release 2 moves the
+  // database to rooms, listings are still counted by the whole-home rule, so the desk's correction form
+  // states that rule, which the record keeps under retiredTerms.
+  assert.equal(offer.walkthroughScope.roomsPerWalkthrough, 8);
+  assert.match(offer.walkthroughScope.status, /still count by the 2026-09-25\.1 whole-home rule until release 2/);
+  assert.match(offer.retiredTerms.items['walkthroughScope.countsAsTwo'], /5 or more bedrooms, a second dwelling, or more than 350 m²/);
   assert.ok(markup.indexOf('id="studio-corrections"') < markup.indexOf('id="studio-home"'));
 });
 
@@ -2523,6 +2528,9 @@ test('offer v9: the Super fast band lists open renders soonest due first, then a
   // The offer record agrees: A$29, no daily cap, refunded if not ready 30 minutes after the upload finishes.
   assert.deepEqual([OFFER.express, OFFER.expressCap], [2900, null]);
   assert.match(offer.expressRender.refund, /isn't ready for review within 30 minutes of the upload finishing/);
+  // Offer 2026-09-26.3: sold only while fast GPUs start quickly; an order already taken keeps its refund promise.
+  assert.equal(offer.expressRender.availability, 'only while fast GPUs start quickly');
+  assert.match(offer.expressRender.refundPromise, /^unchanged for orders taken/);
   const h = await load({ express: expressOrders() });
   assert.deepEqual(h.calls.filter(([name]) => name === 'studio_express_queue').map(([, args]) => args), [undefined]);
   assert.ok(!h.calls.some(([name]) => name === 'get_express_offer'), 'the desk never reads the account offer or its cap');
