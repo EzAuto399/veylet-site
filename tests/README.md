@@ -242,8 +242,9 @@ function answers PGRST202 and no block is shown). `tests/listing-exports.test.cj
   answers `get_listing_exports` for the live walkthrough (default `missing`). `soon` is the
   draft's seeded statement, still inactive: "Exports open soon." with nothing to press.
   `&exports-request=inactive|approve|unavailable|fail|expired` refuses every request;
-  `&exports-download=not-open|too-many|not-ready|fail` answers the proposed download endpoint
-  (`POST /listing-exports/download` on the hooks stand-in; the server lane builds the real one)
-  with 404, 429, 409 or 500. A successful download is recorded in `VEYLET_QA_CALLS`
+  `&exports-download=invalid|expired|not-allowed|unknown|not-ready|too-many|fail|not-open` answers
+  the download endpoint (`POST /listing-exports/download` on the hooks stand-in, as the sibling
+  repository's `deploy/hooks-vercel/listing_exports/download.py` answers: 400, 401, 403, 404,
+  409 needs_attention (the export then reads needs_attention), 429, 502, 503). A successful download is recorded in `VEYLET_QA_CALLS`
   ("open download"), never opened. `&exports-open=1` opens the block for a capture, also on
   `/__qa/app-account/`.

@@ -170,14 +170,17 @@
    * which then reads `requested`); `requested`, `rendering`, `needs-attention`, `ready`
    * (three files: 18.6 MB, 6.9 MB and 520 KB), `ready-locked` (ready, downloadable false),
    * `partner-only`, `failed` (statement active, so Try again asks again), `failed-soon`
-   * (failed while the statement is inactive, so asking again is refused), `unknown-version`
+   * (failed while no statement is active: its version is null, so there is nothing to press), `unknown-version`
    * (an active version this page has no words for), `error` fails the read and `loading`
    * never answers. `&exports-request=inactive|approve|unavailable|fail|expired` refuses
    * every request with the draft's words, a failure or an expired sign-in.
-   * Downloads use the server lane's proposed endpoint (POST /listing-exports/download on
-   * the hooks stand-in below, not built yet): it answers a link on downloads.fixture.invalid,
-   * which this fixture records instead of opening. `&exports-download=not-open|too-many|not-ready|fail`
-   * answers 404, 429, 409 or 500. `&exports-open=1` opens the live walkthrough's block for a capture
+   * Downloads use veylet-hooks' POST /listing-exports/download (the sibling repository's
+   * deploy/hooks-vercel/listing_exports/download.py, not deployed), stood in for below: it
+   * answers a link on downloads.fixture.invalid, which this fixture records instead of
+   * opening. `&exports-download=` answers with its statuses and {error} codes: `invalid`
+   * 400, `expired` 401, `not-allowed` 403, `unknown` 404, `not-ready` 409 needs_attention
+   * (the export now reads needs_attention, so the page's re-read shows it), `too-many` 429,
+   * `fail` 502, `not-open` 503 not_configured. `&exports-open=1` opens the live walkthrough's block for a capture
    * (on /__qa/account/ and /__qa/app-account/). */
   const exportsCase = params.get('exports') || 'missing';
   const exportsRequestCase = params.get('exports-request');
@@ -203,7 +206,8 @@
     if (!row) return { tour_id: tourId, state: null, requested: false, downloadable: false, consent_version: exportsVersion };
     const rendered = ['ready', 'needs_attention', 'partner_only'].includes(row.state);
     return { export_id: exportId(tourId), tour_id: tourId, kinds: [...EXPORT_KINDS], state: row.state, requested: true,
-      requested_at: row.requested_at, consent_version: row.consent_version, acknowledged_cannot_recall: true,
+      // A failed row names the active version (null while none is), so Try again follows a new wording.
+      requested_at: row.requested_at, consent_version: row.state === 'failed' ? exportsVersion : row.consent_version, acknowledged_cannot_recall: true,
       screening: rendered ? { ready: 'clear', needs_attention: 'needs_attention', partner_only: 'unavailable' }[row.state] : null,
       screening_counts: rendered ? { face: row.state === 'needs_attention' ? 1 : 0, document: 0, text: 0 } : null,
       rendered_at: rendered || row.state === 'failed' ? ago(0.02) : null, error_code: row.state === 'failed' ? 'export_failed' : null,
@@ -900,14 +904,15 @@
     // calls authorize_listing_export_download with the member's session and answers a
     // presigned link of at most 600 s. Here the link's host does not exist.
     if (method === 'POST' && path === '/listing-exports/download') {
-      if (exportsCase === 'missing' || exportsDownloadCase === 'not-open') return reply(404, { error: 'not_found' });
-      if (exportsDownloadCase === 'too-many') return reply(429, { error: 'too many downloads; try again later' });
-      if (exportsDownloadCase === 'not-ready') return reply(409, { error: 'export is not ready to download' });
-      if (exportsDownloadCase === 'fail') return reply(500, { error: 'server_error' });
       const tourId = [...exportRows.keys()].find(id => exportId(id) === body?.export_id);
+      const statuses = { invalid: [400, 'invalid_request'], expired: [401, 'unauthorized'], 'not-allowed': [403, 'not_allowed'],
+        unknown: [404, 'unknown_export'], 'too-many': [429, 'rate_limited'], fail: [502, 'download_failed'], 'not-open': [503, 'not_configured'] };
+      if (statuses[exportsDownloadCase]) return reply(statuses[exportsDownloadCase][0], { error: statuses[exportsDownloadCase][1] });
+      if (exportsDownloadCase === 'not-ready' && tourId) { exportRows.get(tourId).state = 'needs_attention'; return reply(409, { error: 'needs_attention' }); }
+      if (!body || Object.keys(body).sort().join() !== 'export_id,kind' || !/^[0-9a-f-]{36}$/.test(String(body.export_id))) return reply(400, { error: 'invalid_request' });
       const answer = tourId ? exportJson(tourId) : null;
-      if (!answer || !answer.downloadable) return reply(409, { error: 'export is not ready to download' });
-      if (!answer.kinds.includes(body.kind)) return reply(400, { error: 'unknown export kind' });
+      if (!answer || !answer.kinds.includes(body.kind)) return reply(404, { error: 'unknown_export' });
+      if (!answer.downloadable) return reply(409, { error: answer.state === 'ready' ? 'not_ready' : answer.state });
       const file = EXPORT_FILES[body.kind];
       return reply(200, { url: DOWNLOAD_HOST + EXPORT_NAMES[body.kind] + '?expires=600', filename: EXPORT_NAMES[body.kind],
         bytes: file.bytes, content_type: file.content_type, expires_in: 600 });

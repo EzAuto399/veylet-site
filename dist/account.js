@@ -933,11 +933,12 @@
    * says "Exports open soon." with nothing to press. A backend without the
    * functions (PGRST202) shows no block at all.
    * Downloads never call authorize_listing_export_download from the browser (the
-   * contract: it answers a storage key, not a link). They go to the server lane's
-   * endpoint (proposed here, not built yet), which calls it with this session and
-   * answers a presigned link of at most 600 s; until it exists they say
-   * "Downloads aren’t open yet." Nothing here states an amount: the app's page
-   * shows the same block.
+   * contract: it answers a storage key, not a link). They go to veylet-hooks'
+   * POST /listing-exports/download (the sibling repository's
+   * deploy/hooks-vercel/listing_exports/download.py; built, not deployed), which
+   * calls it with this session and answers a presigned link of at most 600 s, or
+   * {error} with a status the words below follow, the same in the app. Nothing
+   * here states an amount: the app's page shows the same block.
    */
   const EXPORT_STATEMENTS = Object.freeze({
     // SHA-256 914257b7e13e9c960f90296bc8887a78ffd4a5b31540901ba09b34b1c27a68ee, as the draft seeds it (inactive).
@@ -974,12 +975,16 @@
     unconfirmed: 'Your request wasn’t confirmed. Try again.',
     getting: 'Getting your download…',
     notOpen: 'Downloads aren’t open yet. Try again later.',
-    tooMany: 'That’s the most downloads for this hour. Try again later.',
-    notReady: 'This file can’t be downloaded now. Check again.',
+    notAllowed: 'Your role in this office can’t download videos. Ask an office admin.',
+    gone: 'This file isn’t available any more.',
+    tooMany: 'You’ve downloaded a lot in the last hour. Try again later.',
     downloadFailed: 'The download didn’t start. Try again.',
   });
-  // The server lane's download endpoint on veylet-hooks (proposed; not built):
-  // POST {export_id, kind} with the session → {url, filename, bytes, content_type, expires_in}.
+  // veylet-hooks' download endpoint: POST {export_id, kind} with the member's bearer →
+  // {url, filename, bytes, content_type, expires_in ≤ 600}, or {error} with 400, 401,
+  // 403 (not_allowed, origin_not_allowed), 404 (unknown_export), 409 (not_ready,
+  // needs_attention, partner_only), 429 (rate_limited), 502 (download_failed) or 503
+  // (not_configured). Its CORS answers https://veylet.com and the local QA origin only.
   const EXPORT_DOWNLOAD_PATH = '/listing-exports/download';
   // Sizes as the app says them: decimal units, one decimal from a megabyte.
   function exportSize(bytes) {
@@ -1139,9 +1144,11 @@
         say(name ? 'Downloading ' + name + '.' : 'Downloading.');
         return;
       }
-      // No endpoint yet (404): not open.
-      say(status === 404 ? EXPORT_WORDS.notOpen : status === 429 ? EXPORT_WORDS.tooMany
-        : status === 409 ? EXPORT_WORDS.notReady : EXPORT_WORDS.downloadFailed);
+      // Not ready after all (not_ready, needs_attention, partner_only): read the export
+      // again and say its state in that state's words, focused where the reader is.
+      if (status === 409) { say(''); void read(true); return; }
+      say(status === 403 ? EXPORT_WORDS.notAllowed : status === 404 ? EXPORT_WORDS.gone : status === 429 ? EXPORT_WORDS.tooMany
+        : status === 503 ? EXPORT_WORDS.notOpen : EXPORT_WORDS.downloadFailed);
     }
     function files(row) {
       const list = document.createElement('ul'); list.className = 'tour-exports-files';

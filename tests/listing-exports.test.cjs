@@ -244,6 +244,10 @@ test('listing exports: Try again after a failure asks again; a withdrawn stateme
   await h.form().fire('submit'); await settle();
   assert.equal(h.requests()[0].p_consent_version, VERSION);
   assert.equal(h.state().textContent, 'Preparing your video and photos.');
+  // A failed row names the active version; with none active there is nothing to press.
+  const none = await load({ exports: row('failed', { consent_version: null }) });
+  assert.deepEqual(none.text().filter(line => !INTRO.includes(line)), ['We couldn’t make the video. Nothing was used.', 'Exports open soon.']);
+  assert.equal(none.form(), undefined);
   const closed = await load({ exports: row('failed'), request: () => ({ error: { code: 'P0001', message: 'consent statement version is not active' } }) });
   closed.control('exports-consent').checked = true;
   await closed.form().fire('submit'); await settle();
@@ -305,18 +309,40 @@ test('listing exports: a download asks the server lane’s endpoint with the ses
   assert.equal(odd.row().textContent, 'The download didn’t start. Try again.');
 });
 
-test('listing exports: download answers, in words', async () => {
+test('listing exports: the endpoint’s answers, in the words the app uses too', async () => {
+  // deploy/hooks-vercel/listing_exports/download.py: {error} codes with these statuses.
   const words = {
-    404: 'Downloads aren’t open yet. Try again later.',
-    429: 'That’s the most downloads for this hour. Try again later.',
-    409: 'This file can’t be downloaded now. Check again.',
-    500: 'The download didn’t start. Try again.',
+    400: ['invalid_request', 'The download didn’t start. Try again.'],
+    403: ['not_allowed', 'Your role in this office can’t download videos. Ask an office admin.'],
+    404: ['unknown_export', 'This file isn’t available any more.'],
+    429: ['rate_limited', 'You’ve downloaded a lot in the last hour. Try again later.'],
+    502: ['download_failed', 'The download didn’t start. Try again.'],
+    503: ['not_configured', 'Downloads aren’t open yet. Try again later.'],
+    500: ['server_error', 'The download didn’t start. Try again.'],
   };
-  for (const [status, said] of Object.entries(words)) {
-    const h = await load({ exports: row('ready'), hooks: () => ({ status: Number(status), body: { error: 'x' } }) });
+  for (const [status, [error, said]] of Object.entries(words)) {
+    const h = await load({ exports: row('ready'), hooks: () => ({ status: Number(status), body: { error } }) });
     await h.control('exports-download-stills').fire('click'); await settle();
     assert.equal(h.row().textContent, said, status);
     assert.equal(h.control('exports-download-stills').disabled, false, status);
+    assert.equal(h.clicks.filter(el => el.tagName === 'A').length, 0, status);
+  }
+  const origin = await load({ exports: row('ready'), hooks: () => ({ status: 403, body: { error: 'origin_not_allowed' } }) });
+  await origin.control('exports-download-stills').fire('click'); await settle();
+  assert.equal(origin.row().textContent, 'Your role in this office can’t download videos. Ask an office admin.');
+  // 409: not ready after all. The export is read again and says its own state, focused.
+  for (const [error, state, said] of [['needs_attention', 'needs_attention', 'We’re checking your video before it’s ready. We’ll tell you when it is.'],
+    ['partner_only', 'partner_only', 'Video isn’t available for this walkthrough yet.'],
+    ['not_ready', 'ready', 'These files can be downloaded only while this version is approved. Check again.']]) {
+    let now = 'ready', refused = false;
+    const h = await load({ exports: args => row(now, refused && now === 'ready' ? { downloadable: false } : {})(args),
+      hooks: url => { if (!/listing-exports/.test(url)) return { status: 404, body: {} }; now = state; refused = true; return { status: 409, body: { error } }; } });
+    await h.control('exports-download-video_16x9').fire('click'); await settle();
+    assert.equal(h.calls.filter(([name]) => name === 'get_listing_exports').length, 2, error);
+    assert.equal(h.state().textContent, said, error);
+    assert.equal(h.state().wasFocused, true, error);
+    assert.equal(h.status(), said, error);
+    assert.equal(h.row().hidden, true, error);
   }
   const lost = await load({ exports: row('ready'), hooks: () => new TypeError('Failed to fetch') });
   await lost.control('exports-download-stills').fire('click'); await settle();
