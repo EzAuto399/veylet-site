@@ -96,8 +96,10 @@
   const EARLY_BONUS_GRACE_MS = 86400000;
   const FREE_MONTHS_DEFAULT = 3;
   const FREE_WALKTHROUGHS_DEFAULT = 6;
-  // Whole home (offer.json walkthroughScope): 5 or more bedrooms, a second
-  // dwelling or more than 350 m² of floor area counts as 2.
+  // Retired whole-home rule (offer.json retiredTerms): 5 or more bedrooms, a
+  // second dwelling or more than 350 m² of floor area counts as 2. Offer
+  // 2026-09-26.3 counts new listings by rooms instead; this still governs a
+  // listing declared before the rooms rule began (an older listing).
   const HOME_BEDROOMS_FOR_TWO = 5;
   const HOME_AREA_OVER_M2 = 350;
   const TRIAL_INCLUDED_MAX = 24;
@@ -2134,32 +2136,37 @@
     });
   }
 
-  /* ---- Whole-home count ---------------------------------------------------
-   * 1 walkthrough is one visit to the interior rooms of one home; 5 or more
-   * bedrooms, a second dwelling or more than 350 m² counts as 2. The account
-   * declares it when it adds the listing, and the count locks when capture
-   * starts. studio_set_listing_home corrects a declaration, also after that,
-   * with an opaque reference and an audit row; an accepted walkthrough keeps the
-   * units it used. The answer is the listing's state, and the desk shows only it.
+  /* ---- Declared large home (older listings) -------------------------------
+   * Offer 2026-09-26.3 counts a new listing by the rooms captured (up to 8
+   * rooms a walkthrough); see offer.json walkthroughScope. A listing declared
+   * before the rooms rule began (an older listing) keeps its retired
+   * whole-home count instead: 5 or more bedrooms, a second dwelling or more
+   * than 350 m² counts as 2. studio_set_listing_home corrects that older
+   * declaration, also after capture started, with an opaque reference and an
+   * audit row; an accepted walkthrough keeps the units it used, and correcting
+   * a listing already counted by rooms has no effect. The answer is the
+   * listing's state, and the desk shows only it, read-only.
    */
   const homeBody = document.getElementById('studio-home-body');
   let homeVersion = 0;
-  // Why a home counts as 2, from the declared facts the server answered with.
+  // The job/listing state the server answered with: the rooms rule
+  // (`rooms` and `walkthroughs_used`) once it carries them, otherwise the
+  // older listing's declared whole-home count, read-only.
   function homeCount(state) {
-    const reasons = [];
-    if (Number.isInteger(state.bedrooms) && state.bedrooms >= HOME_BEDROOMS_FOR_TWO) reasons.push(HOME_BEDROOMS_FOR_TWO + '+ bedrooms');
-    if (state.second_dwelling === true) reasons.push('second dwelling');
-    if (Number.isInteger(state.floor_area_m2) && state.floor_area_m2 > HOME_AREA_OVER_M2) reasons.push('over ' + HOME_AREA_OVER_M2 + ' m²');
     const locked = state.locked === true
       ? ' · locked since capture started' + (hostedDate(state.locked_at) ? ' (' + hostedDate(state.locked_at) + ')' : '') : '';
-    return 'Counts as ' + state.walkthrough_units + (state.walkthrough_units === 2 && reasons.length ? ' · ' + reasons.join(' · ') : '') + locked;
+    if (Number.isInteger(state.rooms) && Number.isInteger(state.walkthroughs_used)) {
+      return plural(state.rooms, 'room') + ' · ' + plural(state.walkthroughs_used, 'walkthrough') + locked;
+    }
+    if (state.walkthrough_units === 2) return 'Declared large home (older listing): ' + plural(2, 'walkthrough') + locked;
+    return 'Older listing: ' + plural(state.walkthrough_units, 'walkthrough') + locked;
   }
   function buildHomeCount() {
     if (!homeBody) return;
     homeVersion += 1;
     const details = element('details', 'studio-set-plan studio-home');
     details.id = 'studio-home-count';
-    const summary = element('summary', undefined, 'Correct the whole-home count');
+    const summary = element('summary', undefined, 'Correct the declared large home (older listing)');
     const form = element('form', 'veylet-form studio-plan-form studio-home-form');
     const listingInput = tourIdInput(document.createElement('input'), 'property_id');
     listingInput.title = 'The full property id: 36 characters, such as 5e6f7081-0000-4000-8000-00000000000c';
@@ -2185,9 +2192,9 @@
     const refLabel = element('label', 'studio-inline-field', 'Ticket or estimate reference');
     const refInput = document.createElement('input'); referenceInput(refInput); refInput.required = true; refInput.name = 'reference';
     refLabel.append(refInput);
-    const note = element('p', 'studio-field-note', 'The server keeps the declared facts, the previous ones and an audit row. A walkthrough already accepted keeps the units it used. Use an opaque reference, not a name, email or address. Nothing is charged.');
+    const note = element('p', 'studio-field-note', 'For a listing declared before the rooms rule began (an older listing) only: correcting a listing already counted by rooms has no effect. The server keeps the declared facts, the previous ones and an audit row. A walkthrough already accepted keeps the units it used. Use an opaque reference, not a name, email or address. Nothing is charged.');
     const noteRow = element('div', 'studio-form-row'); noteRow.append(note);
-    const HOME_ACTION = 'Correct the whole-home count';
+    const HOME_ACTION = 'Correct the declared large home (older listing)';
     const save = element('button', 'button', HOME_ACTION); save.type = 'submit';
     const result = element('span', 'studio-result'); result.setAttribute('role', 'status');
     const saveRow = element('p', 'studio-save-row'); saveRow.append(save, result);
@@ -2215,12 +2222,12 @@
       const expected = bedrooms >= HOME_BEDROOMS_FOR_TWO || second || (area !== null && area > HOME_AREA_OVER_M2) ? 2 : 1;
       const question = HOME_ACTION + ' for listing ' + propertyID.slice(0, 8) + '? Declared: ' + plural(bedrooms, 'bedroom') + ', ' +
         (second ? 'a second dwelling' : 'no second dwelling') + ', floor area ' + (area === null ? 'not given' : area + ' m²') +
-        '. By the offer rule this counts as ' + expected + '. Reference: ' + reference +
+        '. By the retired whole-home rule (older listings only) this counts as ' + expected + '. Reference: ' + reference +
         '. A walkthrough already accepted keeps the units it used; the server keeps an audit row.';
       if (typeof confirm !== 'function' || !confirm(question)) { result.textContent = 'Left unchanged.'; return; }
       const version = homeVersion;
       save.disabled = true;
-      result.textContent = 'Correcting the whole-home count…';
+      result.textContent = 'Correcting the declared large home…';
       const reply = await settled(client.rpc('studio_set_listing_home', { p_property_id: propertyID, p_bedrooms: bedrooms,
         p_second_dwelling: second, p_floor_area_m2: area, p_reference: reference }));
       if (version !== homeVersion) return;

@@ -17,7 +17,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/studio.js?v=d2f43dbdb9d80ef1" defer></script>
+    <script src="/studio.js?v=e98fb7febd839d7b" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -216,15 +216,17 @@
           <div class="studio-correction-body" id="studio-correction-body"></div>
         </section>
         <section class="studio-home-count" id="studio-home" aria-labelledby="studio-home-title">
-          <h2 class="dash-heading" id="studio-home-title">Whole-home count</h2>
+          <h2 class="dash-heading" id="studio-home-title">Declared large home (older listings)</h2>
           <p class="contact-note">
-            1 walkthrough is one visit to the interior rooms of one home. A home
-            with 5 or more bedrooms, a second dwelling or more than 350 m² of
-            floor area counts as 2: the account declares it when it adds the
-            listing, and the count locks when capture starts. A correction here
-            sets the declared facts with a reference and an audit row, also after
-            capture started; a walkthrough already accepted keeps the units it
-            used.
+            A walkthrough is counted by the rooms captured: up to 8 rooms is 1,
+            each further 8 is 1 more. A listing declared before the rooms rule
+            began (an older listing) keeps its retired whole-home count
+            instead: 5 or more bedrooms, a second dwelling or more than 350 m²
+            of floor area counts as 2. A correction here sets that older
+            listing's declared facts with a reference and an audit row, also
+            after capture started; a walkthrough already accepted keeps the
+            units it used, and correcting a listing already counted by rooms
+            has no effect.
           </p>
           <div class="studio-home-body" id="studio-home-body"></div>
         </section>

@@ -2356,11 +2356,14 @@ test('a refused correction shows the server reason and keeps what was typed; a l
   assert.equal(h.ids['studio-correction-body'].children.length, 0, 'the form leaves with the desk');
 });
 
-/* ---- Whole-home count (offer v8 migration) ---------------------------------
+/* ---- Declared large home, older listings (offer v8 migration; offer v9.1
+ * moves new listings to the rooms rule) -----------------------------------
  * studio_set_listing_home(p_property_id, p_bedrooms 0-99, p_second_dwelling,
  * p_floor_area_m2 int|null, p_reference) answers the listing's state:
  * { property_id, declared, bedrooms, second_dwelling, floor_area_m2, declared_at,
- *   walkthrough_units, locked, locked_at }. The capture queue is unchanged.
+ *   walkthrough_units, locked, locked_at }. Once the answer also carries `rooms`
+ * and `walkthroughs_used` (offer 2026-09-26.3), the desk reads those instead.
+ * The capture queue is unchanged.
  */
 const LISTING = '5e6f7081-0000-4000-8000-00000000000c';
 const homeForm = h => h.ids['studio-home-body'].all().find(el => el.tagName === 'FORM');
@@ -2386,8 +2389,9 @@ test('the capture queue reads no whole-home fields; the rule sits with its own c
   assert.ok(queueBody(h).children.every(row => row.children[0].children.length === 2), 'the queue is unchanged');
   assert.doesNotMatch(h.ids['studio-queue-rows'].text(), /Counts as/);
   const note = markup.slice(markup.indexOf('id="studio-home"'), markup.indexOf('id="studio-home-body"')).replace(/\s+/g, ' ');
-  assert.match(markup, /<h2 class="dash-heading" id="studio-home-title">Whole-home count<\/h2>/);
-  assert.match(note, /1 walkthrough is one visit to the interior rooms of one home\. A home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2: the account declares it when it adds the listing, and the count locks when capture starts\./);
+  assert.match(markup, /<h2 class="dash-heading" id="studio-home-title">Declared large home \(older listings\)<\/h2>/);
+  assert.match(note, /A walkthrough is counted by the rooms captured: up to 8 rooms is 1, each further 8 is 1 more\. A listing declared before the rooms rule began \(an older listing\) keeps its retired whole-home count instead: 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2\./);
+  assert.match(note, /correcting a listing already counted by rooms has no effect\./);
   // Offer 2026-09-26.3 counts a property by its rooms (8 rooms a walkthrough). Until release 2 moves the
   // database to rooms, listings are still counted by the whole-home rule, so the desk's correction form
   // states that rule, which the record keeps under retiredTerms.
@@ -2397,12 +2401,12 @@ test('the capture queue reads no whole-home fields; the rule sits with its own c
   assert.ok(markup.indexOf('id="studio-corrections"') < markup.indexOf('id="studio-home"'));
 });
 
-test('Correct the whole-home count is one inline form: labelled native fields, one filled button and a live result', async () => {
+test('Correct the declared large home (older listing) is one inline form: labelled native fields, one filled button and a live result', async () => {
   const h = await load();
   const details = h.ids['studio-home-body'].children[0];
   assert.equal(details.tagName, 'DETAILS');
   assert.equal(details.open, false, 'closed until the studio opens it');
-  assert.equal(details.children[0].textContent, 'Correct the whole-home count');
+  assert.equal(details.children[0].textContent, 'Correct the declared large home (older listing)');
   const form = homeForm(h);
   assert.deepEqual(['property_id', 'bedrooms', 'floor_area_m2', 'reference'].map(name => labelOf(form, homeField(h, name))?.textContent),
     ['Listing (property id)', 'Bedrooms (0–99)', 'Floor area in m² (optional)', 'Ticket or estimate reference']);
@@ -2414,7 +2418,8 @@ test('Correct the whole-home count is one inline form: labelled native fields, o
   assert.deepEqual([LISTING, LISTING.slice(0, 8), 'x'].map(value => ids.test(value)), [true, false, false]);
   const refs = new RegExp('^(?:' + homeField(h, 'reference').pattern + ')$', 'v');
   assert.deepEqual(['TCK-2201', 'owner@example.com'].map(value => refs.test(value)), [true, false]);
-  assert.deepEqual(form.all().filter(el => el.tagName === 'BUTTON').map(el => [el.textContent, el.type, el.className]), [['Correct the whole-home count', 'submit', 'button']]);
+  assert.deepEqual(form.all().filter(el => el.tagName === 'BUTTON').map(el => [el.textContent, el.type, el.className]),
+    [['Correct the declared large home (older listing)', 'submit', 'button']]);
   assert.equal(form.all().find(el => el.className === 'studio-result').attributes.role, 'status');
   h.client.auth.callback('SIGNED_OUT', null);
   assert.equal(h.ids['studio-home-body'].children.length, 0, 'the form leaves with the desk');
@@ -2425,24 +2430,35 @@ test('a correction sends the declared facts after a named confirmation, then sta
   fillHome(h, { listing: ' ' + LISTING.toUpperCase() + ' ', bedrooms: '5', dwelling: 'no', area: '', reference: ' TCK-2201 ' });
   await homeForm(h).fire('submit');
   assert.equal(h.confirms.length, 1);
-  assert.equal(h.confirms[0], 'Correct the whole-home count for listing 5e6f7081? Declared: 5 bedrooms, no second dwelling, floor area not given. ' +
-    'By the offer rule this counts as 2. Reference: TCK-2201. A walkthrough already accepted keeps the units it used; the server keeps an audit row.');
+  assert.equal(h.confirms[0], 'Correct the declared large home (older listing) for listing 5e6f7081? Declared: 5 bedrooms, no second dwelling, floor area not given. ' +
+    'By the retired whole-home rule (older listings only) this counts as 2. Reference: TCK-2201. A walkthrough already accepted keeps the units it used; the server keeps an audit row.');
   assert.deepEqual(homeCalls(h).map(([, args]) => ({ ...args })), [{ p_property_id: LISTING, p_bedrooms: 5, p_second_dwelling: false, p_floor_area_m2: null, p_reference: 'TCK-2201' }]);
-  const said = 'Corrected listing 5e6f7081: Counts as 2 · 5+ bedrooms · locked since capture started (' + brisbaneDay('2026-09-22T23:30:00Z') + ').';
+  const said = 'Corrected listing 5e6f7081: Declared large home (older listing): 2 walkthroughs · locked since capture started (' + brisbaneDay('2026-09-22T23:30:00Z') + ').';
   assert.equal(resultOf(homeForm(h)), said);
   assert.equal(h.ids['studio-status'].textContent, said);
   assert.deepEqual(['property_id', 'bedrooms', 'floor_area_m2', 'reference'].map(name => homeField(h, name).value), ['', '', '', '']);
-  // Every reason is named, and a home that counts as 1 says so plainly.
+  // A large home reads the same read-only line regardless of which declared fact triggered it.
   const all = await load({ rpc: { studio_set_listing_home: async args => homeState(args, { locked: false, locked_at: null }) } });
   fillHome(all, { bedrooms: '6', dwelling: 'yes', area: '420' });
   await homeForm(all).fire('submit');
   assert.deepEqual({ ...homeCalls(all)[0][1] }, { p_property_id: LISTING, p_bedrooms: 6, p_second_dwelling: true, p_floor_area_m2: 420, p_reference: 'TCK-2201' });
-  assert.equal(resultOf(homeForm(all)), 'Corrected listing 5e6f7081: Counts as 2 · 5+ bedrooms · second dwelling · over 350 m².');
+  assert.equal(resultOf(homeForm(all)), 'Corrected listing 5e6f7081: Declared large home (older listing): 2 walkthroughs.');
+  // A home that counts as 1 reads as an older listing, not a declared large home.
   const one = await load({ rpc: { studio_set_listing_home: async args => homeState(args, { locked: false, locked_at: null }) } });
   fillHome(one, { bedrooms: '3', dwelling: 'no', area: '180' });
   await homeForm(one).fire('submit');
   assert.match(one.confirms[0], /this counts as 1\./);
-  assert.equal(resultOf(homeForm(one)), 'Corrected listing 5e6f7081: Counts as 1.');
+  assert.equal(resultOf(homeForm(one)), 'Corrected listing 5e6f7081: Older listing: 1 walkthrough.');
+  // Once the answer carries rooms and walkthroughs_used (offer 2026-09-26.3), the desk reads those
+  // instead of the retired whole-home fields, and the correction control has no effect on that listing.
+  const rooms = await load({ rpc: { studio_set_listing_home: async args => homeState(args, { locked: false, locked_at: null, rooms: 10, walkthroughs_used: 2 }) } });
+  fillHome(rooms, { bedrooms: '1', dwelling: 'no', area: '' });
+  await homeForm(rooms).fire('submit');
+  assert.equal(resultOf(homeForm(rooms)), 'Corrected listing 5e6f7081: 10 rooms · 2 walkthroughs.');
+  const oneRoom = await load({ rpc: { studio_set_listing_home: async args => homeState(args, { locked: false, locked_at: null, rooms: 1, walkthroughs_used: 1 }) } });
+  fillHome(oneRoom, { bedrooms: '1', dwelling: 'no', area: '' });
+  await homeForm(oneRoom).fire('submit');
+  assert.equal(resultOf(homeForm(oneRoom)), 'Corrected listing 5e6f7081: 1 room · 1 walkthrough.');
 });
 
 test('a missing or malformed fact, a non-opaque reference or a declined confirmation sends nothing; a refusal keeps the form', async () => {
