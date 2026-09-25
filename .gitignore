@@ -7,3 +7,5 @@ node_modules/
 
 # Local review evidence, not site source
 .qa-review/
+
+__pycache__/

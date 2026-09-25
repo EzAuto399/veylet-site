@@ -27,13 +27,13 @@ body_of() { curl -sL -m 25 --compressed "$1"; }
 echo "health check → $BASE"
 
 # 1. Every public route answers 200.
-for route in / /apply /request /account /privacy /terms /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
+for route in / /offer /start /website-guide /apply /request /account /studio /privacy /terms /support /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
   c=$(code_of "$BASE$route")
   [ "$c" = "200" ] && ok "route $route" || bad "route $route → $c"
 done
 
 # 2. The things the player cannot work without.
-for asset in /vendor/supabase-js-2.116.0.min.js /vendor/jszip-3.10.2.min.js /tour-player.js /account.js /place-fields.js /style.css; do
+for asset in /vendor/supabase-js-2.116.0.min.js /vendor/jszip-3.10.2.min.js /tour-player.js /account.js /studio.js /studio.css /tour-sharing.js /website-guide.js /place-fields.js /style.css; do
   c=$(code_of "$BASE$asset")
   size=$(curl -s -o /dev/null -w '%{size_download}' -m 25 "$BASE$asset")
   if [ "$c" = "200" ] && [ "$size" -gt 200 ]; then ok "asset $asset (${size}b)"; else bad "asset $asset → $c ${size}b"; fi
@@ -68,6 +68,9 @@ emb_body=$(body_of "$BASE/embed")
 echo "$emb_body" | grep -q 'noindex' && ok "embed is noindex" || bad "embed lost its noindex"
 echo "$emb_body" | grep -qi 'sign in' && bad "embed shows an operator sign-in" || ok "embed has no operator sign-in"
 
+echo "$emb_body" | grep -q 'id="embed-start"' && ok "embed waits for visitor action" || bad "embed lost its explore control"
+if echo "$emb_body" | grep -q '<script src="/vendor/'; then bad "embed eagerly loads heavy dependencies"; else ok "embed keeps heavy dependencies behind explore"; fi
+
 # 5. Contact address must be readable, not obfuscated by the CDN.
 if body_of "$BASE/privacy" | grep -q 'email-protection'; then
   bad "email addresses are obfuscated again (turn Cloudflare Email Obfuscation off)"
@@ -85,7 +88,11 @@ fi
 
 # 7. An unknown route must not pretend to be a page.
 c=$(code_of "$BASE/this-route-does-not-exist")
-if [ "$c" = "404" ] || [ "$c" = "200" ]; then ok "unknown route answers $c"; else bad "unknown route → $c"; fi
+if [ "$c" = "404" ]; then ok "unknown route answers $c"; else bad "unknown route → $c"; fi
+
+# 8. Fresh HTML must select fresh scripts even when a browser cached an older release.
+asset_check=$(node "$(dirname "$0")/check-asset-versions.mjs" "$BASE" 2>&1)
+if [ "$?" -eq 0 ]; then ok "$asset_check"; else bad "versioned assets: $asset_check"; fi
 
 echo
 echo "  $pass passed, $fail failed"

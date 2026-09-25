@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Veylet isolated player verification</title>
+<style>body{font:16px system-ui;margin:24px;background:#f4f1e9;color:#10231d}iframe{width:100%;height:520px;border:1px solid #ccc}pre{white-space:pre-wrap}</style>
+<h1>Local player verification</h1><p>Local fixture only. No account, email or hosted writes.</p>
+<pre id="result">Running…</pre>
+<h2>Retained viewer package</h2><iframe id="real" title="Retained viewer package" hidden></iframe>
+<h2>Account isolation check</h2><iframe id="isolation" title="Account isolation check" hidden></iframe>
+<script src="/vendor/jszip-3.10.2.min.js"></script><script src="/tour-player.js"></script>
+<script>
+const results = {};
+const result = document.getElementById('result');
+const report = () => result.textContent = JSON.stringify(results, null, 2);
+window.addEventListener('message', e => {
+  if(e.source !== document.getElementById('isolation').contentWindow) return;
+  if(e.data?.test === 'isolation') { results.accountIsolation=e.data.isolated; report(); }
+});
+(async () => {
+  const zip = new JSZip();
+  zip.file('tour.html', `<!doctype html><html><head><title>Isolation fixture</title></head><body><p id="status">Checking isolation</p><script>let isolated=false;try{parent.document.body.dataset.tourEscaped='true'}catch(e){isolated=true}document.getElementById('status').textContent=isolated?'PASS: viewer cannot access account page':'FAIL: viewer accessed account page';parent.postMessage({test:'isolation',isolated},'*');<\/script></body></html>`);
+  await VeyletPlayer.playPackage(await zip.generateAsync({type:'blob'}), document.getElementById('isolation'));
+  results.sandbox = document.getElementById('isolation').getAttribute('sandbox'); report();
+  const forcedNoGraphics = new URLSearchParams(location.search).get('graphics') === 'disabled';
+  results.forcedNoGraphics = forcedNoGraphics;
+  const fetchStarted = performance.now();
+  const response = await fetch(forcedNoGraphics ? '/__qa/package-no-graphics.zip' : '/__qa/package.zip');
+  results.packageResponseHeadersMs = Math.round(performance.now() - fetchStarted);
+  if(response.ok) {
+    const blob = await response.blob();
+    results.packageBytes = blob.size;
+    results.packageDownloadMs = Math.round(performance.now() - fetchStarted);
+    const startupStarted = performance.now();
+    results.retainedPackageReadiness = (await VeyletPlayer.playPackage(blob, document.getElementById('real'))).readiness;
+    const resultAt = performance.now();
+    results.startupResultMs = Math.round(resultAt - startupStarted);
+    results.rendererReadyStartupMs = results.retainedPackageReadiness === 'viewer-ready' ? results.startupResultMs : null;
+    results.totalFetchToReadyMs = results.retainedPackageReadiness === 'viewer-ready' ? Math.round(resultAt - fetchStarted) : null;
+    results.timingScope = 'Loopback package fetch, ZIP inflation and viewer startup; excludes account lookup and initial page scripts.';
+    results.retainedPackageFrameLoaded = !document.getElementById('real').hidden;
+  } else results.retainedPackageFrameLoaded='No retained package provided';
+  report();
+})().catch(e=>{results.error=e.message;report()});
+</script></html>
