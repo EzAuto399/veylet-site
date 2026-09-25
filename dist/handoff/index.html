@@ -34,7 +34,7 @@
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
     <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
-    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
+    <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -101,6 +101,8 @@
       <nav aria-label="Legal">
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
+        <!-- Shown with this link's token by client-page.js (mountReport). -->
+        <a class="client-report" id="client-report" hidden>Report this walkthrough</a>
       </nav>
     </footer>
     <aside class="agent-bar" id="agent-bar" hidden></aside>
@@ -118,6 +120,7 @@
       const page = window.VeyletClientPage;
       const token = new URLSearchParams(location.search).get('t') || '';
       page?.mountColumns(document, window);
+      page?.mountReport?.(document.getElementById('client-report'), token);
       // Views for the agent's desk: one first-party call per event, never in the way.
       const beacon = token.length < 16 ? null : page?.viewBeacon?.({
         config: window.VEYLET_SUPABASE,

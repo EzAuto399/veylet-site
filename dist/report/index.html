@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Report a walkthrough — Veylet</title>
+    <meta name="description" content="Tell Veylet about a walkthrough that shows something it shouldn't." />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#10231d" />
+    <link rel="icon" href="/media/studio-avatar.png" />
+    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <link rel="stylesheet" href="/conversion.css?v=8d4c2655506ee01d" />
+    <style>
+      .report-page { max-width: 680px; padding-bottom: 72px; }
+      .report-page h1 { font-size: clamp(32px, 7vw, 52px); line-height: 1.08; letter-spacing: -0.03em; margin: 12px 0 18px; }
+      .report-page h1:focus, .report-done h2:focus { outline: none; }
+      .report-page .intro { max-width: 56ch; margin-bottom: 28px; }
+      .report-page .button { min-height: 44px; }
+      .report-page .button[disabled] { opacity: 0.6; cursor: progress; }
+      .report-status:empty { display: none; }
+      .report-fallback { margin: 18px 0 0; padding: 14px 16px; border-left: 2px solid var(--ink); background: var(--panel, #eaece3); font-size: 15px; line-height: 1.55; }
+      .report-fallback[hidden] { display: none; }
+      .report-fallback p { margin: 0 0 10px; }
+      .report-fallback a { text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+      .report-fallback .button { text-decoration: none; margin-top: 4px; }
+      .report-done { margin-top: 8px; padding: 24px; border: 1px solid var(--line); border-radius: 2px; }
+      .report-done h2 { font-size: 26px; margin: 0; max-width: 30ch; }
+      .report-reason-problem:empty { display: none; }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap">
+      <a class="brand" href="/" aria-label="Veylet Studio home"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+    </header>
+    <main id="main" class="form-page wrap report-page">
+      <h1 id="report-title" tabindex="-1">Report this walkthrough.</h1>
+      <p class="intro" id="report-intro">
+        Tell Veylet what is wrong with the walkthrough you were viewing. Privacy reports are reviewed
+        within 24 hours, and a walkthrough can be taken down while we check.
+      </p>
+      <noscript><p class="report-fallback">This form needs JavaScript. Email <a href="mailto:yoda@yodalai.xyz?subject=Report%20a%20walkthrough">yoda@yodalai.xyz</a> with what you saw and the page you saw it on.</p></noscript>
+      <form id="report-form" class="veylet-form" hidden>
+        <label class="honey-label" aria-hidden="true">Leave this field empty<input type="text" name="_honey" class="honey" tabindex="-1" autocomplete="off" aria-hidden="true" /></label>
+        <fieldset class="choice-group" id="report-reasons" aria-describedby="report-reason-problem">
+          <legend>What is wrong? *</legend>
+          <label class="choice"><input type="radio" name="reason" value="privacy" /><span><strong>Privacy</strong><small>A person, a document or an item that shouldn’t be shown.</small></span></label>
+          <label class="choice"><input type="radio" name="reason" value="misleading" /><span><strong>Not this property, or misleading</strong><small>It isn’t the place it claims to be, or it misrepresents it.</small></span></label>
+          <label class="choice"><input type="radio" name="reason" value="offensive" /><span><strong>Offensive or illegal</strong><small>Content that shouldn’t be published at all.</small></span></label>
+          <label class="choice"><input type="radio" name="reason" value="other" /><span><strong>Something else</strong><small>Tell us below.</small></span></label>
+          <small class="field-problem report-reason-problem" id="report-reason-problem"></small>
+        </fieldset>
+        <label>
+          What should we look at? (optional)
+          <textarea name="details" maxlength="2000" rows="4" aria-describedby="report-details-help"></textarea>
+          <small id="report-details-help">For example, the room and what is visible. Please leave out anyone’s personal details.</small>
+        </label>
+        <label>
+          Your email, if you would like a reply (optional)
+          <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" maxlength="254" />
+        </label>
+        <p class="contact-note form-assurance">We use this report only to review the walkthrough, and your email only to reply to you about it. <a href="/privacy">How we handle personal information</a>.</p>
+        <button class="button" type="submit" id="report-submit">Send report</button>
+      </form>
+      <p class="contact-note report-status" id="report-status" role="status" aria-live="polite"></p>
+      <div class="report-fallback" id="report-fallback" hidden>
+        <p id="report-fallback-text"></p>
+        <a class="button button-ghost" id="report-mail" href="mailto:yoda@yodalai.xyz">Email your report</a>
+      </div>
+      <section class="report-done" id="report-done" aria-labelledby="report-done-title" hidden>
+        <h2 id="report-done-title" tabindex="-1">Thanks. We’ll review this within 24 hours for privacy reports.</h2>
+      </section>
+    </main>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/report/report.js?v=ca48b18875bf8c9d" defer></script>
+  </body>
+</html>

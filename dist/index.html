@@ -116,7 +116,7 @@
             "name": "Does applying create an account or take payment?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Apply and request do not create an account and take no payment. Account access is currently a limited studio test. Contact the studio before your first sign-in. You can request a walkthrough without an account."
+              "text": "No. Apply and request do not create an account and take no payment. New accounts are by invitation for now; invited accounts sign in with the email they were invited with. You can request a walkthrough without an account."
             }
           },
           {
@@ -160,8 +160,9 @@
             automatically and host the link. Your viewers open it in a browser, with no app to
             install.
           </p>
+          <p class="hero-note hero-stage"><strong data-launch-label>By invitation</strong></p>
           <div class="hero-actions" data-hero-actions>
-            <a class="button" href="/request">Start with one space</a
+            <a class="button" href="/request?capture=self" data-launch-cta>Ask for an invitation</a
             ><a class="button button-ghost" href="/offer">See the offer and prices</a>
           </div>
           <p class="hero-note">
@@ -311,9 +312,9 @@
           <summary>Does applying create an account or take payment?</summary>
           <p>
             No. Apply and request do not create an account and take no payment.
-            Account access is currently a limited studio test. Contact the
-            studio before your first sign-in. You can request a walkthrough
-            without an account.
+            New accounts are by invitation for now; invited accounts sign in
+            with the email they were invited with. You can request a
+            walkthrough without an account.
           </p>
         </details>
         <details>
@@ -355,5 +356,6 @@
     <script src="/home-refinement.js?v=075fabb50280faf2" defer></script>
     <meta name="veylet-build" id="veylet-build" content="" />
     <script src="/app.js?v=95fe4bf239078c21" defer></script>
+    <script src="/stage.js?v=168dd75c5c219c89" defer></script>
   </body>
 </html>

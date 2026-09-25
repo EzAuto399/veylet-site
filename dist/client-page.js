@@ -372,6 +372,22 @@
   }
 
   /*
+   * "Report this walkthrough" (launch plan C2.3): a quiet link to /report with this
+   * link's token and nothing else. It shows whenever the token looks complete,
+   * whatever the lookup says, so the link never tells anyone whether a token exists.
+   */
+  function reportHref(token) {
+    return '/report?t=' + encodeURIComponent(token);
+  }
+  function mountReport(link, token, reveal) {
+    if (!link || typeof token !== 'string' || token.length < 16) return false;
+    link.href = reportHref(token);
+    link.hidden = false;
+    if (reveal && reveal !== link) reveal.hidden = false;
+    return true;
+  }
+
+  /*
    * From 1080px the page has two columns and Help and Share sit under the
    * agent card; below that they sit under the walkthrough. They move in the
    * document, not just on screen, so reading and focus order follow the
@@ -401,5 +417,6 @@
     channelFrom, referrerHost, viewBeacon,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
+    reportHref, mountReport,
   };
 })();

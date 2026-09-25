@@ -29,7 +29,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
-    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
+    <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
     <style>
       html,
       body {
@@ -146,6 +146,8 @@
       .embed-fallback a { color: #f4f1e9; border: 1px solid #6f8474; text-decoration: none; }
       .embed-fallback button:focus-visible, .embed-fallback a:focus-visible { outline: 3px solid #c6dcc9; outline-offset: 4px; }
       .embed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      /* Quiet on purpose: a small underlined line under the invitation, still a 44px target. */
+      .embed-fallback a.embed-report { align-self: flex-start; justify-content: flex-start; padding: 0 2px; border: 0; color: rgba(244, 241, 233, 0.72); font-size: 13px; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
       @media (max-width: 380px), (max-height: 380px) { .embed-fallback { padding: 16px; } }
     </style>
   </head>
@@ -162,6 +164,7 @@
         <a id="embed-open" data-tour-dead-end target="_blank" rel="noopener noreferrer" hidden>Open in a new tab</a>
       </div>
       <div id="tour-actions" hidden><button id="tour-retry" type="button">Try again</button></div>
+      <a id="embed-report" class="embed-report" target="_blank" rel="noopener noreferrer" hidden>Report this walkthrough</a>
       <noscript><p>This walkthrough needs JavaScript. Turn it on and reload the page, or ask the agent for the property's photographs and a viewing.</p></noscript>
     </main>
     <iframe
@@ -211,6 +214,7 @@
         } else {
           open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
           open.hidden = false;
+          window.VeyletClientPage?.mountReport?.(document.getElementById('embed-report'), token);
           start.hidden = false;
           // The agent's name under the invitation, when the server returns their
           // opt-in contact for this live link. No account SDK before Explore: a

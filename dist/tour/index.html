@@ -27,11 +27,12 @@
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
-    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
+    <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
-         maker's mark and no links: a portal's own rules decide what sits around it.
+         maker's mark and no links but one: the quiet "Report this walkthrough" under
+         the stage (launch plan C2.3). A portal's own rules decide what sits around it.
          Frameable (vercel.json). First-party faces only, like the embed. */
       @font-face {
         font-family: Outfit;
@@ -58,7 +59,7 @@
       .tour-page {
         box-sizing: border-box;
         display: grid;
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto;
         height: 100%;
         min-height: 280px;
       }
@@ -139,6 +140,24 @@
         font: 500 15px/20px "Outfit", ui-sans-serif, system-ui, sans-serif;
         cursor: pointer;
       }
+      .tour-foot {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px));
+      }
+      .tour-foot a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        font-size: 12px;
+        color: rgba(244, 241, 233, 0.66);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .tour-foot a:focus-visible {
+        outline: 3px solid #c6dcc9;
+        outline-offset: 2px;
+      }
       .tour-notice button:focus-visible {
         outline: 3px solid #c6dcc9;
         outline-offset: 4px;
@@ -171,6 +190,9 @@
           <noscript><p>This walkthrough needs JavaScript. Turn it on and reload the page.</p></noscript>
         </div>
       </div>
+      <footer class="tour-foot" id="tour-foot" hidden>
+        <a id="tour-report" target="_blank" rel="noopener noreferrer">Report this walkthrough</a>
+      </footer>
     </main>
     <script>
       (() => {
@@ -204,6 +226,7 @@
           host: framed ? page.referrerHost(document.referrer) : null,
         });
 
+        page?.mountReport?.(document.getElementById('tour-report'), token, document.getElementById('tour-foot'));
         if (!player) {
           els.title.textContent = 'This walkthrough isn’t available right now.';
           els.body.textContent = 'The player files did not load on this device. Check the connection and reload.';

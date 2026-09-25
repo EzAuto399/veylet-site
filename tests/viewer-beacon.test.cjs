@@ -266,7 +266,10 @@ function tourPage({ search = '?t=' + TOKEN + '&src=portal', framed = false, refe
 test('/tour is the walkthrough alone: no agent, contact, address, QR, maker’s mark or links, and the truth line stays', () => {
   const words = tour.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ').replace(/<[^>]+>/g, ' ');
   assert.doesNotMatch(words, /Veylet|Call|Email|QR|Share|Made with|Privacy|Terms|agent/i);
-  assert.doesNotMatch(tour, /<a\b|agent-card|agent-bar|client-share|tel:|mailto:|brand-host\.js|style\.css|client-page\.css/);
+  // One link only: the quiet "Report this walkthrough" (launch plan C2.3), a new tab to /report?t=.
+  const report = '<a id="tour-report" target="_blank" rel="noopener noreferrer">Report this walkthrough</a>';
+  assert.equal(tour.split(report).length, 2, 'the report link, exactly once');
+  assert.doesNotMatch(tour.replace(report, ''), /<a\b|agent-card|agent-bar|client-share|tel:|mailto:|brand-host\.js|style\.css|client-page\.css/);
   assert.match(tour, /<p class="tour-truth" id="tour-truth" hidden>Captured on site with an iPhone\. Not to scale\.<\/p>/);
   assert.match(tour, /<meta name="robots" content="noindex,nofollow" \/>/);
   assert.match(tour, /<meta name="referrer" content="no-referrer" \/>/);
