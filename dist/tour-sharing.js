@@ -13,7 +13,7 @@ window.VeyletSharing = (() => {
   function embedUrl(token) { return origin + '/embed?t=' + encodeURIComponent(token); }
   function embedCode(token) {
     return '<iframe src="' + embedUrl(token) +
-      '" title="Explore this property in 3D" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen" loading="lazy" referrerpolicy="no-referrer"></iframe>' +
+      '" title="Explore this property in 3D" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen" loading="lazy" referrerpolicy="strict-origin"></iframe>' +
       '\n<p><a href="' + handoffUrl(token) + '" target="_blank" rel="noopener noreferrer">Open the property walkthrough in a new tab</a></p>';
   }
   /**
