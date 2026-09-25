@@ -4,8 +4,8 @@
  * walkthroughs waiting on us. Everything here is a read except a few deliberate
  * writes, each recording a decision the account has already agreed to: Set
  * plan, a settled invoice (the Veylet plan or a walkthrough pack), a referral
- * grant, a founding referral grant, a hosting extension and a correction
- * recorded against the walkthrough it corrects. Marking a money exception resolved
+ * grant, a founding referral grant and a correction recorded against the
+ * walkthrough it corrects. Marking a money exception resolved
  * records the reference of what a person already did; it moves no money. This
  * desk takes no payment, and an
  * unanswered check is reported as unavailable — never as "not a member" and
@@ -405,7 +405,7 @@
       const afterPlan = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined;
       const ended = planDate(afterPlan ? row.current_period_ends_at : row.trial_ends_at);
       return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free months ended ') + ended,
-        body: 'Your released walkthroughs stay hosted for twelve months after their release. Ask about restarting the plan; a second free trial is not guaranteed.' } : unavailable;
+        body: 'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.' } : unavailable;
     }
     return unavailable;
   }
@@ -1117,7 +1117,7 @@
         result.textContent = 'Choose the ' + PLAN_NAMES[PLAN_ON_SALE] + ", or keep this account's existing plan."; return;
       }
       const questions = [];
-      if (chosen === 'ended') questions.push('End studio service for ' + name + '? New walkthrough acceptance will pause. Existing released walkthroughs keep their agreed hosting. This does not issue a refund.');
+      if (chosen === 'ended') questions.push('End studio service for ' + name + '? New walkthrough acceptance will pause. Released walkthroughs stay online for 14 days, then go offline until the plan restarts. This does not issue a refund.');
       // Leaving a retired plan cannot be undone here: the desk never offers it again.
       if (ownRetired && planChoice !== ownRetired) {
         questions.push('Move ' + name + ' to the ' + PLAN_NAMES[PLAN_ON_SALE] + '? Its retired plan, ' + PLAN_NAMES[ownRetired] + ', cannot be chosen again for this account.');
@@ -1290,19 +1290,21 @@
   }
 
   /* ---- Hosted walkthroughs --------------------------------------------
-   * Released walkthroughs and their hosting terms, due soon first. The one
-   * write is studio_record_hosting_extension, which the server lets move a
-   * date later only and records with an audit row. Nothing here switches
-   * sharing off, and a failed lookup is never shown as an empty list.
+   * Released walkthroughs and whether a plan keeps them live, those without an
+   * active plan first. Offer 2026-09-26.1: a walkthrough is live while its
+   * office has an active plan (free months, monthly or annual); when the plan
+   * ends its links, embeds and QR codes stay up 14 days, then go offline, and
+   * restarting the plan brings the same links back. There is no paid extension,
+   * so this list is read-only. Nothing here switches sharing off, and a failed
+   * lookup is never shown as an empty list.
    */
   const hostedRowsEl = document.getElementById('studio-hosted-rows');
   const hostedTable = document.getElementById('studio-hosted-table');
-  const HOSTED_COLUMNS = 6;
-  const DUE_SOON_MS = 60 * 86400000;
+  const HOSTED_COLUMNS = 5;
+  const HOSTED_DAYS_AFTER_PLAN = 14;
   const HOSTED_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   let hostedVersion = 0;
   let hosted = [];
-  const openExtensions = new Set();
 
   // The same Brisbane "23 Sep 2027" the account desk and the app print, with a
   // fixed month list so locale data ("Sept") cannot change it.
@@ -1321,14 +1323,14 @@
       return local.getUTCDate() + ' ' + HOSTED_MONTHS[local.getUTCMonth()] + ' ' + local.getUTCFullYear();
     }
   }
-  function hostedDue(row, now = Date.now()) {
-    const until = moment(row.hosted_until);
-    return until !== null && !['trial', 'active'].includes(row.plan_status) && until - now <= DUE_SOON_MS;
+  // Without an active plan (free months, monthly or annual) a walkthrough goes
+  // offline 14 days after the plan ends.
+  function hostedDue(row) {
+    return !['trial', 'active'].includes(row.plan_status);
   }
   function hostedOrder(rows) {
-    const now = Date.now();
-    const end = row => moment(row.hosted_until) ?? Number.MAX_SAFE_INTEGER;
-    return [...rows].sort((left, right) => (hostedDue(right, now) - hostedDue(left, now)) || (end(left) - end(right)) ||
+    const released = row => moment(row.released_at) ?? Number.MAX_SAFE_INTEGER;
+    return [...rows].sort((left, right) => (hostedDue(right) - hostedDue(left)) || (released(left) - released(right)) ||
       String(left.property_title || '').localeCompare(String(right.property_title || '')));
   }
   function hostedState(text, retry) {
@@ -1367,95 +1369,24 @@
     const nameCell = element('th'); nameCell.setAttribute('scope', 'row');
     const nameText = element('strong', 'studio-name');
     const idText = element('span', 'studio-sub');
-    const badge = element('span', 'pill pill-busy studio-due', 'Due soon');
+    const badge = element('span', 'pill pill-busy studio-due', 'No active plan');
     nameCell.append(nameText, idText, badge); row.append(nameCell);
     const sharingCell = cell(row, 'Sharing');
     const releasedCell = cell(row, 'Released', 'studio-figure');
-    const guaranteedCell = cell(row, 'Guaranteed until', 'studio-figure');
-    const extendedCell = cell(row, 'Extended until', 'studio-figure');
     const planCell = cell(row, 'Plan');
-
-    const formRow = element('tr', 'studio-plan-row');
-    const formCell = element('td'); formCell.setAttribute('colspan', String(HOSTED_COLUMNS)); formRow.append(formCell);
-    const details = element('details', 'studio-set-plan studio-extension');
-    details.open = openExtensions.has(tourID);
-    details.addEventListener('toggle', () => { if (details.open) openExtensions.add(tourID); else openExtensions.delete(tourID); });
-    const summary = element('summary');
-    const form = element('form', 'veylet-form studio-plan-form studio-extension-form');
-    const dateLabel = element('label', 'studio-inline-field', 'New hosting end (Brisbane date)');
-    const dateInput = document.createElement('input'); dateInput.type = 'date'; dateInput.required = true; dateInput.name = 'extended_until';
-    dateLabel.append(dateInput);
-    const refLabel = element('label', 'studio-inline-field', 'Agreement or invoice reference');
-    const refInput = document.createElement('input'); refInput.type = 'text'; refInput.required = true; refInput.name = 'reference';
-    referenceInput(refInput);
-    refLabel.append(refInput);
-    const note = element('p', 'studio-field-note studio-extension-note', 'Use an opaque reference, not a name, email or payment detail. An extension can only move the date later; the server keeps an audit row. No payment is taken here.');
-    const save = element('button', 'button', 'Record extension'); save.type = 'submit';
-    const result = element('span', 'studio-result'); result.setAttribute('role', 'status');
-    const saveRow = element('p', 'studio-save-row'); saveRow.append(save, result);
-    const noteRow = element('div', 'studio-extension-note-row'); noteRow.append(note);
-    form.append(dateLabel, refLabel, noteRow, saveRow);
-    details.append(summary, form); formCell.append(details);
-
-    let current = start;
-    function paint(next) {
-      current = next;
-      const title = next.property_title || 'Untitled space';
-      nameText.textContent = title;
-      idText.textContent = 'Walkthrough ' + String(tourID || '').slice(0, 8);
-      const due = hostedDue(next);
-      badge.hidden = !due;
-      row.dataset.due = due ? 'true' : 'false';
-      sharingCell.textContent = next.sharing_on === true ? 'On' : next.sharing_on === false ? 'Off' : DASH;
-      releasedCell.textContent = hostedDate(next.released_at) || DASH;
-      guaranteedCell.textContent = hostedDate(next.guaranteed_until) || DASH;
-      extendedCell.textContent = hostedDate(next.extended_until) || DASH;
-      planCell.textContent = STATUS_CHOICES[next.plan_status] || DASH;
-      summary.textContent = 'Record extension · ' + title;
-    }
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (save.disabled) return;
-      const day = String(dateInput.value || '').trim();
-      const reference = String(refInput.value || '').trim();
-      // The start of that day in Brisbane, so the desk prints back the date typed.
-      const until = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(day + 'T00:00:00+10:00') : null;
-      if (!until || Number.isNaN(until.getTime())) { result.textContent = 'Enter the agreed new end date.'; return; }
-      const hostedUntil = moment(current.hosted_until);
-      if (hostedUntil !== null && until.getTime() <= hostedUntil) {
-        result.textContent = 'Choose a date after ' + hostedDate(current.hosted_until) + '. An extension can only move the date later.'; return;
-      }
-      if (!REFERENCE.test(reference)) { result.textContent = 'Enter the agreement or invoice reference (' + REFERENCE_FORMAT + ').'; return; }
-      const title = current.property_title || 'this walkthrough';
-      const question = 'Extend hosting for ' + title + ' to ' + hostedDate(until.toISOString()) + ' (reference ' + reference + ')? The date can only move later. No payment is taken here.';
-      if (typeof confirm !== 'function' || !confirm(question)) { result.textContent = 'Left unchanged.'; return; }
-      const version = hostedVersion;
-      save.disabled = true;
-      result.textContent = 'Recording the extension…';
-      const reply = await settled(client.rpc('studio_record_hosting_extension',
-        { p_tour_id: tourID, p_extended_until: until.toISOString(), p_reference: reference }));
-      if (version !== hostedVersion) return;
-      save.disabled = false;
-      const updated = failed(reply) ? null : firstRow(reply.value?.data);
-      if (!updated || updated.tour_id !== tourID || moment(updated.hosted_until) === null) {
-        // The typed date and reference stay, so a retry sends the same intent.
-        // Only an answer from the server is a rejection; a lost request is unknown.
-        const said = reply.value?.error;
-        const reason = said && typeof said.message === 'string' && said.message.trim() ? said.message.trim() : '';
-        result.textContent = reason ? 'Not recorded: ' + reason
-          : 'The extension was not confirmed. Refresh and check this walkthrough before recording it again.';
-        return;
-      }
-      const merged = { ...current, ...updated };
-      const index = hosted.findIndex(item => item.tour_id === tourID);
-      if (index >= 0) hosted[index] = merged;
-      paint(merged);
-      dateInput.value = ''; refInput.value = '';
-      const said = 'Recorded: ' + title + ' hosted until ' + hostedDate(merged.hosted_until) + '.';
-      result.textContent = said; setStatus(said);
-    });
-    paint(start);
-    return [row, formRow];
+    const hostingCell = cell(row, 'Hosting');
+    nameText.textContent = start.property_title || 'Untitled space';
+    idText.textContent = 'Walkthrough ' + String(tourID || '').slice(0, 8);
+    const due = hostedDue(start);
+    badge.hidden = !due;
+    row.dataset.due = due ? 'true' : 'false';
+    sharingCell.textContent = start.sharing_on === true ? 'On' : start.sharing_on === false ? 'Off' : DASH;
+    releasedCell.textContent = hostedDate(start.released_at) || DASH;
+    planCell.textContent = STATUS_CHOICES[start.plan_status] || DASH;
+    hostingCell.textContent = due
+      ? 'Offline ' + HOSTED_DAYS_AFTER_PLAN + ' days after the plan ends; restarting the plan restores the link'
+      : 'Live while the plan is active';
+    return [row];
   }
   async function loadHosted() {
     if (!hostedRowsEl) return;

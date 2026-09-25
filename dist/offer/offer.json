@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-25.2",
+  "version": "2026-09-26.1",
   "status": "current commercial offer; channel availability and release readiness are documented separately",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
@@ -12,7 +12,7 @@
     "cardRequired": true,
     "autoRenews": null,
     "reminderDaysBeforeFirstCharge": 7,
-    "hostingMonthsAfterRelease": 12,
+    "hostingDaysAfterPlanEnds": 14,
     "cancelAnytime": true,
     "paymentSetup": "App Store payment arrangement in the app, or written studio invoice terms; on the website, card entry happens only in Square's own card field on the account page, which is Square Sandbox until the card lane opens",
     "renewalNotice": "Check the renewal date in your account and Apple subscription settings; Veylet email reminders are not yet operational",
@@ -48,7 +48,29 @@
       "freeMonthsEligible": true,
       "annualRule": "24 walkthroughs to use any time in the plan year (a yearly pool); website or invoice A$990, App Store A$1,199.99; 2 months free",
       "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
-      "hostingRule": "every released tour stays live while the account has a running plan (free months, monthly or annual), and in any case for at least 12 months after its release; after both, A$49 per tour per further year on request",
+      "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; nothing keeps a walkthrough online without a plan",
+      "hosting": {
+        "liveWhile": "an active plan: free months (trial), monthly or annual",
+        "daysAfterPlanEnds": 14,
+        "afterThat": "links, embeds and QR codes go offline; not revoked: restarting the plan brings the same links back at once",
+        "extensionSold": false,
+        "warningEmails": [
+          "the day the plan ends",
+          "7 days before going offline",
+          "1 day before going offline"
+        ],
+        "status": "offer terms from 2026-09-26.1; server enforcement and the warning emails are not yet released; the terms still need legal review"
+      },
+      "listingExports": {
+        "included": true,
+        "formats": [
+          "16:9 MP4 listing video",
+          "9:16 MP4 listing video",
+          "stills"
+        ],
+        "price": "included in the plan; not sold separately",
+        "ownership": "downloaded files stay the customer's, also after the plan ends"
+      },
       "rollover": {
         "enabled": true,
         "maxBanked": 4,
@@ -110,8 +132,6 @@
     ]
   },
   "services": {
-    "hostingPerWalkthroughPerFurtherYearAud": 49,
-    "hostingMinimumMonthsAfterRelease": 12,
     "editingPerHourAud": 120
   },
   "counting": {
@@ -164,6 +184,13 @@
       "founding"
     ],
     "rule": "not sold to new accounts from offer 2026-09-24.2; existing verified or agreed rows keep their terms and map as before"
+  },
+  "retiredServices": {
+    "items": {
+      "hostingPerWalkthroughPerFurtherYearAud": 49,
+      "hostingMinimumMonthsAfterRelease": 12
+    },
+    "rule": "not sold to new buyers from offer 2026-09-26.1: nothing keeps a walkthrough online without a plan, and the 12-month minimum after release is replaced by 14 days after the plan ends (freeMonths.hostingDaysAfterPlanEnds); no customer bought either before it was retired"
   },
   "packs": [
     {
@@ -240,5 +267,13 @@
     "turnaround": "usually within 1–2 hours of the upload finishing; no person checks it",
     "qualityGate": "an automatic quality check (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms",
     "approval": "the account reviews and approves before sharing"
-  }
+  },
+  "history": [
+    {
+      "version": "2026-09-25.2",
+      "replacedBy": "2026-09-26.1",
+      "on": "2026-09-26",
+      "change": "hosting follows the plan: live while a plan is active, offline 14 days after it ends (was: at least 12 months after release, then A$49 per tour per further year on request); listing exports (16:9 and 9:16 MP4 videos, stills) stated as included in the plan; prices, allowances, packs and every other term unchanged"
+    }
+  ]
 }
