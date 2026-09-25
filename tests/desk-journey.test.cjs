@@ -201,7 +201,6 @@ test('Approve and share: one press records the approval, turns sharing on and re
 test('Approve and share: a refusal keeps the approval and says what sharing waits for, with its one fix', async () => {
   const cases = [
     ['review this tour before sharing', 'Approved. Sharing waits for a fresh review of this version.', 'Start a fresh review'],
-    ['tour uploader membership is no longer active', 'Approved. Sharing waits for the person who captured it to be back in your workspace.', 'Contact Veylet support'],
     ['sharing permission required', 'Approved. Sharing waits for someone with sharing permission.', null],
   ];
   for (const [message, words, fix] of cases) {
@@ -224,10 +223,13 @@ test('Approve and share: a refusal keeps the approval and says what sharing wait
       assert.ok(shownIn(card).some(el => el.textContent === 'Ask the workspace owner to turn sharing on.'));
     }
   }
+  // Walkthroughs belong to the office (draft 20260926126000): the retired uploader refusal, from an
+  // old backend, reads as the generic one, with no fix pointing anywhere.
   const uploader = await load({ tours: [readyTour({ walkthrough_id: '1a2b3c4d-0000-4000-8000-000000000001' })],
     rpc: { enable_tour_share: async () => ({ error: { message: 'tour uploader membership is no longer active' } }) } });
   await approve(uploader);
-  assert.match(byText(uploader.card('t1'), 'Contact Veylet support').href, /^mailto:yoda@yodalai\.xyz\?subject=Veylet%20sharing%20%C2%B7%20walkthrough%201a2b3c4d&body=/);
+  assert.equal(stateLine(uploader.card('t1')), 'Approved. Sharing didn’t turn on. Try again.');
+  assert.equal(byText(uploader.card('t1'), 'Contact Veylet support'), undefined);
   // The fix for a stale review reads the desk again.
   const stale = await load({ tours: [readyTour()], rpc: { enable_tour_share: async () => ({ error: { message: 'review this tour before sharing' } }) } });
   await approve(stale);

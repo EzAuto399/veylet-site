@@ -265,8 +265,8 @@
    * `&team-members=missing|error` answers it with PGRST202 or a failure. The owner sees Remove
    * (remove_workspace_member) and More › Make owner (transfer_workspace_ownership; this account
    * then reads as a reviewer) on the others' rows, and `member` sees Leave this office
-   * (leave_workspace) on their own row. Remove and leave answer the draft's
-   * counts with two shared links stopped. `&team-member=missing|fail|billing` answers those
+   * (leave_workspace) on their own row. Remove and leave answer draft 20260926126000's
+   * live_links_kept (2) and departed_display_name. `&team-member=missing|fail|billing` answers those
    * three with PGRST202 or a failure, or refuses the transfer for a live subscription. While
    * a member remains, the owner's request_account_deletion is refused with the backend lane's
    * wording (draft 20260926131000: "Transfer ownership or remove your teammates first.");
@@ -1611,10 +1611,12 @@
         if (teamCase === 'missing' || teamMemberCase === 'missing') return teamMissing(name);
         if (teamMemberCase === 'fail') return { data: null, error: { message: 'Synthetic member failure' } };
         // The draft's answers: counts for remove and leave (two of the member's links stop), the new owner for transfer.
-        const counts = state => ({ data: { state, changed: true, invites_revoked: 0, shared_links_stopped: 2 } });
+        // Walkthroughs belong to the office (draft 20260926126000): the departed member's two live links stay live.
+        const counts = (state, target) => ({ data: { state, changed: true, invites_revoked: 0, live_links_kept: 2,
+          departed_display_name: teamPeople.find(row => row.user_id === target)?.display_name ?? null } });
         if (name === 'leave_workspace') {
           if (teamCase !== 'member' && teamCase !== 'member-refused') return { data: null, error: { code: 'P0001', message: 'an owner stays until ownership is transferred' } };
-          teamLeft = true; return counts('left');
+          teamLeft = true; return counts('left', teamSelf());
         }
         if (!teamOwnerNow || !['owner', 'owner-empty'].includes(teamCase)) return { data: null, error: { code: 'P0001', message: 'workspace owner only' } };
         const target = name === 'remove_workspace_member' ? args?.p_user_id : args?.p_new_owner;
@@ -1622,7 +1624,7 @@
         if (!person || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
         if (target === teamSelf() || person.role === 'owner') return { data: null, error: { code: 'P0001', message: 'choose another active member of this workspace' } };
         if (name === 'transfer_workspace_ownership' && teamMemberCase === 'billing') return { data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } };
-        if (name === 'remove_workspace_member') { teamRemoved.add(target); return counts('removed'); }
+        if (name === 'remove_workspace_member') { teamRemoved.add(target); return counts('removed', target); }
         teamOwnerNow = false; teamPeople[0].role = 'reviewer'; person.role = 'owner';
         return { data: { state: 'transferred', workspace_id: args.p_workspace_id, owner: target, previous_owner_role: 'reviewer' } };
       }

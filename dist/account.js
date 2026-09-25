@@ -96,16 +96,16 @@
   // raises: "Approved. Sharing waits for {reason}." and the one fix for it.
   // The listing gate's two (release-2 drafts, not released) also refuse resume_tour_share
   // and request_listing_exports; their fix is the listing's question or consent form.
+  // "tour uploader membership is no longer active" is retired (walkthroughs belong to the
+  // office, draft 20260926126000): an old backend's refusal reads as the generic one.
   const SHARE_REFUSALS = [
     ['review this tour before sharing', 'review'],
-    ['tour uploader membership is no longer active', 'uploader'],
     ['sharing permission required', 'permission'],
     ['occupancy not declared', 'occupancy'],
     ['tenant consent required', 'consent'],
   ];
   const SHARE_WAITS = {
     review: 'a fresh review of this version',
-    uploader: 'the person who captured it to be back in your workspace',
     permission: 'someone with sharing permission',
     occupancy: 'you to say whether anyone lives here',
     consent: 'the tenant’s signed consent',
@@ -589,9 +589,6 @@
       enable.hidden = false; enable.className = 'tour-action tour-action-primary';
       if (reason === 'review') {
         fix = button('Start a fresh review', () => loadDesk(supabase)); fix.className = 'tour-action tour-action-primary';
-      } else if (reason === 'uploader') {
-        fix = document.createElement('a'); fix.className = 'tour-action tour-action-primary'; fix.textContent = 'Contact Veylet support';
-        fix.href = studioMail(tour, 'Veylet sharing', ['Sharing waits for the person who captured this walkthrough to be back in our workspace.']);
       } else if (reason === 'permission') {
         enable.hidden = true;
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
@@ -4591,7 +4588,7 @@
     tooManyToday: 'You’ve made 50 invites today. Try again tomorrow.',
     remove: 'Remove',
     confirmRemove: 'Confirm: remove',
-    removeWarn: 'They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.',
+    removeWarn: 'They lose access to this office. Confirm to continue.',
     keepThem: 'Keep them',
     keptThem: 'They stay in this office.',
     notRemoved: 'They weren’t removed. Try again.',
@@ -4606,7 +4603,9 @@
     ownerOffline: 'You’re offline. Ownership didn’t change.',
     leave: 'Leave this office',
     confirmLeave: 'Confirm: leave this office',
-    leaveWarn: 'You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.',
+    leaveWarn: 'Leave this office? You lose access to its walkthroughs. Confirm to continue.',
+    departedFallback: 'this teammate',
+    contactCard: 'contact card',
     ownerCantLeave: 'Owners can’t leave. Make someone else the owner first.',
     planFirst: 'Cancel or move the plan first, then transfer ownership.',
     stay: 'Stay',
@@ -4689,7 +4688,7 @@
       parts.push(teamForm(state, refs));
       if (state.result) parts.push(teamResult(state, refs));
     }
-    if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
+    if (state.notice) parts.push(teamNotice(state));
     if (state.membersOn) {
       parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.teammates));
       if (!state.people) parts.push(annualNode('p', 'annual-note', state.offline ? TEAM_WORDS.peopleOffline : TEAM_WORDS.peopleFailed), teamRetry(state));
@@ -4919,11 +4918,33 @@
     words.answer?.(firstRow(reply.value?.data));
     return 'done';
   }
-  // remove_workspace_member and leave_workspace answer how many live links stopped (the
-  // uploader is no longer a member): said after the fact, since nothing can count them before.
-  function teamLinksStopped(answer, who) {
-    const count = Number.isInteger(answer?.shared_links_stopped) && answer.shared_links_stopped > 0 ? answer.shared_links_stopped : 0;
-    return count ? ' ' + count + ' shared walkthrough' + (count === 1 ? '' : 's') + ' ' + who + ' captured stopped working for clients.' : '';
+  // Walkthroughs belong to the office (draft 20260926126000): remove_workspace_member answers
+  // live_links_kept and departed_display_name, and the owner is told those links stay live and
+  // asked to check the contact card clients see. Nothing when none are live.
+  function teamLinksKept(answer) {
+    const count = Number.isInteger(answer?.live_links_kept) && answer.live_links_kept > 0 ? answer.live_links_kept : 0;
+    if (!count) return null;
+    const name = typeof answer.departed_display_name === 'string' && answer.departed_display_name.trim()
+      ? answer.departed_display_name.trim() : TEAM_WORDS.departedFallback;
+    return { lead: count + ' live walkthrough' + (count === 1 ? '' : 's') + ' captured by ' + name + ' stay' + (count === 1 ? 's' : '') + ' live. Check your ',
+      tail: ' still shows the right person.' };
+  }
+  // The notice after a press, with "contact card" leading to What your clients see when it is on the page.
+  function teamNotice(state) {
+    const line = annualNode('p', 'team-said', state.notice);
+    const kept = state.kept;
+    if (kept) {
+      line.append(' ' + kept.lead);
+      if (clientsEl && !clientsEl.hidden) {
+        const link = annualNode('a', 'team-contact-link', TEAM_WORDS.contactCard); link.href = '#account-contact';
+        link.dataset.control = 'team-contact-card';
+        link.addEventListener('click', () => { clientsEl.tabIndex = -1; clientsEl.focus?.({ preventScroll: true }); });
+        line.append(link);
+      } else line.append(TEAM_WORDS.contactCard);
+      line.append(kept.tail);
+    }
+    state.notice = ''; state.kept = null;
+    return line;
   }
   // Revoking an invite: read back from the list.
   function teamRevoke(state, row, item) {
@@ -4952,7 +4973,8 @@
             { expired: 'Your sign-in has expired. Sign in and check whether they were removed.', offline: TEAM_WORDS.removeOffline, failed: TEAM_WORDS.notRemoved,
               answer: value => { answer = value; } });
           if (outcome !== 'done') return outcome;
-          state.notice = 'Removed ' + name + '.' + teamLinksStopped(answer, 'they'); setStatus(state.notice);
+          state.notice = 'Removed ' + name + '.'; state.kept = teamLinksKept(answer);
+          setStatus(state.notice + (state.kept ? ' ' + state.kept.lead + TEAM_WORDS.contactCard + state.kept.tail : ''));
           await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
           return outcome;
         } });
@@ -4981,12 +5003,11 @@
     teamConfirmed(parent, { label: TEAM_WORDS.leave, confirm: TEAM_WORDS.confirmLeave, warn: TEAM_WORDS.leaveWarn,
       keep: TEAM_WORDS.stay, kept: TEAM_WORDS.stayed, control: 'team-leave', onMissing: () => { teamLeaveAvailable = false; },
       run: async (say, reset) => {
-        let answer = null;
         const outcome = await teamCall(state, 'leave_workspace', { p_workspace_id: state.workspaceID }, say, reset,
           { expired: 'Your sign-in has expired. Sign in and check whether you left this office.', offline: TEAM_WORDS.leaveOffline, failed: TEAM_WORDS.notLeft,
-            refusals: [['an owner stays', TEAM_WORDS.ownerCantLeave]], answer: value => { answer = value; } });
+            refusals: [['an owner stays', TEAM_WORDS.ownerCantLeave]] });
         if (outcome !== 'done') return outcome;
-        setStatus(TEAM_WORDS.left + teamLinksStopped(answer, 'you'));
+        setStatus(TEAM_WORDS.left);
         await loadDesk(state.supabase);
         return outcome;
       } });

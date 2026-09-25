@@ -256,19 +256,22 @@ test('the owner removes a member, confirmed in place, by name', async () => {
   let people = PEOPLE.map(row => ({ ...row }));
   const h = await owner({ rpc: {
     list_workspace_members: () => ({ data: people.map(row => ({ ...row })) }),
-    remove_workspace_member: args => { people = people.filter(row => row.user_id !== args.p_user_id); return { data: { state: 'removed', changed: true, invites_revoked: 0, shared_links_stopped: 2 } }; },
+    remove_workspace_member: args => { people = people.filter(row => row.user_id !== args.p_user_id); return { data: { state: 'removed', changed: true, invites_revoked: 0, live_links_kept: 2, departed_display_name: 'Jo Operator' } }; },
   } });
   const jo = members(h)[1];
   const remove = h.control(jo, 'team-remove');
   await remove.fire('click');
   assert.equal(remove.textContent, 'Confirm: remove');
-  assert.ok(h.words(jo).includes('Remove Jo Operator? They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.'));
+  assert.ok(h.words(jo).includes('Remove Jo Operator? They lose access to this office. Confirm to continue.'));
   await h.control(jo, 'team-remove-keep').fire('click');
   assert.ok(h.words(jo).includes('They stay in this office.'));
   assert.equal(h.called('remove_workspace_member').length, 0);
   await remove.fire('click'); await remove.fire('click'); await h.settle();
   assert.deepEqual(h.called('remove_workspace_member'), [{ p_workspace_id: 'w1', p_user_id: 'bbbb2222-0000-4000-8000-000000000002' }]);
-  assert.ok(h.words(team(h)).includes('Removed Jo Operator. 2 shared walkthroughs they captured stopped working for clients.'));
+  // Walkthroughs belong to the office: the owner hears they stay live, and where to check the contact card.
+  const said = team(h).all().find(el => el.className === 'team-said' && el.text());
+  assert.equal(said.text(), 'Removed Jo Operator. 2 live walkthroughs captured by Jo Operator stay live. Check your contact card still shows the right person.');
+  assert.equal(h.status(), 'Removed Jo Operator. 2 live walkthroughs captured by Jo Operator stay live. Check your contact card still shows the right person.');
   assert.deepEqual(members(h).map(item => nameOf(item).textContent), ['Alex Example', 'Teammate', 'Pat Pending'], 'both lists read again');
   // The nameless member is "Teammate" in the words too.
   const nameless = members(h)[1];
@@ -301,7 +304,7 @@ test('Make owner sits behind More, is confirmed by name, and refused while a pla
 test('a teammate leaves from their own row, confirmed in place', async () => {
   const mine = PEOPLE.map(row => ({ ...row, is_self: row.user_id === 'bbbb2222-0000-4000-8000-000000000002' }));
   const h = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), list_workspace_members: () => ({ data: mine }),
-    leave_workspace: () => ({ data: { state: 'left', changed: true, invites_revoked: 1, shared_links_stopped: 1 } }) } });
+    leave_workspace: () => ({ data: { state: 'left', changed: true, invites_revoked: 1, live_links_kept: 1, departed_display_name: 'Jo Operator' } }) } });
   assert.equal(h.words(team(h)).filter(text => text === 'Teammates').length, 1, 'one list: the members replace who joined by invite');
   assert.equal(members(h).length, PEOPLE.length);
   assert.equal(invites(h).length, 0, 'invites are the owner’s list');
@@ -312,12 +315,12 @@ test('a teammate leaves from their own row, confirmed in place', async () => {
   assert.equal(leave.textContent, 'Leave this office');
   assert.equal(team(h).all().filter(el => el.dataset?.control === 'team-leave').length, 1, 'only on their own row');
   await leave.fire('click');
-  assert.ok(h.words(own).includes('You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.'));
+  assert.ok(h.words(own).includes('Leave this office? You lose access to its walkthroughs. Confirm to continue.'));
   await h.control(own, 'team-leave-keep').fire('click');
   assert.ok(h.words(own).includes('You’re still in this office.'));
   await leave.fire('click'); await leave.fire('click'); await h.settle();
   assert.deepEqual(h.called('leave_workspace'), [{ p_workspace_id: 'w1' }]);
-  assert.equal(h.status(), 'You left this office. 1 shared walkthrough you captured stopped working for clients.');
+  assert.equal(h.status(), 'You left this office.', 'the kept-links line is for the owner');
 });
 
 test('without the members list, or when it fails, the rest still works and nothing is guessed', async () => {
@@ -382,4 +385,24 @@ test('deleting an owner’s account while teammates remain points to Your team, 
   await files.button(panel3, 'Delete my account').fire('click');
   await files.button(panel3, 'Delete my account').fire('click'); await files.settle();
   assert.ok(files.words(panel3).includes('Walkthrough files you uploaded to a workspace you handed over are stored under your account; the studio moves them before deletion.'));
+});
+
+test('the kept-links line: singular, the fallback name, a link only when What your clients see is shown, nothing for none', async () => {
+  const removeWith = answer => owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }), remove_workspace_member: () => ({ data: answer }),
+    get_workspace_public_contact: () => ({ data: [{ show_on_shared: true, display_name: 'Alex', agency: 'Example', phone: '0400 000 000', email: null }] }) } });
+  const press = async h => { const control = h.control(members(h)[2], 'team-remove'); await control.fire('click'); await control.fire('click'); await h.settle(); };
+  const one = await removeWith({ state: 'removed', live_links_kept: 1, departed_display_name: null });
+  await press(one);
+  assert.equal(one.status(), 'Removed Teammate. 1 live walkthrough captured by this teammate stays live. Check your contact card still shows the right person.');
+  const link = one.control(team(one), 'team-contact-card');
+  assert.equal(link.textContent, 'contact card');
+  assert.equal(link.href, '#account-contact');
+  const none = await removeWith({ state: 'removed', live_links_kept: 0, departed_display_name: 'Sam' });
+  await press(none);
+  assert.equal(none.status(), 'Removed Teammate.');
+  // Without What your clients see on the page, the words stay and nothing links.
+  const plain = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }), remove_workspace_member: () => ({ data: { live_links_kept: 3, departed_display_name: ' Sam ' } }) } });
+  await press(plain);
+  assert.equal(plain.status(), 'Removed Teammate. 3 live walkthroughs captured by Sam stay live. Check your contact card still shows the right person.');
+  assert.equal(plain.control(team(plain), 'team-contact-card'), null);
 });
