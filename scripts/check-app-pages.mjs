@@ -6,7 +6,8 @@
  * "pack", "Super fast", "express", "/offer" or "price", or links out of /app.
  *
  * Two passes, both local and offline:
- * 1. Static: every dist/app/<page>/index.html, as a reader and a crawler see it
+ * 1. Static: every dist/app/<page>/index.html, and every page of the in-app help
+ *    centre (every index.html below dist/app/help), as a reader and a crawler see it
  *    (text, link targets, meta content, alt and label text, inline script
  *    strings). Comments are the authors' notes and are not read.
  * 2. Rendered: dist/account.js runs in app mode (data-app-mode="true") against
@@ -55,8 +56,17 @@ export function findBanned(text, where) {
 export function appPages(dist) {
   const root = join(dist, 'app');
   if (!existsSync(root)) return [];
-  return readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory() && existsSync(join(root, entry.name, 'index.html')))
+  return readdirSync(root, { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name !== 'help' && existsSync(join(root, entry.name, 'index.html')))
     .map(entry => 'app/' + entry.name + '/index.html').sort();
+}
+
+/** The in-app help centre: every index.html at or below dist/app/help, checked like the pages above. */
+export function appHelpPages(dist) {
+  const walk = relative => [
+    ...(existsSync(join(dist, relative, 'index.html')) ? [relative + '/index.html'] : []),
+    ...readdirSync(join(dist, relative), { withFileTypes: true }).filter(entry => entry.isDirectory()).flatMap(entry => walk(relative + '/' + entry.name)),
+  ];
+  return existsSync(join(dist, 'app/help')) ? walk('app/help').sort() : [];
 }
 
 const decode = text => text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
@@ -75,7 +85,7 @@ export function pageStrings(html) {
 
 /** Links from an app page stay on the app's pages (or are mail links). */
 export function outsideLinks(html) {
-  return pageStrings(html).attributes.filter(({ name, value }) => name === 'href' && !/^(\/app\/[a-z/-]*|#[\w-]+|mailto:[^"]+|data:,?|\/media\/[\w.-]+|\/[\w./-]+\.css(\?v=[a-f\d]{16})?)$/.test(value))
+  return pageStrings(html).attributes.filter(({ name, value }) => name === 'href' && !/^(\/app\/[a-z/-]*|\/app\/help(\/[a-z\d/_-]*)?(#[\w-]+)?|#[\w-]+|mailto:[^"]+|data:,?|\/media\/[\w.-]+|\/[\w./-]+\.css(\?v=[a-f\d]{16})?)$/.test(value))
     .map(({ value }) => value);
 }
 
@@ -194,8 +204,9 @@ export const APP_ACCOUNT_CASES = Object.freeze([
 export async function checkAppPages(dist = join(REPO, 'dist')) {
   const problems = [];
   const pages = appPages(dist);
+  const helpPages = appHelpPages(dist);
   if (!pages.length) problems.push({ where: 'dist/app', word: 'missing', excerpt: 'no app pages found' });
-  for (const page of pages) {
+  for (const page of [...pages, ...helpPages]) {
     const html = readFileSync(join(dist, page), 'utf8');
     const { text, attributes, literals } = pageStrings(html);
     problems.push(...findBanned(text, page + ' (text)'));
@@ -215,7 +226,7 @@ export async function checkAppPages(dist = join(REPO, 'dist')) {
       for (const call of new Set(calls)) if (MONEY_CALLS.includes(call)) problems.push({ where: 'app/account' + (search || ' (default)'), word: 'money call', excerpt: call });
     }
   }
-  return { pages, cases: pages.includes('app/account/index.html') ? APP_ACCOUNT_CASES.length : 0, rendered, problems };
+  return { pages, helpPages, cases: pages.includes('app/account/index.html') ? APP_ACCOUNT_CASES.length : 0, rendered, problems };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -226,6 +237,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.error(`${result.problems.length} problem(s) on the pages the app opens.`);
     process.exitCode = 1;
   } else {
-    console.log(`${result.pages.length} app pages clean; ${result.cases} rendered states of /app/account, ${result.rendered} written strings, no amount, purchase word or outside link.`);
+    console.log(`${result.pages.length} app pages and ${result.helpPages.length} help pages clean; ${result.cases} rendered states of /app/account, ${result.rendered} written strings, no amount, purchase word or outside link.`);
   }
 }
