@@ -1724,6 +1724,9 @@
     const moves = lineage?.link_moves_on_approval === true;
     if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.', 'tour-state-help tour-share-terms');
     // The quality check's advice for this walkthrough, if any: read, never a block.
+    // What approving uses, from its capture's rooms; nothing until the server counted them.
+    const unitSlot = document.createElement('p'); unitSlot.className = 'tour-state-help tour-review-units'; unitSlot.hidden = true; form.append(unitSlot);
+    reviewUnitSlots.set(tour.id, unitSlot); paintReviewUnits(unitSlot, reviewUnits.get(tour.id));
     const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
     reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
     const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
@@ -3911,6 +3914,9 @@
   const EXPRESS_REFUSALS = {
     full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     express_full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
+    // Offer 2026-09-26.3: sold only while fast GPUs start quickly (20260926140000, reason 'capacity').
+    capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
+    express_capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     already_express: 'This capture is already super fast, so nothing more was charged.',
     payment_declined: 'Your card was declined, so nothing was charged. Check the details or use another card, then try again.',
     not_eligible: 'This capture can’t be made super fast now, so nothing was charged.',
@@ -3943,11 +3949,14 @@
       && (order.refund === null || order.refund === undefined || EXPRESS_REFUNDS.includes(order.refund))
       && (order.state !== 'met' || Boolean(expressMoment(order.completed_at)));
   }
-  function expressCaptureValid(capture) {
+  // Offer 2026-09-26.3 (20260926140000): while fast GPUs are not starting quickly the answer says
+  // available false, reason 'capacity', can_order false and no ready_by; nothing is offered to press.
+  function expressUnavailable(offer) { return offer.full_today === true || offer.available === false; }
+  function expressCaptureValid(capture, unavailable = false) {
     if (!capture || typeof capture !== 'object' || typeof capture.job_id !== 'string' || !capture.job_id
       || typeof capture.property_id !== 'string' || !EXPRESS_LISTED.includes(capture.status)) return false;
     const order = capture.express;
-    if (order === null || order === undefined) return EXPRESS_OFFERED.includes(capture.status) && Boolean(expressMoment(capture.ready_by));
+    if (order === null || order === undefined) return EXPRESS_OFFERED.includes(capture.status) && (unavailable || Boolean(expressMoment(capture.ready_by)));
     return expressOrderValid(order);
   }
   // An older answer still counts against a daily cap; the current one has none.
@@ -3959,7 +3968,8 @@
         ? Number.isInteger(offer.taken_today) && offer.taken_today >= 0 && typeof offer.full_today === 'boolean' && offer.full_today === (offer.taken_today >= offer.daily_cap)
         : (offer.daily_cap === null || offer.daily_cap === undefined) && offer.full_today !== true)
       && Number.isInteger(offer.credits_available) && offer.credits_available >= 0 && typeof offer.can_order === 'boolean'
-      && Array.isArray(offer.captures) && offer.captures.every(expressCaptureValid)
+      && (offer.available === undefined || offer.available === null || typeof offer.available === 'boolean')
+      && Array.isArray(offer.captures) && offer.captures.every(capture => expressCaptureValid(capture, offer.available === false))
       && new Set(offer.captures.map(capture => capture.job_id)).size === offer.captures.length;
   }
   function expressTest() { return express && (express.lane?.sandbox === true || express.sandbox === true) ? 'Test · ' : ''; }
@@ -4004,7 +4014,7 @@
     const head = annualNode('div', 'express-head');
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     const problemText = express.problems.get(capture.job_id) || '';
-    if (offer.full_today) {
+    if (expressUnavailable(offer)) {
       head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
       parts.push(head);
       say('express-note', 'Super fast isn’t available right now. Your capture keeps its place and is usually ready within 1–2 hours.');
@@ -4126,7 +4136,7 @@
     const state = express;
     if (!state || state.busy || state.card) return;
     const { offer, capture } = expressFind(workspaceID, jobID);
-    if (!offer || !capture || capture.express || offer.full_today || !offer.can_order) return;
+    if (!offer || !capture || capture.express || expressUnavailable(offer) || !offer.can_order) return;
     closeCardForms('express');
     state.busy = true; state.problems.delete(jobID);
     control.disabled = true; control.textContent = 'Loading card form…';
@@ -4222,6 +4232,7 @@
     if (done) { expressDropCard(); expressOrdered(workspaceID, jobID, done); return; }
     if (code === 'unauthorized') { showSignedOut('Your sign-in has expired. Sign in again to order a super fast render. Nothing was charged.'); return; }
     if ((code === 'express_full_today' || code === 'full_today')) { if (expressCapped(offer)) offer.taken_today = Math.max(offer.taken_today, offer.daily_cap); offer.full_today = true; expressDropCard(); }
+    if (code === 'capacity' || code === 'express_capacity') { offer.available = false; expressDropCard(); }
     if (EXPRESS_REFUSALS[code]) state.attempts.delete(jobID);
     state.problems.set(jobID, EXPRESS_REFUSALS[code] || EXPRESS_UNCONFIRMED);
     expressDraw(jobID); setStatus(state.problems.get(jobID));
@@ -4231,7 +4242,7 @@
     const state = express;
     if (!state || state.busy) return;
     const { offer, capture } = expressFind(workspaceID, jobID);
-    if (!offer || !capture || capture.express || offer.credits_available < 1) return;
+    if (!offer || !capture || capture.express || expressUnavailable(offer) || offer.credits_available < 1) return;
     closeCardForms('express');
     state.busy = true; state.problems.delete(jobID);
     control.disabled = true; control.textContent = 'Using a super fast render…';
@@ -4247,9 +4258,10 @@
     }
     // The database's refusal, by the words it raises; a lost answer is unknown.
     const said = String(reply.value?.error?.message || '');
-    const code = /full today/i.test(said) ? 'full_today' : /no express render left|no express credit/i.test(said) ? 'no_credit'
+    const code = /full today/i.test(said) ? 'full_today' : /capacity|isn.t available right now/i.test(said) ? 'capacity' : /no express render left|no express credit/i.test(said) ? 'no_credit'
       : /already express/i.test(said) ? 'already_express' : said ? 'not_eligible' : null;
     if ((code === 'express_full_today' || code === 'full_today')) { if (expressCapped(offer)) offer.taken_today = Math.max(offer.taken_today, offer.daily_cap); offer.full_today = true; }
+    if (code === 'capacity') offer.available = false;
     if (code === 'no_credit') offer.credits_available = 0;
     state.problems.set(jobID, code ? EXPRESS_REFUSALS[code].replace('nothing was charged', 'nothing was used') : 'We couldn’t confirm the super fast render. Check this space again in a minute before you try again.');
     expressDraw(jobID); setStatus(state.problems.get(jobID));
@@ -5514,7 +5526,12 @@
    * weekly_limit (this week's renders are used; the next starts at until). The job stays
    * Waiting to render, with no failure and nothing to press. The contract's words.
    */
-  const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit'];
+  // trial_limit (20260926140000, offer 2026-09-26.3): a trial reached its 12 render attempts
+  // (freeMonths.renderAttemptCap); until is null. Still waiting, never Failed: choosing a plan
+  // lets it render. The web desk's filled action goes to the plan panel; the app's pages say
+  // the words only, with no price and no purchase link.
+  const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit', 'trial_limit'];
+  const RENDER_TRIAL_LIMIT = 'Your free months include up to 12 render attempts. Choose a plan to keep rendering.';
   function renderHold(value) {
     if (!value || typeof value !== 'object' || !RENDER_HOLDS.includes(value.reason)) return null;
     return { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
@@ -5522,6 +5539,7 @@
   function renderHoldWords(hold) {
     if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
     if (hold.reason === 'paused') return 'Rendering is paused for a moment. Yours keeps its place in line.';
+    if (hold.reason === 'trial_limit') return RENDER_TRIAL_LIMIT;
     const day = hold.until ? window.VeyletSharing?.hostingDate?.(hold.until) || '' : '';
     return 'You’ve used this week’s renders. ' + (day ? 'This one starts on ' + day + '.' : 'This one starts as soon as the week allows another.');
   }
@@ -5574,6 +5592,27 @@
     const note = document.createElement('p'); note.className = 'tour-flags-note'; note.textContent = 'Open the preview to check these areas. They never stop you approving.';
     slot.replaceChildren(title, list, note); slot.hidden = false;
   }
+  /*
+   * Offer 2026-09-26.3 (20260926140000): the rooms the server counted from the capture and the
+   * walkthroughs its approval uses (capture_render_status_json rooms, walkthroughs_used):
+   * "9 rooms · uses 2 walkthroughs". Rooms not counted yet (null) say nothing: approval uses 1.
+   */
+  function renderRoomsUse(job) {
+    const rooms = renderInt(job?.rooms, 0, 1000), used = renderInt(job?.walkthroughs_used, 1, 1000);
+    if (rooms === null || used === null) return '';
+    return rooms + (rooms === 1 ? ' room' : ' rooms') + ' · uses ' + used + (used === 1 ? ' walkthrough' : ' walkthroughs');
+  }
+  // Per walkthrough: the rooms line from its capture, and the review form's slot for it.
+  const reviewUnits = new Map(), reviewUnitSlots = new Map();
+  function paintReviewUnits(slot, words) {
+    if (slot.textContent === (words || '') && slot.hidden === !words) return;
+    slot.textContent = words || ''; slot.hidden = !words;
+  }
+  function reviewUnitsFor(tourID, words) {
+    reviewUnits.set(tourID, words);
+    const slot = reviewUnitSlots.get(tourID);
+    if (slot) paintReviewUnits(slot, words);
+  }
   function reviewFlagsFor(tourID, flags) {
     reviewFlags.set(tourID, flags);
     const slot = reviewFlagSlots.get(tourID);
@@ -5619,6 +5658,7 @@
     else if (key === 'recapture') view = { key, rooms: renderRooms(job.recapture) };
     else view = { key };
     if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
+    if (view) { const units = renderRoomsUse(job); if (units) view.units = units; }
     return view;
   }
   function renderStepWords(step) { return 'Step ' + step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[step - 1] + '.'; }
@@ -5690,7 +5730,7 @@
     // "Ready for your review" is said to whoever reviews; anyone else reads whose it is.
     const others = view.key === 'ready' && !canReview;
     head.append(annualNode('p', 'render-title', others ? 'Ready for review' : RENDER_TITLES[view.key]));
-    const turn = others ? 'With the workspace owner' : RENDER_TURNS[view.key];
+    const turn = others ? 'With the workspace owner' : view.hold?.reason === 'trial_limit' ? 'Your turn' : RENDER_TURNS[view.key];
     if (turn) head.append(pill(turn, turn === 'Your turn' ? 'good' : 'busy'));
     block.append(head);
     const line = text => { const node = annualNode('p', 'render-line', text); block.append(node); return node; };
@@ -5710,7 +5750,14 @@
         if (view.pct !== null) block.append(renderMeter(view.pct, 'Upload progress'));
         break;
       case 'waiting': {
-        if (view.hold) { line(renderHoldWords(view.hold)).classList.add('render-hold'); break; }
+        if (view.hold) {
+          line(renderHoldWords(view.hold)).classList.add('render-hold');
+          if (view.hold.reason === 'trial_limit' && !APP_MODE) {
+            const choose = button('Choose a plan', focusPlan); choose.className = 'tour-action tour-action-primary'; choose.dataset.control = 'trial-limit-plan';
+            const actions = annualNode('p', 'render-actions'); actions.append(choose); block.append(actions);
+          }
+          break;
+        }
         const words = [view.position ? 'You’re ' + renderOrdinal(view.position) + ' in line.' : '',
           view.wait ? 'Usually starts within ' + renderMinutes(view.wait) + '.' : ''].filter(Boolean);
         line(words.length ? words.join(' ') : 'Your capture is in line.');
@@ -5759,6 +5806,7 @@
     }
     // Same due time, in the same words, as the space's super fast block.
     if (view.express) block.append(annualNode('p', 'render-express', 'Super fast: ready by ' + expressMoment(view.express) + ', or refunded'));
+    if (view.units) block.append(annualNode('p', 'render-note render-units', view.units));
     return block;
   }
   // Only a read slower than 400 ms shows the shape of what is coming; a quick answer
@@ -5783,7 +5831,7 @@
   // Signed out: nothing about this account's captures stays on the page or in memory.
   function renderForget() {
     renderHide();
-    renderSaid.clear(); renderOpen.clear(); renderAsked.clear(); renderApproved.clear(); reviewFlags.clear();
+    renderSaid.clear(); renderOpen.clear(); renderAsked.clear(); renderApproved.clear(); reviewFlags.clear(); reviewUnits.clear();
     renderPrimed = false; renderGuideSaid = ''; renderPendingReview = null;
     if (renderLiveEl) renderLiveEl.textContent = '';
   }
@@ -5804,6 +5852,10 @@
     const said = recapture ? 'recapture' : broken ? 'failed' : moving ? (moving.view.key === 'uploading' ? 'uploading' : moving.view.hold ? 'held-' + moving.view.hold.reason : 'moving') : '';
     if (!said || said === renderGuideSaid) return;
     renderGuideSaid = said;
+    if (said === 'held-trial_limit') {
+      guide('Your capture is waiting to start.', RENDER_TRIAL_LIMIT + ' It shows on ' + moving.title + ' below.', APP_MODE ? null : 'Choose a plan', APP_MODE ? null : focusPlan);
+      return;
+    }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
       guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. Recapturing it won’t use a walkthrough.', 'Show what to recapture', () => {
@@ -5834,7 +5886,9 @@
       }
       const row = answer.spaces.get(propertyID);
       // The quality check's advice travels with the capture; its walkthrough's review shows it.
-      if (row && typeof row === 'object' && typeof row.tour_id === 'string' && row.tour_id) reviewFlagsFor(row.tour_id, row.review_flags);
+      if (row && typeof row === 'object' && typeof row.tour_id === 'string' && row.tour_id) {
+        reviewFlagsFor(row.tour_id, row.review_flags); reviewUnitsFor(row.tour_id, renderRoomsUse(row));
+      }
       const view = row && renderJobValid(row) ? renderView(row, desk) : null;
       const title = space?.title || 'Untitled space';
       let signature, draw;
@@ -5990,7 +6044,7 @@
   // while it is worked out, and an empty list. Returns the new desk's ticket.
   function deskReset() {
     const ticket = ++deskVersion;
-    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); listingGates.clear(); hostingCards.clear();
+    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget

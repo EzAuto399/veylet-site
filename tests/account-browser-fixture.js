@@ -351,7 +351,9 @@
    * bonus), full (an older answer still counted against a cap of 5, all taken),
    * not-owner, ordered (paid by card, due in 25 minutes), ordered-credit, met (ready in
    * time), missed (late, A$29 refunded), missed-pending (refund on its way),
-   * missed-credit (render returned), error or missing (the function does not exist
+   * missed-credit (render returned), capacity (offer 2026-09-26.3, 20260926140000: fast
+   * GPUs are not starting quickly, so available false, reason 'capacity', can_order false
+   * and no ready_by), error or missing (the function does not exist
    * yet). Without it the answer lists no capture, so no space shows a super fast block.
    * `&express-checkout=<error code>|fail` refuses the next card order;
    * `&express-card=open` presses Super fast for A$29 once. */
@@ -848,10 +850,11 @@
   // Only `full` is an older answer with a daily cap; the current answer has none.
   const expressCapped = expressCase === 'full';
   const expressCap = () => (expressCapped ? { daily_cap: 5, taken_today: expressLive.taken, full_today: expressLive.taken >= 5 } : { daily_cap: null, full_today: false });
-  const expressOffer = () => ({ price_cents: 2900, ...expressCap(),
-    credits_available: expressLive.credits, can_order: scenario !== 'operator' && expressCase !== 'not-owner',
+  const expressNoCapacity = expressCase === 'capacity';
+  const expressOffer = () => ({ price_cents: 2900, ...expressCap(), available: !expressNoCapacity, reason: expressNoCapacity ? 'capacity' : null,
+    credits_available: expressLive.credits, can_order: scenario !== 'operator' && expressCase !== 'not-owner' && !expressNoCapacity,
     captures: expressCase === 'none' ? [] : [{ job_id: EXPRESS_JOB, property_id: 'synthetic-terrace',
-      status: expressLive.order?.state === 'met' ? 'awaiting_review' : 'queued', ready_by: minutesFromNow(30), express: expressLive.order ? { ...expressLive.order } : null }] });
+      status: expressLive.order?.state === 'met' ? 'awaiting_review' : 'queued', ready_by: expressNoCapacity ? null : minutesFromNow(30), express: expressLive.order ? { ...expressLive.order } : null }] });
   // One capture as list_workspace_render_status answers it (migration
   // 20260925110000_render_status.sql, capture_render_status_json): the customer's state
   // as the server decides it, with only the fields that state carries. An open express
@@ -874,7 +877,10 @@
   /* Why a queued capture waits, and the quality check's advice (migration
    * 20260926110000_admission_and_gate_policy.sql, not released). `?hold=admission|paused|
    * weekly_limit` holds every waiting capture (`?render=waiting`, `all` or `walk`) with that
-   * reason; weekly_limit's until is 3 days from now. `?flags=all` gives the ready capture
+   * reason; weekly_limit's until is 3 days from now; trial_limit (20260926140000, offer
+   * 2026-09-26.3: a trial's 12 render attempts are used) has none. `?rooms=1|8|9|17` gives
+   * every capture that many rooms and walkthroughs_used max(1, ceil(rooms / 8)) (1, 1, 2, 3);
+   * without it rooms is null and walkthroughs_used 1. `?flags=all` gives the ready capture
    * (`?render=ready` or `all`) one review flag per advice rule, as the member read names
    * them ({room, reason}: the gate's own reason sentence, no rule), on five named rooms and
    * one unnamed; `unknown` adds a reason this page does not know; without it the ready
@@ -889,7 +895,8 @@
     { room: 'Hallway', reason: 'We could not find a clear floor to walk on here. Recapture it, including the floor and doorways.' },
     { room: '', reason: 'We could not find a clear path on the floor from here to the other rooms. Recapture the doorway and the floor between rooms.' },
   ];
-  const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit'].includes(holdCase) ? null
+  const roomsCase = /^\d+$/.test(params.get('rooms') || '') ? Number(params.get('rooms')) : null;
+  const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit', 'trial_limit'].includes(holdCase) ? null
     : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
   const renderFlagsOf = state => (!['ready_for_review', 'approved', 'live'].includes(state) ? null
     : flagsCase === 'all' ? REVIEW_FLAGS.map(flag => ({ ...flag }))
@@ -919,6 +926,8 @@
     out.step_label = out.step ? RENDER_STEP_LABELS[out.step - 1] : null;
     out.hold = renderHoldOf(out.status);
     out.review_flags = renderFlagsOf(out.state);
+    out.rooms = roomsCase;
+    out.walkthroughs_used = roomsCase === null ? 1 : Math.max(1, Math.ceil(roomsCase / 8));
     if (out.eta_seconds !== null && out.heartbeat_at) out.eta_at = new Date(Date.parse(out.heartbeat_at) + out.eta_seconds * 1000).toISOString();
     if (tour) out.tour_id = renderTourOf(state === 'walk' ? 'ready' : state);
     if (params.get('render-fields') === 'none') Object.assign(out, { step: null, step_label: null, stage: null, progress_pct: null,

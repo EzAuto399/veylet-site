@@ -117,7 +117,8 @@ missing function answers PGRST202 and its card stays away):
   the Express render block (A$29, ready 2 business hours from now, 2 of 5 taken).
   Other answers: `credit` (4 express renders from the bonus), `full` (5 of 5 taken),
   `not-owner`, `ordered`, `ordered-credit`, `met`, `missed` (A$29 refunded),
-  `missed-pending`, `missed-credit`, `error` and `missing`;
+  `missed-pending`, `missed-credit`, `capacity` (fast GPUs not starting quickly: "Super fast
+  isn't available right now", nothing to press), `error` and `missing`;
   `&express-checkout=<error code>|fail` refuses the next card order and
   `&express-card=open` presses Express for A$29 once.
 - `/__qa/studio/`: the Express renders band before the capture queue
@@ -216,6 +217,10 @@ not yet written, so every answer is the fixture's):
   (Waiting to render, with the hold's words and nothing to press). `?render=ready&flags=all`
   (or `unknown`): the ready capture carries review flags, shown in its review as
   "Worth a look before you share" above Approve and share.
+- `?render=waiting&hold=trial_limit`: the free months' 12 render attempts are used; the capture
+  waits with "Choose a plan" (the plan panel) on the website and the words only on `/app/account`.
+  `?rooms=1|8|9|17` (with any `?render=`): each capture reports that many rooms and uses 1, 1, 2 or
+  3 walkthroughs ("9 rooms · uses 2 walkthroughs" on the status and in the review).
 - `/__qa/play/?id=synthetic-tour&from=app`: the preview's links go to `/app/*`.
 
 Email preferences and unsubscribe (25 September 2026), built to the sibling repository's

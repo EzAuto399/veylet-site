@@ -138,6 +138,14 @@ test('the QA fixture holds waiting captures and flags the ready one, for each do
     assert.equal(job.hold.reason, reason);
     assert.equal(job.hold.until === null, reason !== 'weekly_limit', reason);
   }
+  const [limited] = await jobs('?render=waiting&hold=trial_limit');
+  assert.deepEqual(limited.hold, { reason: 'trial_limit', until: null });
+  // Offer 2026-09-26.3: ?rooms= gives each capture its rooms and walkthroughs_used = max(1, ceil(rooms / 8)).
+  for (const [rooms, used] of [[1, 1], [8, 1], [9, 2], [17, 3]]) {
+    const [job] = await jobs('?render=ready&rooms=' + rooms);
+    assert.deepEqual([job.rooms, job.walkthroughs_used], [rooms, used], String(rooms));
+  }
+  assert.deepEqual((({ rooms, walkthroughs_used }) => [rooms, walkthroughs_used])((await jobs('?render=ready'))[0]), [null, 1]);
   assert.equal((await jobs('?render=waiting'))[0].hold, null);
   assert.equal((await jobs('?render=rendering&hold=paused'))[0].hold, null, 'only a queued job is held');
   const [ready] = await jobs('?render=ready&flags=all');

@@ -3830,6 +3830,30 @@ test('offer v9: an older answer that is full offers nothing to press, keeps the 
   }
 });
 
+test('offer 2026-09-26.3: while fast GPUs are not starting quickly (reason capacity) Super fast offers nothing and charges nothing', async () => {
+  // 20260926140000: available false, reason 'capacity', can_order false, and no ready_by on an unordered capture.
+  const unavailable = expressOffer({ available: false, reason: 'capacity', can_order: false, captures: [{ ...sentCapture(), ready_by: null }] });
+  const h = await withExpress(unavailable);
+  assert.equal(h.ids['account-express-status'].hidden, true, 'a readable answer, not an outage');
+  assert.equal(expressClass(h, 'express-title').textContent, 'Super fast render');
+  assert.equal(expressClass(h, 'pill').textContent, 'Not available right now');
+  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place and is usually ready within 1–2 hours\./);
+  assert.equal(expressNodes(h).some(el => el.tagName === 'BUTTON'), false);
+  assert.equal(posts(h, '/square/express/checkout').length, 0);
+  // Even with bonus renders left, none is offered while it is unavailable.
+  const credit = await withExpress({ ...unavailable, credits_available: 2 });
+  assert.equal(expressNodes(credit).some(el => el.tagName === 'BUTTON'), false);
+  // Refused as capacity after pressing: nothing charged, and the space stops offering it.
+  const late = await withExpress(expressOffer({ available: true, reason: null }), { hooks: { '/square/express/checkout': () => [409, { error: 'capacity' }] } });
+  await pressExpress(late, 'Super fast for A$29');
+  await pressExpress(late, 'Pay A$29');
+  assert.equal(expressProblem(late), 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.');
+  assert.equal(expressClass(late, 'pill').textContent, 'Not available right now');
+  // A missing ready_by while it says available is still unreadable, never a promise.
+  const odd = await withExpress(expressOffer({ available: true, captures: [{ ...sentCapture(), ready_by: null }] }));
+  assert.equal(odd.ids['account-express-status'].hidden, false);
+});
+
 test('offer v9: a super fast render from the early-annual bonus is used without a card, and comes back if it is late', async () => {
   const calls = [];
   const h = await withExpress(expressOffer({ credits_available: 4 }), { rpc: { use_express_credit: async args => { calls.push(args);

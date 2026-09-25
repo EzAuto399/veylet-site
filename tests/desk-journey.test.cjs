@@ -1108,6 +1108,59 @@ test('a held capture stays Waiting to render with the contract’s words for its
   assert.match(textOf(renderBlockOf(strange)), /You’re 3rd in line\./, 'an unknown hold reads as a place in line');
 });
 
+/* ---- Offer 2026-09-26.3 (20260926140000): rooms, and the free months' render attempts ---- */
+
+test('each capture and its review say how many rooms it has and the walkthroughs its approval uses; unknown rooms say nothing', async () => {
+  for (const [rooms, used, words] of [[1, 1, '1 room · uses 1 walkthrough'], [8, 1, '8 rooms · uses 1 walkthrough'],
+    [9, 2, '9 rooms · uses 2 walkthroughs'], [17, 3, '17 rooms · uses 3 walkthroughs']]) {
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used }) } });
+    await settle();
+    assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+    const line = reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className));
+    assert.equal(line.hidden, false, words);
+    assert.equal(line.textContent, words);
+    // Also on a capture still on its way.
+    const waiting = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2, rooms, walkthroughs_used: used }) } });
+    assert.equal(renderBlockOf(waiting).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+  }
+  // Rooms not counted yet (null), an odd count or no walkthroughs used: nothing, and approval still works (it uses 1).
+  for (const fields of [{ rooms: null, walkthroughs_used: 1 }, { rooms: 9, walkthroughs_used: null }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', ...fields }) } });
+    await settle();
+    assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, JSON.stringify(fields));
+    assert.equal(reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className)).hidden, true);
+    assert.doesNotMatch(textOf(h.card('t1')), /rooms? ·/);
+  }
+  const approving = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms: null, walkthroughs_used: 1 }) } });
+  await settle();
+  await approve(approving);
+  assert.ok(approving.calls.some(([name]) => name === 'review_tour_versioned'));
+});
+
+test('a trial past its 12 render attempts waits, never fails: the web desk offers Choose a plan, the app only the words', async () => {
+  const words = 'Your free months include up to 12 render attempts. Choose a plan to keep rendering.';
+  const job = { state: 'waiting', status: 'queued', queue_position: 3, typical_start_minutes: 40, hold: { reason: 'trial_limit', until: null } };
+  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  const block = renderBlockOf(h);
+  assert.equal(block.dataset.state, 'waiting');
+  assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
+  assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
+  assert.doesNotMatch(textOf(block), /Failed|Try again|Retry|Contact Veylet support|You’re \d|Usually starts/);
+  const choose = block.all().find(el => el.dataset.control === 'trial-limit-plan');
+  assert.equal(choose.textContent, 'Choose a plan');
+  assert.equal(choose.className, 'tour-action tour-action-primary');
+  assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.', 'Choose a plan']);
+  await choose.fire('click');
+  assert.equal(h.documentStub.activeElement, h.ids['account-plan'], 'the filled action goes to the plan section');
+  // /app/account: the words only; no price, no purchase link and nothing to press.
+  const app = await load({ markup: appMarkup, tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  const appBlock = renderBlockOf(app);
+  assert.deepEqual(appBlock.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
+  assert.equal(appBlock.all().some(el => el.tagName === 'BUTTON' || el.tagName === 'A'), false);
+  assert.deepEqual(app.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.']);
+  for (const pattern of BANNED) assert.doesNotMatch(app.visible(), pattern);
+});
+
 const GATE = {
   photo_match: 'The 3D walkthrough does not match the photos closely enough (blur or movement). Recapture it moving slowly with the phone steady.',
   coverage: 'Parts of this room were not photographed from where you stood. Recapture it, turning a full circle at each spot.',
