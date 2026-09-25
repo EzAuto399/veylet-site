@@ -27,6 +27,10 @@ const founding = record.programmes.founding;
 // Offer 2026-09-26.1: hosting follows the plan (14 days after it ends). Offer 2026-09-26.2 keeps the
 // A$49 hosting extension, on request, for a single walkthrough after that.
 const graceDays = record.freeMonths.hostingDaysAfterPlanEnds;
+// Offer 2026-09-26.3 (v9.1): the rooms rule and Super fast's availability, in the offer page's words.
+const ROOMS_SENTENCE = 'One walkthrough covers up to 8 rooms of one property, counted automatically from your capture; each further 8 rooms uses one more. '
+  + 'Every property gets one link and one QR code. A correction of the same walkthrough, or a recapture of the rooms the quality check names, uses none.';
+const SUPER_FAST_AVAILABILITY = 'Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren’t, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise.';
 const hostingYear = record.services.hostingPerWalkthroughPerFurtherYearAud;
 const aud = (n) => `A$${n.toLocaleString('en-AU', {
   minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
@@ -68,8 +72,8 @@ const visible = (page) => {
   return page.endsWith('.txt') ? content.replace(/\s+/g, ' ') : text(content.slice(Math.max(0, content.indexOf('<body'))));
 };
 
-test('the canonical record is offer 2026-09-26.2: 3 free months with 6 and a card on file, 2 a month or a pool of 24, express, the anchor, the redo, and packs', () => {
-  assert.equal(record.version, '2026-09-26.2');
+test('the canonical record is offer 2026-09-26.3: 3 free months with 6 and a card on file, 2 a month or a pool of 24, express, the anchor, the redo, and packs', () => {
+  assert.equal(record.version, '2026-09-26.3');
   assert.equal(record.plans.length, 1, 'one plan for new buyers');
   // The pages spell these facts out, so a change here must change the copy too.
   assert.deepEqual({ code: plan.code, name: plan.name, kind: plan.kind, includedPerMonth: plan.includedPerMonth,
@@ -98,9 +102,13 @@ test('the canonical record is offer 2026-09-26.2: 3 free months with 6 and a car
   assert.equal(record.guarantee.text, "If your first walkthrough isn't listing-ready, we redo it free");
   assert.equal(free.cardRequired, true);
   assert.match(free.cardOnFile.web, /Square card on file at trial start; the first charge is scheduled for the day the free months end/);
-  assert.deepEqual(record.walkthroughScope, { unit: 'one visit to the interior rooms of one home',
-    countsAsTwo: '5 or more bedrooms, a second dwelling, or more than 350 m² of floor area',
-    declaredAt: 'new listing; the count locks when capture starts' });
+  // Offer 2026-09-26.3 (v9.1): a property is counted by its rooms, 8 rooms a walkthrough; nothing is declared.
+  assert.deepEqual({ unit: record.walkthroughScope.unit, rooms: record.walkthroughScope.roomsPerWalkthrough, countedBy: record.walkthroughScope.countedBy },
+    { unit: 'one property: one link and one QR code, counted by the rooms captured', rooms: 8, countedBy: 'the app counts the rooms captured; nothing is declared' });
+  assert.equal('countsAsTwo' in record.walkthroughScope, false);
+  assert.equal(free.renderAttemptCap, 12);
+  assert.equal(express.unavailableText, "Super fast isn't available right now");
+  assert.deepEqual({ who: record.audience.who, separateTiers: record.audience.separateTiers }, { who: 'anyone: agents, property managers and freelancers', separateTiers: false });
   assert.deepEqual(record.packs.map(({ code, walkthroughs, validMonths }) => ({ code, walkthroughs, validMonths })),
     [{ code: 'pack3', walkthroughs: 3, validMonths: 12 }, { code: 'pack10', walkthroughs: 10, validMonths: 12 }]);
   assert.match(record.packRules.availableTo, /during the free months or on the plan/);
@@ -415,8 +423,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   ]);
   const terms = Object.assign({}, ...ledgers);
   assert.match(counts, /<dt><span class="tally">2 a month<\/span><\/dt>/);
-  assert.equal(terms['A whole home'], `1 walkthrough is ${record.walkthroughScope.unit}. A home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2. `
-    + 'You declare it when you add the listing, and the count locks when capture starts.');
+  assert.equal(terms['A whole home'], ROOMS_SENTENCE);
   assert.match(terms['6 in your free months'], new RegExp(`^${free.includedWalkthroughs} accepted walkthroughs across the ${free.months} free months in total, not ${free.includedWalkthroughs} a month\\.`));
   assert.equal(terms['2 a month'], `On the monthly plan, ${plan.includedPerMonth} accepted walkthroughs a month, however you are billed. Unused ones roll over, up to ${banked} banked at any time.`);
   assert.equal(terms['24 a year'], `On the annual plan, ${plan.annualIncluded} walkthroughs to use any time in the plan year: a yearly pool with no monthly limit. `
@@ -441,7 +448,8 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.ok(terms.Starting.startsWith('Starting needs a payment method on file: Apple’s 3-month free introductory offer in the App Store, a card saved in Square’s card field in your account on this website, or a paid start date agreed in writing for a studio invoice.'));
   assert.ok(terms.Starting.includes(`It provides ${free.months} free months of the Veylet plan with ${free.includedWalkthroughs} walkthroughs, monthly or annual. During them, nothing is charged unless the account owner buys a pack or a Super fast render.`));
   assert.match(terms.Starting, /Card payment on this website is coming later\./);
-  assert.ok(terms.Starting.endsWith('One trial per agency (ABN) and workspace; real captures unlock in the app once the practice room passes.'));
+  assert.ok(terms.Starting.endsWith('One trial per agency (ABN) and workspace; real captures unlock in the app once the practice room passes. '
+    + `Fair use: up to ${free.renderAttemptCap} render attempts during the free months, including retries.`));
   assert.equal(terms['Before the first charge'], 'The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. '
     + `Your account shows that date and the price. A reminder email ${free.reminderDaysBeforeFirstCharge} days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.`);
   assert.match(terms.Stopping, /Manage an App Store subscription in Settings › Subscriptions/);
@@ -500,7 +508,7 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   assert.ok(expressRow.includes(`<dt>${express.name}</dt>\n<dd><span class="offer-price" data-price="express">${aud(express.webAud)}</span><span class="offer-price-note">a capture, on this website</span></dd>`));
   assert.equal(text(expressRow.match(/<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]),
     `First in the queue on the fastest GPU available in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing, the ${aud(express.webAud)} is refunded automatically. `
-    + 'Your account offers it when you send a capture. No daily limit and no business hours. Not sold in the app.');
+    + `Your account offers it when you send a capture. No daily limit and no business hours. ${SUPER_FAST_AVAILABILITY} Not sold in the app.`);
   const packRows = ways.slice(ways.indexOf('data-offer-packs'), ways.indexOf('</dl>', ways.indexOf('data-offer-packs')));
   for (const entry of [pack3, pack10]) {
     assert.ok(packRows.includes(`<dt>Pack of ${entry.walkthroughs} walkthroughs</dt>\n<dd><span class="offer-price" data-price="${entry.code}">${aud(entry.webAud)}</span>`
@@ -603,12 +611,11 @@ test('the straight answers match their structured data word for word, and answer
   assert.equal(byQuestion['What is a Super fast render?'],
     'Your capture goes first in the queue and is rendered on the fastest GPU available in Australia, so it is ready for your review in about 30 minutes, any day, any time, '
     + `instead of the usual 1–2 hours, for ${aud(express.webAud)}. If it isn’t ready within 30 minutes of the upload finishing, the ${aud(express.webAud)} is refunded automatically. `
-    + 'There is no daily limit: your account offers it when you send a capture. It is sold on this website only, not in the app.');
+    + `There is no daily limit: your account offers it when you send a capture. ${SUPER_FAST_AVAILABILITY} It is sold on this website only, not in the app.`);
   assert.equal(plain(byQuestion['What if our first walkthrough is not good enough to list?']),
     `We redo it free. If your first walkthrough isn't listing-ready, we correct it on the same link, and the redo uses no walkthrough. It covers your account's first accepted walkthrough; a new capture visit is not included.`);
-  assert.equal(byQuestion['When does a home count as 2 walkthroughs?'],
-    'When it has 5 or more bedrooms, a second dwelling or more than 350 m² of floor area. '
-    + `Otherwise 1 walkthrough is ${record.walkthroughScope.unit}. You declare it when you add the listing, and the count locks when capture starts.`);
+  assert.equal(byQuestion['How many walkthroughs does a property use?'], ROOMS_SENTENCE);
+  assert.equal('When does a home count as 2 walkthroughs?' in byQuestion, false);
   assert.match(byQuestion['Why is the App Store price higher?'], /The plan is identical either way/);
   assert.match(byQuestion['What if my capture is not good enough?'], /route checks, but these do not prove capture quality/);
   assert.match(byQuestion['What if my capture is not good enough?'], /an automatic quality check decides: it retries once, then asks for a recapture of the rooms it names/);
@@ -639,7 +646,7 @@ test('the offer page head and structured description state this offer', () => {
     'The first charge is on the day the free months end, and cancelling before then charges nothing.',
     `${aud(plan.webAud)} a month by card or studio invoice or ${aud(plan.appAud)} a month in the App Store`, `up to ${banked} banked`,
     `${aud(plan.annualAud)} a year by card or studio invoice or ${aud(plan.annualAppAud)} a year in the App Store`,
-    `${plan.annualIncluded} walkthroughs to use any time in the plan year`, `A Super fast render is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
+    `${plan.annualIncluded} walkthroughs to use any time in the plan year`, `A Super fast render, sold while fast GPUs are starting quickly, is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
     'processed and quality-checked automatically, ready for your review usually within 1–2 hours of the upload finishing',
     'If your first walkthrough isn’t listing-ready, we redo it free.']) {
     assert.ok(page.description.includes(phrase), `WebPage description: ${phrase}`);
@@ -781,14 +788,14 @@ test('truth check: every plan, annual and pack price reads the same string on /o
     [891, 1079.91, 990, 1199.99]);
 });
 
-test('the whole-home rule is stated on /offer, /start, /terms and llms.txt, and the one-unit rule it replaces is gone', () => {
+test('the rooms rule is stated on /offer, /start, /terms and llms.txt, and the whole-home and one-unit rules it replaces are gone', () => {
+  // Offer 2026-09-26.3: up to 8 rooms of one property is 1 walkthrough, counted from the capture; nothing is declared.
   for (const page of ['offer/index.html', 'start/index.html', 'terms/index.html', 'llms.txt']) {
     const flat = visible(page);
-    for (const phrase of [`1 walkthrough is ${record.walkthroughScope.unit}`,
-      'A home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2']) {
-      assert.ok(flat.toLowerCase().includes(phrase.toLowerCase()), `${page} says: ${phrase}`);
-    }
-    assert.match(flat, /(?:declare|declared)[^.]*(?:add the listing|listing is added)[^.]*count locks when capture starts/i, `${page} says when the count is set`);
+    assert.match(flat, /up to 8 rooms of one property/i, `${page} states the rooms rule`);
+    assert.match(flat, /each further 8 rooms/i, `${page} says what further rooms use`);
+    assert.doesNotMatch(flat, /5 or more bedrooms|more than 350 m²|second dwelling/i, `${page} keeps the retired whole-home rule`);
+    assert.doesNotMatch(flat, /count locks when capture starts|declare it when you add the listing/i, `${page} keeps the retired declaration`);
     assert.doesNotMatch(flat, /One accepted walkthrough uses one allowance unit|agrees the scope of larger spaces|larger-space scope/i, `${page} keeps the retired one-unit rule`);
   }
 });
@@ -1036,7 +1043,11 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.equal(lineStarting('- Per walkthrough:'), `- Per walkthrough: ${aud(perMonthly)} on the monthly plan (${aud(plan.webAud)} for ${plan.includedPerMonth}) and ${aud(perAnnual)} on the annual (${aud(plan.annualAud)} for ${plan.annualIncluded}), when every included walkthrough is used. `
     + `For comparison, ${record.anchor.text.replace(/^A /, 'a ')} (published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026; see the 3D tour cost guide below).`);
   assert.equal(lineStarting('- Super fast render:'), `- Super fast render: ${aud(express.webAud)} a capture, on the website only: ${express.promise}. When a bonus Super fast render was used, it is returned instead. `
-    + 'No daily limit and no business hours. Not sold in the app.');
+    + 'No daily limit and no business hours. Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren\'t, the account says "Super fast isn\'t available right now" and nothing is charged. An order already paid keeps its promise. Not sold in the app.');
+  // Offer 2026-09-26.3: the rooms rule, fair use and the audience, in llms.txt's words.
+  assert.match(lineStarting('- One walkthrough covers'), /^- One walkthrough covers up to 8 rooms of one property, counted automatically from the capture; each further 8 rooms uses one more\./);
+  assert.match(lineStarting('- One trial per agency'), /Fair use: up to 12 render attempts during the free months, including retries\.$/);
+  assert.equal(lineStarting('- Who it is for:'), '- Who it is for: anyone: agents, property managers and freelancers, on the same plan and prices; there is no separate tier.');
   assert.equal(lineStarting('- An accepted walkthrough'), '- An accepted walkthrough is one the automatic quality check passed and the account approved for release; a failed capture never counts.');
   const processing = lineStarting('- Processing:');
   assert.match(processing, /^- Processing: automatic, with no person checking\./);

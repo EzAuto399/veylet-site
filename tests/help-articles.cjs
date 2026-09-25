@@ -480,6 +480,7 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
+      'One walkthrough covers up to 8 rooms of one property, counted automatically from your capture; each further 8 rooms uses one more. Every property gets one link and one QR code. A correction of the same walkthrough, or a recapture of the rooms the quality check names, uses none.',
       'Listing videos and stills are included in your plan. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {
