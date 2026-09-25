@@ -214,6 +214,73 @@
       files: rendered ? EXPORT_FILES : {},
       downloadable: row.state === 'ready' && approvedTours.has(tourId) && !row.locked, updated_at: ago(0.01) };
   }
+  /* Is anyone living here? (tenant consent before sharing): the backend lane's release-2
+   * drafts (not released) and the sibling repository's docs/launch-readiness-plan-20260925.md
+   * C2. `?occupancy=` answers get_listing_sharing_readiness for every listing: by default
+   * `missing` (PGRST202 for the three functions, as today's backend: no question anywhere,
+   * sharing as before). `question` has nothing declared (blocked occupancy_not_declared),
+   * `tenanted` tenants without consent (tenant_consent_required), `vacant`, `owner` and
+   * `consented` (tenants, consent recorded yesterday, reference "Form 18a signed copy")
+   * need nothing, `mixed` is the practice space unanswered, the corner office tenanted and
+   * the hall empty, `error` fails the read and `loading` never answers. A listing with a
+   * live link is grandfathered while it is blocked (its link keeps working). While a
+   * listing is blocked, enable_tour_share, resume_tour_share and request_listing_exports
+   * refuse with "occupancy not declared" or "tenant consent required", as the drafts do.
+   * set_listing_occupancy and record_tenant_consent check what the drafts check and keep
+   * the answer for the next read; `&occupancy-save=permission|fail|offline|expired|missing`
+   * answers every save with "sharing permission required", a failure, a lost connection,
+   * an expired sign-in or PGRST202. `&occupancy-open=1` opens every grandfathered
+   * listing's quiet question for a capture. */
+  const occupancyCase = params.get('occupancy') || 'missing';
+  const occupancySaveCase = params.get('occupancy-save');
+  const occupancyMissing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
+  const occupancyStart = { question: 'unknown', tenanted: 'tenanted', vacant: 'vacant', owner: 'owner_occupied', consented: 'tenanted' }[occupancyCase];
+  const occupancy = new Map();
+  for (const place of properties) {
+    const start = occupancyCase === 'mixed' ? { 'synthetic-office': 'tenanted', 'synthetic-venue': 'vacant' }[place.id] || 'unknown' : occupancyStart || 'unknown';
+    occupancy.set(place.id, { occupancy: start, consentAt: occupancyCase === 'consented' ? ago(1) : null, reference: occupancyCase === 'consented' ? 'Form 18a signed copy' : null });
+  }
+  const occupancyBlocked = propertyId => {
+    if (occupancyCase === 'missing') return null;
+    const row = occupancy.get(propertyId);
+    if (!row) return null;
+    return row.occupancy === 'unknown' ? 'occupancy_not_declared' : row.occupancy === 'tenanted' && !row.consentAt ? 'tenant_consent_required' : null;
+  };
+  const occupancyRefusal = propertyId => ({ occupancy_not_declared: 'occupancy not declared', tenant_consent_required: 'tenant consent required' })[occupancyBlocked(propertyId)] || null;
+  const tourProperty = tourId => tours.find(tour => tour.id === tourId)?.property_id || null;
+  /* Team (invite a teammate): the release-2 drafts (not released). `?team=` answers
+   * list_workspace_invites on /__qa/account/: by default `missing` (PGRST202 for the
+   * invite functions: no Team section). `owner` lists four invites (pending reviewer,
+   * accepted operator, revoked, expired), `owner-empty` none, `member` makes this account
+   * a reviewer who can read the list (read-only), `member-refused` an operator the list
+   * refuses ("workspace owner required"), `error` fails and `loading` never answers.
+   * invite_to_workspace (owner only, reviewer or operator) adds a pending invite and
+   * answers a https://veylet.com/join?i=… link that expires in 7 days; no email is sent.
+   * revoke_workspace_invite marks it revoked. `&team-invite=permission|email|role|pending|today|fail|offline|expired|bad-url`
+   * and `&team-revoke=fail` refuse or fail those presses, in the draft's words
+   * (20260926123000_team_invites.sql). `&team-created=1` creates an invite once (reviewer,
+   * new.agent@example.invalid) for a capture of the link.
+   * Members (functions still being added to that draft): the accepted invite carries the
+   * member's user_id, so the owner sees Remove (remove_workspace_member) and More › Make
+   * owner (transfer_workspace_ownership; this account then reads as a reviewer), and
+   * `member` sees Leave this office (leave_workspace). `&team-member=missing|fail` answers
+   * those three with PGRST202 or a failure. While a member remains, the owner's
+   * request_account_deletion is refused ('shared ownership requires reviewed transfer
+   * before deletion'), as the backend does. */
+  const teamCase = params.get('team') || 'missing';
+  const teamInviteCase = params.get('team-invite');
+  const teamRevokeCase = params.get('team-revoke');
+  const teamMemberCase = params.get('team-member');
+  let teamOwnerNow = true, teamLeft = false;
+  const teamRemoved = new Set();
+  const teamMissing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
+  const teamInvites = ['owner', 'member'].includes(teamCase) ? [
+    { invite_id: 'aaaa1111-0000-4000-8000-000000000001', email: 'sam.reviewer@example.invalid', role: 'reviewer', status: 'pending', created_at: ago(1), expires_at: ago(-6) },
+    { invite_id: 'aaaa1111-0000-4000-8000-000000000002', email: 'jo.operator@example.invalid', role: 'operator', status: 'accepted', created_at: ago(9), expires_at: ago(5), accepted_at: ago(8), revoked_at: null, user_id: 'bbbb2222-0000-4000-8000-000000000002' },
+    { invite_id: 'aaaa1111-0000-4000-8000-000000000003', email: 'old.link@example.invalid', role: 'reviewer', status: 'revoked', created_at: ago(20), expires_at: ago(13) },
+    { invite_id: 'aaaa1111-0000-4000-8000-000000000004', email: 'late.reply@example.invalid', role: 'operator', status: 'expired', created_at: ago(30), expires_at: ago(23) },
+  ] : [];
+  let teamSerial = 10;
   // Downloads are recorded, never opened: the link's host does not exist.
   const DOWNLOAD_HOST = 'https://downloads.fixture.invalid/';
   if (typeof HTMLAnchorElement === 'function') {
@@ -1048,8 +1115,8 @@
       signInWithOtp: async () => ({ error: { message: 'No emails are sent from this fixture.' } }),
     },
     from(table) {
-      const role = scenario === 'operator' ? 'operator' : 'owner';
-      const memberships = [{ workspace_id: 'synthetic-workspace', role, status: 'active' }];
+      const role = scenario === 'operator' || teamCase === 'member-refused' ? 'operator' : teamCase === 'member' || !teamOwnerNow ? 'reviewer' : 'owner';
+      const memberships = teamLeft ? [] : [{ workspace_id: 'synthetic-workspace', role, status: 'active' }];
       if (hostingCase) memberships.push({ workspace_id: 'synthetic-workspace-ended', role, status: 'active' });
       let columns = '', only = null;
       const answer = () => {
@@ -1168,6 +1235,10 @@
       }
       if (name === 'get_account_deletion') return { data: deletion ? [deletion] : [] };
       if (name === 'request_account_deletion') {
+        // `?team=owner` with a member who joined: the office still has teammates.
+        if (teamCase === 'owner' && teamOwnerNow && teamInvites.some(row => row.status === 'accepted' && !teamRemoved.has(row.user_id))) {
+          return { data: null, error: { code: 'P0001', message: 'shared ownership requires reviewed transfer before deletion' } };
+        }
         deletion = { user_id: 'synthetic-user', requested_at: new Date().toISOString(),
           reason: (args && args.p_reason) || null, status: 'requested', cancelled_at: null, completed_at: null };
         return { data: [deletion] };
@@ -1440,7 +1511,8 @@
       if (name === 'review_tour') return { error: { code: '42501', message: 'Legacy review RPC is unavailable.' } };
       if (name === 'withdraw_tour_review') { approvedTours.delete(args.p_tour_id); tokens.delete(args.p_tour_id); return { data: [{ approved: false }] }; }
       if (name === 'enable_tour_share') {
-        const refusal = { review: 'review this tour before sharing', uploader: 'tour uploader membership is no longer active', permission: 'sharing permission required' }[shareCase];
+        const refusal = { review: 'review this tour before sharing', uploader: 'tour uploader membership is no longer active', permission: 'sharing permission required',
+          occupancy: 'occupancy not declared', consent: 'tenant consent required' }[shareCase] || occupancyRefusal(tourProperty(args.p_tour_id));
         if (refusal) return { data: null, error: { code: 'P0001', message: refusal } };
         if (shareCase === 'fail') return { data: null, error: { message: 'Synthetic sharing failure' } };
         if (!approvedTours.has(args.p_tour_id)) return { error: { message: 'Synthetic: approve before sharing.' } };
@@ -1455,6 +1527,7 @@
         if (pauseCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + '(p_tour_id) in the schema cache' } };
         if (pauseCase === 'fail') return { data: null, error: { message: 'Synthetic sharing failure' } };
         if (!tokens.has(args.p_tour_id)) return { data: null, error: { code: 'P0001', message: 'sharing is not on' } };
+        if (name === 'resume_tour_share' && occupancyRefusal(tourProperty(args.p_tour_id))) return { data: null, error: { code: 'P0001', message: occupancyRefusal(tourProperty(args.p_tour_id)) } };
         if (name === 'pause_tour_share') { if (!pausedAt.has(args.p_tour_id)) pausedAt.set(args.p_tour_id, new Date().toISOString()); return { data: null }; }
         pausedAt.delete(args.p_tour_id);
         return { data: tokens.get(args.p_tour_id) };
@@ -1488,6 +1561,82 @@
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
         return { data: null };
       }
+      if (['get_listing_sharing_readiness', 'set_listing_occupancy', 'record_tenant_consent'].includes(name)) {
+        if (occupancyCase === 'missing') return occupancyMissing(name);
+        const row = occupancy.get(args?.p_property_id);
+        if (name === 'get_listing_sharing_readiness') {
+          if (occupancyCase === 'error') return { data: null, error: { message: 'Synthetic readiness failure' } };
+          if (occupancyCase === 'loading') return new Promise(() => {});
+          if (!row) return { data: null, error: { code: 'P0001', message: 'listing unavailable' } };
+          const blocked = occupancyBlocked(args.p_property_id);
+          const live = tours.some(tour => tour.property_id === args.p_property_id && tokens.has(tour.id));
+          return { data: { occupancy: row.occupancy, consent_recorded_at: row.consentAt, consent_reference: row.reference,
+            blocked_reason: blocked, grandfathered: Boolean(blocked && live) } };
+        }
+        if (occupancySaveCase === 'missing') return occupancyMissing(name);
+        if (occupancySaveCase === 'offline') throw lostConnection();
+        if (occupancySaveCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+        if (occupancySaveCase === 'permission') return { data: null, error: { code: 'P0001', message: 'sharing permission required' } };
+        if (occupancySaveCase === 'fail') return { data: null, error: { message: 'Synthetic occupancy save failure' } };
+        if (!row) return { data: null, error: { code: 'P0001', message: 'listing unavailable' } };
+        if (name === 'set_listing_occupancy') {
+          if (!['owner_occupied', 'vacant', 'tenanted'].includes(args?.p_occupancy)) return { data: null, error: { code: 'P0001', message: 'occupancy must be owner_occupied, vacant or tenanted' } };
+          if (row.occupancy !== args.p_occupancy) { row.consentAt = null; row.reference = null; }
+          row.occupancy = args.p_occupancy;
+          return { data: null };
+        }
+        const reference = String(args?.p_consent_reference || '').trim();
+        const today = new Date().toISOString().slice(0, 10);
+        if (!reference || reference.length > 120) return { data: null, error: { code: 'P0001', message: 'consent reference must be 1 to 120 characters' } };
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(args?.p_consented_on || '')) || args.p_consented_on > today) return { data: null, error: { code: 'P0001', message: 'consent date must be a date that is not in the future' } };
+        if (row.occupancy !== 'tenanted') return { data: null, error: { code: 'P0001', message: 'listing is not tenanted' } };
+        row.consentAt = new Date().toISOString(); row.reference = reference;
+        return { data: null };
+      }
+      if (['remove_workspace_member', 'transfer_workspace_ownership', 'leave_workspace'].includes(name)) {
+        if (teamCase === 'missing' || teamMemberCase === 'missing') return teamMissing(name);
+        if (teamMemberCase === 'fail') return { data: null, error: { message: 'Synthetic member failure' } };
+        if (name === 'leave_workspace') {
+          if (teamCase !== 'member' && teamCase !== 'member-refused') return { data: null, error: { code: 'P0001', message: 'the owner cannot leave; transfer ownership first' } };
+          teamLeft = true; return { data: null };
+        }
+        if (!teamOwnerNow || !['owner', 'owner-empty'].includes(teamCase)) return { data: null, error: { code: 'P0001', message: 'workspace owner only' } };
+        const target = name === 'remove_workspace_member' ? args?.p_user_id : args?.p_new_owner;
+        if (!teamInvites.some(row => row.user_id === target && row.status === 'accepted') || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not an active member of this workspace' } };
+        if (name === 'remove_workspace_member') teamRemoved.add(target); else teamOwnerNow = false;
+        return { data: null };
+      }
+      if (['list_workspace_invites', 'invite_to_workspace', 'revoke_workspace_invite'].includes(name)) {
+        if (teamCase === 'missing') return teamMissing(name);
+        if (name === 'list_workspace_invites') {
+          if (teamCase === 'error') return { data: null, error: { message: 'Synthetic invites failure' } };
+          if (teamCase === 'loading') return new Promise(() => {});
+          if (teamCase === 'member-refused' || teamLeft) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
+          return { data: teamInvites.map(row => ({ ...row })) };
+        }
+        if (name === 'invite_to_workspace') {
+          if (teamInviteCase === 'offline') throw lostConnection();
+          if (teamInviteCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+          if (teamInviteCase === 'permission' || !['owner', 'owner-empty', 'error'].includes(teamCase) || !teamOwnerNow) return { data: null, error: { code: 'P0001', message: 'workspace owner only' } };
+          const refusal = { email: 'a valid email address is required', role: 'role is reviewer or operator',
+            pending: 'too many pending invites (20); revoke one first', today: 'too many invites today (50); try again tomorrow' }[teamInviteCase];
+          if (refusal) return { data: null, error: { code: 'P0001', message: refusal } };
+          if (teamInviteCase === 'fail') return { data: null, error: { message: 'Synthetic invite failure' } };
+          if (!['reviewer', 'operator'].includes(args?.p_role)) return { data: null, error: { code: 'P0001', message: 'role must be reviewer or operator' } };
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(args?.p_email || ''))) return { data: null, error: { code: 'P0001', message: 'email must look like name@example.com' } };
+          teamSerial += 1;
+          const invite = { invite_id: 'aaaa1111-0000-4000-8000-0000000000' + teamSerial, email: String(args.p_email).toLowerCase(), role: args.p_role,
+            status: 'pending', created_at: new Date().toISOString(), expires_at: ago(-7) };
+          teamInvites.unshift(invite);
+          if (teamInviteCase === 'bad-url') return { data: { invite_id: invite.invite_id, invite_url: null, expires_at: invite.expires_at } };
+          return { data: { invite_id: invite.invite_id, invite_url: 'https://veylet.com/join?i=QAfixtureInvite' + teamSerial + 'xxxxxxxxxxxxxxxxxxxxxxxx', expires_at: invite.expires_at } };
+        }
+        if (teamRevokeCase === 'fail') return { data: null, error: { message: 'Synthetic revoke failure' } };
+        const invite = teamInvites.find(row => row.invite_id === args?.p_invite_id);
+        if (!invite || invite.status !== 'pending') return { data: null, error: { code: 'P0001', message: 'invite not pending' } };
+        invite.status = 'revoked';
+        return { data: null };
+      }
       if (['get_listing_exports', 'request_listing_exports', 'authorize_listing_export_download'].includes(name)) {
         if (exportsCase === 'missing') return exportsMissing(name);
         const tourId = args?.p_tour_id;
@@ -1499,6 +1648,7 @@
         }
         if (name === 'request_listing_exports') {
           if (exportsRequestCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+          if (occupancyRefusal(tourProperty(tourId))) return { data: null, error: { code: 'P0001', message: occupancyRefusal(tourProperty(tourId)) } };
           if (exportsRequestCase === 'fail') return { data: null, error: { message: 'Synthetic export request failure' } };
           const refusal = { inactive: 'consent statement version is not active', approve: 'approve this walkthrough before requesting exports',
             unavailable: 'tour unavailable' }[exportsRequestCase];
@@ -1612,6 +1762,32 @@
         const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] .tour-exports:not([hidden])');
         if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
         if (block || ++tries > 40) clearInterval(open);
+      }, 100);
+    }
+    // Review affordance only: `&occupancy-open=1` opens every grandfathered listing's
+    // quiet question once it is drawn, so a capture can include it. It changes nothing.
+    if (['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && params.get('occupancy-open') === '1') {
+      let tries = 0;
+      const open = setInterval(() => {
+        const boxes = document.querySelectorAll('.occupancy-later');
+        for (const box of boxes) box.open = true;
+        if (boxes.length || ++tries > 40) clearInterval(open);
+      }, 100);
+    }
+    // Review affordance only: `&team-created=1` fills the invite form once (reviewer,
+    // new.agent@example.invalid) and creates the link, so a capture can show it. No email is sent.
+    if (location.pathname === '/__qa/account/' && params.get('team-created') === '1') {
+      let tries = 0;
+      const press = setInterval(() => {
+        const email = document.getElementById('account-team-email');
+        const role = document.querySelector('#account-team input[value="reviewer"]');
+        const create = document.querySelector('#account-team [data-control="team-create"]');
+        if (email && role && create) {
+          email.value = 'new.agent@example.invalid'; email.dispatchEvent(new Event('input', { bubbles: true }));
+          role.checked = true; role.dispatchEvent(new Event('change', { bubbles: true }));
+          create.click();
+        }
+        if ((email && role && create) || ++tries > 40) clearInterval(press);
       }, 100);
     }
     // Review affordance only: opens the leaving disclosure so a capture can show

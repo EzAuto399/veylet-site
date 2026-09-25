@@ -115,9 +115,9 @@ test('a new account gets one setup action without changing access or creating a 
   assert.match(panel.all().map(el => el.textContent).join(' '), /Start with one space/);
   await panel.all().find(el => el.tagName === 'BUTTON').fire('click');
   assert.equal(h.ids['account-add-space'].open, true);
-  // Reading the plan and hosting dates are the only calls added here; nothing
-  // changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  // Reading the plan, hosting dates and the team's invites are the only calls added
+  // here; nothing changes access or creates a space.
+  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();

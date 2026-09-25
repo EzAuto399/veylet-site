@@ -55,6 +55,10 @@
   }
   let referredBy = APP_MODE ? null : referralFromLink || referredKept();
   if (referralFromLink) { try { window.sessionStorage?.setItem(REFERRAL_KEY, referralFromLink); } catch { /* this page load still has it */ } }
+  // Signing in to accept a team invite (/join sends the person here as /account?join=1):
+  // the email link comes back through /auth/callback?join=1, and either way a signed-in
+  // session goes straight back to /join, which keeps the invite itself out of every address.
+  const joinReturn = !APP_MODE && new URLSearchParams(location.search || '').get('join') === '1';
   function referredForget() {
     referredBy = null;
     try { window.sessionStorage?.removeItem(REFERRAL_KEY); } catch { /* nothing kept to clear */ }
@@ -90,15 +94,21 @@
   function tagged(url, src) { return url + '&src=' + src; }
   // enable_tour_share's refusals (20260920120000, 20260923150000), by the words it
   // raises: "Approved. Sharing waits for {reason}." and the one fix for it.
+  // The listing gate's two (release-2 drafts, not released) also refuse resume_tour_share
+  // and request_listing_exports; their fix is the listing's question or consent form.
   const SHARE_REFUSALS = [
     ['review this tour before sharing', 'review'],
     ['tour uploader membership is no longer active', 'uploader'],
     ['sharing permission required', 'permission'],
+    ['occupancy not declared', 'occupancy'],
+    ['tenant consent required', 'consent'],
   ];
   const SHARE_WAITS = {
     review: 'a fresh review of this version',
     uploader: 'the person who captured it to be back in your workspace',
     permission: 'someone with sharing permission',
+    occupancy: 'you to say whether anyone lives here',
+    consent: 'the tenant’s signed consent',
   };
   // Approvals whose sharing did not turn on, until their card is drawn again.
   const sharePending = new Map();
@@ -205,7 +215,7 @@
       supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: 'https://veylet.com/auth/callback' + tourQuery,
+          emailRedirectTo: 'https://veylet.com/auth/callback' + (joinReturn ? '?join=1' : tourQuery),
           data: { role_intent: roleIntent === 'operator' ? 'operator' : 'owner' },
         },
       })
@@ -287,7 +297,7 @@
     // section, so the page heading does not repeat it.
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
     if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
-      : 'Use the same email on the website and capture app.';
+      : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same email on the website and capture app.';
     if (setup) setup.hidden = signedIn;
     if (access) access.hidden = signedIn;
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
@@ -301,7 +311,9 @@
   function showSignedOut(message) {
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
+    listingGates.clear(); gateNotices.clear(); gateFocus = null;
     clientsHide();
+    teamHide();
     emailHide();
     if (updatedEl) updatedEl.textContent = '';
     resetSignInAttempt();
@@ -471,6 +483,13 @@
         const space = properties.find(row => row.id === selected.property_id);
         const listing = typeof space?.title === 'string' && space.title.trim() ? space.title.trim() : '';
         if (tourApproval.get(selected.id) === true) {
+          // Sharing waits for the listing's answer or the tenant's consent: that is the next step.
+          const gate = gateBlock(selected.property_id);
+          if (gate && gateCanOpen(selected.property_id)) {
+            guide(shareWords(gate), gate === 'consent' ? GATE_WORDS.guideConsent : GATE_WORDS.guideOccupancy, gateFixLabel(gate),
+              () => gateOpen(selected.property_id, gate));
+            return;
+          }
           if (hosting?.released_at) guide('Sharing is off.', 'The link and embed show "not available" until you turn sharing back on from its card below.', 'Open its sharing controls', open);
           else guide('Approved. Sharing isn’t on yet.', 'Turn sharing on from its card below. Nobody else can see it until you do.', 'Open its sharing controls', open);
           return;
@@ -576,6 +595,10 @@
       } else if (reason === 'permission') {
         enable.hidden = true;
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
+      } else if ((reason === 'occupancy' || reason === 'consent') && gateCanOpen(tour.property_id)) {
+        // The listing's question, or its consent form, opened where the person is.
+        fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
+        fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-' + reason;
       }
       if (fix && reason !== 'permission') enable.className = 'tour-action';
       actions.replaceChildren(...[fix, enable, preview].filter(Boolean));
@@ -802,8 +825,17 @@
     row.append(actions, hint); parent.append(row);
     const say = rowSay(tour, row);
   }
-  // A paused walkthrough's one filled action.
-  function resumeSharing(tour, item, supabase, ticket) {
+  // A paused walkthrough's one filled action. `gate` is what the listing's sharing waits
+  // for (its question or the tenant's consent): that fix comes first, Resume beside it.
+  function resumeSharing(tour, item, supabase, ticket, gate = null) {
+    const blocked = reason => {
+      say(shareWords(reason));
+      if (fixed || !gateCanOpen(tour.property_id)) return;
+      const fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
+      fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-' + reason;
+      resume.className = 'tour-action'; actions.replaceChildren(fix, resume); fixed = true;
+    };
+    let fixed = false;
     const resume = button('Resume sharing', async () => {
       if (resume.disabled) return;
       resume.disabled = true;
@@ -811,6 +843,8 @@
       const result = await settled(Promise.resolve().then(() => supabase.rpc('resume_tour_share', { p_tour_id: tour.id })));
       if (ticket !== deskVersion) return;
       if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing resumed.'); return; }
+      const refused = failed(result) && !missingFunction(result) ? shareRefusal(result) : null;
+      if (refused === 'occupancy' || refused === 'consent') { resume.disabled = false; blocked(refused); return; }
       if (failed(result) || missingFunction(result)) { say('Resuming was not confirmed. Refresh the desk to check before retrying.'); resume.disabled = false; return; }
       const readback = await settled(Promise.resolve().then(() => supabase.from('tours').select('id,share_token,share_paused_at').eq('id', tour.id).single()));
       if (ticket !== deskVersion) return;
@@ -820,8 +854,14 @@
     });
     resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'resume-share';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(resume);
+    if (gate) message(item, shareWords(gate), 'tour-state-help tour-share-problem');
     item.append(actions);
     const say = rowSay(tour, item);
+    if (gate && gateCanOpen(tour.property_id)) {
+      const fix = button(gateFixLabel(gate), () => gateOpen(tour.property_id, gate));
+      fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-' + gate;
+      resume.className = 'tour-action'; actions.replaceChildren(fix, resume); fixed = true;
+    }
   }
   /*
    * How often the link was opened and the agent contacted, from get_tour_view_stats
@@ -1008,6 +1048,8 @@
     if (words.includes('consent statement version is not active')) return 'inactive';
     if (words.includes('approve this walkthrough')) return 'approve';
     if (words.includes('tour unavailable')) return 'unavailable';
+    if (words.includes('occupancy not declared')) return 'occupancy';
+    if (words.includes('tenant consent required')) return 'consent';
     return 'unknown';
   }
   /*
@@ -1065,8 +1107,21 @@
       say('');
       draw(row, focus);
     }
+    // The listing's sharing waits for its question or the tenant's consent: the same
+    // words as its walkthrough card, and the same one fix.
+    function gateLine(reason, focus) {
+      const words = shareWords(reason);
+      if (state.textContent) message(slot, words, 'tour-state-help tour-exports-soon');
+      else show(words, focus);
+      if (!gateCanOpen(tour.property_id)) return;
+      const fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
+      fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'exports-fix-' + reason;
+      actions(fix);
+    }
     // The consent box and the one filled press: "Make listing videos", or "Try again" after a failure.
     function requestForm(row, label, focus) {
+      const gate = gateBlock(tour.property_id);
+      if (gate) { gateLine(gate, focus); return; }
       const version = typeof row.consent_version === 'string' && row.consent_version ? row.consent_version : null;
       const words = version ? EXPORT_STATEMENTS[version] : null;
       if (!words) {
@@ -1103,6 +1158,7 @@
           const reason = exportRefusal(reply);
           // The statement was withdrawn since this was drawn: exports are closed again.
           if (reason === 'inactive') { say(''); draw({ ...row, consent_version: null }, true); return; }
+          if (reason === 'occupancy' || reason === 'consent') { say(''); slot.replaceChildren(); gateLine(reason, true); return; }
           make.disabled = false;
           say(reason === 'approve' ? EXPORT_WORDS.approveFirst : reason === 'unavailable' ? EXPORT_WORDS.notYours : EXPORT_WORDS.unconfirmed);
           return;
@@ -1183,6 +1239,302 @@
     void read(false);
   }
 
+  /* ---- Is anyone living here? --------------------------------------------
+   * Tenant consent before sharing (the sibling repository's
+   * docs/launch-readiness-plan-20260925.md C2: in Queensland it is an offence to use
+   * advertising images showing a tenant's belongings without written consent). The
+   * backend lane's release-2 drafts (not released) add
+   * get_listing_sharing_readiness(p_property_id) → { occupancy, consent_recorded_at,
+   * consent_reference, blocked_reason, grandfathered }, set_listing_occupancy and
+   * record_tenant_consent; enable_tour_share, resume_tour_share and
+   * request_listing_exports refuse with "occupancy not declared" or "tenant consent
+   * required". A listing with a walkthrough asks once, before its first share. A live
+   * share from before the gate is grandfathered (not revoked): no warning, one quiet
+   * line. A backend without the functions (PGRST202, today's hosted project) shows
+   * nothing and every card reads as before. The app says the same words, and nothing
+   * here goes beyond the one sentence about Queensland.
+   */
+  const GATE_WORDS = Object.freeze({
+    question: 'Is anyone living here?',
+    why: 'Veylet asks once for each listing, before its walkthrough is shared.',
+    save: 'Save answer',
+    change: 'Change answer',
+    keep: 'Keep my answer',
+    tenants: 'You said tenants live here.',
+    consentTitle: 'Record the tenant’s written consent',
+    consentNote: 'In Queensland you need the tenant’s written consent before advertising images show their belongings. Keep the signed form; record its reference here.',
+    reference: 'Consent reference',
+    referenceHint: 'For example, the consent form’s name or number.',
+    signed: 'Date signed',
+    record: 'Record consent',
+    help: 'Privacy and permission',
+    quiet: 'Answer this before sharing again.',
+    choose: 'Choose one answer.',
+    noReference: 'Enter the consent form’s name or number.',
+    longReference: 'Use 120 characters or fewer.',
+    noDate: 'Enter the date the tenant signed.',
+    future: 'The date signed can’t be in the future.',
+    saving: 'Saving…',
+    saved: 'Saved.',
+    savedTenants: 'Saved. Now record the tenant’s written consent.',
+    recorded: 'Consent recorded.',
+    notSaved: 'Your answer wasn’t saved. Try again.',
+    notRecorded: 'The consent wasn’t recorded. Try again.',
+    offline: 'You’re offline. Nothing was saved.',
+    role: 'Your role can’t change this. Ask your workspace owner.',
+    askFirst: 'Say whether anyone lives here first. Nothing was recorded.',
+    fixOccupancy: 'Answer the question',
+    fixConsent: 'Add consent',
+    guideOccupancy: 'Answer the question on its listing below: is anyone living here? Then turn sharing on.',
+    guideConsent: 'Record the tenant’s written consent on its listing below, then turn sharing on.',
+  });
+  const GATE_OPTIONS = Object.freeze([['tenanted', 'Yes — tenants'], ['owner_occupied', 'Yes — the owner'], ['vacant', 'No — it’s empty']]);
+  const GATE_SUMMARY = Object.freeze({ owner_occupied: 'The owner lives here.', vacant: 'Nobody lives here.' });
+  const GATE_OCCUPANCY = Object.freeze(['owner_occupied', 'vacant', 'tenanted', 'unknown']);
+  // blocked_reason → the refusal it stands for (SHARE_REFUSALS).
+  const GATE_REASONS = Object.freeze({ occupancy_not_declared: 'occupancy', tenant_consent_required: 'consent' });
+  const GATE_HELP = APP_MODE ? '/app/help/privacy-and-consent' : '/help/privacy-and-consent';
+  // get_listing_sharing_readiness, until an answer says the backend does not have it.
+  let gateAvailable = true;
+  // Each drawn listing's gate: its answer, its slot, and `ready`, which settles once it was read.
+  const listingGates = new Map();
+  // Said once on a listing's next gate draw (a save reads the desk again), and whose gate takes focus then.
+  const gateNotices = new Map();
+  let gateFocus = null;
+
+  // The readiness answer, or null for anything the draft does not describe.
+  function gateAnswer(data) {
+    const row = firstRow(data);
+    if (!row || typeof row !== 'object') return null;
+    const occupancy = row.occupancy ?? 'unknown';
+    const reason = row.blocked_reason ?? null;
+    if (!GATE_OCCUPANCY.includes(occupancy) || (reason !== null && !GATE_REASONS[reason])) return null;
+    return { occupancy, reason: reason ? GATE_REASONS[reason] : null, grandfathered: row.grandfathered === true,
+      reference: typeof row.consent_reference === 'string' ? row.consent_reference.trim() : '',
+      recordedAt: typeof row.consent_recorded_at === 'string' ? row.consent_recorded_at : null };
+  }
+  // What sharing on this listing waits for ('occupancy' or 'consent'), or null. A
+  // grandfathered live share keeps working, but anything shared anew still waits.
+  function gateBlock(propertyId) { return gateAvailable ? listingGates.get(propertyId)?.answer?.reason || null : null; }
+  function gateReady(propertyId) { return listingGates.get(propertyId)?.ready || Promise.resolve(); }
+  function gateCanOpen(propertyId) { return gateAvailable && listingGates.has(propertyId); }
+  function gateFixLabel(reason) { return reason === 'consent' ? GATE_WORDS.fixConsent : GATE_WORDS.fixOccupancy; }
+  function gateSay(entry, text, announce = false) {
+    if (entry.said) { entry.said.textContent = text; entry.said.hidden = !text; }
+    if (announce && text) setStatus(text);
+  }
+  function gateGone() {
+    gateAvailable = false;
+    for (const entry of listingGates.values()) { entry.slot.hidden = true; entry.slot.replaceChildren(); }
+  }
+  // Starts reading one listing's gate into its slot; hidden until the answer says what to ask.
+  function listingGate(space, slot, supabase, ticket) {
+    const entry = { space, slot, supabase, ticket, answer: undefined, changing: false, open: false, busy: false, said: null };
+    listingGates.set(space.id, entry);
+    slot.hidden = true;
+    entry.ready = !gateAvailable ? Promise.resolve() : settled(Promise.resolve().then(() => supabase.rpc('get_listing_sharing_readiness', { p_property_id: space.id }))).then(reply => {
+      if (ticket !== deskVersion || listingGates.get(space.id) !== entry) return;
+      if (missingFunction(reply)) { gateGone(); return; }
+      // Unreadable is not "nothing to ask": a refusal still names the fix and opens it.
+      if (failed(reply)) { entry.answer = null; return; }
+      entry.answer = gateAnswer(reply.value?.data);
+      gateDraw(entry);
+    });
+    return entry.ready;
+  }
+  function gateDraw(entry, focus = false) {
+    const { slot, answer } = entry;
+    const mode = !answer || !gateAvailable ? null : entry.changing || answer.reason === 'occupancy' ? 'question'
+      : answer.reason === 'consent' ? 'consent' : answer.occupancy !== 'unknown' ? 'summary' : null;
+    slot.dataset.occupancy = mode || 'none';
+    if (!mode) { slot.hidden = true; slot.replaceChildren(); return; }
+    slot.hidden = false;
+    const said = annualNode('p', 'occupancy-said'); said.hidden = true; said.tabIndex = -1; entry.said = said;
+    // Behind the quiet disclosure its summary names the question, so the title inside is said, not drawn twice.
+    const wrapped = Boolean(answer.grandfathered && answer.reason);
+    const refs = { titleClass: wrapped ? 'occupancy-title render-sr' : 'occupancy-title' };
+    const body = mode === 'summary' ? gateSummary(entry, refs) : mode === 'question' ? gateQuestion(entry, refs) : gateConsent(entry, refs);
+    if (wrapped) {
+      // A live share from before the gate: no warning, one quiet line, the question behind it.
+      const box = annualNode('details', 'account-details occupancy-later');
+      box.open = entry.open || entry.changing || focus;
+      const summary = annualNode('summary');
+      summary.append(annualNode('span', 'occupancy-later-title', mode === 'consent' ? GATE_WORDS.consentTitle : GATE_WORDS.question),
+        annualNode('span', 'occupancy-quiet', GATE_WORDS.quiet));
+      box.addEventListener('toggle', () => { entry.open = box.open; });
+      box.append(summary, body, said);
+      slot.replaceChildren(box);
+    } else slot.replaceChildren(body, said);
+    const notice = gateNotices.get(entry.space.id); gateNotices.delete(entry.space.id);
+    if (notice) gateSay(entry, notice);
+    if (focus || gateFocus === entry.space.id) {
+      gateFocus = null;
+      (refs.first || (notice ? said : null) || refs.change)?.focus?.({ preventScroll: true });
+      slot.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+    }
+  }
+  function gateQuestion(entry, refs) {
+    const { space, answer } = entry;
+    const form = annualNode('form', 'veylet-form occupancy-form'); form.noValidate = true;
+    const group = annualNode('fieldset', 'choice-group occupancy-choices');
+    const why = annualNode('p', 'occupancy-why', GATE_WORDS.why); why.id = 'occupancy-why-' + space.id;
+    group.setAttribute('aria-describedby', why.id);
+    group.append(annualNode('legend', refs.titleClass, GATE_WORDS.question), why);
+    const inputs = [];
+    for (const [value, label] of GATE_OPTIONS) {
+      const choice = annualNode('label', 'choice occupancy-choice');
+      const input = annualNode('input'); input.type = 'radio'; input.name = 'occupancy-' + space.id; input.value = value;
+      input.checked = entry.changing && answer.occupancy === value;
+      input.dataset.control = 'occupancy-' + value;
+      choice.append(input, annualNode('span', 'occupancy-choice-text', label));
+      group.append(choice); inputs.push(input);
+    }
+    const problem = annualNode('small', 'field-problem'); problem.id = 'occupancy-problem-' + space.id; problem.hidden = true;
+    group.append(problem);
+    const save = annualNode('button', 'tour-action tour-action-primary', GATE_WORDS.save); save.type = 'submit'; save.dataset.control = 'occupancy-save';
+    const row = annualRow(save);
+    if (entry.changing) {
+      const keep = button(GATE_WORDS.keep, () => { entry.changing = false; gateDraw(entry, true); });
+      keep.dataset.control = 'occupancy-keep'; row.append(keep);
+    }
+    form.append(group, row);
+    refs.first = inputs.find(input => input.checked) || inputs[0];
+    form.addEventListener('change', () => { problem.hidden = true; group.setAttribute('aria-describedby', why.id); });
+    form.addEventListener('submit', event => {
+      event?.preventDefault?.();
+      const chosen = inputs.find(input => input.checked);
+      if (!chosen) {
+        problem.textContent = GATE_WORDS.choose; problem.hidden = false;
+        group.setAttribute('aria-describedby', why.id + ' ' + problem.id); inputs[0].focus?.();
+        return;
+      }
+      void gateSave(entry, 'set_listing_occupancy', { p_property_id: space.id, p_occupancy: chosen.value }, save,
+        chosen.value === 'tenanted' ? GATE_WORDS.savedTenants : GATE_WORDS.saved);
+    });
+    return form;
+  }
+  function gateConsentProblems(reference, signed) {
+    const problems = {};
+    const text = reference.trim();
+    if (!text) problems.reference = GATE_WORDS.noReference;
+    else if (text.length > 120) problems.reference = GATE_WORDS.longReference;
+    if (!annualDay(signed)) problems.signed = GATE_WORDS.noDate;
+    else if (signed > annualToday()) problems.signed = GATE_WORDS.future;
+    return problems;
+  }
+  function gateConsent(entry, refs) {
+    const { space } = entry;
+    const form = annualNode('form', 'veylet-form occupancy-form occupancy-consent'); form.noValidate = true;
+    const heading = annualNode('h4', refs.titleClass, GATE_WORDS.consentTitle);
+    const note = annualNode('p', 'occupancy-note', GATE_WORDS.consentNote + ' ');
+    const help = annualNode('a', 'occupancy-help', GATE_WORDS.help); help.href = GATE_HELP;
+    note.append(help);
+    const field = (key, label, input, hint) => {
+      const wrap = annualNode('label', 'occupancy-field');
+      input.id = 'occupancy-' + key + '-' + space.id; input.name = 'consent-' + key;
+      const error = annualNode('small', 'field-problem'); error.id = input.id + '-error'; error.hidden = true;
+      wrap.append(annualNode('span', 'clients-field-label', label), input);
+      if (hint) { const small = annualNode('small', 'occupancy-hint', hint); small.id = input.id + '-hint'; wrap.append(small); input.setAttribute('aria-describedby', small.id); }
+      wrap.append(error);
+      return { wrap, input, error, hint: hint ? input.id + '-hint' : '' };
+    };
+    const referenceInput = annualNode('input'); referenceInput.type = 'text'; referenceInput.maxLength = 120;
+    referenceInput.autocomplete = 'off'; referenceInput.setAttribute('autocomplete', 'off'); referenceInput.spellcheck = false;
+    referenceInput.dataset.control = 'consent-reference';
+    const signedInput = annualNode('input'); signedInput.type = 'date'; signedInput.max = annualToday(); signedInput.setAttribute('max', annualToday());
+    signedInput.dataset.control = 'consent-signed';
+    const reference = field('reference', GATE_WORDS.reference, referenceInput, GATE_WORDS.referenceHint);
+    const signed = field('signed', GATE_WORDS.signed, signedInput, '');
+    const record = annualNode('button', 'tour-action tour-action-primary', GATE_WORDS.record); record.type = 'submit'; record.dataset.control = 'consent-record';
+    const change = button(GATE_WORDS.change, () => { entry.changing = true; gateDraw(entry, true); });
+    change.dataset.control = 'occupancy-change';
+    form.append(annualNode('p', 'occupancy-answer', GATE_WORDS.tenants), heading, note, reference.wrap, signed.wrap, annualRow(record, change));
+    refs.first = referenceInput; refs.change = change;
+    let attempted = false;
+    const paint = problems => {
+      for (const [key, part] of [['reference', reference], ['signed', signed]]) {
+        const text = problems[key] || '';
+        part.error.textContent = text; part.error.hidden = !text;
+        if (text) part.input.setAttribute('aria-invalid', 'true'); else part.input.removeAttribute('aria-invalid');
+        const described = [part.hint, text ? part.error.id : ''].filter(Boolean).join(' ');
+        if (described) part.input.setAttribute('aria-describedby', described); else part.input.removeAttribute('aria-describedby');
+      }
+    };
+    form.addEventListener('input', () => { if (attempted) paint(gateConsentProblems(referenceInput.value, signedInput.value)); });
+    form.addEventListener('submit', event => {
+      event?.preventDefault?.();
+      attempted = true;
+      const problems = gateConsentProblems(referenceInput.value, signedInput.value);
+      paint(problems);
+      if (problems.reference) { referenceInput.focus?.(); return; }
+      if (problems.signed) { signedInput.focus?.(); return; }
+      void gateSave(entry, 'record_tenant_consent', { p_property_id: space.id, p_consent_reference: referenceInput.value.trim(), p_consented_on: signedInput.value },
+        record, GATE_WORDS.recorded);
+    });
+    return form;
+  }
+  function gateSummary(entry, refs) {
+    const { answer } = entry;
+    const wrap = annualNode('div', 'occupancy-summary');
+    let words = GATE_SUMMARY[answer.occupancy];
+    if (answer.occupancy === 'tenanted') {
+      const date = window.VeyletSharing?.hostingDate?.(answer.recordedAt) || '';
+      words = 'Tenants live here. Written consent recorded' + (date ? ' on ' + date : '') + (answer.reference ? ' (reference: ' + answer.reference + ').' : '.');
+    }
+    const change = button(GATE_WORDS.change, () => { entry.changing = true; gateDraw(entry, true); });
+    change.dataset.control = 'occupancy-change';
+    wrap.append(annualNode('p', 'occupancy-summary-text', words), change);
+    refs.change = change;
+    return wrap;
+  }
+  // Saves one answer, then reads the desk again so every card on the listing says what sharing waits for now.
+  async function gateSave(entry, name, args, control, notice) {
+    if (entry.busy) return;
+    entry.busy = true; control.disabled = true;
+    gateSay(entry, GATE_WORDS.saving);
+    const reply = await settled(Promise.resolve().then(() => entry.supabase.rpc(name, args)));
+    entry.busy = false;
+    if (entry.ticket !== deskVersion || listingGates.get(entry.space.id) !== entry) return;
+    control.disabled = false;
+    const consent = name === 'record_tenant_consent';
+    if (sessionGone(reply)) {
+      showSignedOut(consent ? 'Your sign-in has expired, so the consent wasn’t recorded. Sign in again to record it.'
+        : 'Your sign-in has expired, so your answer wasn’t saved. Sign in again to answer it.');
+      return;
+    }
+    if (missingFunction(reply)) { gateGone(); return; }
+    if (failed(reply)) {
+      const words = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
+      // The home was not declared tenanted after all (another person changed it): ask that first.
+      if (consent && words.includes('declare the home tenanted')) {
+        entry.answer = { ...entry.answer, occupancy: 'unknown', reason: 'occupancy' }; entry.changing = false;
+        gateDraw(entry, true); gateSay(entry, GATE_WORDS.askFirst, true);
+        return;
+      }
+      gateSay(entry, /permission|not allowed/.test(words) ? GATE_WORDS.role : networkFailed(reply) || offlineNow() ? GATE_WORDS.offline
+        : consent ? GATE_WORDS.notRecorded : GATE_WORDS.notSaved, true);
+      return;
+    }
+    entry.changing = false;
+    gateNotices.set(entry.space.id, notice);
+    gateFocus = entry.space.id;
+    setStatus(notice);
+    await loadDesk(entry.supabase);
+  }
+  // A refusal's one fix: open this listing's question or consent form where the person is.
+  function gateOpen(propertyId, reason) {
+    const entry = listingGates.get(propertyId);
+    if (!entry || !gateAvailable) return;
+    const wanted = reason === 'consent' ? 'consent' : 'occupancy';
+    // The refusal is newer than what this page read: ask for what it says is missing.
+    if (!entry.answer || entry.answer.reason !== wanted) {
+      entry.answer = { reference: '', recordedAt: null, grandfathered: false, ...(entry.answer || {}),
+        occupancy: wanted === 'consent' ? 'tenanted' : 'unknown', reason: wanted };
+    }
+    entry.changing = false; entry.open = true;
+    gateDraw(entry, true);
+  }
+
   // `hosting` is this walkthrough's get_tour_hosting row: undefined when the
   // dates could not load. It only chooses words; it never gates a control.
   // `title` is its space's name, the listing title a share and a QR file carry.
@@ -1203,6 +1555,12 @@
     if (review?.approved === true) {
       const live = Boolean(tour.share_token);
       const paused = sharePaused(tour);
+      // Whether sharing anew waits for the listing's answer or the tenant's consent.
+      if (canShare && (!live || paused)) {
+        await gateReady(tour.property_id);
+        if (ticket !== deskVersion) { if (pending) sharePending.set(tour.id, pending); return; }
+      }
+      const gate = canShare && (!live || paused) ? gateBlock(tour.property_id) : null;
       if (paused) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = PAUSED_LINE;
@@ -1214,20 +1572,21 @@
       } else {
         const off = hostingWords(hosting || null, false);
         tourChip(tour, off ? 'Sharing off' : '', 'quiet');
-        const problem = pending && canShare ? pending.reason || 'unknown' : null;
+        const problem = pending && canShare ? pending.reason || 'unknown' : gate;
         status.textContent = problem ? shareWords(problem) : off || (canShare
           ? 'Approved. Sharing isn’t on yet.' : 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
-        if (problem) { status.className = 'tour-state-help tour-share-problem'; setStatus(shareWords(problem)); }
+        if (problem) status.className = 'tour-state-help tour-share-problem';
+        if (pending && problem) setStatus(shareWords(problem));
       }
       if (render?.answers) renderDraw();
       // Its views sit under the state line, on a live or paused link.
       if (live) { const views = document.createElement('div'); item.append(views); tourViews(tour, views, supabase, ticket); }
       if (canShare) {
-        if (paused) resumeSharing(tour, item, supabase, ticket);
+        if (paused) resumeSharing(tour, item, supabase, ticket, gate);
         else if (live) liveSharing(tour, item, title);
         else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
           withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
-          problem: pending ? pending.reason || 'unknown' : null });
+          problem: pending ? pending.reason || 'unknown' : gate });
       }
       // Videos and stills: an approved version, for whoever may share it (the request's roles).
       if (canShare) listingExports(tour, item, supabase, ticket);
@@ -4176,6 +4535,384 @@
     clientsDraw(state, kept ? 'Your details weren’t saved. Check them and press Save.' : '');
   }
 
+  /* ---- Team: invite a teammate ---------------------------------------------
+   * The sibling repository's docs/launch-readiness-plan-20260925.md §3, onboarding
+   * item 3 (one trial per office, every agent invited). The release-2 drafts (not
+   * released) add invite_to_workspace(p_workspace_id, p_email, p_role) → { invite_id,
+   * invite_url, expires_at } for the owner only (reviewer or operator),
+   * list_workspace_invites, revoke_workspace_invite and accept_workspace_invite (the
+   * /join page). No email is sent: the owner copies or shares the link. Anyone else
+   * reads the team and changes nothing. A backend without the functions (PGRST202)
+   * shows no section. Only the desk has the section; the app has its own.
+   */
+  const teamEl = document.getElementById('account-team');
+  const teamBody = document.getElementById('account-team-body');
+  const TEAM_ROLES = Object.freeze([['reviewer', 'Reviewer', 'Can review and share.'], ['operator', 'Operator', 'Can capture and send.']]);
+  const TEAM_ROLE_NAMES = Object.freeze({ reviewer: 'Reviewer', operator: 'Operator' });
+  const TEAM_STATUS = Object.freeze({ pending: 'Pending', accepted: 'Accepted', revoked: 'Revoked', expired: 'Expired' });
+  const TEAM_WORDS = Object.freeze({
+    invite: 'Invite a teammate',
+    email: 'Email',
+    role: 'What they can do',
+    noEmail: 'No email is sent. Copy the link and send it to them yourself.',
+    create: 'Create invite link',
+    creating: 'Creating the invite link…',
+    badEmail: 'Enter an email address like name@agency.com.au.',
+    noRole: 'Choose what they can do.',
+    ownerOnly: 'Only the workspace owner can invite teammates.',
+    notCreated: 'The invite wasn’t created. Try again.',
+    unconfirmed: 'The invite wasn’t confirmed. Check the invites below before trying again.',
+    offline: 'You’re offline. Nothing was created.',
+    invites: 'Invites',
+    none: 'No invites yet.',
+    teammates: 'Teammates',
+    revoke: 'Revoke',
+    confirmRevoke: 'Confirm: revoke invite',
+    keep: 'Keep it',
+    revokeWarn: 'The link stops working. You can invite them again later. Confirm to continue.',
+    revoked: 'Invite revoked. The link no longer works.',
+    notRevoked: 'The invite wasn’t revoked. Try again.',
+    revokeOffline: 'You’re offline. The invite wasn’t revoked.',
+    kept: 'Invite left unchanged.',
+    readFailed: 'Invites couldn’t be loaded. Try again.',
+    readOffline: 'You’re offline. Your invites load when you’re back online.',
+    copied: 'Invite link copied. Send it to them yourself.',
+    tooManyPending: 'You have 20 invites waiting. Revoke one first.',
+    tooManyToday: 'You’ve made 50 invites today. Try again tomorrow.',
+    remove: 'Remove',
+    confirmRemove: 'Confirm: remove',
+    removeWarn: 'They lose access to this office’s walkthroughs. Confirm to continue.',
+    keepThem: 'Keep them',
+    keptThem: 'They stay in this office.',
+    notRemoved: 'They weren’t removed. Try again.',
+    removeOffline: 'You’re offline. They weren’t removed.',
+    more: 'More',
+    makeOwner: 'Make owner',
+    confirmOwner: 'Confirm: make owner',
+    ownerWarn: 'You become a reviewer. Only the owner can invite or remove teammates. Confirm to continue.',
+    keepOwnership: 'Keep ownership',
+    keptOwnership: 'You’re still the owner.',
+    notTransferred: 'Ownership didn’t change. Try again.',
+    ownerOffline: 'You’re offline. Ownership didn’t change.',
+    leave: 'Leave this office',
+    confirmLeave: 'Confirm: leave this office',
+    leaveWarn: 'You lose access to its walkthroughs. The owner can invite you again. Confirm to continue.',
+    stay: 'Stay',
+    stayed: 'You’re still in this office.',
+    left: 'You left this office.',
+    notLeft: 'You’re still in this office. Try again.',
+    leaveOffline: 'You’re offline. You’re still in this office.',
+  });
+  let team = null, teamVersion = 0;
+  // remove_workspace_member, transfer_workspace_ownership and leave_workspace, until a press says the backend lacks one.
+  let teamRemoveAvailable = true, teamTransferAvailable = true, teamLeaveAvailable = true;
+
+  function teamHide() {
+    teamVersion += 1; team = null;
+    if (!teamEl) return;
+    teamEl.hidden = true; teamEl.setAttribute('aria-busy', 'false');
+    teamBody?.replaceChildren();
+  }
+  // The invites, keeping only rows the draft describes; anything but a list is no answer.
+  function teamRows(data) {
+    if (!Array.isArray(data)) return null;
+    return data.filter(row => row && typeof row === 'object' && typeof row.invite_id === 'string' && typeof row.email === 'string'
+      && TEAM_ROLE_NAMES[row.role] && TEAM_STATUS[row.status]);
+  }
+  function teamRoleWords(role) {
+    return role === 'operator' ? 'an operator, who can capture and send' : 'a reviewer, who can review and share';
+  }
+  // `force` reads again even while the section is in use (after a press here).
+  async function teamRender(supabase, ticket, workspaceID, role, force = false) {
+    if (!teamEl || !teamBody) return;
+    const same = team && team.workspaceID === workspaceID;
+    // Typing, a press on its way, or a person inside the section, is never read over.
+    if (!force && same && (team.busy || team.dirty || teamEl.contains?.(document.activeElement))) { team.supabase = supabase; team.role = role; return; }
+    const version = ++teamVersion;
+    const reply = await settled(Promise.resolve().then(() => supabase.rpc('list_workspace_invites', { p_workspace_id: workspaceID })));
+    if (version !== teamVersion || ticket !== deskVersion || !currentUserId) return;
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to see your team.'); return; }
+    if (missingFunction(reply)) { teamHide(); return; }
+    const rows = failed(reply) ? null : teamRows(reply.value?.data);
+    // An answer the draft does not describe is not a team to show.
+    if (!failed(reply) && !rows) { teamHide(); return; }
+    const state = same ? team : { workspaceID, result: null, dirty: false, busy: false, draft: { email: '', role: '' }, notice: '' };
+    Object.assign(state, { supabase, role, owner: role === 'owner', rows, offline: networkFailed(reply) || offlineNow() });
+    team = state;
+    teamDraw(state);
+  }
+  function teamDraw(state) {
+    teamEl.hidden = false; teamEl.setAttribute('aria-busy', 'false');
+    const parts = [];
+    if (!state.owner) {
+      // A teammate reads their own role, and who has joined when the server lets them see it.
+      const word = state.role === 'operator' ? 'an operator' : state.role === 'reviewer' ? 'a reviewer' : 'a member';
+      parts.push(annualNode('p', 'annual-lead team-lead', 'You’re ' + word + ' in this workspace. Only the owner can invite teammates.'));
+      if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
+      const joined = (state.rows || []).filter(row => row.status === 'accepted');
+      if (joined.length) parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.teammates), teamList(state, joined, false));
+      const leaving = annualNode('div', 'team-leave');
+      teamLeave(state, leaving);
+      if (leaving.children.length) parts.push(leaving);
+      teamBody.replaceChildren(...parts);
+      return;
+    }
+    const refs = {};
+    parts.push(teamForm(state, refs));
+    if (state.result) parts.push(teamResult(state, refs));
+    parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.invites));
+    if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
+    if (!state.rows) {
+      const again = button('Try again', () => { void teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true); });
+      again.dataset.control = 'team-retry';
+      parts.push(annualNode('p', 'annual-note', state.offline ? TEAM_WORDS.readOffline : TEAM_WORDS.readFailed), annualRow(again));
+    } else if (!state.rows.length) parts.push(annualNode('p', 'annual-note team-none', TEAM_WORDS.none));
+    else parts.push(teamList(state, state.rows, true));
+    teamBody.replaceChildren(...parts);
+    if (state.focusResult && refs.result) { state.focusResult = false; refs.result.focus?.({ preventScroll: true }); refs.result.scrollIntoView?.({ block: 'nearest', behavior: 'auto' }); }
+  }
+  function teamForm(state, refs) {
+    const form = annualNode('form', 'veylet-form team-form'); form.noValidate = true; form.setAttribute('novalidate', '');
+    const emailLabel = annualNode('label', 'clients-field team-field');
+    const email = annualNode('input'); email.type = 'email'; email.id = 'account-team-email'; email.name = 'email';
+    // Somebody else's address: never the browser's saved one.
+    email.autocomplete = 'off'; email.setAttribute('autocomplete', 'off'); email.inputMode = 'email';
+    email.autocapitalize = 'off'; email.spellcheck = false; email.maxLength = 254; email.value = state.draft.email;
+    email.dataset.control = 'team-email';
+    const emailError = annualNode('small', 'field-problem'); emailError.id = 'account-team-email-error'; emailError.hidden = true;
+    emailLabel.append(annualNode('span', 'clients-field-label', TEAM_WORDS.email), email, emailError);
+    const group = annualNode('fieldset', 'choice-group team-roles');
+    group.append(annualNode('legend', 'team-legend', TEAM_WORDS.role));
+    const roles = [];
+    for (const [value, name, explanation] of TEAM_ROLES) {
+      const choice = annualNode('label', 'choice team-role');
+      const input = annualNode('input'); input.type = 'radio'; input.name = 'team-role'; input.value = value;
+      input.checked = state.draft.role === value; input.dataset.control = 'team-role-' + value;
+      const text = annualNode('span');
+      text.append(annualNode('strong', '', name), annualNode('small', '', explanation));
+      choice.append(input, text); group.append(choice); roles.push(input);
+    }
+    const roleError = annualNode('small', 'field-problem'); roleError.id = 'account-team-role-error'; roleError.hidden = true;
+    group.append(roleError);
+    const create = annualNode('button', 'tour-action tour-action-primary', TEAM_WORDS.create); create.type = 'submit'; create.dataset.control = 'team-create';
+    const said = annualNode('p', 'team-said'); said.hidden = true;
+    form.append(annualNode('h3', 'team-subhead team-invite-title', TEAM_WORDS.invite), emailLabel, group,
+      annualNode('p', 'annual-note team-note', TEAM_WORDS.noEmail), annualRow(create), said);
+    Object.assign(refs, { email, emailError, roles, roleError, create, said });
+    const sync = () => {
+      state.draft = { email: email.value, role: roles.find(input => input.checked)?.value || '' };
+      state.dirty = Boolean(state.draft.email.trim() || state.draft.role);
+      if (state.attempted) teamPaint(refs, teamProblems(state.draft));
+    };
+    form.addEventListener('input', sync);
+    form.addEventListener('change', sync);
+    form.addEventListener('submit', event => { event?.preventDefault?.(); sync(); void teamInvite(state, refs); });
+    return form;
+  }
+  function teamProblems(draft) {
+    const problems = {};
+    const email = String(draft.email || '').trim();
+    if (!email || email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) problems.email = TEAM_WORDS.badEmail;
+    if (!TEAM_ROLE_NAMES[draft.role]) problems.role = TEAM_WORDS.noRole;
+    return problems;
+  }
+  function teamPaint(refs, problems) {
+    refs.emailError.textContent = problems.email || ''; refs.emailError.hidden = !problems.email;
+    if (problems.email) { refs.email.setAttribute('aria-invalid', 'true'); refs.email.setAttribute('aria-describedby', refs.emailError.id); }
+    else { refs.email.removeAttribute('aria-invalid'); refs.email.removeAttribute('aria-describedby'); }
+    refs.roleError.textContent = problems.role || ''; refs.roleError.hidden = !problems.role;
+  }
+  function teamSay(refs, text, announce = true) {
+    refs.said.textContent = text; refs.said.hidden = !text;
+    if (announce && text) setStatus(text);
+  }
+  async function teamInvite(state, refs) {
+    if (state.busy || state !== team) return;
+    state.attempted = true;
+    const problems = teamProblems(state.draft);
+    teamPaint(refs, problems);
+    if (problems.email) { refs.email.focus?.(); return; }
+    if (problems.role) { refs.roles[0]?.focus?.(); return; }
+    const email = state.draft.email.trim(), role = state.draft.role;
+    state.busy = true; refs.create.disabled = true;
+    teamSay(refs, TEAM_WORDS.creating, false);
+    const reply = await settled(Promise.resolve().then(() => state.supabase.rpc('invite_to_workspace', { p_workspace_id: state.workspaceID, p_email: email, p_role: role })));
+    state.busy = false; refs.create.disabled = false;
+    if (state !== team) return;
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired, so no invite was created. Sign in again to invite them.'); return; }
+    if (missingFunction(reply)) { teamHide(); return; }
+    if (failed(reply)) {
+      // The draft's refusals: a field's own problem goes beside the field.
+      const words = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
+      if (words.includes('valid email address')) { teamPaint(refs, { email: TEAM_WORDS.badEmail }); teamSay(refs, ''); refs.email.focus?.(); return; }
+      if (words.includes('role is reviewer or operator')) { teamPaint(refs, { role: TEAM_WORDS.noRole }); teamSay(refs, ''); refs.roles[0]?.focus?.(); return; }
+      teamSay(refs, /owner|permission/.test(words) ? TEAM_WORDS.ownerOnly : words.includes('too many pending invites') ? TEAM_WORDS.tooManyPending
+        : words.includes('too many invites today') ? TEAM_WORDS.tooManyToday : networkFailed(reply) || offlineNow() ? TEAM_WORDS.offline : TEAM_WORDS.notCreated);
+      return;
+    }
+    const row = firstRow(reply.value?.data);
+    const url = typeof row?.invite_url === 'string' && /^https:\/\/[^\s"'<>]+$/.test(row.invite_url) ? row.invite_url : '';
+    if (!url) { state.notice = TEAM_WORDS.unconfirmed; setStatus(TEAM_WORDS.unconfirmed); await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true); return; }
+    state.result = { email, role, url, expires: typeof row.expires_at === 'string' ? row.expires_at : null, inviteId: row.invite_id || null };
+    state.draft = { email: '', role: '' }; state.dirty = false; state.attempted = false; state.focusResult = true;
+    setStatus('Invite link created for ' + email + '. Copy it and send it to them.');
+    await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
+  }
+  // The link just made: the one thing to copy or share, with when it stops working.
+  function teamResult(state, refs) {
+    const { email, role, url, expires } = state.result;
+    const box = annualNode('div', 'team-result'); box.tabIndex = -1; box.setAttribute('aria-label', 'Invite link for ' + email);
+    refs.result = box;
+    const link = copyField('Invite link', 'input', url);
+    link.field.dataset.control = 'team-link';
+    const said = annualNode('p', 'team-said'); said.hidden = true;
+    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const copy = async () => {
+      const share = window.VeyletSharing;
+      if (share?.copy) { await share.copy(url, link.field, statusEl, TEAM_WORDS.copied); say(statusEl?.textContent || TEAM_WORDS.copied); }
+      else { link.field.focus?.(); link.field.select?.(); say('Select and copy the link above.'); }
+    };
+    const copyLink = button('Copy link', copy); copyLink.dataset.control = 'team-copy';
+    const row = annualRow();
+    const device = typeof navigator !== 'undefined' ? navigator : null;
+    let sheet = false;
+    try { sheet = typeof device?.share === 'function' && (typeof device.canShare !== 'function' || device.canShare({ url }) !== false); } catch { sheet = false; }
+    if (sheet) {
+      const send = button('Share', async () => {
+        try { await device.share({ title: 'Your Veylet invite', url }); }
+        catch (error) { if (error?.name !== 'AbortError') await copy(); }
+      });
+      send.className = 'tour-action tour-action-primary'; send.dataset.control = 'team-share';
+      row.append(send, copyLink);
+    } else { copyLink.className = 'tour-action tour-action-primary'; row.append(copyLink); }
+    const date = window.VeyletSharing?.hostingDate?.(expires) || '';
+    box.append(link.label, row, said,
+      annualNode('p', 'annual-note team-expiry', (date ? 'It expires on ' + date + '. ' : '') + 'Send it only to ' + email + '.'),
+      annualNode('p', 'annual-note', 'They join as ' + teamRoleWords(role) + '.'));
+    return box;
+  }
+  // A member's account id on an accepted invite, when the list names it: the draft's list
+  // does not yet, so until it does nobody can be removed or made owner from here.
+  const TEAM_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function teamMember(row) {
+    return row.status === 'accepted' ? [row.user_id, row.accepted_by].find(value => typeof value === 'string' && TEAM_UUID.test(value)) || null : null;
+  }
+  function teamList(state, rows, manage) {
+    const list = annualNode('ul', 'team-invites');
+    for (const row of rows) {
+      const item = annualNode('li', 'team-invite'); item.dataset.invite = row.invite_id;
+      const member = teamMember(row);
+      const gone = member && state.removed?.has(member);
+      const meta = annualNode('p', 'team-invite-meta');
+      meta.append(pill(gone ? 'Removed' : TEAM_STATUS[row.status], !gone && row.status === 'accepted' ? 'good' : row.status === 'pending' ? 'busy' : ''),
+        annualNode('span', 'team-invite-role', TEAM_ROLE_NAMES[row.role]));
+      const until = row.status === 'pending' ? window.VeyletSharing?.hostingDate?.(row.expires_at) || '' : '';
+      if (until) meta.append(annualNode('span', 'team-invite-when', 'Expires ' + until));
+      item.append(annualNode('p', 'team-invite-email', row.email), meta);
+      if (manage && row.status === 'pending') teamRevoke(state, row, item);
+      if (manage && member && !gone) teamManageMember(state, row, member, item);
+      list.append(item);
+    }
+    return list;
+  }
+  /*
+   * One press confirmed in place, as turning off sharing is: the first press arms it and
+   * says what happens, a second press does it, the other button undoes the first press.
+   * `run(say, reset)` sends the one call; a missing function (PGRST202) takes the
+   * control away without a word.
+   */
+  function teamConfirmed(parent, { label, confirm, warn, keep: keepLabel, kept, control, onMissing, run }) {
+    let armed = false;
+    const said = annualNode('p', 'team-said'); said.hidden = true;
+    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const reset = () => { armed = false; press.textContent = label; press.dataset.armed = 'false'; keep.hidden = true; press.disabled = false; };
+    const press = button(label, async () => {
+      if (press.disabled) return;
+      if (!armed) { armed = true; press.textContent = confirm; press.dataset.armed = 'true'; keep.hidden = false; say(warn); return; }
+      press.disabled = true; keep.hidden = true;
+      const outcome = await run(say, reset);
+      if (outcome === 'missing') { row.hidden = true; said.hidden = true; onMissing?.(); }
+    });
+    press.classList.add('tour-action-danger'); press.dataset.control = control;
+    const keep = button(keepLabel, () => { reset(); say(kept); });
+    keep.hidden = true; keep.dataset.control = control + '-keep';
+    const row = annualRow(press, keep);
+    parent.append(row, said);
+    return { press, row, said };
+  }
+  // Sends one team call for a confirmed press; answers 'done', 'missing' or 'failed' (already said).
+  async function teamCall(state, name, args, say, reset, words) {
+    state.busy = true;
+    const reply = await settled(Promise.resolve().then(() => state.supabase.rpc(name, args)));
+    state.busy = false;
+    if (state !== team) return 'failed';
+    if (sessionGone(reply)) { showSignedOut(words.expired); return 'failed'; }
+    if (missingFunction(reply)) return 'missing';
+    if (failed(reply)) { reset(); say(networkFailed(reply) || offlineNow() ? words.offline : words.failed); return 'failed'; }
+    return 'done';
+  }
+  // Revoking an invite: read back from the list.
+  function teamRevoke(state, row, item) {
+    teamConfirmed(item, { label: TEAM_WORDS.revoke, confirm: TEAM_WORDS.confirmRevoke, warn: 'Revoke the invite for ' + row.email + '? ' + TEAM_WORDS.revokeWarn,
+      keep: TEAM_WORDS.keep, kept: TEAM_WORDS.kept, control: 'team-revoke',
+      run: async (say, reset) => {
+        const outcome = await teamCall(state, 'revoke_workspace_invite', { p_invite_id: row.invite_id }, say, reset,
+          { expired: 'Your sign-in has expired. Sign in and check whether the invite was revoked.', offline: TEAM_WORDS.revokeOffline, failed: TEAM_WORDS.notRevoked });
+        if (outcome !== 'done') return outcome;
+        if (state.result?.inviteId === row.invite_id) state.result = null;
+        state.notice = TEAM_WORDS.revoked; setStatus(TEAM_WORDS.revoked);
+        await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
+        return outcome;
+      } });
+  }
+  // A member who joined: Remove, and Make owner behind More (remove_workspace_member and
+  // transfer_workspace_ownership, the owner only; the old owner becomes a reviewer).
+  function teamManageMember(state, row, member, item) {
+    if (teamRemoveAvailable) {
+      teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + row.email + '? ' + TEAM_WORDS.removeWarn,
+        keep: TEAM_WORDS.keepThem, kept: TEAM_WORDS.keptThem, control: 'team-remove', onMissing: () => { teamRemoveAvailable = false; },
+        run: async (say, reset) => {
+          const outcome = await teamCall(state, 'remove_workspace_member', { p_workspace_id: state.workspaceID, p_user_id: member }, say, reset,
+            { expired: 'Your sign-in has expired. Sign in and check whether they were removed.', offline: TEAM_WORDS.removeOffline, failed: TEAM_WORDS.notRemoved });
+          if (outcome !== 'done') return outcome;
+          (state.removed ||= new Set()).add(member);
+          state.notice = 'Removed ' + row.email + '.'; setStatus(state.notice);
+          await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
+          return outcome;
+        } });
+    }
+    if (!teamTransferAvailable) return;
+    const more = annualNode('details', 'account-details team-more');
+    const summary = annualNode('summary', '', TEAM_WORDS.more); summary.setAttribute('aria-label', 'More for ' + row.email);
+    more.append(summary); item.append(more);
+    teamConfirmed(more, { label: TEAM_WORDS.makeOwner, confirm: TEAM_WORDS.confirmOwner, warn: 'Make ' + row.email + ' the owner? ' + TEAM_WORDS.ownerWarn,
+      keep: TEAM_WORDS.keepOwnership, kept: TEAM_WORDS.keptOwnership, control: 'team-owner',
+      onMissing: () => { teamTransferAvailable = false; more.hidden = true; },
+      run: async (say, reset) => {
+        const outcome = await teamCall(state, 'transfer_workspace_ownership', { p_workspace_id: state.workspaceID, p_new_owner: member }, say, reset,
+          { expired: 'Your sign-in has expired. Sign in and check who owns this office.', offline: TEAM_WORDS.ownerOffline, failed: TEAM_WORDS.notTransferred });
+        if (outcome !== 'done') return outcome;
+        // This account is a reviewer now: the whole desk reads its new role.
+        state.notice = row.email + ' is now the owner.'; setStatus(state.notice);
+        await loadDesk(state.supabase);
+        return outcome;
+      } });
+  }
+  // A teammate leaving the office (leave_workspace, anyone but the owner).
+  function teamLeave(state, parent) {
+    if (!teamLeaveAvailable) return;
+    teamConfirmed(parent, { label: TEAM_WORDS.leave, confirm: TEAM_WORDS.confirmLeave, warn: TEAM_WORDS.leaveWarn,
+      keep: TEAM_WORDS.stay, kept: TEAM_WORDS.stayed, control: 'team-leave', onMissing: () => { teamLeaveAvailable = false; },
+      run: async (say, reset) => {
+        const outcome = await teamCall(state, 'leave_workspace', { p_workspace_id: state.workspaceID }, say, reset,
+          { expired: 'Your sign-in has expired. Sign in and check whether you left this office.', offline: TEAM_WORDS.leaveOffline, failed: TEAM_WORDS.notLeft });
+        if (outcome !== 'done') return outcome;
+        setStatus(TEAM_WORDS.left);
+        await loadDesk(state.supabase);
+        return outcome;
+      } });
+  }
+
   /* ---- Email preferences: tips and offers --------------------------------
    * The Spam Act consent of the sibling repository's docs/lifecycle-email.md and its
    * draft 20260926114000_lifecycle_email.sql (not yet released). get_email_preferences()
@@ -4334,6 +5071,10 @@
    * two writes are read back before their result is stated.
    */
   const DELETION_STATUSES = ['requested', 'processing', 'cancelled', 'completed'];
+  // request_account_deletion refuses an owner whose office still has other members
+  // ('shared ownership requires reviewed transfer', and the release-2 invites draft's wording).
+  const DELETION_TEAM_FIRST = 'Transfer ownership or remove your teammates first.';
+  const DELETION_KEEP = 'Keep my account';
   const DELETION_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
   let deletionBusy = false;
 
@@ -4352,6 +5093,20 @@
   function deletionUnavailable(supabase, text) {
     deletionShow(deletionNote(text),
       deletionRow(button('Check again', () => { void renderDeletion(supabase, deskVersion); })));
+  }
+  // Deletion refused because this owner's office still has teammates: the way forward is Your team.
+  function deletionTeamFirst(supabase) {
+    setStatus(DELETION_TEAM_FIRST);
+    const parts = [deletionNote(DELETION_TEAM_FIRST)];
+    const controls = [];
+    if (teamEl && !teamEl.hidden) {
+      const open = document.createElement('a'); open.className = 'tour-action'; open.href = '#account-team'; open.textContent = 'Open Your team';
+      open.dataset.control = 'deletion-team';
+      open.addEventListener('click', () => { teamEl.tabIndex = -1; teamEl.focus?.({ preventScroll: true }); });
+      controls.push(open);
+    }
+    controls.push(button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); }));
+    deletionShow(...parts, deletionRow(...controls));
   }
   function deletionIdle(supabase) {
     const start = button('Delete my account', () => deletionConfirm(supabase));
@@ -4379,6 +5134,9 @@
       if (ticket !== deskVersion) return;
       if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in and check whether the deletion was requested.'); return; }
       if (failed(reply)) {
+        // An owner whose office still has teammates hands it over or removes them first.
+        const words = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
+        if (/shared ownership|teammate|transfer/.test(words)) { deletionTeamFirst(supabase); return; }
         setStatus('The deletion request was not confirmed. Check again before asking a second time.');
         deletionUnavailable(supabase, 'The deletion request was not confirmed. Check again before asking a second time.');
         return;
@@ -4388,7 +5146,7 @@
     });
     remove.classList.add('tour-action-danger');
     remove.dataset.armed = 'true';
-    const keep = button('Keep my account', () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); });
+    const keep = button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); });
     deletionShow(deletionNote(DELETION_CONFIRM), field, deletionRow(remove, keep));
   }
   function deletionRequested(supabase, when) {
@@ -5005,7 +5763,7 @@
   // while it is worked out, and an empty list. Returns the new desk's ticket.
   function deskReset() {
     const ticket = ++deskVersion;
-    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear();
+    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); listingGates.clear();
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
@@ -5048,7 +5806,7 @@
       if (statusEl?.textContent === 'Signed in. Loading your spaces…') setStatus('');
       nextStep?.replaceChildren(); targetMessage('');
       planBody?.replaceChildren(); planPanel?.setAttribute('aria-busy', 'false');
-      trialHide(); packsHide(); annualHide(); referralHide(); clientsHide();
+      trialHide(); packsHide(); annualHide(); referralHide(); clientsHide(); teamHide();
       renderSay(offlineWords(0));
       return;
     }
@@ -5100,6 +5858,9 @@
       ? 'The requested walkthrough could not be checked. Refresh spaces to try again.'
       : 'This walkthrough is not available in this account. Refresh spaces, sign in with the capture account, or ask the workspace owner. Available tours are shown below.');
     const roles = new Map((failed(members) ? [] : members.value?.data || []).map(row => [row.workspace_id, row.role]));
+    // The team: the same workspace the plan panel shows, with or without a space yet.
+    const teamWorkspace = failed(members) ? null : (members.value?.data || []).find(row => row && row.workspace_id)?.workspace_id || null;
+    if (teamWorkspace) void teamRender(supabase, ticket, teamWorkspace, roles.get(teamWorkspace)); else teamHide();
     // Hosting dates only choose the words on a live card. A failed or malformed
     // answer makes each live card say so; it never holds up or blocks sharing.
     const hostingRows = failed(hosting) || !Array.isArray(hosting.value?.data) ? null
@@ -5135,6 +5896,12 @@
       spaceTours.sort((left, right) => (order.indexOf(walkthroughOf(left)) - order.indexOf(walkthroughOf(right)))
         || (revisionOf(right) - revisionOf(left)));
       if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No tour package yet. Your walkthrough is made automatically from your capture and appears in this space.'));
+      // Is anyone living here? Asked once a listing has a walkthrough, before its first share.
+      if (spaceTours.length && roles.has(row.workspace_id)) {
+        const gateSlot = document.createElement('div'); gateSlot.className = 'dash-occupancy'; gateSlot.hidden = true;
+        li.append(gateSlot);
+        void listingGate(row, gateSlot, supabase, ticket);
+      }
       const ul = document.createElement('ul'); ul.className = 'dash-tours';
       for (const tour of spaceTours) {
         const item = document.createElement('li'); item.className = 'dash-tour'; item.dataset.tour = tour.id;
@@ -5250,7 +6017,7 @@
     }
     sessionHeading(true);
     // Another account's desk is never kept on the page while this one's is read.
-    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); emailHide(); }
+    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); }
     currentUserId = session.user.id;
     currentUserEmail = session.user.email || '';
     currentUserConfirmedAt = session.user.email_confirmed_at || session.user.confirmed_at || session.user.created_at || null;
@@ -5270,6 +6037,8 @@
     }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
     setStatus('Signed in. Loading your spaces…');
+    // Back to the invite that sent this person to sign in; /join accepts it.
+    if (joinReturn) { location.replace('/join'); return; }
     if (location.pathname.startsWith('/auth/')) {
       location.replace('/account' + tourQuery);
       return;

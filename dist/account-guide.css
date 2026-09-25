@@ -487,3 +487,67 @@
 /* Signed out: the status line is a message and the form is a task. */
 .form-page > #account-sign-in,
 .form-page > #account-verify { margin-top: 28px; }
+
+/* Is anyone living here? One hairline block on a listing with a walkthrough, above
+   its walkthroughs: the question as choice rows, the consent form, or one quiet
+   line with Change answer. A live share from before the question gets a quiet
+   disclosure, never a warning. Rules sit under .dash-occupancy so the space's
+   muted paragraph rule does not win. */
+.desk .dash-occupancy { margin: 14px 0 0; padding: 14px 0 2px; border-top: 1px solid var(--line); max-width: 62ch; }
+.desk .dash-occupancy[hidden] { display: none; }
+.dash-occupancy .occupancy-form { gap: 14px; max-width: 520px; }
+.dash-occupancy .occupancy-choices { gap: 8px; }
+.dash-occupancy .occupancy-title { margin: 0; padding: 0; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+.dash-occupancy .occupancy-why,
+.dash-occupancy .occupancy-answer,
+.dash-occupancy .occupancy-hint { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.dash-occupancy .occupancy-why { margin-bottom: 2px; }
+.veylet-form .occupancy-choice { align-items: center; padding: 10px 14px; font-size: 15px; line-height: 1.4; color: var(--ink); }
+.veylet-form .occupancy-choice input { margin: 0; }
+.dash-occupancy .occupancy-note { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.dash-occupancy .occupancy-help { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.veylet-form .occupancy-field { gap: 6px; }
+.veylet-form .occupancy-field input { max-width: 360px; font-size: 16px; }
+.dash-occupancy .annual-actions { margin: 0; }
+.dash-occupancy .occupancy-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.dash-occupancy .occupancy-summary-text { flex: 0 1 auto; margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; }
+.dash-occupancy .occupancy-said { margin: 10px 0 0; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.dash-occupancy .occupancy-said:focus { outline: none; }
+.dash-occupancy .occupancy-said[hidden] { display: none; }
+.desk .dash-occupancy .occupancy-later { margin: 0; padding: 0; border: 0; max-width: none; }
+.desk .dash-occupancy .occupancy-later > summary { padding-block: 11px; font-size: 14px; color: var(--ink); }
+.desk .dash-occupancy .occupancy-later[open] { padding-bottom: 12px; }
+.occupancy-later-title { margin-right: 8px; }
+.occupancy-quiet { font-size: 13px; color: var(--muted); }
+@media (max-width: 480px) {
+  .dash-occupancy .annual-actions > .tour-action { flex: 1 1 100%; }
+}
+
+/* Team: the owner's invite form, the link just made (the one thing to copy), then
+   the invites on hairlines with their state in words. A teammate reads one line. */
+.team-panel .team-subhead { margin: 22px 0 0; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+.team-panel .team-invite-title { margin: 0; }
+.team-panel .team-lead { margin-top: 16px; }
+.desk .team-form { gap: 14px; margin-top: 16px; max-width: 520px; }
+.team-form .team-roles { gap: 8px; }
+.team-form .team-legend { margin-bottom: 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.team-form .team-note { margin: 0; }
+.team-form .annual-actions { margin: 0; }
+.veylet-form .team-field input { font-size: 16px; }
+.team-said { margin: 10px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.team-form .team-said { margin: 0; }
+.team-said[hidden] { display: none; }
+.team-result { margin: 18px 0 0; padding: 14px 16px 16px; border: 1px solid var(--ink); background: #fff; min-width: 0; }
+.team-result:focus { outline: none; }
+.team-result:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.team-result .tour-field { margin: 0; max-width: none; }
+.team-result .team-expiry { color: var(--ink); }
+.team-invites { margin: 10px 0 0; padding: 0; list-style: none; }
+.desk .team-invites > li { margin: 0; padding: 12px 0; border-top: 1px solid var(--line); }
+.desk .team-invites > li:last-child { border-bottom: 1px solid var(--line); }
+.team-invite-email { margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+.team-invite-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.team-invite .annual-actions { margin-top: 10px; }
+@media (max-width: 480px) {
+  .team-panel .annual-actions > .tour-action { flex: 1 1 100%; }
+}

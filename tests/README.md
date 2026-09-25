@@ -248,3 +248,39 @@ function answers PGRST202 and no block is shown). `tests/listing-exports.test.cj
   409 needs_attention (the export then reads needs_attention), 429, 502, 503). A successful download is recorded in `VEYLET_QA_CALLS`
   ("open download"), never opened. `&exports-open=1` opens the block for a capture, also on
   `/__qa/app-account/`.
+
+Is anyone living here? (26 September 2026), built to the sibling repository's
+`docs/launch-readiness-plan-20260925.md` C2 and `docs/ux/capture-to-client-journey-20260925.md`
+§5.1 "Blocked: tenant consent", against the sibling repository's draft
+`supabase/drafts/release-2/20260926122000_tenant_consent_gate.sql` (not released; a missing
+function answers PGRST202 and nothing is shown).
+`tests/listing-gate.test.cjs` covers it, including the app's page through
+`scripts/check-app-pages.mjs`'s renderer:
+
+- `/__qa/account/?occupancy=question|tenanted|vacant|owner|consented|mixed|error|loading`
+  answers `get_listing_sharing_readiness` for every listing (default `missing`). A listing with
+  a live link is grandfathered while blocked (one quiet line, no warning); while blocked,
+  `enable_tour_share`, `resume_tour_share` and `request_listing_exports` refuse with "occupancy
+  not declared" or "tenant consent required". `mixed` shows the question, a grandfathered
+  tenanted listing and an answered one at once. `&occupancy-save=permission|fail|offline|expired|missing`
+  answers every save; `&occupancy-open=1` opens the quiet disclosures for a capture.
+  `?share=occupancy|consent` refuses the next share with those words on any listing.
+
+Your team (26 September 2026), the plan's §3 onboarding item 3, against the draft
+`supabase/drafts/release-2/20260926123000_team_invites.sql` (not released). `tests/team-invites.test.cjs` covers the desk section and the
+return from sign-in; `tests/join-page.test.cjs` covers `/join`:
+
+- `/__qa/account/?team=owner|owner-empty|member|member-refused|error|loading` answers
+  `list_workspace_invites` (default `missing`: no section). `member` is a reviewer who reads who
+  has joined; `member-refused` an operator the list refuses. `&team-invite=permission|email|role|pending|today|fail|offline|expired|bad-url`
+  and `&team-revoke=fail` refuse or fail those presses in the draft's words
+  (`supabase/drafts/release-2/20260926123000_team_invites.sql`); `&team-created=1` creates one
+  invite for a capture of the link. No email is sent anywhere.
+- Members: the accepted invite carries a `user_id`, so the owner gets Remove
+  (`remove_workspace_member`) and More › Make owner (`transfer_workspace_ownership`), and a
+  teammate gets Leave this office (`leave_workspace`); these are still being added to the draft,
+  so the desk shows them only when the list names a member's account and hides a control whose
+  press answers PGRST202. `&team-member=missing|fail`. While a member remains, the owner's
+  `request_account_deletion` is refused and the deletion panel points to Your team.
+- `/join?i=…` has no QA route of its own; render it with `supabase-public.js` and the vendored
+  client stubbed by the browser (a route intercept), never against the hosted project.
