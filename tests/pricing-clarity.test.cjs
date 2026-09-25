@@ -29,14 +29,25 @@ const between = (start, end) => {
 };
 const currentTerms = strategy.slice(strategy.indexOf('## The offer we can explain consistently'));
 
-test('the canonical offer is 2026-09-26.1 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-26.2 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
-  // 2026-09-25.2's prices and allowances stand, and it is kept as the record's history.
-  assert.equal(record.version, '2026-09-26.1');
-  assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]), [['2026-09-25.2', '2026-09-26.1']]);
+  // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
+  // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
+  // never in the app. 2026-09-25.2's prices and allowances stand; both earlier versions are history.
+  assert.equal(record.version, '2026-09-26.2');
+  assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2']]);
   assert.equal(record.freeMonths.hostingDaysAfterPlanEnds, 14);
-  assert.equal('hostingPerWalkthroughPerFurtherYearAud' in record.services, false, 'no further-year hosting on sale');
-  assert.equal(record.retiredServices.items.hostingPerWalkthroughPerFurtherYearAud, 49);
+  assert.equal(record.services.hostingPerWalkthroughPerFurtherYearAud, 49, 'the hosting extension is on sale again');
+  assert.equal('hostingPerWalkthroughPerFurtherYearAud' in record.retiredServices.items, false);
+  const extension = plan.hosting.extension;
+  assert.equal(plan.hosting.extensionSold, true);
+  assert.deepEqual([extension.priceAud, extension.per, extension.term, extension.channels, extension.surfaces],
+    [record.services.hostingPerWalkthroughPerFurtherYearAud, 'walkthrough', 'a year', ['studioInvoice'], ['website']]);
+  assert.match(extension.rule, /keeps one walkthrough online after the plan's 14 days, until the extension ends/);
+  assert.match(extension.howBought, /on request.*after payment.*card on the website is not built/);
+  assert.equal(extension.appStore, 'never sold or mentioned in the app');
+  assert.equal(plan.listingExports.included, true);
   assert.deepEqual(record.plans.map((entry) => [entry.code, entry.name]), [['solo', 'Veylet plan']]);
   assert.deepEqual(record.retiredPlans.codes, ['studio', 'office', 'one', 'founding']);
   assert.deepEqual(record.appStore.sold, ['soloMonthly', 'soloAnnual']);
@@ -202,8 +213,8 @@ test('the strategy records the 2026-09-25.2 decision on top, with the record’s
   assert.match(section, /\| \| 2026-09-25\.1 \| 2026-09-25\.2 \|/);
   assert.match(section, /Build contract: \[offer v9\]\(design\/offer-v9-20260925\.md\)/);
   for (const amount of [plan.webAud, plan.appAud, plan.annualAud, plan.annualAppAud, 12 * plan.webAud - plan.annualAud, record.expressRender.webAud,
-    // The 2026-09-25.2 decision stated the further-year hosting price, now retired (offer 2026-09-26.1).
-    record.retiredServices.items.hostingPerWalkthroughPerFurtherYearAud, record.services.editingPerHourAud, ...record.packs.map((pack) => pack.webAud),
+    // The 2026-09-25.2 decision stated the further-year hosting price: retired by 2026-09-26.1, kept again by 2026-09-26.2.
+    record.services.hostingPerWalkthroughPerFurtherYearAud, record.services.editingPerHourAud, ...record.packs.map((pack) => pack.webAud),
     plan.webAud / plan.includedPerMonth, plan.annualAud / plan.annualIncluded]) {
     assert.ok(section.includes(fmt(amount)), `decision states ${fmt(amount)}`);
   }

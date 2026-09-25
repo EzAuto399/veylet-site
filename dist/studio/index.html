@@ -17,7 +17,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/studio.js?v=a35eb0c5c9d996ff" defer></script>
+    <script src="/studio.js?v=d2f43dbdb9d80ef1" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -182,12 +182,15 @@
             walkthrough is live while its office has an active plan: free
             months, monthly or annual. When the plan ends, its links, embeds and
             QR codes stay up 14 days, then go offline; restarting the plan
-            brings the same links back at once. There is no paid extension.
-            Enforcement is not released yet: today nothing switches a
-            walkthrough off.
+            brings the same links back at once. After that, only a paid hosting
+            extension keeps a single walkthrough online, until the extension
+            ends. It is sold on request by studio invoice: record it here once
+            the invoice is paid. Record extension only moves the date later,
+            keeps an audit row and takes no payment. Enforcement is not
+            released yet: today nothing switches a walkthrough off.
           </p>
           <table class="studio-table studio-hosted-table" id="studio-hosted-table">
-            <caption>Released walkthroughs and whether a plan keeps them live. Dates are Brisbane time.</caption>
+            <caption>Released walkthroughs, whether a plan keeps them live, and any paid hosting extension. Dates are Brisbane time.</caption>
             <thead>
               <tr>
                 <th scope="col">Walkthrough</th>
@@ -195,6 +198,7 @@
                 <th scope="col">Released</th>
                 <th scope="col">Plan</th>
                 <th scope="col">Hosting</th>
+                <th scope="col">Extended until</th>
               </tr>
             </thead>
             <tbody id="studio-hosted-rows"></tbody>

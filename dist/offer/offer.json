@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-26.1",
+  "version": "2026-09-26.2",
   "status": "current commercial offer; channel availability and release readiness are documented separately",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
@@ -48,18 +48,32 @@
       "freeMonthsEligible": true,
       "annualRule": "24 walkthroughs to use any time in the plan year (a yearly pool); website or invoice A$990, App Store A$1,199.99; 2 months free",
       "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
-      "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; nothing keeps a walkthrough online without a plan",
+      "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; after that, only a paid hosting extension keeps a single walkthrough online: A$49 a year per walkthrough, on request, until the extension ends",
       "hosting": {
         "liveWhile": "an active plan: free months (trial), monthly or annual",
         "daysAfterPlanEnds": 14,
         "afterThat": "links, embeds and QR codes go offline; not revoked: restarting the plan brings the same links back at once",
-        "extensionSold": false,
+        "extensionSold": true,
+        "extension": {
+          "priceAud": 49,
+          "per": "walkthrough",
+          "term": "a year",
+          "rule": "on request, a paid hosting extension keeps one walkthrough online after the plan's 14 days, until the extension ends; the office needs no running plan for it",
+          "channels": [
+            "studioInvoice"
+          ],
+          "howBought": "on request; the studio invoices it and records it from the studio desk after payment; buying it by card on the website is not built",
+          "surfaces": [
+            "website"
+          ],
+          "appStore": "never sold or mentioned in the app"
+        },
         "warningEmails": [
           "the day the plan ends",
           "7 days before going offline",
           "1 day before going offline"
         ],
-        "status": "offer terms from 2026-09-26.1; server enforcement and the warning emails are not yet released; the terms still need legal review"
+        "status": "offer terms from 2026-09-26.1, the extension from 2026-09-26.2; server enforcement (including keeping extended walkthroughs online) and the warning emails are not yet released; the terms still need legal review"
       },
       "listingExports": {
         "included": true,
@@ -132,6 +146,7 @@
     ]
   },
   "services": {
+    "hostingPerWalkthroughPerFurtherYearAud": 49,
     "editingPerHourAud": 120
   },
   "counting": {
@@ -187,10 +202,9 @@
   },
   "retiredServices": {
     "items": {
-      "hostingPerWalkthroughPerFurtherYearAud": 49,
       "hostingMinimumMonthsAfterRelease": 12
     },
-    "rule": "not sold to new buyers from offer 2026-09-26.1: nothing keeps a walkthrough online without a plan, and the 12-month minimum after release is replaced by 14 days after the plan ends (freeMonths.hostingDaysAfterPlanEnds); no customer bought either before it was retired"
+    "rule": "not sold to new buyers from offer 2026-09-26.1: the 12-month minimum after release is replaced by 14 days after the plan ends (freeMonths.hostingDaysAfterPlanEnds); no customer had it. The A$49 hosting extension, retired by 2026-09-26.1, is sold again from 2026-09-26.2 in a new role (plans[0].hosting.extension; services.hostingPerWalkthroughPerFurtherYearAud)"
   },
   "packs": [
     {
@@ -274,6 +288,12 @@
       "replacedBy": "2026-09-26.1",
       "on": "2026-09-26",
       "change": "hosting follows the plan: live while a plan is active, offline 14 days after it ends (was: at least 12 months after release, then A$49 per tour per further year on request); listing exports (16:9 and 9:16 MP4 videos, stills) stated as included in the plan; prices, allowances, packs and every other term unchanged"
+    },
+    {
+      "version": "2026-09-26.1",
+      "replacedBy": "2026-09-26.2",
+      "on": "2026-09-26",
+      "change": "the A$49 hosting extension is kept (owner decision 26 September 2026) in a new role: after the plan's 14 days, a paid extension keeps one walkthrough online until the extension ends, A$49 a year per walkthrough, on request, by studio invoice recorded from the studio desk (website card purchase not built; never sold or mentioned in the app); hosting while a plan runs, the 14 days, listing exports and every price unchanged"
     }
   ]
 }

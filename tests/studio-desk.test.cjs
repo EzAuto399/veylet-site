@@ -361,6 +361,7 @@ async function load(options = {}) {
     dataRows: () => body().filter(el => el.className === 'studio-row'),
     formFor: index => body()[index * 2 + 1].all().find(el => el.tagName === 'FORM'),
     hostedRows: () => ids['studio-hosted-rows'].children.filter(el => el.className === 'studio-row'),
+    extensionFor: index => ids['studio-hosted-rows'].children[index * 2 + 1].all().find(el => el.tagName === 'FORM'),
     invoiceFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-invoice-form')),
     grantFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-grant-form')),
     referralFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-referral-form')),
@@ -1678,8 +1679,9 @@ test('every reference field carries a pattern the browser can compile, matching 
   const h = await load({ accounts: foundingRow(), hosted: [hostedRow('aaaaaaaa-0001', 'Harbour loft', 'ended', 20)] });
   const invoiceFields = fieldsOf(h.invoiceFormFor(0));
   const references = [invoiceFields.agreement_id, invoiceFields.settlement_id, invoiceFields.receipt_key,
-    fieldsOf(h.grantFormFor(0)).grant_reference, fieldsOf(h.referralFormFor(0)).referral_reference];
-  assert.equal(references.length, 5);
+    fieldsOf(h.grantFormFor(0)).grant_reference, fieldsOf(h.referralFormFor(0)).referral_reference,
+    h.extensionFor(0).all().find(el => el.type === 'text')];
+  assert.equal(references.length, 6);
   for (const input of references) {
     // Browsers compile pattern attributes with the v flag; an invalid one switches the check off.
     const compiled = new RegExp('^(?:' + input.pattern + ')$', 'v');
@@ -1691,9 +1693,11 @@ test('every reference field carries a pattern the browser can compile, matching 
 });
 
 /* ---- Hosted walkthroughs ----------------------------------------------
- * Offer 2026-09-26.1: released walkthroughs and whether a plan keeps them live,
- * those without an active plan first; read-only (no paid extension), and a
- * failed lookup is never read as an empty list.
+ * Offer 2026-09-26.2: released walkthroughs and whether a plan keeps them live,
+ * those without an active plan first. The one write records a paid hosting
+ * extension (after the plan's 14 days it keeps one walkthrough online until it
+ * ends): it can only move a date later, keeps what was typed when it is
+ * refused, and a failed lookup is never read as an empty list.
  */
 const DAY = 86400000;
 const inDays = days => new Date(Date.now() + days * DAY).toISOString();
@@ -1725,25 +1729,42 @@ test('hosted walkthroughs list those without an active plan first, each with its
   assert.equal(dueBadge(rows[0]).textContent, 'No active plan');
   const old = hostedTours()[2];
   const cells = rows[0].children.slice(1).map(el => el.textContent);
-  assert.deepEqual(cells, ['Off', brisbaneDay(old.released_at), 'Ended', OFFLINE_RULE]);
+  assert.deepEqual(cells, ['Off', brisbaneDay(old.released_at), 'Ended', OFFLINE_RULE, '—']);
   assert.deepEqual(rows.map(row => row.children[3].textContent), ['Ended', 'Ended', 'Not started', 'Active', 'Free months']);
   assert.deepEqual(rows.map(row => row.children[4].textContent),
     [OFFLINE_RULE, OFFLINE_RULE, OFFLINE_RULE, 'Live while the plan is active', 'Live while the plan is active']);
   assert.equal(rows[0].children[0].children[1].textContent, 'Walkthrough cccccccc');
   assert.equal(h.ids['studio-hosted-table'].attributes['aria-busy'], 'false');
+  // The row and its disclosure name the same walkthrough.
+  const summary = h.ids['studio-hosted-rows'].children[1].all().find(el => el.tagName === 'SUMMARY');
+  assert.equal(summary.textContent, 'Record extension · Old showroom');
 });
 
-test('hosted walkthroughs sell no extension: no form, no extension call, no 12-month or paid-hosting wording', async () => {
-  const h = await load({ hosted: hostedTours() });
-  const body = h.ids['studio-hosted-rows'];
-  assert.equal(body.children.length, 5, 'one row per walkthrough, no form rows');
-  assert.equal(body.all().some(el => ['FORM', 'DETAILS', 'INPUT', 'BUTTON'].includes(el.tagName)), false);
-  assert.equal(h.calls.some(([name]) => name === 'studio_record_hosting_extension'), false);
-  assert.doesNotMatch(script, /studio_record_hosting_extension|Record extension|twelve months after their release/);
+test('the hosted section states the plan rule and the paid extension, with no 12-month term or price', async () => {
   const section = markup.slice(markup.indexOf('id="studio-hosted"'), markup.indexOf('</section>', markup.indexOf('id="studio-hosted"')));
-  assert.match(section.replace(/\s+/g, ' '), /When the plan ends, its links, embeds and QR codes stay up 14 days, then go offline; restarting the plan brings the same links back at once\. There is no paid extension\./);
-  assert.doesNotMatch(section, /Guaranteed until|Extended until|Record extension|A\$49/);
-  assert.deepEqual([...section.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map(match => match[1]), ['Walkthrough', 'Sharing', 'Released', 'Plan', 'Hosting']);
+  const flat = section.replace(/\s+/g, ' ');
+  assert.match(flat, /When the plan ends, its links, embeds and QR codes stay up 14 days, then go offline; restarting the plan brings the same links back at once\. After that, only a paid hosting extension keeps a single walkthrough online, until the extension ends\./);
+  assert.match(flat, /record it here once the invoice is paid/);
+  assert.doesNotMatch(section, /Guaranteed until|A\$49|no paid extension/i);
+  assert.doesNotMatch(script, /twelve months after their release|Guaranteed until/);
+  assert.deepEqual([...section.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map(match => match[1]),
+    ['Walkthrough', 'Sharing', 'Released', 'Plan', 'Hosting', 'Extended until']);
+  const h = await load({ hosted: hostedTours() });
+  assert.equal(h.ids['studio-hosted-rows'].children.length, 10, 'each walkthrough row is followed by its extension form row');
+  assert.match(h.extensionFor(0).all().find(el => el.className === 'studio-field-note studio-extension-note').textContent,
+    /keeps this one walkthrough online after the plan's 14 days, until the date you enter\. Record it only after the invoice is paid\./);
+});
+
+test('a recorded extension keeps a walkthrough without a plan online until it ends', async () => {
+  const extendedTo = inDays(200);
+  const h = await load({ hosted: [hostedRow('bbbbbbbb-0002', 'Corner clinic', 'ended', 30, { extended_until: extendedTo }),
+    hostedRow('cccccccc-0003', 'Old showroom', 'ended', -10, { extended_until: inDays(-5) }),
+    hostedRow('aaaaaaaa-0001', 'Harbour loft', 'active', 20, { extended_until: extendedTo })] });
+  const rows = h.hostedRows();
+  const hosting = Object.fromEntries(rows.map(row => [hostedName(row), [row.children[4].textContent, row.children[5].textContent]]));
+  assert.deepEqual(hosting['Corner clinic'], ['Kept online by a hosting extension until ' + brisbaneDay(extendedTo), brisbaneDay(extendedTo)]);
+  assert.deepEqual(hosting['Old showroom'], [OFFLINE_RULE, brisbaneDay(inDays(-5))], 'an ended extension keeps nothing online');
+  assert.equal(hosting['Harbour loft'][0], 'Live while the plan is active');
 });
 
 test('hosted dates print the Brisbane day with a fixed month', async () => {
@@ -1751,6 +1772,76 @@ test('hosted dates print the Brisbane day with a fixed month', async () => {
     { released_at: '2026-09-22T15:30:00Z', guaranteed_until: '2027-09-22T15:30:00Z', hosted_until: '2027-09-22T15:30:00Z' })] });
   const cells = h.hostedRows()[0].children.map(el => el.textContent);
   assert.equal(cells[2], '23 Sep 2026');
+});
+
+test('recording an extension sends the date and reference, then repaints that row', async () => {
+  const target = hostedTours()[1];
+  const newEnd = new Date(Date.now() + 365 * DAY).toISOString().slice(0, 10);
+  const h = await load({ hosted: hostedTours(), rpc: { studio_record_hosting_extension: async args => ({ data: [{ ...target,
+    extended_until: args.p_extended_until, hosted_until: args.p_extended_until }] }) } });
+  const index = h.hostedRows().map(hostedName).indexOf('Corner clinic');
+  const form = h.extensionFor(index);
+  const date = form.all().find(el => el.type === 'date'), reference = form.all().find(el => el.type === 'text');
+  date.value = newEnd; reference.value = 'INV-2027-014';
+  await form.fire('submit');
+  const call = h.calls.find(([name]) => name === 'studio_record_hosting_extension');
+  assert.deepEqual({ ...call[1] }, { p_tour_id: target.tour_id, p_extended_until: new Date(newEnd + 'T00:00:00+10:00').toISOString(), p_reference: 'INV-2027-014' });
+  assert.match(h.confirms[0], /^Record a paid hosting extension for Corner clinic until .*It keeps this walkthrough online after the plan's 14 days, until that date\./);
+  const row = h.hostedRows()[index];
+  const shown = brisbaneDay(newEnd + 'T00:00:00+10:00');
+  assert.equal(row.children[5].textContent, shown);
+  assert.equal(row.children[4].textContent, 'Kept online by a hosting extension until ' + shown);
+  assert.equal(shown.split(' ')[0], String(Number(newEnd.slice(8))), 'the day typed is the day shown');
+  const result = form.all().find(el => el.className === 'studio-result');
+  assert.equal(result.textContent, 'Recorded: Corner clinic kept online until ' + shown + '.');
+  assert.equal(h.ids['studio-status'].textContent, result.textContent);
+  assert.equal(date.value, ''); assert.equal(reference.value, '');
+});
+
+test('a refused extension shows the server reason and keeps what was typed', async () => {
+  const h = await load({ hosted: hostedTours(), rpc: { studio_record_hosting_extension: async () => ({ error: { code: 'P0001', message: 'An extension can only move the hosting date later.' } }) } });
+  const form = h.extensionFor(1);
+  const date = form.all().find(el => el.type === 'date'), reference = form.all().find(el => el.type === 'text');
+  date.value = new Date(Date.now() + 900 * DAY).toISOString().slice(0, 10); reference.value = 'AGR-77';
+  const typed = date.value;
+  await form.fire('submit');
+  const result = form.all().find(el => el.className === 'studio-result');
+  assert.equal(result.textContent, 'Not recorded: An extension can only move the hosting date later.');
+  assert.equal(date.value, typed); assert.equal(reference.value, 'AGR-77');
+  assert.equal(form.all().find(el => el.type === 'submit').disabled, false);
+  assert.equal(h.hostedRows()[1].children[5].textContent, '—', 'the row is unchanged');
+  // A lost request is not called a rejection.
+  const lost = await load({ hosted: hostedTours(), rpc: { studio_record_hosting_extension: async () => { throw new Error('network'); } } });
+  const lostForm = lost.extensionFor(1);
+  lostForm.all().find(el => el.type === 'date').value = typed; lostForm.all().find(el => el.type === 'text').value = 'AGR-77';
+  await lostForm.fire('submit');
+  assert.match(lostForm.all().find(el => el.className === 'studio-result').textContent, /^The extension was not confirmed/);
+});
+
+test('an extension that would not move the date later, lacks a reference or is declined sends nothing', async () => {
+  const h = await load({ hosted: [hostedRow('bbbbbbbb-0002', 'Corner clinic', 'ended', 30, { extended_until: inDays(100) })], confirm: false });
+  const form = h.extensionFor(0);
+  const date = form.all().find(el => el.type === 'date'), reference = form.all().find(el => el.type === 'text');
+  const result = () => form.all().find(el => el.className === 'studio-result').textContent;
+  date.value = new Date(Date.now() - 400 * DAY).toISOString().slice(0, 10); reference.value = 'INV-1';
+  await form.fire('submit');
+  assert.match(result(), /An extension can only move the date later/);
+  // Not after the extension already recorded.
+  date.value = new Date(Date.now() + 50 * DAY).toISOString().slice(0, 10);
+  await form.fire('submit');
+  assert.match(result(), /^Choose a date after .*An extension can only move the date later/);
+  date.value = new Date(Date.now() + 900 * DAY).toISOString().slice(0, 10); reference.value = 'a';
+  await form.fire('submit');
+  assert.match(result(), /paid invoice reference/);
+  reference.value = 'INV-2027-014';
+  await form.fire('submit');
+  assert.equal(result(), 'Left unchanged.');
+  assert.equal(h.calls.some(([name]) => name === 'studio_record_hosting_extension'), false);
+  const noConfirm = await load({ hosted: hostedTours(), noConfirm: true });
+  const other = noConfirm.extensionFor(1);
+  other.all().find(el => el.type === 'date').value = date.value; other.all().find(el => el.type === 'text').value = 'INV-2027-014';
+  await other.fire('submit');
+  assert.equal(noConfirm.calls.some(([name]) => name === 'studio_record_hosting_extension'), false);
 });
 
 test('an empty, failed or pending hosted list says which it is', async () => {

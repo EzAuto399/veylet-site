@@ -4,8 +4,8 @@
  * walkthroughs waiting on us. Everything here is a read except a few deliberate
  * writes, each recording a decision the account has already agreed to: Set
  * plan, a settled invoice (the Veylet plan or a walkthrough pack), a referral
- * grant, a founding referral grant and a correction recorded against the
- * walkthrough it corrects. Marking a money exception resolved
+ * grant, a founding referral grant, a paid hosting extension and a correction
+ * recorded against the walkthrough it corrects. Marking a money exception resolved
  * records the reference of what a person already did; it moves no money. This
  * desk takes no payment, and an
  * unanswered check is reported as unavailable — never as "not a member" and
@@ -1291,20 +1291,24 @@
 
   /* ---- Hosted walkthroughs --------------------------------------------
    * Released walkthroughs and whether a plan keeps them live, those without an
-   * active plan first. Offer 2026-09-26.1: a walkthrough is live while its
+   * active plan first. Offer 2026-09-26.2: a walkthrough is live while its
    * office has an active plan (free months, monthly or annual); when the plan
    * ends its links, embeds and QR codes stay up 14 days, then go offline, and
-   * restarting the plan brings the same links back. There is no paid extension,
-   * so this list is read-only. Nothing here switches sharing off, and a failed
-   * lookup is never shown as an empty list.
+   * restarting the plan brings the same links back. After that, only a paid
+   * hosting extension (on request, invoiced) keeps that one walkthrough online,
+   * until the extension ends. The one write is studio_record_hosting_extension,
+   * recorded after the invoice is paid; the server lets it move a date later
+   * only and keeps an audit row. Nothing here switches sharing off, and a
+   * failed lookup is never shown as an empty list.
    */
   const hostedRowsEl = document.getElementById('studio-hosted-rows');
   const hostedTable = document.getElementById('studio-hosted-table');
-  const HOSTED_COLUMNS = 5;
+  const HOSTED_COLUMNS = 6;
   const HOSTED_DAYS_AFTER_PLAN = 14;
   const HOSTED_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   let hostedVersion = 0;
   let hosted = [];
+  const openExtensions = new Set();
 
   // The same Brisbane "23 Sep 2027" the account desk and the app print, with a
   // fixed month list so locale data ("Sept") cannot change it.
@@ -1327,6 +1331,11 @@
   // offline 14 days after the plan ends.
   function hostedDue(row) {
     return !['trial', 'active'].includes(row.plan_status);
+  }
+  // A recorded extension that has not ended yet keeps the walkthrough online after the plan's 14 days.
+  function hostedExtended(row, now = Date.now()) {
+    const until = moment(row.extended_until);
+    return until !== null && until > now;
   }
   function hostedOrder(rows) {
     const released = row => moment(row.released_at) ?? Number.MAX_SAFE_INTEGER;
@@ -1375,18 +1384,93 @@
     const releasedCell = cell(row, 'Released', 'studio-figure');
     const planCell = cell(row, 'Plan');
     const hostingCell = cell(row, 'Hosting');
-    nameText.textContent = start.property_title || 'Untitled space';
-    idText.textContent = 'Walkthrough ' + String(tourID || '').slice(0, 8);
-    const due = hostedDue(start);
-    badge.hidden = !due;
-    row.dataset.due = due ? 'true' : 'false';
-    sharingCell.textContent = start.sharing_on === true ? 'On' : start.sharing_on === false ? 'Off' : DASH;
-    releasedCell.textContent = hostedDate(start.released_at) || DASH;
-    planCell.textContent = STATUS_CHOICES[start.plan_status] || DASH;
-    hostingCell.textContent = due
-      ? 'Offline ' + HOSTED_DAYS_AFTER_PLAN + ' days after the plan ends; restarting the plan restores the link'
-      : 'Live while the plan is active';
-    return [row];
+    const extendedCell = cell(row, 'Extended until', 'studio-figure');
+
+    const formRow = element('tr', 'studio-plan-row');
+    const formCell = element('td'); formCell.setAttribute('colspan', String(HOSTED_COLUMNS)); formRow.append(formCell);
+    const details = element('details', 'studio-set-plan studio-extension');
+    details.open = openExtensions.has(tourID);
+    details.addEventListener('toggle', () => { if (details.open) openExtensions.add(tourID); else openExtensions.delete(tourID); });
+    const summary = element('summary');
+    const form = element('form', 'veylet-form studio-plan-form studio-extension-form');
+    const dateLabel = element('label', 'studio-inline-field', 'Extension ends (Brisbane date)');
+    const dateInput = document.createElement('input'); dateInput.type = 'date'; dateInput.required = true; dateInput.name = 'extended_until';
+    dateLabel.append(dateInput);
+    const refLabel = element('label', 'studio-inline-field', 'Paid invoice reference');
+    const refInput = document.createElement('input'); refInput.type = 'text'; refInput.required = true; refInput.name = 'reference';
+    referenceInput(refInput);
+    refLabel.append(refInput);
+    const note = element('p', 'studio-field-note studio-extension-note', 'A paid hosting extension keeps this one walkthrough online after the plan\'s ' + HOSTED_DAYS_AFTER_PLAN + ' days, until the date you enter. Record it only after the invoice is paid. Use an opaque reference, not a name, email or payment detail. An extension can only move the date later; the server keeps an audit row. No payment is taken here.');
+    const save = element('button', 'button', 'Record extension'); save.type = 'submit';
+    const result = element('span', 'studio-result'); result.setAttribute('role', 'status');
+    const saveRow = element('p', 'studio-save-row'); saveRow.append(save, result);
+    const noteRow = element('div', 'studio-extension-note-row'); noteRow.append(note);
+    form.append(dateLabel, refLabel, noteRow, saveRow);
+    details.append(summary, form); formCell.append(details);
+
+    let current = start;
+    function paint(next) {
+      current = next;
+      const title = next.property_title || 'Untitled space';
+      nameText.textContent = title;
+      idText.textContent = 'Walkthrough ' + String(tourID || '').slice(0, 8);
+      const due = hostedDue(next);
+      badge.hidden = !due;
+      row.dataset.due = due ? 'true' : 'false';
+      sharingCell.textContent = next.sharing_on === true ? 'On' : next.sharing_on === false ? 'Off' : DASH;
+      releasedCell.textContent = hostedDate(next.released_at) || DASH;
+      planCell.textContent = STATUS_CHOICES[next.plan_status] || DASH;
+      hostingCell.textContent = !due ? 'Live while the plan is active'
+        : hostedExtended(next) ? 'Kept online by a hosting extension until ' + hostedDate(next.extended_until)
+          : 'Offline ' + HOSTED_DAYS_AFTER_PLAN + ' days after the plan ends; restarting the plan restores the link';
+      extendedCell.textContent = hostedDate(next.extended_until) || DASH;
+      summary.textContent = 'Record extension · ' + title;
+    }
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      const day = String(dateInput.value || '').trim();
+      const reference = String(refInput.value || '').trim();
+      // The start of that day in Brisbane, so the desk prints back the date typed.
+      const until = /^\d{4}-\d{2}-\d{2}$/.test(day) ? new Date(day + 'T00:00:00+10:00') : null;
+      if (!until || Number.isNaN(until.getTime())) { result.textContent = 'Enter the date the paid extension ends.'; return; }
+      // Later than today and than any extension already recorded; the server has the last word.
+      const extended = moment(current.extended_until);
+      const floor = Math.max(Date.now(), extended ?? 0);
+      if (until.getTime() <= floor) {
+        result.textContent = 'Choose a date after ' + hostedDate(new Date(floor).toISOString()) + '. An extension can only move the date later.'; return;
+      }
+      if (!REFERENCE.test(reference)) { result.textContent = 'Enter the paid invoice reference (' + REFERENCE_FORMAT + ').'; return; }
+      const title = current.property_title || 'this walkthrough';
+      const question = 'Record a paid hosting extension for ' + title + ' until ' + hostedDate(until.toISOString()) + ' (reference ' + reference + ')? It keeps this walkthrough online after the plan\'s ' + HOSTED_DAYS_AFTER_PLAN + ' days, until that date. The date can only move later. No payment is taken here.';
+      if (typeof confirm !== 'function' || !confirm(question)) { result.textContent = 'Left unchanged.'; return; }
+      const version = hostedVersion;
+      save.disabled = true;
+      result.textContent = 'Recording the extension…';
+      const reply = await settled(client.rpc('studio_record_hosting_extension',
+        { p_tour_id: tourID, p_extended_until: until.toISOString(), p_reference: reference }));
+      if (version !== hostedVersion) return;
+      save.disabled = false;
+      const updated = failed(reply) ? null : firstRow(reply.value?.data);
+      if (!updated || updated.tour_id !== tourID || moment(updated.extended_until) === null) {
+        // The typed date and reference stay, so a retry sends the same intent.
+        // Only an answer from the server is a rejection; a lost request is unknown.
+        const said = reply.value?.error;
+        const reason = said && typeof said.message === 'string' && said.message.trim() ? said.message.trim() : '';
+        result.textContent = reason ? 'Not recorded: ' + reason
+          : 'The extension was not confirmed. Refresh and check this walkthrough before recording it again.';
+        return;
+      }
+      const merged = { ...current, ...updated };
+      const index = hosted.findIndex(item => item.tour_id === tourID);
+      if (index >= 0) hosted[index] = merged;
+      paint(merged);
+      dateInput.value = ''; refInput.value = '';
+      const said = 'Recorded: ' + title + ' kept online until ' + hostedDate(merged.extended_until) + '.';
+      result.textContent = said; setStatus(said);
+    });
+    paint(start);
+    return [row, formRow];
   }
   async function loadHosted() {
     if (!hostedRowsEl) return;
