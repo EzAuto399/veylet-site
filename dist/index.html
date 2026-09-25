@@ -40,7 +40,7 @@
     <link rel="icon" href="media/studio-avatar.png" />
     <link rel="preload" href="/media/Outfit-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/media/Outfit-500.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/media/illus-hero-room-900.webp" as="image" type="image/webp" imagesrcset="/media/illus-hero-room-900.webp 900w, /media/illus-hero-room.webp 1600w" imagesizes="(max-width: 800px) 90vw, 40vw" fetchpriority="high" />
+    <link rel="preload" href="/media/illus-hero-room-900.webp" as="image" type="image/webp" imagesrcset="/media/illus-hero-room-900.webp 900w, /media/illus-hero-room.webp 1600w" imagesizes="(max-width: 800px) 300px, 40vw" fetchpriority="high" />
     <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
     <link rel="stylesheet" href="/conversion.css?v=8d4c2655506ee01d" />
     <link rel="stylesheet" href="/refinement.css?v=083480b884c1b54e" />
@@ -101,7 +101,7 @@
             "name": "What does a walkthrough cost?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "3 free months from the day you activate the plan, with 6 accepted walkthroughs included across them; the first charge is on the day they end, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$99 a month by card or studio invoice, or A$119.99 a month in the App Store, with 2 accepted walkthroughs a month; unused ones roll over, up to 4 banked. Annual is A$990 a year by card or studio invoice (2 months free), or A$1,199.99 a year in the App Store, with 24 walkthroughs to use any time in the plan year. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year. An enquiry is free and does not reserve a booking."
+              "text": "3 free months from the day you activate the plan, with 6 accepted walkthroughs included across them; the first charge is on the day they end, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$99 a month by card or studio invoice, or A$119.99 a month in the App Store, with 2 accepted walkthroughs a month; unused ones roll over, up to 4 banked. Annual is A$990 a year by card or studio invoice (2 months free), or A$1,199.99 a year in the App Store, with 24 walkthroughs to use any time in the plan year. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while fast GPUs are starting quickly. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year. An enquiry is free and does not reserve a booking."
             }
           },
           {
@@ -117,7 +117,7 @@
             "name": "Does applying create an account or take payment?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Apply and request do not create an account and take no payment. New accounts are by invitation for now; invited accounts sign in with the email they were invited with. You can request a walkthrough without an account."
+              "text": "No. Apply and request do not create an account and take no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with. You can request a walkthrough without an account."
             }
           },
           {
@@ -161,9 +161,9 @@
             automatically and host the link. Your viewers open it in a browser, with no app to
             install.
           </p>
-          <p class="hero-note hero-stage"><strong data-launch-label>By invitation</strong></p>
+          <p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly</strong></p>
           <div class="hero-actions" data-hero-actions>
-            <a class="button" href="/request?capture=self" data-launch-cta>Ask for an invitation</a
+            <a class="button" href="/waitlist" data-launch-cta>Join the waitlist</a
             ><a class="button button-ghost" href="/offer">See the offer and prices</a>
           </div>
           <p class="hero-note">
@@ -176,13 +176,12 @@
         <figure class="product-stage" data-product-stage>
           <div class="stage-frame">
             <div class="stage-photo">
-              <picture><source srcset="/media/illus-hero-room-900.webp 900w, /media/illus-hero-room.webp 1600w" sizes="(max-width: 800px) 90vw, 40vw" type="image/webp" /><img
+              <picture><source srcset="/media/illus-hero-room-900.webp 900w, /media/illus-hero-room.webp 1600w" sizes="(max-width: 800px) 300px, 40vw" type="image/webp" /><img
                 src="/media/illus-hero-room.jpg"
                 alt="Illustration: a light-filled living room opening through a wide doorway into a kitchen."
                 width="1600"
                 height="1067"
                 fetchpriority="high"
-                decoding="async"
               /></picture>
             </div>
             <div class="stage-phone device" aria-hidden="true">
@@ -216,7 +215,7 @@
         <dl class="conversion-benefits">
           <div><dt>No camera to buy</dt><dd>Any iPhone 12 Pro or later Pro model captures; the app coaches you as you walk.</dd></div>
           <div><dt>Review before release</dt><dd>Check the result and privacy before approving the version to share.</dd></div>
-          <div><dt>A link and an embed</dt><dd>Hosted for twelve months after release, with a link and embed for approved sharing.</dd></div>
+          <div><dt>A link and an embed</dt><dd>Hosted while your plan is active, with a link and embed for approved sharing.</dd></div>
         </dl>
       </section>
 
@@ -282,7 +281,7 @@
         <div class="app-copy">
           <h2 id="app-title">The app, as it is today.</h2>
           <p>Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.</p>
-          <p class="fine">Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send the invitation after you enquire.</p>
+          <p class="fine">Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.</p>
         </div>
         <ol class="app-phones">
           <li><figure><div class="device"><div class="device-screen"><img src="/media/app-welcome.webp" alt="Veylet Capture sign-in screen: Capture it with your iPhone. We make it a walkthrough." width="660" height="1434" loading="lazy" decoding="async" /></div></div><figcaption>Sign in<small>A link to your email, no password.</small></figcaption></figure></li>
@@ -303,7 +302,7 @@
         <div class="faq-list">
         <details>
           <summary>What does a walkthrough cost?</summary>
-          <p>3 free months from the day you activate the plan, with 6 accepted walkthroughs included across them; the first charge is on the day they end, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$99 a month by card or studio invoice, or A$119.99 a month in the App Store, with 2 accepted walkthroughs a month; unused ones roll over, up to 4 banked. Annual is A$990 a year by card or studio invoice (2 months free), or A$1,199.99 a year in the App Store, with 24 walkthroughs to use any time in the plan year. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. <a href="/offer">The offer page</a> itemises your first year. An enquiry is free and does not reserve a booking.</p>
+          <p>3 free months from the day you activate the plan, with 6 accepted walkthroughs included across them; the first charge is on the day they end, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$99 a month by card or studio invoice, or A$119.99 a month in the App Store, with 2 accepted walkthroughs a month; unused ones roll over, up to 4 banked. Annual is A$990 a year by card or studio invoice (2 months free), or A$1,199.99 a year in the App Store, with 24 walkthroughs to use any time in the plan year. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while fast GPUs are starting quickly. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. <a href="/offer">The offer page</a> itemises your first year. An enquiry is free and does not reserve a booking.</p>
         </details>
         <details>
           <summary>Can I see a real customer example?</summary>
@@ -313,8 +312,8 @@
           <summary>Does applying create an account or take payment?</summary>
           <p>
             No. Apply and request do not create an account and take no payment.
-            New accounts are by invitation for now; invited accounts sign in
-            with the email they were invited with. You can request a
+            Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in
+            with the email they joined with. You can request a
             walkthrough without an account.
           </p>
         </details>
@@ -357,6 +356,6 @@
     <script src="/home-refinement.js?v=075fabb50280faf2" defer></script>
     <meta name="veylet-build" id="veylet-build" content="" />
     <script src="/app.js?v=95fe4bf239078c21" defer></script>
-    <script src="/stage.js?v=168dd75c5c219c89" defer></script>
+    <script src="/stage.js?v=bdc521b740f4b892" defer></script>
   </body>
 </html>

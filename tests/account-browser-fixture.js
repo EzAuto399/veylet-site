@@ -868,7 +868,10 @@
     checking: { state: 'studio_check', status: 'awaiting_review' },
     ready: { state: 'ready_for_review', status: 'awaiting_review', tour: true },
     live: { state: 'live', status: 'awaiting_review', tour: true },
-    recapture: { state: 'needs_recapture', status: 'awaiting_review', recapture: { room: 'Kitchen', reason: 'too dark to line up the photos' } },
+    // capture_recapture_reasons (20260926110000): an array of {room, reason, rule}, one per room the gate blocked.
+    recapture: { state: 'needs_recapture', status: 'awaiting_review', recapture: [
+      { room: 'Kitchen', reason: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.', rule: 'few_views' },
+      { room: 'Hallway', reason: 'We could not find a clear floor to walk on here. Recapture it, including the floor and doorways.', rule: 'no_floor' }] },
     retrying: { state: 'retrying', status: 'queued', attempt: 2, queue_position: 1, typical_start_minutes: 20 },
     failed: { state: 'failed', status: 'failed' },
     // No report for 5 minutes: the server's stale, with the step it last reported.
@@ -1492,6 +1495,24 @@
       if (name === 'get_tour_hosting') {
         if (scenario === 'hosting-errors') return { error: { message: 'Synthetic hosting dates unavailable' } };
         return { data: tours.filter(tour => !tour.superseded_at).map(hostingRow) };
+      }
+      // The member hosting read (20260926132000, draft): each tour's state. The ended venue's
+      // plan ended 5 days ago, so its walkthroughs go offline in 9 days (offline_on); with
+      // `?hosting-state=offline` it ended 20 days ago (offline 6 days ago), with `extension`
+      // the older live one is kept online by a hosting extension for 200 days, and `missing`
+      // answers PGRST202 (the desk then derives the state from plan_active).
+      if (name === 'get_tour_hosting_states') {
+        const hostingState = params.get('hosting-state');
+        if (hostingState === 'missing') return { error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_hosting_states' } };
+        const endedAt = Date.now() - (hostingState === 'offline' ? 20 : 5) * DAY;
+        const offlineAt = new Date(endedAt + 14 * DAY).toISOString();
+        return { data: tours.filter(tour => !tour.superseded_at).map(hostingRow).map(row => {
+          const active = row.plan_active;
+          const extended = hostingState === 'extension' && row.tour_id === 'synthetic-live-past' ? new Date(Date.now() + 200 * DAY).toISOString() : null;
+          const state = active ? 'live_with_plan' : extended ? 'live_with_extension' : Date.now() < Date.parse(offlineAt) ? 'offline_on' : 'offline';
+          return { tour_id: row.tour_id, property_id: row.property_id, state, offline_at: active ? null : extended || offlineAt,
+            extended_until: extended, sharing_on: row.sharing_on, share_paused: false, plan_active: active };
+        }) };
       }
       if (name === 'get_tour_review') return { data: [{ approved: approvedTours.has(args.p_tour_id) }] };
       if (name === 'get_tour_review_target') { const tour = tours.find(row => row.id === args.p_tour_id); return { data: tour ? [{ tour_id: tour.id, storage_path: tour.storage_path, package_revision: packageRevision() }] : [] }; }

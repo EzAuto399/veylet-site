@@ -512,6 +512,31 @@ test('render status: Recapture {room} opens that room’s steps in the app, in p
   assert.deepEqual(unnamed.filled(), ['Contact Veylet support']);
 });
 
+test('render status: the member read’s recapture ARRAY (capture_recapture_reasons) gives each room its line, its Recapture button and its fix link', async () => {
+  // 20260926110000: an array of {room, reason, rule?}, one per room the gate blocked; the single object is only an older row.
+  const recapture = [
+    { room: 'Kitchen', reason: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.', rule: 'few_views' },
+    { room: 'Hallway', reason: 'We could not find a clear floor to walk on here.', rule: 'no_floor' },
+    { room: null, reason: 'Something else the gate saw', rule: 'not-a-rule' },
+    { room: 'Kitchen', reason: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.', rule: 'few_views' },
+    { room: 'Garage', reason: '' }, 'junk',
+  ];
+  const h = await load({ status: [job({ ...JOBS.recapture, recapture })] });
+  assert.deepEqual(h.lines(), [
+    'Kitchen: Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot. Recapture this room; it won’t use a walkthrough.',
+    'Hallway: We could not find a clear floor to walk on here. Recapture this room; it won’t use a walkthrough.',
+    'Something else the gate saw. Recapture it; it won’t use a walkthrough.']);
+  assert.deepEqual(h.filled(), ['Recapture Kitchen'], 'the first room’s button is the filled one');
+  const buttons = h.slot().shown().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
+  assert.deepEqual(buttons, ['Recapture Kitchen', 'Recapture Hallway', 'Recapture Sample space']);
+  const help = h.slot().shown().filter(el => el.tagName === 'A' && /render-fix/.test(el.className)).map(el => [el.textContent, el.href]);
+  assert.deepEqual(help, [['How to fix this', '/help/fix/few_views'], ['How to fix this', '/help/fix/no_floor']], 'only a rule this page knows links out');
+  assert.doesNotMatch(h.slot().shown().map(el => el.textContent).join(' '), /Ask Veylet support what to capture/);
+  // An empty array reads as no reason at all.
+  const empty = await load({ status: [job({ ...JOBS.recapture, recapture: [] })] });
+  assert.deepEqual(empty.filled(), ['Contact Veylet support']);
+});
+
 test('render status: a space reads only what the answer said about it', async () => {
   // A state this page does not know says nothing rather than a guess.
   const unknown = await load({ status: [job({ state: 'teleporting' })] });

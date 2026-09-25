@@ -20,6 +20,8 @@ Hosting and sharing fixture cases (23 September 2026):
   term and past its guaranteed date), approved but not shared, sharing off after
   release, awaiting approval; builder chooser and Copy embed code on live cards.
 - `/__qa/account/?case=hosting-errors`: hosting dates fail; sharing still works.
+- `/__qa/account/` answers `get_tour_hosting_states`: the ended venue's walkthroughs read "Offline on {date}" (9 days away);
+  `?hosting-state=offline` (offline 6 days ago), `extension` (the older one kept online by a hosting extension) or `missing`.
 - `/__qa/studio/`: Hosted walkthroughs, due soon first, Record extension
   (`?studio=hosted-empty`, `?studio=hosted-errors`).
 

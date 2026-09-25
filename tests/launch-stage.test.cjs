@@ -47,19 +47,19 @@ function fakePage() {
   return { doc, label, cta, icon, account, root };
 }
 
-test('the stage is one line, window.VEYLET_STAGE, and it is invitation', () => {
+test('the stage is one line, window.VEYLET_STAGE, and it is open (offer 2026-09-26.3: open to anyone, admitted weekly)', () => {
   const lines = source.split('\n').filter(line => /VEYLET_STAGE\s*=/.test(line));
-  assert.deepEqual(lines, ["window.VEYLET_STAGE = 'invitation';"]);
+  assert.deepEqual(lines, ["window.VEYLET_STAGE = 'open';"]);
   const window = load();
-  assert.equal(window.VEYLET_STAGE, 'invitation');
-  assert.equal(window.VeyletStage.DEFAULT, 'invitation');
+  assert.equal(window.VEYLET_STAGE, 'open');
+  assert.equal(window.VeyletStage.DEFAULT, 'open');
   assert.deepEqual(Object.keys(window.VeyletStage.STAGES), ['test', 'invitation', 'waitlist', 'open']);
-  assert.equal(window.VeyletStage.resolve(window.VEYLET_STAGE), 'invitation');
+  assert.equal(window.VeyletStage.resolve(window.VEYLET_STAGE), 'open');
 });
 
 test('each page loads stage.js and its markup already reads as the default stage', () => {
   const { STAGES } = load().VeyletStage;
-  const words = STAGES.invitation;
+  const words = STAGES.open;
   for (const page of PAGES) {
     const html = read(page);
     assert.match(html, /<script src="\/stage\.js(\?v=[a-f\d]{16})?" defer><\/script>/, page);
@@ -119,12 +119,13 @@ test('test stage says Limited test with no sign-up link; open admits weekly from
   const open = fakePage();
   apply(open.doc, 'open');
   assert.deepEqual([open.label.textContent, open.cta.textContent.trim(), open.cta.getAttribute('href'), open.cta.hidden],
-    ['New accounts weekly', 'Join the waitlist', '/waitlist', false]);
-  assert.match(open.account.textContent, /weekly groups from the waitlist/);
+    ['Open to anyone, admitted weekly', 'Join the waitlist', '/waitlist', false]);
+  assert.match(open.account.textContent, /^Anyone can join\. New accounts are admitted in weekly groups from the waitlist\./);
+  assert.doesNotMatch(open.label.textContent + open.account.textContent, /invitation|Start free/i);
 
   const typo = fakePage();
-  assert.equal(apply(typo.doc, 'opne'), 'invitation');
-  assert.equal(typo.cta.textContent.trim(), 'Ask for an invitation');
+  assert.equal(apply(typo.doc, 'opne'), 'open');
+  assert.equal(typo.cta.textContent.trim(), 'Join the waitlist');
 });
 
 test('sign-in stays at every stage: the email-link form is markup the stage script never touches', () => {

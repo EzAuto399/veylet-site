@@ -220,6 +220,13 @@
   body.has-agent-bar {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
+  /* The bar carries Call and Email; the card keeps who shared it (name, agency, details). */
+  body.has-agent-bar .agent-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body.has-agent-bar .agent-card .agent-actions {
+    display: none;
+  }
 }
 .agent-bar-name {
   flex: 1 1 auto;

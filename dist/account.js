@@ -377,7 +377,14 @@
     return window.VeyletSharing?.hostingState?.(row, now, deskPlanEndedAt)?.state || null;
   }
   // Offline: the plan ended more than 14 days ago. The card keeps its controls.
-  function hostingEnded(row, now = Date.now()) { return hostingPhase(row, now) === 'offline'; }
+  // A shared walkthrough's chip: Live, "Offline on {date}" once the plan has ended and its
+  // offline day is known (never a green Live then), or Offline.
+  function hostingChip(row, now = Date.now()) {
+    const state = row && typeof row === 'object' && row.released_at ? window.VeyletSharing?.hostingState?.(row, now, deskPlanEndedAt) : null;
+    if (state?.state === 'offline') return { label: 'Offline', tone: 'quiet' };
+    const day = state?.state === 'offline_on' && state.date ? window.VeyletSharing.hostingDate(state.date) : '';
+    return day ? { label: 'Offline on ' + day, tone: 'busy' } : { label: 'Live', tone: 'good' };
+  }
   // One state chip per walkthrough, first in its row. A later answer (its review)
   // replaces it; a space's render status that already says the same words hides it.
   function tourChip(tour, text, tone) {
@@ -412,7 +419,7 @@
     // one without a link waits for its review answer before it says anything.
     let state = null;
     if (tour.status === 'ready' && sharePaused(tour)) state = { label: 'Paused', tone: 'quiet' };
-    else if (tour.status === 'ready' && tour.share_token) state = hostingEnded(hosting) ? { label: 'Offline', tone: 'quiet' } : { label: 'Live', tone: 'good' };
+    else if (tour.status === 'ready' && tour.share_token) state = hostingChip(hosting);
     else if (tour.status !== 'ready') state = TOUR_STATE[tour.status] || null;
     if (state) { const chip = pill(state.label, state.tone); chip.dataset.chip = 'state'; wrap.append(chip); tourChips.get(tour.id).chip = chip; }
     if (revisionOf(tour) > 1) wrap.append(pill('Correction', 'quiet'));
@@ -2059,7 +2066,9 @@
       const { tour, hosting, line } = entry;
       line.textContent = hostingWords(hosting, true);
       hostingFixSync(entry);
-      if (hostingEnded(hosting) && tourChips.get(tour.id)?.chip?.textContent === 'Live') tourChip(tour, 'Offline', 'quiet');
+      const chip = tourChips.get(tour.id)?.chip?.textContent;
+      const next = hostingChip(hosting);
+      if (chip && (chip === 'Live' || chip.startsWith('Offline')) && chip !== next.label) tourChip(tour, next.label, next.tone);
     }
   }
   // The office's line once the plan has ended: how many live walkthroughs go offline, and when.
@@ -2319,7 +2328,7 @@
       if (cap.can_accept) {
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new walkthrough you approve uses one, even another of the same property; saving a space, a failed capture or a correction uses none.' + counting;
+          'Each new walkthrough you approve uses one per 8 rooms (counted automatically); a correction of the same walkthrough, a recapture of the rooms the check names, saving a space or a failed capture uses none.' + counting;
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
@@ -5514,11 +5523,24 @@
     const hours = Math.floor(minutes / 60), rest = minutes % 60;
     return hours + (hours === 1 ? ' hour' : ' hours') + (rest ? ' ' + renderMinutes(rest) : '');
   }
-  // The server's one room and plain reason (recapture_room may be empty; the reason is its customer_hint).
+  // The rooms to capture again, each with its plain reason and the gate rule that named it:
+  // capture_recapture_reasons (20260926110000) answers an ARRAY of {room, reason, rule?}
+  // (room may be null; rule is present when the gate report names one). An older row
+  // answers one {room, reason} object, which reads as a list of one. Up to 12 rooms, each once.
+  const RENDER_FIX_RULES = ['ai_visual', 'coverage', 'few_views', 'floaters', 'no_depth', 'no_floor', 'no_frames', 'not_connected',
+    'not_property', 'phone_budget', 'photo_match', 'upload_limits'];
   function renderRooms(value) {
-    if (!value || typeof value !== 'object' || typeof value.reason !== 'string' || !value.reason.trim() || value.reason.length > 240) return [];
-    const room = typeof value.room === 'string' && value.room.trim() && value.room.length <= 80 ? value.room.trim() : null;
-    return [{ room, reason: value.reason.trim().replace(/[.\s]+$/, '') }];
+    const entries = Array.isArray(value) ? value.slice(0, 12) : value ? [value] : [];
+    const rooms = [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== 'object' || typeof entry.reason !== 'string' || !entry.reason.trim() || entry.reason.length > 240) continue;
+      const room = typeof entry.room === 'string' && entry.room.trim() && entry.room.length <= 80 ? entry.room.trim() : null;
+      const rule = RENDER_FIX_RULES.includes(entry.rule) ? entry.rule : null;
+      const reason = entry.reason.trim().replace(/[.\s]+$/, '');
+      if (rooms.some(other => other.room === room && other.reason === reason)) continue;
+      rooms.push({ room, reason, rule });
+    }
+    return rooms;
   }
   /*
    * Why a queued capture waits (migration 20260926110000, hold): admission (the account
@@ -5721,6 +5743,12 @@
     open.setAttribute('aria-expanded', String(!how.hidden)); open.setAttribute('aria-controls', how.id);
     open.dataset.control = 'recapture-' + index;
     const actions = annualNode('p', 'render-actions'); actions.append(open);
+    // The gate rule's own help: what went wrong and how to capture it better.
+    if (room.rule) {
+      const help = document.createElement('a'); help.className = 'text-link render-fix';
+      help.href = (APP_MODE ? '/app/help/fix/' : '/help/fix/') + room.rule; help.textContent = 'How to fix this';
+      help.dataset.control = 'recapture-help-' + index; actions.append(help);
+    }
     item.append(actions, how);
     return item;
   }

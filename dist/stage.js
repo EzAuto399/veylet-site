@@ -6,18 +6,18 @@
  *   test        stage 0   "Limited test"; no sign-up link
  *   invitation  stage 1   "By invitation"; Ask for an invitation (the enquiry, which brings the app invitation)
  *   waitlist    stage 2   "By invitation"; Join the waitlist
- *   open        stages 3-4  new accounts in weekly groups from the waitlist
+ *   open        stages 3-4  open to anyone (offer 2026-09-26.3): new accounts admitted in weekly groups from the waitlist
  *
  * Sign-in is never removed: /account signs in existing and invited accounts at every stage.
  * The pages carry the default stage's words in their markup (tests/stage.test.cjs checks
  * they match), so without JavaScript, or before this runs, a page reads as the default.
  */
-window.VEYLET_STAGE = 'invitation';
+window.VEYLET_STAGE = 'open';
 
 (function () {
   'use strict';
 
-  var DEFAULT = 'invitation';
+  var DEFAULT = 'open';
   var INVITATION = { text: 'Ask for an invitation', href: '/request?capture=self' };
   var WAITLIST = { text: 'Join the waitlist', href: '/waitlist' };
   var INVITED = 'New accounts are by invitation for now. Invited? Sign in with the email we invited.';
@@ -32,9 +32,9 @@ window.VEYLET_STAGE = 'invitation';
     invitation: { label: 'By invitation', cta: INVITATION, account: INVITED, accountLink: INVITATION },
     waitlist: { label: 'By invitation', cta: WAITLIST, account: INVITED, accountLink: WAITLIST },
     open: {
-      label: 'New accounts weekly',
+      label: 'Open to anyone, admitted weekly',
       cta: WAITLIST,
-      account: 'New accounts open in weekly groups from the waitlist. Admitted? Sign in with the email you joined with.',
+      account: 'Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with.',
       accountLink: WAITLIST,
     },
   };

@@ -1380,7 +1380,7 @@ test('verified acceptance capacity distinguishes included units from pack and ex
     { accepted_in_free_months: 8 });
   assert.match(capacityText(h), /0 included walkthroughs remaining · 2 extra walkthroughs available/);
   assert.match(capacityText(h), /next new walkthrough uses one extra walkthrough, the one that expires first/);
-  assert.match(capacityText(h), /Each new walkthrough you approve uses one, even another of the same property; saving a space, a failed capture or a correction uses none\./);
+  assert.match(capacityText(h), /Each new walkthrough you approve uses one per 8 rooms \(counted automatically\); a correction of the same walkthrough, a recapture of the rooms the check names, saving a space or a failed capture uses none\./);
   assert.ok(planValues(h).includes('6 of 6 included accepted'));
   assert.ok(planValues(h).includes('2 available'), 'the Extra walkthroughs row states the ledger’s count');
   assert.match(planText(h), /6 of 6 included free walkthroughs used/);
@@ -1546,7 +1546,9 @@ test('each hosting situation reads its own line on the card', async () => {
   const grace = await withPlan({ status: 'ended', current_period_ends_at: recent, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
   assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.');
   assert.ok(planText(grace).includes('Your plan has ended. 1 live walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.'));
-  assert.ok(grace.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
+  // An ended plan never shows a green Live: the chip names the offline day once it is known.
+  assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on ' + offlineDay(recent)), 'the chip follows once the plan answers');
+  assert.equal(grace.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'), false);
   // Once the plan's answer says the plan ended, the card's fix shows: the filled restart and the extension request.
   assert.equal(extensionFix(grace).hidden, false);
   const offline = await withPlan({ status: 'ended', current_period_ends_at: long, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
@@ -1571,7 +1573,10 @@ test('each hosting situation reads its own line on the card', async () => {
     const mail = decodeURIComponent(fix.children[1].href);
     assert.ok(mail.startsWith('mailto:yoda@yodalai.xyz?subject=Veylet hosting extension · walkthrough t1'), mail);
     assert.match(mail, /Tour ID: t1\n/);
-    assert.equal(h.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'), extra.hosting_state !== 'offline', line);
+    const chip = h.all().find(el => el.dataset?.chip === 'state');
+    assert.deepEqual([chip.textContent, chip.className], {
+      live_with_plan: ['Live', 'pill pill-good'], offline_on: ['Offline on 10 Oct 2027', 'pill pill-busy'],
+      offline: ['Offline', 'pill pill-quiet'], live_with_extension: ['Live', 'pill pill-good'] }[extra.hosting_state], line);
   }
 });
 const extensionFix = h => h.all().find(el => el.className === 'tour-actions-row tour-hosting-fix');
@@ -1580,6 +1585,7 @@ test('the member hosting read (get_tour_hosting_states) chooses the words when t
   const states = rows => ({ get_tour_hosting_states: async () => ({ data: rows }) });
   const grace = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', property_id: 'p1', state: 'offline_on', offline_at: '2027-10-10T00:00:00Z', sharing_on: true, share_paused: false, plan_active: false }]) });
   assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on 10 Oct 2027'), 'offline_on: the chip names the day, never a green Live');
   const off = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'offline', offline_at: '2026-09-12T00:00:00Z', plan_active: false }]) });
   assert.equal(hostingText(off), 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.');
   assert.ok(off.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'));

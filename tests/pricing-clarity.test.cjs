@@ -131,7 +131,7 @@ test('current sales and onboarding copy cannot restore universal trial, a member
       `${file} leaves capture-quality assessment with the automatic check`);
     assert.doesNotMatch(current[file], /studio assess(?:es)? capture quality|(?<!no )person checks|checked by a person/i, `${file} puts a person back in the loop`);
   }
-  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers.*agreed studio trial/);
+  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers.*agreed invoiced start/);
   // Only the website annual is stated as months free, and only with the annual named beside it.
   for (const file of ['dist/offer/index.html', 'dist/index.html', 'dist/llms.txt']) {
     for (const match of current[file].matchAll(/[^.]*\b2 months free\b[^.]*/g)) {
