@@ -1500,13 +1500,16 @@ const byText = (h, text) => h.all().find(el => el.textContent === text);
 const radios = h => h.all().filter(el => el.tagName === 'INPUT' && el.type === 'radio');
 const stepsShown = h => h.all().filter(el => el.className === 'tour-builder-steps').flatMap(el => el.children.map(step => step.textContent));
 const fieldOf = (h, tag) => h.all().find(el => el.tagName === tag && el.className === 'copy-field');
+// The desk hands out the link and the embed code tagged with their channel (?src=).
+const taggedCode = token => share.embedCode(token).split('"' + share.embedUrl(token) + '"').join('"' + share.embedUrl(token) + '&src=embed"')
+  .split('"' + share.handoffUrl(token) + '"').join('"' + share.handoffUrl(token) + '&src=embed"');
 
 test('a live walkthrough shows Live, its hosting line, the link and the website steps', async () => {
   const h = await withHosting([hostingFor()], { tours: [liveTour] });
   assert.ok(h.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
   assert.equal(hostingText(h), 'Live while your plan is active. Guaranteed until 23 Sep 2027.');
   const link = fieldOf(h, 'INPUT');
-  assert.equal(link.value, share.handoffUrl(TOKEN));
+  assert.equal(link.value, share.handoffUrl(TOKEN) + '&src=link');
   assert.equal(link.readOnly, true);
   assert.ok(byText(h, 'Copy link'));
   assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN));
@@ -1516,7 +1519,7 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.ok(radios(h).every(el => el.name === 'builder-t1'));
   assert.deepEqual(stepsShown(h), [...share.builder('wordpress').steps]);
   const code = fieldOf(h, 'TEXTAREA');
-  assert.equal(code.value, share.embedCode(TOKEN));
+  assert.equal(code.value, taggedCode(TOKEN));
   assert.equal(code.readOnly, true);
   assert.ok(byText(h, 'Copy embed code'));
   assert.equal(byText(h, 'Full website guide').href, '/website-guide');
@@ -1594,7 +1597,7 @@ test('choosing a builder shows its steps and is remembered for the next visit', 
   wix.checked = true; await wix.fire('change');
   assert.deepEqual(stepsShown(h), [...share.builder('wix').steps]);
   assert.match(stepsShown(h).join(' '), /at least 320 pixels tall/);
-  assert.equal(fieldOf(h, 'TEXTAREA').value, share.embedCode(TOKEN), 'one code for every builder');
+  assert.equal(fieldOf(h, 'TEXTAREA').value, taggedCode(TOKEN), 'one code for every builder');
   const again = await withHosting([hostingFor()], { tours: [liveTour], localStorage });
   assert.deepEqual(radios(again).filter(el => el.checked).map(el => el.value), ['wix']);
   assert.deepEqual(stepsShown(again), [...share.builder('wix').steps]);

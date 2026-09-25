@@ -10,6 +10,20 @@
       name="description"
       content="Private Veylet walkthrough. Unlisted link, not a public gallery."
     />
+    <!-- Link preview card: one generic, static card for every shared walkthrough.
+         No og:url, so the link's token is never repeated in the markup. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Property walkthrough" />
+    <meta property="og:description" content="Walk through this property in 3D." />
+    <meta property="og:image" content="https://veylet.com/media/walkthrough-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A line drawing of a room, with a path of stops leading to a doorway." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Property walkthrough" />
+    <meta name="twitter:description" content="Walk through this property in 3D." />
+    <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
     <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
@@ -20,7 +34,7 @@
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
     <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
-    <script src="/client-page.js?v=87631c05c0ff3b65"></script>
+    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -104,6 +118,13 @@
       const page = window.VeyletClientPage;
       const token = new URLSearchParams(location.search).get('t') || '';
       page?.mountColumns(document, window);
+      // Views for the agent's desk: one first-party call per event, never in the way.
+      const beacon = token.length < 16 ? null : page?.viewBeacon?.({
+        config: window.VEYLET_SUPABASE,
+        token,
+        src: page.channelFrom(location.search, 'unknown'),
+        host: null,
+      });
 
       function sharedLabel(value) {
         if (!value) return '';
@@ -160,6 +181,7 @@
             }
             const title = row.space_title || 'Shared space';
             if (els.body) els.body.textContent = '';
+            beacon?.opened(window);
             // Truth line, Share, movement help and the agent card. The contact
             // lookup runs beside the walkthrough and never holds it up.
             page?.showWalkthrough({
@@ -170,6 +192,7 @@
               token,
               title,
               streamed: row.package_format_version === 2,
+              beacon,
             });
             return {
               storagePath: row.storage_path,

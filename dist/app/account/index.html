@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" data-app-mode="true">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Account — Veylet</title>
+    <meta name="description" content="Your Veylet account: walkthroughs, review, sharing and account deletion." />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="theme-color" content="#10231d" />
+    <link rel="icon" href="/media/studio-avatar.png" />
+    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <link rel="stylesheet" href="/account-guide.css?v=83b277bd4220b9fd" />
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
+    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/tour-sharing.js?v=3a65736a9e0f8a85" defer></script>
+    <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
+    <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
+    <!-- data-app-mode on <html> is read by the desk script: every money block stays out. -->
+    <script src="/account.js?v=69b5de129f3058e5" defer></script>
+    <noscript><style>#account-sign-in, #account-verify { display: none !important; }</style></noscript>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <!-- The page the Veylet Capture app opens: no marketing navigation. -->
+    <header class="wrap app-header">
+      <span class="brand"><span class="portal" aria-hidden="true"></span>VEYLET</span>
+    </header>
+    <main id="main" class="form-page wrap">
+      <h1 id="account-title">Sign in to your account.</h1>
+      <p class="intro" id="account-intro">
+        Use the same email on the website and capture app.
+      </p>
+      <p class="contact-note" id="account-access-note">
+        Sign in with the email you use in Veylet Capture. Questions? See
+        <a href="/app/support">support</a>.
+      </p>
+      <p id="account-status" class="contact-note" role="status"></p>
+      <noscript><p class="contact-note">Signing in needs JavaScript, so the sign-in form is not shown here. Turn JavaScript on and reload, or see <a href="/app/support">support</a>.</p></noscript>
+      <form id="account-sign-in" class="veylet-form">
+        <label>
+          Email
+          <input name="email" type="email" inputmode="email" required maxlength="200" autocomplete="email" autocapitalize="off" spellcheck="false" />
+        </label>
+        <fieldset class="choice-group">
+          <legend>Which describes you?</legend>
+          <label class="choice">
+            <input type="radio" name="role_intent" value="owner" checked />
+            <span><strong>I have a space to show</strong><small>Owners, businesses, venues and property teams.</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="role_intent" value="operator" />
+            <span><strong>I capture spaces for clients</strong><small>Photographers and capture professionals.</small></span>
+          </label>
+          <p class="choice-help">This only tailors your account page.</p>
+        </fieldset>
+        <button class="button" type="submit" id="account-sign-in-submit">
+          Email me a sign-in code <span class="icon-arrow" aria-hidden="true"></span>
+        </button>
+      </form>
+      <form id="account-verify" class="veylet-form" hidden>
+        <p class="contact-note">
+          Sent to <strong id="account-verify-email"></strong>. Type the six-digit
+          code from that email below. The code expires and works once.
+        </p>
+        <label>
+          Six-digit code
+          <input
+            name="token"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            required
+          />
+        </label>
+        <button class="button" type="submit">Sign in with code</button>
+        <button class="button button-ghost" type="button" id="account-verify-restart">
+          Use a different email
+        </button>
+        <button class="button button-ghost" type="button" id="account-verify-resend">
+          Send a new link
+        </button>
+      </form>
+      <!-- The desk, limited to what the app opens it for: walkthrough status,
+           review and sharing, what clients see, the plan's state in words, and
+           the account and its deletion. -->
+      <section id="account-home" class="desk" hidden>
+        <p class="desk-who" id="account-who"></p>
+        <div class="desk-main">
+          <section id="account-next-step" class="account-next" aria-label="Your next step" aria-live="polite"></section>
+          <section class="desk-section" aria-labelledby="account-work-title">
+            <div class="desk-section-head">
+              <h2 class="dash-heading" id="account-work-title">Your walkthroughs</h2>
+              <p class="desk-refresh"><span class="tour-when" id="account-updated"></span><button class="tour-action" id="account-refresh" type="button">Refresh spaces</button></p>
+            </div>
+            <p id="account-target-status" class="contact-note" role="status" hidden></p>
+            <p id="account-render-status" class="contact-note" role="status" hidden></p>
+            <p id="account-render-live" class="render-sr" role="status" aria-live="polite" aria-atomic="true"></p>
+            <ul class="account-list" id="account-properties"></ul>
+            <p class="contact-note desk-note">
+              Nobody else can see a walkthrough until you approve and share it. A
+              shared link is unlisted: it is not a public gallery, it is not indexed,
+              and Pause sharing or Turn off sharing stops it working.
+            </p>
+          </section>
+        </div>
+        <div class="desk-side">
+          <section id="account-plan" class="plan-panel desk-section" aria-labelledby="account-plan-title">
+            <h2 class="dash-heading" id="account-plan-title">Your plan</h2>
+            <div id="account-plan-body" aria-live="polite"></div>
+          </section>
+          <!-- What your clients see: the agent's own contact on shared walkthroughs. -->
+          <section id="account-contact" class="desk-section contact-panel" aria-labelledby="account-contact-title" hidden>
+            <h2 class="dash-heading" id="account-contact-title">What your clients see</h2>
+            <div id="account-contact-body"></div>
+          </section>
+          <section class="desk-section" aria-labelledby="account-self-title">
+            <h2 class="dash-heading" id="account-self-title">Account</h2>
+            <details class="account-details"><summary>Account details</summary><p class="contact-note" id="account-id-row">
+              <span id="account-id"></span>
+              <button class="tour-action" type="button" id="account-copy-id">
+                Copy account id
+              </button>
+            </p>
+            </details>
+            <details class="account-details" id="account-leaving">
+              <summary>Finishing, exporting or leaving</summary>
+              <dl class="leaving-list">
+                <div><dt>When a tour is finished</dt><dd>Turn off its sharing under Manage sharing. New visitors are blocked at once; remove the link or embed from your listing too. Copies people already downloaded cannot be recalled.</dd></div>
+                <div><dt>What stays</dt><dd>Your spaces, walkthroughs and review history stay on this account until you ask for removal. A shared walkthrough stays hosted while your plan is active, and for at least twelve months from its release whatever happens to the plan; its card shows the date.</dd></div>
+                <div><dt>What you can take</dt><dd>A file listing your spaces and tours. It holds no link secrets, imagery or scene files. Ask Veylet support about a full export of a delivered tour.</dd></div>
+                <div><dt>Deleting your account</dt><dd>
+                  <div id="account-deletion" aria-live="polite"></div>
+                  <p class="contact-note">
+                    Deleting your account cannot recall downloaded copies. Turn off
+                    sharing on live walkthroughs first. What is kept afterwards, and
+                    for how long, is in the <a href="/app/terms">terms</a>.
+                  </p>
+                </dd></div>
+              </dl>
+              <button class="tour-action" type="button" id="account-export" disabled>Download my records</button>
+            </details>
+            <button class="tour-action desk-sign-out" type="button" id="account-sign-out">Sign out</button>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer class="wrap app-footer">
+      <nav aria-label="Account and help"><a href="/app/account" aria-current="page">Account</a><a href="/app/support">Support</a><a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav>
+    </footer>
+  </body>
+</html>

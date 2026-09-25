@@ -22,6 +22,9 @@ const markup = read('dist/account/index.html');
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 const TOKEN = 'abcdefghijklmnop';
 const HANDOFF = 'https://veylet.com/handoff?t=' + TOKEN;
+// What the desk hands out carries its channel (?src=); Open as your client is the page itself.
+const LINK = HANDOFF + '&src=link';
+const QR = HANDOFF + '&src=qr';
 
 function harness(options = {}) {
   const created = [];
@@ -55,7 +58,10 @@ function harness(options = {}) {
     toBlob(done, type) { done({ type, size: this.width * this.height }); }
   }
   const ids = {};
-  for (const match of markup.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) { ids[match[2]] = new Element(match[1]); ids[match[2]].hidden = /\bhidden\b/.test(match[0]); }
+  // `options.markup` draws another page on the same script (the app's /app/account).
+  const page = options.markup || markup;
+  for (const match of page.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) { ids[match[2]] = new Element(match[1]); ids[match[2]].hidden = /\bhidden\b/.test(match[0]); }
+  documentStub.documentElement = { dataset: /<html\b[^>]*\bdata-app-mode="true"/.test(page) ? { appMode: 'true' } : {} };
   const timers = { render: new Set(), desk: new Set(), skeleton: new Set() };
   const scheduleTimeout = (fn, ms) => {
     const timer = { fire: fn, ms };
@@ -82,8 +88,12 @@ function harness(options = {}) {
     },
     from(name) {
       queries.push(name);
-      const answer = () => (typeof table[name] === 'function' ? table[name]() : table[name]);
-      const builder = { select() { return builder; }, order() { return builder; }, eq() { return builder; },
+      let columns = '';
+      // `options.pauseColumn === false`: a database without tours.share_paused_at (and so without pause_tour_share).
+      const answer = () => (name === 'tours' && options.pauseColumn === false && /share_paused_at/.test(columns)
+        ? { error: { code: '42703', message: 'column tours.share_paused_at does not exist' } }
+        : typeof table[name] === 'function' ? table[name]() : table[name]);
+      const builder = { select(value) { columns = String(value || ''); return builder; }, order() { return builder; }, eq() { return builder; },
         single() { const result = answer(); return Promise.resolve({ data: result.data?.[0] || null, error: result.error }); },
         then(resolve, reject) { return Promise.resolve().then(answer).then(resolve, reject); } };
       return builder;
@@ -503,7 +513,7 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   assert.ok(byText(card, 'Copy link'));
   assert.equal(byText(card, 'Open as a visitor'), undefined);
   await byText(card, 'Share').fire('click');
-  assert.deepEqual(h.shared, [{ title: 'Sample space', url: HANDOFF }]);
+  assert.deepEqual(h.shared, [{ title: 'Sample space', url: LINK }]);
   assert.deepEqual(h.copied, []);
   // Cancelling the sheet is not a failure; a sheet that cannot open copies instead.
   const cancel = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, share: async () => { throw Object.assign(new Error('cancelled'), { name: 'AbortError' }); } });
@@ -511,14 +521,14 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   assert.deepEqual(cancel.copied, []);
   const broken = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, share: async () => { throw Object.assign(new Error('no'), { name: 'NotAllowedError' }); } });
   await byText(broken.card('t1'), 'Share').fire('click');
-  assert.deepEqual(broken.copied, [HANDOFF]);
+  assert.deepEqual(broken.copied, [LINK]);
   assert.equal(rowLine(broken.card('t1')), 'Link copied. Anyone with it can open or forward the walkthrough.');
   // Without a share sheet the filled button is Copy link.
   const desk = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true });
   assert.deepEqual(filled(desk.card('t1')), ['Copy link']);
   assert.equal(byText(desk.card('t1'), 'Share'), undefined);
   await byText(desk.card('t1'), 'Copy link').fire('click');
-  assert.deepEqual(desk.copied, [HANDOFF]);
+  assert.deepEqual(desk.copied, [LINK]);
   // The website steps and the one embed code are still there.
   assert.ok(byText(desk.card('t1'), 'Add to your website'));
   assert.ok(byText(desk.card('t1'), 'Copy embed code'));
@@ -538,7 +548,7 @@ test('Show QR code draws the code in this browser and saves a PNG named after th
   assert.match(code.innerHTML, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 \d+ \d+"/);
   assert.match(code.innerHTML, /role="img" aria-label="QR code that opens 12 Rue Café &amp; Co\."/);
   assert.match(code.innerHTML, /<path fill="#10231d" d="M[^"]+"/);
-  assert.equal(code.innerHTML, h.window.VeyletQR.svg(HANDOFF, { label: 'QR code that opens 12 Rue Café & Co.' }), 'the vendored generator draws it, for the live link');
+  assert.equal(code.innerHTML, h.window.VeyletQR.svg(QR, { label: 'QR code that opens 12 Rue Café & Co.' }), 'the vendored generator draws it, for the live link tagged as the QR channel');
   assert.equal(download.disabled, false);
   await download.fire('click'); await settle();
   const anchor = h.created.find(el => el.tagName === 'A' && el.download);
@@ -546,7 +556,7 @@ test('Show QR code draws the code in this browser and saves a PNG named after th
   assert.equal(anchor.clicked, 1);
   assert.equal(h.downloads[0].type, 'image/png');
   const canvas = h.created.find(el => el.tagName === 'CANVAS');
-  const modules = h.window.VeyletQR.matrix(HANDOFF, 'M').size + 2 * h.window.VeyletQR.quietZone;
+  const modules = h.window.VeyletQR.matrix(QR, 'M').size + 2 * h.window.VeyletQR.quietZone;
   assert.equal(canvas.width, canvas.height);
   assert.equal(canvas.width, modules * Math.floor(1024 / modules), 'whole pixels per module, up to 1024 square');
   assert.ok(canvas.painted > 100);
@@ -628,7 +638,7 @@ test('a desk read that never reached the server keeps the page; a server error s
   assert.ok(h.card('t1'), 'the drawn walkthrough stays');
   assert.ok(byText(h.card('t1'), 'Copy link'), 'and its link can still be copied');
   await byText(h.card('t1'), 'Copy link').fire('click');
-  assert.deepEqual(h.copied, [HANDOFF], 'its controls still work');
+  assert.deepEqual(h.copied, [LINK], 'its controls still work');
   assert.doesNotMatch(h.visible(), /Spaces could not load/);
   // A thrown fetch error is the same.
   h.table.properties = () => { throw new TypeError('Failed to fetch'); };
@@ -841,4 +851,202 @@ test('the desk’s new controls and card reflow on a phone and keep 44px targets
   const added = css.slice(css.indexOf('/* Approved but not shared'), css.indexOf('/* Your plan: the same five facts'))
     + css.slice(css.indexOf('/* What your clients see'), css.indexOf('/* The side column'));
   assert.doesNotMatch(added, /transition|animation/);
+});
+
+/* ---- Pause and resume (the same link), listing URL, channel tags, views --------
+ * pause_tour_share / resume_tour_share / get_tour_view_stats are the integrator
+ * lane's 2026092610xxxx migration (not yet written): tours.share_paused_at is set
+ * while a kept link is paused. Every answer here is a stand-in. */
+
+const PAUSED = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
+const RESUMED = 'Sharing resumed. Within a minute, the same link, embed and QR open the walkthrough again.';
+const liveTour = (fields = {}) => readyTour({ share_token: TOKEN, ...fields });
+const manageOf = card => card.all().find(el => el.tagName === 'DETAILS' && el.children[0]?.textContent === 'Manage sharing');
+const pausing = () => ({
+  pause_tour_share: async (args, { tours }) => { tours.find(row => row.id === args.p_tour_id).share_paused_at = '2026-09-25T01:00:00Z'; return { data: null }; },
+  resume_tour_share: async (args, { tours }) => { const row = tours.find(item => item.id === args.p_tour_id); row.share_paused_at = null; return { data: row.share_token }; },
+});
+
+test('Pause sharing sits first under Manage sharing, unconfirmed and secondary; the paused card offers Resume, and the link never changes', async () => {
+  const h = await load({ tours: [liveTour()], approved: true, hosting: [released()], rpc: pausing() });
+  const manage = manageOf(h.card('t1'));
+  const controls = manage.all().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
+  assert.deepEqual(controls.slice(0, 2), ['Pause sharing', 'Turn off sharing'], 'pause first, the destructive one below it');
+  const pause = byText(manage, 'Pause sharing');
+  assert.doesNotMatch(pause.className, /primary|danger/, 'secondary');
+  assert.ok(byText(manage, 'Stops the link, embed and QR for now and keeps the same link, so printed QR codes work again when you resume.'));
+  await pause.fire('click'); await settle();
+  assert.deepEqual(h.calls.filter(([name]) => name === 'pause_tour_share').map(([, args]) => args.p_tour_id), ['t1'], 'one press, no confirmation');
+  const paused = h.card('t1');
+  assert.equal(chipOf(paused).textContent, 'Paused');
+  assert.equal(stateLine(paused), PAUSED);
+  assert.equal(rowLine(paused), 'Sharing paused. Resume sharing opens the same link again.', 'said where it happened, without repeating the card’s line');
+  assert.deepEqual(filled(paused), ['Resume sharing']);
+  assert.equal(byText(paused, 'Copy link'), undefined, 'no share kit while paused');
+  assert.equal(byText(paused, 'Show QR code'), undefined);
+  assert.equal(byText(manageOf(paused), 'Pause sharing'), undefined);
+  assert.ok(byText(manageOf(paused), 'Turn off sharing'), 'turning off stays available');
+  assert.equal(h.ids['account-next-step'].children[0].textContent, 'Sharing is paused.');
+  assert.equal(h.tours[0].share_token, TOKEN, 'the same link');
+  await byText(paused, 'Resume sharing').fire('click'); await settle();
+  assert.deepEqual(h.calls.filter(([name]) => name === 'resume_tour_share').map(([, args]) => args.p_tour_id), ['t1']);
+  assert.equal(chipOf(h.card('t1')).textContent, 'Live');
+  assert.equal(rowLine(h.card('t1')), RESUMED);
+  assert.equal(h.count('enable_tour_share'), 0, 'resuming is not a new link');
+  assert.deepEqual(filled(h.card('t1')), ['Copy link']);
+});
+
+test('Turn off sharing still warns of the new link, and points to Pause while it exists', async () => {
+  const h = await load({ tours: [liveTour()], approved: true });
+  await byText(manageOf(h.card('t1')), 'Turn off sharing').fire('click');
+  assert.match(h.status(), /^Turning off sharing stops this link, its embed and any printed QR code for good\. Turning it back on makes a new link\. .*To stop it for now and keep the link, use Pause sharing instead\. Confirm to continue\.$/);
+  const without = await load({ tours: [liveTour()], approved: true, pauseColumn: false });
+  await byText(manageOf(without.card('t1')), 'Turn off sharing').fire('click');
+  assert.doesNotMatch(without.status(), /Pause/);
+  assert.match(without.status(), /Turning it back on makes a new link\./);
+});
+
+test('without the pause migration the desk reads as before: no Pause, and a press answered PGRST202 takes it away silently', async () => {
+  const h = await load({ tours: [liveTour()], approved: true, pauseColumn: false });
+  assert.equal(byText(h.card('t1'), 'Pause sharing'), undefined);
+  assert.equal(chipOf(h.card('t1')).textContent, 'Live');
+  assert.ok(byText(h.card('t1'), 'Copy link'));
+  const gone = await load({ tours: [liveTour()], approved: true, rpc: { pause_tour_share: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function public.pause_tour_share(p_tour_id)' } }) } });
+  const pause = byText(gone.card('t1'), 'Pause sharing');
+  const reads = gone.tourReads();
+  await pause.fire('click'); await settle();
+  assert.equal(pause.parent.parent.hidden, true, 'the Pause row goes');
+  assert.equal(gone.status(), '', 'nothing is said');
+  assert.equal(gone.tourReads(), reads, 'and nothing is reloaded');
+  // Any other failure says so and keeps the button.
+  const failing = await load({ tours: [liveTour()], approved: true, rpc: { pause_tour_share: async () => ({ error: { message: 'boom' } }) } });
+  await byText(failing.card('t1'), 'Pause sharing').fire('click'); await settle();
+  assert.equal(failing.status(), 'Pausing was not confirmed. Refresh the desk to check before retrying.');
+  assert.equal(byText(failing.card('t1'), 'Pause sharing').disabled, false);
+});
+
+test('a paused link reads Paused after a reload, and a render status that says Live gives way to the card', async () => {
+  const h = await load({ tours: [liveTour({ share_paused_at: '2026-09-24T00:00:00Z' })], approved: true,
+    rpc: { list_workspace_render_status: async () => ({ data: { active: false, spaces: [{ property_id: 'p1', job: { job_id: 'j1', property_id: 'p1', state: 'live', tour_id: 't1' } }] } }) } });
+  assert.equal(chipOf(h.card('t1')).textContent, 'Paused');
+  assert.equal(stateLine(h.card('t1')), PAUSED);
+  assert.doesNotMatch(h.visible(), /Anyone with the link can open it\./, 'no Live line from the render status');
+  const failing = await load({ tours: [liveTour({ share_paused_at: '2026-09-24T00:00:00Z' })], approved: true, rpc: { resume_tour_share: async () => ({ error: { message: 'boom' } }) } });
+  await byText(failing.card('t1'), 'Resume sharing').fire('click'); await settle();
+  assert.equal(failing.status(), 'Resuming was not confirmed. Refresh the desk to check before retrying.');
+  assert.equal(chipOf(failing.card('t1')).textContent, 'Paused');
+});
+
+test('Copy listing URL gives portals and CRMs the unbranded /tour address, tagged as the portal channel', async () => {
+  const h = await load({ tours: [liveTour()], approved: true });
+  const card = h.card('t1');
+  const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Copy link'));
+  assert.deepEqual(row.children.map(child => child.textContent), ['Copy link', 'Copy listing URL (portals, CRM)', 'Open as your client'], 'next to Copy link');
+  const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Listing URL (portals, CRM)');
+  assert.equal(field.hidden, true, 'the address shows once asked for');
+  await byText(card, 'Copy listing URL (portals, CRM)').fire('click');
+  assert.deepEqual(h.copied, ['https://veylet.com/tour?t=' + TOKEN + '&src=portal']);
+  assert.equal(field.hidden, false);
+  assert.equal(rowLine(card), 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
+  // The embed code's frame and its direct link carry the embed channel; the rest is VeyletSharing's code.
+  const code = card.all().find(el => el.tagName === 'TEXTAREA').value;
+  assert.match(code, new RegExp('<iframe src="https://veylet\\.com/embed\\?t=' + TOKEN + '&src=embed" '));
+  assert.match(code, new RegExp('<a href="https://veylet\\.com/handoff\\?t=' + TOKEN + '&src=embed" '));
+  assert.equal(code.replace(/&src=embed/g, ''), h.window.VeyletSharing.embedCode(TOKEN));
+  // The link field and Open as your client.
+  assert.equal(card.all().find(el => el.tagName === 'INPUT' && el.className === 'copy-field').value, LINK);
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF, 'the agent’s own look is untagged');
+});
+
+test('views: opens with the last day and the Call and Email taps, under the state line; hidden while the backend has none', async () => {
+  const stats = { opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 8, qr: 4 }, by_host: {}, last_opened_at: '2026-09-24T02:00:00Z' };
+  const h = await load({ tours: [liveTour()], approved: true, hosting: [released()], rpc: { get_tour_view_stats: async () => ({ data: [stats] }) } });
+  await settle();
+  const card = h.card('t1');
+  const views = card.all().find(el => el.className === 'tour-views');
+  assert.equal(views.hidden, false);
+  assert.deepEqual(views.children.map(el => el.textContent), ['Opened 14 times · last 24 Sep 2026', 'Call taps 3 · Email taps 1']);
+  const order = card.children.map(el => el.className);
+  assert.equal(order.indexOf('tour-views'), order.indexOf('tour-state-help tour-hosting') + 1, 'right under the state line');
+  assert.deepEqual(h.calls.filter(([name]) => name === 'get_tour_view_stats').map(([, args]) => args.p_tour_id), ['t1']);
+  const once = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 1 }] }) } });
+  await settle();
+  assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').children[0].textContent, 'Opened 1 time · last 24 Sep 2026');
+  const none = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 0, call_taps: 0, email_taps: 0, last_opened_at: null }] }) } });
+  await settle();
+  assert.deepEqual(none.card('t1').all().find(el => el.className === 'tour-views').children.map(el => el.textContent), ['Not opened yet.']);
+  // PGRST202: hidden, and not asked again on the next read. An error or an odd answer: hidden.
+  const missing = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
+  await settle();
+  assert.equal(missing.card('t1').all().find(el => el.className === 'tour-views').hidden, true);
+  await missing.ids['account-refresh'].fire('click'); await settle();
+  assert.equal(missing.count('get_tour_view_stats'), 1);
+  for (const reply of [{ error: { message: 'boom' } }, { data: [{ opens: -1 }] }, { data: [] }]) {
+    const odd = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => reply } });
+    await settle();
+    assert.equal(odd.card('t1').all().find(el => el.className === 'tour-views').hidden, true, JSON.stringify(reply));
+    assert.doesNotMatch(odd.visible(), /Opened|Not opened/);
+  }
+  // Only a card with a link asks.
+  const draft = await load({ tours: [readyTour()], approved: true });
+  await settle();
+  assert.equal(draft.count('get_tour_view_stats'), 0);
+});
+
+/* ---- The page the app opens (/app/account): the same desk in app mode ------------ */
+
+const appMarkup = read('dist/app/account/index.html');
+const MONEY = ['get_trial_offer', 'get_pack_offer', 'get_members_annual_offer', 'get_express_offer', 'get_referral_code', 'get_walkthrough_capacity'];
+const BANNED = [/A\$/, /\$/, /\bpacks?\b/i, /super[\s-]*fast/i, /\bexpress\b/i, /\/offer\b/i, /pric(?:e|ing)/i];
+
+test('app mode: the plan is its state in words, and no money function is even asked', async () => {
+  const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 9900, renewal_price_aud_cents: 9900,
+    current_period_ends_at: '2026-10-25T00:00:00Z', auto_renews: true, included_per_month: 2, accepted_this_period: 1, hosting_included: true };
+  const answers = Object.fromEntries(MONEY.map(name => [name, async () => ({ data: [{ available: true }] })]));
+  const h = await load({ markup: appMarkup, tours: [liveTour()], approved: true, hosting: [released({ plan_active: false, hosted_until: '2027-03-01T00:00:00Z' })],
+    rpc: { ...answers, get_workspace_plan: async () => ({ data: [plan] }) } });
+  await settle();
+  for (const name of MONEY) assert.equal(h.count(name), 0, name);
+  assert.equal(h.count('get_workspace_plan'), 1);
+  const body = h.ids['account-plan-body'];
+  assert.deepEqual(body.all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent), ['State', 'Active']);
+  assert.ok(byText(body, 'See your plan in the app.'));
+  // The hosting line keeps its date and drops its amount.
+  assert.equal(h.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent, 'Live until 1 Mar 2027.');
+  assert.equal(byText(h.card('t1'), 'Full website guide'), undefined, 'no link out to the public site');
+  const text = h.visible();
+  for (const pattern of BANNED) assert.doesNotMatch(text, pattern);
+  // Every plan state reads as its word; an unreadable one says so, with a refresh.
+  for (const [status, word] of [['pending', 'Not started'], ['trial', 'Free months'], ['ended', 'Ended']]) {
+    const other = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [{ ...plan, status }] }) } });
+    await settle();
+    assert.equal(other.ids['account-plan-body'].all().find(el => el.tagName === 'DD').textContent, word);
+  }
+  const broken = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ error: { message: 'boom' } }) } });
+  await settle();
+  assert.equal(broken.ids['account-plan-body'].all().find(el => el.tagName === 'DD').textContent, 'Status unavailable');
+  assert.ok(byText(broken.ids['account-plan-body'], 'Refresh plan status'));
+});
+
+test('app mode: a refusal at approval, an empty desk and the next-step links stay inside the app', async () => {
+  const blocked = await load({ markup: appMarkup, tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { details: 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED', message: 'Your included walkthroughs are used.' } }) } });
+  await approve(blocked);
+  assert.equal(blocked.status(), 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.');
+  const empty = await load({ markup: appMarkup, properties: [] });
+  const next = empty.ids['account-next-step'];
+  assert.deepEqual(next.children.map(el => el.textContent), ['Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.']);
+  assert.match(empty.visible(), /No spaces yet\. Create one in Veylet Capture; its walkthrough appears here\./);
+  // A space with nothing sent yet: the public first-tour guide is not linked.
+  const fresh = await load({ markup: appMarkup, tours: [] });
+  assert.equal(fresh.ids['account-next-step'].all().some(el => el.tagName === 'A'), false);
+  // The public desk keeps its link.
+  const publicDesk = await load({ tours: [] });
+  assert.equal(publicDesk.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start');
+});
+
+test('the public desk is unchanged by app mode: its plan panel, offers and website guide stay', async () => {
+  const h = await load({ tours: [liveTour()], approved: true });
+  await settle();
+  assert.ok(h.count('get_pack_offer') >= 1 || h.count('get_trial_offer') >= 1, 'the public desk still asks for its offers');
+  assert.ok(byText(h.card('t1'), 'Full website guide'));
 });

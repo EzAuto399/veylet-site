@@ -197,3 +197,18 @@ Only `manifest.json` and the files its manifest lists are served, at `/__qa/v2/`
 the manifest and location rules, budgets, the frame governor, progressive load
 order, stops, the fallback, v1/v2 routing and the QR generator. These use a
 stand-in DOM (`tests/fake-dom.cjs`); rendering is proven only in a browser.
+
+App pages, the listing URL, pause and views (25 September 2026; backend functions
+not yet written, so every answer is the fixture's):
+
+- `/__qa/app-account/`: `/app/account`, the page the iPhone app opens, in app mode
+  (no prices, purchases or links out of `/app`). `node scripts/check-app-pages.mjs`
+  renders it over 33 fixture states and scans every `/app/*` page; it exits 1 on
+  "A$", "$", "pack", "Super fast", "express", "/offer", "price" or an outside link.
+- `/__qa/tour/?t=synthetic-fixture-token-live1`: the portal-safe listing URL
+  (unbranded, frameable); `&pause=paused` shows "not available".
+- `/__qa/account/?pause=paused`: the first live walkthrough starts paused;
+  `?pause=missing` is a database without the pause migration (no Pause offered);
+  `?pause=fail` fails every pause and resume.
+- `?views=zero|missing|error` on any route: view counts on the desk and the viewer
+  beacon's `record_tour_view` (recorded in `window.VEYLET_QA_CALLS`, never sent).

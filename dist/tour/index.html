@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Property walkthrough</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="description" content="Walk through this property in 3D." />
+    <!-- Link preview card: one generic, static card for every shared walkthrough.
+         No og:url, so the link's token is never repeated in the markup. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Property walkthrough" />
+    <meta property="og:description" content="Walk through this property in 3D." />
+    <meta property="og:image" content="https://veylet.com/media/walkthrough-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A line drawing of a room, with a path of stops leading to a doorway." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Property walkthrough" />
+    <meta name="twitter:description" content="Walk through this property in 3D." />
+    <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
+    <meta name="theme-color" content="#10231d" />
+    <!-- Unbranded: no maker's icon either, and no favicon request. -->
+    <link rel="icon" href="data:," />
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
+    <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
+    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
+    <style>
+      /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
+         Unbranded mode. No agent card, no Call or Email, no address or QR code, no
+         maker's mark and no links: a portal's own rules decide what sits around it.
+         Frameable (vercel.json). First-party faces only, like the embed. */
+      @font-face {
+        font-family: Outfit;
+        src: url("/media/Outfit-400.woff2") format("woff2");
+        font-weight: 400;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: Outfit;
+        src: url("/media/Outfit-500.woff2") format("woff2");
+        font-weight: 500;
+        font-display: swap;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #10231d;
+        color: #f4f1e9;
+        font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+      }
+      [hidden] { display: none !important; }
+      .tour-page {
+        box-sizing: border-box;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        height: 100%;
+        min-height: 280px;
+      }
+      .tour-head {
+        padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+      }
+      .tour-head h1 {
+        margin: 0;
+        font-size: clamp(17px, 4.2vw, 21px);
+        font-weight: 500;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        overflow-wrap: anywhere;
+      }
+      .tour-truth {
+        margin: 2px 0 0;
+        font-size: 13px;
+        line-height: 1.4;
+        color: rgba(244, 241, 233, 0.78);
+      }
+      .tour-body {
+        position: relative;
+        min-height: 0;
+      }
+      #tour-frame,
+      #tour-stage {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #10231d;
+      }
+      #tour-frame { display: block; }
+      .tour-notice {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow: auto;
+        padding: 8px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
+        background: #10231d;
+      }
+      .tour-notice p {
+        margin: 0;
+        max-width: 46ch;
+        font-size: 15px;
+        line-height: 1.45;
+        color: rgba(244, 241, 233, 0.82);
+      }
+      #tour-status:empty,
+      #tour-body:empty { display: none; }
+      /* Once the viewer owns the stage, the notice shrinks to its status line and
+         never covers the canvas while it produces its first frame. */
+      .tour-notice[data-mode="loading"] {
+        inset: auto auto 0 0;
+        padding: 12px;
+        background: transparent;
+        pointer-events: none;
+      }
+      .tour-notice[data-mode="loading"] > :not(#tour-status) { display: none; }
+      .tour-notice[data-mode="loading"] #tour-status {
+        padding: 10px 14px;
+        border-radius: 2px;
+        background: #10231d;
+      }
+      .tour-notice button {
+        box-sizing: border-box;
+        min-height: 44px;
+        padding: 10px 16px;
+        border: 1px solid #c6dcc9;
+        border-radius: 2px;
+        background: #c6dcc9;
+        color: #10231d;
+        font: 500 15px/20px "Outfit", ui-sans-serif, system-ui, sans-serif;
+        cursor: pointer;
+      }
+      .tour-notice button:focus-visible {
+        outline: 3px solid #c6dcc9;
+        outline-offset: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="tour-page" id="main">
+      <header class="tour-head">
+        <h1 id="tour-title">Property walkthrough</h1>
+        <p class="tour-truth" id="tour-truth" hidden>Captured on site with an iPhone. Not to scale.</p>
+      </header>
+      <div class="tour-body">
+        <iframe
+          id="tour-frame"
+          title="Reconstructed walkthrough"
+          allow="fullscreen *"
+          allowfullscreen
+          sandbox="allow-scripts allow-pointer-lock"
+          referrerpolicy="no-referrer"
+          hidden
+        ></iframe>
+        <div id="tour-stage" hidden></div>
+        <div class="tour-notice" id="tour-notice">
+          <p id="tour-status" role="status"></p>
+          <!-- True before the script runs, and still true if it never runs. -->
+          <p id="tour-body">This page opens a property walkthrough.</p>
+          <p id="tour-help" data-tour-help hidden>Trouble opening it? Try another browser.</p>
+          <div id="tour-actions" hidden><button id="tour-retry" type="button">Try again</button></div>
+          <noscript><p>This walkthrough needs JavaScript. Turn it on and reload the page.</p></noscript>
+        </div>
+      </div>
+    </main>
+    <script>
+      (() => {
+        const els = {
+          title: document.getElementById('tour-title'),
+          body: document.getElementById('tour-body'),
+          status: document.getElementById('tour-status'),
+          frame: document.getElementById('tour-frame'),
+          stage: document.getElementById('tour-stage'),
+        };
+        const notice = document.getElementById('tour-notice');
+        const truth = document.getElementById('tour-truth');
+        const help = document.getElementById('tour-help');
+        const player = window.VeyletPlayer;
+        const page = window.VeyletClientPage;
+        const token = new URLSearchParams(location.search).get('t') || '';
+
+        // Unbranded: the player names the tab "… — Veylet"; this page keeps it plain.
+        const titleEl = document.querySelector('title');
+        const plainTitle = () => { if (/ — Veylet$/.test(document.title)) document.title = document.title.replace(/ — Veylet$/, ''); };
+        if (titleEl && typeof MutationObserver === 'function') new MutationObserver(plainTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
+
+        // Views for the agent's desk: the channel is portal unless the link says
+        // otherwise; framed on another site, that site's hostname and nothing more.
+        let framed = false;
+        try { framed = window.top !== window.self; } catch { framed = true; }
+        const beacon = token.length < 16 || !page?.viewBeacon ? null : page.viewBeacon({
+          config: window.VEYLET_SUPABASE,
+          token,
+          src: page.channelFrom(location.search, 'portal'),
+          host: framed ? page.referrerHost(document.referrer) : null,
+        });
+
+        if (!player) {
+          els.title.textContent = 'This walkthrough isn’t available right now.';
+          els.body.textContent = 'The player files did not load on this device. Check the connection and reload.';
+          return;
+        }
+        if (token.length < 16) {
+          player.showFailure(
+            { ...els, actions: null, retry: null },
+            { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' }
+          );
+          plainTitle();
+          return;
+        }
+        let unavailable = false;
+        player.boot({
+          els,
+          onVisible: () => {
+            // A streamed walkthrough carries its own status; a version 1 frame
+            // shares the stage with the compact notice.
+            if (els.stage && !els.stage.hidden) notice.hidden = true;
+            else notice.dataset.mode = 'loading';
+          },
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          resolve: async (client) => {
+            const { data, error } = await client.rpc('lookup_tour_share', { p_token: token });
+            const row = Array.isArray(data) ? data[0] : data;
+            if (error) throw new player.TourFailure('share-unavailable', { transient: true });
+            if (!row || !row.storage_path) {
+              unavailable = true;
+              throw new player.TourFailure('share-not-found', { transient: false });
+            }
+            if (truth) truth.hidden = false;
+            beacon?.opened(window);
+            return {
+              storagePath: row.storage_path,
+              packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
+              packageBaseUrl: row.package_base_url || null,
+              title: row.space_title || 'Property walkthrough',
+              intro: '',
+              footer: '',
+            };
+          },
+          missingHeading: 'This walkthrough isn’t available right now.',
+          missingBody: 'It may have been paused or turned off.',
+          transientBody: 'The walkthrough couldn’t be reached just now. Check your connection and try again.',
+        }).then(() => {
+          // A definitive miss: another browser will not help.
+          if (unavailable && help) help.hidden = true;
+          delete notice.dataset.mode;
+          // Nothing on the stage (a failure the player explained): the notice stays.
+          notice.hidden = !(els.frame.hidden && els.stage.hidden);
+          plainTitle();
+        });
+      })();
+    </script>
+  </body>
+</html>

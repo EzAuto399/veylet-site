@@ -143,6 +143,15 @@
 .account-list .tour-builder-steps li { min-height: 0; margin: 6px 0; padding-left: 2px; }
 .tour-manage summary { font-size: 14px; color: var(--ink); }
 .tour-manage .tour-actions-stop:first-of-type { margin-top: 4px; }
+/* Pause comes first under Manage sharing: undone in one press, so no confirmation;
+   Turn off sharing, the destructive one, sits below it on its own row. */
+.tour-manage .tour-pause .tour-actions-row { margin-top: 4px; }
+.desk .dash-tour .tour-pause-hint { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.tour-manage .tour-pause + .tour-actions-stop { margin-top: 18px; }
+/* Views: two quiet lines under the state line, numbers tabular so a new count shifts nothing. */
+.desk .tour-views { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.desk .tour-views p { margin: 0; overflow-wrap: anywhere; }
+.desk .tour-views .tour-views-opens { color: var(--ink); }
 @media (max-width: 480px) {
   .tour-builder-choice { flex: 1 1 calc(50% - 4px); }
   .tour-website .tour-actions-row .tour-action,

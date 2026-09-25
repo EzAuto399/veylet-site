@@ -35,6 +35,27 @@
   const deskContactCase = params.get('contact') || 'missing';
   const contactSaveCase = params.get('contact-save');
   let savedContact = null;
+  /* Pause, resume and views (the integrator lane's 2026092610xxxx migration, not yet
+   * written): pause_tour_share(p_tour_id) keeps the token and sets
+   * tours.share_paused_at, so lookup_tour_share answers nothing while it is set;
+   * resume_tour_share(p_tour_id) clears it and answers the same token.
+   * `?pause=paused` starts the live walkthrough on /__qa/account/ paused;
+   * `missing` answers the share_paused_at column with 42703 and both functions with
+   * PGRST202, as a database without the migration does (no Pause is offered);
+   * `fail` fails every pause and resume. `?pause=paused` on /__qa/handoff/,
+   * /__qa/embed/ and /__qa/tour/ makes the link read as paused ("not available").
+   * record_tour_view(p_token, p_kind, p_src, p_host, p_detail) is recorded in
+   * window.VEYLET_QA_CALLS, whether it arrives through client.rpc or through the
+   * viewer beacon's own POST to /rest/v1/rpc/record_tour_view (this fixture answers
+   * that URL instead of the network). get_tour_view_stats(p_tour_id) answers 14
+   * opens on 5 days, 3 Call taps, 1 Email tap, 2 Share taps, by channel (link 8,
+   * qr 4, embed 2) and by site (example-agency.invalid 2), last opened yesterday.
+   * `?views=zero` answers no opens yet, `missing` answers PGRST202 to both functions
+   * (the desk shows no views, the beacon stops), `error` fails both. */
+  const pauseCase = params.get('pause');
+  const viewsCase = params.get('views');
+  const pausedAt = new Map();
+  const viewsMissing = { data: null, error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' } };
   /* Sharing and the connection on /__qa/account/ (the desk's S1 states).
    * `?share=review|uploader|permission` makes enable_tour_share raise the migration's
    * "review this tour before sharing", "tour uploader membership is no longer active"
@@ -113,6 +134,7 @@
       if (released) releasedAt.set(row.id, released);
     }
   }
+  if (pauseCase === 'paused' && tokens.has('synthetic-live-active')) pausedAt.set('synthetic-live-active', ago(2));
   function hostingRow(tour) {
     const property = properties.find(row => row.id === tour.property_id);
     const released = releasedAt.get(tour.id) || null;
@@ -740,8 +762,17 @@
   const HOOKS = 'https://hooks.fixture.invalid';
   const realFetch = typeof window.fetch === 'function' ? window.fetch.bind(window) : null;
   window.VEYLET_HOOKS = { url: HOOKS };
+  const REST_RPC = 'https://fixture.invalid/rest/v1/rpc/';
   window.fetch = async (input, init = {}) => {
     const url = String(input && input.url ? input.url : input);
+    // The viewer beacon and the embed's contact read post straight to PostgREST:
+    // answered here from the same stand-in functions, and never sent anywhere.
+    if (url.startsWith(REST_RPC)) {
+      const name = decodeURIComponent(url.slice(REST_RPC.length));
+      const answer = await window.supabase.createClient().rpc(name, init.body ? JSON.parse(init.body) : {});
+      const status = answer?.error ? (answer.error.code === 'PGRST202' ? 404 : 400) : answer?.data === null || answer?.data === undefined ? 204 : 200;
+      return new Response(status === 204 ? null : JSON.stringify(answer?.error || answer.data), { status, headers: { 'Content-Type': 'application/json' } });
+    }
     if (!url.startsWith(HOOKS + '/')) return realFetch ? realFetch(input, init) : Promise.reject(new TypeError('fetch unavailable'));
     const path = url.slice(HOOKS.length);
     const method = String(init.method || 'GET').toUpperCase();
@@ -896,7 +927,8 @@
         if (table === 'memberships') return { data: planCase === 'nomembership' ? [] : memberships };
         if (scenario === 'errors') return { error: { message: 'Synthetic unavailable tour service' } };
         if (params.get('lineage') === 'missing' && /walkthrough_id/.test(columns)) return { error: { code: '42703', message: 'column tours.walkthrough_id does not exist' } };
-        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' } : {}), share_token: tokens.get(tour.id) || null })).filter(row => only === null || row.id === only);
+        if (pauseCase === 'missing' && /share_paused_at/.test(columns)) return { error: { code: '42703', message: 'column tours.share_paused_at does not exist' } };
+        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' } : {}), share_token: tokens.get(tour.id) || null, share_paused_at: pausedAt.get(tour.id) || null })).filter(row => only === null || row.id === only);
         // Only the columns asked for, as PostgREST answers: a read without the lineage
         // columns sees no walkthrough, version or replacement.
         const names = columns.split(',').map(name => name.trim()).filter(Boolean);
@@ -1288,7 +1320,28 @@
         if (shareCase === 'lost') return { data: null, error: { message: 'TypeError: Failed to fetch', details: 'TypeError: Failed to fetch', hint: '', code: '' } };
         return { data: live };
       }
-      if (name === 'revoke_tour_share') { tokens.delete(args.p_tour_id); return { data: true }; }
+      if (name === 'revoke_tour_share') { tokens.delete(args.p_tour_id); pausedAt.delete(args.p_tour_id); return { data: true }; }
+      if (name === 'pause_tour_share' || name === 'resume_tour_share') {
+        if (pauseCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + '(p_tour_id) in the schema cache' } };
+        if (pauseCase === 'fail') return { data: null, error: { message: 'Synthetic sharing failure' } };
+        if (!tokens.has(args.p_tour_id)) return { data: null, error: { code: 'P0001', message: 'sharing is not on' } };
+        if (name === 'pause_tour_share') { if (!pausedAt.has(args.p_tour_id)) pausedAt.set(args.p_tour_id, new Date().toISOString()); return { data: null }; }
+        pausedAt.delete(args.p_tour_id);
+        return { data: tokens.get(args.p_tour_id) };
+      }
+      if (name === 'record_tour_view') {
+        if (viewsCase === 'missing') return viewsMissing;
+        if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
+        return { data: null };
+      }
+      if (name === 'get_tour_view_stats') {
+        if (viewsCase === 'missing') return viewsMissing;
+        if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
+        if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null }] };
+        return { data: [{ opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 8, qr: 4, embed: 2 },
+          by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1) }] };
+      }
+      if (name === 'lookup_tour_share' && pauseCase === 'paused') return { data: [] };
       if (name === 'lookup_tour_share') return scenario === 'missing' ? { data: [] } : scenario === 'errors' ? { error: { message: 'Synthetic service failure' } }
         : streamed ? { data: [{ storage_path: 'synthetic/v2/manifest.json', space_title: 'Fictional practice space', shared_at: '2026-09-20T12:00:00Z', package_format_version: 2, package_base_url: V2_BASE }] }
         : { data: [{ storage_path: 'synthetic/fixture.zip', space_title: 'Fictional practice space' }] };

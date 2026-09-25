@@ -10,12 +10,26 @@
       name="description"
       content="A Veylet walkthrough embedded in this page. Unlisted and not indexed."
     />
+    <!-- Link preview card: one generic, static card for every shared walkthrough.
+         No og:url, so the link's token is never repeated in the markup. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Property walkthrough" />
+    <meta property="og:description" content="Walk through this property in 3D." />
+    <meta property="og:image" content="https://veylet.com/media/walkthrough-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A line drawing of a room, with a path of stops leading to a doorway." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Property walkthrough" />
+    <meta name="twitter:description" content="Walk through this property in 3D." />
+    <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
-    <script src="/client-page.js?v=87631c05c0ff3b65"></script>
+    <script src="/client-page.js?v=9c1a6dd88ea2079d"></script>
     <style>
       html,
       body {
@@ -174,6 +188,14 @@
         const open = document.getElementById('embed-open');
 
         const token = new URLSearchParams(location.search).get('t') || '';
+        // Views for the agent's desk: an embed's channel is embed unless its link
+        // says otherwise, and the site framing it is named by hostname only.
+        const beacon = token.length < 16 || !window.VeyletClientPage?.viewBeacon ? null : window.VeyletClientPage.viewBeacon({
+          config: window.VEYLET_SUPABASE,
+          token,
+          src: window.VeyletClientPage.channelFrom(location.search, 'embed'),
+          host: window.VeyletClientPage.referrerHost(document.referrer),
+        });
         if (typeof window.VeyletPlayer === 'undefined') {
           els.title.textContent = 'This walkthrough is not available.';
           els.body.textContent =
@@ -239,6 +261,7 @@
                   transient: false,
                 });
               }
+              beacon?.opened(window);
               return {
                 storagePath: row.storage_path,
                 packageFormatVersion: row.package_format_version === 2 ? 2 : 1,

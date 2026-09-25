@@ -6,6 +6,12 @@
  */
 (async () => {
   const cfg = window.VEYLET_SUPABASE;
+  // The page the iPhone app opens (/app/account) carries data-app-mode="true" on
+  // <html>: the same desk with every money block left out (plan purchase, card
+  // forms, bundles, fast renders, referral bonuses and links to the public
+  // offer), and the plan said in state words only. tests/app-pages.test.cjs
+  // renders it and fails on any amount or purchase word.
+  const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
   const statusEl = document.getElementById('account-status');
   const signInForm = document.getElementById('account-sign-in');
   const verifyForm = document.getElementById('account-verify');
@@ -42,12 +48,12 @@
   const REFERRAL_CODE = /^[0-9a-f]{12}$/;
   const REFERRAL_KEY = 'veylet-referred-by';
   const referralTargets = new URLSearchParams(location.search || '').getAll('ref');
-  const referralFromLink = referralTargets.length === 1 && REFERRAL_CODE.test(referralTargets[0].toLowerCase())
+  const referralFromLink = !APP_MODE && referralTargets.length === 1 && REFERRAL_CODE.test(referralTargets[0].toLowerCase())
     ? referralTargets[0].toLowerCase() : null;
   function referredKept() {
     try { const kept = window.sessionStorage?.getItem(REFERRAL_KEY); return kept && REFERRAL_CODE.test(kept) ? kept : null; } catch { return null; }
   }
-  let referredBy = referralFromLink || referredKept();
+  let referredBy = APP_MODE ? null : referralFromLink || referredKept();
   if (referralFromLink) { try { window.sessionStorage?.setItem(REFERRAL_KEY, referralFromLink); } catch { /* this page load still has it */ } }
   function referredForget() {
     referredBy = null;
@@ -71,6 +77,17 @@
   const LIVE_LINE = 'Anyone with the link can open it.';
   const READY_TITLE = 'Ready for your review';
   const SHARE_UNCONFIRMED = 'Approved. Sharing didn’t turn on. Try again.';
+  // Paused sharing keeps the link (pause_tour_share / resume_tour_share). The tours
+  // Worker caches a link's lookup for up to 50 s, so a pause or a resume reaches
+  // viewers within a minute, and the words say so.
+  const PAUSED_LINE = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
+  const PAUSED_SAID = 'Sharing paused. Resume sharing opens the same link again.';
+  const RESUMED_SAID = 'Sharing resumed. Within a minute, the same link, embed and QR open the walkthrough again.';
+  const PAUSE_HINT = 'Stops the link, embed and QR for now and keeps the same link, so printed QR codes work again when you resume.';
+  // Where each link is handed out, so the walkthrough's views can say which one was
+  // opened (record_tour_view's src). The token stays the only secret in the link.
+  const LISTING_BASE = 'https://veylet.com/tour?t=';
+  function tagged(url, src) { return url + '&src=' + src; }
   // enable_tour_share's refusals (20260920120000, 20260923150000), by the words it
   // raises: "Approved. Sharing waits for {reason}." and the one fix for it.
   const SHARE_REFUSALS = [
@@ -265,7 +282,8 @@
     // Signed in, the page is the account; "Your walkthroughs" heads its work
     // section, so the page heading does not repeat it.
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
-    if (intro) intro.textContent = signedIn ? 'Save a space, check its progress and share the reviewed tour.' : 'Use the same email on the website and capture app.';
+    if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
+      : 'Use the same email on the website and capture app.';
     if (setup) setup.hidden = signedIn;
     if (access) access.hidden = signedIn;
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
@@ -350,6 +368,15 @@
       if (entry.chip) entry.chip.hidden = renderCovered.get(id) === entry.chip.textContent;
     }
   }
+  // A link kept but paused (tours.share_paused_at, set by pause_tour_share).
+  function sharePaused(tour) { return Boolean(tour?.share_token) && Boolean(tour?.share_paused_at); }
+  // The hosting line in the words the app uses. The pages the app opens state no
+  // amount: a sentence that names one is left out there.
+  function hostingWords(row, live) {
+    const line = window.VeyletSharing.hostingLine(row, live);
+    if (!APP_MODE || !/\$/.test(line)) return line;
+    return (line.replace(/\s*\([^)]*\$[^)]*\)/g, '').match(/[^.]+\./g) || []).filter(sentence => !/\$/.test(sentence)).join('').trim();
+  }
   function tourMeta(tour, hosting) {
     const wrap = document.createElement('p');
     wrap.className = 'tour-meta-row';
@@ -357,7 +384,8 @@
     // A walkthrough whose link works is live; that one word is its state. A ready
     // one without a link waits for its review answer before it says anything.
     let state = null;
-    if (tour.status === 'ready' && tour.share_token) state = hostingEnded(hosting) ? { label: 'Hosting ended', tone: 'quiet' } : { label: 'Live', tone: 'good' };
+    if (tour.status === 'ready' && sharePaused(tour)) state = { label: 'Paused', tone: 'quiet' };
+    else if (tour.status === 'ready' && tour.share_token) state = hostingEnded(hosting) ? { label: 'Hosting ended', tone: 'quiet' } : { label: 'Live', tone: 'good' };
     else if (tour.status !== 'ready') state = TOUR_STATE[tour.status] || null;
     if (state) { const chip = pill(state.label, state.tone); chip.dataset.chip = 'state'; wrap.append(chip); tourChips.get(tour.id).chip = chip; }
     if (revisionOf(tour) > 1) wrap.append(pill('Correction', 'quiet'));
@@ -387,6 +415,8 @@
     const detail = document.createElement('p'); detail.textContent = body;
     nextStep.replaceChildren(heading, detail);
     if (!label) return;
+    // The app's pages link only to one another: a page on the public site is left out.
+    if (typeof action === 'string' && APP_MODE && !action.startsWith('/app/')) return;
     if (typeof action === 'string') {
       const link = document.createElement('a'); link.className = 'button button-ghost'; link.href = action; link.textContent = label; nextStep.append(link);
     } else nextStep.append(button(label, action));
@@ -399,6 +429,7 @@
   // than guessing whether it is approved.
   function guideDesk(properties, rows, production, items, supabase, desk = {}) {
     if (!properties.length) {
+      if (APP_MODE) { guide('Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
       guide('Start with one space.', 'Save a name and general location. This prepares your desk for its first capture.', 'Add your first space', () => {
         document.getElementById('account-add-space').open = true;
         spaceForm?.querySelector('input[name="title"]')?.focus();
@@ -416,8 +447,12 @@
       const open = () => { const item = items.get(selected.id); item.tabIndex = -1; item.focus({ preventScroll: true }); item.scrollIntoView({ block: 'start', behavior: 'auto' }); };
       const hosting = desk.hosting ? desk.hosting.get(selected.id) || null : undefined;
       // A shared walkthrough is finished work, not a job still waiting on you.
+      if (selected.status === 'ready' && sharePaused(selected)) {
+        guide('Sharing is paused.', 'Its link, embed and QR show "not available" until you resume it from its card below. The link stays the same.', 'Open its sharing controls', open);
+        return;
+      }
       if (selected.status === 'ready' && selected.share_token) {
-        if (hostingEnded(hosting)) guide('Guaranteed hosting has ended.', window.VeyletSharing.hostingLine(hosting, true), 'Open its sharing controls', open);
+        if (hostingEnded(hosting)) guide('Guaranteed hosting has ended.', hostingWords(hosting, true), 'Open its sharing controls', open);
         else guide('Your walkthrough is live.',
           'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
           'Open its sharing controls', open);
@@ -629,12 +664,22 @@
     const sayQr = rowSay(tour, details);
     return details;
   }
+  // The embed code the builder steps describe, with its frame and its direct link
+  // tagged as the embed channel. Everything else is VeyletSharing's own code.
+  function embedCodeTagged(share, token) {
+    const frame = share.embedUrl(token), page = share.handoffUrl(token);
+    return share.embedCode(token).split('"' + frame + '"').join('"' + tagged(frame, 'embed') + '"')
+      .split('"' + page + '"').join('"' + tagged(page, 'embed') + '"');
+  }
   // The share kit on a live walkthrough: Share (the device's share sheet) where the
-  // browser has one, otherwise Copy link, filled; then Copy link, Open as your client,
-  // Show QR code and the website steps with the embed code.
+  // browser has one, otherwise Copy link, filled; then Copy listing URL, Open as your
+  // client, Show QR code and the website steps with the embed code. Each handed-out
+  // address carries its channel (link, portal, qr, embed).
   function liveSharing(tour, item, title) {
     const share = window.VeyletSharing;
-    const url = share.handoffUrl(tour.share_token);
+    const page = share.handoffUrl(tour.share_token);
+    // What the agent hands out carries its channel; Open as your client is the page itself.
+    const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
     const copy = async () => {
@@ -642,6 +687,17 @@
       if (statusEl?.textContent) say(statusEl.textContent);
     };
     const copyLink = button('Copy link', copy); copyLink.dataset.control = 'copy-link';
+    // One direct, frameable address for a portal's or CRM's virtual tour field: the
+    // walkthrough alone, with no agent card, links or QR code (/tour).
+    const listingUrl = tagged(LISTING_BASE + encodeURIComponent(tour.share_token), 'portal');
+    const listing = copyField('Listing URL (portals, CRM)', 'input', listingUrl);
+    listing.label.hidden = true;
+    const copyListing = button('Copy listing URL (portals, CRM)', async () => {
+      listing.label.hidden = false;
+      await share.copy(listingUrl, listing.field, statusEl, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
+      if (statusEl?.textContent) say(statusEl.textContent);
+    });
+    copyListing.dataset.control = 'copy-listing';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row';
     const device = typeof navigator !== 'undefined' ? navigator : null;
     let sheet = false;
@@ -654,13 +710,14 @@
       send.className = 'tour-action tour-action-primary'; send.dataset.control = 'share';
       actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
-    const open = document.createElement('a'); open.className = 'tour-action'; open.href = url; open.textContent = 'Open as your client';
+    actions.append(copyListing);
+    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
     actions.append(open);
     // The link and what you do with it share one row where there is room.
     const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
-    linkRow.append(link.label, actions); item.append(linkRow);
+    linkRow.append(link.label, actions); item.append(linkRow, listing.label);
     const say = rowSay(tour, item);
-    item.append(qrKit(tour, url, name));
+    item.append(qrKit(tour, tagged(page, 'qr'), name));
 
     // Add to your website: the builder's own steps, then the one code. It is
     // a disclosure, so a desk of live walkthroughs stays a list of links.
@@ -682,14 +739,17 @@
       label.append(input, text); chooser.append(label);
     }
     paint(chosen);
-    const code = share.embedCode(tour.share_token);
+    const code = embedCodeTagged(share, tour.share_token);
     const embed = copyField('Embed code', 'textarea', code);
     const copyCode = button('Copy embed code', async () => {
       await share.copy(code, embed.field, statusEl, 'Embed code copied. Paste it into your builder’s custom HTML block, then check the published page on a phone.');
       if (statusEl?.textContent) sayWeb(statusEl.textContent);
     });
-    const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
-    const codeActions = document.createElement('p'); codeActions.className = 'tour-actions-row'; codeActions.append(copyCode, guidePage);
+    const codeActions = document.createElement('p'); codeActions.className = 'tour-actions-row'; codeActions.append(copyCode);
+    if (!APP_MODE) {
+      const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
+      codeActions.append(guidePage);
+    }
     web.append(heading, chooser, steps, embed.label, codeActions);
     item.append(web);
     const sayWeb = rowSay(tour, web);
@@ -699,13 +759,99 @@
     const summary = document.createElement('summary'); summary.textContent = 'Manage sharing';
     details.append(summary); item.append(details); return details;
   }
+  // A backend without the function answers PGRST202 ("Could not find the function").
+  function missingFunction(result) {
+    const error = result?.value?.error || result?.error || null;
+    return Boolean(error) && (String(error.code || '') === 'PGRST202' || /could not find the function/i.test(String(error.message || '')));
+  }
+  /*
+   * Pause keeps the link: the link, embed and QR show "not available" until Resume,
+   * and then open the same walkthrough again. It needs no confirmation because it is
+   * undone in one press; Turn off sharing below it stays the destructive one. Only a
+   * database with tours.share_paused_at offers it (readTours), and a press answered
+   * PGRST202 takes it away again without a word.
+   */
+  function pauseSharing(tour, supabase, ticket, parent) {
+    if (!pauseAvailable) return;
+    const row = document.createElement('div'); row.className = 'tour-pause';
+    const hint = document.createElement('p'); hint.className = 'tour-state-help tour-pause-hint'; hint.textContent = PAUSE_HINT;
+    const pause = button('Pause sharing', async () => {
+      if (pause.disabled) return;
+      pause.disabled = true;
+      say('Pausing sharing…');
+      const result = await settled(Promise.resolve().then(() => supabase.rpc('pause_tour_share', { p_tour_id: tour.id })));
+      if (ticket !== deskVersion) return;
+      if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing was paused.'); return; }
+      if (missingFunction(result)) { pauseAvailable = false; row.hidden = true; say(''); return; }
+      if (failed(result)) { say('Pausing was not confirmed. Refresh the desk to check before retrying.'); pause.disabled = false; return; }
+      const readback = await settled(Promise.resolve().then(() => supabase.from('tours').select('id,share_token,share_paused_at').eq('id', tour.id).single()));
+      if (ticket !== deskVersion) return;
+      const current = firstRow(readback.value?.data);
+      say(!failed(readback) && sharePaused(current) ? PAUSED_SAID : 'The request completed, but the paused state could not be confirmed. Refresh the desk.', true);
+      await loadDesk(supabase);
+    });
+    pause.dataset.control = 'pause-share';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(pause);
+    row.append(actions, hint); parent.append(row);
+    const say = rowSay(tour, row);
+  }
+  // A paused walkthrough's one filled action.
+  function resumeSharing(tour, item, supabase, ticket) {
+    const resume = button('Resume sharing', async () => {
+      if (resume.disabled) return;
+      resume.disabled = true;
+      say('Resuming sharing…');
+      const result = await settled(Promise.resolve().then(() => supabase.rpc('resume_tour_share', { p_tour_id: tour.id })));
+      if (ticket !== deskVersion) return;
+      if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing resumed.'); return; }
+      if (failed(result) || missingFunction(result)) { say('Resuming was not confirmed. Refresh the desk to check before retrying.'); resume.disabled = false; return; }
+      const readback = await settled(Promise.resolve().then(() => supabase.from('tours').select('id,share_token,share_paused_at').eq('id', tour.id).single()));
+      if (ticket !== deskVersion) return;
+      const current = firstRow(readback.value?.data);
+      say(!failed(readback) && current?.share_token && !current.share_paused_at ? RESUMED_SAID : 'The request completed, but the sharing state could not be confirmed. Refresh the desk.', true);
+      await loadDesk(supabase);
+    });
+    resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'resume-share';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(resume);
+    item.append(actions);
+    const say = rowSay(tour, item);
+  }
+  /*
+   * How often the link was opened and the agent contacted, from get_tour_view_stats
+   * (the viewer beacon's counts). Hidden while the backend has no such function, and
+   * on any error or odd answer: a missing count is never shown as zero.
+   */
+  function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
+  function tourViews(tour, host, supabase, ticket) {
+    host.className = 'tour-views'; host.hidden = true;
+    if (!viewsAvailable) return;
+    void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+      if (ticket !== deskVersion) return;
+      if (missingFunction(reply)) { viewsAvailable = false; return; }
+      if (failed(reply)) return;
+      const row = firstRow(reply.value?.data);
+      const opens = viewCount(row?.opens), calls = viewCount(row?.call_taps), emails = viewCount(row?.email_taps);
+      if (opens === null) return;
+      const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
+      const opened = document.createElement('p'); opened.className = 'tour-views-opens';
+      opened.textContent = opens === 0 ? 'Not opened yet.' : 'Opened ' + opens + (opens === 1 ? ' time' : ' times') + (last ? ' · last ' + last : '');
+      const parts = [opened];
+      if (calls !== null && emails !== null && opens > 0) {
+        const taps = document.createElement('p'); taps.className = 'tour-views-taps';
+        taps.textContent = 'Call taps ' + calls + ' · Email taps ' + emails;
+        parts.push(taps);
+      }
+      host.replaceChildren(...parts); host.hidden = false;
+    });
+  }
   function stopSharing(tour, supabase, ticket, parent) {
     let armed = false;
     const revoke = button('Turn off sharing', async () => {
       if (revoke.disabled) return;
       if (!armed) {
         armed = true; revoke.textContent = 'Confirm: turn off sharing'; revoke.dataset.armed = 'true';
-        say('Turning off sharing stops this link, its embed and any printed QR code for good. Turning it back on makes a new link. Downloaded copies cannot be recalled. Confirm to continue.');
+        say('Turning off sharing stops this link, its embed and any printed QR code for good. Turning it back on makes a new link. Downloaded copies cannot be recalled.' +
+          (pauseAvailable && !sharePaused(tour) ? ' To stop it for now and keep the link, use Pause sharing instead.' : '') + ' Confirm to continue.');
         cancelRevoke.hidden = false; return;
       }
       revoke.disabled = true; cancelRevoke.hidden = true; revoke.dataset.armed = 'false';
@@ -785,13 +931,17 @@
     const pending = sharePending.get(tour.id); sharePending.delete(tour.id);
     if (review?.approved === true) {
       const live = Boolean(tour.share_token);
-      if (live) {
+      const paused = sharePaused(tour);
+      if (paused) {
         status.className = 'tour-state-help tour-hosting';
-        status.textContent = window.VeyletSharing.hostingLine(hosting || null, true);
+        status.textContent = PAUSED_LINE;
+      } else if (live) {
+        status.className = 'tour-state-help tour-hosting';
+        status.textContent = hostingWords(hosting || null, true);
         // Approved and shared in one press, whatever the first answer said: it is live.
         if (pending) say(LIVE_SAID);
       } else {
-        const off = window.VeyletSharing.hostingLine(hosting || null, false);
+        const off = hostingWords(hosting || null, false);
         tourChip(tour, off ? 'Sharing off' : '', 'quiet');
         const problem = pending && canShare ? pending.reason || 'unknown' : null;
         status.textContent = problem ? shareWords(problem) : off || (canShare
@@ -799,13 +949,17 @@
         if (problem) { status.className = 'tour-state-help tour-share-problem'; setStatus(shareWords(problem)); }
       }
       if (render?.answers) renderDraw();
+      // Its views sit under the state line, on a live or paused link.
+      if (live) { const views = document.createElement('div'); item.append(views); tourViews(tour, views, supabase, ticket); }
       if (canShare) {
-        if (live) liveSharing(tour, item, title);
-        else turnOnSharing(tour, item, supabase, ticket, { label: window.VeyletSharing.hostingLine(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
-          withPreview: canReview, note: window.VeyletSharing.hostingLine(hosting || null, false) ? '' : LIVE_LINE,
+        if (paused) resumeSharing(tour, item, supabase, ticket);
+        else if (live) liveSharing(tour, item, title);
+        else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
+          withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
           problem: pending ? pending.reason || 'unknown' : null });
       }
       const manage = (canShare && live) || canReview ? manageSharing(item) : null;
+      if (manage && canShare && live && !paused) pauseSharing(tour, supabase, ticket, manage);
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
       if (manage && canReview) withdrawApproval(tour, supabase, ticket, manage);
       return;
@@ -901,7 +1055,8 @@
         const changed = reply.value?.error?.details === 'VEYLET_PACKAGE_REVISION_CHANGED';
         const capacityBlocked = ['VEYLET_PLAN_NOT_ACTIVE', 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED'].includes(reply.value?.error?.details);
         const sandboxBlocked = reply.value?.error?.details === 'VEYLET_SANDBOX_TEST_ONLY';
-        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? 'This walkthrough was not accepted. Refresh your plan allowance below; a walkthrough pack adds more, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.' : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
+        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
+          : 'This walkthrough was not accepted. Refresh your plan allowance below; a walkthrough pack adds more, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
         for (const field of Object.values(fields)) { field.checked = false; field.disabled = true; }
         preview.removeAttribute('href'); preview.setAttribute('aria-disabled', 'true'); preview.tabIndex = -1;
         status.textContent = explanation; say(explanation);
@@ -1145,6 +1300,13 @@
   function planSkeleton() {
     if (!planPanel || !planBody) return;
     planPanel.setAttribute('aria-busy', 'true');
+    if (APP_MODE) {
+      // The app's page shows the state alone, so only that row is coming.
+      const dl = document.createElement('dl'); dl.className = 'leaving-list plan-list';
+      planHairline(dl, 'State', skeletonBar(PLAN_SKELETON_LENGTHS[0]), false);
+      planBody.replaceChildren(dl);
+      return;
+    }
     const lead = document.createElement('p'); lead.className = 'plan-title';
     lead.append(skeletonBar(24, 'plan-skeleton plan-skeleton-lead'));
     const dl = document.createElement('dl'); dl.className = 'leaving-list plan-list';
@@ -1169,9 +1331,34 @@
   }
   // The current desk's capacity read, so a bought pack can re-read the ledger.
   let planCapacityRefresh = null;
+  /*
+   * The app's page (/app/account): the plan's state in words and where to manage it,
+   * nothing else. No amount, allowance for sale, renewal price, card form, bundle,
+   * annual offer or referral is read or drawn here; the app is where a plan is bought.
+   */
+  async function renderPlanApp(supabase, ticket, members) {
+    const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
+    const workspaceID = memberships.length ? memberships[0].workspace_id : null;
+    let row = null;
+    if (workspaceID) {
+      const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_workspace_plan', { p_workspace_id: workspaceID })));
+      if (ticket !== deskVersion) return;
+      row = !failed(reply) ? firstRow(reply.value?.data) : null;
+    }
+    planPanel.setAttribute('aria-busy', 'false');
+    const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : !workspaceID && !failed(members) ? 'pending' : null;
+    const dl = document.createElement('dl'); dl.className = 'leaving-list plan-list';
+    planHairline(dl, 'State', status ? PLAN_STATE_WORDS[status] : 'Status unavailable', false);
+    const body = document.createElement('p'); body.className = 'plan-body';
+    body.textContent = status ? 'See your plan in the app.' : 'Your plan’s state could not be checked. Refresh to try again.';
+    const parts = [dl, body];
+    if (!status) { const actions = document.createElement('p'); actions.className = 'tour-actions-row plan-actions'; actions.append(button('Refresh plan status', () => loadDesk(supabase))); parts.push(actions); }
+    planBody.replaceChildren(...parts);
+  }
   async function renderPlan(supabase, ticket, props, members) {
     if (!planPanel || !planBody) return;
     planCapacityRefresh = null;
+    if (APP_MODE) { await renderPlanApp(supabase, ticket, members); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
     let row = null;
@@ -3941,10 +4128,11 @@
     else if (key === 'retrying') view = { key, attempt: renderInt(job.attempt, 1, allowed), allowed };
     // Approved and not yet shared: the walkthrough's card below owns the next step.
     else if (key === 'ready') view = tourID && renderApproved.has(tourID) ? null : { key, tour: tourID };
-    else if (key === 'live') view = { key, tour: tourID };
+    // A paused link is not live: the walkthrough's card says Paused and owns Resume.
+    else if (key === 'live') view = tourID && sharePaused(desk?.tours?.get(tourID)) ? null : { key, tour: tourID };
     else if (key === 'recapture') view = { key, rooms: renderRooms(job.recapture) };
     else view = { key };
-    if (view && express && RENDER_EXPRESS.includes(view.key)) view.express = express;
+    if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
     return view;
   }
   function renderStepWords(step) { return 'Step ' + step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[step - 1] + '.'; }
@@ -4277,15 +4465,33 @@
   // reads the columns it always had, and every tour is version 1 of its own walkthrough.
   const TOUR_COLUMNS = 'id,status,property_id,created_by,created_at,share_token,storage_path';
   const LINEAGE_COLUMNS = 'walkthrough_id,revision,revision_of,superseded_at';
-  function lineageMissing(result) {
+  // Paused sharing (the integrator lane's 2026092610xxxx migration): tours.share_paused_at
+  // is set while a kept link is paused. A database without the column has no
+  // pause_tour_share either, so the desk then offers no Pause and reads as before.
+  const PAUSE_COLUMNS = 'share_paused_at';
+  let pauseAvailable = false;
+  // get_tour_view_stats, until an answer says the backend does not have it.
+  let viewsAvailable = true;
+  // A read that named a column this database does not have: which group it was.
+  function columnMissing(result) {
     const error = result?.value?.error;
-    return Boolean(error) && (String(error.code || '') === '42703'
-      || (/walkthrough_id|revision|superseded_at/.test(String(error.message || '')) && /does not exist|could not find/i.test(String(error.message || ''))));
+    const words = String(error?.message || '');
+    if (!error || !(String(error.code || '') === '42703' || /does not exist|could not find/i.test(words))) return null;
+    return { pause: /share_paused_at/.test(words), lineage: /walkthrough_id|revision|superseded_at/.test(words) };
   }
   async function readTours(supabase) {
     const query = columns => settled(Promise.resolve().then(() => supabase.from('tours').select(columns).order('created_at', { ascending: false })));
-    const read = await query(TOUR_COLUMNS + ',' + LINEAGE_COLUMNS);
-    return lineageMissing(read) ? query(TOUR_COLUMNS) : read;
+    let lineage = true, pause = true, read;
+    // At most one retry per optional group; an unnamed missing column drops the newest group first.
+    for (let tries = 0; tries < 3; tries += 1) {
+      read = await query([TOUR_COLUMNS, lineage && LINEAGE_COLUMNS, pause && PAUSE_COLUMNS].filter(Boolean).join(','));
+      const missing = columnMissing(read);
+      if (!missing || (!lineage && !pause)) break;
+      if (pause && (missing.pause || !missing.lineage)) pause = false;
+      else lineage = false;
+    }
+    pauseAvailable = pause && !failed(read);
+    return read;
   }
 
   // Clear the desk for a fresh draw: the plan's rows that are coming, the next step
@@ -4395,7 +4601,7 @@
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
       else guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
     };
-    if (!properties.length) { clientsHide(); updateGuide(); message(list, 'Start by saving a space above. Then capture it with Veylet Capture. Keep the same email on the website and app.'); return; }
+    if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in Veylet Capture; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with Veylet Capture. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
@@ -4464,7 +4670,7 @@
     // Express renders and render status read their own answers, one per workspace
     // with a space here; they never hold up the list.
     const deskWorkspaces = [...new Set(properties.map(row => row.workspace_id).filter(id => id && roles.has(id)))];
-    void renderExpress(supabase, ticket, deskWorkspaces);
+    if (!APP_MODE) void renderExpress(supabase, ticket, deskWorkspaces);
     renderStart(supabase, ticket, deskWorkspaces, {
       properties: new Map(properties.map(row => [row.id, row])),
       tours: new Map(rows.map(row => [row.id, row])),
@@ -4802,7 +5008,7 @@
       exported_at: new Date().toISOString(), format: 'veylet-desk-records-1',
       note: 'Space and tour records visible to this account. No link secrets, storage paths, imagery or scene files are included.',
       spaces: lastDesk.properties.map(row => ({ id: row.id, title: row.title, category: row.category || null, general_location: row.location_general || null, created_at: row.created_at || null,
-        tours: lastDesk.rows.filter(tour => tour.property_id === row.id).map(tour => ({ id: tour.id, status: tour.status, created_at: tour.created_at || null, has_active_link: Boolean(tour.share_token),
+        tours: lastDesk.rows.filter(tour => tour.property_id === row.id).map(tour => ({ id: tour.id, status: tour.status, created_at: tour.created_at || null, has_active_link: Boolean(tour.share_token) && !tour.share_paused_at,
           walkthrough_id: walkthroughOf(tour), version: revisionOf(tour), replaced_at: tour.superseded_at || null })) })),
     };
     const url = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));

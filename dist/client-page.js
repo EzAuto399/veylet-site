@@ -104,6 +104,115 @@
     };
   }
 
+  /*
+   * Views, for the agent's desk (record_tour_view, launch plan C5 and section 5
+   * "Day-one analytics"). First-party only: one anonymous RPC to the account
+   * service with the link's token, what happened (open, first_frame, call_tap,
+   * email_tap, share_tap, dwell), the channel the link was handed out on
+   * (?src=) and, for a framed walkthrough, the hostname of the site framing it.
+   * Nothing else about the visitor, no cookie, no third party. Every call is
+   * fire-and-forget and never holds the page up; the dwell sent on pagehide uses
+   * keepalive, which survives the page as sendBeacon would and can carry the
+   * service's key headers, which sendBeacon cannot. A backend without the
+   * function (PGRST202, or a 404) turns the beacon off for the rest of the visit.
+   */
+  const VIEW_FUNCTION = 'record_tour_view';
+  const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell'];
+  const VIEW_ONCE = ['open', 'first_frame', 'dwell'];
+  const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown'];
+  const DWELL_CAP_SECONDS = 3600;
+  // The player marks its first 3D frame with performance.mark('veylet:first-3d').
+  const FIRST_FRAME_MARK = 'veylet:first-3d';
+
+  /** The link's channel (?src=), or the page's own default for links made before tags. */
+  function channelFrom(search, fallback) {
+    let value = '';
+    try { value = String(new URLSearchParams(search || '').get('src') || '').toLowerCase(); } catch { value = ''; }
+    if (VIEW_SOURCES.includes(value)) return value;
+    return VIEW_SOURCES.includes(fallback) ? fallback : 'unknown';
+  }
+
+  /** A referrer's hostname only; never its path or query. */
+  function referrerHost(referrer) {
+    try {
+      const url = new URL(String(referrer || ''));
+      return /^https?:$/.test(url.protocol) && url.hostname ? url.hostname.toLowerCase().slice(0, 253) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function viewBeacon(options = {}) {
+    const cfg = options.config || {};
+    const request = options.fetch || (typeof fetch === 'function' ? fetch : null);
+    const token = options.token;
+    const clock = typeof options.now === 'function' ? options.now : () => Date.now();
+    const src = VIEW_SOURCES.includes(options.src) ? options.src : 'unknown';
+    const host = typeof options.host === 'string' && options.host ? options.host : null;
+    let off = !cfg.url || !cfg.anonKey || !request || typeof token !== 'string' || token.length < 16;
+    const endpoint = off ? '' : String(cfg.url).replace(/\/+$/, '') + '/rest/v1/rpc/' + VIEW_FUNCTION;
+    const said = new Set();
+    let openedAt = null, openedMark = null;
+
+    function send(kind, detail) {
+      if (off || !VIEW_KINDS.includes(kind)) return false;
+      if (VIEW_ONCE.includes(kind)) { if (said.has(kind)) return false; said.add(kind); }
+      try {
+        const pending = request(endpoint, {
+          method: 'POST',
+          keepalive: kind === 'dwell',
+          credentials: 'omit',
+          referrerPolicy: 'no-referrer',
+          cache: 'no-store',
+          headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_token: token, p_kind: kind, p_src: src, p_host: host, p_detail: detail === undefined ? null : detail }),
+        });
+        Promise.resolve(pending).then(async response => {
+          if (!response || response.ok) return;
+          let body = null;
+          try { body = await response.json(); } catch { body = null; }
+          if (response.status === 404 || (body && body.code === 'PGRST202')) off = true;
+        }).catch(() => {});
+      } catch { /* a view count is never in the way */ }
+      return true;
+    }
+
+    function seconds(ms) { return Math.min(DWELL_CAP_SECONDS, Math.max(0, Math.round(ms / 1000))); }
+
+    /** The first 3D frame, when the player marks one; nothing when it does not. */
+    function watchFirstFrame(win) {
+      const Observer = win && win.PerformanceObserver;
+      if (typeof Observer !== 'function') return;
+      try {
+        const observer = new Observer(list => {
+          const entry = list.getEntries().find(item => item && item.name === FIRST_FRAME_MARK);
+          if (!entry) return;
+          observer.disconnect();
+          send('first_frame', seconds(openedMark === null ? entry.startTime : entry.startTime - openedMark));
+        });
+        observer.observe({ type: 'mark', buffered: true });
+      } catch { /* optional */ }
+    }
+
+    return {
+      get enabled() { return !off; },
+      src,
+      host,
+      send,
+      /** The walkthrough was found: count the open, then its first frame and, once, the time spent. */
+      opened(win) {
+        if (!send('open')) return false;
+        openedAt = clock();
+        try { openedMark = win && win.performance && typeof win.performance.now === 'function' ? win.performance.now() : null; } catch { openedMark = null; }
+        watchFirstFrame(win);
+        if (win && typeof win.addEventListener === 'function') {
+          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', seconds(clock() - openedAt)); }, { once: true });
+        }
+        return true;
+      },
+    };
+  }
+
   function agentLine(contact) {
     return contact.agency ? contact.name + ', ' + contact.agency : contact.name;
   }
@@ -121,22 +230,23 @@
     return node;
   }
 
-  /** Call is the filled action when there is a phone; otherwise Email is. */
-  function contactActions(doc, contact, title) {
+  /** Call is the filled action when there is a phone; otherwise Email is. A tap is counted for the agent. */
+  function contactActions(doc, contact, title, beacon) {
     const actions = element(doc, 'div', 'agent-actions');
-    const add = (href, text, verb) => {
+    const add = (href, text, verb, kind) => {
       if (!href) return;
       const link = element(doc, 'a', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', text);
       link.setAttribute('href', href);
       link.setAttribute('aria-label', verb + ' ' + contact.name);
+      if (beacon && typeof link.addEventListener === 'function') link.addEventListener('click', () => beacon.send(kind));
       actions.append(link);
     };
-    add(telHref(contact.phone), 'Call', 'Call');
-    add(mailtoHref(contact.email, title), 'Email', 'Email');
+    add(telHref(contact.phone), 'Call', 'Call', 'call_tap');
+    add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
     return actions;
   }
 
-  function renderCard(doc, host, contact, title) {
+  function renderCard(doc, host, contact, title, beacon) {
     if (!host) return;
     const name = element(doc, 'h2', 'agent-name', contact.name);
     name.setAttribute('id', 'agent-card-name');
@@ -146,24 +256,24 @@
     // A desk browser often has nothing that answers tel:, so the details are readable too.
     const details = [contact.phone, contact.email].filter(Boolean).join(' · ');
     if (details) who.append(element(doc, 'p', 'agent-details', details));
-    host.replaceChildren(who, contactActions(doc, contact, title));
+    host.replaceChildren(who, contactActions(doc, contact, title, beacon));
     host.setAttribute('aria-labelledby', 'agent-card-name');
     host.hidden = false;
   }
 
-  function renderBar(doc, host, contact, title) {
+  function renderBar(doc, host, contact, title, beacon) {
     if (!host) return;
-    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), contactActions(doc, contact, title));
+    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), contactActions(doc, contact, title, beacon));
     host.setAttribute('aria-label', 'Contact ' + contact.name);
     host.hidden = false;
     doc.body?.classList.add('has-agent-bar');
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
-  function showContact(doc, contact, title) {
+  function showContact(doc, contact, title, beacon) {
     if (!contact) return false;
-    renderCard(doc, doc.getElementById('agent-card'), contact, title);
-    renderBar(doc, doc.getElementById('agent-bar'), contact, title);
+    renderCard(doc, doc.getElementById('agent-card'), contact, title, beacon);
+    renderBar(doc, doc.getElementById('agent-bar'), contact, title, beacon);
     const note = doc.getElementById('client-footnote');
     if (note) note.textContent = privateNote(contact);
     const trouble = doc.getElementById('client-trouble');
@@ -220,6 +330,7 @@
     button.addEventListener('click', async () => {
       if (busy) return;
       busy = true;
+      if (options.beacon) options.beacon.send('share_tap');
       try {
         if (native) {
           try {
@@ -255,8 +366,9 @@
       status: doc.getElementById('client-share-status'),
       navigator: options.navigator,
       document: doc,
+      beacon: options.beacon,
     });
-    return lookupContact(options.client, options.token, options).then(contact => showContact(doc, contact, options.title));
+    return lookupContact(options.client, options.token, options).then(contact => showContact(doc, contact, options.title, options.beacon));
   }
 
   /*
@@ -286,6 +398,7 @@
 
   window.VeyletClientPage = {
     dialable, telHref, mailtoHref, contactFrom, lookupContact, restClient,
+    channelFrom, referrerHost, viewBeacon,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
   };
