@@ -115,9 +115,9 @@ test('a new account gets one setup action without changing access or creating a 
   assert.match(panel.all().map(el => el.textContent).join(' '), /Start with one space/);
   await panel.all().find(el => el.tagName === 'BUTTON').fire('click');
   assert.equal(h.ids['account-add-space'].open, true);
-  // Reading the plan, hosting dates and the team's invites are the only calls added
-  // here; nothing changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  // Reading the plan, hosting dates and the team's invites and members are the only calls
+  // added here; nothing changes access or creates a space.
+  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();
@@ -3185,7 +3185,7 @@ test('offer v8: the annual plan is public — no “members” wording in any ca
   await press(refused, 'Confirm yearly plan');
   assert.doesNotMatch(annualText(refused), /member/i);
   // Every string the desk can show (comments aside; the RPC and hook names are addresses, not words).
-  const code = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/get_members_annual_offer|\/square\/members-annual\//g, '');
+  const code = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/get_members_annual_offer|list_workspace_members|\/square\/members-annual\//g, '');
   assert.doesNotMatch(code, /members’|members'|members only|for members/i);
   assert.doesNotMatch(markup, /members’|members only/i);
 });

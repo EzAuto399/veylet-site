@@ -260,10 +260,12 @@
    * and `&team-revoke=fail` refuse or fail those presses, in the draft's words
    * (20260926123000_team_invites.sql). `&team-created=1` creates an invite once (reviewer,
    * new.agent@example.invalid) for a capture of the link.
-   * Members (functions still being added to that draft): the accepted invite carries the
-   * member's user_id, so the owner sees Remove (remove_workspace_member) and More › Make
-   * owner (transfer_workspace_ownership; this account then reads as a reviewer), and
-   * `member` sees Leave this office (leave_workspace). Remove and leave answer the draft's
+   * Members: list_workspace_members answers this account (Alex Example, the owner), Jo Operator
+   * and a reviewer without a name ("Teammate"); as `member` this account is that reviewer.
+   * `&team-members=missing|error` answers it with PGRST202 or a failure. The owner sees Remove
+   * (remove_workspace_member) and More › Make owner (transfer_workspace_ownership; this account
+   * then reads as a reviewer) on the others' rows, and `member` sees Leave this office
+   * (leave_workspace) on their own row. Remove and leave answer the draft's
    * counts with two shared links stopped. `&team-member=missing|fail|billing` answers those
    * three with PGRST202 or a failure, or refuses the transfer for a live subscription. While
    * a member remains, the owner's request_account_deletion is refused with the backend lane's
@@ -283,6 +285,15 @@
     { invite_id: 'aaaa1111-0000-4000-8000-000000000004', email: 'late.reply@example.invalid', role: 'operator', status: 'expired', created_at: ago(30), expires_at: ago(23) },
   ] : [];
   let teamSerial = 10;
+  // list_workspace_members: this account, a named operator and a reviewer without a name. `&team-members=missing|error`.
+  const teamMembersCase = params.get('team-members');
+  const teamPeople = ['owner', 'owner-empty', 'member', 'member-refused'].includes(teamCase) ? [
+    { user_id: '5e1f0000-0000-4000-8000-000000000001', display_name: 'Alex Example', email: null, role: 'owner', status: 'active', joined_at: ago(120), self: true },
+    { user_id: 'bbbb2222-0000-4000-8000-000000000002', display_name: 'Jo Operator', email: null, role: 'operator', status: 'active', joined_at: ago(8) },
+    { user_id: 'bbbb2222-0000-4000-8000-000000000003', display_name: null, email: null, role: 'reviewer', status: 'active', joined_at: ago(3) },
+  ] : [];
+  // As a teammate (`member`, `member-refused`) this account is the nameless one.
+  const teamSelf = () => (['member', 'member-refused'].includes(teamCase) ? teamPeople[teamCase === 'member' ? 2 : 1] : teamPeople[0])?.user_id;
   // Downloads are recorded, never opened: the link's host does not exist.
   const DOWNLOAD_HOST = 'https://downloads.fixture.invalid/';
   if (typeof HTMLAnchorElement === 'function') {
@@ -1238,7 +1249,7 @@
       if (name === 'get_account_deletion') return { data: deletion ? [deletion] : [] };
       if (name === 'request_account_deletion') {
         // `?team=owner` with a member who joined: the office still has teammates.
-        if (teamCase === 'owner' && teamOwnerNow && teamInvites.some(row => row.status === 'accepted' && !teamRemoved.has(row.user_id))) {
+        if (teamCase === 'owner' && teamOwnerNow && teamPeople.some(person => person.role !== 'owner' && !teamRemoved.has(person.user_id))) {
           return { data: null, error: { code: 'P0001', message: params.get('deletion-refusal') === 'generic' ? 'shared ownership requires reviewed transfer before deletion'
             : 'Transfer ownership or remove your teammates first.' } };
         }
@@ -1607,11 +1618,23 @@
         }
         if (!teamOwnerNow || !['owner', 'owner-empty'].includes(teamCase)) return { data: null, error: { code: 'P0001', message: 'workspace owner only' } };
         const target = name === 'remove_workspace_member' ? args?.p_user_id : args?.p_new_owner;
-        if (!teamInvites.some(row => row.user_id === target && row.status === 'accepted') || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
+        const person = teamPeople.find(row => row.user_id === target);
+        if (!person || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
+        if (target === teamSelf() || person.role === 'owner') return { data: null, error: { code: 'P0001', message: 'choose another active member of this workspace' } };
         if (name === 'transfer_workspace_ownership' && teamMemberCase === 'billing') return { data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } };
         if (name === 'remove_workspace_member') { teamRemoved.add(target); return counts('removed'); }
-        teamOwnerNow = false;
+        teamOwnerNow = false; teamPeople[0].role = 'reviewer'; person.role = 'owner';
         return { data: { state: 'transferred', workspace_id: args.p_workspace_id, owner: target, previous_owner_role: 'reviewer' } };
+      }
+      if (name === 'list_workspace_members') {
+        if (teamCase === 'missing' || teamMembersCase === 'missing') return teamMissing(name);
+        if (teamCase === 'loading') return new Promise(() => {});
+        if (teamMembersCase === 'error' || teamCase === 'error') return { data: null, error: { message: 'Synthetic members failure' } };
+        if (teamLeft) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
+        const self = teamSelf();
+        return { data: teamPeople.filter(person => !teamRemoved.has(person.user_id))
+          .map(({ self: _unused, ...person }) => ({ ...person, is_self: person.user_id === self }))
+          .sort((a, b) => (b.role === 'owner') - (a.role === 'owner')) };
       }
       if (['list_workspace_invites', 'invite_to_workspace', 'revoke_workspace_invite'].includes(name)) {
         if (teamCase === 'missing') return teamMissing(name);

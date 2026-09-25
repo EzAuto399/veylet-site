@@ -4542,11 +4542,14 @@
    * invite_url, expires_at } for the owner only (reviewer or operator),
    * list_workspace_invites, revoke_workspace_invite and accept_workspace_invite (the
    * /join page). No email is sent: the owner copies or shares the link. Anyone else
-   * reads the team and may leave it. remove_workspace_member, leave_workspace and
-   * transfer_workspace_ownership (the same draft) need a member's account id, which the
-   * invites list does not return yet: Remove and Make owner show only on a row that names
-   * one. A backend without the functions (PGRST202) shows no section, and a press answered
-   * PGRST202 takes its control away. Only the desk has the section; the app has its own.
+   * reads the team and may leave it. list_workspace_members (the same draft) lists the
+   * office's members, owners first, by the name each chose ("Teammate" without one; nobody's
+   * email): the owner removes (remove_workspace_member) or hands over to
+   * (transfer_workspace_ownership) another active member who is not an owner, and a teammate
+   * leaves (leave_workspace) from their own row. Invites stay a list of their own, for the owner.
+   * The section shows while either list function exists; a backend without one (PGRST202)
+   * leaves its part out, and a press answered PGRST202 takes its control away. Only the desk
+   * has the section; the app has its own.
    */
   const teamEl = document.getElementById('account-team');
   const teamBody = document.getElementById('account-team-body');
@@ -4569,6 +4572,10 @@
     invites: 'Invites',
     none: 'No invites yet.',
     teammates: 'Teammates',
+    teammate: 'Teammate',
+    invitedStatus: 'Invited',
+    peopleFailed: 'Teammates couldn’t be loaded. Try again.',
+    peopleOffline: 'You’re offline. Your teammates load when you’re back online.',
     revoke: 'Revoke',
     confirmRevoke: 'Confirm: revoke invite',
     keep: 'Keep it',
@@ -4609,6 +4616,7 @@
     leaveOffline: 'You’re offline. You’re still in this office.',
   });
   let team = null, teamVersion = 0;
+  const TEAM_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   // remove_workspace_member, transfer_workspace_ownership and leave_workspace, until a press says the backend lacks one.
   let teamRemoveAvailable = true, teamTransferAvailable = true, teamLeaveAvailable = true;
 
@@ -4628,53 +4636,109 @@
     return role === 'operator' ? 'an operator, who can capture and send' : 'a reviewer, who can review and share';
   }
   // `force` reads again even while the section is in use (after a press here).
+  // The members, keeping only rows the draft describes (list_workspace_members: active and
+  // invited memberships, owners first); anything but a list is no answer.
+  const TEAM_MEMBER_ROLES = Object.freeze({ owner: 'Owner', reviewer: 'Reviewer', operator: 'Operator' });
+  function teamMembers(data) {
+    if (!Array.isArray(data)) return null;
+    return data.filter(row => row && typeof row === 'object' && typeof row.user_id === 'string' && TEAM_UUID.test(row.user_id)
+      && TEAM_MEMBER_ROLES[row.role] && ['active', 'invited'].includes(row.status));
+  }
+  // The name a member chose (profiles.display_name), or "Teammate": nobody's email is shown.
+  function teamName(member) {
+    const name = typeof member?.display_name === 'string' ? member.display_name.trim() : '';
+    return name || TEAM_WORDS.teammate;
+  }
+  // `force` reads again even while the section is in use (after a press here).
   async function teamRender(supabase, ticket, workspaceID, role, force = false) {
     if (!teamEl || !teamBody) return;
     const same = team && team.workspaceID === workspaceID;
     // Typing, a press on its way, or a person inside the section, is never read over.
     if (!force && same && (team.busy || team.dirty || teamEl.contains?.(document.activeElement))) { team.supabase = supabase; team.role = role; return; }
     const version = ++teamVersion;
-    const reply = await settled(Promise.resolve().then(() => supabase.rpc('list_workspace_invites', { p_workspace_id: workspaceID })));
+    const ask = name => settled(Promise.resolve().then(() => supabase.rpc(name, { p_workspace_id: workspaceID })));
+    const [invites, members] = await Promise.all([ask('list_workspace_invites'), ask('list_workspace_members')]);
     if (version !== teamVersion || ticket !== deskVersion || !currentUserId) return;
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to see your team.'); return; }
-    if (missingFunction(reply)) { teamHide(); return; }
-    const rows = failed(reply) ? null : teamRows(reply.value?.data);
-    // An answer the draft does not describe is not a team to show.
-    if (!failed(reply) && !rows) { teamHide(); return; }
+    if (sessionGone(invites) || sessionGone(members)) { showSignedOut('Your sign-in has expired. Sign in again to see your team.'); return; }
+    const rows = failed(invites) ? null : teamRows(invites.value?.data);
+    const people = failed(members) ? null : teamMembers(members.value?.data);
+    // A missing function, or an answer the draft does not describe, is not a list to show.
+    const invitesOn = !missingFunction(invites) && (failed(invites) || Boolean(rows));
+    const membersOn = !missingFunction(members) && (failed(members) || Boolean(people));
+    if (!invitesOn && !membersOn) { teamHide(); return; }
     const state = same ? team : { workspaceID, result: null, dirty: false, busy: false, draft: { email: '', role: '' }, notice: '' };
-    Object.assign(state, { supabase, role, owner: role === 'owner', rows, offline: networkFailed(reply) || offlineNow() });
+    Object.assign(state, { supabase, role, owner: role === 'owner', invitesOn, membersOn, rows, people,
+      offline: networkFailed(invites) || networkFailed(members) || offlineNow() });
     team = state;
     teamDraw(state);
+  }
+  function teamRetry(state) {
+    const again = button('Try again', () => { void teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true); });
+    again.dataset.control = 'team-retry';
+    return annualRow(again);
   }
   function teamDraw(state) {
     teamEl.hidden = false; teamEl.setAttribute('aria-busy', 'false');
     const parts = [];
+    const refs = {};
     if (!state.owner) {
-      // A teammate reads their own role, and who has joined when the server lets them see it.
+      // A teammate reads their own role, who is in the office, and may leave it from their own row.
       const word = state.role === 'operator' ? 'an operator' : state.role === 'reviewer' ? 'a reviewer' : 'a member';
       parts.push(annualNode('p', 'annual-lead team-lead', 'You’re ' + word + ' in this workspace. Only the owner can invite teammates.'));
-      if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
-      const joined = (state.rows || []).filter(row => row.status === 'accepted');
-      if (joined.length) parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.teammates), teamList(state, joined, false));
-      const leaving = annualNode('div', 'team-leave');
-      teamLeave(state, leaving);
-      if (leaving.children.length) parts.push(leaving);
+    } else if (state.invitesOn) {
+      parts.push(teamForm(state, refs));
+      if (state.result) parts.push(teamResult(state, refs));
+    }
+    if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
+    if (state.membersOn) {
+      parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.teammates));
+      if (!state.people) parts.push(annualNode('p', 'annual-note', state.offline ? TEAM_WORDS.peopleOffline : TEAM_WORDS.peopleFailed), teamRetry(state));
+      else parts.push(teamMemberList(state, state.people));
+    }
+    if (!state.owner) {
+      // Without the members list: who joined by invite, and leaving on its own.
+      if (!state.membersOn) {
+        const joined = (state.rows || []).filter(row => row.status === 'accepted');
+        if (joined.length) parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.teammates), teamList(state, joined, false));
+      }
+      if (!state.people?.some(member => member.is_self === true)) {
+        const leaving = annualNode('div', 'team-leave');
+        teamLeave(state, leaving);
+        if (leaving.children.length) parts.push(leaving);
+      }
       teamBody.replaceChildren(...parts);
       return;
     }
-    const refs = {};
-    parts.push(teamForm(state, refs));
-    if (state.result) parts.push(teamResult(state, refs));
-    parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.invites));
-    if (state.notice) { parts.push(annualNode('p', 'team-said', state.notice)); state.notice = ''; }
-    if (!state.rows) {
-      const again = button('Try again', () => { void teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true); });
-      again.dataset.control = 'team-retry';
-      parts.push(annualNode('p', 'annual-note', state.offline ? TEAM_WORDS.readOffline : TEAM_WORDS.readFailed), annualRow(again));
-    } else if (!state.rows.length) parts.push(annualNode('p', 'annual-note team-none', TEAM_WORDS.none));
-    else parts.push(teamList(state, state.rows, true));
+    if (state.invitesOn) {
+      parts.push(annualNode('h3', 'team-subhead', TEAM_WORDS.invites));
+      if (!state.rows) parts.push(annualNode('p', 'annual-note', state.offline ? TEAM_WORDS.readOffline : TEAM_WORDS.readFailed), teamRetry(state));
+      else if (!state.rows.length) parts.push(annualNode('p', 'annual-note team-none', TEAM_WORDS.none));
+      else parts.push(teamList(state, state.rows, true));
+    }
     teamBody.replaceChildren(...parts);
     if (state.focusResult && refs.result) { state.focusResult = false; refs.result.focus?.({ preventScroll: true }); refs.result.scrollIntoView?.({ block: 'nearest', behavior: 'auto' }); }
+  }
+  // Everyone in the office: the owner may remove or hand over to another active member who is
+  // not an owner; a teammate may leave from their own row.
+  function teamMemberList(state, people) {
+    const list = annualNode('ul', 'team-invites team-people');
+    for (const member of people) {
+      const item = annualNode('li', 'team-invite team-person'); item.dataset.member = member.user_id;
+      const name = teamName(member);
+      const title = annualNode('p', 'team-invite-email', name);
+      if (member.is_self === true) title.append(annualNode('span', 'team-you', ' (you)'));
+      const meta = annualNode('p', 'team-invite-meta');
+      meta.append(annualNode('span', 'team-invite-role', TEAM_MEMBER_ROLES[member.role]));
+      if (member.status === 'invited') meta.append(pill(TEAM_WORDS.invitedStatus, 'busy'));
+      const joined = member.status === 'active' ? window.VeyletSharing?.hostingDate?.(member.joined_at) || '' : '';
+      if (joined) meta.append(annualNode('span', 'team-invite-when', 'Joined ' + joined));
+      item.append(title, meta);
+      const other = member.is_self !== true;
+      if (state.owner && other && member.role !== 'owner' && member.status === 'active') teamManageMember(state, member, name, item);
+      if (!state.owner && !other) teamLeave(state, item);
+      list.append(item);
+    }
+    return list;
   }
   function teamForm(state, refs) {
     const form = annualNode('form', 'veylet-form team-form'); form.noValidate = true; form.setAttribute('novalidate', '');
@@ -4796,26 +4860,17 @@
       annualNode('p', 'annual-note', 'They join as ' + teamRoleWords(role) + '.'));
     return box;
   }
-  // A member's account id on an accepted invite, when the list names it: the draft's list
-  // does not yet, so until it does nobody can be removed or made owner from here.
-  const TEAM_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  function teamMember(row) {
-    return row.status === 'accepted' ? [row.user_id, row.accepted_by].find(value => typeof value === 'string' && TEAM_UUID.test(value)) || null : null;
-  }
   function teamList(state, rows, manage) {
     const list = annualNode('ul', 'team-invites');
     for (const row of rows) {
       const item = annualNode('li', 'team-invite'); item.dataset.invite = row.invite_id;
-      const member = teamMember(row);
-      const gone = member && state.removed?.has(member);
       const meta = annualNode('p', 'team-invite-meta');
-      meta.append(pill(gone ? 'Removed' : TEAM_STATUS[row.status], !gone && row.status === 'accepted' ? 'good' : row.status === 'pending' ? 'busy' : ''),
+      meta.append(pill(TEAM_STATUS[row.status], row.status === 'accepted' ? 'good' : row.status === 'pending' ? 'busy' : ''),
         annualNode('span', 'team-invite-role', TEAM_ROLE_NAMES[row.role]));
       const until = row.status === 'pending' ? window.VeyletSharing?.hostingDate?.(row.expires_at) || '' : '';
       if (until) meta.append(annualNode('span', 'team-invite-when', 'Expires ' + until));
       item.append(annualNode('p', 'team-invite-email', row.email), meta);
       if (manage && row.status === 'pending') teamRevoke(state, row, item);
-      if (manage && member && !gone) teamManageMember(state, row, member, item);
       list.append(item);
     }
     return list;
@@ -4884,11 +4939,12 @@
         return outcome;
       } });
   }
-  // A member who joined: Remove, and Make owner behind More (remove_workspace_member and
+  // Another member: Remove, and Make owner behind More (remove_workspace_member and
   // transfer_workspace_ownership, the owner only; the old owner becomes a reviewer).
-  function teamManageMember(state, row, member, item) {
+  function teamManageMember(state, person, name, item) {
+    const member = person.user_id;
     if (teamRemoveAvailable) {
-      teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + row.email + '? ' + TEAM_WORDS.removeWarn,
+      teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + name + '? ' + TEAM_WORDS.removeWarn,
         keep: TEAM_WORDS.keepThem, kept: TEAM_WORDS.keptThem, control: 'team-remove', onMissing: () => { teamRemoveAvailable = false; },
         run: async (say, reset) => {
           let answer = null;
@@ -4896,17 +4952,16 @@
             { expired: 'Your sign-in has expired. Sign in and check whether they were removed.', offline: TEAM_WORDS.removeOffline, failed: TEAM_WORDS.notRemoved,
               answer: value => { answer = value; } });
           if (outcome !== 'done') return outcome;
-          (state.removed ||= new Set()).add(member);
-          state.notice = 'Removed ' + row.email + '.' + teamLinksStopped(answer, 'they'); setStatus(state.notice);
+          state.notice = 'Removed ' + name + '.' + teamLinksStopped(answer, 'they'); setStatus(state.notice);
           await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
           return outcome;
         } });
     }
     if (!teamTransferAvailable) return;
     const more = annualNode('details', 'account-details team-more');
-    const summary = annualNode('summary', '', TEAM_WORDS.more); summary.setAttribute('aria-label', 'More for ' + row.email);
+    const summary = annualNode('summary', '', TEAM_WORDS.more); summary.setAttribute('aria-label', 'More for ' + name);
     more.append(summary); item.append(more);
-    teamConfirmed(more, { label: TEAM_WORDS.makeOwner, confirm: TEAM_WORDS.confirmOwner, warn: 'Make ' + row.email + ' the owner? ' + TEAM_WORDS.ownerWarn,
+    teamConfirmed(more, { label: TEAM_WORDS.makeOwner, confirm: TEAM_WORDS.confirmOwner, warn: 'Make ' + name + ' the owner? ' + TEAM_WORDS.ownerWarn,
       keep: TEAM_WORDS.keepOwnership, kept: TEAM_WORDS.keptOwnership, control: 'team-owner',
       onMissing: () => { teamTransferAvailable = false; more.hidden = true; },
       run: async (say, reset) => {
@@ -4915,7 +4970,7 @@
             refusals: [['card or app store subscription', TEAM_WORDS.planFirst]] });
         if (outcome !== 'done') return outcome;
         // This account is a reviewer now: the whole desk reads its new role.
-        state.notice = row.email + ' is now the owner.'; setStatus(state.notice);
+        state.notice = name + ' is now the owner.'; setStatus(state.notice);
         await loadDesk(state.supabase);
         return outcome;
       } });

@@ -4,9 +4,10 @@
  * teammate by email and role (Reviewer: can review and share; Operator: can capture and
  * send) and gets a link to copy or share, with when it expires; no email is sent. The
  * invites list says each state in words, and Revoke is confirmed in place. Anyone else
- * reads their role and who has joined. A backend without the functions (PGRST202) shows
- * no section; the app's page has none (the app shows its own). Signing in from /join
- * comes back to /join.
+ * reads their role. Everyone sees the members (list_workspace_members) by name; the owner
+ * removes or hands over to another member, and a teammate leaves from their own row. A
+ * backend without the functions (PGRST202) shows no section; the app's page has none (the
+ * app shows its own). Signing in from /join comes back to /join.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -222,79 +223,138 @@ test('signing in from an invite comes back to /join, by the email link and by th
   assert.deepEqual(app.redirects, []);
 });
 
-test('the owner removes a member who joined, confirmed in place', async () => {
-  const h = await owner({ rpc: { remove_workspace_member: () => ({ data: { state: 'removed', changed: true, invites_revoked: 0, shared_links_stopped: 2 } }) } });
-  const member = invites(h)[1];
-  assert.equal(h.control(member, 'team-revoke'), null);
-  const remove = h.control(member, 'team-remove');
-  assert.equal(remove.textContent, 'Remove');
+// list_workspace_members as the draft answers it: owners first, names from profiles, no email.
+const PEOPLE = [
+  { user_id: 'aaaa0000-0000-4000-8000-000000000001', display_name: 'Alex Example', email: null, role: 'owner', status: 'active', joined_at: '2026-06-01T00:00:00Z', is_self: true },
+  { user_id: 'bbbb2222-0000-4000-8000-000000000002', display_name: 'Jo Operator', email: null, role: 'operator', status: 'active', joined_at: '2026-09-20T00:00:00Z', is_self: false },
+  { user_id: 'bbbb2222-0000-4000-8000-000000000003', display_name: '  ', email: null, role: 'reviewer', status: 'active', joined_at: '2026-09-24T00:00:00Z', is_self: false },
+  { user_id: 'bbbb2222-0000-4000-8000-000000000004', display_name: 'Pat Pending', email: null, role: 'operator', status: 'invited', joined_at: '2026-09-25T00:00:00Z', is_self: false },
+];
+const members = h => team(h).all().filter(el => el.className === 'team-invite team-person');
+const nameOf = item => item.all().find(el => el.className === 'team-invite-email');
+
+test('everyone sees the teammates by name, owners first, and invites stay a list of their own', async () => {
+  const h = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE.map(row => ({ ...row })) }) } });
+  assert.deepEqual(h.called('list_workspace_members'), [{ p_workspace_id: 'w1' }]);
+  const words = h.words(team(h));
+  assert.ok(words.indexOf('Teammates') > -1 && words.indexOf('Teammates') < words.indexOf('Invites'), 'teammates, then invites');
+  assert.deepEqual(members(h).map(item => nameOf(item).textContent), ['Alex Example', 'Jo Operator', 'Teammate', 'Pat Pending']);
+  assert.equal(nameOf(members(h)[0]).children[0].textContent, ' (you)');
+  assert.ok(h.words(members(h)[1]).includes('Operator'));
+  assert.ok(h.words(members(h)[1]).includes('Joined 20 Sep 2026'));
+  assert.ok(h.words(members(h)[3]).includes('Invited'));
+  // The owner manages the other active members who are not owners, never their own row.
+  assert.deepEqual(members(h).map(item => [Boolean(h.control(item, 'team-remove')), Boolean(h.control(item, 'team-owner'))]),
+    [[false, false], [true, true], [true, true], [false, false]]);
+  assert.equal(h.control(team(h), 'team-leave'), null);
+  assert.equal(invites(h).length, ROWS.length, 'every invite is still listed');
+  assert.equal(team(h).all().some(el => /@/.test(el.textContent) && el.className === 'team-invite-email' && el.parent?.className !== 'team-invite'), false,
+    'no member row shows an email');
+});
+
+test('the owner removes a member, confirmed in place, by name', async () => {
+  let people = PEOPLE.map(row => ({ ...row }));
+  const h = await owner({ rpc: {
+    list_workspace_members: () => ({ data: people.map(row => ({ ...row })) }),
+    remove_workspace_member: args => { people = people.filter(row => row.user_id !== args.p_user_id); return { data: { state: 'removed', changed: true, invites_revoked: 0, shared_links_stopped: 2 } }; },
+  } });
+  const jo = members(h)[1];
+  const remove = h.control(jo, 'team-remove');
   await remove.fire('click');
   assert.equal(remove.textContent, 'Confirm: remove');
-  assert.ok(h.words(member).includes('Remove jo@example.invalid? They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.'));
-  await h.control(member, 'team-remove-keep').fire('click');
-  assert.ok(h.words(member).includes('They stay in this office.'));
+  assert.ok(h.words(jo).includes('Remove Jo Operator? They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.'));
+  await h.control(jo, 'team-remove-keep').fire('click');
+  assert.ok(h.words(jo).includes('They stay in this office.'));
   assert.equal(h.called('remove_workspace_member').length, 0);
   await remove.fire('click'); await remove.fire('click'); await h.settle();
   assert.deepEqual(h.called('remove_workspace_member'), [{ p_workspace_id: 'w1', p_user_id: 'bbbb2222-0000-4000-8000-000000000002' }]);
-  assert.ok(h.words(team(h)).includes('Removed jo@example.invalid. 2 shared walkthroughs they captured stopped working for clients.'));
-  const after = invites(h)[1];
-  assert.equal(after.all().find(el => /\bpill\b/.test(el.className)).textContent, 'Removed');
-  assert.equal(h.control(after, 'team-remove'), null);
+  assert.ok(h.words(team(h)).includes('Removed Jo Operator. 2 shared walkthroughs they captured stopped working for clients.'));
+  assert.deepEqual(members(h).map(item => nameOf(item).textContent), ['Alex Example', 'Teammate', 'Pat Pending'], 'both lists read again');
+  // The nameless member is "Teammate" in the words too.
+  const nameless = members(h)[1];
+  await h.control(nameless, 'team-remove').fire('click');
+  assert.ok(h.words(nameless).some(text => text.startsWith('Remove Teammate? ')));
 });
 
-test('Make owner sits behind More, is confirmed, and the desk is read again', async () => {
-  const h = await owner({ rpc: { transfer_workspace_ownership: () => ({ data: null }) } });
-  const member = invites(h)[1];
-  const more = member.all().find(el => el.tagName === 'DETAILS');
+test('Make owner sits behind More, is confirmed by name, and refused while a plan could still charge', async () => {
+  const h = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }), transfer_workspace_ownership: () => ({ data: { state: 'transferred' } }) } });
+  const jo = members(h)[1];
+  const more = jo.all().find(el => el.tagName === 'DETAILS');
   assert.equal(more.children[0].textContent, 'More');
-  assert.equal(more.children[0].getAttribute('aria-label'), 'More for jo@example.invalid');
+  assert.equal(more.children[0].getAttribute('aria-label'), 'More for Jo Operator');
   const make = h.control(more, 'team-owner');
-  assert.equal(make.textContent, 'Make owner');
   await make.fire('click');
-  assert.ok(h.words(more).includes('Make jo@example.invalid the owner? You become a reviewer. Only the owner can invite or remove teammates. Confirm to continue.'));
-  const reads = h.called('list_workspace_invites').length;
+  assert.ok(h.words(more).includes('Make Jo Operator the owner? You become a reviewer. Only the owner can invite or remove teammates. Confirm to continue.'));
+  const reads = h.called('list_workspace_members').length;
   await make.fire('click'); await h.settle();
   assert.deepEqual(h.called('transfer_workspace_ownership'), [{ p_workspace_id: 'w1', p_new_owner: 'bbbb2222-0000-4000-8000-000000000002' }]);
-  assert.ok(h.called('list_workspace_invites').length > reads, 'the whole desk reads the new role');
-  // A plan someone could still be charged for keeps the office where it is.
-  const billing = await owner({ rpc: { transfer_workspace_ownership: () => ({ data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } }) } });
-  const press = billing.control(invites(billing)[1], 'team-owner');
+  assert.ok(h.called('list_workspace_members').length > reads, 'the whole desk reads the new role');
+  assert.equal(h.status(), 'Jo Operator is now the owner.');
+  const billing = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }),
+    transfer_workspace_ownership: () => ({ data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } }) } });
+  const press = billing.control(members(billing)[1], 'team-owner');
   await press.fire('click'); await press.fire('click'); await billing.settle();
-  assert.ok(billing.words(invites(billing)[1]).includes('Cancel or move the plan first, then transfer ownership.'));
+  assert.ok(billing.words(members(billing)[1]).includes('Cancel or move the plan first, then transfer ownership.'));
   assert.equal(press.textContent, 'Make owner');
 });
 
-test('without a member’s account id, or without the functions, nobody is removed or made owner', async () => {
-  const anonymous = ROWS.map(({ user_id, ...row }) => row);
-  const h = await loadDesk({ rpc: { list_workspace_invites: () => ({ data: anonymous }) } });
-  assert.equal(team(h).all().some(el => ['team-remove', 'team-owner'].includes(el.dataset?.control)), false);
-  // A press answered PGRST202 takes the control away without a word, and it stays away.
-  const gone = await owner({ rpc: { remove_workspace_member: () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
-  const remove = gone.control(invites(gone)[1], 'team-remove');
-  await remove.fire('click'); await remove.fire('click'); await gone.settle();
-  assert.equal(remove.parent.hidden, true);
-  await gone.ids['account-refresh'].fire('click'); await gone.settle();
-  assert.equal(gone.control(invites(gone)[1], 'team-remove'), null);
-  const failing = await owner({ rpc: { remove_workspace_member: () => ({ data: null, error: { message: 'Synthetic failure' } }) } });
-  const press = failing.control(invites(failing)[1], 'team-remove');
-  await press.fire('click'); await press.fire('click'); await failing.settle();
-  assert.ok(failing.words(invites(failing)[1]).includes('They weren’t removed. Try again.'));
-  assert.equal(press.disabled, false);
-});
-
-test('a teammate can leave the office, confirmed in place', async () => {
-  const h = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), leave_workspace: () => ({ data: { state: 'left', changed: true, invites_revoked: 1, shared_links_stopped: 1 } }) } });
-  const leave = h.control(team(h), 'team-leave');
+test('a teammate leaves from their own row, confirmed in place', async () => {
+  const mine = PEOPLE.map(row => ({ ...row, is_self: row.user_id === 'bbbb2222-0000-4000-8000-000000000002' }));
+  const h = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), list_workspace_members: () => ({ data: mine }),
+    leave_workspace: () => ({ data: { state: 'left', changed: true, invites_revoked: 1, shared_links_stopped: 1 } }) } });
+  assert.equal(h.words(team(h)).filter(text => text === 'Teammates').length, 1, 'one list: the members replace who joined by invite');
+  assert.equal(members(h).length, PEOPLE.length);
+  assert.equal(invites(h).length, 0, 'invites are the owner’s list');
+  assert.equal(team(h).all().some(el => ['team-remove', 'team-owner', 'team-revoke'].includes(el.dataset?.control)), false);
+  const own = members(h)[1];
+  assert.equal(nameOf(own).children[0].textContent, ' (you)');
+  const leave = h.control(own, 'team-leave');
   assert.equal(leave.textContent, 'Leave this office');
+  assert.equal(team(h).all().filter(el => el.dataset?.control === 'team-leave').length, 1, 'only on their own row');
   await leave.fire('click');
-  assert.ok(h.words(team(h)).includes('You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.'));
-  await h.control(team(h), 'team-leave-keep').fire('click');
-  assert.ok(h.words(team(h)).includes('You’re still in this office.'));
+  assert.ok(h.words(own).includes('You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.'));
+  await h.control(own, 'team-leave-keep').fire('click');
+  assert.ok(h.words(own).includes('You’re still in this office.'));
   await leave.fire('click'); await leave.fire('click'); await h.settle();
   assert.deepEqual(h.called('leave_workspace'), [{ p_workspace_id: 'w1' }]);
   assert.equal(h.status(), 'You left this office. 1 shared walkthrough you captured stopped working for clients.');
-  const owner2 = await owner();
-  assert.equal(owner2.control(team(owner2), 'team-leave'), null, 'the owner hands the office over instead');
+});
+
+test('without the members list, or when it fails, the rest still works and nothing is guessed', async () => {
+  // Missing (PGRST202): the owner's invites as before, nobody to remove; a teammate keeps Leave on its own.
+  const noList = await owner();
+  assert.equal(members(noList).length, 0);
+  assert.equal(team(noList).all().some(el => ['team-remove', 'team-owner'].includes(el.dataset?.control)), false);
+  const teammate = await loadDesk({ role: 'reviewer', rpc: { list_workspace_invites: () => ({ data: ROWS }), leave_workspace: () => ({ data: null }) } });
+  assert.ok(teammate.control(team(teammate), 'team-leave'));
+  // Only the members list: the section still shows for everyone.
+  const onlyMembers = await loadDesk({ rpc: { list_workspace_members: () => ({ data: PEOPLE }) } });
+  assert.equal(onlyMembers.ids['account-team'].hidden, false);
+  assert.equal(form(onlyMembers), undefined, 'no invite form without the invite functions');
+  assert.equal(members(onlyMembers).length, PEOPLE.length);
+  // A failed read says so and offers Try again; a teammate can still leave.
+  let fail = true;
+  const failing = await owner({ rpc: { list_workspace_members: () => (fail ? { data: null, error: { message: 'Synthetic failure' } } : { data: PEOPLE }) } });
+  assert.ok(failing.words(team(failing)).includes('Teammates couldn’t be loaded. Try again.'));
+  fail = false;
+  await failing.control(team(failing), 'team-retry').fire('click'); await failing.settle();
+  assert.equal(members(failing).length, PEOPLE.length);
+  const failingMate = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), list_workspace_members: () => ({ data: null, error: { message: 'x' } }) } });
+  assert.ok(failingMate.control(team(failingMate), 'team-leave'));
+  // Rows the draft does not describe are left out; a Remove answered PGRST202 goes away and stays away.
+  const odd = await owner({ rpc: { list_workspace_members: () => ({ data: [{ user_id: 'not-a-uuid', role: 'owner', status: 'active' }, { ...PEOPLE[1], role: 'admin' }, PEOPLE[1]] }) } });
+  assert.deepEqual(members(odd).map(item => nameOf(item).textContent), ['Jo Operator']);
+  const gone = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }), remove_workspace_member: () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
+  const remove = gone.control(members(gone)[1], 'team-remove');
+  await remove.fire('click'); await remove.fire('click'); await gone.settle();
+  assert.equal(remove.parent.hidden, true);
+  await gone.ids['account-refresh'].fire('click'); await gone.settle();
+  assert.equal(gone.control(members(gone)[1], 'team-remove'), null);
+  const failingRemove = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }), remove_workspace_member: () => ({ data: null, error: { message: 'Synthetic failure' } }) } });
+  const press = failingRemove.control(members(failingRemove)[1], 'team-remove');
+  await press.fire('click'); await press.fire('click'); await failingRemove.settle();
+  assert.ok(failingRemove.words(members(failingRemove)[1]).includes('They weren’t removed. Try again.'));
+  assert.equal(press.disabled, false);
 });
 
 test('deleting an owner’s account while teammates remain points to Your team, only when the refusal says so', async () => {

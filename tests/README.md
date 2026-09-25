@@ -276,13 +276,15 @@ return from sign-in; `tests/join-page.test.cjs` covers `/join`:
   and `&team-revoke=fail` refuse or fail those presses in the draft's words
   (`supabase/drafts/release-2/20260926123000_team_invites.sql`); `&team-created=1` creates one
   invite for a capture of the link. No email is sent anywhere.
-- Members: the accepted invite carries a `user_id`, so the owner gets Remove
-  (`remove_workspace_member`) and More › Make owner (`transfer_workspace_ownership`), and a
-  teammate gets Leave this office (`leave_workspace`); these are still being added to the draft,
-  so the desk shows them only when the list names a member's account (the draft's list does not
-  yet) and hides a control whose press answers PGRST202. Remove and leave say afterwards how many
-  shared links stopped. `&team-member=missing|fail|billing`. While a member remains, the owner's
-  `request_account_deletion` is refused with the backend lane's wording (draft 20260926131000,
-  "Transfer ownership or remove your teammates first."), and the deletion panel points to Your team; `&deletion-refusal=generic` (today's one message) keeps the old words.
+- Members: `list_workspace_members` answers this account (Alex Example, the owner), Jo Operator and
+  a reviewer without a name ("Teammate"); as `member` this account is that reviewer.
+  `&team-members=missing|error`. The owner gets Remove (`remove_workspace_member`) and More › Make
+  owner (`transfer_workspace_ownership`) on the others' rows, and a teammate gets Leave this office
+  (`leave_workspace`) on their own row; a control whose press answers PGRST202 goes away. Remove
+  and leave say afterwards how many shared links stopped. `&team-member=missing|fail|billing`.
+  While a member remains, the owner's `request_account_deletion` is refused with the backend
+  lane's wording (draft 20260926131000, "Transfer ownership or remove your teammates first."), and
+  the deletion panel points to Your team; `&deletion-refusal=generic` (today's one message) keeps
+  the old words.
 - `/join?i=…` has no QA route of its own; render it with `supabase-public.js` and the vendored
   client stubbed by the browser (a route intercept), never against the hosted project.
