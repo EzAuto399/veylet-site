@@ -281,7 +281,7 @@ return from sign-in; `tests/join-page.test.cjs` covers `/join`:
   `&team-members=missing|error`. The owner gets Remove (`remove_workspace_member`) and More › Make
   owner (`transfer_workspace_ownership`) on the others' rows, and a teammate gets Leave this office
   (`leave_workspace`) on their own row; a control whose press answers PGRST202 goes away. Remove
-  and leave say afterwards how many shared links stopped. `&team-member=missing|fail|billing`.
+  and removal tells the owner how many live links stay live (live_links_kept). `&team-member=missing|fail|billing`.
   While a member remains, the owner's `request_account_deletion` is refused with the backend
   lane's wording (draft 20260926131000, "Transfer ownership or remove your teammates first."), and
   the deletion panel points to Your team; `&deletion-refusal=generic` (today's one message) keeps
