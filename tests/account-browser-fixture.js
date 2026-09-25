@@ -158,6 +158,67 @@
     }
   }
   if (pauseCase === 'paused' && tokens.has('synthetic-live-active')) pausedAt.set('synthetic-live-active', ago(2));
+  /* Listing exports (C3): the sibling repository's draft
+   * supabase/drafts/release-2/20260926113000_listing_exports.sql (not released) and
+   * its contract, docs/render-status-contract-20260925.md "Listing exports (C3)".
+   * `?exports=` answers get_listing_exports for the live walkthrough on
+   * /__qa/account/ (synthetic-live-active); every other walkthrough answers nothing
+   * requested with the same statement version. By default `missing` (PGRST202 for the
+   * three functions, as today's backend: no block anywhere). `soon` is the draft's
+   * seeded statement, still inactive (version null: "Exports open soon."); `request` the
+   * statement active with nothing requested (Make listing videos records the request,
+   * which then reads `requested`); `requested`, `rendering`, `needs-attention`, `ready`
+   * (three files: 18.6 MB, 6.9 MB and 520 KB), `ready-locked` (ready, downloadable false),
+   * `partner-only`, `failed` (statement active, so Try again asks again), `failed-soon`
+   * (failed while the statement is inactive, so asking again is refused), `unknown-version`
+   * (an active version this page has no words for), `error` fails the read and `loading`
+   * never answers. `&exports-request=inactive|approve|unavailable|fail|expired` refuses
+   * every request with the draft's words, a failure or an expired sign-in.
+   * Downloads use the server lane's proposed endpoint (POST /listing-exports/download on
+   * the hooks stand-in below, not built yet): it answers a link on downloads.fixture.invalid,
+   * which this fixture records instead of opening. `&exports-download=not-open|too-many|not-ready|fail`
+   * answers 404, 429, 409 or 500. `&exports-open=1` opens the live walkthrough's block for a capture
+   * (on /__qa/account/ and /__qa/app-account/). */
+  const exportsCase = params.get('exports') || 'missing';
+  const exportsRequestCase = params.get('exports-request');
+  const exportsDownloadCase = params.get('exports-download');
+  const EXPORT_VERSION = 'export-consent-v0-draft';
+  const EXPORT_TOUR = 'synthetic-live-active';
+  const EXPORT_KINDS = ['stills', 'video_16x9', 'video_9x16'];
+  const EXPORT_NAMES = { video_16x9: 'listing-16x9.mp4', video_9x16: 'social-9x16.mp4', stills: 'stills.zip' };
+  const EXPORT_FILES = { video_16x9: { bytes: 18600000, sha256: '1'.repeat(64), content_type: 'video/mp4' },
+    video_9x16: { bytes: 6900000, sha256: '2'.repeat(64), content_type: 'video/mp4' },
+    stills: { bytes: 520000, sha256: '3'.repeat(64), content_type: 'application/zip' } };
+  const exportsMissing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
+  // The active statement version, as get_listing_exports names it when nothing is requested.
+  const exportsVersion = exportsCase === 'unknown-version' ? 'export-consent-v9' : ['soon', 'failed-soon'].includes(exportsCase) ? null : EXPORT_VERSION;
+  const exportStart = { requested: 'requested', rendering: 'rendering', 'needs-attention': 'needs_attention', ready: 'ready',
+    'ready-locked': 'ready', 'partner-only': 'partner_only', failed: 'failed', 'failed-soon': 'failed' }[exportsCase] || null;
+  const exportRows = new Map();
+  const exportId = tourId => 'e0e0e0e0-0000-4000-8000-' + String(tourId).replace(/[^a-f0-9]/g, '').padEnd(12, '0').slice(0, 12);
+  if (exportStart) exportRows.set(EXPORT_TOUR, { state: exportStart, requested_at: ago(1), consent_version: EXPORT_VERSION, locked: exportsCase === 'ready-locked' });
+  // The member's view of an export (listing_export_json): sizes and hashes, never storage keys.
+  function exportJson(tourId) {
+    const row = exportRows.get(tourId);
+    if (!row) return { tour_id: tourId, state: null, requested: false, downloadable: false, consent_version: exportsVersion };
+    const rendered = ['ready', 'needs_attention', 'partner_only'].includes(row.state);
+    return { export_id: exportId(tourId), tour_id: tourId, kinds: [...EXPORT_KINDS], state: row.state, requested: true,
+      requested_at: row.requested_at, consent_version: row.consent_version, acknowledged_cannot_recall: true,
+      screening: rendered ? { ready: 'clear', needs_attention: 'needs_attention', partner_only: 'unavailable' }[row.state] : null,
+      screening_counts: rendered ? { face: row.state === 'needs_attention' ? 1 : 0, document: 0, text: 0 } : null,
+      rendered_at: rendered || row.state === 'failed' ? ago(0.02) : null, error_code: row.state === 'failed' ? 'export_failed' : null,
+      files: rendered ? EXPORT_FILES : {},
+      downloadable: row.state === 'ready' && approvedTours.has(tourId) && !row.locked, updated_at: ago(0.01) };
+  }
+  // Downloads are recorded, never opened: the link's host does not exist.
+  const DOWNLOAD_HOST = 'https://downloads.fixture.invalid/';
+  if (typeof HTMLAnchorElement === 'function') {
+    const anchorClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (String(this.href || '').startsWith(DOWNLOAD_HOST)) { window.VEYLET_QA_CALLS.push({ name: 'open download', args: { href: this.href, download: this.download } }); return; }
+      return anchorClick.call(this);
+    };
+  }
   function hostingRow(tour) {
     const property = properties.find(row => row.id === tour.property_id);
     const released = releasedAt.get(tour.id) || null;
@@ -835,6 +896,22 @@
         application_id: 'sandbox-sq0idb-veylet-qa-fixture', location_id: 'LQAFIXTURE' } } : {}) });
     }
     if (!bearer) return reply(401, { error: 'unauthorized' });
+    // The server lane's proposed download endpoint for listing exports (not built): it
+    // calls authorize_listing_export_download with the member's session and answers a
+    // presigned link of at most 600 s. Here the link's host does not exist.
+    if (method === 'POST' && path === '/listing-exports/download') {
+      if (exportsCase === 'missing' || exportsDownloadCase === 'not-open') return reply(404, { error: 'not_found' });
+      if (exportsDownloadCase === 'too-many') return reply(429, { error: 'too many downloads; try again later' });
+      if (exportsDownloadCase === 'not-ready') return reply(409, { error: 'export is not ready to download' });
+      if (exportsDownloadCase === 'fail') return reply(500, { error: 'server_error' });
+      const tourId = [...exportRows.keys()].find(id => exportId(id) === body?.export_id);
+      const answer = tourId ? exportJson(tourId) : null;
+      if (!answer || !answer.downloadable) return reply(409, { error: 'export is not ready to download' });
+      if (!answer.kinds.includes(body.kind)) return reply(400, { error: 'unknown export kind' });
+      const file = EXPORT_FILES[body.kind];
+      return reply(200, { url: DOWNLOAD_HOST + EXPORT_NAMES[body.kind] + '?expires=600', filename: EXPORT_NAMES[body.kind],
+        bytes: file.bytes, content_type: file.content_type, expires_in: 600 });
+    }
     if (method === 'POST' && path === '/square/members-annual/checkout') {
       const refusal = params.get('checkout');
       if (refusal === 'fail') return reply(500, { error: 'server_error' });
@@ -1406,6 +1483,38 @@
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
         return { data: null };
       }
+      if (['get_listing_exports', 'request_listing_exports', 'authorize_listing_export_download'].includes(name)) {
+        if (exportsCase === 'missing') return exportsMissing(name);
+        const tourId = args?.p_tour_id;
+        if (name === 'get_listing_exports') {
+          if (exportsCase === 'error') return { data: null, error: { message: 'Synthetic export service failure' } };
+          if (exportsCase === 'loading') return new Promise(() => {});
+          if (!tours.some(tour => tour.id === tourId)) return { data: null, error: { code: 'P0001', message: 'tour unavailable' } };
+          return { data: exportJson(tourId) };
+        }
+        if (name === 'request_listing_exports') {
+          if (exportsRequestCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+          if (exportsRequestCase === 'fail') return { data: null, error: { message: 'Synthetic export request failure' } };
+          const refusal = { inactive: 'consent statement version is not active', approve: 'approve this walkthrough before requesting exports',
+            unavailable: 'tour unavailable' }[exportsRequestCase];
+          if (refusal) return { data: null, error: { code: 'P0001', message: refusal } };
+          // The draft's own checks, in its order.
+          if (args?.p_acknowledge_cannot_recall !== true) return { data: null, error: { code: 'P0001', message: 'acknowledge that downloaded files cannot be recalled' } };
+          const kinds = Array.isArray(args?.p_kinds) ? [...new Set(args.p_kinds)] : [];
+          if (!kinds.length || kinds.length !== args.p_kinds.length || kinds.length > 3 || kinds.some(kind => !EXPORT_KINDS.includes(kind))) {
+            return { data: null, error: { code: 'P0001', message: 'kinds are 1 to 3 distinct of video_16x9, video_9x16, stills' } };
+          }
+          if (!exportsVersion || args?.p_consent_version !== exportsVersion || exportsVersion !== EXPORT_VERSION) return { data: null, error: { code: 'P0001', message: 'consent statement version is not active' } };
+          if (!tours.some(tour => tour.id === tourId)) return { data: null, error: { code: 'P0001', message: 'tour unavailable' } };
+          if (!approvedTours.has(tourId)) return { data: null, error: { code: 'P0001', message: 'approve this walkthrough before requesting exports' } };
+          const row = exportRows.get(tourId);
+          // Idempotent: an existing request is answered unchanged; a failed one is asked again.
+          if (!row || row.state === 'failed') exportRows.set(tourId, { state: 'requested', requested_at: new Date().toISOString(), consent_version: args.p_consent_version, locked: false });
+          return { data: exportJson(tourId) };
+        }
+        // Never from the browser (the contract): the hooks endpoint below stands in for it.
+        return { data: null, error: { code: 'P0001', message: 'Synthetic: downloads go through the server endpoint.' } };
+      }
       if (name === 'get_tour_view_stats') {
         if (viewsCase === 'missing') return viewsMissing;
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
@@ -1488,6 +1597,16 @@
         const email = document.getElementById('account-email');
         if (email && !email.hidden) { email.open = true; email.scrollIntoView({ block: 'center' }); }
         if ((email && !email.hidden) || ++tries > 40) clearInterval(open);
+      }, 100);
+    }
+    // Review affordance only: `&exports-open=1` opens the live walkthrough's Videos and
+    // stills block once it is shown, so a capture can include it. It changes nothing.
+    if (['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && params.get('exports-open') === '1') {
+      let tries = 0;
+      const open = setInterval(() => {
+        const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] .tour-exports:not([hidden])');
+        if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
+        if (block || ++tries > 40) clearInterval(open);
       }, 100);
     }
     // Review affordance only: opens the leaving disclosure so a capture can show

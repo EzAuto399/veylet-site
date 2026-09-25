@@ -919,6 +919,263 @@
       (moves ? '. Your existing link and embed will show this version.' : '; later corrections of it use none.');
   }
 
+  /* ---- Videos and stills for your listing ---------------------------------
+   * Listing exports, in the words the app uses too (the sibling repository's
+   * docs/render-status-contract-20260925.md, "Listing exports (C3)", and its draft
+   * supabase/drafts/release-2/20260926113000_listing_exports.sql, not released):
+   * an approved walkthrough's MP4 listing cut (16:9, 60–180 s), social cut (9:16,
+   * 20–45 s) and a ZIP of stills. get_listing_exports reads its one export;
+   * request_listing_exports records the request with the active consent statement
+   * version and the "cannot be recalled" acknowledgement, which is sent only once
+   * the box beside the statement is ticked. The server names the version, never the
+   * words, so the words live here by version. The draft seeds its statement
+   * inactive, so until the owner approves it the version is null and the block
+   * says "Exports open soon." with nothing to press. A backend without the
+   * functions (PGRST202) shows no block at all.
+   * Downloads never call authorize_listing_export_download from the browser (the
+   * contract: it answers a storage key, not a link). They go to the server lane's
+   * endpoint (proposed here, not built yet), which calls it with this session and
+   * answers a presigned link of at most 600 s; until it exists they say
+   * "Downloads aren’t open yet." Nothing here states an amount: the app's page
+   * shows the same block.
+   */
+  const EXPORT_STATEMENTS = Object.freeze({
+    // SHA-256 914257b7e13e9c960f90296bc8887a78ffd4a5b31540901ba09b34b1c27a68ee, as the draft seeds it (inactive).
+    'export-consent-v0-draft': 'I confirm that the property owner, and any tenant living there, have given written consent for these videos and photos of the property to be published. I understand that Veylet cannot recall, delete or change any copy once it has been downloaded.',
+  });
+  const EXPORT_KINDS = Object.freeze(['video_16x9', 'video_9x16', 'stills']);
+  const EXPORT_STATES = Object.freeze(['requested', 'rendering', 'needs_attention', 'ready', 'partner_only', 'failed']);
+  const EXPORT_FILES = Object.freeze({ video_16x9: 'Download listing video (16:9)', video_9x16: 'Download social video (9:16)', stills: 'Download stills (ZIP)' });
+  const EXPORT_WORDS = Object.freeze({
+    heading: 'Videos and stills for your listing',
+    what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room.',
+    // realestate.com.au's residential rules (launch plan §4): no web address, QR code
+    // or call to action in the frame, and an AI or rendering disclosure. It shows the
+    // video; the walkthrough itself is never said to be on realestate.com.au.
+    where: 'For the video field of a realestate.com.au or Domain listing, YouTube and social media. Each video carries a short line saying it’s a 3D reconstruction, and no web address, QR code or call to action.',
+    soon: 'Exports open soon.',
+    refresh: 'Refresh this page to make listing videos.',
+    legend: 'Downloaded files can’t be recalled',
+    make: 'Make listing videos',
+    again: 'Try again',
+    tick: 'Tick the box to confirm first.',
+    asking: 'Asking for your videos…',
+    preparing: 'Preparing your video and photos.',
+    checking: 'We’re checking your video before it’s ready. We’ll tell you when it is.',
+    ready: 'Ready to download.',
+    recall: 'Downloaded files can’t be recalled.',
+    locked: 'These files can be downloaded only while this version is approved. Check again.',
+    partner: 'Video isn’t available for this walkthrough yet.',
+    failed: 'We couldn’t make the video. Nothing was used.',
+    checkAgain: 'Check again',
+    readFailed: 'Listing videos couldn’t be checked. Try again.',
+    approveFirst: 'Approve this walkthrough first, then make its videos.',
+    notYours: 'Ask the workspace owner or a reviewer to make these videos.',
+    unconfirmed: 'Your request wasn’t confirmed. Try again.',
+    getting: 'Getting your download…',
+    notOpen: 'Downloads aren’t open yet. Try again later.',
+    tooMany: 'That’s the most downloads for this hour. Try again later.',
+    notReady: 'This file can’t be downloaded now. Check again.',
+    downloadFailed: 'The download didn’t start. Try again.',
+  });
+  // The server lane's download endpoint on veylet-hooks (proposed; not built):
+  // POST {export_id, kind} with the session → {url, filename, bytes, content_type, expires_in}.
+  const EXPORT_DOWNLOAD_PATH = '/listing-exports/download';
+  // Sizes as the app says them: decimal units, one decimal from a megabyte.
+  function exportSize(bytes) {
+    if (!Number.isInteger(bytes) || bytes <= 0) return '';
+    if (bytes < 1e6) return Math.max(1, Math.round(bytes / 1000)) + ' KB';
+    if (bytes < 1e9) return (bytes / 1e6).toFixed(1) + ' MB';
+    return (bytes / 1e9).toFixed(1) + ' GB';
+  }
+  // The export JSON for this walkthrough, or null for any answer the contract does not describe.
+  function exportAnswer(tour, data) {
+    const row = firstRow(data);
+    if (!row || typeof row !== 'object' || String(row.tour_id || '').toLowerCase() !== String(tour.id).toLowerCase()) return null;
+    if (typeof row.requested !== 'boolean') return null;
+    const state = row.state ?? null;
+    if (state !== null && !EXPORT_STATES.includes(state)) return null;
+    if (state !== null && typeof row.export_id !== 'string') return null;
+    return { ...row, state };
+  }
+  function exportRefusal(result) {
+    const words = String((result?.value?.error || result?.error || {}).message || '').toLowerCase();
+    if (words.includes('consent statement version is not active')) return 'inactive';
+    if (words.includes('approve this walkthrough')) return 'approve';
+    if (words.includes('tour unavailable')) return 'unavailable';
+    return 'unknown';
+  }
+  /*
+   * One disclosure under an approved walkthrough's sharing, for whoever may share it
+   * (the request's own roles). Hidden until get_listing_exports answers; a ready
+   * export puts its state on the summary so it is seen without opening it.
+   */
+  function listingExports(tour, item, supabase, ticket) {
+    if (!exportsAvailable) return;
+    const box = document.createElement('details'); box.className = 'account-details tour-exports'; box.hidden = true;
+    const summary = document.createElement('summary');
+    const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.heading;
+    summary.append(summaryText);
+    const body = document.createElement('div'); body.className = 'tour-exports-body';
+    message(body, EXPORT_WORDS.what, 'tour-state-help tour-exports-what');
+    message(body, EXPORT_WORDS.where, 'tour-state-help tour-exports-where');
+    // Where the export stands: focused after a press, so the result is where the reader is.
+    const state = document.createElement('p'); state.className = 'tour-exports-state'; state.tabIndex = -1; state.hidden = true;
+    const slot = document.createElement('div'); slot.className = 'tour-exports-slot';
+    body.append(state, slot); box.append(summary, body); item.append(box);
+    const say = rowSay(tour, body);
+    const gone = () => { exportsAvailable = false; box.hidden = true; say(''); };
+    const actions = (...controls) => { const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(...controls); slot.append(row); return row; };
+    const show = (words, focus) => {
+      state.textContent = words; state.hidden = !words;
+      if (focus && words) { setStatus(words); state.focus?.({ preventScroll: true }); state.scrollIntoView?.({ block: 'nearest', behavior: 'auto' }); }
+    };
+    const chip = text => {
+      summary.replaceChildren(summaryText);
+      if (text) { const mark = pill(text, 'good'); mark.className += ' tour-exports-chip'; summary.append(mark); }
+    };
+    let reading = false;
+    async function read(focus) {
+      if (reading) return;
+      reading = true;
+      const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_listing_exports', { p_tour_id: tour.id })));
+      reading = false;
+      if (ticket !== deskVersion) return;
+      if (missingFunction(reply)) { gone(); return; }
+      if (sessionGone(reply)) {
+        if (focus) showSignedOut('Your sign-in has expired. Sign in to check your listing videos.');
+        else box.hidden = true;
+        return;
+      }
+      if (failed(reply)) {
+        box.hidden = false; chip(''); slot.replaceChildren(); say('');
+        show(EXPORT_WORDS.readFailed, focus);
+        const retry = button(EXPORT_WORDS.again, () => read(true)); retry.dataset.control = 'exports-retry';
+        actions(retry);
+        return;
+      }
+      const row = exportAnswer(tour, reply.value?.data);
+      if (!row) { box.hidden = true; return; }
+      box.hidden = false;
+      say('');
+      draw(row, focus);
+    }
+    // The consent box and the one filled press: "Make listing videos", or "Try again" after a failure.
+    function requestForm(row, label, focus) {
+      const version = typeof row.consent_version === 'string' && row.consent_version ? row.consent_version : null;
+      const words = version ? EXPORT_STATEMENTS[version] : null;
+      if (!words) {
+        // No active statement (the owner has not approved one yet), or one this page
+        // was built before: nothing to press. After a failure it follows the failure.
+        const closed = version ? EXPORT_WORDS.refresh : EXPORT_WORDS.soon;
+        if (state.textContent) message(slot, closed, 'tour-state-help tour-exports-soon');
+        else show(closed, focus);
+        return;
+      }
+      const form = document.createElement('form'); form.className = 'tour-exports-form'; form.noValidate = true;
+      const fieldset = document.createElement('fieldset'); fieldset.className = 'tour-exports-consent';
+      const legend = document.createElement('legend'); legend.textContent = EXPORT_WORDS.legend;
+      const choice = document.createElement('label'); choice.className = 'tour-exports-choice';
+      const tick = document.createElement('input'); tick.type = 'checkbox'; tick.name = 'exports-consent-' + tour.id; tick.required = true;
+      tick.dataset.control = 'exports-consent';
+      const text = document.createElement('span'); text.textContent = words;
+      choice.append(tick, text); fieldset.append(legend, choice);
+      const make = document.createElement('button'); make.type = 'submit'; make.className = 'tour-action tour-action-primary';
+      make.textContent = label; make.dataset.control = 'exports-make';
+      form.append(fieldset);
+      const row2 = document.createElement('p'); row2.className = 'tour-actions-row'; row2.append(make); form.append(row2);
+      form.addEventListener('submit', async event => {
+        event?.preventDefault?.();
+        if (make.disabled) return;
+        if (!tick.checked) { say(EXPORT_WORDS.tick); tick.focus?.(); return; }
+        make.disabled = true; say(EXPORT_WORDS.asking);
+        const reply = await settled(Promise.resolve().then(() => supabase.rpc('request_listing_exports', {
+          p_tour_id: tour.id, p_kinds: [...EXPORT_KINDS], p_consent_version: version, p_acknowledge_cannot_recall: true })));
+        if (ticket !== deskVersion) return;
+        if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in and check whether your listing videos were asked for.'); return; }
+        if (missingFunction(reply)) { gone(); return; }
+        if (failed(reply)) {
+          const reason = exportRefusal(reply);
+          // The statement was withdrawn since this was drawn: exports are closed again.
+          if (reason === 'inactive') { say(''); draw({ ...row, consent_version: null }, true); return; }
+          make.disabled = false;
+          say(reason === 'approve' ? EXPORT_WORDS.approveFirst : reason === 'unavailable' ? EXPORT_WORDS.notYours : EXPORT_WORDS.unconfirmed);
+          return;
+        }
+        const next = exportAnswer(tour, reply.value?.data);
+        if (!next) { make.disabled = false; say(EXPORT_WORDS.unconfirmed); return; }
+        say('');
+        draw(next, true);
+      });
+      slot.append(form);
+    }
+    function checkAgain() {
+      const again = button(EXPORT_WORDS.checkAgain, () => { again.disabled = true; void read(true); });
+      again.dataset.control = 'exports-check';
+      actions(again);
+    }
+    async function download(row, kind, control) {
+      if (control.disabled) return;
+      // A page without the hooks service configured has nowhere to ask: not open.
+      if (!/^https:\/\/[^/]+$/.test(String(window.VEYLET_HOOKS?.url || '').replace(/\/+$/, ''))) { say(EXPORT_WORDS.notOpen); return; }
+      control.disabled = true; say(EXPORT_WORDS.getting);
+      const token = await annualToken(supabase);
+      if (ticket !== deskVersion) return;
+      if (!token) { showSignedOut('Your sign-in has expired. Sign in to download your listing videos.'); return; }
+      const reply = await settled(annualHooks(EXPORT_DOWNLOAD_PATH, { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ export_id: row.export_id, kind }) }));
+      if (ticket !== deskVersion) return;
+      control.disabled = false;
+      const status = reply.value?.status, answer = reply.value?.body;
+      if (status === 401) { showSignedOut('Your sign-in has expired. Sign in to download your listing videos.'); return; }
+      const url = String(answer?.url || '');
+      if (reply.value?.ok && /^https:\/\/[^\s"'<>]+$/.test(url)) {
+        const name = /^[A-Za-z0-9_.-]{1,80}$/.test(String(answer.filename || '')) ? answer.filename : '';
+        // The link answers with the file as an attachment, so the page stays where it is.
+        const anchor = document.createElement('a'); anchor.href = url; anchor.rel = 'noopener';
+        if (name) anchor.download = name;
+        anchor.click();
+        say(name ? 'Downloading ' + name + '.' : 'Downloading.');
+        return;
+      }
+      // No endpoint yet (404): not open.
+      say(status === 404 ? EXPORT_WORDS.notOpen : status === 429 ? EXPORT_WORDS.tooMany
+        : status === 409 ? EXPORT_WORDS.notReady : EXPORT_WORDS.downloadFailed);
+    }
+    function files(row) {
+      const list = document.createElement('ul'); list.className = 'tour-exports-files';
+      const kinds = Array.isArray(row.kinds) ? row.kinds : [];
+      for (const kind of EXPORT_KINDS) {
+        const file = row.files && typeof row.files === 'object' ? row.files[kind] : null;
+        if (!file || !kinds.includes(kind)) continue;
+        const size = exportSize(file.bytes);
+        const control = button(EXPORT_FILES[kind] + (size ? ' · ' + size : ''), () => download(row, kind, control));
+        // The agent's turn: the listing video is the one filled press.
+        if (!list.children.length) control.className = 'tour-action tour-action-primary';
+        control.dataset.control = 'exports-download-' + kind;
+        const entry = document.createElement('li'); entry.append(control); list.append(entry);
+      }
+      if (list.children.length) slot.append(list);
+    }
+    function draw(row, focus) {
+      box.dataset.exports = row.requested ? row.state || 'requested' : 'none';
+      slot.replaceChildren(); state.textContent = ''; state.hidden = true;
+      chip(row.requested && row.state === 'ready' && row.downloadable === true ? EXPORT_WORDS.ready.replace(/\.$/, '') : '');
+      if (!row.requested) { requestForm(row, EXPORT_WORDS.make, focus); return; }
+      if (row.state === 'ready' && row.downloadable === true) {
+        show(EXPORT_WORDS.ready, focus);
+        message(slot, EXPORT_WORDS.recall, 'tour-state-help tour-exports-recall');
+        files(row);
+      } else if (row.state === 'ready') { show(EXPORT_WORDS.locked, focus); checkAgain(); }
+      else if (row.state === 'needs_attention') { show(EXPORT_WORDS.checking, focus); checkAgain(); }
+      else if (row.state === 'partner_only') show(EXPORT_WORDS.partner, focus);
+      else if (row.state === 'failed') { show(EXPORT_WORDS.failed, focus); requestForm(row, EXPORT_WORDS.again, false); }
+      else { show(EXPORT_WORDS.preparing, focus); checkAgain(); }
+    }
+    void read(false);
+  }
+
   // `hosting` is this walkthrough's get_tour_hosting row: undefined when the
   // dates could not load. It only chooses words; it never gates a control.
   // `title` is its space's name, the listing title a share and a QR file carry.
@@ -965,6 +1222,8 @@
           withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
           problem: pending ? pending.reason || 'unknown' : null });
       }
+      // Videos and stills: an approved version, for whoever may share it (the request's roles).
+      if (canShare) listingExports(tour, item, supabase, ticket);
       const manage = (canShare && live) || canReview ? manageSharing(item) : null;
       if (manage && canShare && live && !paused) pauseSharing(tour, supabase, ticket, manage);
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
@@ -4711,6 +4970,8 @@
   let pauseAvailable = false;
   // get_tour_view_stats, until an answer says the backend does not have it.
   let viewsAvailable = true;
+  // get_listing_exports, until an answer says the backend does not have it (PGRST202).
+  let exportsAvailable = true;
   // A read that named a column this database does not have: which group it was.
   function columnMissing(result) {
     const error = result?.value?.error;

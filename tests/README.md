@@ -232,3 +232,18 @@ Email preferences and unsubscribe (25 September 2026), built to the sibling repo
 - `/unsubscribe?t=…` asks `unsubscribe_email_tips` and `unsubscribe_mail`; `tests/unsubscribe.test.cjs`
   covers both links, the shared "already used or not valid" answer, retry and the missing-function
   fallback. Renders need a stubbed `supabase-public.js`; never open it against the hosted project.
+
+Listing exports (26 September 2026), built to the sibling repository's
+`docs/render-status-contract-20260925.md` "Listing exports (C3)" and its draft
+`supabase/drafts/release-2/20260926113000_listing_exports.sql` (not yet released; a missing
+function answers PGRST202 and no block is shown). `tests/listing-exports.test.cjs` covers it:
+
+- `/__qa/account/?exports=soon|request|requested|rendering|needs-attention|ready|ready-locked|partner-only|failed|failed-soon|unknown-version|error|loading`
+  answers `get_listing_exports` for the live walkthrough (default `missing`). `soon` is the
+  draft's seeded statement, still inactive: "Exports open soon." with nothing to press.
+  `&exports-request=inactive|approve|unavailable|fail|expired` refuses every request;
+  `&exports-download=not-open|too-many|not-ready|fail` answers the proposed download endpoint
+  (`POST /listing-exports/download` on the hooks stand-in; the server lane builds the real one)
+  with 404, 429, 409 or 500. A successful download is recorded in `VEYLET_QA_CALLS`
+  ("open download"), never opened. `&exports-open=1` opens the block for a capture, also on
+  `/__qa/app-account/`.

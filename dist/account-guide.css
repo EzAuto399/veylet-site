@@ -180,6 +180,32 @@
 .desk .dash-tour .tour-qr-caption { margin: 0; max-width: 46ch; font-size: 13px; line-height: 1.55; color: var(--muted); }
 .desk .dash-tour .tour-qr .tour-actions-row { margin: 0; }
 
+/* Videos and stills for a listing: what they are and where they go in quiet
+   type, the state in ink, the consent statement beside one 24px box whose whole
+   label is the 44px target, and one file per row so long labels wrap at 320px.
+   No motion is added; the site-wide reduced-motion rule covers the controls. */
+.tour-exports-title { margin-right: 8px; }
+.tour-exports-chip { vertical-align: 1px; }
+.tour-exports-body { display: grid; gap: 0; padding-top: 2px; min-width: 0; }
+.desk .dash-tour .tour-exports-body > .tour-state-help:first-child { margin-top: 0; }
+.desk .dash-tour .tour-exports-state { margin: 14px 0 0; max-width: 62ch; font-size: 15px; font-weight: 500; line-height: 1.5; color: var(--ink); }
+.desk .dash-tour .tour-exports-state:focus { outline: none; }
+.desk .dash-tour .tour-exports-state:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.desk .dash-tour .tour-exports-recall,
+.desk .dash-tour .tour-exports-soon { color: var(--ink); }
+.tour-exports-form { margin: 0; min-width: 0; }
+.tour-exports-consent { margin: 14px 0 0; padding: 0; border: 0; min-width: 0; max-width: 62ch; }
+.tour-exports-consent legend { padding: 0; font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--ink); }
+.tour-exports-choice { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 44px; margin-top: 8px; padding: 10px 0; cursor: pointer; font-size: 14px; line-height: 1.55; color: var(--ink); overflow-wrap: anywhere; }
+.tour-exports-choice input { width: 24px; height: 24px; margin: 0; accent-color: var(--ink); }
+.tour-exports-files { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; max-width: 420px; }
+.desk .account-list .tour-exports-files li { margin: 0; }
+.tour-exports-files .tour-action { width: 100%; justify-content: flex-start; white-space: normal; text-align: left; font-variant-numeric: tabular-nums; }
+.desk .tour-exports .tour-row-status { margin: 12px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--ink); }
+@media (max-width: 480px) {
+  .tour-exports .tour-actions-row .tour-action { flex: 1 1 100%; white-space: normal; }
+}
+
 /* Your plan: the same five facts, in the same order, in the desk's own
    hairline grammar. Numbers are tabular so a changed allowance shifts nothing. */
 .desk .plan-panel { margin: 0; }
