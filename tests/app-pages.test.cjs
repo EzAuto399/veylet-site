@@ -60,7 +60,7 @@ test('without app mode the same page renders the money blocks, and the checker s
   const words = new Set(problems.map(item => item.word));
   for (const word of ['mode', 'A$', 'money call', '/offer']) assert.ok(words.has(word), word);
   assert.ok(problems.some(item => item.word === 'money call' && item.excerpt === 'get_express_offer'));
-  assert.ok(problems.some(item => /extend hosting for A\$/.test(item.excerpt)), 'the hosting extension price is caught too');
+  assert.ok(!problems.some(item => /extend hosting/i.test(item.excerpt)), 'no hosting extension is sold any more (retired 26 September 2026)');
 });
 
 test('the app pages have a minimal header, and their only navigation is to one another', () => {

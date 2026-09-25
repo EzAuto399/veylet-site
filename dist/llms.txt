@@ -81,7 +81,8 @@ How-to answers for the Veylet Capture app and the account desk. Index: https://v
 - Referrals: when an office you refer becomes a paying account, you each get 1 bonus walkthrough. Share your own link from your account.
 - These are separate published channel prices; Apple programme enrolment and net proceeds are not verified.
 - Founding agencies (by invitation only, at most five): the normal plan and pack prices, with no locked or special price. Perks: priority rendering, a free 3-pack for each referred office that becomes a paying account (up to four), and a direct line to the founder. There is nothing to sign up for.
-- Hosting: every released walkthrough stays live while the account has a running plan (free months, monthly or annual), and in any case for at least twelve months after its release; after both, hosting costs A$49 a year per walkthrough, only on request.
+- Hosting: every released walkthrough stays live while the account has an active plan (free months, monthly or annual). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline; they are not deleted or revoked, and restarting the plan brings the same links back at once. There is no hosting without a plan.
+- While subscribed: use the link anywhere, embed it on any website, add the listing URL to portals and CRMs, and make listing videos for realestate.com.au and social media. Listing videos (MP4) and stills are included in the plan; downloaded files are the account's to keep.
 - Additional work by agreement: editing A$120 an hour. In-person capture and office visits are not currently offered.
 - Totals in AUD.
 

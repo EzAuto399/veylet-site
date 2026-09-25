@@ -117,7 +117,7 @@ test('a new account gets one setup action without changing access or creating a 
   assert.equal(h.ids['account-add-space'].open, true);
   // Reading the plan, hosting dates and the team's invites and members are the only calls
   // added here; nothing changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_tour_hosting_states', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();
@@ -720,7 +720,7 @@ const planLinks = h => h.ids['account-plan-body'].all().filter(el => el.tagName 
 const planTitle = h => (h.ids['account-plan-body'].all().find(el => el.className === 'plan-title') || {}).textContent;
 const planValues = h => h.ids['account-plan-body'].all().filter(el => el.tagName === 'DD').map(el => el.textContent);
 const planScopes = h => h.ids['account-plan-body'].all().filter(el => el.className === 'plan-scope').map(el => el.textContent);
-const HOSTING_INCLUDED = 'Included while your plan is active; each shared walkthrough at least 12 months from release';
+const HOSTING_INCLUDED = 'Included while your plan is active';
 const FREE_TERMS = ['State', 'Free walkthroughs', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
 const ACTIVE_TERMS = ['State', 'This month', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
 
@@ -871,9 +871,12 @@ test('the panel separates free months that lapsed from a plan that ended', async
   const lapsed = '2026-09-01T00:00:00Z';
   const h = await withPlan({ status: 'ended', trial_ends_at: lapsed, accepted_this_period: 0, accepted_in_free_months: 3 });
   assert.equal(planTitle(h), 'Free months ended ' + longDate(lapsed));
-  assert.deepEqual(planValues(h), ['Ended', '3 of 6', '—', HOSTING_INCLUDED, '—', 'Studio invoice']);
-  assert.match(planText(h), /Your released walkthroughs stay hosted for twelve months after their release\. Ask about restarting the plan; a second free trial is not guaranteed\./);
+  assert.deepEqual(planValues(h), ['Ended', '3 of 6', '—', 'Offline 14 days after the plan ends', '—', 'Studio invoice']);
+  assert.match(planText(h), /Your released walkthroughs stay online for 14 days after the plan ends, then go offline\. Restarting the plan brings the same links back at once; a second free trial is not guaranteed\./);
   assert.deepEqual(planLinks(h), ['/offer', 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  const restart = h.ids['account-plan-body'].all().find(el => el.tagName === 'A' && el.textContent === 'Restart your plan');
+  assert.equal(restart.className, 'button', 'the one fix is filled');
+  assert.doesNotMatch(planText(h), /12 months|twelve months|A\$49|Guaranteed/);
   const paidUntil = '2026-08-05T00:00:00Z';
   const afterPlan = await withPlan({ source: 'web', status: 'ended', accepted_in_free_months: 6,
     current_period_ends_at: paidUntil, auto_renews: false });
@@ -1219,7 +1222,8 @@ test('the terms state the subscription the App Store listing points at', () => {
     'Cancel any time.',
     'Settings › Subscriptions',
     'cancel by email to',
-    'Every released walkthrough stays live while your account has a running plan, and in any case for at least twelve months after its release',
+    'Every released walkthrough stays live while your account has a running plan (free months, monthly or annual).',
+    'When the plan ends, its link, embed and QR code keep working for 14 days, then go offline; they are not deleted or revoked, and restarting the plan brings the same links back at once.',
     'Deleting the Veylet account ends its hosting. It does not cancel an Apple subscription',
     'Apple refunds it under its own policy',
     'within 14 days of that charge and no walkthrough was accepted in the period it paid for',
@@ -1250,7 +1254,7 @@ test('the terms and the privacy notice tell one story about deletion', () => {
       'You cannot undo it yourself',
       'every handoff link and embed stops working',
       'hosting of every released walkthrough ends with them',
-      'deletion ends the twelve-month hosting term early, where cancelling the plan does not',
+      'deletion ends hosting at once, without the 14 days that follow the end of a plan.',
       'Once removal starts, these files cannot be restored through your account.',
       'records of payments, accepted services and deletion may be retained',
     ]) assert.ok(flat.includes(phrase), `the page says: ${phrase}`);
@@ -1507,7 +1511,7 @@ const taggedCode = token => share.embedCode(token).split('"' + share.embedUrl(to
 test('a live walkthrough shows Live, its hosting line, the link and the website steps', async () => {
   const h = await withHosting([hostingFor()], { tours: [liveTour] });
   assert.ok(h.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
-  assert.equal(hostingText(h), 'Live while your plan is active. Guaranteed until 23 Sep 2027.');
+  assert.equal(hostingText(h), 'Live while your plan is active.');
   const link = fieldOf(h, 'INPUT');
   assert.equal(link.value, share.handoffUrl(TOKEN) + '&src=link');
   assert.equal(link.readOnly, true);
@@ -1533,17 +1537,45 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
 });
 
 test('each hosting situation reads its own line on the card', async () => {
-  const future = new Date(Date.now() + 90 * 86400000).toISOString();
-  const past = new Date(Date.now() - 90 * 86400000).toISOString();
-  const cases = [
-    [{ plan_active: false, hosted_until: future, guaranteed_until: future }, 'Live until ' + share.hostingDate(future) + '. To keep it longer, extend hosting for A$49 a year.'],
-    [{ plan_active: false, hosted_until: past, guaranteed_until: past }, 'Guaranteed hosting ended ' + share.hostingDate(past) + '. Contact Veylet support to extend it (A$49 a year).'],
-    [{ plan_active: false, guaranteed_until: past, extended_until: future, hosted_until: future }, 'Live until ' + share.hostingDate(future) + '. To keep it longer, extend hosting for A$49 a year.'],
-  ];
-  for (const [overrides, line] of cases) {
-    const h = await withHosting([hostingFor(overrides)], { tours: [liveTour] });
+  // Owner decision 26 September 2026: live while the plan is active, then 14 days, then offline (same link).
+  const recent = new Date(Date.now() - 3 * 86400000).toISOString();
+  const long = new Date(Date.now() - 30 * 86400000).toISOString();
+  const offlineDay = ended => share.hostingDate(new Date(Date.parse(ended) + 14 * 86400000).toISOString());
+  const rpc = row => ({ get_tour_hosting: async () => ({ data: [row] }) });
+  // Without the member hosting read, the plan panel's end day decides once it answers.
+  const grace = await withPlan({ status: 'ended', current_period_ends_at: recent, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
+  assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.');
+  assert.ok(planText(grace).includes('Your plan has ended. 1 live walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.'));
+  assert.ok(grace.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'));
+  const offline = await withPlan({ status: 'ended', current_period_ends_at: long, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
+  assert.equal(hostingText(offline), 'Offline since ' + offlineDay(long) + '. Restart your plan and this link works again — same link, embed and QR.');
+  assert.ok(offline.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'), 'the chip follows once the plan answers');
+  // The member hosting read, when get_tour_hosting carries it, wins.
+  for (const [extra, line] of [
+    [{ hosting_state: 'live_with_plan', offline_on: null }, 'Live while your plan is active.'],
+    [{ hosting_state: 'offline_on', offline_on: '2027-10-10' }, 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.'],
+    [{ hosting_state: 'offline', offline_on: '2026-09-12' }, 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.'],
+  ]) {
+    const h = await withHosting([hostingFor({ plan_active: false, ...extra })], { tours: [liveTour] });
     assert.equal(hostingText(h), line);
-    assert.ok(byText(h, 'Copy link'), 'a date passing switches nothing off');
+    assert.ok(byText(h, 'Copy link'), 'the card keeps its controls');
+    assert.doesNotMatch(h.text(), /A\$49|12 months|Guaranteed/);
+  }
+});
+
+test('the member hosting read (get_tour_hosting_states) chooses the words when the backend has it', async () => {
+  const states = rows => ({ get_tour_hosting_states: async () => ({ data: rows }) });
+  const grace = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', property_id: 'p1', state: 'offline_on', offline_at: '2027-10-10T00:00:00Z', sharing_on: true, share_paused: false, plan_active: false }]) });
+  assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  const off = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'offline', offline_at: '2026-09-12T00:00:00Z', plan_active: false }]) });
+  assert.equal(hostingText(off), 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.');
+  assert.ok(off.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'));
+  const unenforced = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'live_not_enforced', offline_at: null, plan_active: false }]) });
+  assert.equal(hostingText(unenforced), 'Live while your plan is active.');
+  // Absent (PGRST202) or odd: get_tour_hosting's plan_active decides, as before.
+  for (const reply of [{ error: { code: 'PGRST202' } }, { data: 'receipt' }, { data: [{ tour_id: 't1', state: 7 }] }]) {
+    const h = await withHosting([hostingFor()], { tours: [liveTour], rpc: { get_tour_hosting_states: async () => reply } });
+    assert.equal(hostingText(h), 'Live while your plan is active.');
   }
 });
 
@@ -1556,7 +1588,7 @@ test('hosting dates that fail to load never block sharing or the desk', async ()
     assert.equal(h.ids['account-home'].hidden, false, 'the desk stays signed in');
     assert.equal(hostingText(h), 'Hosting dates could not load. Refresh to check.');
     for (const control of ['Copy link', 'Copy embed code', 'Turn off sharing', 'Turn sharing on']) assert.ok(byText(h, control), control);
-    assert.doesNotMatch(h.text(), /Guaranteed until|Live until|hosting ended/);
+    assert.doesNotMatch(h.text(), /Guaranteed until|Live until|hosting ended|Offline since/);
   }
 });
 
@@ -1629,7 +1661,7 @@ test('a creator who may share but not approve gets the live card without Withdra
   const other = await withHosting([hostingFor()], { tours: [{ ...liveTour, created_by: 'another-user' }], role: 'operator' });
   assert.equal(byText(other, 'Copy link'), undefined);
   assert.equal(byText(other, 'Turn off sharing'), undefined);
-  assert.equal(hostingText(other), 'Live while your plan is active. Guaranteed until 23 Sep 2027.', 'the dates are still true');
+  assert.equal(hostingText(other), 'Live while your plan is active.', 'the hosting line is still true');
 });
 
 test('the signed-in desk puts walkthroughs first and leaving last', () => {

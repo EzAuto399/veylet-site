@@ -171,6 +171,9 @@ async function approve(h, id = 't1') {
   await form.fire('submit');
   await settle();
 }
+// The desk's day format: the Brisbane day (UTC+10 all year), a three-letter month and the year.
+const day = value => { const at = new Date(Date.parse(value) + 10 * 3600000);
+  return at.getUTCDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][at.getUTCMonth()] + ' ' + at.getUTCFullYear(); };
 const released = (fields = {}) => ({ tour_id: 't1', released_at: '2026-09-01T00:00:00Z', hosted_until: '2027-09-01T00:00:00Z', plan_active: true, ...fields });
 
 /* ---- Approve and share ---------------------------------------------------- */
@@ -184,7 +187,7 @@ test('Approve and share: one press records the approval, turns sharing on and re
   assert.equal(review.children[0].textContent, 'Review this walkthrough');
   const form = reviewForm(card);
   assert.deepEqual(filled(form), ['Approve and share']);
-  assert.ok(byText(form, 'Anyone with the link can open it and forward it. It stays online while your plan runs and at least 12 months after today.'));
+  assert.ok(byText(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.'));
   const before = h.tourReads();
   await approve(h);
   assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name, args]) => [name, args.p_tour_id]),
@@ -202,6 +205,8 @@ test('Approve and share: a refusal keeps the approval and says what sharing wait
   const cases = [
     ['review this tour before sharing', 'Approved. Sharing waits for a fresh review of this version.', 'Start a fresh review'],
     ['sharing permission required', 'Approved. Sharing waits for someone with sharing permission.', null],
+    // Hosting enforcement (draft 20260926132000): the office's plan ended more than 14 days ago.
+    ['Restart your plan to share this walkthrough.', 'Restart your plan to share this walkthrough.', 'Restart your plan'],
   ];
   for (const [message, words, fix] of cases) {
     const h = await load({ tours: [readyTour()], rpc: { enable_tour_share: async () => ({ error: { code: 'P0001', message } }) } });
@@ -275,8 +280,8 @@ test('a correction whose link moves is approved in today’s words, without a se
   const fresh = await load({ tours: [version(W2, 2), version(W1, 1)], rpc: { get_walkthrough_revision: lineage(false) } });
   assert.equal(fresh.card(W2).all().find(el => /tour-correction/.test(el.className)).textContent,
     'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
-  assert.equal(byText(reviewForm(fresh.card(W2)), 'Anyone with the link can open it and forward it. It stays online while your plan runs and at least 12 months after today.'), undefined,
-    'a correction’s hosting runs from its first release, so the 12 months line is not claimed');
+  assert.equal(byText(reviewForm(fresh.card(W2)), 'Anyone with the link can open it and forward it. It stays online while your plan is active.'), undefined,
+    'the consequence line is for a first release only');
   await approve(fresh, W2);
   assert.deepEqual(fresh.calls.filter(([name]) => name === 'enable_tour_share').map(([, args]) => args.p_tour_id), [W2]);
 });
@@ -351,7 +356,7 @@ test('each walkthrough row carries one state chip in the contract’s words', as
     [readyTour(), [], [], 'Ready for your review'],
     [readyTour(), ['t1'], [released()], 'Sharing off'],
     [readyTour({ share_token: TOKEN }), ['t1'], [released()], 'Live'],
-    [readyTour({ share_token: TOKEN }), ['t1'], [released({ plan_active: false, hosted_until: past })], 'Hosting ended'],
+    [readyTour({ share_token: TOKEN }), ['t1'], [released({ plan_active: false, hosting_state: 'offline', offline_on: past })], 'Offline'],
     [readyTour({ status: 'draft' }), [], [], 'Rendering'],
     [readyTour({ status: 'processing', storage_path: null }), [], [], 'Rendering'],
     [readyTour({ status: 'revoked' }), [], [], 'Unavailable'],
@@ -363,10 +368,11 @@ test('each walkthrough row carries one state chip in the contract’s words', as
     assert.deepEqual(chips.filter(el => el.dataset.chip === 'state').map(el => el.textContent), [word], word);
     assert.equal(chips.some(el => ['Private', 'Link created', 'Draft', 'Processing', 'Processed'].includes(el.textContent)), false, word);
   }
-  // Hosting ended switches nothing off: the kit stays.
-  const ended = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released({ plan_active: false, hosted_until: past })] });
+  // Offline keeps the kit (the same link comes back when the plan restarts); the next step is the plan.
+  const ended = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released({ plan_active: false, hosting_state: 'offline', offline_on: past })] });
   assert.ok(byText(ended.card('t1'), 'Copy link'));
-  assert.equal(ended.ids['account-next-step'].children[0].textContent, 'Guaranteed hosting has ended.');
+  assert.deepEqual(ended.ids['account-next-step'].children.map(el => el.textContent), ['Your walkthrough is offline.',
+    'Offline since ' + day(past) + '. Restart your plan and this link works again — same link, embed and QR.', 'Restart your plan']);
   // Someone who cannot review reads whose turn it is.
   const operator = await load({ tours: [readyTour()], role: 'operator' });
   assert.equal(chipOf(operator.card('t1')).textContent, 'Ready for review');
@@ -1005,7 +1011,7 @@ test('app mode: the plan is its state in words, and no money function is even as
   const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 9900, renewal_price_aud_cents: 9900,
     current_period_ends_at: '2026-10-25T00:00:00Z', auto_renews: true, included_per_month: 2, accepted_this_period: 1, hosting_included: true };
   const answers = Object.fromEntries(MONEY.map(name => [name, async () => ({ data: [{ available: true }] })]));
-  const h = await load({ markup: appMarkup, tours: [liveTour()], approved: true, hosting: [released({ plan_active: false, hosted_until: '2027-03-01T00:00:00Z' })],
+  const h = await load({ markup: appMarkup, tours: [liveTour()], approved: true, hosting: [released({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-03-01' })],
     rpc: { ...answers, get_workspace_plan: async () => ({ data: [plan] }) } });
   await settle();
   for (const name of MONEY) assert.equal(h.count(name), 0, name);
@@ -1013,8 +1019,9 @@ test('app mode: the plan is its state in words, and no money function is even as
   const body = h.ids['account-plan-body'];
   assert.deepEqual(body.all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent), ['State', 'Active']);
   assert.ok(byText(body, 'See your plan in the app.'));
-  // The hosting line keeps its date and drops its amount.
-  assert.equal(h.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent, 'Live until 1 Mar 2027.');
+  // The hosting line keeps its date and names no purchase path: the plan restarts in the app.
+  assert.equal(h.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent,
+    'Your plan has ended. This walkthrough goes offline on 1 Mar 2027. Restart your plan in the app to keep it live.');
   assert.equal(byText(h.card('t1'), 'Full website guide'), undefined, 'no link out to the public site');
   const text = h.visible();
   for (const pattern of BANNED) assert.doesNotMatch(text, pattern);

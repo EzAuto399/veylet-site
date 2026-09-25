@@ -103,6 +103,8 @@
     ['sharing permission required', 'permission'],
     ['occupancy not declared', 'occupancy'],
     ['tenant consent required', 'consent'],
+    // The office's plan ended more than 14 days ago (hosting enforcement, draft 20260926132000).
+    ['restart your plan to share this walkthrough', 'plan'],
   ];
   const SHARE_WAITS = {
     review: 'a fresh review of this version',
@@ -363,13 +365,19 @@
   // The short reference the studio, the corrections email and this desk all use.
   function walkthroughRef(tour) { return 'walkthrough ' + String(walkthroughOf(tour) || '').slice(0, 8); }
 
-  // Its guaranteed hosting has passed and no plan carries it: get_tour_hosting's
-  // dates only. A date passing switches nothing off, so the card keeps its controls.
-  function hostingEnded(row, now = Date.now()) {
-    if (!row || typeof row !== 'object' || !row.released_at || row.plan_active !== false) return false;
-    const until = Date.parse(row.hosted_until || '');
-    return !Number.isNaN(until) && now >= until;
+  // Owner decision 26 September 2026: live while the office's plan is active; 14
+  // days after it ends the link goes offline until the plan restarts (same link).
+  // The member hosting read's state when get_tour_hosting carries it, else derived
+  // from plan_active and the day the plan ended, which the plan panel reads.
+  let deskPlanEndedAt = null;
+  // Live cards whose words depend on that day: refreshed once the plan answers.
+  const hostingCards = new Map();
+  function hostingPhase(row, now = Date.now()) {
+    if (!row || typeof row !== 'object' || !row.released_at) return null;
+    return window.VeyletSharing?.hostingState?.(row, now, deskPlanEndedAt)?.state || null;
   }
+  // Offline: the plan ended more than 14 days ago. The card keeps its controls.
+  function hostingEnded(row, now = Date.now()) { return hostingPhase(row, now) === 'offline'; }
   // One state chip per walkthrough, first in its row. A later answer (its review)
   // replaces it; a space's render status that already says the same words hides it.
   function tourChip(tour, text, tone) {
@@ -392,7 +400,7 @@
   // The hosting line in the words the app uses. The pages the app opens state no
   // amount: a sentence that names one is left out there.
   function hostingWords(row, live) {
-    const line = window.VeyletSharing.hostingLine(row, live);
+    const line = window.VeyletSharing.hostingLine(row, live, Date.now(), { app: APP_MODE, planEndedAt: deskPlanEndedAt });
     if (!APP_MODE || !/\$/.test(line)) return line;
     return (line.replace(/\s*\([^)]*\$[^)]*\)/g, '').match(/[^.]+\./g) || []).filter(sentence => !/\$/.test(sentence)).join('').trim();
   }
@@ -404,7 +412,7 @@
     // one without a link waits for its review answer before it says anything.
     let state = null;
     if (tour.status === 'ready' && sharePaused(tour)) state = { label: 'Paused', tone: 'quiet' };
-    else if (tour.status === 'ready' && tour.share_token) state = hostingEnded(hosting) ? { label: 'Hosting ended', tone: 'quiet' } : { label: 'Live', tone: 'good' };
+    else if (tour.status === 'ready' && tour.share_token) state = hostingEnded(hosting) ? { label: 'Offline', tone: 'quiet' } : { label: 'Live', tone: 'good' };
     else if (tour.status !== 'ready') state = TOUR_STATE[tour.status] || null;
     if (state) { const chip = pill(state.label, state.tone); chip.dataset.chip = 'state'; wrap.append(chip); tourChips.get(tour.id).chip = chip; }
     if (revisionOf(tour) > 1) wrap.append(pill('Correction', 'quiet'));
@@ -471,8 +479,13 @@
         return;
       }
       if (selected.status === 'ready' && selected.share_token) {
-        if (hostingEnded(hosting)) guide('Guaranteed hosting has ended.', hostingWords(hosting, true), 'Open its sharing controls', open);
-        else guide('Your walkthrough is live.',
+        const phase = hostingPhase(hosting);
+        // The fix is the plan: the website's filled action goes to the plan panel; the app's
+        // pages name no purchase path, so there the line itself says where.
+        if (phase === 'offline' || phase === 'offline_on') {
+          guide(phase === 'offline' ? 'Your walkthrough is offline.' : 'Your plan has ended.', hostingWords(hosting, true),
+            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : focusPlan);
+        } else guide('Your walkthrough is live.',
           'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
           'Open its sharing controls', open);
         return;
@@ -569,7 +582,20 @@
     const match = SHARE_REFUSALS.find(([phrase]) => words.includes(phrase));
     return match ? match[1] : 'unknown';
   }
-  function shareWords(reason) { return SHARE_WAITS[reason] ? 'Approved. Sharing waits for ' + SHARE_WAITS[reason] + '.' : SHARE_UNCONFIRMED; }
+  function shareWords(reason) {
+    // Not a wait on this walkthrough: the plan is the fix, and the app's pages name no purchase path.
+    if (reason === 'plan') return APP_MODE ? 'Restart your plan in the app to share this walkthrough.' : 'Restart your plan to share this walkthrough.';
+    return SHARE_WAITS[reason] ? 'Approved. Sharing waits for ' + SHARE_WAITS[reason] + '.' : SHARE_UNCONFIRMED;
+  }
+  // The plan panel, where an ended plan's filled "Restart your plan" goes to the offer.
+  function focusPlan() {
+    if (!planPanel) return;
+    planPanel.tabIndex = -1; planPanel.focus({ preventScroll: true }); planPanel.scrollIntoView({ block: 'start', behavior: 'auto' });
+  }
+  function restartPlanButton() {
+    const fix = button('Restart your plan', focusPlan); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
+    return fix;
+  }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
     return 'mailto:yoda@yodalai.xyz?subject=' + encodeURIComponent(subject + ' · walkthrough ' + reference)
@@ -592,6 +618,8 @@
       } else if (reason === 'permission') {
         enable.hidden = true;
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
+      } else if (reason === 'plan' && !APP_MODE) {
+        fix = restartPlanButton();
       } else if ((reason === 'occupancy' || reason === 'consent') && gateCanOpen(tour.property_id)) {
         // The listing's question, or its consent form, opened where the person is.
         fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
@@ -841,6 +869,11 @@
       if (ticket !== deskVersion) return;
       if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing resumed.'); return; }
       const refused = failed(result) && !missingFunction(result) ? shareRefusal(result) : null;
+      if (refused === 'plan') {
+        resume.disabled = false; say(shareWords('plan'));
+        if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(), resume); fixed = true; }
+        return;
+      }
       if (refused === 'occupancy' || refused === 'consent') { resume.disabled = false; blocked(refused); return; }
       if (failed(result) || missingFunction(result)) { say('Resuming was not confirmed. Refresh the desk to check before retrying.'); resume.disabled = false; return; }
       const readback = await settled(Promise.resolve().then(() => supabase.from('tours').select('id,share_token,share_paused_at').eq('id', tour.id).single()));
@@ -986,7 +1019,7 @@
   const EXPORT_FILES = Object.freeze({ video_16x9: 'Download listing video (16:9)', video_9x16: 'Download social video (9:16)', stills: 'Download stills (ZIP)' });
   const EXPORT_WORDS = Object.freeze({
     heading: 'Videos and stills for your listing',
-    what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room.',
+    what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room. Listing videos and stills are included in your plan.',
     // realestate.com.au's residential rules (launch plan §4): no web address, QR code
     // or call to action in the frame, and an AI or rendering disclosure. It shows the
     // video; the walkthrough itself is never said to be on realestate.com.au.
@@ -1564,6 +1597,7 @@
       } else if (live) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = hostingWords(hosting || null, true);
+        if (hosting) hostingCards.set(tour.id, { tour, hosting, line: status });
         // Approved and shared in one press, whatever the first answer said: it is live.
         if (pending) say(LIVE_SAID);
       } else {
@@ -1643,9 +1677,9 @@
     }
     message(form, 'Open the review preview in a new tab, then check this exact package. This records a human review, not an automatic quality score. Leave a check clear if it needs correction.');
     // What the one press does, before it is pressed. A correction says its own (the
-    // link moves, or not), and the 12 months run from a first release only.
+    // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
-    if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan runs and at least 12 months after today.', 'tour-state-help tour-share-terms');
+    if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.', 'tour-state-help tour-share-terms');
     // The quality check's advice for this walkthrough, if any: read, never a block.
     const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
     reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
@@ -1896,7 +1930,7 @@
       const afterPlan = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined;
       const ended = planDate(afterPlan ? row.current_period_ends_at : row.trial_ends_at);
       return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free months ended ') + ended,
-        body: 'Your released walkthroughs stay hosted for twelve months after their release. Ask about restarting the plan; a second free trial is not guaranteed.' } : unavailable;
+        body: 'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.' } : unavailable;
     }
     return unavailable;
   }
@@ -1963,12 +1997,41 @@
   }
   // The current desk's capacity read, so a bought pack can re-read the ledger.
   let planCapacityRefresh = null;
+  // The day an ended plan ended: its paid period, else its free months.
+  function planEndDay(row) {
+    if (!row || typeof row !== 'object' || row.status !== 'ended') return null;
+    const value = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined ? row.current_period_ends_at : row.trial_ends_at;
+    return typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null;
+  }
+  // Once the plan answers, live cards that could not name their offline day can.
+  function planEndedKnown(row) {
+    const day = planEndDay(row);
+    if (day === deskPlanEndedAt) return;
+    deskPlanEndedAt = day;
+    // The map is cleared with each desk, so every entry is on the page drawn now.
+    for (const { tour, hosting, line } of hostingCards.values()) {
+      line.textContent = hostingWords(hosting, true);
+      if (hostingEnded(hosting) && tourChips.get(tour.id)?.chip?.textContent === 'Live') tourChip(tour, 'Offline', 'quiet');
+    }
+  }
+  // The office's line once the plan has ended: how many live walkthroughs go offline, and when.
+  function planHostingEnded(row, view, live) {
+    const day = planEndDay(row);
+    if (view.status !== 'ended' || !day || !(live > 0)) return null;
+    const offline = new Date(Date.parse(day) + window.VeyletSharing.hostingGraceDays * 86400000).toISOString();
+    const line = document.createElement('p'); line.className = 'plan-scope plan-hosting-ended';
+    line.textContent = Date.now() < Date.parse(offline)
+      ? window.VeyletSharing.planEndedLine(live, offline, { app: APP_MODE })
+      : 'Offline since ' + window.VeyletSharing.hostingDate(offline) + '. ' + (APP_MODE ? 'Restart your plan in the app' : 'Restart your plan')
+        + ' and ' + (live === 1 ? 'this link works' : 'these links work') + ' again \u2014 same link, embed and QR.';
+    return line;
+  }
   /*
    * The app's page (/app/account): the plan's state in words and where to manage it,
    * nothing else. No amount, allowance for sale, renewal price, card form, bundle,
    * annual offer or referral is read or drawn here; the app is where a plan is bought.
    */
-  async function renderPlanApp(supabase, ticket, members) {
+  async function renderPlanApp(supabase, ticket, members, live = 0) {
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
     let row = null;
@@ -1976,6 +2039,7 @@
       const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_workspace_plan', { p_workspace_id: workspaceID })));
       if (ticket !== deskVersion) return;
       row = !failed(reply) ? firstRow(reply.value?.data) : null;
+      planEndedKnown(row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : !workspaceID && !failed(members) ? 'pending' : null;
@@ -1984,13 +2048,15 @@
     const body = document.createElement('p'); body.className = 'plan-body';
     body.textContent = status ? 'See your plan in the app.' : 'Your plan’s state could not be checked. Refresh to try again.';
     const parts = [dl, body];
+    const ended = status === 'ended' ? planHostingEnded(row, { status }, live) : null;
+    if (ended) parts.push(ended);
     if (!status) { const actions = document.createElement('p'); actions.className = 'tour-actions-row plan-actions'; actions.append(button('Refresh plan status', () => loadDesk(supabase))); parts.push(actions); }
     planBody.replaceChildren(...parts);
   }
-  async function renderPlan(supabase, ticket, props, members) {
+  async function renderPlan(supabase, ticket, props, members, live = 0) {
     if (!planPanel || !planBody) return;
     planCapacityRefresh = null;
-    if (APP_MODE) { await renderPlanApp(supabase, ticket, members); return; }
+    if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
     let row = null;
@@ -2008,6 +2074,7 @@
       if (ticket !== deskVersion) return;
       row = reply && !failed(reply) ? firstRow(reply.value?.data) : null;
       view = planVocabulary(row);
+      planEndedKnown(row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     // The app leads with the vocabulary title, then the rows, then the sentence.
@@ -2061,7 +2128,7 @@
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started'
         : view.status === 'ended' ? PLAN_DASH
           : row.auto_renews === false ? 'Does not renew' : row.auto_renews === true ? renewsOn || PLAN_DASH : 'Check billing provider', true);
-      planHairline(dl, 'Hosting', row.hosting_included === true ? 'Included while your plan is active; each shared walkthrough at least 12 months from release'
+      planHairline(dl, 'Hosting', view.status === 'ended' ? 'Offline 14 days after the plan ends' : row.hosting_included === true ? 'Included while your plan is active'
         : row.hosting_included === false ? 'Not included' : PLAN_DASH, false);
       // Packs and any settled extras, counted by the acceptance ledger below; the
       // single A$ extra price is retired (offer 2026-09-24.2), so no price is stated.
@@ -2071,6 +2138,8 @@
     parts.push(dl);
     const body = document.createElement('p'); body.className = 'plan-body'; body.textContent = view.body;
     parts.push(body);
+    const ended = planHostingEnded(row, view, live);
+    if (ended) parts.push(ended);
     // What is left follows the sentence: one count line, rewritten in place when
     // the acceptance ledger answers, and one short note under it.
     const capacity = document.createElement('div'); capacity.className = 'plan-capacity';
@@ -2108,6 +2177,11 @@
     const actions = document.createElement('p'); actions.className = 'tour-actions-row plan-actions';
     const manageNote = text => { const note = document.createElement('p'); note.className = 'plan-scope'; note.textContent = text; parts.push(note); };
     if (view.status === 'unavailable') actions.append(button('Refresh plan status', () => loadDesk(supabase)));
+    // The one fix once the plan has ended, filled and first: the offer, where the plan restarts.
+    if (view.status === 'ended') {
+      const restart = document.createElement('a'); restart.className = 'button'; restart.href = '/offer'; restart.textContent = 'Restart your plan';
+      actions.append(restart);
+    }
     if (source === 'apple') {
       const manage = document.createElement('a'); manage.className = 'text-link';
       manage.href = 'https://apps.apple.com/account/subscriptions';
@@ -2117,7 +2191,7 @@
       manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install Veylet Capture and sign in with this email. ' +
         'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
     }
-    if (view.status !== 'unavailable') {
+    if (view.status !== 'unavailable' && view.status !== 'ended') {
       const offer = document.createElement('a'); offer.className = 'text-link';
       offer.href = '/offer'; offer.textContent = 'See the offer';
       actions.append(offer);
@@ -5871,7 +5945,7 @@
   // while it is worked out, and an empty list. Returns the new desk's ticket.
   function deskReset() {
     const ticket = ++deskVersion;
-    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); listingGates.clear();
+    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); listingGates.clear(); hostingCards.clear();
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
@@ -5897,13 +5971,16 @@
     stopPolling();
     let ticket = shown ? deskVersion : deskReset();
     if (shown) list.setAttribute('aria-busy', 'true');
-    const [props, tours, members, production, hosting] = await Promise.all([
+    const [props, tours, members, production, hosting, hostingStates] = await Promise.all([
       settled(supabase.from('properties').select('id,title,category,location_general,workspace_id,created_at').order('created_at', { ascending: false })),
       readTours(supabase),
       settled(supabase.from('memberships').select('workspace_id,role,status').eq('user_id', currentUserId).eq('status', 'active')),
       settled(supabase.rpc('can_produce_tours')),
       // A throwing client still settles, so hosting can never stop the desk.
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting', {}))),
+      // The member hosting read (draft 20260926132000). A backend without it (PGRST202)
+      // or any failure leaves the words to plan_active and the plan's end day.
+      settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting_states', {}))),
     ]);
     if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
     list.setAttribute('aria-busy', 'false');
@@ -5924,7 +6001,8 @@
     if ([props, tours, members].some(sessionGone)) { showSignedOut('Your sign-in has expired. Sign in again to refresh your spaces.'); return; }
     // The plan reads its own row. A slow or failed plan lookup must not hold up
     // the spaces list, and it never changes what the list is allowed to show.
-    void renderPlan(supabase, ticket, props, members);
+    const liveNow = failed(tours) ? 0 : (tours.value?.data || []).filter(row => row && !row.superseded_at && row.status === 'ready' && row.share_token && !sharePaused(row)).length;
+    void renderPlan(supabase, ticket, props, members, liveNow);
     // Leaving is the account's own decision and reads its own record. A slow
     // deletion check must not hold up the spaces list, and it never changes
     // what the list is allowed to show.
@@ -5973,6 +6051,14 @@
     // answer makes each live card say so; it never holds up or blocks sharing.
     const hostingRows = failed(hosting) || !Array.isArray(hosting.value?.data) ? null
       : new Map(hosting.value.data.filter(row => row && typeof row === 'object' && row.tour_id).map(row => [row.tour_id, row]));
+    if (hostingRows && !failed(hostingStates) && Array.isArray(hostingStates.value?.data)) {
+      for (const state of hostingStates.value.data) {
+        const row = state && typeof state === 'object' ? hostingRows.get(state.tour_id) : null;
+        if (!row || typeof state.state !== 'string') continue;
+        hostingRows.set(state.tour_id, { ...row, hosting_state: state.state, offline_on: state.offline_at ?? null,
+          plan_active: typeof state.plan_active === 'boolean' ? state.plan_active : row.plan_active });
+      }
+    }
     if (failed(members)) message(list, 'Workspace permissions could not load. Review and sharing actions are unavailable until you refresh.');
     const items = new Map();
     const updateGuide = (reviewsPending = false) => {

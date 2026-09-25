@@ -358,7 +358,7 @@ const ARTICLES = [
       'Tap the **Ready for your review** notification, or open the listing and tap **Review walkthrough**.',
       'Walk through every room on your phone. Read any areas listed as [worth a look](help:fix/worth-a-look) and check them.',
       'Tick each check that is true (see the list below). Leave one off if something needs fixing.',
-      'Press **Approve and share** and confirm. Anyone with the link can open it and forward it; it stays online while your plan runs and at least 12 months after that day.',
+      'Press **Approve and share** and confirm. Anyone with the link can open it and forward it. It stays online while your plan is active.',
       'The listing now reads **Live**. Share it: see [share your walkthrough](help:share-your-walkthrough).',
     ] }, { title: 'The seven checks', terms: [
       ['Coverage', 'Every included room and required surface is present.'],
@@ -386,6 +386,7 @@ const ARTICLES = [
       ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
+      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM, and make listing videos for realestate.com.au and social media. Listing videos and stills are included in your plan, and files you download are yours to keep.',
     ] }],
     notWorking: [
       'Listing portals do not accept the embed code. Use the listing URL there instead.',
@@ -478,11 +479,12 @@ const ARTICLES = [
       ['Active', 'Your plan is running.'],
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
-      'Walkthroughs you already shared stay online for at least 12 months after you approved them, even after a plan ends.',
+      'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
+      'Listing videos and stills are included in your plan. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }],
     notWorking: [
-      '**Hosting ended** on a walkthrough means its link now shows "not available". Email Veylet support if you need it back online.',
+      '**Offline** on a walkthrough means your plan ended more than 14 days ago, so its link shows "not available". Restart your plan and this link works again — same link, embed and QR.',
       'Deleting your Veylet account does not cancel an App Store subscription. Cancel it in Settings too.',
     ],
   },

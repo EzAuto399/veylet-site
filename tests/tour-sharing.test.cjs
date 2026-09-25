@@ -51,50 +51,77 @@ const hostingRow = overrides => ({ tour_id: 't1', sharing_on: true, released_at:
   guaranteed_until: '2027-09-23T04:00:00Z', extended_until: null, hosted_until: '2027-09-23T04:00:00Z', plan_active: true, ...overrides });
 const BEFORE = Date.parse('2027-01-01T00:00:00Z'), AFTER = Date.parse('2027-10-01T00:00:00Z');
 
-test('the further-year hosting price is the offer record, not a second number', () => {
-  assert.equal(load().hostingExtensionAud, offer.services.hostingPerWalkthroughPerFurtherYearAud);
+test('no hosting is sold without a plan: 14 days after it ends, and no further-year price', () => {
+  const share = load();
+  assert.equal(share.hostingGraceDays, 14);
+  assert.equal('hostingExtensionAud' in share, false, 'the A$49 hosting extension is retired');
 });
 test('hosting dates are the Brisbane day, a fixed three-letter month and the year', () => {
   const share = load();
   assert.equal(share.hostingDate('2027-09-23T04:00:00Z'), '23 Sep 2027');
   assert.equal(share.hostingDate('2027-06-05T23:30:00Z'), '6 Jun 2027', 'the Brisbane day, whatever the viewer’s zone');
-  // Released 22 Sep 2026 15:30 UTC is 23 Sep in Brisbane, and so is its term.
+  // 22 Sep 2026 15:30 UTC is 23 Sep in Brisbane.
   assert.equal(share.hostingDate('2026-09-22T15:30:00Z'), '23 Sep 2026');
-  assert.equal(share.hostingDate('2027-09-22T15:30:00Z'), '23 Sep 2027');
-  assert.equal(share.hostingLine(hostingRow({ released_at: '2026-09-22T15:30:00Z', guaranteed_until: '2027-09-22T15:30:00Z', hosted_until: '2027-09-22T15:30:00Z' }), true, BEFORE),
-    'Live while your plan is active. Guaranteed until 23 Sep 2027.');
+  assert.equal(share.hostingDate('2026-10-10'), '10 Oct 2026', 'a date-only offline_on reads as that day');
   // Never "Sept", whatever the runtime's locale data says.
   for (let month = 0; month < 12; month += 1) assert.match(share.hostingDate(new Date(Date.UTC(2027, month, 15)).toISOString()), /^15 [A-Z][a-z]{2} 2027$/);
   assert.equal(share.hostingDate('not a date'), '');
   assert.equal(share.hostingDate(null), '');
 });
-test('the ended wording turns at the exact hosted_until instant', () => {
+const ENDED = '2027-01-01T00:00:00Z', GRACE_END = Date.parse(ENDED) + 14 * 86400000;
+test('without the member hosting read, the plan state decides: live, 14 days, then offline', () => {
   const share = load();
-  const row = hostingRow({ plan_active: false });
-  const edge = Date.parse(row.hosted_until);
-  assert.match(share.hostingLine(row, true, edge - 1), /^Live until 23 Sep 2027\./);
-  assert.match(share.hostingLine(row, true, edge), /^Guaranteed hosting ended 23 Sep 2027\./);
-});
-test('each hosting situation has exactly the spec line', () => {
-  const share = load();
-  assert.equal(share.hostingLine(hostingRow(), true, BEFORE), 'Live while your plan is active. Guaranteed until 23 Sep 2027.');
-  // Past its term with the plan active is still hosted while the plan is.
-  assert.equal(share.hostingLine(hostingRow(), true, AFTER), 'Live while your plan is active. Guaranteed until 23 Sep 2027.');
-  assert.equal(share.hostingLine(hostingRow({ plan_active: false }), true, BEFORE),
-    'Live until 23 Sep 2027. To keep it longer, extend hosting for A$49 a year.');
-  assert.equal(share.hostingLine(hostingRow({ plan_active: false }), true, AFTER),
-    'Guaranteed hosting ended 23 Sep 2027. Contact Veylet support to extend it (A$49 a year).');
-  // An agreed extension is the later date, and the line follows it.
-  const extended = hostingRow({ plan_active: false, extended_until: '2028-09-23T00:00:00Z', hosted_until: '2028-09-23T00:00:00Z' });
-  assert.equal(share.hostingLine(extended, true, AFTER), 'Live until 23 Sep 2028. To keep it longer, extend hosting for A$49 a year.');
+  assert.equal(share.hostingLine(hostingRow(), true, BEFORE), 'Live while your plan is active.');
+  assert.equal(share.hostingLine(hostingRow(), true, AFTER), 'Live while your plan is active.', 'no date ends it while the plan runs');
+  const ended = hostingRow({ plan_active: false });
+  assert.equal(share.hostingLine(ended, true, GRACE_END - 1, { planEndedAt: ENDED }),
+    'Your plan has ended. This walkthrough goes offline on 15 Jan 2027. Restart your plan to keep it live.');
+  assert.equal(share.hostingLine(ended, true, GRACE_END, { planEndedAt: ENDED }),
+    'Offline since 15 Jan 2027. Restart your plan and this link works again — same link, embed and QR.', 'turns at the exact instant');
+  assert.equal(share.hostingLine({ ...ended, plan_ended_at: ENDED }, true, GRACE_END - 1),
+    'Your plan has ended. This walkthrough goes offline on 15 Jan 2027. Restart your plan to keep it live.', 'the row’s own plan_ended_at');
+  assert.equal(share.hostingLine(ended, true, BEFORE), 'Your plan has ended. Restart your plan to keep it live.', 'no end day known: no date invented');
   assert.equal(share.hostingLine(hostingRow({ sharing_on: false }), false, BEFORE), 'Sharing is off. The link and embed show "not available".');
-  assert.equal(share.hostingLine(hostingRow({ sharing_on: false, released_at: null, guaranteed_until: null, hosted_until: null }), false, BEFORE), '', 'never shared: no line');
+  assert.equal(share.hostingLine(hostingRow({ sharing_on: false, released_at: null }), false, BEFORE), '', 'never shared: no line');
 });
-test('missing or unreadable dates say so on a live card and never invent a date', () => {
+test('the member hosting read wins when the row carries it', () => {
+  const share = load();
+  const read = extra => hostingRow({ plan_active: true, ...extra });
+  assert.equal(share.hostingLine(read({ hosting_state: 'live_with_plan', offline_on: null }), true, AFTER), 'Live while your plan is active.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'offline_on', offline_on: '2027-10-10' }), true, AFTER),
+    'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'offline', offline_on: '2027-09-12' }), true, AFTER),
+    'Offline since 12 Sep 2027. Restart your plan and this link works again — same link, embed and QR.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'offline', offline_on: null }), true, AFTER),
+    'Offline. Restart your plan and this link works again — same link, embed and QR.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'paused' }), true, AFTER), 'Live while your plan is active.', 'an unknown state falls back to the plan');
+  // get_tour_hosting_states' own names: live_not_enforced (the switch is off) reads as live, and offline_at dates it.
+  assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'live_not_enforced', offline_at: null }), true, AFTER), 'Live while your plan is active.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'offline_on', offline_at: '2027-10-10T00:00:00Z' }), true, AFTER),
+    'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+});
+test('the app’s pages name no purchase path: restart in the app', () => {
+  const share = load();
+  const app = { app: true, planEndedAt: ENDED };
+  assert.equal(share.hostingLine(hostingRow({ plan_active: false }), true, GRACE_END - 1, app),
+    'Your plan has ended. This walkthrough goes offline on 15 Jan 2027. Restart your plan in the app to keep it live.');
+  assert.equal(share.hostingLine(hostingRow({ plan_active: false }), true, GRACE_END, app),
+    'Offline since 15 Jan 2027. Restart your plan in the app and this link works again — same link, embed and QR.');
+  for (const now of [BEFORE, GRACE_END - 1, GRACE_END]) {
+    for (const row of [hostingRow(), hostingRow({ plan_active: false })]) assert.doesNotMatch(share.hostingLine(row, true, now, app), /\$|12 months|Guaranteed/);
+  }
+});
+test('the plan-ended line counts the office’s live walkthroughs', () => {
+  const share = load();
+  assert.equal(share.planEndedLine(3, '2027-01-15T00:00:00Z'), 'Your plan has ended. 3 live walkthroughs go offline on 15 Jan 2027. Restart your plan to keep them live.');
+  assert.equal(share.planEndedLine(1, '2027-01-15T00:00:00Z'), 'Your plan has ended. 1 live walkthrough goes offline on 15 Jan 2027. Restart your plan to keep it live.');
+  assert.equal(share.planEndedLine(2, '2027-01-15T00:00:00Z', { app: true }), 'Your plan has ended. 2 live walkthroughs go offline on 15 Jan 2027. Restart your plan in the app to keep them live.');
+  assert.equal(share.planEndedLine(0, null), 'Your plan has ended. Restart your plan to keep your walkthroughs live.');
+});
+test('missing or unreadable hosting state says so on a live card and never invents a date', () => {
   const share = load();
   const unavailable = 'Hosting dates could not load. Refresh to check.';
-  for (const row of [null, undefined, 'receipt', hostingRow({ released_at: null }), hostingRow({ hosted_until: 'soon' }),
-    hostingRow({ plan_active: 'true' }), hostingRow({ plan_active: null })]) {
+  for (const row of [null, undefined, 'receipt', hostingRow({ released_at: null }), hostingRow({ plan_active: 'true' }), hostingRow({ plan_active: null })]) {
     assert.equal(share.hostingLine(row, true, BEFORE), unavailable);
   }
   assert.equal(share.hostingLine(null, false, BEFORE), '', 'a card that is not live has nothing to say without its dates');

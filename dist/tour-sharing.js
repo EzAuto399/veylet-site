@@ -77,12 +77,25 @@ window.VeyletSharing = (() => {
   }
 
   /*
-   * The hosting line, in the words the app uses too. `row` is the walkthrough's
-   * get_tour_hosting row (null when the dates could not load); `live` says its
-   * link works now. A date passing switches nothing off, so these words only
-   * describe the term; "ended" turns at the exact hosted_until instant.
+   * The hosting line, in the words the app uses too (owner decision 26 September
+   * 2026). A walkthrough is live while the office has an active plan (free
+   * months, monthly or annual). When the plan ends, its link, embed and QR code
+   * keep working for 14 days, then go offline; nothing is deleted or revoked, and
+   * restarting the plan brings the same link back at once.
+   *
+   * `row` is the walkthrough's get_tour_hosting row (null when it could not load);
+   * `live` says its link is shared. The member hosting read
+   * (get_tour_hosting_states' state live_with_plan | offline_on | offline |
+   * live_not_enforced, with offline_at; the desk puts it on the row as
+   * hosting_state and offline_on) is used when the row carries it; until then the state is derived from plan_active and the day the
+   * plan ended (the row's plan_ended_at, else `opts.planEndedAt`, which the desk
+   * reads from its plan panel). `opts.app`: the pages the app opens name no
+   * purchase path, so the fix reads "Restart your plan in the app".
    */
-  const hostingExtensionAud = 49;
+  const hostingGraceDays = 14;
+  const HOSTING_STATES = ['live_with_plan', 'offline_on', 'offline'];
+  // Enforcement switched off on the server: served whatever the plan, so it reads as live.
+  const HOSTING_ALIASES = { live_not_enforced: 'live_with_plan' };
   const hostingUnavailable = 'Hosting dates could not load. Refresh to check.';
   // Dates are the studio's day in Brisbane (as in the app), with a fixed month
   // list so a browser's locale data ("Sept") cannot change the words.
@@ -103,17 +116,50 @@ window.VeyletSharing = (() => {
       return local.getUTCDate() + ' ' + months[local.getUTCMonth()] + ' ' + local.getUTCFullYear();
     }
   }
-  function hostingLine(row, live, now = Date.now()) {
+  function hostingInstant(value) {
+    if (typeof value !== 'string' || !value) return null;
+    const at = Date.parse(value);
+    return Number.isNaN(at) ? null : at;
+  }
+  // { state, date } in the member hosting read's words, or null when neither the
+  // read nor the plan state can say. `date` is the offline day (ISO), or null when
+  // the plan's end day is unknown.
+  function hostingState(row, now = Date.now(), planEndedAt = null) {
+    if (!row || typeof row !== 'object') return null;
+    const read = HOSTING_ALIASES[row.hosting_state] || row.hosting_state;
+    if (HOSTING_STATES.includes(read)) {
+      const day = hostingInstant(row.offline_on) ?? hostingInstant(row.offline_at);
+      return { state: read, date: read === 'live_with_plan' || day === null ? null : new Date(day).toISOString() };
+    }
+    if (typeof row.plan_active !== 'boolean') return null;
+    if (row.plan_active) return { state: 'live_with_plan', date: null };
+    const ended = hostingInstant(row.plan_ended_at) ?? hostingInstant(planEndedAt);
+    if (ended === null) return { state: 'offline_on', date: null };
+    const offline = ended + hostingGraceDays * 86400000;
+    return { state: now < offline ? 'offline_on' : 'offline', date: new Date(offline).toISOString() };
+  }
+  function restartWords(opts) { return opts && opts.app ? 'Restart your plan in the app' : 'Restart your plan'; }
+  // The desk's line for the whole office once the plan has ended (n live walkthroughs).
+  function planEndedLine(count, date, opts = {}) {
+    const day = hostingDate(date);
+    if (!day || !Number.isInteger(count) || count < 1) return 'Your plan has ended. ' + restartWords(opts) + ' to keep your walkthroughs live.';
+    return 'Your plan has ended. ' + (count === 1 ? '1 live walkthrough goes' : count + ' live walkthroughs go') + ' offline on ' + day + '. '
+      + restartWords(opts) + ' to keep ' + (count === 1 ? 'it' : 'them') + ' live.';
+  }
+  function hostingLine(row, live, now = Date.now(), opts = {}) {
     if (!row || typeof row !== 'object') return live ? hostingUnavailable : '';
     const released = hostingDate(row.released_at);
     if (!live) return released ? 'Sharing is off. The link and embed show "not available".' : '';
-    const until = hostingDate(row.hosted_until);
-    if (!released || !until || typeof row.plan_active !== 'boolean') return hostingUnavailable;
-    if (row.plan_active) return 'Live while your plan is active. Guaranteed until ' + until + '.';
-    if (now < new Date(row.hosted_until).getTime()) return 'Live until ' + until + '. To keep it longer, extend hosting for A$' + hostingExtensionAud + ' a year.';
-    return 'Guaranteed hosting ended ' + until + '. Contact Veylet support to extend it (A$' + hostingExtensionAud + ' a year).';
+    const hosting = released ? hostingState(row, now, opts.planEndedAt) : null;
+    if (!hosting) return hostingUnavailable;
+    const day = hostingDate(hosting.date);
+    if (hosting.state === 'live_with_plan') return 'Live while your plan is active.';
+    if (hosting.state === 'offline_on') {
+      return 'Your plan has ended. ' + (day ? 'This walkthrough goes offline on ' + day + '. ' : '') + restartWords(opts) + ' to keep it live.';
+    }
+    return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + restartWords(opts) + ' and this link works again \u2014 same link, embed and QR.';
   }
   return { tokenFromLink, handoffUrl, embedUrl, embedCode, embedFrame, copy,
     builders, builder, savedBuilder, saveBuilder,
-    hostingExtensionAud, hostingUnavailable, hostingDate, hostingLine };
+    hostingGraceDays, hostingUnavailable, hostingDate, hostingState, planEndedLine, hostingLine };
 })();

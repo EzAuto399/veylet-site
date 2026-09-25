@@ -126,7 +126,7 @@ const row = (state, fields = {}) => args => ({ data: { export_id: EXPORT_ID, tou
   files: ['ready', 'needs_attention', 'partner_only'].includes(state) ? FILES : {}, downloadable: state === 'ready', updated_at: '2026-09-26T01:05:00Z', ...fields } });
 const INTRO = [
   'Videos and stills for your listing',
-  'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room.',
+  'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room. Listing videos and stills are included in your plan.',
   'For the video field of a realestate.com.au or Domain listing, YouTube and social media. Each video carries a short line saying it’s a 3D reconstruction, and no web address, QR code or call to action.',
 ];
 
