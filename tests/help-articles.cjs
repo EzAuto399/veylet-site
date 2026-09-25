@@ -87,7 +87,7 @@ const ARTICLES = [
   {
     slug: 'practice-room', group: 'getting-started', title: 'The practice room, and how to pass it', short: 'Practice room',
     description: 'Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.',
-    lead: 'Before your first real capture, you practise in one room at home. It takes about five minutes, nothing leaves your iPhone, and your first real capture unlocks when the room is done.',
+    lead: 'Before your first real capture, you practise in one room at home. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done.',
     body: [{ steps: [
       'Open the practice room and pick an ordinary room at home. Turn the lights on.',
       'Stand in the middle and make one slow, level circle: about 36 seconds, pausing whenever views stop saving. This is the **Full turn at one spot** check.',
