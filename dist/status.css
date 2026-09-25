@@ -1,0 +1,39 @@
+/* ---- Service status (/status, /app/status) ---------------------------------
+   The current facts as a short ledger on the help pages' reading column
+   (guides.css, help/help.css): a 2px ink rule opens it, hairlines divide, and
+   a small mark says which lines are as usual. The operator's note uses the one
+   tint, on the ledger's width; the unavailable sentence is a plain ledger line,
+   never a boxed alarm. */
+
+.status-board { max-width: 720px; margin-top: 40px; }
+.status-loading { margin: 0; padding: 16px 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); font-size: 17px; line-height: 1.6; color: var(--muted); }
+
+.status-lines { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+.status-lines li {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 0; border-bottom: 1px solid var(--line);
+  font-size: 19px; font-weight: 500; line-height: 1.4; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+/* The mark: filled accent when as usual, an open ink ring when held, a quiet ring for a figure. */
+.status-lines li::before {
+  content: ""; flex: none; box-sizing: border-box;
+  width: 10px; height: 10px; margin-top: 0.42em; border-radius: 50%;
+  border: 1.5px solid var(--field-line, #7a877c);
+}
+.status-lines li[data-tone="good"]::before { background: var(--accent, #526b55); border-color: var(--accent, #526b55); }
+.status-lines li[data-tone="held"]::before { border-color: var(--ink); }
+
+.status-board .status-message { max-width: none; margin-top: 20px; overflow-wrap: anywhere; }
+.status-updated { margin: 16px 0 0; font-size: 13px; line-height: 1.55; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.status-unavailable { max-width: 720px; margin: 0; padding: 16px 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line); font-size: 17px; line-height: 1.6; }
+noscript .status-unavailable { margin-top: 40px; }
+.status-unavailable a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+@media (max-width: 640px) {
+  .status-board { margin-top: 32px; }
+  .status-lines li { font-size: 17px; gap: 12px; padding: 14px 0; }
+  .status-loading, .status-unavailable { font-size: 16px; }
+  noscript .status-unavailable { margin-top: 32px; }
+}

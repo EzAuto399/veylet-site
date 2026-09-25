@@ -27,7 +27,8 @@ function copyDist(t) {
 test('every page the app opens is clean: rendered, in reach of its scripts in app mode, and in its links', async () => {
   const { checkAppPages, APP_ACCOUNT_CASES } = await checker;
   const result = await checkAppPages(DIST);
-  assert.deepEqual(result.pages, ['app/account/index.html', 'app/privacy/index.html', 'app/support/index.html', 'app/terms/index.html']);
+  assert.deepEqual(result.pages, ['app/account/index.html', 'app/privacy/index.html', 'app/status/index.html', 'app/support/index.html', 'app/terms/index.html']);
+  assert.deepEqual(result.scripts, ['status.js'], 'the other app pages\' scripts are read for their strings');
   assert.equal(result.cases, APP_ACCOUNT_CASES.length);
   assert.ok(result.rendered > 1000, 'the desk really drew its states: ' + result.rendered + ' strings');
   assert.deepEqual(result.problems, []);

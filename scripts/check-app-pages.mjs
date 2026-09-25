@@ -9,7 +9,9 @@
  * 1. Static: every dist/app/<page>/index.html, and every page of the in-app help
  *    centre (every index.html below dist/app/help), as a reader and a crawler see it
  *    (text, link targets, meta content, alt and label text, inline script
- *    strings). Comments are the authors' notes and are not read.
+ *    strings), and the string literals of the local scripts those pages load
+ *    (such as status.js; /app/account's scripts are rendered in pass 2
+ *    instead). Comments are the authors' notes and are not read.
  * 2. Rendered: dist/account.js runs in app mode (data-app-mode="true") against
  *    the QA fixture's answers (tests/account-browser-fixture.js, which carries
  *    the full money shapes: plans with prices, card offers, bundles, fast
@@ -71,12 +73,33 @@ export function appHelpPages(dist) {
 
 const decode = text => text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 
+/** The string literals of some script source, its comments left out. */
+export function scriptStrings(code) {
+  return [...code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    .matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)].map(match => match[2]);
+}
+
+/*
+ * The local scripts some app pages load, read for their strings. /app/account's scripts are
+ * rendered in app mode instead (renderAppAccount); the service configuration and vendored code
+ * are not copy.
+ */
+export function appScripts(dist, pages) {
+  const found = new Set();
+  for (const page of pages) {
+    const html = readFileSync(join(dist, page), 'utf8').replace(/<!--[\s\S]*?-->/g, ' ');
+    for (const match of html.matchAll(/<script\b[^>]*\bsrc="\/([\w./-]+\.js)(?:\?[^"]*)?"/g)) {
+      if (match[1] !== 'supabase-public.js' && !match[1].startsWith('vendor/')) found.add(match[1]);
+    }
+  }
+  return [...found].sort();
+}
+
 /** What a reader or a crawler gets from one page: text, then each attribute that names or links something. */
 export function pageStrings(html) {
   const noComments = html.replace(/<!--[\s\S]*?-->/g, ' ');
   const scripts = [...noComments.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)].map(match => match[1]);
-  const literals = scripts.flatMap(code => [...code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
-    .matchAll(/(['"`])((?:(?!\1)[^\\\n]|\\.)*)\1/g)].map(match => match[2]));
+  const literals = scripts.flatMap(scriptStrings);
   const text = decode(noComments.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ');
   const attributes = [...noComments.matchAll(/\b(href|src|content|title|alt|aria-label|placeholder|value|action)\s*=\s*(["'])(.*?)\2/gi)]
     .map(match => ({ name: match[1].toLowerCase(), value: decode(match[3]) }));
@@ -216,6 +239,10 @@ export async function checkAppPages(dist = join(REPO, 'dist')) {
     if (!/<meta name="robots" content="noindex/.test(html)) problems.push({ where: page, word: 'noindex', excerpt: 'no robots noindex meta' });
     if (/<nav\b[^>]*aria-label="Main"/.test(html)) problems.push({ where: page, word: 'navigation', excerpt: 'marketing navigation' });
   }
+  const scripts = appScripts(dist, [...pages, ...helpPages].filter(page => page !== 'app/account/index.html'));
+  for (const script of scripts) {
+    for (const literal of scriptStrings(readFileSync(join(dist, script), 'utf8'))) problems.push(...findBanned(literal, script + ' (script)'));
+  }
   let rendered = 0;
   if (pages.includes('app/account/index.html')) {
     for (const search of APP_ACCOUNT_CASES) {
@@ -226,7 +253,7 @@ export async function checkAppPages(dist = join(REPO, 'dist')) {
       for (const call of new Set(calls)) if (MONEY_CALLS.includes(call)) problems.push({ where: 'app/account' + (search || ' (default)'), word: 'money call', excerpt: call });
     }
   }
-  return { pages, helpPages, cases: pages.includes('app/account/index.html') ? APP_ACCOUNT_CASES.length : 0, rendered, problems };
+  return { pages, helpPages, scripts, cases: pages.includes('app/account/index.html') ? APP_ACCOUNT_CASES.length : 0, rendered, problems };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -237,6 +264,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.error(`${result.problems.length} problem(s) on the pages the app opens.`);
     process.exitCode = 1;
   } else {
-    console.log(`${result.pages.length} app pages and ${result.helpPages.length} help pages clean; ${result.cases} rendered states of /app/account, ${result.rendered} written strings, no amount, purchase word or outside link.`);
+    console.log(`${result.pages.length} app pages (${result.scripts.length} page script${result.scripts.length === 1 ? '' : 's'}) and ${result.helpPages.length} help pages clean; ${result.cases} rendered states of /app/account, ${result.rendered} written strings, no amount, purchase word or outside link.`);
   }
 }

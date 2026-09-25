@@ -557,15 +557,18 @@ function header(edition) {
     + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
 }
 
+// The index pages alone link to the service status page (/status, /app/status), from their footers.
 // The public index alone may link to /offer, and only from its footer.
-function footer(edition, withOffer = false) {
+function footer(edition, index = false) {
   if (edition === 'app') {
+    const status = index ? '<a href="/app/status">Service status</a>' : '';
     return '<footer class="wrap app-footer"><nav aria-label="Account and help"><a href="/app/account">Account</a><a href="/app/help">Help</a>'
-      + '<a href="/app/support">Support</a><a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav></footer>';
+      + `<a href="/app/support">Support</a>${status}<a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav></footer>`;
   }
-  const offer = withOffer ? '<a href="/offer">Offer</a>' : '';
+  const offer = index ? '<a href="/offer">Offer</a>' : '';
+  const status = index ? '<a href="/status">Service status</a>' : '';
   return '<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p>'
-    + `<nav aria-label="Footer"><a href="/help">Help</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a>${offer}<a href="/support">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>`
+    + `<nav aria-label="Footer"><a href="/help">Help</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a>${offer}<a href="/support">Support</a>${status}<a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>`
     + '<span>© 2026 Veylet Studio</span></footer>';
 }
 
@@ -670,7 +673,7 @@ function renderIndex(edition) {
     `<p class="article-actions"><a class="button" href="${escape(mailto('Veylet help'))}">Email Veylet support</a></p>`,
     '</section>',
     '</main>',
-    footer(edition, edition === 'public'),
+    footer(edition, true),
     '</body>',
     '</html>',
   ];

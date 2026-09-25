@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Status — Veylet</title>
+<meta name="description" content="Whether Veylet is rendering walkthroughs right now and how soon a render usually starts.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#10231d">
+<link rel="icon" href="/media/studio-avatar.png">
+<link rel="stylesheet" href="/style.css?v=318869d165d8e548">
+<link rel="stylesheet" href="/guides.css?v=ceeecc110ad9b6b4">
+<link rel="stylesheet" href="/help/help.css?v=4491086eed76473e">
+<link rel="stylesheet" href="/status.css?v=4cfab56561d4e3d1">
+</head>
+<body class="help-page status-page">
+<a class="skip" href="#main">Skip to content</a>
+<!-- The page the Veylet Capture app opens: no marketing navigation, and every
+     link stays on the app's own pages. -->
+<header class="wrap app-header"><span class="brand"><span class="portal" aria-hidden="true"></span>VEYLET</span></header>
+<main id="main" class="wrap article-page">
+<header class="article-head"><h1>Service status</h1><p class="article-answer">Whether Veylet is rendering walkthroughs and admitting new accounts right now. While this page is open, it checks again every minute.</p></header>
+<section class="status-board" id="status-board" aria-label="Current status" data-state="loading" hidden>
+<div aria-live="polite">
+<p class="status-loading" id="status-loading">Checking the service…</p>
+<ul class="status-lines" id="status-current" hidden>
+<li id="status-rendering"></li>
+<li id="status-admissions"></li>
+<li id="status-start" data-tone="figure" hidden></li>
+</ul>
+<p class="article-note status-message" id="status-message" hidden></p>
+<p class="status-unavailable" id="status-unavailable" hidden>Status isn’t available right now. <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email support</a> if something looks wrong.</p>
+</div>
+<p class="status-updated" id="status-updated" hidden></p>
+</section>
+<noscript><p class="status-unavailable">Status isn’t available right now. <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email support</a> if something looks wrong.</p></noscript>
+<section class="article-next help-stuck" aria-labelledby="status-help">
+<h2 id="status-help">Something looks wrong?</h2>
+<p>Write to <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">yoda@yodalai.xyz</a> and a person replies. Say what you were doing and what you saw. Never send passwords or sign-in links.</p>
+<p class="article-actions"><a class="button" href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email Veylet support</a><a class="text-link" href="/app/help/render-status">What each capture status means</a></p>
+</section>
+</main>
+<footer class="wrap app-footer"><nav aria-label="Account and help"><a href="/app/account">Account</a><a href="/app/help">Help</a><a href="/app/support">Support</a><a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav></footer>
+<script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+<script defer src="/status.js?v=b554950380c20789"></script>
+</body>
+</html>

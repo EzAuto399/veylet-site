@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Service status — Veylet</title>
+<meta name="description" content="Whether Veylet is rendering walkthroughs right now, how soon a render usually starts, and whether new accounts are open.">
+<link rel="canonical" href="https://veylet.com/status">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Veylet Studio">
+<meta property="og:locale" content="en_AU">
+<meta property="og:title" content="Service status — Veylet">
+<meta property="og:description" content="Whether Veylet is rendering walkthroughs right now, how soon a render usually starts, and whether new accounts are open.">
+<meta property="og:url" content="https://veylet.com/status">
+<meta property="og:image" content="https://veylet.com/media/share-card.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#10231d">
+<link rel="icon" href="/media/studio-avatar.png">
+<link rel="stylesheet" href="/style.css?v=318869d165d8e548">
+<link rel="stylesheet" href="/guides.css?v=ceeecc110ad9b6b4">
+<link rel="stylesheet" href="/help/help.css?v=4491086eed76473e">
+<link rel="stylesheet" href="/status.css?v=4cfab56561d4e3d1">
+<script src="/brand-host.js?v=1c06a18e19b34007"></script>
+</head>
+<body class="help-page status-page">
+<a class="skip" href="#main">Skip to content</a>
+<header class="wrap"><a class="brand" href="/" aria-label="Veylet Studio home"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><nav aria-label="Main"><a href="/#process">How it works</a><a href="/help">Help</a><a href="/account">Sign in</a></nav></header>
+<main id="main" class="wrap article-page">
+<header class="article-head"><h1>Service status</h1><p class="article-answer">Whether Veylet is rendering walkthroughs and admitting new accounts right now. While this page is open, it checks again every minute.</p></header>
+<section class="status-board" id="status-board" aria-label="Current status" data-state="loading" hidden>
+<div aria-live="polite">
+<p class="status-loading" id="status-loading">Checking the service…</p>
+<ul class="status-lines" id="status-current" hidden>
+<li id="status-rendering"></li>
+<li id="status-admissions"></li>
+<li id="status-start" data-tone="figure" hidden></li>
+</ul>
+<p class="article-note status-message" id="status-message" hidden></p>
+<p class="status-unavailable" id="status-unavailable" hidden>Status isn’t available right now. <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email support</a> if something looks wrong.</p>
+</div>
+<p class="status-updated" id="status-updated" hidden></p>
+</section>
+<noscript><p class="status-unavailable">Status isn’t available right now. <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email support</a> if something looks wrong.</p></noscript>
+<section class="article-next help-stuck" aria-labelledby="status-help">
+<h2 id="status-help">Something looks wrong?</h2>
+<p>Write to <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">yoda@yodalai.xyz</a> and a person replies. Say what you were doing and what you saw. Never send passwords or sign-in links.</p>
+<p class="article-actions"><a class="button" href="mailto:yoda@yodalai.xyz?subject=Veylet%20status">Email Veylet support</a><a class="text-link" href="/help/render-status">What each capture status means</a></p>
+</section>
+</main>
+<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/help">Help</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/offer">Offer</a><a href="/support">Support</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+<script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+<script defer src="/status.js?v=b554950380c20789"></script>
+</body>
+</html>
