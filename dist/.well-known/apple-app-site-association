@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["4F4SMS88P8.dev.property3d.capture"],
+        "components": [
+          { "/": "/handoff", "exclude": true, "comment": "Client hand-over pages stay on the web" },
+          { "/": "/handoff/*", "exclude": true, "comment": "Client hand-over pages stay on the web" },
+          { "/": "/tour", "exclude": true, "comment": "Client and portal walkthroughs stay on the web" },
+          { "/": "/tour/*", "exclude": true, "comment": "Client and portal walkthroughs stay on the web" },
+          { "/": "/embed", "exclude": true, "comment": "Embedded walkthroughs stay on the web" },
+          { "/": "/embed/*", "exclude": true, "comment": "Embedded walkthroughs stay on the web" },
+          { "/": "/help/*", "exclude": true, "comment": "Help stays on the web" },
+          { "/": "/app/help/*", "exclude": true, "comment": "In-app help pages stay on the web" },
+          { "/": "/app/account", "?": { "tour": "?*" }, "comment": "Ready-for-review emails and desk deep links open the in-app Review" },
+          { "/": "/join", "?": { "i": "?*" }, "comment": "Team invites: the app accepts after sign-in" }
+        ]
+      }
+    ]
+  }
+}
