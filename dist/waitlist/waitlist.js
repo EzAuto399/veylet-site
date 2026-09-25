@@ -4,8 +4,11 @@
  * nothing else: no third-party script, no cookie, no analytics. A backend without the function
  * (PostgREST PGRST202 / 404) says the waitlist opens soon and gives the email route instead.
  * The server answers joined (new or already listed: the same words, so the page never says whether
- * an address was on the list), busy (its hourly limit), or invalid. "Send me tips and offers" is a
- * separate, unticked choice (Spam Act): joining never depends on it.
+ * an address was on the list), busy (its hourly limit), or invalid. The "tips and offers" box is a
+ * separate, unticked choice (Spam Act): joining never depends on it. Its label is the consent wording
+ * tips-v1 of the product repository's docs/lifecycle-email.md (never edited; a new wording is a new
+ * version), and every join sends that version as p_consent_wording, ticked or not, so the server records
+ * which words the choice was made on.
  */
 (function () {
   'use strict';
@@ -15,6 +18,7 @@
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
   var CHANNELS = ['own_website', 'realestate_com_au', 'domain', 'social', 'client_deliverables', 'other'];
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  var TIPS = { version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' };
 
   var COPY = {
     sending: 'Adding you to the list…',
@@ -43,6 +47,7 @@
       p_region: text(data.get('region'), 120),
       p_channels: channels,
       p_consent_tips: data.get('consent_tips') === 'yes',
+      p_consent_wording: TIPS.version,
     };
   }
 
@@ -148,7 +153,7 @@
     return form;
   }
 
-  var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, COPY: COPY,
+  var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, COPY: COPY, TIPS: TIPS,
     answersFrom: answersFrom, problem: problem, join: join, show: show, send: send, run: run };
   if (typeof window !== 'undefined') {
     window.VeyletWaitlist = api;

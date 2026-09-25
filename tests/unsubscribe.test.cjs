@@ -1,9 +1,10 @@
 /*
- * /unsubscribe (dist/unsubscribe/index.html + dist/unsubscribe.js): the reminder email's unsubscribe link.
- * It reads the 64-hex token from ?t=, removes it from the address bar, calls rpc/unsubscribe_mail once with
- * the public key and says one of: unsubscribed, already unsubscribed, invalid link, or error (with Try again).
- * The answer comes from the sibling repository's 20260925110000_render_status.sql (state: unsubscribed,
- * already or invalid).
+ * /unsubscribe (dist/unsubscribe/index.html + dist/unsubscribe.js): the link in a tips-and-offers email
+ * (rpc/unsubscribe_email_tips, the sibling repository's draft 20260926114000_lifecycle_email.sql) and in
+ * the dispatcher's trial reminder (rpc/unsubscribe_mail, 20260925110000_render_status.sql). It reads the
+ * 64-hex token from ?t=, removes it from the address bar, asks both functions once with the public key and
+ * says one of: unsubscribed (tips or reminder), "This link has already been used or is not valid.",
+ * unavailable (no function deployed) or error (with Try again, which asks only the failed function).
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -17,6 +18,9 @@ const script = fs.readFileSync(path.join(dist, 'unsubscribe.js'), 'utf8');
 const markup = fs.readFileSync(path.join(dist, 'unsubscribe/index.html'), 'utf8');
 const TOKEN = 'a1'.repeat(32);
 const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' };
+const RPC = CONFIG.url + '/rest/v1/rpc/';
+const MISSING = { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.unsubscribe_email_tips(p_token) in the schema cache' } };
+const ok = state => ({ status: 200, body: { state, unsubscribed: state !== 'invalid' } });
 
 class Element {
   constructor(tag, hidden) { this.tagName = tag.toUpperCase(); this.hidden = hidden; this.disabled = false; this.textContent = ''; this.attributes = {}; this.events = {}; }
@@ -25,7 +29,8 @@ class Element {
   focus() { this.focused = (this.focused || 0) + 1; }
 }
 
-function page({ search = `?t=${TOKEN}`, answers = [], config = CONFIG } = {}) {
+/** `answers` maps a function name to its queue of answers (an Error throws, as a lost connection does). */
+function page({ search = `?t=${TOKEN}`, answers = {}, config = CONFIG } = {}) {
   const ids = {};
   for (const match of markup.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
     ids[match[2]] = new Element(match[1], /\bhidden\b/.test(match[0]));
@@ -39,9 +44,11 @@ function page({ search = `?t=${TOKEN}`, answers = [], config = CONFIG } = {}) {
     document: { readyState: 'complete', getElementById: id => ids[id], addEventListener() {} },
     fetch: async (url, init) => {
       requests.push({ url, init });
-      const answer = answers.shift();
+      const queue = answers[url.slice(RPC.length)] || [];
+      const answer = queue.length > 1 ? queue.shift() : queue[0];
+      if (!answer) throw new Error('unexpected request ' + url);
       if (answer instanceof Error) throw answer;
-      return { ok: answer.status === 200, json: async () => answer.body };
+      return { ok: answer.status >= 200 && answer.status < 300, status: answer.status, json: async () => answer.body };
     },
   };
   vm.runInNewContext(script, { window, document: window.document, JSON, Promise });
@@ -50,56 +57,82 @@ function page({ search = `?t=${TOKEN}`, answers = [], config = CONFIG } = {}) {
 
 const shown = ids => ({ state: ids.main.attributes['data-state'], title: ids['unsubscribe-title'].textContent,
   message: ids['unsubscribe-message'].textContent, retry: !ids['unsubscribe-retry'].hidden,
-  scope: !ids['unsubscribe-scope'].hidden });
+  next: ids['unsubscribe-scope'].hidden ? null : ids['unsubscribe-scope'].textContent });
+const asked = view => view.requests.map(({ url }) => url.slice(RPC.length)).sort();
 
-test('a valid link unsubscribes once, with the public key and the token only, and takes the token out of the address bar', async () => {
-  const view = page({ answers: [{ status: 200, body: { state: 'unsubscribed', unsubscribed: true } }] });
-  assert.equal(await view.api.run(view.window), 'unsubscribed');
-  assert.deepEqual(view.replaced, ['/unsubscribe']);
-  assert.equal(view.requests.length, 1);
-  const [{ url, init }] = view.requests;
-  assert.equal(url, 'https://project.supabase.invalid/rest/v1/rpc/unsubscribe_mail');
-  assert.equal(init.method, 'POST');
-  assert.equal(init.headers.apikey, 'public-anon-key');
-  assert.equal(init.headers.Authorization, 'Bearer public-anon-key');
-  assert.deepEqual(JSON.parse(init.body), { p_token: TOKEN });
-  assert.equal(init.credentials, 'omit');
-  assert.deepEqual(shown(view.ids), { state: 'unsubscribed', title: 'You’re unsubscribed',
-    message: view.api.COPY.unsubscribed.message, retry: false, scope: true });
+test('a tips link unsubscribes from tips and offers, asking both functions once with the public key and the token only', async () => {
+  const view = page({ answers: { unsubscribe_email_tips: [ok('unsubscribed')], unsubscribe_mail: [ok('invalid')] } });
+  assert.equal(await view.api.run(view.window), 'tips');
+  assert.deepEqual(view.replaced, ['/unsubscribe'], 'the token leaves the address bar before anything is asked');
+  assert.deepEqual(asked(view), ['unsubscribe_email_tips', 'unsubscribe_mail']);
+  for (const { init } of view.requests) {
+    assert.equal(init.method, 'POST');
+    assert.equal(init.headers.apikey, 'public-anon-key');
+    assert.equal(init.headers.Authorization, 'Bearer public-anon-key');
+    assert.deepEqual(JSON.parse(init.body), { p_token: TOKEN });
+    assert.equal(init.credentials, 'omit');
+    assert.equal(init.referrerPolicy, 'no-referrer');
+  }
+  assert.deepEqual(shown(view.ids), { state: 'tips', title: 'You’re unsubscribed',
+    message: 'You’re unsubscribed from tips and offers. Service messages about your account and walkthroughs still arrive.',
+    retry: false, next: 'To change your email preferences, sign in to your account.' });
   assert.equal(view.ids['unsubscribe-title'].focused, 1);
 });
 
-test('a second visit says already unsubscribed', async () => {
-  const view = page({ answers: [{ status: 200, body: { state: 'already', unsubscribed: true } }] });
-  assert.equal(await view.api.run(view.window), 'already');
-  assert.equal(shown(view.ids).title, 'You’re already unsubscribed');
-  assert.equal(shown(view.ids).scope, true);
+test('a reminder link (the dispatcher’s trial reminder) still unsubscribes, in its own words', async () => {
+  const view = page({ answers: { unsubscribe_email_tips: [ok('invalid')], unsubscribe_mail: [ok('unsubscribed')] } });
+  assert.equal(await view.api.run(view.window), 'reminder');
+  assert.equal(shown(view.ids).title, 'You’re unsubscribed');
+  assert.match(shown(view.ids).message, /^You’re unsubscribed from reminder emails\./);
+  assert.match(shown(view.ids).message, /Service messages about your account and walkthroughs still arrive\.$/);
+  // Before the tips function is deployed the reminder link works exactly as before.
+  const early = page({ answers: { unsubscribe_email_tips: [MISSING], unsubscribe_mail: [ok('unsubscribed')] } });
+  assert.equal(await early.api.run(early.window), 'reminder');
 });
 
-test('an unknown token, a malformed token or no token reads as an invalid link; only the unknown one asks the server', async () => {
-  const unknown = page({ answers: [{ status: 200, body: { state: 'invalid', unsubscribed: false } }] });
-  assert.equal(await unknown.api.run(unknown.window), 'invalid');
-  assert.equal(unknown.requests.length, 1);
+test('a used link and an unknown link read the same: already used or not valid, naming nobody', async () => {
+  const cases = [
+    { unsubscribe_email_tips: [ok('already')], unsubscribe_mail: [ok('invalid')] },
+    { unsubscribe_email_tips: [ok('invalid')], unsubscribe_mail: [ok('already')] },
+    { unsubscribe_email_tips: [ok('invalid')], unsubscribe_mail: [ok('invalid')] },
+    { unsubscribe_email_tips: [MISSING], unsubscribe_mail: [ok('invalid')] },
+    { unsubscribe_email_tips: [ok('invalid')], unsubscribe_mail: [MISSING] },
+    // A function that knows the token decides, even when the other one failed.
+    { unsubscribe_email_tips: [ok('already')], unsubscribe_mail: [{ status: 500, body: {} }] },
+  ];
+  const seen = new Set();
+  for (const answers of cases) {
+    const view = page({ answers });
+    assert.equal(await view.api.run(view.window), 'used', JSON.stringify(answers));
+    seen.add(JSON.stringify(shown(view.ids)));
+  }
+  assert.equal(seen.size, 1, 'every one of them shows exactly the same page');
+  const [only] = [...seen].map(JSON.parse);
+  assert.deepEqual(only, { state: 'used', title: 'Nothing changed', message: 'This link has already been used or is not valid.',
+    retry: false, next: 'If you used this link before, you’re already unsubscribed. To check or change your email preferences, sign in to your account.' });
+});
+
+test('a malformed or missing token reads as not valid without asking the server', async () => {
   for (const search of ['', '?t=short', `?t=${TOKEN.toUpperCase()}`, `?t=${TOKEN}0`, `?x=${TOKEN}`]) {
     const view = page({ search });
-    assert.equal(await view.api.run(view.window), 'invalid', search);
+    assert.equal(await view.api.run(view.window), 'used', search);
     assert.equal(view.requests.length, 0, search);
-    assert.deepEqual(shown(view.ids), { state: 'invalid', title: 'This link doesn’t work',
-      message: view.api.COPY.invalid.message, retry: false, scope: false });
+    assert.deepEqual(view.replaced, ['/unsubscribe'], search);
+    assert.equal(shown(view.ids).message, 'This link has already been used or is not valid.');
   }
   assert.equal(page().api.readToken(`?utm=1&t=${TOKEN}&x=2`), TOKEN);
 });
 
-test('a failed request or an unexpected answer is an error with Try again, which asks again', async () => {
-  for (const answer of [{ status: 500, body: { message: 'x' } }, { status: 200, body: { state: 'maybe' } },
+test('a failure is an error with Try again, which asks only the function that failed', async () => {
+  for (const failure of [{ status: 500, body: { message: 'x' } }, { status: 200, body: { state: 'maybe' } },
     { status: 200, body: null }, new Error('offline')]) {
-    const view = page({ answers: [answer, { status: 200, body: { state: 'unsubscribed' } }] });
+    const view = page({ answers: { unsubscribe_email_tips: [failure, ok('unsubscribed')], unsubscribe_mail: [ok('invalid')] } });
     assert.equal(await view.api.run(view.window), 'error');
     assert.deepEqual(shown(view.ids), { state: 'error', title: 'We couldn’t record that',
-      message: view.api.COPY.error.message, retry: true, scope: false });
+      message: view.api.COPY.error.message, retry: true, next: null });
     assert.equal(view.ids['unsubscribe-retry'].disabled, false);
-    assert.equal(await view.ids['unsubscribe-retry'].events.click(), 'unsubscribed');
-    assert.equal(view.requests.length, 2);
+    assert.equal(await view.ids['unsubscribe-retry'].events.click(), 'tips');
+    assert.deepEqual(asked(view), ['unsubscribe_email_tips', 'unsubscribe_email_tips', 'unsubscribe_mail']);
     assert.equal(shown(view.ids).retry, false);
   }
   const unconfigured = page({ config: null });
@@ -107,7 +140,15 @@ test('a failed request or an unexpected answer is an error with Try again, which
   assert.equal(unconfigured.requests.length, 0);
 });
 
-test('the page matches the site shell: noindex, no referrer, versioned assets, live status, the 44px actions', () => {
+test('a backend with neither function says so and gives the support route, with nothing to retry', async () => {
+  const view = page({ answers: { unsubscribe_email_tips: [MISSING], unsubscribe_mail: [{ status: 404, body: { code: 'PGRST202', message: 'Could not find the function' } }] } });
+  assert.equal(await view.api.run(view.window), 'unavailable');
+  assert.equal(shown(view.ids).retry, false);
+  assert.match(shown(view.ids).message, /support@veylet\.com/);
+  assert.equal(view.api.outcome({ a: 'missing', b: 'error' }), 'error', 'a failure next to a missing function can be retried');
+});
+
+test('the page matches the site shell: noindex, no referrer, versioned assets, live status, the sign-in route', () => {
   assert.match(markup, /<meta name="robots" content="noindex,nofollow" \/>/);
   assert.match(markup, /<meta name="referrer" content="no-referrer" \/>/);
   assert.match(markup, /<header class="wrap">[\s\S]*VEYLET STUDIO[\s\S]*<\/header>/);
@@ -115,13 +156,17 @@ test('the page matches the site shell: noindex, no referrer, versioned assets, l
   assert.match(markup, /<main id="main" class="form-page wrap unsubscribe-page" data-state="loading">/);
   assert.match(markup, /id="unsubscribe-message" role="status" aria-live="polite"/);
   assert.match(markup, /<button type="button" class="button" id="unsubscribe-retry" hidden>Try again<\/button>/);
+  assert.match(markup, /<a class="button button-ghost" href="\/account">Sign in to change email preferences<\/a>/);
   assert.match(markup, /min-height: 44px/);
   const hash = file => createHash('sha256').update(fs.readFileSync(path.join(dist, file))).digest('hex').slice(0, 16);
   for (const file of ['style.css', 'brand-host.js', 'supabase-public.js', 'unsubscribe.js']) {
     assert.ok(markup.includes(`/${file}?v=${hash(file)}`), `${file} is versioned by its bytes`);
   }
   // Every state's words are plain and name no person, address or amount.
-  for (const copy of Object.values(page().api.COPY)) {
-    assert.doesNotMatch(copy.title + copy.message, /A\$|\d{3,}|@(?!veylet\.com)/);
+  const { COPY, NEXT } = page().api;
+  for (const words of [...Object.values(COPY).map(copy => copy.title + ' ' + copy.message), ...Object.values(NEXT)]) {
+    assert.doesNotMatch(words, /A\$|\d{3,}|@(?!veylet\.com)/);
   }
+  // Only the two unsubscribe functions are ever named.
+  assert.deepEqual([...page().api.FUNCTIONS], ['unsubscribe_email_tips', 'unsubscribe_mail']);
 });

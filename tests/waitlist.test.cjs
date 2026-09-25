@@ -57,12 +57,17 @@ test('the form asks the plan\'s questions, and only the waitlist answers are req
   assert.match(markup, /id="waitlist-lidar"[^>]*>Capture needs the LiDAR scanner/);
 });
 
-test('"Send me tips and offers" is unticked, optional and separate from joining; there is a honeypot and a privacy line', () => {
+test('the tips box is unticked, optional and separate from joining, labelled with wording tips-v1; there is a honeypot and a privacy line', () => {
   const consent = fieldTags().find(f => f.name === 'consent_tips');
   assert.ok(consent, 'the consent box exists');
   assert.doesNotMatch(consent.attrs, /\bchecked\b|\brequired\b/);
-  assert.match(markup, /Send me tips and offers/);
-  assert.match(markup, /Separate from the waitlist: you can join without it/);
+  // The box's accessible name is exactly the consent wording whose version is sent.
+  const api = load();
+  assert.deepEqual(JSON.parse(JSON.stringify(api.TIPS)), { version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' });
+  assert.match(consent.attrs, /aria-labelledby="waitlist-tips-label"/);
+  assert.equal(/<span id="waitlist-tips-label">([^<]*)<\/span>/.exec(markup)[1], api.TIPS.wording);
+  assert.doesNotMatch(markup, /Send me tips and offers by email/);
+  assert.match(markup, /Separate from the waitlist: you can join without it\. We still email you when it’s your turn\./);
   assert.match(markup, /class="honey-label" aria-hidden="true">Leave this field empty<input type="text" name="_honey" class="honey" tabindex="-1"/);
   assert.match(markup, /<a href="\/privacy">How we handle personal information<\/a>/);
 });
@@ -81,9 +86,10 @@ test('answers are trimmed and allowlisted; consent is true only when ticked', ()
   const answers = api.answersFrom(new FakeFormData(ANSWERS));
   assert.deepEqual(JSON.parse(JSON.stringify(answers)), {
     p_name: 'Sam Agent', p_email: 'Sam@Agency.com.au', p_business_type: 'sales_agent', p_device: 'iphone_pro_lidar',
-    p_region: 'Brisbane', p_channels: ['own_website', 'domain'], p_consent_tips: false,
+    p_region: 'Brisbane', p_channels: ['own_website', 'domain'], p_consent_tips: false, p_consent_wording: 'tips-v1',
   });
   assert.equal(api.answersFrom(new FakeFormData({ ...ANSWERS, consent_tips: 'yes' })).p_consent_tips, true);
+  assert.equal(api.answersFrom(new FakeFormData({ ...ANSWERS, consent_tips: 'yes' })).p_consent_wording, 'tips-v1', 'the wording shown travels with a tick');
   assert.equal(api.problem(answers), '');
   assert.equal(api.problem({ ...answers, p_email: 'not-an-email' }), 'email');
   assert.equal(api.problem({ ...answers, p_device: 'nokia' }), 'device');
@@ -100,7 +106,7 @@ test('joining is one POST to rpc/join_waitlist with the public key and the answe
   assert.equal(url, 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist');
   assert.equal(init.method, 'POST');
   assert.deepEqual([init.headers.apikey, init.headers.Authorization, init.credentials], ['public-anon-key', 'Bearer public-anon-key', 'omit']);
-  assert.deepEqual(Object.keys(body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_device', 'p_email', 'p_name', 'p_region']);
+  assert.deepEqual(Object.keys(body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_consent_wording', 'p_device', 'p_email', 'p_name', 'p_region']);
 });
 
 test('a backend without the function, the hourly limit, a refusal and a failure each have their own answer', async () => {

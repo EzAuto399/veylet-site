@@ -111,6 +111,10 @@
   let lastEmail = '';
   let lastRoleIntent = 'owner';
   let currentUserId = null;
+  // The signed-in email and when the account was first confirmed: the email
+  // preferences use them to find a tick given on the sign-in form.
+  let currentUserEmail = '';
+  let currentUserConfirmedAt = null;
   let deskVersion = 0;
   let authVersion = 0;
   let signInVersion = 0;
@@ -298,10 +302,12 @@
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
     clientsHide();
+    emailHide();
     if (updatedEl) updatedEl.textContent = '';
     resetSignInAttempt();
     sessionHeading(false);
     currentUserId = null;
+    currentUserEmail = ''; currentUserConfirmedAt = null;
     focusedTourForUser = null;
     deskVersion += 1;
     list?.replaceChildren();
@@ -324,6 +330,7 @@
     }
     if (verifyForm) verifyForm.hidden = true;
     if (home) home.hidden = true;
+    signupTipsOffer(supabase);
     setStatus(message);
   }
 
@@ -3903,6 +3910,156 @@
     clientsDraw(state, kept ? 'Your details weren’t saved. Check them and press Save.' : '');
   }
 
+  /* ---- Email preferences: tips and offers --------------------------------
+   * The Spam Act consent of the sibling repository's docs/lifecycle-email.md and its
+   * draft 20260926114000_lifecycle_email.sql (not yet released). get_email_preferences()
+   * answers the recorded choice (tips_opt_in, false until the person ticks it) and the
+   * exact current wording with its version; set_email_tips_preference(opt_in, source,
+   * wording_version) records each change. This page never ticks the box: it shows the
+   * recorded choice, and the label is the wording whose version is recorded. A backend
+   * without the functions (PGRST202) shows no box and says nothing. Service emails are
+   * not affected by the choice, and the note under the box says so.
+   *
+   * At sign-up the box sits on the sign-in form, unticked. Signed out, the current
+   * wording can't be read, so it shows the first wording (tips-v1, which is never
+   * edited) and that version is recorded. The tick is kept for the email it was given
+   * with (memory, and this browser's storage as the address's SHA-256 so the email
+   * link may open in another tab) for an hour, and recorded once sign-in completes:
+   * source signup when the sign-in created or first confirmed the account, account
+   * otherwise (the same page). One sign-in uses it up, whoever signs in.
+   */
+  const TIPS_FIRST = Object.freeze({ version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' });
+  const TIPS_VERSION = /^tips-v[0-9]{1,3}$/;
+  const TIPS_INTENT_KEY = 'veylet-tips-intent';
+  const TIPS_INTENT_MS = 60 * 60 * 1000;
+  const emailPanel = document.getElementById('account-email');
+  const emailBox = document.getElementById('account-email-tips');
+  const emailLabel = document.getElementById('account-email-tips-label');
+  const emailStatus = document.getElementById('account-email-status');
+  const signupTipsRow = document.getElementById('account-signup-tips-row');
+  const signupTipsBox = document.getElementById('account-signup-tips');
+  const signupTipsLabel = document.getElementById('account-signup-tips-label');
+  let emailPrefs = null;
+  let emailVersion = 0;
+  let signupTipsProbe = null;
+  let tipsIntent = null;
+
+  /** The wording shown and its version, together; without both, the first wording. */
+  function tipsWording(answer) {
+    const version = String(answer?.current_wording_version || '');
+    const wording = answer?.current_wording;
+    return TIPS_VERSION.test(version) && typeof wording === 'string' && wording.trim() ? { version, wording } : TIPS_FIRST;
+  }
+  function emailSay(text) { if (emailStatus) emailStatus.textContent = text; }
+  function emailHide() {
+    emailVersion += 1; emailPrefs = null;
+    if (emailPanel) emailPanel.hidden = true;
+    if (emailBox) { emailBox.checked = false; emailBox.disabled = false; }
+    emailSay('');
+  }
+  function emailPaint(state) {
+    if (emailLabel) emailLabel.textContent = state.wording;
+    if (emailBox) { emailBox.checked = state.optIn; emailBox.disabled = state.busy; }
+    if (emailPanel) emailPanel.hidden = false;
+  }
+  async function emailDigest(address) {
+    try {
+      if (typeof crypto === 'undefined' || !crypto.subtle || typeof TextEncoder === 'undefined') return null;
+      const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(address)));
+      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    } catch { return null; }
+  }
+  function tipsIntentForget() {
+    tipsIntent = null;
+    try { window.localStorage?.removeItem(TIPS_INTENT_KEY); } catch { /* nothing kept to clear */ }
+  }
+  /** After a sign-in email was sent: keep a tick for that email, or forget an earlier one. */
+  async function tipsIntentKeep(email, at) {
+    tipsIntentForget();
+    if (!signupTipsBox?.checked || signupTipsRow?.hidden) return;
+    const address = String(email || '').trim().toLowerCase();
+    const intent = { email: address, version: TIPS_FIRST.version, at };
+    tipsIntent = intent;
+    const hash = await emailDigest(address);
+    if (!hash || tipsIntent !== intent) return;
+    try { window.localStorage?.setItem(TIPS_INTENT_KEY, JSON.stringify({ v: intent.version, at, h: hash })); } catch { /* this tab still has it */ }
+  }
+  /** The tick given for this email within the hour, if any. Taking it forgets it. */
+  async function tipsIntentTake(email) {
+    const address = String(email || '').trim().toLowerCase();
+    const now = Date.now();
+    let found = null;
+    if (tipsIntent && tipsIntent.email === address && now - tipsIntent.at < TIPS_INTENT_MS) found = { version: tipsIntent.version, at: tipsIntent.at };
+    if (!found) {
+      let kept = null;
+      try { kept = JSON.parse(window.localStorage?.getItem(TIPS_INTENT_KEY) || 'null'); } catch { kept = null; }
+      if (kept && TIPS_VERSION.test(String(kept.v)) && Number.isFinite(kept.at) && now - kept.at < TIPS_INTENT_MS && kept.at <= now
+        && typeof kept.h === 'string' && kept.h === await emailDigest(address)) found = { version: kept.v, at: kept.at };
+    }
+    tipsIntentForget();
+    return found;
+  }
+  /*
+   * Signed out, the box is offered only when the backend can record it. The function
+   * refuses a signed-out caller ("sign in required", or no grant), which proves it
+   * exists; PGRST202, a lost connection or no answer means no box.
+   */
+  function signupTipsOffer(client) {
+    if (!signupTipsRow || APP_MODE) return;
+    if (signupTipsLabel) signupTipsLabel.textContent = TIPS_FIRST.wording;
+    signupTipsProbe = signupTipsProbe || settled(Promise.resolve().then(() => client.rpc('get_email_preferences')), 8000)
+      .then(reply => !(reply.timedOut || missingFunction(reply) || networkFailed(reply)));
+    void signupTipsProbe.then(present => { if (!currentUserId) signupTipsRow.hidden = !present; });
+  }
+  async function emailSave(state, optIn, source, version = state.version) {
+    state.busy = true; emailPaint({ ...state, optIn });
+    emailSay('Saving your choice…');
+    const reply = await settled(Promise.resolve().then(() => state.client.rpc('set_email_tips_preference',
+      { p_opt_in: optIn, p_source: source, p_wording_version: version })));
+    state.busy = false;
+    if (emailPrefs !== state || state.userId !== currentUserId) return;
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your email preferences.'); return; }
+    if (missingFunction(reply)) { emailHide(); return; }
+    const answer = failed(reply) ? null : firstRow(reply.value?.data);
+    if (!answer || typeof answer.tips_opt_in !== 'boolean') {
+      emailPaint(state);
+      emailSay(reply.timedOut ? 'Your choice wasn’t confirmed. Reload the page to see what’s saved before trying again.'
+        : networkFailed(reply) || offlineNow() ? 'You’re offline, so nothing changed. Try again when you’re back online.'
+          : 'Your choice wasn’t saved, so nothing changed. Try again.');
+      return;
+    }
+    state.optIn = answer.tips_opt_in;
+    emailPaint(state);
+    emailSay(state.optIn ? 'Saved. We’ll email you tips and offers.' : 'Saved. We won’t email you tips or offers.');
+  }
+  /** Read once per signed-in account; a failed or odd answer shows nothing and the next desk load asks again. */
+  async function emailRender(client) {
+    if (!emailPanel || !emailBox || APP_MODE || !currentUserId) return;
+    if (emailPrefs && emailPrefs.userId === currentUserId) return;
+    const userId = currentUserId, email = currentUserEmail, confirmed = currentUserConfirmedAt, version = ++emailVersion;
+    const reply = await settled(Promise.resolve().then(() => client.rpc('get_email_preferences')));
+    if (version !== emailVersion || userId !== currentUserId) return;
+    if (missingFunction(reply)) { emailHide(); tipsIntentForget(); return; }
+    const answer = failed(reply) ? null : firstRow(reply.value?.data);
+    if (!answer || typeof answer.tips_opt_in !== 'boolean') { emailHide(); return; }
+    const state = { userId, client, optIn: answer.tips_opt_in, busy: false, ...tipsWording(answer) };
+    emailPrefs = state;
+    emailPaint(state);
+    const intent = await tipsIntentTake(email);
+    if (!intent || state.optIn || emailPrefs !== state || state.busy) return;
+    // Recorded with the version of the wording the sign-in form showed. A new account is one
+    // this sign-in created or first confirmed (an invited account is created before it).
+    const since = Date.parse(confirmed || '');
+    await emailSave(state, true, Number.isFinite(since) && since >= intent.at - 5 * 60 * 1000 ? 'signup' : 'account', intent.version);
+  }
+  emailBox?.addEventListener('change', () => {
+    const state = emailPrefs;
+    if (!state || state.userId !== currentUserId || state.busy) { if (state) emailPaint(state); return; }
+    const optIn = Boolean(emailBox.checked);
+    if (optIn === state.optIn) return;
+    void emailSave(state, optIn, 'account');
+  });
+
   /* ---- Deleting your account -------------------------------------------
    * Asked for here or in the app, completed by the studio within 30 days. This
    * panel reports only what get_account_deletion returns: an unanswered check
@@ -4638,6 +4795,8 @@
     // deletion check must not hold up the spaces list, and it never changes
     // what the list is allowed to show.
     void renderDeletion(supabase, ticket);
+    // The email preferences read their own record, once per account.
+    void emailRender(supabase);
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
     if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
@@ -4805,6 +4964,9 @@
     if (!session || !session.user) {
       sessionHeading(false);
       currentUserId = null;
+      currentUserEmail = ''; currentUserConfirmedAt = null;
+      emailHide();
+      signupTipsOffer(supabase);
       focusedTourForUser = null;
       deskVersion += 1; deskShownAt = 0;
       if (signInForm) signInForm.hidden = signInForm.dataset.awaitingCode === 'yes';
@@ -4820,8 +4982,11 @@
     }
     sessionHeading(true);
     // Another account's desk is never kept on the page while this one's is read.
-    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); }
+    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); emailHide(); }
     currentUserId = session.user.id;
+    currentUserEmail = session.user.email || '';
+    currentUserConfirmedAt = session.user.email_confirmed_at || session.user.confirmed_at || session.user.created_at || null;
+    if (signupTipsRow) signupTipsRow.hidden = true;
     resetSignInAttempt();
     if (signInForm) {
       signInForm.dataset.awaitingCode = 'no';
@@ -4889,6 +5054,7 @@
     const requestVersion = ++signInVersion;
     setStatus('Sending sign-in email…');
     if (signInSubmit) signInSubmit.disabled = true;
+    const askedAt = Date.now();
     const error = await requestLink(email, role_intent);
     if (requestVersion !== signInVersion || currentUserId) return;
     if (signInSubmit) signInSubmit.disabled = false;
@@ -4902,6 +5068,7 @@
     }
     lastEmail = email;
     lastRoleIntent = role_intent;
+    void tipsIntentKeep(email, askedAt);
     if (signInForm) signInForm.dataset.awaitingCode = 'yes';
     signInForm.hidden = true;
     if (verifyEmail) verifyEmail.textContent = email;

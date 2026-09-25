@@ -52,6 +52,29 @@
    * qr 4, embed 2) and by site (example-agency.invalid 2), last opened yesterday.
    * `?views=zero` answers no opens yet, `missing` answers PGRST202 to both functions
    * (the desk shows no views, the beacon stops), `error` fails both. */
+  /* Email preferences: the tips-and-offers box of the sibling repository's
+   * docs/lifecycle-email.md and its draft 20260926114000_lifecycle_email.sql (not yet
+   * released). `?email=` answers get_email_preferences: by default `missing`
+   * (PGRST202 for both functions, as today's backend: no box on the sign-in form and
+   * no Email preferences in Account). `out` is a recorded "no" (tips_opt_in false, the
+   * default for everyone), `in` a recorded "yes" on tips-v1, `v2` a "no" whose current
+   * wording is a fictional tips-v2 ("Email me tips, offers and product news from Veylet
+   * Studio. I can unsubscribe at any time."), `bad` an answer without a choice, `error`
+   * fails the read and `loading` never answers. Signed out (`?session=out`) the function
+   * refuses with "sign in required" unless it is missing, which is how the sign-in form
+   * tells the box can be recorded. set_email_tips_preference checks what the draft
+   * checks (a source of signup, account or app; a known wording to opt in), keeps the
+   * choice for the next read (every call is in VEYLET_QA_CALLS with its arguments).
+   * `&email-save=fail|offline|expired|missing|slow` answers every save with a
+   * failure, a lost connection, an expired sign-in, PGRST202, or after 1.5 s.
+   * `&email-open=1` opens the Email preferences disclosure for a capture. */
+  const emailCase = params.get('email') || 'missing';
+  const emailSaveCase = params.get('email-save');
+  const EMAIL_WORDINGS = { 'tips-v1': 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.',
+    'tips-v2': 'Email me tips, offers and product news from Veylet Studio. I can unsubscribe at any time.' };
+  const emailMissing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
+  let emailChoice = emailCase === 'in' ? { tips_opt_in: true, wording_version: 'tips-v1', changed_at: '2026-09-20T01:00:00Z' }
+    : { tips_opt_in: false, wording_version: null, changed_at: null };
   const pauseCase = params.get('pause');
   const viewsCase = params.get('views');
   const pausedAt = new Map();
@@ -1354,6 +1377,30 @@
         pausedAt.delete(args.p_tour_id);
         return { data: tokens.get(args.p_tour_id) };
       }
+      if (name === 'get_email_preferences') {
+        if (emailCase === 'missing') return emailMissing('get_email_preferences');
+        if (params.get('session') === 'out') return { data: null, error: { code: 'P0001', message: 'sign in required' } };
+        if (emailCase === 'error') return { data: null, error: { message: 'Synthetic email preferences failure' } };
+        if (emailCase === 'loading') return new Promise(() => {});
+        if (emailCase === 'bad') return { data: { current_wording_version: 'tips-v1' } };
+        const current = emailCase === 'v2' ? 'tips-v2' : 'tips-v1';
+        return { data: { ...emailChoice, time_zone: null, current_wording_version: current, current_wording: EMAIL_WORDINGS[current] } };
+      }
+      if (name === 'set_email_tips_preference') {
+        if (emailCase === 'missing' || emailSaveCase === 'missing') return emailMissing('set_email_tips_preference');
+        if (emailSaveCase === 'offline') throw lostConnection();
+        if (emailSaveCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
+        if (emailSaveCase === 'fail') return { data: null, error: { message: 'Synthetic email preferences save failure' } };
+        if (emailSaveCase === 'slow') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (typeof args?.p_opt_in !== 'boolean' || !['signup', 'account', 'app'].includes(args?.p_source)) {
+          return { data: null, error: { code: 'P0001', message: 'a choice and its source (signup, account or app) are required' } };
+        }
+        if (args.p_opt_in && !EMAIL_WORDINGS[args.p_wording_version]) return { data: null, error: { code: 'P0001', message: 'unknown consent wording' } };
+        if (emailChoice.tips_opt_in !== args.p_opt_in || (args.p_opt_in && emailChoice.wording_version !== args.p_wording_version)) {
+          emailChoice = { tips_opt_in: args.p_opt_in, wording_version: args.p_opt_in ? args.p_wording_version : null, changed_at: new Date().toISOString() };
+        }
+        return { data: { tips_opt_in: emailChoice.tips_opt_in, wording_version: emailChoice.wording_version, changed_at: emailChoice.changed_at } };
+      }
       if (name === 'record_tour_view') {
         if (viewsCase === 'missing') return viewsMissing;
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
@@ -1432,6 +1479,16 @@
         changed.textContent = ' QA package replaced; storage path unchanged. Existing preview/review snapshots are now stale.';
       });
       notice.append(replace, changed);
+    }
+    // Review affordance only: `?email-open=1` opens the Email preferences disclosure
+    // once it is shown, so a capture can include it. It changes nothing.
+    if (location.pathname === '/__qa/account/' && params.get('email-open') === '1') {
+      let tries = 0;
+      const open = setInterval(() => {
+        const email = document.getElementById('account-email');
+        if (email && !email.hidden) { email.open = true; email.scrollIntoView({ block: 'center' }); }
+        if ((email && !email.hidden) || ++tries > 40) clearInterval(open);
+      }, 100);
     }
     // Review affordance only: opens the leaving disclosure so a capture can show
     // the deletion state inside it. It changes nothing and lives outside dist.

@@ -217,3 +217,18 @@ not yet written, so every answer is the fixture's):
   (or `unknown`): the ready capture carries review flags, shown in its review as
   "Worth a look before you share" above Approve and share.
 - `/__qa/play/?id=synthetic-tour&from=app`: the preview's links go to `/app/*`.
+
+Email preferences and unsubscribe (25 September 2026), built to the sibling repository's
+`docs/lifecycle-email.md` and its draft `supabase/drafts/release-2/20260926114000_lifecycle_email.sql`
+(not yet released; a missing function answers PGRST202 and nothing is shown):
+
+- `/__qa/account/?email=out|in|v2|bad|error|loading` answers `get_email_preferences` (default
+  `missing`: no box on the sign-in form, no Email preferences in Account). `v2` is a fictional
+  newer wording, so the label follows the server. `&email-save=fail|offline|expired|missing|slow`
+  answers every `set_email_tips_preference`; `&email-open=1` opens the disclosure for a capture.
+- `?session=out&email=out`: the sign-in form's unticked tips box (the function refuses a
+  signed-out caller, which shows it exists). The fixture sends no email, so sign-up itself is
+  covered by `tests/email-preferences.test.cjs`, not the browser.
+- `/unsubscribe?t=…` asks `unsubscribe_email_tips` and `unsubscribe_mail`; `tests/unsubscribe.test.cjs`
+  covers both links, the shared "already used or not valid" answer, retry and the missing-function
+  fallback. Renders need a stubbed `supabase-public.js`; never open it against the hosted project.

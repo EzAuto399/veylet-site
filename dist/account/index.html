@@ -21,7 +21,7 @@
     <script src="/tour-sharing.js?v=7ddd56a9b926c5e2" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <script src="/account.js?v=df563f091c88976b" defer></script>
+    <script src="/account.js?v=1271adeb9cc35f40" defer></script>
     <script src="/stage.js?v=168dd75c5c219c89" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -67,6 +67,15 @@
           </label>
           <p class="choice-help">This only tailors your desk. It does not send a walkthrough request or a partner application.</p>
         </fieldset>
+        <!-- Tips and offers (Spam Act): never ticked here, separate from everything else on the form,
+             and shown only when the backend can record it. The label is the first wording, tips-v1, which is
+             the version recorded; the choice is recorded once sign-in completes (dist/account.js). -->
+        <div class="signup-tips" id="account-signup-tips-row" hidden>
+          <label class="choice">
+            <input type="checkbox" id="account-signup-tips" aria-labelledby="account-signup-tips-label" aria-describedby="account-signup-tips-note" />
+            <span><span id="account-signup-tips-label">Email me tips and offers from Veylet Studio. I can unsubscribe at any time.</span><small id="account-signup-tips-note">Optional. Service emails about your account and walkthroughs still arrive.</small></span>
+          </label>
+        </div>
         <button class="button" type="submit" id="account-sign-in-submit">
           Email me a sign-in link <span class="icon-arrow" aria-hidden="true"></span>
         </button>
@@ -196,6 +205,19 @@
                 Copy account id
               </button>
             </p>
+            </details>
+            <!-- Email preferences: the recorded choice and the exact current wording, read from
+                 get_email_preferences. Hidden until that answer arrives, and while the backend
+                 does not have the function. -->
+            <details class="account-details" id="account-email" hidden><summary>Email preferences</summary>
+              <div class="veylet-form account-email-form">
+                <label class="choice">
+                  <input type="checkbox" id="account-email-tips" aria-labelledby="account-email-tips-label" aria-describedby="account-email-note" />
+                  <span id="account-email-tips-label">Email me tips and offers from Veylet Studio. I can unsubscribe at any time.</span>
+                </label>
+              </div>
+              <p class="contact-note" id="account-email-note">Service emails about your account and walkthroughs still arrive, whatever you choose here.</p>
+              <p class="contact-note" id="account-email-status" role="status" aria-live="polite"></p>
             </details>
             <details class="account-details" id="account-leaving">
               <summary>Finishing, exporting or leaving</summary>

@@ -18,6 +18,7 @@ Short answers:
 - Apply as a capture partner (capturing for your own clients): https://veylet.com/apply
 - First-tour guide: https://veylet.com/start
 - Website sharing and embed guide: https://veylet.com/website-guide
+- Join the waitlist (new accounts open in weekly groups; joining is free and creates no account): https://veylet.com/waitlist
 - Support: https://veylet.com/support (email support; what to include; the quick answers)
 - Subscription terms (eligible 3 free months with 6 accepted walkthroughs total, with a payment method on file and the first charge on the day they end, one trial per agency (ABN) and workspace; the Veylet plan monthly with rollover up to 4 banked, or annual with a 24-walkthrough yearly pool; walkthrough packs valid 12 months; Super fast renders refunded if late; the first walkthrough redone free if it is not listing-ready; bonus walkthroughs for an early annual choice and for referrals; a home with 5 or more bedrooms, a second dwelling or more than 350 m² counts as 2; activation through the App Store, a card saved on the website once card payment opens, or an agreed studio trial; App Store automatic renewal at the plan price with the full amount and date disclosed, studio invoices do not auto-renew; cancel through Settings › Subscriptions or contact the studio for invoiced service; refund terms depend on the payment channel): https://veylet.com/terms
 - Delete your account (ask in the app or on the desk; completed within 30 days; cancel the request before removal starts; once removal starts, access and sharing stop and covered hosted files cannot be restored through your account; your device/exported/downloaded copies are outside this deletion; minimal accounting and legal records may be retained; deleting Veylet does not cancel an Apple subscription): https://veylet.com/account
@@ -30,6 +31,33 @@ Sourced answers, checked 24 September 2026. Index: https://veylet.com/guides
 - Is it safe to put a 3D tour of your home online? https://veylet.com/guides/privacy-3d-home-tour — It can be. Clear names, documents, screens and valuables before capture, check every room before release, and share by a private link you can switch off.
 - Will a 3D tour show on realestate.com.au or Domain? https://veylet.com/guides/3d-tours-realestate-com-au-domain — realestate.com.au shows 3D tours only from listed suppliers and Domain bundles Matterport; share a Veylet walkthrough by private link or on your own site.
 - Do 3D tours help a property sell or lease faster? https://veylet.com/guides/do-3d-tours-help-sell-faster — Zillow and Matterport report faster sales with 3D tours, but a Harvard study of 75,178 sales found little effect once photo quality was counted.
+
+## Help
+How-to answers for the Veylet Capture app and the account desk. Index: https://veylet.com/help
+- What you need to start: https://veylet.com/help/what-you-need
+- Install the app and sign in: https://veylet.com/help/install-and-sign-in
+- The practice room, and how to pass it: https://veylet.com/help/practice-room
+- Walk a room: standing spots, level turns, tilt up and down: https://veylet.com/help/walk-a-room
+- Doorways and joining rooms: https://veylet.com/help/doorways
+- Light, mirrors and windows: https://veylet.com/help/light-mirrors-windows
+- A whole home, room by room: https://veylet.com/help/whole-home
+- What the phone check means: https://veylet.com/help/phone-check
+- Sending your capture: https://veylet.com/help/uploading
+- What each status means: https://veylet.com/help/render-status
+- No usable photos were saved: https://veylet.com/help/fix/no_frames
+- The capture has no depth readings: https://veylet.com/help/fix/no_depth
+- The capture is larger than Veylet can accept: https://veylet.com/help/fix/upload_limits
+- The walkthrough is too large for a phone: https://veylet.com/help/fix/phone_budget
+- The capture doesn’t look like a property: https://veylet.com/help/fix/not_property
+- Worth a look before you share: https://veylet.com/help/fix/worth-a-look
+- Approve and share: the seven checks: https://veylet.com/help/approve-and-share
+- Share your walkthrough: link, QR code, embed and listing URL: https://veylet.com/help/share-your-walkthrough
+- Pause or turn off sharing: https://veylet.com/help/pause-or-turn-off
+- What your client sees, and views and taps: https://veylet.com/help/what-your-client-sees
+- Put your walkthrough on your website: https://veylet.com/help/website
+- Privacy and permission: people, documents and tenants: https://veylet.com/help/privacy-and-consent
+- Your plan: what each state means: https://veylet.com/help/your-plan
+- Delete your account: https://veylet.com/help/delete-account
 
 ## Free months
 - Capture with a LiDAR iPhone.
