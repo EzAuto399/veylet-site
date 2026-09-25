@@ -223,20 +223,20 @@ test('signing in from an invite comes back to /join, by the email link and by th
 });
 
 test('the owner removes a member who joined, confirmed in place', async () => {
-  const h = await owner({ rpc: { remove_workspace_member: () => ({ data: null }) } });
+  const h = await owner({ rpc: { remove_workspace_member: () => ({ data: { state: 'removed', changed: true, invites_revoked: 0, shared_links_stopped: 2 } }) } });
   const member = invites(h)[1];
   assert.equal(h.control(member, 'team-revoke'), null);
   const remove = h.control(member, 'team-remove');
   assert.equal(remove.textContent, 'Remove');
   await remove.fire('click');
   assert.equal(remove.textContent, 'Confirm: remove');
-  assert.ok(h.words(member).includes('Remove jo@example.invalid? They lose access to this office’s walkthroughs. Confirm to continue.'));
+  assert.ok(h.words(member).includes('Remove jo@example.invalid? They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.'));
   await h.control(member, 'team-remove-keep').fire('click');
   assert.ok(h.words(member).includes('They stay in this office.'));
   assert.equal(h.called('remove_workspace_member').length, 0);
   await remove.fire('click'); await remove.fire('click'); await h.settle();
   assert.deepEqual(h.called('remove_workspace_member'), [{ p_workspace_id: 'w1', p_user_id: 'bbbb2222-0000-4000-8000-000000000002' }]);
-  assert.ok(h.words(team(h)).includes('Removed jo@example.invalid.'));
+  assert.ok(h.words(team(h)).includes('Removed jo@example.invalid. 2 shared walkthroughs they captured stopped working for clients.'));
   const after = invites(h)[1];
   assert.equal(after.all().find(el => /\bpill\b/.test(el.className)).textContent, 'Removed');
   assert.equal(h.control(after, 'team-remove'), null);
@@ -256,6 +256,12 @@ test('Make owner sits behind More, is confirmed, and the desk is read again', as
   await make.fire('click'); await h.settle();
   assert.deepEqual(h.called('transfer_workspace_ownership'), [{ p_workspace_id: 'w1', p_new_owner: 'bbbb2222-0000-4000-8000-000000000002' }]);
   assert.ok(h.called('list_workspace_invites').length > reads, 'the whole desk reads the new role');
+  // A plan someone could still be charged for keeps the office where it is.
+  const billing = await owner({ rpc: { transfer_workspace_ownership: () => ({ data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } }) } });
+  const press = billing.control(invites(billing)[1], 'team-owner');
+  await press.fire('click'); await press.fire('click'); await billing.settle();
+  assert.ok(billing.words(invites(billing)[1]).includes('Cancel or move the plan first, then transfer ownership.'));
+  assert.equal(press.textContent, 'Make owner');
 });
 
 test('without a member’s account id, or without the functions, nobody is removed or made owner', async () => {
@@ -277,22 +283,22 @@ test('without a member’s account id, or without the functions, nobody is remov
 });
 
 test('a teammate can leave the office, confirmed in place', async () => {
-  const h = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), leave_workspace: () => ({ data: null }) } });
+  const h = await loadDesk({ role: 'operator', rpc: { list_workspace_invites: () => ({ data: ROWS }), leave_workspace: () => ({ data: { state: 'left', changed: true, invites_revoked: 1, shared_links_stopped: 1 } }) } });
   const leave = h.control(team(h), 'team-leave');
   assert.equal(leave.textContent, 'Leave this office');
   await leave.fire('click');
-  assert.ok(h.words(team(h)).includes('You lose access to its walkthroughs. The owner can invite you again. Confirm to continue.'));
+  assert.ok(h.words(team(h)).includes('You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.'));
   await h.control(team(h), 'team-leave-keep').fire('click');
   assert.ok(h.words(team(h)).includes('You’re still in this office.'));
   await leave.fire('click'); await leave.fire('click'); await h.settle();
   assert.deepEqual(h.called('leave_workspace'), [{ p_workspace_id: 'w1' }]);
-  assert.equal(h.status(), 'You left this office.');
+  assert.equal(h.status(), 'You left this office. 1 shared walkthrough you captured stopped working for clients.');
   const owner2 = await owner();
   assert.equal(owner2.control(team(owner2), 'team-leave'), null, 'the owner hands the office over instead');
 });
 
-test('deleting an owner’s account while teammates remain points to Your team', async () => {
-  const h = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001', message: 'shared ownership requires reviewed transfer before deletion' } }) } });
+test('deleting an owner’s account while teammates remain points to Your team, only when the refusal says so', async () => {
+  const h = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001', message: 'transfer ownership or remove your teammates first' } }) } });
   const panel = h.ids['account-deletion'];
   await h.button(panel, 'Delete my account').fire('click');
   await h.button(panel, 'Delete my account').fire('click'); await h.settle();
@@ -302,4 +308,11 @@ test('deleting an owner’s account while teammates remain points to Your team',
   assert.equal(open.href, '#account-team');
   assert.ok(h.button(panel, 'Keep my account'));
   assert.equal(h.status(), 'Transfer ownership or remove your teammates first.');
+  // Today's refusal is one message for many conditions: it keeps the existing words.
+  const generic = await owner({ rpc: { request_account_deletion: () => ({ data: null, error: { code: 'P0001', message: 'shared ownership requires reviewed transfer before deletion' } }) } });
+  const panel2 = generic.ids['account-deletion'];
+  await generic.button(panel2, 'Delete my account').fire('click');
+  await generic.button(panel2, 'Delete my account').fire('click'); await generic.settle();
+  assert.ok(generic.words(panel2).includes('The deletion request was not confirmed. Check again before asking a second time.'));
+  assert.equal(generic.control(panel2, 'deletion-team'), null);
 });

@@ -263,10 +263,12 @@
    * Members (functions still being added to that draft): the accepted invite carries the
    * member's user_id, so the owner sees Remove (remove_workspace_member) and More › Make
    * owner (transfer_workspace_ownership; this account then reads as a reviewer), and
-   * `member` sees Leave this office (leave_workspace). `&team-member=missing|fail` answers
-   * those three with PGRST202 or a failure. While a member remains, the owner's
-   * request_account_deletion is refused ('shared ownership requires reviewed transfer
-   * before deletion'), as the backend does. */
+   * `member` sees Leave this office (leave_workspace). Remove and leave answer the draft's
+   * counts with two shared links stopped. `&team-member=missing|fail|billing` answers those
+   * three with PGRST202 or a failure, or refuses the transfer for a live subscription. While
+   * a member remains, the owner's request_account_deletion is refused with the wording the
+   * backend lane plans ('transfer ownership or remove your teammates first');
+   * `&deletion-refusal=generic` uses today's one message for every condition instead. */
   const teamCase = params.get('team') || 'missing';
   const teamInviteCase = params.get('team-invite');
   const teamRevokeCase = params.get('team-revoke');
@@ -1237,7 +1239,8 @@
       if (name === 'request_account_deletion') {
         // `?team=owner` with a member who joined: the office still has teammates.
         if (teamCase === 'owner' && teamOwnerNow && teamInvites.some(row => row.status === 'accepted' && !teamRemoved.has(row.user_id))) {
-          return { data: null, error: { code: 'P0001', message: 'shared ownership requires reviewed transfer before deletion' } };
+          return { data: null, error: { code: 'P0001', message: params.get('deletion-refusal') === 'generic' ? 'shared ownership requires reviewed transfer before deletion'
+            : 'transfer ownership or remove your teammates first' } };
         }
         deletion = { user_id: 'synthetic-user', requested_at: new Date().toISOString(),
           reason: (args && args.p_reason) || null, status: 'requested', cancelled_at: null, completed_at: null };
@@ -1596,15 +1599,19 @@
       if (['remove_workspace_member', 'transfer_workspace_ownership', 'leave_workspace'].includes(name)) {
         if (teamCase === 'missing' || teamMemberCase === 'missing') return teamMissing(name);
         if (teamMemberCase === 'fail') return { data: null, error: { message: 'Synthetic member failure' } };
+        // The draft's answers: counts for remove and leave (two of the member's links stop), the new owner for transfer.
+        const counts = state => ({ data: { state, changed: true, invites_revoked: 0, shared_links_stopped: 2 } });
         if (name === 'leave_workspace') {
-          if (teamCase !== 'member' && teamCase !== 'member-refused') return { data: null, error: { code: 'P0001', message: 'the owner cannot leave; transfer ownership first' } };
-          teamLeft = true; return { data: null };
+          if (teamCase !== 'member' && teamCase !== 'member-refused') return { data: null, error: { code: 'P0001', message: 'an owner stays until ownership is transferred' } };
+          teamLeft = true; return counts('left');
         }
         if (!teamOwnerNow || !['owner', 'owner-empty'].includes(teamCase)) return { data: null, error: { code: 'P0001', message: 'workspace owner only' } };
         const target = name === 'remove_workspace_member' ? args?.p_user_id : args?.p_new_owner;
-        if (!teamInvites.some(row => row.user_id === target && row.status === 'accepted') || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not an active member of this workspace' } };
-        if (name === 'remove_workspace_member') teamRemoved.add(target); else teamOwnerNow = false;
-        return { data: null };
+        if (!teamInvites.some(row => row.user_id === target && row.status === 'accepted') || teamRemoved.has(target)) return { data: null, error: { code: 'P0001', message: 'not a member of this workspace' } };
+        if (name === 'transfer_workspace_ownership' && teamMemberCase === 'billing') return { data: null, error: { code: 'P0001', message: 'cancel this workspace\'s card or App Store subscription before transferring it' } };
+        if (name === 'remove_workspace_member') { teamRemoved.add(target); return counts('removed'); }
+        teamOwnerNow = false;
+        return { data: { state: 'transferred', workspace_id: args.p_workspace_id, owner: target, previous_owner_role: 'reviewer' } };
       }
       if (['list_workspace_invites', 'invite_to_workspace', 'revoke_workspace_invite'].includes(name)) {
         if (teamCase === 'missing') return teamMissing(name);

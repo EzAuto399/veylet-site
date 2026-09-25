@@ -4542,8 +4542,11 @@
    * invite_url, expires_at } for the owner only (reviewer or operator),
    * list_workspace_invites, revoke_workspace_invite and accept_workspace_invite (the
    * /join page). No email is sent: the owner copies or shares the link. Anyone else
-   * reads the team and changes nothing. A backend without the functions (PGRST202)
-   * shows no section. Only the desk has the section; the app has its own.
+   * reads the team and may leave it. remove_workspace_member, leave_workspace and
+   * transfer_workspace_ownership (the same draft) need a member's account id, which the
+   * invites list does not return yet: Remove and Make owner show only on a row that names
+   * one. A backend without the functions (PGRST202) shows no section, and a press answered
+   * PGRST202 takes its control away. Only the desk has the section; the app has its own.
    */
   const teamEl = document.getElementById('account-team');
   const teamBody = document.getElementById('account-team-body');
@@ -4581,7 +4584,7 @@
     tooManyToday: 'You’ve made 50 invites today. Try again tomorrow.',
     remove: 'Remove',
     confirmRemove: 'Confirm: remove',
-    removeWarn: 'They lose access to this office’s walkthroughs. Confirm to continue.',
+    removeWarn: 'They lose access to this office’s walkthroughs. Shared walkthroughs they captured stop working for clients. Confirm to continue.',
     keepThem: 'Keep them',
     keptThem: 'They stay in this office.',
     notRemoved: 'They weren’t removed. Try again.',
@@ -4596,7 +4599,9 @@
     ownerOffline: 'You’re offline. Ownership didn’t change.',
     leave: 'Leave this office',
     confirmLeave: 'Confirm: leave this office',
-    leaveWarn: 'You lose access to its walkthroughs. The owner can invite you again. Confirm to continue.',
+    leaveWarn: 'You lose access to its walkthroughs. Shared walkthroughs you captured stop working for clients. The owner can invite you again. Confirm to continue.',
+    ownerCantLeave: 'Owners can’t leave. Make someone else the owner first.',
+    planFirst: 'Cancel or move the plan first, then transfer ownership.',
     stay: 'Stay',
     stayed: 'You’re still in this office.',
     left: 'You left this office.',
@@ -4840,7 +4845,9 @@
     parent.append(row, said);
     return { press, row, said };
   }
-  // Sends one team call for a confirmed press; answers 'done', 'missing' or 'failed' (already said).
+  // Sends one team call for a confirmed press; answers 'done', 'missing' or 'failed' (already
+  // said). `words.refusals` maps the draft's own refusal words to what to say instead; `words.answer`
+  // receives a successful call's answer.
   async function teamCall(state, name, args, say, reset, words) {
     state.busy = true;
     const reply = await settled(Promise.resolve().then(() => state.supabase.rpc(name, args)));
@@ -4848,8 +4855,20 @@
     if (state !== team) return 'failed';
     if (sessionGone(reply)) { showSignedOut(words.expired); return 'failed'; }
     if (missingFunction(reply)) return 'missing';
-    if (failed(reply)) { reset(); say(networkFailed(reply) || offlineNow() ? words.offline : words.failed); return 'failed'; }
+    if (failed(reply)) {
+      const text = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
+      const refusal = (words.refusals || []).find(([phrase]) => text.includes(phrase));
+      reset(); say(refusal ? refusal[1] : networkFailed(reply) || offlineNow() ? words.offline : words.failed);
+      return 'failed';
+    }
+    words.answer?.(firstRow(reply.value?.data));
     return 'done';
+  }
+  // remove_workspace_member and leave_workspace answer how many live links stopped (the
+  // uploader is no longer a member): said after the fact, since nothing can count them before.
+  function teamLinksStopped(answer, who) {
+    const count = Number.isInteger(answer?.shared_links_stopped) && answer.shared_links_stopped > 0 ? answer.shared_links_stopped : 0;
+    return count ? ' ' + count + ' shared walkthrough' + (count === 1 ? '' : 's') + ' ' + who + ' captured stopped working for clients.' : '';
   }
   // Revoking an invite: read back from the list.
   function teamRevoke(state, row, item) {
@@ -4872,11 +4891,13 @@
       teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + row.email + '? ' + TEAM_WORDS.removeWarn,
         keep: TEAM_WORDS.keepThem, kept: TEAM_WORDS.keptThem, control: 'team-remove', onMissing: () => { teamRemoveAvailable = false; },
         run: async (say, reset) => {
+          let answer = null;
           const outcome = await teamCall(state, 'remove_workspace_member', { p_workspace_id: state.workspaceID, p_user_id: member }, say, reset,
-            { expired: 'Your sign-in has expired. Sign in and check whether they were removed.', offline: TEAM_WORDS.removeOffline, failed: TEAM_WORDS.notRemoved });
+            { expired: 'Your sign-in has expired. Sign in and check whether they were removed.', offline: TEAM_WORDS.removeOffline, failed: TEAM_WORDS.notRemoved,
+              answer: value => { answer = value; } });
           if (outcome !== 'done') return outcome;
           (state.removed ||= new Set()).add(member);
-          state.notice = 'Removed ' + row.email + '.'; setStatus(state.notice);
+          state.notice = 'Removed ' + row.email + '.' + teamLinksStopped(answer, 'they'); setStatus(state.notice);
           await teamRender(state.supabase, deskVersion, state.workspaceID, state.role, true);
           return outcome;
         } });
@@ -4890,7 +4911,8 @@
       onMissing: () => { teamTransferAvailable = false; more.hidden = true; },
       run: async (say, reset) => {
         const outcome = await teamCall(state, 'transfer_workspace_ownership', { p_workspace_id: state.workspaceID, p_new_owner: member }, say, reset,
-          { expired: 'Your sign-in has expired. Sign in and check who owns this office.', offline: TEAM_WORDS.ownerOffline, failed: TEAM_WORDS.notTransferred });
+          { expired: 'Your sign-in has expired. Sign in and check who owns this office.', offline: TEAM_WORDS.ownerOffline, failed: TEAM_WORDS.notTransferred,
+            refusals: [['card or app store subscription', TEAM_WORDS.planFirst]] });
         if (outcome !== 'done') return outcome;
         // This account is a reviewer now: the whole desk reads its new role.
         state.notice = row.email + ' is now the owner.'; setStatus(state.notice);
@@ -4904,10 +4926,12 @@
     teamConfirmed(parent, { label: TEAM_WORDS.leave, confirm: TEAM_WORDS.confirmLeave, warn: TEAM_WORDS.leaveWarn,
       keep: TEAM_WORDS.stay, kept: TEAM_WORDS.stayed, control: 'team-leave', onMissing: () => { teamLeaveAvailable = false; },
       run: async (say, reset) => {
+        let answer = null;
         const outcome = await teamCall(state, 'leave_workspace', { p_workspace_id: state.workspaceID }, say, reset,
-          { expired: 'Your sign-in has expired. Sign in and check whether you left this office.', offline: TEAM_WORDS.leaveOffline, failed: TEAM_WORDS.notLeft });
+          { expired: 'Your sign-in has expired. Sign in and check whether you left this office.', offline: TEAM_WORDS.leaveOffline, failed: TEAM_WORDS.notLeft,
+            refusals: [['an owner stays', TEAM_WORDS.ownerCantLeave]], answer: value => { answer = value; } });
         if (outcome !== 'done') return outcome;
-        setStatus(TEAM_WORDS.left);
+        setStatus(TEAM_WORDS.left + teamLinksStopped(answer, 'you'));
         await loadDesk(state.supabase);
         return outcome;
       } });
@@ -5071,8 +5095,8 @@
    * two writes are read back before their result is stated.
    */
   const DELETION_STATUSES = ['requested', 'processing', 'cancelled', 'completed'];
-  // request_account_deletion refuses an owner whose office still has other members
-  // ('shared ownership requires reviewed transfer', and the release-2 invites draft's wording).
+  // The refusal the backend lane plans for an owner whose office still has teammates
+  // ('transfer ownership or remove your teammates first'; the invites draft's notes).
   const DELETION_TEAM_FIRST = 'Transfer ownership or remove your teammates first.';
   const DELETION_KEEP = 'Keep my account';
   const DELETION_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
@@ -5134,9 +5158,11 @@
       if (ticket !== deskVersion) return;
       if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in and check whether the deletion was requested.'); return; }
       if (failed(reply)) {
-        // An owner whose office still has teammates hands it over or removes them first.
+        // An owner whose office still has teammates hands it over or removes them first. Only a
+        // refusal that names that case says so: 'shared ownership requires reviewed transfer' is
+        // one message for many conditions and keeps the words below.
         const words = String((reply.value?.error || reply.error || {}).message || '').toLowerCase();
-        if (/shared ownership|teammate|transfer/.test(words)) { deletionTeamFirst(supabase); return; }
+        if (words.includes('teammate')) { deletionTeamFirst(supabase); return; }
         setStatus('The deletion request was not confirmed. Check again before asking a second time.');
         deletionUnavailable(supabase, 'The deletion request was not confirmed. Check again before asking a second time.');
         return;
