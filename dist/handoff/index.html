@@ -2,81 +2,108 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <title>Private walkthrough — Veylet</title>
     <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <meta
       name="description"
       content="Private Veylet walkthrough. Unlisted link, not a public gallery."
     />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css" />
-    <script src="/brand-host.js"></script>
-    <script src="/supabase-public.js"></script>
-    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
-    <script src="/vendor/jszip-3.10.2.min.js"></script>
-    <script src="/place-fields.js"></script>
-    <script src="/tour-player.js"></script>
+    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <link rel="stylesheet" href="/tour-stage.css?v=e5b4beaccde92e3f" />
+    <link rel="stylesheet" href="/client-page.css?v=25fd775015975cda" />
+    <script src="/brand-host.js?v=1c06a18e19b34007"></script>
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
+    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
+    <script src="/client-page.js?v=87631c05c0ff3b65"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
-    <header class="wrap client-header">
-      <a class="brand" href="/" aria-label="Veylet Studio home"
-        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
-      >
-    </header>
-    <main id="main" class="form-page wrap">
-      <p class="eyebrow">PRIVATE WALKTHROUGH</p>
+    <main id="main" class="form-page wrap client-page">
       <h1 id="handoff-title">Private walkthrough</h1>
+      <p class="client-truth" id="client-truth" hidden>Captured on site with an iPhone. Not to scale.</p>
       <p class="tour-meta" id="handoff-meta" hidden></p>
-      <div class="tour-frame-wrap" id="tour-frame-wrap" hidden>
-        <div class="tour-frame-shell">
-          <iframe
-            id="tour-frame"
-            class="tour-frame"
-            title="Reconstructed walkthrough"
-            hidden
-            allow="fullscreen"
-          ></iframe>
+      <!-- One column on phones and tablets; from 1080px the walkthrough on the
+           left and the agent, Share and help in a sticky column on the right. -->
+      <div class="client-layout">
+        <div class="client-side" id="client-side">
+          <!-- The agent who shared it, only when the server returns their opt-in contact. -->
+          <section class="agent-card" id="agent-card" hidden></section>
+        </div>
+        <div class="client-main">
+          <div class="tour-frame-wrap" id="tour-frame-wrap" hidden>
+            <div class="tour-frame-shell">
+              <iframe
+                id="tour-frame"
+                class="tour-frame"
+                title="Reconstructed walkthrough"
+                hidden
+                allow="fullscreen *"
+                allowfullscreen
+                sandbox="allow-scripts allow-pointer-lock"
+                referrerpolicy="no-referrer"
+              ></iframe>
+              <div id="tour-stage" class="tour-stage" hidden></div>
+            </div>
+          </div>
+          <p class="contact-note" id="handoff-status" role="status"></p>
+          <!-- True before the script runs, and still true if it never runs. The
+               script clears it once the walkthrough is confirmed to be there. -->
+          <p class="intro" id="handoff-body">
+            This page opens a walkthrough someone shared with you.
+          </p>
+          <p class="tour-actions" id="tour-actions" hidden>
+            <button class="button button-ghost" type="button" id="tour-retry">
+              Try again
+            </button>
+          </p>
+          <noscript><p class="contact-note">JavaScript is needed to open this interactive walkthrough. Use a current browser, or ask the person who sent it for listing photographs and assistance.</p></noscript>
+          <!-- Help and Share sit here in one column, and move under the agent card
+               from 1080px, so reading and focus order follow what is on screen. -->
+          <div id="client-extras-home">
+            <div class="client-extras" id="client-extras">
+              <details class="client-help" id="client-help" hidden>
+                <summary>How to move around</summary>
+                <p>Drag to look around. Tap the floor or a numbered circle to walk. Use the arrows to go room to room.</p>
+              </details>
+              <div class="client-tools">
+                <button class="button button-ghost client-share" type="button" id="client-share" hidden>Share</button>
+                <p class="client-share-status" id="client-share-status" role="status"></p>
+              </div>
+            </div>
+          </div>
+          <p class="contact-note" id="client-trouble" data-tour-help hidden>Trouble opening it? Try another browser, or ask the person who sent it.</p>
+          <p class="client-footnote" id="client-footnote">A private link, not listed publicly.</p>
         </div>
       </div>
-      <p class="contact-note" id="handoff-status" role="status"></p>
-      <p class="intro" id="handoff-body">
-        Unlisted and not indexed. This link opens the reconstructed walkthrough
-        while the operator leaves it active.
-      </p>
-      <p class="tour-actions" id="tour-actions" hidden>
-        <button class="button button-ghost" type="button" id="tour-retry">
-          Try again
-        </button>
-      </p>
-      <p class="contact-note" data-tour-help hidden>
-        This is a private link, not a public gallery. It stops working when the
-        operator revokes it. Ask the person who sent it if you need it again, or
-        <a href="/request">contact Veylet Studio</a> if it will not open.
-      </p>
     </main>
-    <footer class="wrap">
-      <a class="brand" href="/"
-        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
-      >
-      <p>Spaces people can understand.</p>
+    <footer class="wrap client-footer">
+      <a class="client-made" href="https://veylet.com">Made with Veylet</a>
       <nav aria-label="Legal">
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>
       </nav>
     </footer>
+    <aside class="agent-bar" id="agent-bar" hidden></aside>
     <script type="module">
       const els = {
         title: document.getElementById('handoff-title'),
         body: document.getElementById('handoff-body'),
         status: document.getElementById('handoff-status'),
         frame: document.getElementById('tour-frame'),
+        stage: document.getElementById('tour-stage'),
       };
       const meta = document.getElementById('handoff-meta');
       const wrap = document.getElementById('tour-frame-wrap');
+      const trouble = document.getElementById('client-trouble');
+      const page = window.VeyletClientPage;
       const token = new URLSearchParams(location.search).get('t') || '';
+      page?.mountColumns(document, window);
 
       function sharedLabel(value) {
         if (!value) return '';
@@ -97,13 +124,16 @@
             retry: document.getElementById('tour-retry'),
           },
           {
-            heading: 'This handoff is not available.',
-            body: 'The link is missing or incomplete. Ask the operator to send the full link again.',
+            heading: 'This link looks incomplete.',
+            body: 'Check you copied all of it, or ask the person who sent it.',
           }
         );
       } else {
+        // A definitive miss: another browser will not help, so the trouble line goes.
+        let unavailable = false;
         window.VeyletPlayer.boot({
           els,
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
           resolve: async (client) => {
             const { data, error } = await client.rpc('lookup_tour_share', {
               p_token: token,
@@ -116,6 +146,7 @@
               });
             }
             if (!row || !row.storage_path) {
+              unavailable = true;
               throw new window.VeyletPlayer.TourFailure('share-not-found', {
                 transient: false,
               });
@@ -127,19 +158,41 @@
               meta.textContent = label;
               meta.hidden = !label;
             }
+            const title = row.space_title || 'Shared space';
+            if (els.body) els.body.textContent = '';
+            // Truth line, Share, movement help and the agent card. The contact
+            // lookup runs beside the walkthrough and never holds it up.
+            page?.showWalkthrough({
+              document,
+              location,
+              navigator,
+              client,
+              token,
+              title,
+              streamed: row.package_format_version === 2,
+            });
             return {
               storagePath: row.storage_path,
-              title: row.space_title || 'Shared space',
-              intro:
-                'Unlisted walkthrough. Anyone with this link can view it until the operator revokes it.',
-              footer: 'Private link. Not indexed. Not payment.',
+              packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
+              packageBaseUrl: row.package_base_url || null,
+              title,
+              intro: '',
+              footer: '',
             };
           },
-          missingHeading: 'This handoff is not available.',
-          missingBody:
-            'The link is missing, revoked, or the tour is not ready. Ask the operator to send a new link.',
+          missingHeading: 'This walkthrough isn’t available right now.',
+          missingBody: 'The agent may have turned it off or not shared it yet.',
           transientBody:
-            'The walkthrough service did not answer. Check the connection and try again.',
+            'The walkthrough couldn’t be reached just now. Check your connection and try again.',
+        }).then(() => {
+          if (unavailable && trouble) trouble.hidden = true;
+          // Nothing left on the stage (a failure the player explained above):
+          // no empty shell, and no help for controls that are not there.
+          if (els.frame.hidden && els.stage.hidden) {
+            if (wrap) wrap.hidden = true;
+            const help = document.getElementById('client-help');
+            if (help) help.hidden = true;
+          }
         });
       }
     </script>

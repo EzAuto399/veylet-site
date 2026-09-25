@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Walkthrough — Veylet</title>
     <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <meta
       name="description"
       content="A Veylet walkthrough embedded in this page. Unlisted and not indexed."
     />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <script src="/brand-host.js"></script>
-    <script src="/supabase-public.js"></script>
-    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
-    <script src="/vendor/jszip-3.10.2.min.js"></script>
-    <script src="/tour-player.js"></script>
+    <script src="/brand-host.js?v=1c06a18e19b34007"></script>
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
+    <script src="/client-page.js?v=87631c05c0ff3b65"></script>
     <style>
       html,
       body {
@@ -24,11 +24,42 @@
         height: 100%;
         background: #10231d;
       }
+      /* First-party faces, same origin as this document. An embed on someone
+         else's page must never reach a third-party font or script host. */
+      @font-face {
+        font-family: Outfit;
+        src: url("/media/Outfit-400.woff2") format("woff2");
+        font-weight: 400;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: Outfit;
+        src: url("/media/Outfit-500.woff2") format("woff2");
+        font-weight: 500;
+        font-display: swap;
+      }
+      body {
+        display: grid;
+        grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+        overflow: hidden;
+      }
+      #tour-frame, #tour-stage, .embed-fallback {
+        grid-area: 1 / 1;
+        min-width: 0;
+        min-height: 0;
+      }
+      /* A version 2 walkthrough draws here, in this page, from data files. */
+      #tour-stage {
+        width: 100%;
+        height: 100%;
+      }
+      #tour-stage[hidden] {
+        display: none;
+      }
       #tour-frame {
         display: block;
         width: 100%;
-        height: 100vh;
-        height: 100dvh;
+        height: 100%;
         border: 0;
         background: #10231d;
       }
@@ -37,56 +68,98 @@
       }
       .embed-fallback {
         box-sizing: border-box;
-        min-height: 100vh;
-        min-height: 100dvh;
+        height: 100%;
+        overflow: auto;
+        z-index: 1;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        gap: 10px;
-        padding: 32px;
-        color: #f2eee6;
+        /* Anchored high on purpose. A builder element with a fixed height
+           shorter than this iframe (Wix, agency listing templates) crops the
+           bottom, and a centred block puts Explore inside the cropped band. */
+        justify-content: flex-start;
+        gap: 8px;
+        padding: clamp(16px, 9vh, 40px) clamp(16px, 4vw, 32px);
+        background: #10231d;
+        color: #f4f1e9;
         font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
       }
       .embed-fallback[hidden] {
         display: none;
       }
-      .embed-fallback .eyebrow {
-        margin: 0;
-        font-size: 11px;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: #f0a177;
-      }
       .embed-fallback h1 {
         margin: 0;
-        font-size: 24px;
+        font-size: clamp(20px, 5vw, 24px);
         font-weight: 500;
+        letter-spacing: -0.01em;
       }
       .embed-fallback p {
         margin: 0;
         max-width: 46ch;
-        color: rgba(242, 238, 230, 0.78);
+        color: rgba(244, 241, 233, 0.78);
         font-size: 15px;
-        line-height: 1.55;
+        line-height: 1.4;
       }
+      /* Who shared it, when the agent chose to show it. No contact buttons:
+         the agent's own page already carries those. */
+      .embed-fallback #embed-agent {
+        margin-top: -4px;
+        color: #f4f1e9;
+        font-weight: 500;
+        overflow-wrap: anywhere;
+      }
+      /* Two loading stages. While nothing is on screen the visitor gets the
+         whole panel, because a near-black rectangle with one dim line in the
+         corner reads as broken on a listing page. The instant the viewer owns
+         the viewport we shrink to a compact notice: the canvas must remain
+         visible while it produces its first frame, and nothing may cover it. */
+      .embed-fallback[data-mode="preparing"] > :not(#embed-title):not(#embed-agent):not(#embed-status) { display: none; }
+      .embed-fallback[data-mode="loading"] {
+        padding: 12px;
+        background: transparent;
+        pointer-events: none;
+      }
+      .embed-fallback[data-mode="loading"] > :not(#embed-status) { display: none; }
+      .embed-fallback[data-mode="loading"] #embed-status {
+        align-self: flex-start;
+        padding: 10px 14px;
+        border-radius: 2px;
+        background: #10231d;
+      }
+      #embed-status:empty { display: none; }
+      [hidden] { display: none !important; }
+      .embed-fallback button, .embed-fallback a { box-sizing: border-box; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 2px; font: 500 14px/20px "Outfit", ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+      .embed-fallback button { border: 1px solid #c6dcc9; background: #c6dcc9; color: #10231d; }
+      .embed-fallback a { color: #f4f1e9; border: 1px solid #6f8474; text-decoration: none; }
+      .embed-fallback button:focus-visible, .embed-fallback a:focus-visible { outline: 3px solid #c6dcc9; outline-offset: 4px; }
+      .embed-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      @media (max-width: 380px), (max-height: 380px) { .embed-fallback { padding: 16px; } }
     </style>
   </head>
   <body>
     <main class="embed-fallback" id="embed-fallback">
-      <p class="eyebrow">VEYLET WALKTHROUGH</p>
-      <h1 id="embed-title">Private walkthrough</h1>
-      <p id="embed-body">
-        This walkthrough is unlisted and not indexed. It opens here whenever the
-        operator's link is active.
-      </p>
+      <h1 id="embed-title">Explore this property in 3D.</h1>
+      <p id="embed-agent" hidden></p>
+      <!-- True with and without JavaScript. The script adds the sentence about
+           starting only once there is a control to start with. -->
+      <p id="embed-body">Walk through the space at your own pace.</p>
       <p id="embed-status" role="status"></p>
+      <div class="embed-actions">
+        <button id="embed-start" type="button" hidden>Explore in 3D</button>
+        <a id="embed-open" data-tour-dead-end target="_blank" rel="noopener noreferrer" hidden>Open in a new tab</a>
+      </div>
+      <div id="tour-actions" hidden><button id="tour-retry" type="button">Try again</button></div>
+      <noscript><p>This walkthrough needs JavaScript. Turn it on and reload the page, or ask the agent for the property's photographs and a viewing.</p></noscript>
     </main>
     <iframe
       id="tour-frame"
       title="Reconstructed walkthrough"
-      allow="fullscreen"
+      allow="fullscreen *"
+        allowfullscreen
+      sandbox="allow-scripts allow-pointer-lock"
+      referrerpolicy="no-referrer"
       hidden
     ></iframe>
+    <div id="tour-stage" hidden></div>
     <script>
       (() => {
         const els = {
@@ -94,8 +167,11 @@
           body: document.getElementById('embed-body'),
           status: document.getElementById('embed-status'),
           frame: document.getElementById('tour-frame'),
+          stage: document.getElementById('tour-stage'),
         };
         const fallback = document.getElementById('embed-fallback');
+        const start = document.getElementById('embed-start');
+        const open = document.getElementById('embed-open');
 
         const token = new URLSearchParams(location.search).get('t') || '';
         if (typeof window.VeyletPlayer === 'undefined') {
@@ -107,13 +183,47 @@
             { ...els, actions: null, retry: null },
             {
               heading: 'This walkthrough is not available.',
-              body: 'The link is missing or incomplete. Ask the operator for a fresh embed code.',
+              body: 'The link on this page is incomplete. Ask the agent for the property’s walkthrough link.',
             }
           );
         } else {
-          window.VeyletPlayer.boot({
+          open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
+          open.hidden = false;
+          start.hidden = false;
+          // The agent's name under the invitation, when the server returns their
+          // opt-in contact for this live link. No account SDK before Explore: a
+          // page that already has it reuses it, otherwise one REST call. Any
+          // error, or a backend without the function yet, leaves the line out.
+          const page = window.VeyletClientPage;
+          const agent = document.getElementById('embed-agent');
+          if (page && agent) {
+            const contactClient = window.supabase && window.supabase.createClient && window.VeyletPlayer.clientFor
+              ? window.VeyletPlayer.clientFor({ persistSession: false, autoRefreshToken: false, detectSessionInUrl: false })
+              : page.restClient(window.VEYLET_SUPABASE);
+            page.lookupContact(contactClient, token).then((contact) => {
+              if (!contact) return;
+              agent.textContent = page.agentLine(contact);
+              agent.hidden = false;
+            });
+          }
+          // Only say what starting costs once there is something to press.
+          els.body.textContent =
+            'Walk through the space at your own pace. The walkthrough downloads when you start, so give it a moment on mobile data.';
+          start.addEventListener('click', async () => {
+            start.disabled = true;
+            start.hidden = true;
+            // Keep the whole panel while the viewport is still empty; drop to
+            // the compact notice the moment the viewer is on screen.
+            fallback.dataset.mode = 'preparing';
+            await window.VeyletPlayer.boot({
             els,
-            auth: { persistSession: false, autoRefreshToken: false },
+            // A streamed walkthrough carries its own status line; a version 1
+            // frame shares the viewport with the compact notice.
+            onVisible: () => {
+              if (els.stage && !els.stage.hidden) fallback.hidden = true;
+              else fallback.dataset.mode = 'loading';
+            },
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
             resolve: async (client) => {
               const { data, error } = await client.rpc('lookup_tour_share', {
                 p_token: token,
@@ -131,19 +241,28 @@
               }
               return {
                 storagePath: row.storage_path,
+                packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
+                packageBaseUrl: row.package_base_url || null,
                 title: row.space_title || 'Shared space',
                 intro: '',
               };
             },
             missingHeading: 'This walkthrough is not available.',
             missingBody:
-              'The link is missing, revoked, or the tour is not ready. Ask the operator for a fresh embed code.',
+              'It has been turned off, or this link is no longer current. Ask the agent for the property’s photographs and a viewing.',
             transientBody:
               'The walkthrough service did not answer. Check the connection and try again.',
-          }).then(() => {
-            // The frame only replaces the notice once the package has loaded.
-            if (fallback) fallback.hidden = !els.frame.hidden;
-          });
+          }).catch(() => window.VeyletPlayer.showFailure(
+            { ...els, actions: document.getElementById('tour-actions'), retry: document.getElementById('tour-retry') },
+            { body: 'The walkthrough could not start. Check the connection and try again.', retry: true }
+          ));
+            // A loading notice shares the viewport with the renderer; it must
+            // never push the iframe below the visible agency embed. Restore the
+            // full notice on a startup error. A visible frame owns its rendered
+            // scene or photograph/error/retry UI; never cover it with a second notice.
+            fallback.dataset.mode = 'notice';
+            fallback.hidden = !(els.frame.hidden && (!els.stage || els.stage.hidden));
+          }, { once: true });
         }
       })();
     </script>

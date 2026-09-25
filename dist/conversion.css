@@ -1,0 +1,256 @@
+/* Public enquiry and first-tour journey only; account and player styling is separate. */
+.conversion-home .hero-note { max-width: 48ch; }
+.conversion-home .hero-note a { display: block; margin-top: 8px; }
+.conversion-summary { padding-block: 44px 56px; border-top: 1px solid var(--line); }
+.conversion-heading h2 { font-size: clamp(28px, 4vw, 46px); line-height: 1.12; margin-top: 14px; }
+/* The heading and pilot status sit left; the three commitments stack right.
+   One asymmetric spread instead of three equal columns. */
+.conversion-summary { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(36px, 7vw, 112px); align-items: start; }
+.conversion-benefits { display: grid; gap: 0; margin: 6px 0 0; }
+.conversion-benefits > div { border-top: 1px solid var(--line); padding: 20px 0 22px; display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 8px 28px; align-items: baseline; }
+.conversion-benefits > div:last-child { border-bottom: 1px solid var(--line); }
+.conversion-benefits dt { font-size: 19px; font-weight: 500; line-height: 1.3; }
+.conversion-benefits dd { margin: 0; color: var(--muted); max-width: 35ch; line-height: 1.6; }
+.pilot-note { max-width: 52ch; margin-top: 28px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.pilot-note strong { font-weight: 500; color: var(--ink); }
+/* Process: the heading, terms and action hold still while the steps scroll past. */
+.conversion-home .route { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 0 clamp(36px, 7vw, 112px); padding-top: 28px; align-items: start; }
+.conversion-home .route-lead { position: sticky; top: 40px; display: grid; justify-items: start; gap: 22px; }
+.conversion-home .route-lead .contact-note { margin: 0; max-width: 44ch; }
+.conversion-home .route-steps { margin-top: 8px; }
+.conversion-home .partner-path { grid-column: 1 / -1; }
+.partner-path { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 36px; border-top: 1px solid var(--line); margin-top: 44px; padding-top: 32px; }
+.partner-path h3 { font-size: 26px; line-height: 1.2; margin: 12px 0; }
+.partner-path p:not(.eyebrow) { color: var(--muted); max-width: 65ch; line-height: 1.6; }
+.partner-path > a { max-width: 24ch; line-height: 1.5; }
+.form-summary { padding: 16px 0; margin: -16px 0 26px; border-block: 1px solid var(--line); font-size: 14px; line-height: 1.6; }
+.form-page { padding-top: 44px; }
+.veylet-form small { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.veylet-form input:focus-visible, .veylet-form textarea:focus-visible, .veylet-form select:focus-visible,
+.optional-brief summary:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.optional-brief { border-block: 1px solid var(--line); }
+.optional-brief summary { cursor: pointer; min-height: 48px; padding: 16px 0; font-size: 15px; line-height: 1.5; }
+.optional-fields { display: grid; gap: 18px; padding: 4px 0 24px; }
+.reply-preview { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 28px; }
+.reply-preview h2 { font-size: 26px; line-height: 1.2; margin: 14px 0; }
+.reply-preview p:not(.eyebrow) { margin: 14px 0; color: var(--muted); line-height: 1.65; }
+.reply-preview > a { display: inline-block; padding-block: 8px; }
+.journey-note { margin-top: 22px; padding: 18px 20px; border: 1px solid var(--line); background: #eaece3; font-size: 15px; line-height: 1.6; }
+.setup-checklist { padding-left: 22px; max-width: 78ch; }
+.setup-checklist li { padding: 0 0 20px 10px; line-height: 1.65; }
+.setup-checklist strong { display: block; margin-bottom: 4px; }
+.next-steps { display: grid; gap: 24px; margin: 30px 0; padding-left: 22px; }
+.next-steps strong { display: block; margin-bottom: 7px; }
+.next-steps p { color: var(--muted); line-height: 1.6; }
+@media (max-width: 800px) {
+  .form-page { padding-top: 32px; }
+  /* The service and action lead. A concept film is supporting artwork. */
+  .conversion-home .hero-film { order: 0; margin: 26px 0 0; }
+  .conversion-home .hero-copy { padding-top: 16px; }
+  /* The wide poster is 1080x691; a 16:9 frame cropped its title. */
+  .conversion-home .hero-film video { aspect-ratio: 1080 / 800; }
+  .conversion-summary { grid-template-columns: 1fr; gap: 26px; }
+  /* One column: heading, steps, then the terms and action. */
+  .conversion-home .route { grid-template-columns: 1fr; }
+  .conversion-home .route-lead { display: contents; }
+  .conversion-home .route-lead h2 { order: 0; }
+  .conversion-home .route-steps { order: 1; margin-top: 30px; }
+  .conversion-home .route-lead .contact-note { order: 2; margin-top: 26px; }
+  .conversion-home .route-lead .button { order: 3; margin-top: 20px; justify-self: start; }
+  .conversion-home .partner-path { order: 4; }
+  .conversion-benefits > div { grid-template-columns: 1fr; gap: 6px; padding-block: 18px; }
+  .conversion-benefits dd { max-width: 60ch; }
+  .conversion-summary { padding-block: 32px 40px; }
+  .partner-path { grid-template-columns: 1fr; gap: 16px; }
+  .partner-path > a { max-width: none; padding-block: 10px; }
+}
+
+.enquiry-copy { margin-top: 20px; }
+.enquiry-copy > p { color: var(--muted); line-height: 1.6; margin: 0 0 18px; }
+.enquiry-copy textarea { box-sizing: border-box; width: 100%; padding: 14px; margin-bottom: 20px; font: inherit; line-height: 1.5; border: 1px solid var(--line); background: transparent; resize: vertical; }
+.enquiry-copy [hidden] { display: none; }
+
+/* The first sentence says what Veylet makes; it reads in ink, the rest in muted. */
+.intro-lead { color: var(--ink); }
+.conversion-home .hero h1 { margin-top: 0; }
+/* The mobile bar repeats the hero actions, so it waits until they scroll away.
+   Without the script it stays visible. Hidden state leaves the tab order. */
+@media (max-width: 800px) {
+  .sticky-cta[data-visible] { transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0s; }
+  .sticky-cta[data-visible="false"] { transform: translateY(100%); visibility: hidden; transition-delay: 0s, 0.24s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sticky-cta[data-visible] { transition: none; }
+}
+
+/* ---- Offer page: a statement, not a pricing grid ---- */
+.offer-page .guide-page { padding-top: 40px; }
+.offer-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr); gap: 40px clamp(36px, 6vw, 96px); align-items: start; }
+.offer-intro { margin-bottom: 0; }
+.offer-intro h1 em { font-family: Outfit, Arial, sans-serif; font-style: normal; font-weight: 400; color: var(--accent); }
+.offer-intro .intro { margin-top: 22px; }
+.pilot-note { max-width: 52ch; margin-top: 24px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.pilot-note strong { font-weight: 500; color: var(--ink); }
+.offer-actions { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+/* The statement column */
+.statement { border-top: 2px solid var(--ink); padding-top: 22px; }
+.statement h2 { font-size: clamp(22px, 2.4vw, 27px); margin: 0 0 18px; letter-spacing: -0.02em; }
+.statement-date { display: grid; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.statement-date label { font-size: 14px; }
+.statement-date input { font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: 1px solid var(--field-line); padding: 10px 12px; min-height: 44px; max-width: 220px; border-radius: 0; }
+.statement-date input:hover { border-color: var(--ink); }
+.statement-date input:focus-within { outline: 3px solid #897033; outline-offset: 3px; }
+.offer-contents { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 26px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.offer-contents a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; color: var(--muted); }
+.offer-contents a:hover { color: var(--ink); }
+.statement-date input::-webkit-calendar-picker-indicator { width: 18px; height: 18px; margin-left: 8px; cursor: pointer; background: currentColor; -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5'><rect x='2.75' y='4.75' width='14.5' height='12.5'/><path d='M2.75 8.75h14.5M6.5 2.75v3.5M13.5 2.75v3.5'/></svg>") center / contain no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5'><rect x='2.75' y='4.75' width='14.5' height='12.5'/><path d='M2.75 8.75h14.5M6.5 2.75v3.5M13.5 2.75v3.5'/></svg>") center / contain no-repeat; opacity: 1; }
+.statement-date input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.statement-hint { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
+.statement-lines { margin: 0; display: grid; }
+.statement-lines > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.statement-lines dt { display: grid; gap: 2px; font-weight: 400; }
+.line-when { font-size: 15px; font-variant-numeric: tabular-nums; }
+.line-what { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.statement-lines dd { margin: 0; }
+.amount { font-size: 30px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; text-align: right; line-height: 1.05; white-space: nowrap; }
+/* The qualifier wraps; the amount does not. Without this the nowrap inherited
+   from .amount lets a long note squeeze the line's own description. */
+.amount-note { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; margin-top: 3px; white-space: normal; max-width: 26ch; margin-left: auto; }
+.statement-lines > .line-paid { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); background: var(--sage); margin: 6px -12px 0; padding: 12px 12px; }
+.statement-lines > .line-paid .amount { font-size: 32px; }
+/* Muted green falls to 4.3:1 on sage, so the paid line's qualifiers are ink. */
+.statement-lines > .line-paid .line-what,
+.statement-lines > .line-paid .amount-note { color: var(--ink); }
+.statement-lines > .line-total { border-bottom: 2px solid var(--ink); padding-top: 14px; }
+.statement-lines > .line-total .amount { font-size: 36px; }
+.statement-lines > .line-total .line-when { font-weight: 500; }
+.statement-until { min-height: 22px; margin: 12px 0 0; font-size: 15px; font-weight: 500; }
+.statement-until:empty { display: none; }
+/* The allowance is the one fact the dated rows cannot show: 6 in total across the 3 free months. */
+.statement-allowance { font-size: 15px; line-height: 1.6; color: var(--ink); margin: 14px 0 0; }
+.statement-includes, .statement-note { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 14px 0 0; }
+.statement-includes strong, .statement-note strong { color: var(--ink); font-weight: 500; }
+.statement-note [data-price], .statement-includes [data-price], .statement-allowance [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+@keyframes amount-settle { from { color: var(--muted); } to { color: var(--ink); } }
+.statement-lines[data-dated] .amount { animation: amount-settle 240ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .statement-lines[data-dated] .amount { animation: none; } }
+/* Terms: two hairline ledgers side by side */
+.offer-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(32px, 5vw, 72px); }
+.offer-terms { margin: 0; display: grid; align-content: start; }
+.offer-terms > div { padding: 18px 0; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.offer-terms > div:last-child { border-bottom: 1px solid var(--line); }
+.offer-terms dt { font-size: 17px; font-weight: 500; line-height: 1.3; }
+.offer-terms dd { margin: 0; color: var(--muted); line-height: 1.6; max-width: 48ch; }
+.offer-terms dd [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.tally { display: inline-block; background: var(--sage); padding: 2px 10px; margin: -2px -10px; }
+.offer-fine { font-size: 13px; color: var(--muted); margin-top: 24px; max-width: 72ch; line-height: 1.6; }
+/* Services keep the existing ledger grammar */
+.offer-list { margin: 0; display: grid; }
+.offer-list > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name price" "scope scope"; gap: 6px 24px; padding: 22px 0; border-top: 1px solid var(--line); }
+.offer-list > div:last-child { border-bottom: 1px solid var(--line); }
+.offer-list dt { grid-area: name; font-size: 19px; font-weight: 500; line-height: 1.3; }
+.offer-list dd { margin: 0; }
+.offer-list dd:first-of-type { grid-area: price; display: grid; justify-items: end; text-align: right; }
+.offer-list .offer-scope { grid-area: scope; color: var(--muted); line-height: 1.6; max-width: 62ch; }
+.offer-scope [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.offer-price { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.offer-price-note { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+/* Three ways to pay: the same ledger, carrying a second price for the App
+   Store. The App Store figure is a qualifier, so it stays in the note. */
+.offer-ways .offer-price-note { line-height: 1.5; }
+.offer-ways .offer-price-app { margin-top: 2px; }
+.offer-ways .offer-price-note [data-price], .amount-note [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ways-mark { font-size: 13px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
+/* The one action in this ledger is a line of its own, not a word mid-sentence. */
+.ways-action { display: flex; width: max-content; max-width: 100%; margin-top: 4px; }
+/* The plan leads and the packs follow it, so the one plan never shares a row with
+   an add-on or leaves a hole beside a taller column. A 2px ink rule opens the
+   plan, as it opens a statement, and its price is set at the statement's paid-line
+   size; the packs are a quieter ledger at the free rows' size, two-up where there
+   is room; the worked example closes the pair. */
+.offer-plans { display: grid; }
+.offer-plan > div { border-top: 2px solid var(--ink); padding: 24px 0 26px; }
+/* Monthly and annual are two rows of one plan: the 2px rule opens the plan, a hairline divides its rows. */
+.offer-plan > div + div { border-top: 1px solid var(--line); }
+.offer-plan .offer-price { font-size: 32px; }
+.offer-packs .offer-list > div:first-child { border-top: 0; }
+.offer-packs .offer-list dt { font-size: 17px; }
+.offer-packs .offer-price,
+.offer-example-list .offer-price { font-size: 22px; }
+.offer-example { margin-top: 40px; }
+.offer-example h3 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.02em; }
+.offer-example-note { margin: 8px 0 14px; max-width: 62ch; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.offer-example-list dt { font-size: 17px; font-variant-numeric: tabular-nums; }
+/* Each charge on its own line, every amount at one size: the pack is not a footnote. */
+.offer-example-pay { gap: 4px; }
+.offer-example-pay > span { display: block; font-size: 14px; line-height: 1.3; color: var(--muted); }
+.offer-example-pay .offer-price { margin-right: 4px; color: var(--ink); }
+.offer-page section[aria-labelledby="ways-title"] > .for-line { max-width: 62ch; margin-bottom: 24px; }
+/* The first-walkthrough promise sits under the one filled action: an ink rule and
+   the promise in ink, its scope in muted fine type. It is words, not a badge. */
+.offer-promise { max-width: 52ch; margin: 24px 0 0; padding-top: 14px; border-top: 1px solid var(--ink); font-size: 14px; line-height: 1.6; color: var(--muted); }
+.offer-promise strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 17px; font-weight: 500; line-height: 1.4; }
+/* The anchor: someone else's price beside ours, one ledger, same figures. */
+.offer-anchor { margin-top: 40px; }
+.offer-anchor h3 { margin: 0 0 14px; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.02em; }
+.offer-anchor-list .offer-price, .offer-express .offer-price { font-size: 22px; }
+.offer-anchor-list .offer-scope a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.offer-express { margin-top: 40px; }
+/* The charge sentence is the load-bearing line of the statement, so it is set in ink. */
+.statement-charge { font-size: 15px; font-weight: 500; line-height: 1.6; color: var(--ink); margin: 14px 0 0; }
+@media (min-width: 901px) {
+  .offer-plan > div { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); grid-template-areas: "name scope" "price scope"; column-gap: clamp(32px, 5vw, 72px); align-content: start; }
+  .offer-plan dd:first-of-type { justify-items: start; text-align: left; }
+  .offer-plan .offer-scope { align-self: start; }
+}
+@media (min-width: 641px) {
+  .offer-packs .offer-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(32px, 5vw, 72px); }
+  .offer-packs .offer-list > div { border-top: 0; border-bottom: 1px solid var(--line); }
+}
+@media (min-width: 801px) {
+  /* A worked row reads across: how many, what covers them, what you pay. */
+  .offer-example-list > div, .offer-anchor-list > div { grid-template-columns: minmax(7rem, 0.4fr) minmax(0, 1.2fr) minmax(15rem, 0.8fr); grid-template-areas: "name scope price"; align-items: baseline; }
+  .offer-anchor-list > div { grid-template-columns: minmax(10rem, 0.5fr) minmax(0, 1.2fr) minmax(9rem, 0.4fr); }
+}
+/* The optional pack line spans the statement like the paid line and the total. */
+.offer-page .statement-lines > .line-pack { grid-column: 1 / -1; }
+/* An amount inside an answer is set like every other amount on the page. */
+.offer-page .guide-section details [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+/* Disclosures on this page use the site's drawn plus that settles to a minus. */
+.offer-page .guide-section summary { list-style: none; position: relative; padding-right: 40px; }
+.offer-page .guide-section summary::-webkit-details-marker { display: none; }
+.offer-page .guide-section summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 13px; height: 13px; transform: translateY(-50%); background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat, linear-gradient(currentColor, currentColor) center / 1px 13px no-repeat; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.offer-page .guide-section details[open] > summary::after { background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat; transform: translateY(-50%) rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .offer-page .guide-section summary::after { transition: none; } }
+/* The close: the incumbent deep-green surface */
+.offer-close { margin-top: 56px; background: var(--ink); color: var(--paper); padding: 64px 56px; }
+.offer-close-inner { max-width: 62ch; }
+.offer-close h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 18px; letter-spacing: -0.03em; }
+.offer-close p:not(.tour-actions-row) { color: var(--sage); line-height: 1.65; }
+.offer-close .tour-actions-row { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+.offer-close .text-link { color: var(--paper); border-bottom-color: var(--accent); }
+.button-paper { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+.button-paper:hover { background: var(--sage); border-color: var(--sage); }
+.offer-close a:focus-visible { outline-color: var(--sage); }
+@media (max-width: 900px) {
+  .offer-hero { grid-template-columns: 1fr; gap: 36px; }
+  .offer-two { grid-template-columns: 1fr; }
+  .offer-terms-free > div:first-child { border-top: 0; }
+}
+@media (max-width: 800px) {
+  .offer-page .guide-page { padding-top: 28px; }
+  .offer-list > div { grid-template-columns: 1fr; grid-template-areas: "name" "price" "scope"; }
+  .offer-list dd:first-of-type { justify-items: start; text-align: left; }
+  .amount { font-size: 26px; }
+  /* Narrower, so the paid line's own date still reads on one line. */
+  .amount-note { max-width: 17ch; }
+  .statement-lines > .line-paid .amount { font-size: 28px; }
+  .statement-lines > .line-total .amount { font-size: 32px; }
+  .offer-close { margin-inline: -20px; padding: 40px 24px; }
+}
+
+/* The cost illustration uses native controls and the established ledger. */
+.statement-date select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line); min-height: 44px; padding: 10px 12px; width: 100%; border-radius: 0; }
+.statement-date select:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+
+@media (max-width: 400px) { .statement-lines > .line-total { grid-template-columns: minmax(0, 1fr); } .statement-lines > .line-total dd { padding-top: 4px; } }

@@ -1,0 +1,244 @@
+{
+  "version": "2026-09-25.2",
+  "status": "current commercial offer; channel availability and release readiness are documented separately",
+  "currency": "AUD",
+  "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
+  "freeMonths": {
+    "months": 3,
+    "includedWalkthroughs": 6,
+    "startsOn": "activation",
+    "activationMeans": "the subscription is created: in the app through the App Store, or by the studio for an invoiced account; card payment on the website is coming later (the website card-on-file trial is built in Square Sandbox and opens with the card lane)",
+    "websiteCardPayment": "Square card on file for the website trial and card plans; Sandbox until the owner opens the card lane",
+    "cardRequired": true,
+    "autoRenews": null,
+    "reminderDaysBeforeFirstCharge": 7,
+    "hostingMonthsAfterRelease": 12,
+    "cancelAnytime": true,
+    "paymentSetup": "App Store payment arrangement in the app, or written studio invoice terms; on the website, card entry happens only in Square's own card field on the account page, which is Square Sandbox until the card lane opens",
+    "renewalNotice": "Check the renewal date in your account and Apple subscription settings; Veylet email reminders are not yet operational",
+    "earlyPaidSwitchAvailable": false,
+    "autoRenewalByChannel": {
+      "appStore": true,
+      "websiteCard": true,
+      "studioInvoice": false
+    },
+    "morePacks": "walkthrough packs can be bought during the free months on the website; the free-months end date stays the same",
+    "earlyPaidSwitchNote": "an App Store free trial cannot be switched to paid early; the website members' annual 'start today' option (membersAnnual.startNow) is a separate card plan and only applies when no paid period would overlap",
+    "verification": "one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)",
+    "reminderStatus": "planned: reminder email 7 days before the first charge (not yet operational)",
+    "cardOnFile": {
+      "required": true,
+      "appStore": "Apple's 3-month free introductory offer (a payment method on the Apple Account is required)",
+      "web": "Square card on file at trial start; the first charge is scheduled for the day the free months end (Square Sandbox until the card lane opens)",
+      "invoice": "an agreed paid start date in writing"
+    }
+  },
+  "plans": [
+    {
+      "code": "solo",
+      "name": "Veylet plan",
+      "kind": "monthly",
+      "webAud": 99,
+      "appAud": 119.99,
+      "includedPerMonth": 2,
+      "seats": "unlimited",
+      "hostingIncluded": true,
+      "hostingWhileSubscribed": true,
+      "whiteLabel": true,
+      "freeMonthsEligible": true,
+      "annualRule": "24 walkthroughs to use any time in the plan year (a yearly pool); website or invoice A$990, App Store A$1,199.99; 2 months free",
+      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
+      "hostingRule": "every released tour stays live while the account has a running plan (free months, monthly or annual), and in any case for at least 12 months after its release; after both, A$49 per tour per further year on request",
+      "rollover": {
+        "enabled": true,
+        "maxBanked": 4,
+        "rule": "unused monthly walkthroughs carry over, up to 4 banked at any time"
+      },
+      "annualAud": 990,
+      "annualAppAud": 1199.99,
+      "annualIncluded": 24,
+      "intervals": [
+        "monthly",
+        "annual"
+      ]
+    }
+  ],
+  "programmes": {
+    "founding": {
+      "code": "foundingProgramme",
+      "name": "Founding agencies",
+      "invitationOnly": true,
+      "maxAccounts": 5,
+      "price": "the normal Veylet plan and pack prices; no special or locked price",
+      "freeMonthsEligible": true,
+      "perks": [
+        "priority rendering",
+        "a free 3-pack for each referred office that becomes a paying account (up to four)",
+        "a direct line to the founder"
+      ],
+      "accountFlag": "a programme flag on the account, not a plan code; the retired plan code 'founding' only describes older rows"
+    }
+  },
+  "appStore": {
+    "commissionAssumed": 0.15,
+    "program": "15% is a modelling assumption; programme enrolment is not verified",
+    "pricingRule": "Separate published App Store and studio invoice totals; do not infer exact net revenue from the commission assumption",
+    "introductoryOffer": {
+      "type": "free_trial",
+      "months": 3,
+      "oncePerAppleId": true
+    },
+    "productIds": {
+      "monthly": "dev.property3d.capture.plan.monthly",
+      "annual": "dev.property3d.capture.plan.annual",
+      "soloMonthly": "dev.property3d.capture.solo.monthly",
+      "soloAnnual": "dev.property3d.capture.solo.annual",
+      "pack3": "dev.property3d.capture.pack3",
+      "pack10": "dev.property3d.capture.pack10"
+    },
+    "productPlans": {
+      "soloMonthly": "solo",
+      "soloAnnual": "solo",
+      "monthly": "studio",
+      "annual": "studio"
+    },
+    "annualSoldInApp": true,
+    "annualNote": "The App Store sells the Veylet plan monthly (dev.property3d.capture.solo.monthly, A$119.99) and annual (dev.property3d.capture.solo.annual, A$1,199.99), both with a 3-month free introductory offer. Express renders and packs are not sold in the app. The Team monthly and annual products stay off sale; a verified notification for any of them still maps to its plan.",
+    "sold": [
+      "soloMonthly",
+      "soloAnnual"
+    ]
+  },
+  "services": {
+    "hostingPerWalkthroughPerFurtherYearAud": 49,
+    "hostingMinimumMonthsAfterRelease": 12,
+    "editingPerHourAud": 120
+  },
+  "counting": {
+    "acceptedMeans": "the automatic quality check passed and the workspace approved the exact revision for release",
+    "notGoodEnoughCounts": false,
+    "largeOrMultiLevelMayCountAsTwo": true,
+    "rollover": true,
+    "freeMonthsAllowanceIsTotal": true,
+    "planAllowanceIsMonthly": true,
+    "unit": "accepted_walkthrough",
+    "unitsPerAcceptedWalkthrough": 1,
+    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 6 in total",
+    "annualAllowanceIsYearlyPool": true,
+    "largeHomeUnits": 2,
+    "largeHomeRule": "see walkthroughScope.countsAsTwo; declared at new listing and locked when capture starts"
+  },
+  "devices": [
+    "iPhone 12 Pro and later Pro or Pro Max models",
+    "iPad Pro models with LiDAR"
+  ],
+  "membersAnnual": {
+    "status": "the public annual price (offer 2026-09-25.2); the website card switch flow (Apple renewal off, scheduled start) is kept for App Store members moving to the website annual",
+    "unlock": {
+      "freeMonthsStarted": true,
+      "acceptedWalkthroughsAtLeast": 0,
+      "checkedBy": "server, before any checkout or invoice"
+    },
+    "visibility": "annual is public on /offer, in the account and in the app (App Store price only in the app)",
+    "channels": [
+      "squareCard",
+      "studioInvoice"
+    ],
+    "tiers": {
+      "standard": {
+        "planAud": 990,
+        "monthsCharged": 10
+      }
+    },
+    "currentTier": "standard",
+    "tierRule": "one public annual price; scheduled or active annual plans keep the price they were bought at",
+    "switchFromAppStore": "the member turns off App Store renewal themselves; the annual card plan starts when the App Store paid period or the free months end; if App Store renewal is turned back on before the start, the scheduled start is paused so nobody pays twice",
+    "startNow": "the member can start today instead once the free-months walkthroughs are used up and no paid period would overlap",
+    "renews": "each year until cancelled"
+  },
+  "retiredPlans": {
+    "codes": [
+      "studio",
+      "office",
+      "one",
+      "founding"
+    ],
+    "rule": "not sold to new accounts from offer 2026-09-24.2; existing verified or agreed rows keep their terms and map as before"
+  },
+  "packs": [
+    {
+      "code": "pack3",
+      "walkthroughs": 3,
+      "webAud": 169,
+      "appAud": 199.99,
+      "validMonths": 12
+    },
+    {
+      "code": "pack10",
+      "walkthroughs": 10,
+      "webAud": 499,
+      "appAud": 589.99,
+      "validMonths": 12
+    }
+  ],
+  "packRules": {
+    "availableTo": "any activated account: during the free months or on the plan",
+    "usedAfter": "the free-months, monthly (including banked) or annual-pool included walkthroughs",
+    "expires": "12 months after purchase; unused walkthroughs are not refunded after that",
+    "channels": {
+      "web": "Square card on /account (Sandbox until the card lane opens) or studio invoice",
+      "app": "in-app purchase arrives in a later app version"
+    },
+    "unit": "one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none"
+  },
+  "earlyAnnualBonus": {
+    "walkthroughs": 4,
+    "expressRenders": 4,
+    "rule": "choose annual before the free months end: +4 walkthroughs and 4 Super fast renders in the first plan year (Super fast renders are used on the website)",
+    "channels": [
+      "web",
+      "invoice",
+      "appStore"
+    ]
+  },
+  "referral": {
+    "referrerWalkthroughs": 1,
+    "referredWalkthroughs": 1,
+    "rule": "when a referred office becomes a paying account, both offices get 1 bonus walkthrough; the referrer shares their own link"
+  },
+  "walkthroughScope": {
+    "unit": "one visit to the interior rooms of one home",
+    "countsAsTwo": "5 or more bedrooms, a second dwelling, or more than 350 m² of floor area",
+    "declaredAt": "new listing; the count locks when capture starts"
+  },
+  "expressRender": {
+    "code": "express",
+    "webAud": 29,
+    "appStore": false,
+    "promise": "rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically",
+    "dailyCap": null,
+    "refund": "if it isn't ready for review within 30 minutes of the upload finishing, the A$29 is refunded automatically (a used credit is returned)",
+    "channels": [
+      "web"
+    ],
+    "name": "Super fast render"
+  },
+  "anchor": {
+    "text": "A photographer's 3D tour costs A$215–400 each",
+    "sourceDoc": "property-3d-studio/docs/pricing-and-unit-economics.md",
+    "checked": "2026-09-13",
+    "surfaces": [
+      "website"
+    ]
+  },
+  "guarantee": {
+    "text": "If your first walkthrough isn't listing-ready, we redo it free",
+    "scope": "the account's first accepted walkthrough; the redo is a correction revision (no unit, same link); a recapture visit is not included"
+  },
+  "processing": {
+    "automatic": true,
+    "turnaround": "usually within 1–2 hours of the upload finishing; no person checks it",
+    "qualityGate": "an automatic quality check (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms",
+    "approval": "the account reviews and approves before sharing"
+  }
+}

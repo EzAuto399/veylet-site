@@ -1,0 +1,359 @@
+/* Veylet player v2. Ink ground, paper text, one sage accent on the primary
+   action and the current place. Controls are 44 px targets with 2 px corners.
+   Overlays are solid ink over the scene; nothing is blurred except the tiny
+   preview while the poster arrives. */
+.v2-stage {
+  position: relative;
+  overflow: hidden;
+  background: #10231d;
+  container-type: inline-size;
+}
+.v2 {
+  --v2-ink: #10231d;
+  --v2-paper: #f4f1e9;
+  --v2-sage: #c6dcc9;
+  --v2-panel: rgba(16, 35, 29, 0.88);
+  --v2-edge: rgba(244, 241, 233, 0.28);
+  --v2-muted: rgba(244, 241, 233, 0.78);
+  position: absolute;
+  inset: 0;
+  color: var(--v2-paper);
+  font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.v2 [hidden] { display: none !important; }
+.v2 p, .v2 h2, .v2 h3, .v2 figure, .v2 ol, .v2 ul { margin: 0; }
+.v2 button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.v2 button:focus-visible,
+.v2 a:focus-visible {
+  outline: 3px solid var(--v2-sage);
+  outline-offset: 2px;
+}
+.v2 svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+/* Layers: preview, poster, canvas. The poster is the first frame the visitor
+   sees; the canvas replaces it once the first level of detail has drawn. */
+.v2-preview,
+.v2-poster,
+.v2-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.v2-preview,
+.v2-poster {
+  object-fit: cover;
+  pointer-events: none;
+}
+.v2-preview { filter: blur(10px); transform: scale(1.04); opacity: 0; }
+.v2[data-preview="shown"] .v2-preview { opacity: 1; }
+.v2-poster { opacity: 0; transition: opacity 0.2s ease-out; }
+.v2[data-poster="shown"] .v2-poster { opacity: 1; }
+.v2[data-state="ready"] .v2-preview,
+.v2[data-state="ready"] .v2-poster {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+.v2-canvas {
+  display: block;
+  touch-action: none;
+  outline: none;
+  cursor: grab;
+}
+.v2-canvas:active { cursor: grabbing; }
+.v2-canvas:focus-visible { outline: 3px solid var(--v2-sage); outline-offset: -3px; }
+.v2[data-state="fallback"] .v2-poster { opacity: 1; }
+
+/* Stops drawn on the floor: an ellipse reads as a disc seen at an angle. */
+.v2-hotspots { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.v2-hotspot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+}
+.v2-hotspot span {
+  display: grid;
+  place-items: center;
+  width: var(--size, 40px);
+  height: calc(var(--size, 40px) * 0.56);
+  border-radius: 50%;
+  border: 2px solid rgba(244, 241, 233, 0.92);
+  background: rgba(16, 35, 29, 0.42);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.v2-hotspot:hover span { background: rgba(198, 220, 201, 0.55); color: var(--v2-ink); }
+
+/* Where you are: always visible, with the short truth line. */
+.v2-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.v2-where {
+  max-width: min(70%, 380px);
+  padding: 8px 12px;
+  border-radius: 2px;
+  background: var(--v2-panel);
+}
+.v2-room { font-size: 15px; font-weight: 500; line-height: 1.3; }
+.v2-stop { font-size: 13px; color: var(--v2-muted); font-variant-numeric: tabular-nums; }
+.v2-truth { margin-top: 2px; font-size: 12px; color: var(--v2-muted); }
+.v2-top > button { pointer-events: auto; }
+
+.v2-icon,
+.v2-stops-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--v2-edge);
+  border-radius: 2px;
+  background: var(--v2-panel);
+}
+.v2-icon[aria-pressed="true"],
+.v2-icon[aria-expanded="true"],
+.v2-stops-toggle[aria-expanded="true"] { border-color: var(--v2-sage); }
+.v2-stops-toggle { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.v2-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px 0 16px;
+  border: 1px solid var(--v2-sage);
+  border-radius: 2px;
+  background: var(--v2-sage);
+  color: var(--v2-ink) !important;
+  font-size: 14px;
+  font-weight: 500;
+}
+.v2-primary:hover { background: #d7e8da; }
+.v2-next { flex-direction: row-reverse; }
+.v2-icon:hover,
+.v2-stops-toggle:hover { background: rgba(16, 35, 29, 0.97); }
+
+/* Controls sit at the bottom, where a thumb already is. */
+.v2-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.v2-moves,
+.v2-tools { display: flex; gap: 8px; pointer-events: auto; }
+
+.v2-status {
+  position: absolute;
+  left: 50%;
+  bottom: 68px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.92);
+  font-size: 13px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.v2-status:empty { display: none; }
+.v2[data-state="opening"] .v2-status { bottom: 24px; }
+.v2-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(244, 241, 233, 0.16);
+  pointer-events: none;
+}
+.v2-progress span {
+  display: block;
+  height: 100%;
+  background: var(--v2-sage);
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+}
+.v2-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: min(300px, calc(100% - 32px));
+  padding: 12px 16px;
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.92);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Map of stops: floor from the package, turned so the opening view faces up. */
+.v2-map {
+  position: absolute;
+  top: 68px;
+  right: 12px;
+  width: min(34%, 220px);
+  padding: 6px 6px 4px;
+  border: 1px solid var(--v2-edge);
+  border-radius: 2px;
+  background: var(--v2-panel);
+}
+.v2[data-panel="open"] .v2-map { display: none; }
+.v2-map svg { display: block; width: 100%; height: auto; aspect-ratio: 1; stroke: none; }
+.v2-map figcaption { font-size: 11px; color: var(--v2-muted); text-align: center; padding-top: 2px; }
+.v2-map-floor { fill: rgba(244, 241, 233, 0.24); }
+.v2-map-stop { cursor: pointer; }
+.v2-map-stop circle { fill: var(--v2-ink); stroke: var(--v2-paper); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.v2-map-stop text { fill: var(--v2-paper); text-anchor: middle; font-family: Outfit, ui-sans-serif, system-ui, sans-serif; font-weight: 500; }
+.v2-map-you circle { fill: var(--v2-sage); }
+.v2-map-you path { fill: rgba(198, 220, 201, 0.42); }
+
+.v2-panel {
+  position: absolute;
+  right: 12px;
+  bottom: 68px;
+  width: min(320px, calc(100% - 24px));
+  max-height: calc(100% - 136px);
+  overflow: auto;
+  padding: 8px 16px 16px;
+  border: 1px solid var(--v2-edge);
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.97);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.v2-about { top: 68px; bottom: auto; max-height: calc(100% - 148px); }
+.v2-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.v2-panel-head .v2-icon { border-color: transparent; background: transparent; margin-right: -10px; }
+.v2-panel h2 { font-size: 16px; font-weight: 500; }
+.v2-room-group + .v2-room-group { margin-top: 12px; }
+.v2-panel h3 {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--v2-muted);
+  padding: 8px 0 4px;
+}
+.v2-panel ol { list-style: none; padding: 0; }
+.v2-stop-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-left: 4px solid transparent;
+  border-bottom: 1px solid rgba(244, 241, 233, 0.12);
+  background: transparent;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.v2-stop-button:hover { background: rgba(244, 241, 233, 0.06); }
+.v2-stop-button[aria-current="true"] { border-left-color: var(--v2-sage); font-weight: 500; }
+.v2-truth-full { font-size: 14px; line-height: 1.5; margin: 4px 0 12px; }
+.v2-controls { padding-left: 18px; color: var(--v2-muted); font-size: 13px; line-height: 1.5; }
+.v2-controls li + li { margin-top: 4px; }
+.v2-credits { margin-top: 12px; font-size: 12px; color: var(--v2-muted); }
+.v2-credits a { color: var(--v2-paper); text-decoration: underline; text-underline-offset: 3px; }
+
+.v2-fallback {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  max-width: 460px;
+  padding: 16px;
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.95);
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.v2-fallback h2 { font-size: 18px; font-weight: 500; line-height: 1.3; }
+.v2-fallback p { color: var(--v2-muted); font-size: 14px; line-height: 1.5; }
+
+.v2-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Narrow frames (a phone, or a sidebar embed): the arrow keeps its name for
+   assistive technology; the visible words go. */
+@container (max-width: 430px) {
+  .v2-next .v2-label { display: none; }
+  .v2-next { padding: 0 10px; }
+  .v2-where { max-width: calc(100% - 56px); }
+  .v2-map { top: auto; bottom: 68px; width: min(56%, 210px); }
+  .v2-panel { left: 12px; right: 12px; width: auto; }
+}
+@container (max-width: 330px) {
+  .v2-full { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2 *,
+  .v2-poster,
+  .v2-preview,
+  .v2-progress span { transition: none !important; }
+}

@@ -1,0 +1,28 @@
+/* The in-page stage for streamed (version 2) walkthroughs, sized like the
+   version 1 frame. Loaded by /play and /handoff. */
+.tour-stage {
+  position: relative;
+  width: 100%;
+  height: min(74vh, 680px);
+  background: #10231d;
+}
+.tour-stage[hidden] {
+  display: none;
+}
+.tour-frame-shell .tour-stage {
+  border-radius: 10px;
+}
+.tour-stage-play {
+  height: min(78vh, 720px);
+  margin: 18px 0 28px;
+}
+@media (max-width: 800px) {
+  .tour-stage,
+  .tour-stage-play {
+    height: 62vh;
+    min-height: 340px;
+  }
+  .tour-frame-shell .tour-stage {
+    border-radius: 8px;
+  }
+}

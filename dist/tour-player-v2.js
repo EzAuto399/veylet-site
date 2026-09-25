@@ -1,0 +1,1050 @@
+'use strict';
+
+/*
+ * Veylet player v2: streamed walkthroughs (package_format_version 2).
+ *
+ * Order of work on every device: a 256 px preview, then the poster (both are
+ * renders of the packaged scene from the opening stop), then the coarsest
+ * level of detail, then finer levels within a splat budget chosen for the
+ * device. The PlayCanvas engine 2.22.2 is vendored (MIT,
+ * /vendor/LICENSE.playcanvas.txt) and imported only when this browser can
+ * draw it. Package files are data: JSON and WebP. Nothing from a package runs.
+ */
+(() => {
+  const ENGINE_URL = '/vendor/playcanvas-2.22.2.min.js?v=5c9bf4a346ca2e3d';
+  const STYLE_URL = '/tour-player-v2.css?v=c2f13c1427bd10b6';
+  const FORMAT = 2;
+  // Released tours are served from the tour host; previews and QA from this origin.
+  const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
+  const MANIFEST_LIMIT = 512 * 1024;
+  const WALKABLE_LIMIT = 2 * 1024 * 1024;
+  const SAFE_PATH = /^(?:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}\/){0,3}[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/;
+  const HINT_KEY = 'veylet-player-hint-seen';
+
+  class PlayerError extends Error {
+    constructor(code, options) {
+      super(code);
+      this.code = code;
+      this.transient = Boolean(options && options.transient);
+    }
+  }
+
+  // ---------- pure helpers (unit tested) ----------
+
+  const finite3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+  const safePath = value => typeof value === 'string' && SAFE_PATH.test(value) && !value.split('/').includes('..');
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+
+  /** The package folder URL. Only this origin or the tour host; never a query. */
+  function resolveBase(value, page) {
+    if (typeof value !== 'string' || !value || value.length > 1024) throw new PlayerError('package-location-invalid');
+    let url;
+    try { url = new URL(value, page.href); } catch { throw new PlayerError('package-location-invalid'); }
+    const sameOrigin = url.origin === page.origin;
+    if (!sameOrigin && (url.protocol !== 'https:' || !PACKAGE_ORIGINS.includes(url.origin))) throw new PlayerError('package-location-invalid');
+    if (url.search || url.hash || url.username || url.password) throw new PlayerError('package-location-invalid');
+    if (!url.pathname.endsWith('/')) url.pathname += '/';
+    return url.href;
+  }
+
+  function image(value, name) {
+    if (!value || !safePath(value.path) || !/\.webp$/.test(value.path) || !Number.isInteger(value.width) || !Number.isInteger(value.height)
+        || value.width < 16 || value.height < 16 || value.width > 4096 || value.height > 4096) throw new PlayerError('manifest-invalid:' + name);
+    const fov = value.fov_degrees ?? 70;
+    if (!Number.isFinite(fov) || fov < 20 || fov > 120) throw new PlayerError('manifest-invalid:' + name);
+    return { path: value.path, width: value.width, height: value.height, fov };
+  }
+
+  /** Accept only the v2 package shape this player was built for. */
+  function validateManifest(json) {
+    const bad = field => { throw new PlayerError('manifest-invalid:' + field); };
+    if (!json || typeof json !== 'object' || json.format !== 'veylet.tour-package') bad('format');
+    if (json.package_format_version !== FORMAT) bad('version');
+    const scene = json.scene || {};
+    if (!safePath(scene.lod_meta) || !scene.lod_meta.endsWith('lod-meta.json')) bad('scene');
+    if (!Number.isInteger(scene.lod_levels) || scene.lod_levels < 1 || scene.lod_levels > 8) bad('lod_levels');
+    if (!Array.isArray(scene.lod_counts) || scene.lod_counts.length !== scene.lod_levels
+        || !scene.lod_counts.every((count, i) => Number.isSafeInteger(count) && count > 0 && (i === 0 || count <= scene.lod_counts[i - 1]))) bad('lod_counts');
+    if (!finite3(scene.rotation_degrees)) bad('rotation');
+    if (!/^#[0-9a-f]{6}$/i.test(scene.background || '')) bad('background');
+    const poster = json.poster || {};
+    const shared = poster.fov_degrees;
+    const posters = {
+      landscape: image({ fov_degrees: shared, ...poster.landscape }, 'poster'),
+      portrait: image({ fov_degrees: shared, ...poster.portrait }, 'poster'),
+      preview: image({ fov_degrees: shared, ...poster.preview }, 'preview'),
+    };
+    if (json.walkable !== null && (!json.walkable || !safePath(json.walkable.path) || !json.walkable.path.endsWith('.json'))) bad('walkable');
+    if (!Array.isArray(json.rooms) || json.rooms.length < 1 || json.rooms.length > 40) bad('rooms');
+    const rooms = json.rooms.map(room => {
+      if (!room || typeof room.id !== 'string' || !/^r\d{1,3}$/.test(room.id)) bad('room');
+      if (room.name !== null && (typeof room.name !== 'string' || !room.name.trim() || room.name.length > 40)) bad('room');
+      return { id: room.id, name: room.name };
+    });
+    if (!Array.isArray(json.stops) || json.stops.length < 1 || json.stops.length > 60) bad('stops');
+    const stops = json.stops.map(stop => {
+      if (!stop || !/^s\d{1,3}$/.test(stop.id || '') || !rooms.some(room => room.id === stop.room)
+          || !finite3(stop.position) || !finite3(stop.target) || !finite3(stop.floor)) bad('stop');
+      if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor };
+    });
+    if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
+    if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
+    return {
+      synthetic: json.synthetic === true,
+      truthLabel: json.truth_label,
+      scene: { lodMeta: scene.lod_meta, levels: scene.lod_levels, counts: scene.lod_counts, rotation: scene.rotation_degrees, background: scene.background },
+      posters,
+      walkable: json.walkable ? json.walkable.path : null,
+      rooms, stops, start: json.start_stop,
+    };
+  }
+
+  /** Splat budget and pixel ratio for this device class; the governor adapts from here. */
+  function deviceProfile(env) {
+    const shortSide = Math.min(env.screenWidth || 0, env.screenHeight || 0) || 800;
+    const touch = Boolean(env.coarse || env.touchPoints > 0);
+    const kind = touch && shortSide <= 540 ? 'phone' : touch && shortSide <= 1100 ? 'tablet' : 'desktop';
+    const api = env.webgpu ? 'webgpu' : env.webgl2 ? 'webgl2' : null;
+    const budgets = { phone: { webgpu: 1_000_000, webgl2: 500_000 }, tablet: { webgpu: 1_500_000, webgl2: 750_000 }, desktop: { webgpu: 3_000_000, webgl2: 2_000_000 } };
+    let budget = api ? budgets[kind][api] : 0;
+    const modest = (env.memory && env.memory <= 4) || (env.cores && env.cores <= 4);
+    if (modest && kind !== 'desktop') budget = Math.round(budget * 0.7);
+    const dpr = env.dpr || 1;
+    const maxPixelRatio = kind === 'desktop' ? Math.min(dpr, 2) : Math.min(dpr, 1.5);
+    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, minPixelRatio: Math.min(1, dpr) };
+  }
+
+  /**
+   * Keeps motion at 30 fps or better. Pixel ratio goes first (cheapest to give
+   * back), then the splat budget. Budget returns slowly when there is room.
+   */
+  function createGovernor(profile) {
+    let samples = [], elapsed = 0, lastChange = -Infinity;
+    const state = { budget: profile.budget, pixelRatio: profile.maxPixelRatio };
+    return {
+      state,
+      // Decide on 45 frames or 1.5 s of frames, whichever comes first, so a
+      // struggling device is helped within seconds rather than after 45 slow frames.
+      sample(frameMs, now) {
+        if (!(frameMs > 0) || frameMs > 1000) return null;
+        samples.push(frameMs);
+        elapsed += frameMs;
+        if ((samples.length < 45 && (elapsed < 1500 || samples.length < 5)) || now - lastChange < 2000) return null;
+        elapsed = 0;
+        const sorted = [...samples].sort((a, b) => a - b);
+        const fps = 1000 / sorted[Math.floor(sorted.length / 2)];
+        samples = [];
+        if (fps < 28) {
+          lastChange = now;
+          if (state.pixelRatio > profile.minPixelRatio + 0.01) {
+            state.pixelRatio = Math.max(profile.minPixelRatio, Math.round(state.pixelRatio * 0.8 * 100) / 100);
+            return { pixelRatio: state.pixelRatio, fps };
+          }
+          if (state.budget > profile.minBudget) {
+            state.budget = Math.max(profile.minBudget, Math.round(state.budget * 0.75));
+            return { budget: state.budget, fps };
+          }
+          return null;
+        }
+        if (fps > 50 && state.budget < profile.maxBudget) {
+          lastChange = now;
+          state.budget = Math.min(profile.maxBudget, Math.round(state.budget * 1.2));
+          return { budget: state.budget, fps };
+        }
+        return null;
+      },
+    };
+  }
+
+  /**
+   * The finest level that fits the budget whole. A room is one scene, so a
+   * single level everywhere looks even and downloads only that level's files;
+   * letting levels mix inside a room fetched most levels on a 0.5M budget.
+   */
+  function detailLevel(counts, budget) {
+    const index = counts.findIndex(count => count <= budget);
+    return index < 0 ? counts.length - 1 : index;
+  }
+
+  function stopLabel(manifest, index) {
+    const stop = manifest.stops[index];
+    const room = manifest.rooms.find(item => item.id === stop.room);
+    return { room: room && room.name ? room.name : '', stop: 'Stop ' + (index + 1) + ' of ' + manifest.stops.length };
+  }
+
+  const stepStop = (index, delta, count) => ((index + delta) % count + count) % count;
+
+  /** Yaw and pitch (degrees) for a PlayCanvas camera, which looks down -Z. */
+  function lookAngles(position, target) {
+    const d = target.map((v, i) => v - position[i]);
+    const length = Math.hypot(...d) || 1;
+    return { yaw: Math.atan2(-d[0], -d[2]) * 180 / Math.PI, pitch: Math.asin(clamp(d[1] / length, -1, 1)) * 180 / Math.PI };
+  }
+
+  function forwardOf(yaw, pitch) {
+    const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180;
+    return [-Math.cos(p) * Math.sin(y), Math.sin(p), -Math.cos(p) * Math.cos(y)];
+  }
+
+  /** The camera field of view that shows exactly what the cover-fitted poster shows. */
+  function fieldOfView(aspect, poster, zoom = 1) {
+    const posterAspect = poster.width / poster.height;
+    if (aspect <= posterAspect) return { horizontal: false, fov: clamp(poster.fov * zoom, 20, 120) };
+    const horizontal = 2 * Math.atan(Math.tan(poster.fov * Math.PI / 360) * posterAspect) * 180 / Math.PI;
+    return { horizontal: true, fov: clamp(horizontal * zoom, 20, 130) };
+  }
+
+  const posterFor = (manifest, aspect) => aspect < 1 ? manifest.posters.portrait : manifest.posters.landscape;
+
+  function decodeWalkable(json) {
+    if (!json || json.version !== 1 || !Number.isFinite(json.cell_metres) || json.cell_metres <= 0 || json.cell_metres > 1
+        || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
+        || !Number.isInteger(json.columns) || !Number.isInteger(json.rows) || json.columns < 1 || json.rows < 1 || json.columns * json.rows > 4_000_000
+        || !Number.isFinite(json.floor_y) || !Number.isFinite(json.eye_height) || typeof json.mask !== 'string') {
+      throw new PlayerError('walkable-invalid');
+    }
+    const binary = atob(json.mask);
+    if (binary.length !== Math.ceil(json.columns * json.rows / 8)) throw new PlayerError('walkable-invalid');
+    const bits = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+    const { columns, rows } = json, cell = json.cell_metres, [x0, z0] = json.origin;
+    const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
+    const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
+    // Every sample on the straight line must be floor: no walking through walls.
+    const clear = (from, to) => {
+      const dx = to[0] - from[0], dz = to[1] - from[1];
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / (cell / 2)));
+      for (let i = 0; i <= steps; i++) if (!walkable(from[0] + dx * i / steps, from[1] + dz * i / steps)) return false;
+      return true;
+    };
+    const runs = [];
+    for (let r = 0; r < rows; r++) {
+      let start = -1;
+      for (let c = 0; c <= columns; c++) {
+        const lit = c < columns && on(c, r);
+        if (lit && start < 0) start = c;
+        if (!lit && start >= 0) { runs.push([x0 + start * cell, z0 + r * cell, (c - start) * cell, cell]); start = -1; }
+      }
+    }
+    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, runs };
+  }
+
+  /** Where a view ray meets the floor plane, if in front and within reach. */
+  function floorHit(origin, direction, floorY, reach = 12) {
+    if (direction[1] >= -1e-4) return null;
+    const t = (floorY - origin[1]) / direction[1];
+    if (!(t > 0) || t > reach) return null;
+    return [origin[0] + direction[0] * t, floorY, origin[2] + direction[2] * t];
+  }
+
+  function nearestStop(manifest, position, within = 0.35) {
+    let best = -1, distance = within;
+    manifest.stops.forEach((stop, index) => {
+      const d = Math.hypot(stop.position[0] - position[0], stop.position[2] - position[2]);
+      if (d <= distance) { best = index; distance = d; }
+    });
+    return best;
+  }
+
+  function browserEnv() {
+    const canvas = document.createElement('canvas');
+    let webgl2 = false;
+    try { webgl2 = Boolean(window.WebGL2RenderingContext && canvas.getContext('webgl2')); } catch { webgl2 = false; }
+    return {
+      screenWidth: window.screen?.width, screenHeight: window.screen?.height, dpr: window.devicePixelRatio || 1,
+      coarse: Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches), touchPoints: navigator.maxTouchPoints || 0,
+      memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency,
+      webgpu: Boolean(navigator.gpu), webgl2,
+    };
+  }
+
+  /** Calls expire after `ms` of visible time; a background tab keeps its allowance. */
+  function visibleDeadline(expire, ms) {
+    let remaining = ms, started = null, timer = null, active = true;
+    const pause = () => { clearTimeout(timer); timer = null; if (started !== null) remaining = Math.max(0, remaining - (performance.now() - started)); started = null; };
+    const schedule = () => {
+      if (!active) return;
+      pause();
+      if (document.hidden) return;
+      started = performance.now();
+      timer = setTimeout(() => { if (!active) return; active = false; document.removeEventListener('visibilitychange', schedule); expire(); }, remaining);
+    };
+    document.addEventListener('visibilitychange', schedule);
+    schedule();
+    return () => { active = false; pause(); document.removeEventListener('visibilitychange', schedule); };
+  }
+
+  // ---------- network ----------
+
+  async function fetchJson(url, limit, signal, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    const timer = setTimeout(abort, timeoutMs);
+    try {
+      let response;
+      try { response = await fetch(url, { signal: controller.signal, credentials: 'omit', cache: 'no-cache' }); } catch { throw new PlayerError('package-unreachable', { transient: true }); }
+      if (response.status === 404 || response.status === 410 || response.status === 403) throw new PlayerError('package-unavailable');
+      if (!response.ok) throw new PlayerError('package-unreachable', { transient: true });
+      const declared = Number(response.headers.get('content-length'));
+      if (declared > limit) throw new PlayerError('package-oversized');
+      const text = await response.text();
+      if (text.length > limit) throw new PlayerError('package-oversized');
+      try { return JSON.parse(text); } catch { throw new PlayerError('manifest-invalid:json'); }
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+
+  function ensureStyle() {
+    const existing = document.querySelector('link[data-veylet-player-v2]');
+    if (existing) return Promise.resolve();
+    return new Promise(resolve => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = STYLE_URL;
+      link.dataset.veyletPlayerV2 = '';
+      const done = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(done, 4000);
+      link.onload = done;
+      link.onerror = done;
+      document.head.append(link);
+    });
+  }
+
+  // ---------- interface ----------
+
+  function el(tag, attributes = {}, text) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value === false || value === null || value === undefined) continue;
+      if (key === 'class') node.className = value;
+      else if (key === 'hidden') node.hidden = true;
+      else node.setAttribute(key, value === true ? '' : value);
+    }
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  const ICONS = {
+    prev: 'M15 5l-7 7 7 7',
+    next: 'M9 5l7 7-7 7',
+    map: 'M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2z M9 4v14 M15 6v14',
+    stops: 'M5 7h14 M5 12h14 M5 17h9',
+    full: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5',
+    exit: 'M9 4v5H4 M20 9h-5V4 M15 20v-5h5 M4 15h5v5',
+    info: 'M12 11v6 M12 7.5v.5 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
+    close: 'M6 6l12 12 M18 6L6 18',
+  };
+  function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', ICONS[name]);
+    svg.append(path);
+    return svg;
+  }
+  function iconButton(name, label, className, visibleText) {
+    const button = el('button', { type: 'button', class: className, 'aria-label': label, title: label });
+    button.append(icon(name));
+    if (visibleText) button.append(el('span', { class: 'v2-label', 'aria-hidden': 'true' }, visibleText));
+    return button;
+  }
+
+  function buildInterface(stage) {
+    stage.replaceChildren();
+    stage.classList.add('v2-stage');
+    const root = el('div', { class: 'v2', 'data-state': 'opening' });
+    const preview = el('img', { class: 'v2-preview', alt: '', decoding: 'async' });
+    const poster = el('img', { class: 'v2-poster', alt: '', decoding: 'async' });
+    const canvas = el('canvas', { class: 'v2-canvas', tabindex: '0', role: 'application',
+      'aria-roledescription': '3D walkthrough',
+      'aria-label': '3D walkthrough. Arrow keys look and move, N and P go to the next and previous stop, M shows the map.' });
+    const hotspots = el('div', { class: 'v2-hotspots', 'aria-hidden': 'true' });
+    const where = el('div', { class: 'v2-where' });
+    const room = el('p', { class: 'v2-room' });
+    const stopLine = el('p', { class: 'v2-stop' });
+    const truth = el('p', { class: 'v2-truth' });
+    where.append(room, stopLine, truth);
+    const about = iconButton('info', 'About this walkthrough', 'v2-icon v2-about-toggle');
+    about.setAttribute('aria-expanded', 'false');
+    const top = el('div', { class: 'v2-top' });
+    top.append(where, about);
+    const status = el('p', { class: 'v2-status', role: 'status', 'aria-live': 'polite' });
+    const progress = el('div', { class: 'v2-progress', hidden: true });
+    progress.append(el('span'));
+    const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
+    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor or a circle to move.');
+    const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
+    const next = iconButton('next', 'Next stop', 'v2-primary v2-next', 'Next stop');
+    const stopsToggle = el('button', { type: 'button', class: 'v2-stops-toggle', 'aria-expanded': 'false', 'aria-haspopup': 'true' });
+    stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
+    const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
+    mapToggle.setAttribute('aria-pressed', 'false');
+    const full = iconButton('full', 'Full screen', 'v2-icon v2-full');
+    const bar = el('div', { class: 'v2-bar', role: 'toolbar', 'aria-label': 'Walkthrough controls', hidden: true });
+    const moves = el('div', { class: 'v2-moves' });
+    moves.append(prev, stopsToggle, next);
+    const tools = el('div', { class: 'v2-tools' });
+    tools.append(mapToggle, full);
+    bar.append(moves, tools);
+    const stopsPanel = el('div', { class: 'v2-panel v2-stops', role: 'dialog', 'aria-label': 'Rooms and stops', hidden: true });
+    const map = el('figure', { class: 'v2-map', hidden: true });
+    const aboutPanel = el('div', { class: 'v2-panel v2-about', role: 'dialog', 'aria-label': 'About this walkthrough', hidden: true });
+    const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
+    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, bar, fallback, announce);
+    stage.append(root);
+    return { root, preview, poster, canvas, hotspots, room, stopLine, truth, about, status, progress, announce, hint,
+      prev, next, stopsToggle, mapToggle, full, bar, stopsPanel, map, aboutPanel, fallback };
+  }
+
+  const FALLBACK_WORDS = {
+    'no-graphics': ['3D can’t open in this browser.', 'This still is rendered from the walkthrough. Open the link in a current browser, such as Safari or Chrome with hardware acceleration on, to walk through it.'],
+    'engine-unavailable': ['3D didn’t load.', 'The 3D player files didn’t arrive. Check the connection and try again. This still is rendered from the walkthrough.'],
+    'context-lost': ['3D stopped on this device.', 'The graphics memory was reclaimed, which can happen on phones with many tabs open. Try again, or close other tabs first.'],
+    'too-slow': ['3D is taking too long.', 'The walkthrough is still loading. Try again on a faster connection. This still is rendered from the walkthrough.'],
+  };
+
+  // ---------- the player ----------
+
+  async function start(stage, options = {}) {
+    const signal = options.signal;
+    const page = options.page || location;
+    const base = resolveBase(options.base, page);
+    const env = options.env || browserEnv();
+    const profile = deviceProfile(env);
+    const reduceQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+    const marks = {};
+    const mark = name => { marks[name] = performance.now(); try { performance.mark('veylet:' + name); } catch { /* optional */ } };
+    mark('start');
+    // The engine download starts now, in parallel with the manifest.
+    const loadEngine = options.loadEngine || (() => import(ENGINE_URL));
+    const engine = profile.api ? Promise.resolve().then(loadEngine).catch(() => null) : Promise.resolve(null);
+    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal);
+    manifestPromise.catch(() => {}); // handled below, after the styles
+    await ensureStyle();
+    if (signal?.aborted) throw new PlayerError('playback-cancelled');
+    const ui = buildInterface(stage);
+    const manifest = validateManifest(await manifestPromise);
+    mark('manifest');
+    const walkablePromise = manifest.walkable
+      ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal).then(decodeWalkable).catch(() => null)
+      : Promise.resolve(null);
+
+    // Preview, then poster. Both are renders of this package from the opening stop.
+    const aspect = () => (stage.clientWidth || 16) / (stage.clientHeight || 9);
+    let posterSpec = posterFor(manifest, aspect());
+    ui.truth.textContent = manifest.synthetic ? 'Synthetic test scene · not to scale' : 'Captured on site · not to scale';
+    ui.poster.alt = 'Opening view, rendered from the walkthrough';
+    let visible = false;
+    const becomeVisible = () => {
+      if (visible) return;
+      visible = true;
+      stage.hidden = false;
+      try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }
+    };
+    ui.preview.addEventListener('load', () => { mark('preview'); ui.root.dataset.preview = 'shown'; becomeVisible(); }, { once: true });
+    ui.poster.addEventListener('load', () => { mark('poster'); ui.root.dataset.poster = 'shown'; becomeVisible(); }, { once: true });
+    ui.poster.addEventListener('error', () => becomeVisible(), { once: true });
+    ui.preview.src = base + manifest.posters.preview.path;
+    ui.poster.src = base + posterSpec.path;
+    const labels = index => {
+      const label = stopLabel(manifest, index);
+      ui.room.textContent = label.room;
+      ui.room.hidden = !label.room;
+      ui.stopLine.textContent = label.stop;
+      return label;
+    };
+    labels(manifest.start);
+
+    const state = { stop: manifest.start, position: [...manifest.stops[manifest.start].position], zoom: 1, ...lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target) };
+    let viewer = null, torndown = false, settled = false;
+    let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
+    let resolveReady;
+    const firstFrame = new Promise(resolve => { resolveReady = resolve; });
+    const settle = outcome => { if (settled) return; settled = true; cancelDeadline(); resolveReady(outcome); };
+    let cancelDeadline = () => {};
+
+    function fail(kind, retryable = true) {
+      const [heading, body] = FALLBACK_WORDS[kind] || FALLBACK_WORDS['engine-unavailable'];
+      ui.fallback.replaceChildren();
+      const title = el('h2', { id: 'v2-fallback-title' }, heading);
+      ui.fallback.append(title, el('p', {}, body));
+      if (retryable) {
+        const retry = el('button', { type: 'button', class: 'v2-primary' }, 'Try again');
+        retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
+        ui.fallback.append(retry);
+      }
+      ui.root.dataset.state = 'fallback';
+      ui.fallback.hidden = false;
+      ui.bar.hidden = true;
+      ui.progress.hidden = true;
+      ui.status.textContent = '';
+      ui.canvas.hidden = true;
+      ui.hotspots.replaceChildren();
+      becomeVisible();
+      teardown();
+      const outcome = { readiness: 'viewer-failed', reason: kind, marks };
+      settle(outcome);
+      return outcome;
+    }
+    function teardown() {
+      if (torndown) return;
+      torndown = true;
+      try { viewer?.destroy(); } catch { /* already gone */ }
+    }
+    signal?.addEventListener('abort', () => { teardown(); ui.root.remove(); }, { once: true });
+
+    if (!profile.api) {
+      await Promise.race([new Promise(resolve => ui.poster.addEventListener('load', resolve, { once: true })), new Promise(resolve => setTimeout(resolve, 4000))]);
+      return fail('no-graphics', false);
+    }
+    ui.status.textContent = 'Loading 3D…';
+    const pc = await engine;
+    if (signal?.aborted) throw new PlayerError('playback-cancelled');
+    if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');
+    mark('engine');
+    const walkable = await walkablePromise;
+    becomeVisible();
+    // The first 3D frame gets 45 s of visible time; a hidden tab keeps its allowance.
+    cancelDeadline = visibleDeadline(() => fail('too-slow'), 45000);
+
+    let device;
+    try {
+      device = await pc.createGraphicsDevice(ui.canvas, {
+        deviceTypes: profile.api === 'webgpu' ? ['webgpu', 'webgl2'] : ['webgl2'],
+        antialias: false, depth: true, stencil: false, alpha: false, powerPreference: 'high-performance',
+      });
+    } catch { device = null; }
+    if (!device || device.deviceType === 'null') return fail('no-graphics', false);
+    const api = device.deviceType === 'webgpu' ? 'webgpu' : 'webgl2';
+    if (api !== profile.api) Object.assign(profile, deviceProfile({ ...env, webgpu: false }));
+    const governor = createGovernor(profile);
+    device.maxPixelRatio = governor.state.pixelRatio;
+
+    const app = new pc.Application(ui.canvas, { graphicsDevice: device });
+    viewer = app;
+    app.setCanvasFillMode(pc.FILLMODE_NONE);
+    app.setCanvasResolution(pc.RESOLUTION_AUTO);
+    try { app.loader.getHandler('texture').imgParser.crossOrigin = 'anonymous'; } catch { /* same-origin packages need nothing */ }
+    const levels = manifest.scene.levels;
+    app.scene.gsplat.splatBudget = governor.state.budget;
+    // After the first pass, each part of the room goes straight to the level
+    // its distance and the budget call for; the coarse data stays on screen
+    // until that level arrives, so no bytes go on levels in between.
+    app.scene.gsplat.lodUnderfillLimit = 0;
+    const camera = new pc.Entity('camera');
+    camera.addComponent('camera', { clearColor: new pc.Color().fromString(manifest.scene.background), nearClip: 0.05, farClip: 200 });
+    app.root.addChild(camera);
+    const splat = new pc.Entity('walkthrough');
+    splat.setLocalEulerAngles(...manifest.scene.rotation);
+    const asset = new pc.Asset('walkthrough', 'gsplat', { url: base + manifest.scene.lodMeta });
+    app.assets.add(asset);
+    splat.addComponent('gsplat', { asset, unified: true });
+    // First pass: the coarsest level only, so the room appears as soon as it can.
+    splat.gsplat.lodRangeMin = levels - 1;
+    splat.gsplat.lodRangeMax = levels - 1;
+    app.root.addChild(splat);
+
+    const reduced = () => reduceQuery.matches;
+    let continuous = 0; // frames that must render back to back (moves, drags, streaming)
+    const requestRender = () => { app.renderNextFrame = true; };
+    function applyCamera() {
+      camera.setPosition(...state.position);
+      camera.setEulerAngles(state.pitch, state.yaw, 0);
+      const view = fieldOfView(aspect(), posterSpec, state.zoom);
+      camera.camera.horizontalFov = view.horizontal;
+      camera.camera.fov = view.fov;
+      requestRender();
+      placeHotspots();
+    }
+
+    // ----- stops, hotspots, map -----
+    const hotspotButtons = manifest.stops.map((stop, index) => {
+      const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1' });
+      button.append(el('span', {}, String(index + 1)));
+      button.addEventListener('click', event => { event.stopPropagation(); goToStop(index); });
+      ui.hotspots.append(button);
+      return button;
+    });
+    const screen = new pc.Vec3(), world = new pc.Vec3();
+    function placeHotspots() {
+      if (!ready) return;
+      const forward = forwardOf(state.yaw, state.pitch);
+      const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight;
+      manifest.stops.forEach((stop, index) => {
+        const button = hotspotButtons[index];
+        const d = stop.floor.map((v, i) => v - state.position[i]);
+        const distance = Math.hypot(d[0], d[2]);
+        const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
+        const reachable = !walkable || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]]);
+        if (index === state.stop && distance < 0.4 || !inFront || !reachable || distance > 12) { button.hidden = true; return; }
+        world.set(...stop.floor);
+        camera.camera.worldToScreen(world, screen);
+        // A disc half off the edge is still worth a tap.
+        if (screen.x < -12 || screen.y < -12 || screen.x > width + 12 || screen.y > height + 12) { button.hidden = true; return; }
+        button.hidden = false;
+        const size = clamp(Math.round(260 / Math.max(distance, 0.8)), 28, 64);
+        button.style.setProperty('--size', size + 'px');
+        button.style.transform = `translate(${Math.round(screen.x)}px, ${Math.round(screen.y)}px)`;
+        button.title = [stopLabel(manifest, index).room, 'Stop ' + (index + 1)].filter(Boolean).join(' · ');
+      });
+      drawMapMarker();
+    }
+
+    function buildStopsPanel() {
+      ui.stopsPanel.replaceChildren();
+      const heading = el('div', { class: 'v2-panel-head' });
+      heading.append(el('h2', {}, manifest.rooms.length > 1 ? 'Rooms and stops' : 'Stops'));
+      const close = iconButton('close', 'Close', 'v2-icon');
+      close.addEventListener('click', () => togglePanel(ui.stopsPanel, ui.stopsToggle, false));
+      heading.append(close);
+      ui.stopsPanel.append(heading);
+      for (const room of manifest.rooms) {
+        const group = el('section', { class: 'v2-room-group' });
+        if (manifest.rooms.length > 1 || room.name) group.append(el('h3', {}, room.name || 'Other stops'));
+        const list = el('ol');
+        manifest.stops.forEach((stop, index) => {
+          if (stop.room !== room.id) return;
+          const item = el('li');
+          const button = el('button', { type: 'button', class: 'v2-stop-button', 'data-stop': String(index) }, 'Stop ' + (index + 1));
+          button.addEventListener('click', () => { togglePanel(ui.stopsPanel, ui.stopsToggle, false); goToStop(index); });
+          item.append(button);
+          list.append(item);
+        });
+        group.append(list);
+        ui.stopsPanel.append(group);
+      }
+    }
+    function markCurrent() {
+      for (const button of ui.stopsPanel.querySelectorAll('[data-stop]')) {
+        if (Number(button.dataset.stop) === state.stop) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+      }
+      ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? (state.stop + 1) : '–') + ' of ' + manifest.stops.length;
+      ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? state.stop + 1 : 'none') + ' of ' + manifest.stops.length);
+    }
+    function aboutContents() {
+      ui.aboutPanel.replaceChildren();
+      const heading = el('div', { class: 'v2-panel-head' });
+      heading.append(el('h2', {}, 'About this walkthrough'));
+      const close = iconButton('close', 'Close', 'v2-icon');
+      close.addEventListener('click', () => togglePanel(ui.aboutPanel, ui.about, false));
+      heading.append(close);
+      const controls = el('ul', { class: 'v2-controls' });
+      for (const line of [
+        'Drag to look around. Pinch, or use + and −, to zoom.',
+        walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
+        'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
+      ]) controls.append(el('li', {}, line));
+      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.2 (MIT licence). ');
+      const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
+      credits.append(licence);
+      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls, credits);
+    }
+
+    // Map of stops: floor from the walkable mask, turned so the opening view points up.
+    const mapTurn = lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target).yaw;
+    let mapMarker = null, mapHeading = null, mapGroup = null;
+    function buildMap() {
+      const ns = 'http://www.w3.org/2000/svg';
+      // Framed on the stops, with the floor around them for context.
+      const xs = manifest.stops.map(stop => stop.floor[0]), zs = manifest.stops.map(stop => stop.floor[2]);
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+      const half = Math.max(2, Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 1.2);
+      const svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('viewBox', `${-half} ${-half} ${half * 2} ${half * 2}`);
+      svg.setAttribute('aria-hidden', 'true');
+      mapGroup = document.createElementNS(ns, 'g');
+      // Map x right, z down; turned so the opening view faces up.
+      mapGroup.setAttribute('transform', `rotate(${mapTurn}) translate(${-cx} ${-cz})`);
+      if (walkable) {
+        const floor = document.createElementNS(ns, 'path');
+        floor.setAttribute('class', 'v2-map-floor');
+        floor.setAttribute('d', walkable.runs.map(([x, z, w, h]) => `M${x.toFixed(2)} ${z.toFixed(2)}h${w.toFixed(2)}v${h.toFixed(2)}h${(-w).toFixed(2)}z`).join(''));
+        mapGroup.append(floor);
+      }
+      manifest.stops.forEach((stop, index) => {
+        const dot = document.createElementNS(ns, 'g');
+        dot.setAttribute('class', 'v2-map-stop');
+        dot.setAttribute('transform', `translate(${stop.floor[0]} ${stop.floor[2]})`);
+        const circle = document.createElementNS(ns, 'circle');
+        // Sizes scale with the view, so dots and numbers keep one on-screen size.
+        circle.setAttribute('r', String(half * 0.1));
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('transform', `rotate(${-mapTurn})`);
+        label.setAttribute('font-size', String(half * 0.12));
+        label.setAttribute('dy', String(half * 0.042));
+        label.textContent = String(index + 1);
+        dot.append(circle, label);
+        dot.addEventListener('click', () => goToStop(index));
+        mapGroup.append(dot);
+      });
+      mapMarker = document.createElementNS(ns, 'g');
+      mapMarker.setAttribute('class', 'v2-map-you');
+      mapHeading = document.createElementNS(ns, 'path');
+      const r = half * 0.3;
+      mapHeading.setAttribute('d', `M0 0L${(-r * 0.45).toFixed(3)} ${(-r).toFixed(3)}A${r} ${r} 0 0 1 ${(r * 0.45).toFixed(3)} ${(-r).toFixed(3)}Z`);
+      const you = document.createElementNS(ns, 'circle');
+      you.setAttribute('r', String(half * 0.05));
+      mapMarker.append(mapHeading, you);
+      mapGroup.append(mapMarker);
+      svg.append(mapGroup);
+      ui.map.replaceChildren(svg, el('figcaption', {}, 'Map of stops · not to scale'));
+    }
+    function drawMapMarker() {
+      if (!mapMarker) return;
+      // Heading in map space: yaw 0 looks toward -z, which is map-up before the turn.
+      mapMarker.setAttribute('transform', `translate(${state.position[0].toFixed(3)} ${state.position[2].toFixed(3)}) rotate(${(-state.yaw).toFixed(1)})`);
+    }
+
+    function togglePanel(panel, toggle, open) {
+      const show = open ?? panel.hidden;
+      for (const [other, button] of [[ui.stopsPanel, ui.stopsToggle], [ui.aboutPanel, ui.about]]) {
+        if (other !== panel && !other.hidden) { other.hidden = true; button.setAttribute('aria-expanded', 'false'); }
+      }
+      panel.hidden = !show;
+      toggle.setAttribute('aria-expanded', String(show));
+      // One overlay at a time: the map steps aside while a panel is open.
+      if (show) ui.root.dataset.panel = 'open'; else delete ui.root.dataset.panel;
+      if (show) {
+        const target = panel.querySelector('[aria-current="true"]') || panel.querySelector('button');
+        target?.focus();
+      } else if (panel.contains(document.activeElement) || document.activeElement === document.body) toggle.focus();
+    }
+
+    // ----- movement -----
+    let flight = null;
+    const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    function flyTo(position, yaw, pitch, onArrive) {
+      flight = null;
+      if (reduced()) {
+        Object.assign(state, { position, yaw, pitch });
+        applyCamera();
+        onArrive?.();
+        return;
+      }
+      let deltaYaw = ((yaw - state.yaw) % 360 + 540) % 360 - 180;
+      const from = { position: [...state.position], yaw: state.yaw, pitch: state.pitch };
+      const distance = Math.hypot(...position.map((v, i) => v - from.position[i]));
+      const duration = clamp(450 + distance * 220, 450, 1100);
+      flight = { from, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
+      continuous++;
+    }
+    function stepFlight(now) {
+      if (!flight) return;
+      const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
+      state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
+      state.yaw = flight.from.yaw + flight.deltaYaw * k;
+      state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
+      applyCamera();
+      if (t >= 1) { const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); done?.(); }
+    }
+    function arrived(index) {
+      state.stop = index;
+      const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99)));
+      if (index < 0) ui.stopLine.textContent = 'Between stops';
+      markCurrent();
+      placeHotspots();
+      ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
+    }
+    function goToStop(index) {
+      if (!ready) return;
+      dismissHint();
+      const stop = manifest.stops[index];
+      const look = lookAngles(stop.position, stop.target);
+      flyTo([...stop.position], look.yaw, look.pitch, () => arrived(index));
+    }
+    function walkTo(point) {
+      const eye = walkable ? walkable.eyeHeight : 1.4;
+      const target = [point[0], point[1] + eye, point[2]];
+      flyTo(target, state.yaw, state.pitch, () => arrived(nearestStop(manifest, target)));
+    }
+    let messageTimer = null;
+    function say(message) {
+      ui.status.textContent = message;
+      clearTimeout(messageTimer);
+      messageTimer = setTimeout(() => { if (ui.status.textContent === message) ui.status.textContent = ''; }, 3500);
+    }
+    function stepForward(sign) {
+      if (!walkable) { say('Use Next stop, or the N and P keys, to move.'); return; }
+      const forward = forwardOf(state.yaw, 0);
+      const to = [state.position[0] + forward[0] * 0.35 * sign, state.position[2] + forward[2] * 0.35 * sign];
+      if (!walkable.clear([state.position[0], state.position[2]], to)) { say('A wall or furniture is in the way.'); return; }
+      walkTo([to[0], walkable.floorY, to[1]]);
+    }
+    function tapAt(clientX, clientY) {
+      const rect = ui.canvas.getBoundingClientRect();
+      const x = clientX - rect.left, y = clientY - rect.top;
+      if (!walkable) { say('Tap a numbered circle, or use Next stop, to move.'); return; }
+      const near = camera.camera.screenToWorld(x, y, camera.camera.nearClip, new pc.Vec3());
+      const far = camera.camera.screenToWorld(x, y, camera.camera.farClip, new pc.Vec3());
+      const direction = [far.x - near.x, far.y - near.y, far.z - near.z];
+      const length = Math.hypot(...direction);
+      const hit = floorHit([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
+      if (!hit || !walkable.walkable(hit[0], hit[2]) || !walkable.clear([state.position[0], state.position[2]], [hit[0], hit[2]])) {
+        say('You can’t walk there. Tap open floor, or a numbered circle.');
+        return;
+      }
+      walkTo(hit);
+    }
+
+    // ----- input -----
+    const pointers = new Map();
+    let drag = null, pinch = null;
+    ui.canvas.addEventListener('pointerdown', event => {
+      if (!ready) return;
+      dismissHint();
+      ui.canvas.setPointerCapture?.(event.pointerId);
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
+      else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom: state.zoom };
+        drag = null;
+      }
+      continuous++;
+    });
+    ui.canvas.addEventListener('pointermove', event => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch && pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        state.zoom = clamp(pinch.zoom * pinch.distance / Math.max(distance, 1), 0.55, 1.3);
+        applyCamera();
+      } else if (drag) {
+        const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+        drag.x = event.clientX; drag.y = event.clientY;
+        drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
+        const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
+        flight = null;
+        state.yaw += dx * perPixel;
+        state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
+        applyCamera();
+      }
+    });
+    const release = event => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.delete(event.pointerId);
+      continuous = Math.max(0, continuous - 1);
+      if (drag && event.type === 'pointerup' && drag.moved < 8 && performance.now() - drag.time < 450) tapAt(event.clientX, event.clientY);
+      if (pointers.size < 2) pinch = null;
+      drag = null;
+    };
+    ui.canvas.addEventListener('pointerup', release);
+    ui.canvas.addEventListener('pointercancel', release);
+    // A listing page scrolls with the wheel; zoom only on a trackpad pinch.
+    ui.canvas.addEventListener('wheel', event => {
+      if (!ready || !event.ctrlKey) return;
+      event.preventDefault();
+      state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
+      applyCamera();
+    }, { passive: false });
+    ui.canvas.addEventListener('keydown', event => {
+      if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
+      const key = event.key;
+      const handled = () => { event.preventDefault(); dismissHint(); };
+      if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); flight = null; state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
+      else if (key === 'ArrowUp' || key === 'ArrowDown') { handled(); stepForward(key === 'ArrowUp' ? 1 : -1); }
+      else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
+      else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(Math.max(state.stop, 0), 1, manifest.stops.length)); }
+      else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(state.stop < 0 ? 0 : state.stop, -1, manifest.stops.length)); }
+      else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(Number(key) - 1); }
+      else if (key === 'Home') { handled(); goToStop(manifest.start); }
+      else if (key === '+' || key === '=') { handled(); state.zoom = clamp(state.zoom * 0.9, 0.55, 1.3); applyCamera(); }
+      else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
+      else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
+    });
+    // Any press anywhere in the player means the visitor has found the controls.
+    ui.root.addEventListener('pointerdown', () => dismissHint(), true);
+    ui.root.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
+      else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
+    });
+    ui.prev.addEventListener('click', () => goToStop(stepStop(state.stop < 0 ? 0 : state.stop, -1, manifest.stops.length)));
+    ui.next.addEventListener('click', () => goToStop(stepStop(Math.max(state.stop, 0), 1, manifest.stops.length)));
+    ui.stopsToggle.addEventListener('click', () => togglePanel(ui.stopsPanel, ui.stopsToggle));
+    ui.about.addEventListener('click', () => togglePanel(ui.aboutPanel, ui.about));
+    function toggleMap(show) {
+      const open = show ?? ui.map.hidden;
+      ui.map.hidden = !open;
+      ui.mapToggle.setAttribute('aria-pressed', String(open));
+      ui.mapToggle.setAttribute('aria-label', open ? 'Hide map of stops' : 'Show map of stops');
+      ui.mapToggle.title = ui.mapToggle.getAttribute('aria-label');
+    }
+    ui.mapToggle.addEventListener('click', () => toggleMap());
+    const canFullscreen = Boolean(document.fullscreenEnabled && stage.requestFullscreen);
+    ui.full.hidden = !canFullscreen;
+    ui.full.addEventListener('click', () => {
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+      else stage.requestFullscreen().catch(() => say('Full screen isn’t available here.'));
+    });
+    const fullscreenChanged = () => {
+      const on = document.fullscreenElement === stage;
+      ui.full.replaceChildren(icon(on ? 'exit' : 'full'));
+      ui.full.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+      ui.full.title = ui.full.getAttribute('aria-label');
+    };
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+
+    let hintTimer = null;
+    function dismissHint() {
+      if (ui.hint.hidden) return;
+      ui.hint.hidden = true;
+      clearTimeout(hintTimer);
+      try { localStorage.setItem(HINT_KEY, '1'); } catch { /* per-viewer convenience only */ }
+    }
+    function offerHint() {
+      let seen = false;
+      try { seen = localStorage.getItem(HINT_KEY) === '1'; } catch { seen = false; }
+      // A small embed has no room for a hint over the room itself.
+      if (seen || stage.clientHeight < 420 || stage.clientWidth < 360) return;
+      ui.hint.hidden = false;
+      hintTimer = setTimeout(dismissHint, 9000);
+    }
+
+    // ----- rendering, loading phases and frame pacing -----
+    const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, frames: [], changes: [] };
+    app.systems.gsplat.on('frame:request', requestRender);
+    app.systems.gsplat.on('frame:ready', (cam, layer, frameReady, loadingCount) => {
+      if (loadingCount > 0) sawLoading = true;
+      if (phase === 'coarse') {
+        if (!frameReady || loadingCount > 0) return;
+        // Data served from cache may never show as loading; a settled second of frames will do.
+        if (!sawLoading && ++readyFrames < 30) return;
+        phase = 'detail';
+        mark('first-3d');
+        ready = true;
+        ui.root.dataset.state = 'ready';
+        ui.canvas.hidden = false;
+        ui.bar.hidden = false;
+        ui.status.textContent = 'Sharpening detail…';
+        ui.progress.hidden = false;
+        ui.progress.firstChild.style.transform = 'scaleX(0)';
+        // Finer levels now stream under the budget, over what is already on screen.
+        stats.level = detailLevel(manifest.scene.counts, governor.state.budget);
+        splat.gsplat.lodRangeMin = stats.level;
+        sawLoading = false;
+        readyFrames = 0;
+        requestRender();
+        placeHotspots();
+        markCurrent();
+        offerHint();
+        settle({ readiness: 'viewer-ready', marks, stats });
+        return;
+      }
+      if (phase === 'detail') {
+        maxLoading = Math.max(maxLoading, loadingCount);
+        const done = maxLoading ? (maxLoading - loadingCount) / maxLoading : 1;
+        ui.progress.firstChild.style.transform = `scaleX(${done.toFixed(3)})`;
+        if (frameReady && loadingCount === 0 && (sawLoading || ++readyFrames >= 30)) {
+          phase = 'complete';
+          mark('detail');
+          ui.progress.hidden = true;
+          if (ui.status.textContent === 'Sharpening detail…') ui.status.textContent = '';
+          continuous = Math.max(0, continuous - 1);
+        }
+      }
+    });
+    continuous++; // stream the first levels continuously; released when detail completes
+    app.on('update', () => {
+      const now = performance.now();
+      stepFlight(now);
+      if (continuous > 0 || benchmark) requestRender();
+      if (benchmark) {
+        state.yaw += benchmark.degreesPerFrame;
+        applyCamera();
+        if (now > benchmark.until) { const done = benchmark.done; benchmark = null; done(); }
+      }
+    });
+    app.on('postrender', () => {
+      const now = performance.now();
+      if (lastRender && (continuous > 0 || benchmark)) {
+        const frameMs = now - lastRender;
+        stats.frames.push(frameMs);
+        if (stats.frames.length > 600) stats.frames.shift();
+        const change = governor.sample(frameMs, now);
+        if (change) {
+          stats.changes.push({ at: Math.round(now), ...change });
+          if (change.pixelRatio) { device.maxPixelRatio = change.pixelRatio; stats.pixelRatio = change.pixelRatio; app.updateCanvasSize(); }
+          if (change.budget) {
+            app.scene.gsplat.splatBudget = change.budget;
+            stats.budget = change.budget;
+            if (phase !== 'coarse') { stats.level = detailLevel(manifest.scene.counts, change.budget); splat.gsplat.lodRangeMin = stats.level; }
+          }
+        }
+      }
+      lastRender = now;
+    });
+    const observer = new ResizeObserver(() => {
+      posterSpec = ready ? posterFor(manifest, aspect()) : posterSpec;
+      app.updateCanvasSize();
+      applyCamera();
+    });
+    observer.observe(stage);
+    const lost = () => fail('context-lost');
+    device.on?.('devicelost', lost);
+    ui.canvas.addEventListener('webglcontextlost', lost);
+    const visibility = () => { if (!document.hidden) requestRender(); };
+    document.addEventListener('visibilitychange', visibility);
+
+    buildStopsPanel();
+    aboutContents();
+    buildMap();
+    markCurrent();
+    ui.canvas.hidden = false;
+    app.autoRender = false;
+    app.updateCanvasSize();
+    applyCamera();
+    app.assets.load(asset);
+    app.start();
+    asset.on('error', () => fail('engine-unavailable'));
+    // A wide screen has room for the map from the start; phones open it on request.
+    toggleMap(stage.clientWidth >= 900);
+
+    const originalDestroy = app.destroy.bind(app);
+    viewer = {
+      destroy() {
+        observer.disconnect();
+        document.removeEventListener('visibilitychange', visibility);
+        document.removeEventListener('fullscreenchange', fullscreenChanged);
+        originalDestroy();
+      },
+    };
+    const controller = {
+      stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames) }),
+      goToStop, tapAt,
+      // For QA and measurement: the camera state and where each stop's floor disc projects.
+      inspect: () => {
+        const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
+        return { state: { ...state, position: [...state.position] }, discs, ready };
+      },
+      benchmark(seconds = 5, degreesPerSecond = 30) {
+        stats.frames = [];
+        return new Promise(resolve => {
+          benchmark = { until: performance.now() + seconds * 1000, degreesPerFrame: degreesPerSecond / 60, done: () => resolve(controller.stats()) };
+        });
+      },
+    };
+    window.VeyletPlayerV2.current = controller;
+    return firstFrame;
+  }
+
+  function medianFps(frames) {
+    if (!frames.length) return null;
+    const sorted = [...frames].sort((a, b) => a - b);
+    return Math.round(10000 / sorted[Math.floor(sorted.length / 2)]) / 10;
+  }
+
+  window.VeyletPlayerV2 = {
+    FORMAT, PlayerError, PACKAGE_ORIGINS,
+    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
+    fieldOfView, posterFor, decodeWalkable, floorHit, nearestStop, medianFps, detailLevel,
+    start, current: null,
+  };
+})();

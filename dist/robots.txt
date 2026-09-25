@@ -1,8 +1,32 @@
+# Veylet crawler policy.
+# Public pages are open to search engines and AI crawlers. Account, sign-in
+# return, private handoff, owner preview and embed surfaces are private for
+# every agent. A crawler obeys only the most specific group that names it, so
+# the named group below repeats the same private paths. Disallow lines come
+# first so parsers that apply the first matching rule read them the same way.
+
 User-agent: *
-Allow: /
 Disallow: /account
 Disallow: /auth
 Disallow: /handoff
 Disallow: /play
 Disallow: /embed
+Allow: /
+
+# Search and AI crawlers, named explicitly: public pages allowed.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Google-Extended
+User-agent: Bingbot
+Disallow: /account
+Disallow: /auth
+Disallow: /handoff
+Disallow: /play
+Disallow: /embed
+Allow: /
+
 Sitemap: https://veylet.com/sitemap.xml

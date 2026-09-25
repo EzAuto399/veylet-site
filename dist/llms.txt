@@ -1,10 +1,74 @@
 # Veylet
 
-3D walkthroughs for homes, businesses and venues.
+> Veylet (Veylet Studio) makes 3D walkthroughs for homes, businesses and venues. Anyone with a LiDAR iPhone captures a space with the Veylet Capture app; Veylet processes and checks it automatically, usually within 1–2 hours of the upload finishing, and hosts a walkthrough the account reviews and approves before sharing, shared as a link or a website embed that viewers open with no app. Early accounts are onboarding in south-east Queensland, Australia; no client-accepted tour is available yet.
 
-- Site: https://veylet.com/
-- Apply to use Veylet (operators): https://veylet.com/apply
-- Request a walkthrough (managed): https://veylet.com/request
+Short answers:
+- What it is: the product is the Veylet Capture iPhone app plus automatic cloud processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
+- Processing: automatic, with no person checking. An automatic quality check (held-out photo match, coverage, floaters and walkable paths) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms. The walkthrough is usually ready for review within 1–2 hours of the upload finishing. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
+- Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
+- The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- Price in one line: 3 free months with 6 accepted walkthroughs in total for eligible accounts, with a payment method on file and the first charge on the day they end, then the Veylet plan at A$99 a month by card or studio invoice (A$119.99 a month in the App Store) with 2 accepted walkthroughs a month and unused ones rolling over (up to 4 banked), or A$990 a year by card or studio invoice (A$1,199.99 a year in the App Store) with 24 walkthroughs to use any time in the plan year; Super fast renders at A$29 (ready in about 30 minutes, any day, any time, or refunded) and walkthrough packs of 3 (A$169) or 10 (A$499) for busier months. Totals in AUD. Details: https://veylet.com/offer
+- Viewers: tour viewers need no app. Studio visits are not currently offered.
 - Contact: yoda@yodalai.xyz
 
-Applying is free assessment. It does not create an account, grant app access, take payment, or promise jobs, leads or earnings.
+## Pages
+- Site: https://veylet.com/
+- Offer and prices: https://veylet.com/offer
+- Start with one space (enquiry; we reply with the app invitation): https://veylet.com/request
+- Apply as a capture partner (capturing for your own clients): https://veylet.com/apply
+- First-tour guide: https://veylet.com/start
+- Website sharing and embed guide: https://veylet.com/website-guide
+- Support: https://veylet.com/support (email support; what to include; the quick answers)
+- Subscription terms (eligible 3 free months with 6 accepted walkthroughs total, with a payment method on file and the first charge on the day they end, one trial per agency (ABN) and workspace; the Veylet plan monthly with rollover up to 4 banked, or annual with a 24-walkthrough yearly pool; walkthrough packs valid 12 months; Super fast renders refunded if late; the first walkthrough redone free if it is not listing-ready; bonus walkthroughs for an early annual choice and for referrals; a home with 5 or more bedrooms, a second dwelling or more than 350 m² counts as 2; activation through the App Store, a card saved on the website once card payment opens, or an agreed studio trial; App Store automatic renewal at the plan price with the full amount and date disclosed, studio invoices do not auto-renew; cancel through Settings › Subscriptions or contact the studio for invoiced service; refund terms depend on the payment channel): https://veylet.com/terms
+- Delete your account (ask in the app or on the desk; completed within 30 days; cancel the request before removal starts; once removal starts, access and sharing stop and covered hosted files cannot be restored through your account; your device/exported/downloaded copies are outside this deletion; minimal accounting and legal records may be retained; deleting Veylet does not cancel an Apple subscription): https://veylet.com/account
+
+## Guides
+Sourced answers, checked 24 September 2026. Index: https://veylet.com/guides
+- What is a 3D walkthrough? https://veylet.com/guides/what-is-a-3d-walkthrough — A 3D walkthrough is an interactive 3D reconstruction of a real space, explored in a browser. How it differs from a 360° tour and a video, and its limits.
+- What does a 3D tour cost in Australia? https://veylet.com/guides/3d-tour-cost-australia — Published 3D tour prices in Australia, checked 24 September 2026: photographers, Matterport and iGUIDE, and what makes one quote higher than another.
+- iPhone LiDAR or a dedicated 3D camera? https://veylet.com/guides/iphone-lidar-vs-matterport — A LiDAR iPhone Pro can capture smaller homes and simpler spaces for a 3D tour; a dedicated camera like Matterport’s Pro3 reaches further but costs more.
+- Is it safe to put a 3D tour of your home online? https://veylet.com/guides/privacy-3d-home-tour — It can be. Clear names, documents, screens and valuables before capture, check every room before release, and share by a private link you can switch off.
+- Will a 3D tour show on realestate.com.au or Domain? https://veylet.com/guides/3d-tours-realestate-com-au-domain — realestate.com.au shows 3D tours only from listed suppliers and Domain bundles Matterport; share a Veylet walkthrough by private link or on your own site.
+- Do 3D tours help a property sell or lease faster? https://veylet.com/guides/do-3d-tours-help-sell-faster — Zillow and Matterport report faster sales with 3D tours, but a Harvard study of 75,178 sales found little effect once photo quality was counted.
+
+## Free months
+- Capture with a LiDAR iPhone.
+- 3 free months with 6 accepted walkthroughs in total for eligible accounts, starting the day the plan is activated with a payment method on file: Apple's 3-month free introductory offer in the app, a card saved in Square's card field in the account on this website, or an agreed paid start date in writing for a studio invoice. The App Store introductory offer applies to both the monthly and the annual plan.
+- The first charge is on the day the free months end, at the price of the plan chosen; cancelling before then charges nothing.
+- One trial per agency (ABN) and workspace; real captures unlock in the app once the practice room passes.
+- Card payment on the website is coming later.
+- App Store subscriptions auto-renew unless cancelled through Apple; studio invoice periods require explicit agreement and settlement and do not auto-renew.
+- The full amount and date are disclosed before activation; cancel any time.
+- A reminder email 7 days before the first charge is planned but not running yet; check the date in the account or in Apple subscription settings.
+- More walkthroughs inside the free months come from a walkthrough pack (below), which can be bought during the free months; the free-months end date stays the same.
+
+## Plans and prices (AUD)
+- One plan, the Veylet plan, monthly or annual. Monthly: A$99 a month by studio invoice (and by card on this website once card payment opens), or A$119.99 a month in the App Store; 2 accepted walkthroughs a month, and unused ones roll over, up to 4 banked. Annual: A$990 a year by studio invoice, or by card once card payment opens (2 months free: A$198 less than 12 monthly payments), or A$1,199.99 a year in the App Store; 24 walkthroughs to use any time in the plan year (a yearly pool with no monthly limit, reset on each plan-year anniversary, no rollover between years). Either way: unlimited seats (everyone in the office captures on one account), and every released walkthrough live while the plan runs.
+- Early annual bonus: choose annual before the free months end and get 4 bonus walkthroughs and 4 Super fast renders in the first plan year (28 walkthroughs in total), once per workspace. Super fast renders are used on the website.
+- Per walkthrough: A$49.50 on the monthly plan (A$99 for 2) and A$41.25 on the annual (A$990 for 24), when every included walkthrough is used. For comparison, a photographer's 3D tour costs A$215–400 each (published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026; see the 3D tour cost guide below).
+- Super fast render: A$29 a capture, on the website only: rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically. When a bonus Super fast render was used, it is returned instead. No daily limit and no business hours. Not sold in the app.
+- First walkthrough: if an account's first walkthrough isn't listing-ready, we redo it free. The redo is a correction on the same link and uses no walkthrough; a new capture visit is not included.
+- Walkthrough packs for busier months: 3 walkthroughs for A$169 or 10 walkthroughs for A$499 (website and studio invoice prices), each valid 12 months after purchase and used only after the included walkthroughs of the free months or the plan. The account owner can buy one during the free months or on the plan: by studio invoice today, by card in the account once card payment opens, and in the app in a later app version.
+- The App Store sells the Veylet plan monthly and annual.
+- Referrals: when an office you refer becomes a paying account, you each get 1 bonus walkthrough. Share your own link from your account.
+- These are separate published channel prices; Apple programme enrolment and net proceeds are not verified.
+- Founding agencies (by invitation only, at most five): the normal plan and pack prices, with no locked or special price. Perks: priority rendering, a free 3-pack for each referred office that becomes a paying account (up to four), and a direct line to the founder. There is nothing to sign up for.
+- Hosting: every released walkthrough stays live while the account has a running plan (free months, monthly or annual), and in any case for at least twelve months after its release; after both, hosting costs A$49 a year per walkthrough, only on request.
+- Additional work by agreement: editing A$120 an hour. In-person capture and office visits are not currently offered.
+- Totals in AUD.
+
+## What counts
+- An accepted walkthrough is one the automatic quality check passed and the account approved for release; a failed capture never counts.
+- 1 walkthrough is one visit to the interior rooms of one home. A home with 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2, declared when the listing is added; the count locks when capture starts. Corrections to the same walkthrough do not use a second unit; separately agreed walkthroughs count separately, including at the same property.
+- Pack walkthroughs are added only once the pack's payment has settled; no automatic debt or early paid trial switch is available.
+- Route checks in the app do not prove quality; the automatic quality check after upload assesses the capture.
+
+## Enquiries, applications and accounts
+- Enquiries and applications are free.
+- Applying is free assessment. It does not create an account, grant app access, take payment, or promise jobs, leads or earnings.
+- Managed enquiries begin with name/business, email, space category, general region and viewer purpose. Further agency/space details are optional initially.
+- Scope, capture authority, exclusions, quote, hosting dates and sharing approval are confirmed separately before the corresponding work.
+- Enquiries and applications use FormSubmit; a return page is not proof of inbox delivery.
+- The website takes no live card payment yet: a plan is started in the app through the App Store, or invoiced by the studio under agreed terms. When card payment opens, a card saved in Square's card field in the account starts the free months, and nothing is charged until they end.
+- Email accounts are free when access is available; access is currently a limited studio test. Contact the studio before a first sign-in.
+- Production capture needs assessment; capture, processing, hosting and invited pilot allowances require agreed scope. Phone recording does not automatically reconstruct a tour.

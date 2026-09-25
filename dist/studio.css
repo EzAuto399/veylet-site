@@ -1,0 +1,963 @@
+/* Veylet studio desk. Operate mode: the incumbent ink-on-paper world, but
+   dense and scannable. Hairlines instead of cards, tabular numerals so a
+   changed count shifts nothing, one sage accent on the active sort. */
+
+main.studio-page {
+  max-width: 1456px;
+  padding-block: 56px 88px;
+}
+main.studio-page > h1 {
+  max-width: 22ch;
+}
+main.studio-page > .intro {
+  max-width: 64ch;
+  margin-top: 20px;
+  margin-bottom: 24px;
+}
+main.studio-page > .contact-note,
+main.studio-page noscript p,
+#studio-desk > .contact-note,
+#studio-gate p {
+  max-width: 68ch;
+}
+#studio-status:empty,
+#studio-who:empty,
+#studio-summary:empty {
+  display: none;
+}
+#studio-who {
+  margin: 0 0 4px;
+}
+
+/* The one line that says whether anything needs us today. */
+.studio-summary {
+  margin: 4px 0 22px;
+  padding: 14px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Filters and sorts: one row of native controls, no custom widgets. */
+.studio-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 20px;
+  margin: 0 0 18px;
+}
+.studio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+.studio-field label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.studio-field select,
+.studio-field input {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--field-line);
+  border-radius: 2px;
+  padding: 0 12px;
+  min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
+  transition: border-color 0.17s;
+}
+/* One field vocabulary: the filters behave like every other Veylet control. */
+.studio-field select:hover,
+.studio-field input:hover {
+  border-color: var(--ink);
+}
+.studio-field input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.studio-field-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.studio-sort {
+  position: relative;
+}
+.studio-sort[aria-pressed='true'] {
+  background: var(--sage);
+  border-color: rgba(16, 35, 29, 0.35);
+}
+.studio-sort[aria-pressed='true']::after {
+  content: ' ↓';
+  margin-left: 6px;
+}
+.studio-sort[aria-pressed='true'][data-direction='asc']::after {
+  content: ' ↑';
+}
+
+/* The table is the desk. It is a table. */
+.studio-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 22px;
+}
+/* Between 720px and the width the twelve columns need, the desk scrolls
+   sideways. A scrolling region that only a mouse can move hides the Note and
+   Last activity columns from a keyboard, so studio.js makes it a tab stop
+   exactly while it overflows, and the ring says where the focus went. */
+.studio-table-wrap:focus-visible {
+  outline: 3px solid #897033;
+  outline-offset: 3px;
+}
+.studio-scroll-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.studio-scroll-hint[hidden] {
+  display: none;
+}
+.studio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.studio-table caption {
+  text-align: left;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 72ch;
+  padding-bottom: 12px;
+}
+.studio-table thead th {
+  text-align: left;
+  vertical-align: bottom;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 12px 8px 0;
+  border-bottom: 2px solid var(--ink);
+  white-space: nowrap;
+}
+/* Above the stacked layout a two-word column heading wraps rather than pushing
+   the Note column out of the window, and the account name keeps enough width
+   to read. Below it the head is hidden and must not set any width at all. */
+@media (min-width: 721px) {
+  .studio-table thead th {
+    white-space: normal;
+  }
+  .studio-table thead th:first-child {
+    min-width: 11ch;
+  }
+}
+.studio-th-note {
+  display: block;
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-weight: 400;
+  font-size: 11px;
+}
+.studio-table thead th[aria-sort] {
+  color: var(--ink);
+}
+.studio-table tbody th,
+.studio-table tbody td {
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  padding: 14px 12px 14px 0;
+  border-top: 1px solid var(--line);
+}
+.studio-row:first-child th,
+.studio-row:first-child td {
+  border-top: 0;
+}
+.studio-name {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+}
+.studio-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+.studio-status-cell {
+  min-width: 12ch;
+}
+.studio-figure {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.studio-note-cell {
+  color: var(--muted);
+  min-width: 14ch;
+}
+.studio-table time {
+  display: block;
+}
+.studio-empty td {
+  color: var(--muted);
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+}
+.studio-empty .tour-action {
+  margin-left: 10px;
+}
+/* Loading is the rows that are coming, not a spinner. */
+.studio-bar {
+  display: block;
+  height: 11px;
+  width: min(9ch, 100%);
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.1);
+}
+.studio-skeleton th .studio-bar {
+  width: min(16ch, 100%);
+}
+
+/* Set plan: inline under its own row, never a modal. */
+.studio-plan-row td {
+  border-top: 0;
+  padding: 0 0 6px;
+}
+.studio-set-plan summary {
+  list-style: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: 26px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.studio-set-plan summary::-webkit-details-marker {
+  display: none;
+}
+.studio-set-plan summary::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 11px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1px 11px no-repeat;
+}
+.studio-set-plan[open] > summary::after {
+  background: linear-gradient(currentColor, currentColor) center / 11px 1px no-repeat;
+}
+.studio-set-plan[open] > summary {
+  color: var(--ink);
+}
+.studio-plan-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 24px;
+  margin: 4px 0 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.45);
+}
+.studio-radio-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  min-width: 0;
+}
+.studio-radio-group legend {
+  padding: 0 0 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Two classes, because .veylet-form label stacks its control by default and a
+   radio belongs beside its word. */
+.studio-plan-form .studio-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.studio-radio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: none;
+}
+.studio-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-width: 0;
+}
+.studio-inline-field select,
+.studio-inline-field input,
+.studio-inline-field textarea {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--field-line);
+  border-radius: 2px;
+  padding: 10px 12px;
+  min-height: 44px;
+  max-width: 100%;
+}
+.studio-inline-field select {
+  padding: 0 12px;
+  width: max-content;
+  min-width: 15ch;
+}
+/* .veylet-form label lays each field out as a one-column grid. Without a floor
+   on that column a long choice (an invoice item) widens it past the form on a
+   phone, and the control's max-width: 100% would follow it out. */
+.studio-plan-form .studio-inline-field {
+  grid-template-columns: minmax(0, 1fr);
+}
+.studio-inline-field select:disabled,
+.studio-inline-field input:disabled,
+.studio-inline-field textarea:disabled {
+  color: var(--muted);
+  background: var(--panel);
+  cursor: not-allowed;
+}
+/* One line under a control that has been taken out of our hands. */
+.studio-field-note {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.45;
+  max-width: 26ch;
+  color: var(--muted);
+}
+.studio-field-note[hidden] {
+  display: none;
+}
+/* The auto-renew answer is a switch, not a field with a stacked label. */
+.studio-plan-form .studio-check {
+  align-self: flex-end;
+  padding-bottom: 0;
+}
+.studio-inline-field input[type='number'] {
+  width: 9ch;
+  font-variant-numeric: tabular-nums;
+}
+.studio-inline-field input[type='date'] {
+  width: 17ch;
+}
+.studio-inline-field textarea {
+  width: min(42ch, 100%);
+  resize: vertical;
+  line-height: 1.5;
+}
+.studio-warning {
+  flex-basis: 100%;
+  margin: 0;
+  max-width: 78ch;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.studio-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0;
+  flex-basis: 100%;
+}
+.studio-save-row .button {
+  margin: 0;
+}
+.studio-result {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  max-width: 62ch;
+}
+.studio-result:empty {
+  display: none;
+}
+
+/* Above the stacked layout the desk scrolls sideways, and Set plan opens
+   inside that scroll. Pin it to the left edge and bound it by the width that
+   is actually visible, or the warning explaining the change is written off the
+   right-hand side where only a mouse can reach it. Below 720px nothing
+   scrolls, so nothing needs pinning. */
+@media (min-width: 721px) {
+  .studio-set-plan summary,
+  .studio-plan-form {
+    position: sticky;
+    left: 0;
+    max-width: var(--studio-view, 100%);
+    box-sizing: border-box;
+  }
+}
+
+/* Phone: the same twelve facts, stacked, each still labelled. */
+@media (max-width: 720px) {
+  main.studio-page {
+    padding-block: 40px 72px;
+  }
+  .studio-table-wrap {
+    overflow-x: visible;
+  }
+  /* A block-level table makes its caption shrink to fit; keep it a paragraph. */
+  .studio-table caption {
+    display: block;
+    max-width: none;
+    padding-bottom: 8px;
+  }
+  .studio-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .studio-table,
+  .studio-table tbody,
+  .studio-table tr,
+  .studio-table tbody th,
+  .studio-table tbody td {
+    display: block;
+    width: auto;
+  }
+  .studio-row {
+    padding: 4px 0 8px;
+    border-top: 1px solid var(--ink);
+  }
+  .studio-row:first-child {
+    border-top: 1px solid var(--ink);
+  }
+  .studio-table tbody th,
+  .studio-table tbody td {
+    padding: 6px 0;
+    border-top: 0;
+  }
+  .studio-table tbody th {
+    padding-top: 12px;
+  }
+  .studio-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    /* A two-word label must wrap rather than run under its own value; the
+       figure cells set nowrap for their numbers, and it is inherited here. */
+    white-space: normal;
+  }
+  /* Label and value stay paired on one line, so three accounts still compare
+     on a phone. 11ch fits the longest label and "1 July 2026 → 1 Jan 2027". */
+  .studio-table tbody td {
+    display: grid;
+    grid-template-columns: minmax(0, 11ch) minmax(0, 1fr);
+    gap: 4px 12px;
+    align-items: baseline;
+  }
+  /* A qualifier belongs under its value, not under the label. */
+  .studio-table tbody td .studio-sub {
+    grid-column: 2;
+  }
+  .studio-empty td,
+  .studio-table tbody .studio-plan-row > td {
+    display: block;
+  }
+  .studio-empty td::before,
+  .studio-table tbody .studio-plan-row > td::before {
+    content: none;
+  }
+  /* A state row is a sentence, not a label and a value: it must not take the
+     stacked grid, or its words start in the value column. */
+  .studio-table tbody .studio-empty > td {
+    display: block;
+  }
+  .studio-plan-form {
+    padding: 16px;
+    gap: 14px;
+  }
+  .studio-radio-group,
+  .studio-radio {
+    flex-basis: 100%;
+  }
+  .studio-controls {
+    gap: 12px 16px;
+  }
+  .studio-field {
+    flex-basis: 100%;
+  }
+  .studio-field-actions .tour-action {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .studio-summary {
+    margin-bottom: 18px;
+  }
+}
+
+/* Deletion requests: the one band above the table with a clock on it. The
+   ledger grammar of the rest of the desk, not a card and not a warning box. */
+.studio-deletions:empty {
+  display: none;
+}
+.studio-deletions {
+  margin: 0 0 30px;
+}
+.studio-deletions > p {
+  margin: 0 0 18px;
+  max-width: 68ch;
+  color: var(--muted);
+}
+.studio-deletions > p .tour-action {
+  margin-left: 8px;
+}
+.studio-deletions .dash-heading {
+  margin: 0 0 10px;
+}
+.studio-deletion-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.studio-deletion {
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+.studio-deletion-name {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.studio-deletion .plan-list {
+  margin: 0;
+}
+@media (min-width: 900px) {
+  .studio-deletion-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 40px;
+  }
+}
+
+/* Money exceptions: charges and payment states that need a person, first on
+   the desk. The deletion band's ledger grammar, and the resolve form opens
+   inline under its own item like Set plan, never in a modal. */
+.studio-money {
+  margin: 0 0 30px;
+}
+.studio-money > .dash-heading {
+  margin: 0 0 10px;
+}
+.studio-money > .contact-note,
+.studio-money-body > p {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-money-body > p {
+  color: var(--muted);
+}
+.studio-money-body > p .tour-action {
+  margin-left: 8px;
+}
+.studio-money-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.studio-money-item {
+  min-width: 0;
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+.studio-money-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0 0 6px;
+}
+.studio-money-name {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.studio-money-runbook {
+  font-size: 13px;
+  color: var(--muted);
+}
+.studio-money-item .plan-list {
+  margin: 0;
+}
+/* Dense like the rest of the desk: each fact beside its short label, phone too. */
+.studio-money-item .leaving-list > div {
+  grid-template-columns: minmax(0, 10ch) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 8px 0;
+}
+.studio-money-item .leaving-list dt {
+  font-size: 13px;
+}
+/* An opaque reference can be 160 characters with no space in it. */
+.studio-money-item dd {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.studio-money-form .studio-field-note {
+  margin: 0;
+  max-width: 62ch;
+}
+.studio-money-form input[type='text'] {
+  width: min(32ch, 100%);
+}
+@media (min-width: 721px) {
+  .studio-money .studio-set-plan summary {
+    position: relative;
+    left: auto;
+    max-width: none;
+  }
+  .studio-money .studio-plan-form {
+    position: static;
+    max-width: none;
+  }
+}
+@media (min-width: 900px) {
+  .studio-money-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 40px;
+  }
+}
+
+.studio-invoice-form > h3,
+.studio-invoice-form > .studio-warning,
+.studio-invoice-form > .studio-field-note,
+.studio-grant-form > h3,
+.studio-grant-form > .studio-grant-count,
+.studio-referral-form > h3 {
+  flex-basis: 100%;
+  margin: 0;
+}
+/* A full line inside a Set plan form, like the extension note row: what follows
+   starts below it, while the text inside keeps its own measure. A 78ch warning
+   on its own would leave room beside it for the next field. */
+.studio-form-row {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.studio-form-row > .studio-inline-field {
+  width: fit-content;
+  max-width: 100%;
+}
+.studio-form-row > .studio-inline-field + .studio-warning {
+  margin-top: 10px;
+}
+.studio-invoice-form > h3,
+.studio-grant-form > h3,
+.studio-referral-form > h3 { font-size: 18px; }
+.studio-invoice-form .studio-inline-field,
+.studio-grant-form .studio-inline-field,
+.studio-referral-form .studio-inline-field { max-width: 100%; }
+.studio-invoice-form input[type='text'] { width: 100%; min-width: 0; }
+.studio-grant-form input[type='text'],
+.studio-referral-form input[type='text'] { width: min(32ch, 100%); }
+/* A referrer's name can be long; the native select keeps to the form's width. */
+.studio-referral-form select { max-width: 100%; }
+/* The line under the item states what is being recorded, so it is read in ink. */
+.studio-plan-form .studio-invoice-terms {
+  color: var(--ink);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+/* Grants left is a count, set like every other count on the desk. */
+.studio-grant-count {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+/* The forms are flex and their fields grid, and either display would override
+   the hidden attribute: a pack has no service dates, and a grant form belongs
+   only to a founding account. */
+.studio-plan-form[hidden],
+.studio-inline-field[hidden] {
+  display: none;
+}
+
+/* Hosted walkthroughs: the same ledger table, due-soon rows first, with the
+   extension form inline under its own row like Set plan. Six columns fit the
+   window, so this table never scrolls sideways. */
+.studio-hosted {
+  margin: 40px 0 0;
+}
+.studio-hosted > .contact-note {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-hosted-table .studio-due {
+  margin-top: 6px;
+  width: max-content;
+}
+.studio-hosted-table tbody .studio-figure {
+  white-space: nowrap;
+}
+/* A full-width row holds the note, so its measure can stay short. */
+.studio-extension-note-row {
+  flex-basis: 100%;
+}
+.studio-extension-form .studio-field-note {
+  margin: 0;
+  max-width: 62ch;
+}
+.studio-extension-form input[type='text'] {
+  width: min(32ch, 100%);
+}
+/* This table never scrolls, so nothing in it needs pinning; the summary stays
+   the positioned box its drawn marker hangs from. */
+@media (min-width: 721px) {
+  .studio-hosted .studio-set-plan summary {
+    position: relative;
+    left: auto;
+    max-width: none;
+  }
+  .studio-hosted .studio-plan-form {
+    position: static;
+    max-width: none;
+  }
+}
+
+/* Capture queue: the claim order in the desk's ledger table, the one line that
+   says whether anything is over target, then the last 7 days as two ledgers in
+   the deletion band's grammar. Over target is a word in a pill, never colour. */
+.studio-queue {
+  margin: 0 0 30px;
+}
+.studio-queue > .dash-heading {
+  margin: 0 0 10px;
+}
+.studio-queue > .contact-note {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-queue-summary {
+  margin: 0 0 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.studio-queue-summary:empty {
+  display: none;
+}
+@media (min-width: 721px) {
+  .studio-queue-table tbody th {
+    min-width: 13ch;
+  }
+}
+.studio-queue-table .pill {
+  width: max-content;
+  max-width: 100%;
+}
+.studio-queue-subhead {
+  margin: 26px 0 8px;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.studio-sla-body > p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--muted);
+}
+.studio-sla-body > p .tour-action {
+  margin-left: 8px;
+}
+.studio-sla-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.studio-sla-class {
+  min-width: 0;
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+.studio-sla-name {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.studio-sla-class .plan-list {
+  margin: 0;
+}
+.studio-sla-class .leaving-list > div {
+  grid-template-columns: minmax(0, 15ch) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 8px 0;
+}
+.studio-sla-class .leaving-list dt {
+  font-size: 13px;
+}
+.studio-sla-class dd {
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 900px) {
+  .studio-sla-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 40px;
+  }
+}
+
+/* Whole-home count: the Corrections grammar, one inline form behind its summary.
+   The listing id is 36 characters; the counts are short numbers. */
+.studio-home-count {
+  margin: 40px 0 0;
+}
+.studio-home-count > .contact-note {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-home-form .studio-id-field {
+  flex: 0 1 23rem;
+}
+.studio-home-form .studio-id-field .studio-field-note {
+  max-width: none;
+}
+.studio-home-form input[name='property_id'] {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.studio-home-form input[name='reference'] {
+  width: min(32ch, 100%);
+}
+.studio-home-form .studio-form-row .studio-field-note {
+  margin: 0;
+  max-width: 62ch;
+}
+@media (min-width: 721px) {
+  .studio-home-count .studio-set-plan summary {
+    position: relative;
+    left: auto;
+    max-width: none;
+  }
+  .studio-home-count .studio-plan-form {
+    position: static;
+    max-width: none;
+  }
+}
+
+/* Corrections: one inline form behind its own summary, like Set plan. The two
+   tour ids are 36 characters, so their fields are sized for one. */
+.studio-corrections {
+  margin: 40px 0 0;
+}
+.studio-corrections > .contact-note {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.studio-field-group .studio-field-note {
+  margin: 0;
+}
+.studio-correction-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 14px 24px;
+  flex-basis: 100%;
+  min-width: 0;
+}
+/* A tour id is 36 characters; its field is sized to show one whole. */
+.studio-correction-form .studio-id-field {
+  flex: 0 1 23rem;
+}
+.studio-correction-form .studio-id-field .studio-field-note {
+  max-width: none;
+}
+.studio-correction-form input[name='tour_id'],
+.studio-correction-form input[name='corrects_tour_id'] {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.studio-correction-form input[name='reference'] {
+  width: min(32ch, 100%);
+}
+.studio-correction-form .studio-form-row .studio-field-note {
+  margin: 0;
+  max-width: 62ch;
+}
+@media (min-width: 721px) {
+  .studio-corrections .studio-set-plan summary {
+    position: relative;
+    left: auto;
+    max-width: none;
+  }
+  .studio-corrections .studio-plan-form {
+    position: static;
+    max-width: none;
+  }
+}
+@media (max-width: 720px) {
+  .studio-field-group {
+    flex-basis: 100%;
+  }
+}

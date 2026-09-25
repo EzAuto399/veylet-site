@@ -1,0 +1,253 @@
+/* The client's page (/handoff): the agent's page for one listing. Tokens are
+   style.css's :root, read only. Loaded after style.css and tour-stage.css. */
+.client-page {
+  padding-block: 32px 40px;
+}
+.client-page h1 {
+  margin: 0 0 8px;
+}
+.client-truth {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.client-page .tour-meta {
+  margin: 0 0 4px;
+}
+.client-page #handoff-body:empty {
+  display: none;
+}
+/* Live regions stay rendered while empty, or some screen readers miss them. */
+.client-page #handoff-status:empty {
+  margin: 0;
+}
+
+/* Agent card: who shared it and the two ways to reach them. */
+.agent-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 24px;
+  margin: 16px 0 0;
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.agent-who {
+  min-width: 0;
+}
+.agent-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.agent-agency,
+.agent-details {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.agent-details {
+  font-variant-numeric: tabular-nums;
+}
+.agent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.client-surface .agent-action,
+.client-surface .client-share {
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 20px;
+  font-size: 15px;
+  border-radius: 2px;
+}
+.agent-card .agent-action {
+  min-width: 104px;
+}
+.agent-action:focus-visible,
+.client-share:focus-visible,
+.client-help summary:focus-visible,
+.client-footer a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 560px) {
+  .agent-card {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px;
+  }
+  .agent-card .agent-action {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+/* Under the stage: how to move, then Share and its result. */
+.client-help {
+  margin: 0 0 4px;
+}
+.client-help summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.client-help p {
+  margin: 0 0 12px;
+  max-width: 52ch;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.client-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 8px 0 0;
+}
+.client-share-status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.client-footnote {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.client-page .contact-note + .client-footnote {
+  margin-top: 8px;
+}
+
+/* A small maker's mark and the legal links; nothing else. */
+.client-footer {
+  padding-block: 12px 20px;
+}
+.client-footer .client-made {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.client-footer nav a {
+  font-size: 13px;
+}
+
+/* Desktop: the walkthrough takes the width (tour-stage.css keeps its height
+   at min(74vh, 680px), so a wider column is a landscape stage) and the agent
+   stays in view beside it. Title and truth line sit above both columns. */
+@media (min-width: 1080px) {
+  .client-page {
+    max-width: 1312px;
+    padding-inline: 40px;
+  }
+  .client-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    column-gap: 32px;
+    align-items: start;
+  }
+  .client-main {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .client-side {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 24px;
+    padding-top: 18px; /* level with the stage's shell */
+  }
+  .client-side .agent-card {
+    grid-template-columns: minmax(0, 1fr);
+    margin-top: 0;
+  }
+  .client-side .agent-card .agent-action {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .client-side .client-extras {
+    margin-top: 12px;
+  }
+  .client-main .intro,
+  .client-main .contact-note,
+  .client-main .client-footnote {
+    max-width: 720px;
+  }
+}
+
+/* Phones: the agent stays one tap away. The page gains the bar's height so
+   the walkthrough's own controls can always scroll clear of it. */
+.agent-bar {
+  display: none;
+}
+@media (max-width: 768px) {
+  .agent-bar:not([hidden]) {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px))
+      max(16px, env(safe-area-inset-left, 0px));
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(16, 35, 29, 0.08);
+    animation: agent-bar-in 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  body.has-agent-bar {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.agent-bar-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-bar .agent-actions {
+  flex: none;
+  flex-wrap: nowrap;
+}
+.agent-bar .agent-action {
+  padding-inline: 16px;
+}
+@keyframes agent-bar-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-bar:not([hidden]) {
+    animation: none;
+  }
+}

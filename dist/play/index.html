@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Preview — Veylet</title>
     <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css" />
-    <script src="/brand-host.js"></script>
-    <script src="/supabase-public.js"></script>
-    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
-    <script src="/vendor/jszip-3.10.2.min.js"></script>
-    <script src="/place-fields.js"></script>
-    <script src="/tour-player.js"></script>
+    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <link rel="stylesheet" href="/tour-stage.css?v=e5b4beaccde92e3f" />
+    <script src="/brand-host.js?v=1c06a18e19b34007"></script>
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
+    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/tour-player.js?v=f57fab3c1d804ae3"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -26,13 +27,13 @@
       </nav>
     </header>
     <main id="main" class="form-page wrap">
-      <p class="eyebrow">OWNER PREVIEW</p>
       <h1 id="play-title">Owner preview</h1>
       <p class="intro" id="play-body">
         Signed-in preview of a tour on this account. Clients never use this
         page — they get a private handoff link instead.
       </p>
       <p class="contact-note" id="play-status" role="status"></p>
+      <p id="play-review-recovery" hidden><a class="text-link" href="/account">Return to the desk and start a fresh review</a></p>
       <p class="tour-actions" id="tour-actions" hidden>
         <button class="button button-ghost" type="button" id="tour-retry">
           Try again
@@ -44,8 +45,13 @@
         class="tour-frame"
         title="Reconstructed walkthrough"
         hidden
-        allow="fullscreen"
+        allow="fullscreen *"
+        allowfullscreen
+        sandbox="allow-scripts allow-pointer-lock"
+        referrerpolicy="no-referrer"
       ></iframe>
+      <div id="tour-stage" class="tour-stage tour-stage-play" hidden></div>
+      <noscript><p class="contact-note">JavaScript is needed for your signed-in tour preview. Enable it and reload to continue.</p></noscript>
       <p class="contact-note" data-tour-help hidden>
         Clients never use this page. Send them the private handoff link from
         your desk instead.
@@ -66,11 +72,15 @@
         body: document.getElementById('play-body'),
         status: document.getElementById('play-status'),
         frame: document.getElementById('tour-frame'),
+        stage: document.getElementById('tour-stage'),
       };
       const actions = document.getElementById('tour-actions');
       const retry = document.getElementById('tour-retry');
       const signIn = document.getElementById('play-signin');
-      const tourId = new URLSearchParams(location.search).get('id') || '';
+      const params = new URLSearchParams(location.search);
+      const tourId = params.get('id') || '';
+      const expectedRevision = params.get('review_revision');
+      const reviewRecovery = document.getElementById('play-review-recovery');
 
       if (!tourId) {
         window.VeyletPlayer.showFailure(
@@ -81,15 +91,22 @@
           }
         );
       } else {
-        window.VeyletPlayer.boot({
+        const previewOptions = {
           els,
-          auth: { persistSession: false, autoRefreshToken: false },
+          auth: { persistSession: true, autoRefreshToken: true },
           needsSession: true,
           signedOutHeading: 'Sign in to preview.',
           signedOutBody:
             'Owner preview is only for the signed-in account that captured the space.',
           signedOutLink: true,
           resolve: async (authed) => {
+            const rejectReviewPreview = (changed) => {
+              previewOptions.missingHeading = changed ? 'This review package changed.' : 'Review preview could not be confirmed.';
+              previewOptions.missingBody = 'Return to your desk, start a fresh review and open its new preview. Previous review checks must not be reused.';
+              reviewRecovery.hidden = false;
+              throw new window.VeyletPlayer.TourFailure('review-package-changed', { transient: false });
+            };
+            if (expectedRevision !== null && !/^[a-f0-9]{64}$/.test(expectedRevision)) rejectReviewPreview(false);
             const { data: tours, error } = await authed
               .from('tours')
               .select('id,storage_path,status,property_id')
@@ -102,21 +119,40 @@
               });
             }
             if (!tour || !tour.storage_path) {
+              if (expectedRevision !== null) rejectReviewPreview(false);
               throw new window.VeyletPlayer.TourFailure('tour-not-on-account', {
                 transient: false,
               });
             }
-            return {
+            if (expectedRevision !== null) {
+              const targetReply = await authed.rpc('get_tour_review_target', { p_tour_id: tourId });
+              const target = Array.isArray(targetReply.data) ? targetReply.data[0] : targetReply.data;
+              if (targetReply.error || target?.tour_id !== tourId || !/^[a-f0-9]{64}$/.test(target.package_revision || '')) rejectReviewPreview(false);
+              if (target.package_revision !== expectedRevision || target.storage_path !== tour.storage_path) rejectReviewPreview(true);
+            }
+            const preview = {
               storagePath: tour.storage_path,
               title: 'Your walkthrough',
               intro: 'Signed-in preview. Clients still need a private handoff link.',
               footer: 'Owner preview. Not a client handoff.',
             };
+            // A streamed (version 2) package is a folder whose manifest the
+            // service locates for this signed-in owner.
+            if (/\/manifest\.json$/.test(tour.storage_path)) {
+              const located = await authed.rpc('get_tour_package_base', { p_tour_id: tourId });
+              const base = Array.isArray(located.data) ? located.data[0] : located.data;
+              if (located.error || !base?.package_base_url) {
+                throw new window.VeyletPlayer.TourFailure('package-location-unavailable', { transient: true });
+              }
+              return { ...preview, packageFormatVersion: 2, packageBaseUrl: base.package_base_url };
+            }
+            return preview;
           },
           missingHeading: 'Preview is not available.',
           missingBody: 'This tour is not on this account, or it has no stored package yet.',
           transientBody: 'The desk did not answer. Check the connection and try again.',
-        });
+        };
+        window.VeyletPlayer.boot(previewOptions);
       }
       window.addEventListener('unhandledrejection', () => {
         if (window.VeyletReportFailure) window.VeyletReportFailure('boot');
