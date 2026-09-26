@@ -552,3 +552,19 @@
 @media (max-width: 480px) {
   .team-panel .annual-actions > .tour-action { flex: 1 1 100%; }
 }
+
+/* The main office (draft 20260926127000): the other workspaces, each with "Make this my main office". */
+.plan-primary-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.plan-primary-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  overflow-wrap: anywhere;
+}

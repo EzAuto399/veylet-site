@@ -19,7 +19,10 @@ const fixtureSource = fs.readFileSync(path.join(__dirname, 'account-browser-fixt
 const V1 = 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.';
 const V2 = 'Email me tips, offers and product news from Veylet Studio. I can unsubscribe at any time.';
 const MISSING = name => ({ error: { code: 'PGRST202', message: `Could not find the function public.${name} in the schema cache` } });
-const settle = () => new Promise(resolve => setTimeout(resolve, 10));
+// The desk's sign-in chain is several awaits long; under a loaded full-suite run 10 ms was not
+// always enough for it to finish (a timing flake, not a behaviour change), so settle waits for
+// the event loop to go quiet several times over.
+const settle = async () => { for (let round = 0; round < 5; round++) await new Promise(resolve => setTimeout(resolve, 10)); };
 
 class Element {
   constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.events = {}; this.dataset = {}; this.attributes = {}; this.hidden = false; this.disabled = false; this.checked = false; this.textContent = ''; this.value = ''; this.classList = { add() {} }; }

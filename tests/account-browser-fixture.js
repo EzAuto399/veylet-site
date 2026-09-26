@@ -1130,6 +1130,8 @@
     return element;
   };
 
+  const primaryCase = params.get('primary');
+  let primaryNow = 'synthetic-workspace';
   window.VEYLET_QA_CALLS = [];
   window.VEYLET_SUPABASE = { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' };
   window.supabase = { createClient: () => ({
@@ -1143,10 +1145,22 @@
       const role = scenario === 'operator' || teamCase === 'member-refused' ? 'operator' : teamCase === 'member' || !teamOwnerNow ? 'reviewer' : 'owner';
       const memberships = teamLeft ? [] : [{ workspace_id: 'synthetic-workspace', role, status: 'active' }];
       if (hostingCase) memberships.push({ workspace_id: 'synthetic-workspace-ended', role, status: 'active' });
+      // `?primary=office` (draft 20260926127000): the person's own empty workspace first (is_empty_personal),
+      // then this office and a second one; get_primary_workspace names the main office.
+      if (primaryCase === 'office') {
+        memberships.unshift({ workspace_id: 'synthetic-personal', role: 'owner', status: 'active', is_empty_personal: true });
+        memberships.push({ workspace_id: 'synthetic-office-b', role: 'reviewer', status: 'active', is_empty_personal: false });
+      }
       let columns = '', only = null;
       const answer = () => {
         if (table === 'properties') return { data: properties };
-        if (table === 'memberships') return { data: planCase === 'nomembership' ? [] : memberships };
+        if (table === 'memberships') {
+          // Before the draft: the computed field is unknown to PostgREST.
+          if (primaryCase !== 'office' && /is_empty_personal/.test(columns)) return { error: { code: '42703', message: 'column memberships.is_empty_personal does not exist' } };
+          const names = columns.split(',').map(name => name.trim()).filter(Boolean);
+          const rows = planCase === 'nomembership' ? [] : memberships;
+          return { data: rows.map(row => Object.fromEntries(names.map(name => [name, row[name] ?? (name === 'is_empty_personal' ? false : null)]))) };
+        }
         if (scenario === 'errors') return { error: { message: 'Synthetic unavailable tour service' } };
         if (params.get('lineage') === 'missing' && /walkthrough_id/.test(columns)) return { error: { code: '42703', message: 'column tours.walkthrough_id does not exist' } };
         if (pauseCase === 'missing' && /share_paused_at/.test(columns)) return { error: { code: '42703', message: 'column tours.share_paused_at does not exist' } };
@@ -1164,6 +1178,12 @@
     },
     async rpc(name, args) {
       window.VEYLET_QA_CALLS.push({ name, args });
+      if (name === 'get_primary_workspace') return primaryCase === 'office' ? { data: primaryNow } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_primary_workspace' } };
+      if (name === 'set_primary_workspace') {
+        if (primaryCase !== 'office') return { error: { code: 'PGRST202', message: 'Could not find the function public.set_primary_workspace(p_workspace_id)' } };
+        if (params.get('primary-set') === 'fail') return { error: { message: 'Synthetic primary workspace failure' } };
+        primaryNow = args.p_workspace_id; return { data: primaryNow };
+      }
       if (name === 'can_produce_tours') return { data: scenario === 'qualified' };
       if (name === 'get_workspace_plan') {
         if (planCase === 'unavailable') return { error: { message: 'Synthetic plan service failure' } };

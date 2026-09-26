@@ -119,7 +119,7 @@ test('a new account gets one setup action without changing access or creating a 
   assert.equal(h.ids['account-add-space'].open, true);
   // Reading the plan, hosting dates and the team's invites and members are the only calls
   // added here; nothing changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_tour_hosting_states', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_tour_hosting_states', 'get_primary_workspace', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();
@@ -982,6 +982,39 @@ test('the plan panel reads the first active membership and names it when there a
   assert.doesNotMatch(planText(single), /You are an active member of/);
 });
 
+test('the main office (get_primary_workspace) is shown first, the empty personal workspace is hidden, and another can be made main', async () => {
+  // Draft 20260926127000: is_empty_personal is a computed field on the memberships read.
+  const memberships = { data: [
+    { workspace_id: 'personal', role: 'owner', status: 'active', is_empty_personal: true },
+    { workspace_id: 'w1', role: 'owner', status: 'active', is_empty_personal: false },
+    { workspace_id: 'w2', role: 'reviewer', status: 'active', is_empty_personal: false },
+  ] };
+  const set = [];
+  const h = await withPlan({}, { tables: { memberships }, rpc: { get_primary_workspace: async () => ({ data: 'w2' }),
+    set_primary_workspace: async args => { set.push({ ...args }); return { data: args.p_workspace_id }; } } });
+  assert.equal(h.calls.find(call => call[0] === 'get_workspace_plan')[1].p_workspace_id, 'w2', 'the main office first');
+  assert.match(planText(h), /You are an active member of 2 workspaces\./, 'the empty personal workspace is not counted');
+  assert.doesNotMatch(planText(h), /ask Veylet support/);
+  const make = h.ids['account-plan-body'].all().filter(el => el.dataset?.control === 'make-primary');
+  assert.deepEqual(make.map(el => el.textContent), ['Make this my main office'], 'one other office: w1');
+  await make[0].fire('click'); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(set, [{ p_workspace_id: 'w1' }]);
+  // A refusal says so and keeps the button.
+  const refused = await withPlan({}, { tables: { memberships }, rpc: { get_primary_workspace: async () => ({ data: 'w1' }),
+    set_primary_workspace: async () => ({ error: { message: 'not a member of this workspace' } }) } });
+  const again = refused.ids['account-plan-body'].all().find(el => el.dataset?.control === 'make-primary');
+  await again.fire('click'); await new Promise(resolve => setImmediate(resolve));
+  assert.match(planText(refused), /Your main office wasn’t changed\. Try again\./);
+  assert.equal(again.disabled, false);
+  // Before the draft: the field is unknown (42703) and the function absent; the old order and words.
+  const oldRows = { data: [{ workspace_id: 'w1', role: 'owner', status: 'active' }, { workspace_id: 'w2', role: 'owner', status: 'active' }] };
+  const old = await withPlan({}, { tables: { memberships: columns => (/is_empty_personal/.test(columns)
+    ? { error: { code: '42703', message: 'column memberships.is_empty_personal does not exist' } } : oldRows) },
+    rpc: { get_primary_workspace: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
+  assert.equal(old.calls.find(call => call[0] === 'get_workspace_plan')[1].p_workspace_id, 'w1');
+  assert.match(planText(old), /You are an active member of 2 workspaces; ask Veylet support/);
+  assert.equal(old.ids['account-plan-body'].all().some(el => el.dataset?.control === 'make-primary'), false);
+});
 test('an unreadable membership list cannot produce a plan claim', async () => {
   const h = await load({ tables: { memberships: { error: { message: 'offline' } } },
     rpc: { get_workspace_plan: async () => ({ data: [planRow] }) } });

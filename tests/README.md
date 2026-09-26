@@ -219,6 +219,9 @@ not yet written, so every answer is the fixture's):
   (Waiting to render, with the hold's words and nothing to press). `?render=ready&flags=all`
   (or `unknown`): the ready capture carries review flags, shown in its review as
   "Worth a look before you share" above Approve and share.
+- `?primary=office` (draft 20260926127000): the person's empty personal workspace (hidden), this office (main, shown first)
+  and a second office with "Make this my main office"; `&primary-set=fail` refuses the change. Without it, the
+  memberships read's `is_empty_personal` is unknown (42703) and `get_primary_workspace` answers PGRST202.
 - `?render=waiting&hold=trial_limit`: the free months' 12 render attempts are used; the capture
   waits with "Choose a plan" (the plan panel) on the website and the words only on `/app/account`.
   `?rooms=1|8|9|17` (with any `?render=`): each capture reports that many rooms and uses 1, 1, 2 or

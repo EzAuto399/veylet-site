@@ -2119,7 +2119,7 @@
    * nothing else. No amount, allowance for sale, renewal price, card form, bundle,
    * annual offer or referral is read or drawn here; the app is where a plan is bought.
    */
-  async function renderPlanApp(supabase, ticket, members, live = 0) {
+  async function renderPlanApp(supabase, ticket, members, live = 0, props = null) {
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
     let row = null;
@@ -2138,13 +2138,15 @@
     const parts = [dl, body];
     const ended = status === 'ended' ? planHostingEnded(row, { status }, live) : null;
     if (ended) parts.push(ended);
+    const choice = primaryChoice(supabase, memberships, workspaceID, props);
+    if (choice) parts.push(choice);
     if (!status) { const actions = document.createElement('p'); actions.className = 'tour-actions-row plan-actions'; actions.append(button('Refresh plan status', () => loadDesk(supabase))); parts.push(actions); }
     planBody.replaceChildren(...parts);
   }
   async function renderPlan(supabase, ticket, props, members, live = 0) {
     if (!planPanel || !planBody) return;
     planCapacityRefresh = null;
-    if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live); return; }
+    if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
     let row = null;
@@ -2181,7 +2183,9 @@
       sandbox.textContent = PLAN_TEST_LINE;
       parts.push(sandbox);
     }
-    if (memberships.length > 1) {
+    const choice = primaryChoice(supabase, memberships, workspaceID, props);
+    if (choice) parts.push(choice);
+    else if (memberships.length > 1) {
       const scope = document.createElement('p'); scope.className = 'plan-scope';
       scope.textContent = 'Showing ' + planWorkspaceName(workspaceID, props) + '. You are an active member of ' +
         memberships.length + ' workspaces; ask Veylet support to see another one here.';
@@ -6101,6 +6105,65 @@
 
   // Clear the desk for a fresh draw: the plan's rows that are coming, the next step
   // while it is worked out, and an empty list. Returns the new desk's ticket.
+  /*
+   * The main office (draft 20260926127000_primary_workspace.sql, not released). Every sign-up
+   * has a personal workspace, so someone invited into an office belongs to two. The desk shows
+   * first the workspace get_primary_workspace() names, and hides a membership whose computed
+   * is_empty_personal is true (the caller's own empty workspace while they belong to another).
+   * set_primary_workspace changes it. A backend without them (PGRST202, or the column
+   * unknown: 42703) reads as before: all active memberships, in the order they came.
+   */
+  let primaryFields = null;
+  let primarySupported = false;
+  function missingColumn(result, name) {
+    const error = result?.value?.error || result?.error || null;
+    return Boolean(error) && (String(error.code || '') === '42703' || String(error.code || '') === 'PGRST204' || new RegExp(name).test(String(error.message || '')));
+  }
+  async function readMemberships(supabase) {
+    const read = columns => settled(supabase.from('memberships').select(columns).eq('user_id', currentUserId).eq('status', 'active'));
+    if (primaryFields === false) return read('workspace_id,role,status');
+    const answer = await read('workspace_id,role,status,is_empty_personal');
+    if (failed(answer) && !sessionGone(answer) && missingColumn(answer, 'is_empty_personal')) { primaryFields = false; return read('workspace_id,role,status'); }
+    if (!failed(answer)) primaryFields = true;
+    return answer;
+  }
+  // The memberships the desk uses, main office first; the empty personal one left out.
+  function deskMemberships(members, primary) {
+    if (failed(members) || !Array.isArray(members.value?.data)) return members;
+    let rows = members.value.data.filter(row => row && row.workspace_id);
+    const kept = rows.filter(row => row.is_empty_personal !== true);
+    if (kept.length) rows = kept;
+    if (typeof primary === 'string' && rows.some(row => row.workspace_id === primary)) {
+      rows = [...rows.filter(row => row.workspace_id === primary), ...rows.filter(row => row.workspace_id !== primary)];
+    }
+    return { ...members, value: { ...members.value, data: rows } };
+  }
+  // Where the desk says which workspace it shows: the others, each with "Make this my main office".
+  function primaryChoice(supabase, memberships, workspaceID, props) {
+    if (!primarySupported || memberships.length < 2) return null;
+    const wrap = document.createElement('div'); wrap.className = 'plan-scope plan-primary';
+    const lead = document.createElement('p'); lead.className = 'plan-scope';
+    lead.textContent = 'Showing ' + planWorkspaceName(workspaceID, props) + ', your main office. You are an active member of ' + memberships.length + ' workspaces.';
+    const others = document.createElement('ul'); others.className = 'plan-primary-list';
+    const said = document.createElement('p'); said.className = 'plan-scope'; said.setAttribute('role', 'status');
+    for (const other of memberships.filter(row => row.workspace_id !== workspaceID)) {
+      const item = document.createElement('li');
+      const name = document.createElement('span'); name.textContent = planWorkspaceName(other.workspace_id, props);
+      const make = button('Make this my main office', async () => {
+        if (make.disabled) return;
+        make.disabled = true; said.textContent = 'Changing your main office…';
+        const result = await settled(Promise.resolve().then(() => supabase.rpc('set_primary_workspace', { p_workspace_id: other.workspace_id })));
+        if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in again to change your main office.'); return; }
+        if (failed(result)) { make.disabled = false; said.textContent = 'Your main office wasn’t changed. Try again.'; return; }
+        said.textContent = 'Your main office is now ' + planWorkspaceName(other.workspace_id, props) + '.';
+        await loadDesk(supabase);
+      });
+      make.className = 'tour-action'; make.dataset.control = 'make-primary';
+      item.append(name, make); others.append(item);
+    }
+    wrap.append(lead, others, said);
+    return wrap;
+  }
   function deskReset() {
     const ticket = ++deskVersion;
     deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
@@ -6129,17 +6192,24 @@
     stopPolling();
     let ticket = shown ? deskVersion : deskReset();
     if (shown) list.setAttribute('aria-busy', 'true');
-    const [props, tours, members, production, hosting, hostingStates] = await Promise.all([
+    let [props, tours, members, production, hosting, hostingStates, primary] = await Promise.all([
       settled(supabase.from('properties').select('id,title,category,location_general,workspace_id,created_at').order('created_at', { ascending: false })),
       readTours(supabase),
-      settled(supabase.from('memberships').select('workspace_id,role,status').eq('user_id', currentUserId).eq('status', 'active')),
+      readMemberships(supabase),
       settled(supabase.rpc('can_produce_tours')),
       // A throwing client still settles, so hosting can never stop the desk.
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting', {}))),
       // The member hosting read (draft 20260926132000). A backend without it (PGRST202)
       // or any failure leaves the words to plan_active and the plan's end day.
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting_states', {}))),
+      // The main office (draft 20260926127000); absent, the order is as before.
+      settled(Promise.resolve().then(() => supabase.rpc('get_primary_workspace', {}))),
     ]);
+    // Supported when it answers null (no membership yet) or one of this person's own workspaces.
+    const primaryID = failed(primary) || missingFunction(primary) ? undefined : primary.value?.data ?? null;
+    primarySupported = primaryID === null || (typeof primaryID === 'string' && !failed(members)
+      && (members.value?.data || []).some(row => row?.workspace_id === primaryID));
+    members = deskMemberships(members, primarySupported ? primaryID : null);
     if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
     list.setAttribute('aria-busy', 'false');
     const reads = [props, tours, members];
