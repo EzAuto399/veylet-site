@@ -153,13 +153,18 @@ test('every price on the page is offer.json 2026-09-26.3, set on data-price elem
 
 test('the main action is Join the waitlist, to /waitlist, everywhere it appears', () => {
   const actions = element('data-hero-actions', 'div');
-  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist">Join the waitlist <span class="icon-arrow"/);
+  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist <span class="icon-arrow"/);
   assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the 3 free months<\/a>/);
-  const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)">([^<]+)</g)].map(match => [match[1], match[2].trim()]);
+  const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)"([^>]*)>([^<]+)</g)]
+    .map(match => [match[1], match[3].trim(), match[2]]);
   assert.ok(buttons.length >= 3);
-  for (const [href, words] of buttons) assert.deepEqual([href, words], ['/waitlist', 'Join the waitlist']);
-  assert.match(body, /<a class="text-link" href="\/offer">See the full offer<\/a>/);
-  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="\/waitlist">Join the waitlist<\/a>/);
+  for (const [href, words, attributes] of buttons) {
+    assert.deepEqual([href, words], ['/waitlist', 'Join the waitlist']);
+    assert.match(attributes, /\bdata-analytics-cta="waitlist"/);
+    assert.match(attributes, /\bdata-analytics-placement="(?:hero|body)"/);
+  }
+  assert.match(body, /<a class="text-link" href="\/offer" data-analytics-cta="offer" data-analytics-placement="body">See the full offer<\/a>/);
+  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist<\/a>/);
   assert.ok(body.includes('id="offer"'), 'the offer anchor exists');
 });
 
