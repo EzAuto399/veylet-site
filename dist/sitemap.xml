@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://veylet.com/</loc></url>
-  <url><loc>https://veylet.com/apply</loc></url>
-  <url><loc>https://veylet.com/request</loc></url>
-  <url><loc>https://veylet.com/privacy</loc></url>
-  <url><loc>https://veylet.com/terms</loc></url>
+  <url><loc>https://veylet.com/</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/offer</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/apply</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/request</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/privacy</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/support</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/terms</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/start</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/website-guide</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/what-is-a-3d-walkthrough</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/3d-tour-cost-australia</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/iphone-lidar-vs-matterport</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/privacy-3d-home-tour</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/3d-tours-realestate-com-au-domain</loc><lastmod>2026-09-24</lastmod></url>
+  <url><loc>https://veylet.com/guides/do-3d-tours-help-sell-faster</loc><lastmod>2026-09-24</lastmod></url>
 </urlset>

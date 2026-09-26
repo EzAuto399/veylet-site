@@ -70,9 +70,9 @@ p {
   padding-inline: 56px;
 }
 .eyebrow {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 1.6px;
+  letter-spacing: 0.1em;
   line-height: 1.5;
 }
 .brand {
@@ -114,7 +114,7 @@ nav {
   font-size: 12px;
 }
 nav a:last-child {
-  border-bottom: 1px solid #a6b3a2;
+  border-bottom: 1px solid var(--field-line);
   padding-bottom: 5px;
 }
 .hero {
@@ -183,12 +183,14 @@ nav a:last-child {
   display: inline-flex;
   align-items: center;
   gap: 27px;
-  border-bottom: 1px solid #a6b3a2;
+  /* The rule is the only thing telling a text link from the sentence around
+     it, so it is drawn at 3:1 against paper rather than at 1.94:1. */
+  border-bottom: 1px solid var(--field-line);
   padding-block: 12px;
 }
 .hero-note {
-  font-size: 11px;
-  letter-spacing: 0.3px;
+  font-size: 13px;
+  letter-spacing: 0;
   color: var(--muted);
   margin-top: 28px;
 }
@@ -200,8 +202,8 @@ nav a:last-child {
 .film-label {
   display: flex;
   justify-content: space-between;
-  font-size: 9px;
-  letter-spacing: 1.3px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
   margin-bottom: 13px;
 }
 .hero-film video {
@@ -209,6 +211,7 @@ nav a:last-child {
   display: block;
   aspect-ratio: 9/16;
   background: var(--ink);
+  color: var(--paper);
   box-shadow: 0 18px 45px #10231d16;
 }
 .hero-film figcaption {
@@ -226,7 +229,7 @@ nav a:last-child {
   color: var(--muted);
 }
 .hero-film figcaption small {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   color: var(--muted);
   margin-top: 4px;
@@ -244,7 +247,7 @@ nav a:last-child {
 h2 {
   font-size: clamp(34px, 3.5vw, 51px);
   line-height: 1.05;
-  letter-spacing: -1.8px;
+  letter-spacing: -0.035em;
 }
 .section-head > p:last-child {
   color: var(--muted);
@@ -643,7 +646,7 @@ dialog::backdrop {
   margin-top: 24px;
 }
 .study-copy > p.small {
-  font-size: 11px;
+  font-size: 12px;
 }
 .study-copy .text-link {
   margin-top: 26px;
@@ -735,7 +738,7 @@ dialog::backdrop {
     font-size: 14px;
   }
   .service-for {
-    font-size: 9px;
+    font-size: 11px;
   }
   .process {
     gap: 40px;
@@ -973,7 +976,7 @@ dialog::backdrop {
     gap: 11px;
   }
   .brand {
-    font-size: 9px;
+    font-size: 11px;
     gap: 7px;
   }
   .portal {
@@ -1452,7 +1455,7 @@ footer > span {
     font-size: 36px;
   }
   .film-label {
-    font-size: 9px;
+    font-size: 11px;
   }
   .scope-note,
   .contact-note {
@@ -1606,6 +1609,12 @@ footer > span {
   margin: 8px 0;
   min-height: 44px;
 }
+/* An explanation of why the list is empty is not a bulleted entry in it. */
+.account-list > .tour-state-help {
+  list-style: none;
+  margin-left: -1.1rem;
+  min-height: 0;
+}
 .dash-heading {
   font-size: 22px;
   letter-spacing: -0.4px;
@@ -1627,9 +1636,16 @@ footer > span {
   padding: 16px 0;
   border-top: 1px solid var(--line);
 }
-.dash-space strong {
+.dash-space strong,
+.dash-space-title {
   display: block;
   font-weight: 500;
+}
+.dash-space-title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .dash-space p,
 .dash-space ul {
@@ -1693,14 +1709,18 @@ footer > span {
   display: none;
 }
 
-/* Utility-page inline links are the only next step on those pages. */
+/* Links inside a sentence stay inline so the sentence can wrap; WCAG 2.5.8
+   exempts them from the target-size minimum. A stand-alone next step uses
+   .text-link or .button, which keep the 44px target. */
 .form-page .contact-note a,
 .form-page .intro a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
   text-decoration: underline;
+  text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+}
+.form-page .contact-note a:hover,
+.form-page .intro a:hover {
+  text-decoration-thickness: 2px;
 }
 
 /* Client handoff: the walkthrough is the page. No operator chrome, no
@@ -1724,9 +1744,9 @@ footer > span {
 
 /* The operator gate: an email account is not a licence to capture. */
 .gate-note {
-  border-left: 2px solid var(--ink);
-  padding: 4px 0 4px 18px;
-  margin: 26px 0 30px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 12px;
+  margin: 16px 0;
 }
 .gate-note-title {
   font-size: 17px;
@@ -1940,6 +1960,46 @@ footer > span {
   color: var(--muted);
 }
 
+/* A field's problem belongs beside the field, in text, and it stays there
+   until the answer changes. It is never the only signal: aria-invalid and the
+   described-by link carry it to assistive technology too. */
+.field-problem {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  border-left: 2px solid var(--danger);
+  padding-left: 10px;
+}
+.veylet-form [aria-invalid='true'] {
+  border-color: var(--danger);
+}
+/* A brief kept in this browser, said plainly, with one press to throw it away. */
+.draft-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.draft-notice span {
+  flex: 1 1 22ch;
+  min-width: 0;
+}
+/* Revoke and Withdraw end something. They keep a 44px target and the same
+   shape, but they are ruled off from the actions that only copy or open. */
+.tour-actions-stop {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
 /* Grouping a long form by intent, so it reads as three short asks not thirteen fields. */
 .form-group {
   border: 0;
@@ -1965,4 +2025,331 @@ footer > span {
   width: 1px;
   height: 1px;
   overflow: hidden;
+}
+
+/* Practical onboarding uses the same quiet hierarchy as the public studio. */
+.guide-page { max-width: 1160px; padding-top: 56px; padding-bottom: 80px; }
+.guide-intro { max-width: 800px; margin-bottom: 48px; }
+.guide-intro h1 { font-size: clamp(38px, 6vw, 68px); line-height: 1.07; margin: 18px 0 24px; letter-spacing: -0.03em; }
+.guide-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.guide-choice { padding: 28px; border: 1px solid var(--line); border-radius: 12px; }
+.guide-choice h2 { font-size: 28px; margin: 16px 0; }
+.guide-choice .button { margin-top: 24px; }
+.guide-section { padding: 40px 0; border-top: 1px solid var(--line); margin-top: 40px; }
+.guide-section h2 { font-size: clamp(27px, 3.5vw, 36px); margin-bottom: 24px; }
+.guide-section h3 { font-size: 21px; margin-bottom: 10px; }
+.guide-section .eyebrow { margin-bottom: 12px; }
+.guide-steps { counter-reset: route; padding: 0; list-style: none; display: grid; gap: 32px; }
+.guide-steps li { counter-increment: route; display: grid; grid-template-columns: 42px 1fr; gap: 20px; }
+.guide-steps li::before { content: counter(route, decimal-leading-zero); padding-top: 3px; font-size: 18px; color: var(--muted); }
+.guide-section details { border-top: 1px solid var(--line); }
+.guide-section summary { min-height: 56px; padding: 18px 0; font-size: 18px; cursor: pointer; }
+.guide-section details p { padding: 0 0 24px; max-width: 76ch; }
+.copy-label { display: block; margin: 20px 0 10px; font-size: 14px; }
+.copy-field { display: block; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: 13px/1.55 ui-monospace, monospace; resize: vertical; background: white; color: var(--ink); overflow-wrap: anywhere; }
+.tour-review { margin: 16px 0; padding: 18px; border: 1px solid var(--line); border-radius: 8px; }
+.tour-review label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; font-size: 14px; line-height: 1.5; }
+.tour-review input { flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; }
+.tour-review summary { min-height: 44px; cursor: pointer; padding: 10px 0; font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+.tour-state-help { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.account-details { margin: 16px 0; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.account-details summary, .gate-note summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #897033; outline-offset: 4px; }
+[aria-busy="true"] { cursor: progress; }
+@media (max-width: 640px) {
+  .guide-page { padding-top: 32px; }
+  .guide-choices { grid-template-columns: 1fr; gap: 18px; }
+  .guide-choice { padding: 22px; }
+  .guide-section { padding-top: 28px; margin-top: 28px; }
+  .guide-steps li { grid-template-columns: 30px 1fr; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+}
+
+/* ---- Shared surfaces: the parts of the page the browser draws ---- */
+:root {
+  --field-line: #7a877c; /* 3.3:1 on paper, so a field reads as a field */
+  --accent: #526b55;
+  --panel: #eaece3; /* the one tint: a note, never a third ground */
+  --danger: #8a3324; /* an ending, only ever beside the word for it */
+  caret-color: var(--accent);
+  accent-color: var(--ink);
+  scrollbar-color: #a6b3a2 transparent;
+}
+::selection {
+  background: var(--sage);
+  color: var(--ink);
+}
+.veylet-form input,
+.veylet-form textarea,
+.veylet-form select {
+  border-color: var(--field-line);
+  transition: border-color 0.17s;
+}
+.veylet-form input:hover,
+.veylet-form textarea:hover,
+.veylet-form select:hover {
+  border-color: var(--ink);
+}
+.veylet-form input::placeholder,
+.veylet-form textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+/* The tightest tracking that still keeps letterforms apart at display size. */
+.hero h1 {
+  letter-spacing: -0.04em;
+}
+/* Header: the current page is marked; no link is emphasised by position. */
+header nav a:last-child,
+footer nav a:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+header nav a[aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+}
+footer nav {
+  flex-wrap: wrap;
+  gap: 8px 26px;
+}
+/* One drawn arrow replaces the Unicode glyphs; it follows the text colour. */
+.icon-arrow {
+  display: inline-block;
+  flex: none;
+  width: 15px;
+  height: 10px;
+  margin-left: 2px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 10' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M0 5h13.4M9.6 1.2 13.4 5 9.6 8.8'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 10' fill='none' stroke='black' stroke-width='1.3'%3E%3Cpath d='M0 5h13.4M9.6 1.2 13.4 5 9.6 8.8'/%3E%3C/svg%3E") center / contain no-repeat;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+a:hover > .icon-arrow,
+button:hover > .icon-arrow {
+  transform: translateX(3px);
+}
+/* Disclosure markers: one drawn plus that settles to a minus when open. */
+.faq-block summary,
+.optional-brief summary,
+.account-details summary,
+.gate-note summary,
+.tour-review summary,
+.enquiry-copy summary {
+  list-style: none;
+  position: relative;
+  padding-right: 40px;
+}
+.faq-block summary::-webkit-details-marker,
+.optional-brief summary::-webkit-details-marker,
+.account-details summary::-webkit-details-marker,
+.gate-note summary::-webkit-details-marker,
+.tour-review summary::-webkit-details-marker,
+.enquiry-copy summary::-webkit-details-marker {
+  display: none;
+}
+.faq-block summary::after,
+.optional-brief summary::after,
+.account-details summary::after,
+.gate-note summary::after,
+.tour-review summary::after,
+.enquiry-copy summary::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  margin-top: -6.5px;
+  background:
+    linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1px 13px no-repeat;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+details[open] > summary::after {
+  background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat;
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-arrow,
+  details > summary::after {
+    transition: none;
+  }
+}
+
+/* Links inside running text are underlined and stay inline. */
+main p > a:not(.button):not(.text-link):not(.tour-action),
+main li > a:not(.button):not(.text-link):not(.tour-action) {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+/* A two-option choice reads better as cards than as a truncated select. */
+.choice-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.choice-group legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.veylet-form .choice {
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 14px 16px;
+  min-height: 44px;
+  background: #fff;
+  border: 1px solid var(--field-line);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.17s, background 0.17s;
+}
+.veylet-form .choice:hover {
+  border-color: var(--ink);
+}
+.veylet-form .choice:has(input:checked) {
+  border-color: var(--ink);
+  background: #eef1e8;
+}
+.veylet-form .choice:has(input:focus-visible) {
+  outline: 3px solid #897033;
+  outline-offset: 3px;
+}
+.veylet-form .choice input {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 0;
+  margin: 1px 0 0;
+}
+.veylet-form .choice input:focus-visible {
+  outline: none;
+}
+.choice strong {
+  display: block;
+  font-weight: 500;
+  font-size: 15px;
+}
+.choice small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.choice-help {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* Form footers: reassurance leads into the action; mechanics follow it. */
+.form-assurance {
+  color: var(--ink);
+  margin: 6px 0 0;
+}
+.form-mechanics {
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Desk: feedback beside the control, a weighted confirmation, a legible ending. */
+.tour-row-status {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #eaece3;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.tour-row-status[hidden] {
+  display: none;
+}
+.tour-action-danger[data-armed="true"] {
+  background: #8a3324;
+  border-color: #8a3324;
+  color: #fff;
+}
+.tour-action-danger[data-armed="true"]:hover {
+  background: #722a1d;
+}
+#account-updated {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+.leaving-list {
+  margin: 8px 0 18px;
+  display: grid;
+}
+.leaving-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr);
+  gap: 6px 24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.leaving-list dt {
+  font-weight: 500;
+  font-size: 15px;
+}
+.leaving-list dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  .leaving-list > div {
+    grid-template-columns: 1fr;
+  }
+  #account-updated {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+/* Plain-case audience line under a heading; replaces the tracked-caps kicker. */
+.for-line {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.for-line + p {
+  margin-top: 14px;
+}
+.study-rail-title {
+  font-size: 15px;
+  font-weight: 500;
+  margin: 28px 0 14px;
+}
+.study-copy .for-line {
+  margin-bottom: 12px;
+}
+/* Every remaining px tracking is replaced by a relative value at or above -0.04em. */
+.hero h1,
+.form-page h1 {
+  letter-spacing: -0.04em;
+}
+.partner-path h3,
+.reply-preview h2,
+.conversion-heading h2,
+.account-next h2,
+.service-grid h3,
+.hero-film figcaption strong {
+  letter-spacing: -0.02em;
 }

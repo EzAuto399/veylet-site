@@ -1,0 +1,157 @@
+{
+  "version": "2026-09-23.4",
+  "status": "current commercial offer; channel availability and release readiness are documented separately",
+  "currency": "AUD",
+  "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
+  "freeMonths": {
+    "months": 6,
+    "includedWalkthroughs": 4,
+    "startsOn": "activation",
+    "activationMeans": "the subscription is created: in the app through the App Store, or by the studio for an invoiced account; card payment on the website is coming later",
+    "websiteCardPayment": "coming later; no live card provider is connected",
+    "cardRequired": null,
+    "autoRenews": null,
+    "reminderDaysBeforeFirstCharge": null,
+    "extraWalkthroughWebAud": 89,
+    "extraWalkthroughAppAud": 99.99,
+    "extraWalkthroughInApp": "arrives in a later app version",
+    "hostingMonthsAfterRelease": 12,
+    "cancelAnytime": true,
+    "paymentSetup": "App Store payment arrangement in the app, or written studio invoice terms; this website collects no card",
+    "renewalNotice": "Check the renewal date in your account and Apple subscription settings; Veylet email reminders are not yet operational",
+    "extraAuthorizationRequired": true,
+    "earlyPaidSwitchAvailable": false,
+    "autoRenewalByChannel": {
+      "appStore": true,
+      "studioInvoice": false
+    }
+  },
+  "plans": [
+    {
+      "code": "one",
+      "name": "One walkthrough",
+      "kind": "once",
+      "webAud": 199,
+      "includedWalkthroughs": 1,
+      "hostingMonths": 12,
+      "freeMonthsEligible": false,
+      "role": "anchor for people who need exactly one"
+    },
+    {
+      "code": "solo",
+      "name": "Solo",
+      "kind": "monthly",
+      "webAud": 99,
+      "appAud": 119.99,
+      "annualWebAud": 1089,
+      "annualAppAud": 1319.99,
+      "annualRule": "twelve months for the price of eleven by studio invoice; the App Store annual price is the nearest Apple price point",
+      "annualSavingWebAud": 99,
+      "annualSavingAppAud": 119.89,
+      "includedPerMonth": 1,
+      "extraWebAud": 89,
+      "extraAppAud": 99.99,
+      "seats": "unlimited",
+      "hostingIncluded": true,
+      "whiteLabel": true,
+      "freeMonthsEligible": true,
+      "role": "entry point: one accepted walkthrough a month"
+    },
+    {
+      "code": "studio",
+      "name": "Team",
+      "kind": "monthly",
+      "webAud": 249,
+      "appAud": 289.99,
+      "annualWebAud": 2739,
+      "annualAppAud": 3189.99,
+      "annualRule": "twelve months for the price of eleven by studio invoice; the App Store annual price is the nearest Apple price point",
+      "annualSavingWebAud": 249,
+      "annualSavingAppAud": 289.89,
+      "includedPerMonth": 3,
+      "extraWebAud": 89,
+      "extraAppAud": 99.99,
+      "seats": "unlimited",
+      "hostingIncluded": true,
+      "whiteLabel": true,
+      "freeMonthsEligible": true,
+      "role": "better value per walkthrough: three accepted walkthroughs a month"
+    },
+    {
+      "code": "office",
+      "name": "Office",
+      "kind": "monthly",
+      "webAud": 749,
+      "annualWebAud": 8239,
+      "annualSavingWebAud": 749,
+      "includedPerMonth": 10,
+      "extraWebAud": 79,
+      "seats": "unlimited",
+      "hostingIncluded": true,
+      "whiteLabel": true,
+      "priorityProcessing": true,
+      "selfServe": false,
+      "freeMonthsEligible": true,
+      "note": "sized one office at a time while processing is attended"
+    }
+  ],
+  "programmes": {
+    "founding": {
+      "code": "founding",
+      "name": "Founding agencies",
+      "basePlan": "studio",
+      "invitationOnly": true,
+      "maxAccounts": 5,
+      "freeMonthsEligible": true,
+      "webAud": 219,
+      "billing": "monthly",
+      "channel": "studioInvoice",
+      "lockMonths": 12,
+      "includedPerMonth": 3,
+      "extraWebAud": 89,
+      "appStore": false,
+      "note": "the same six free months with four accepted walkthroughs, then Team at the founding rate by studio invoice, fixed for twelve months; invoices are agreed and settled each period and do not auto-renew; the price after the fixed twelve months is stated in the written agreement"
+    }
+  },
+  "appStore": {
+    "commissionAssumed": 0.15,
+    "program": "15% is a modelling assumption; programme enrolment is not verified",
+    "pricingRule": "Separate published App Store and studio invoice totals; do not infer exact net revenue from the commission assumption",
+    "introductoryOffer": {
+      "type": "free_trial",
+      "months": 6,
+      "oncePerAppleId": true
+    },
+    "productIds": {
+      "monthly": "dev.property3d.capture.plan.monthly",
+      "annual": "dev.property3d.capture.plan.annual",
+      "extraWalkthrough": "dev.property3d.capture.extra",
+      "soloMonthly": "dev.property3d.capture.solo.monthly",
+      "soloAnnual": "dev.property3d.capture.solo.annual"
+    },
+    "productPlans": {
+      "monthly": "studio",
+      "annual": "studio",
+      "soloMonthly": "solo",
+      "soloAnnual": "solo"
+    }
+  },
+  "services": {
+    "hostingPerWalkthroughPerFurtherYearAud": 49,
+    "editingPerHourAud": 120
+  },
+  "counting": {
+    "acceptedMeans": "the studio check passed and the workspace approved the exact revision for release",
+    "notGoodEnoughCounts": false,
+    "largeOrMultiLevelMayCountAsTwo": false,
+    "rollover": false,
+    "freeMonthsAllowanceIsTotal": true,
+    "planAllowanceIsMonthly": true,
+    "unit": "accepted_walkthrough",
+    "unitsPerAcceptedWalkthrough": 1
+  },
+  "devices": [
+    "iPhone 12 Pro and later Pro or Pro Max models",
+    "iPad Pro models with LiDAR"
+  ]
+}

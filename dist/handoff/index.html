@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Private walkthrough — Veylet</title>
     <meta name="robots" content="noindex,nofollow" />
+    <meta name="referrer" content="no-referrer" />
     <meta
       name="description"
       content="Private Veylet walkthrough. Unlisted link, not a public gallery."
     />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css" />
-    <script src="/brand-host.js"></script>
-    <script src="/supabase-public.js"></script>
-    <script src="/vendor/supabase-js-2.116.0.min.js"></script>
-    <script src="/vendor/jszip-3.10.2.min.js"></script>
-    <script src="/place-fields.js"></script>
-    <script src="/tour-player.js"></script>
+    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <script src="/brand-host.js?v=1c06a18e19b34007"></script>
+    <script src="/supabase-public.js?v=f75a6621bfcb77e4"></script>
+    <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
+    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/tour-player.js?v=ff7074f8ca7732d0"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -27,7 +27,6 @@
       >
     </header>
     <main id="main" class="form-page wrap">
-      <p class="eyebrow">PRIVATE WALKTHROUGH</p>
       <h1 id="handoff-title">Private walkthrough</h1>
       <p class="tour-meta" id="handoff-meta" hidden></p>
       <div class="tour-frame-wrap" id="tour-frame-wrap" hidden>
@@ -37,24 +36,32 @@
             class="tour-frame"
             title="Reconstructed walkthrough"
             hidden
-            allow="fullscreen"
+            allow="fullscreen *"
+        allowfullscreen
+            sandbox="allow-scripts allow-pointer-lock"
+            referrerpolicy="no-referrer"
           ></iframe>
         </div>
       </div>
       <p class="contact-note" id="handoff-status" role="status"></p>
+      <!-- True before the script runs, and still true if it never runs. The
+           script replaces it once the walkthrough is confirmed to be there. -->
       <p class="intro" id="handoff-body">
-        Unlisted and not indexed. This link opens the reconstructed walkthrough
-        while the operator leaves it active.
+        Unlisted and not indexed. An active link opens the reconstructed
+        walkthrough on this page.
       </p>
       <p class="tour-actions" id="tour-actions" hidden>
         <button class="button button-ghost" type="button" id="tour-retry">
           Try again
         </button>
       </p>
+      <noscript><p class="contact-note">JavaScript is needed to open this interactive walkthrough. Use a current browser, or ask the person who sent it for listing photographs and assistance.</p></noscript>
       <p class="contact-note" data-tour-help hidden>
         This is a private link, not a public gallery. It stops working when the
-        operator revokes it. Ask the person who sent it if you need it again, or
-        <a href="/request">contact Veylet Studio</a> if it will not open.
+        operator revokes it. Ask the person who sent it if you need it again. If
+        it will not open in a current browser,
+        <a href="mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20link%20help">email Veylet support</a>
+        and leave out the address of the space.
       </p>
     </main>
     <footer class="wrap">
@@ -104,6 +111,7 @@
       } else {
         window.VeyletPlayer.boot({
           els,
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
           resolve: async (client) => {
             const { data, error } = await client.rpc('lookup_tour_share', {
               p_token: token,
