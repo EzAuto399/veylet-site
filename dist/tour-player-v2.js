@@ -92,14 +92,118 @@
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
+    const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
     return {
       synthetic: json.synthetic === true,
       truthLabel: json.truth_label,
-      scene: { lodMeta: scene.lod_meta, levels: scene.lod_levels, counts: scene.lod_counts, rotation: scene.rotation_degrees, background: scene.background },
+      scene: { lodMeta: scene.lod_meta, levels: scene.lod_levels, counts: scene.lod_counts, rotation: scene.rotation_degrees, background: scene.background,
+        ...(chunked ? { chunked } : {}) },
       posters,
       walkable: json.walkable ? json.walkable.path : null,
       rooms, stops, start: json.start_stop,
     };
+  }
+
+  /**
+   * A whole-home package in chunks (local-pipeline/tools/chunked-manifest.md): one streamed scene per group of rooms.
+   * scene.lod_meta names the opening chunk, so an older player would show that chunk alone; this one holds the chunk
+   * of the room you are in and the chunks beyond its doorways. Doorways come from chunks[].adjacent, rooms[].adjacent
+   * and portals, made symmetric. Anything malformed refuses the package rather than showing one room.
+   */
+  function readChunks(json, scene, rooms, stops, bad) {
+    if (scene.layout !== 'chunked' || !Array.isArray(scene.chunks) || scene.chunks.length < 2 || scene.chunks.length > 40) bad('chunks');
+    const roomIds = new Set(rooms.map(room => room.id));
+    const chunkOfRoom = {};
+    const ids = new Set();
+    const chunks = scene.chunks.map(chunk => {
+      if (!chunk || typeof chunk.id !== 'string' || !/^chunk_\d{1,3}$/.test(chunk.id) || ids.has(chunk.id)) bad('chunk');
+      ids.add(chunk.id);
+      if (!safePath(chunk.lod_meta) || chunk.lod_meta !== 'lod/' + chunk.id + '/lod-meta.json') bad('chunk');
+      if (!Array.isArray(chunk.lod_counts) || chunk.lod_counts.length !== scene.lod_levels
+          || !chunk.lod_counts.every((count, i) => Number.isSafeInteger(count) && count > 0 && (i === 0 || count <= chunk.lod_counts[i - 1]))) bad('chunk');
+      if (!Array.isArray(chunk.rooms) || !chunk.rooms.length || chunk.rooms.some(room => !roomIds.has(room) || chunkOfRoom[room])) bad('chunk');
+      for (const room of chunk.rooms) chunkOfRoom[room] = chunk.id;
+      const bounds = chunk.bounds || {};
+      if (!finite3(bounds.min) || !finite3(bounds.max) || bounds.min.some((v, i) => v > bounds.max[i])) bad('chunk');
+      return { id: chunk.id, rooms: [...chunk.rooms], lodMeta: chunk.lod_meta, counts: chunk.lod_counts, bounds: { min: bounds.min, max: bounds.max }, listed: chunk.adjacent };
+    });
+    if (Object.keys(chunkOfRoom).length !== roomIds.size) bad('chunk');
+    const links = new Map(chunks.map(chunk => [chunk.id, new Set()]));
+    const link = (a, b) => { if (a && b && a !== b) { links.get(a).add(b); links.get(b).add(a); } };
+    for (const chunk of chunks) {
+      if (!Array.isArray(chunk.listed) || chunk.listed.some(other => !ids.has(other))) bad('chunk');
+      for (const other of chunk.listed) link(chunk.id, other);
+    }
+    for (const room of json.rooms) if (Array.isArray(room.adjacent)) for (const other of room.adjacent) link(chunkOfRoom[room.id], chunkOfRoom[other]);
+    if (Array.isArray(json.portals)) for (const portal of json.portals) if (portal) link(chunkOfRoom[portal.from_room], chunkOfRoom[portal.to_room]);
+    const opening = chunkOfRoom[stops[json.start_stop]?.room];
+    if (scene.opening_chunk !== opening || scene.lod_meta !== chunks.find(chunk => chunk.id === opening).lodMeta) bad('opening_chunk');
+    return {
+      levels: scene.lod_levels, opening, chunkOfRoom,
+      chunks: chunks.map(({ listed, ...chunk }) => ({ ...chunk, adjacent: [...links.get(chunk.id)].sort() })),
+    };
+  }
+
+  /** Doorway hops from chunk `from` to every chunk; a chunk with no way through is Infinity. */
+  function chunkHops(chunked, from) {
+    const hops = Object.fromEntries(chunked.chunks.map(chunk => [chunk.id, Infinity]));
+    hops[from] = 0;
+    const queue = [from];
+    while (queue.length) {
+      const at = queue.shift();
+      for (const next of chunked.chunks.find(chunk => chunk.id === at).adjacent) if (hops[next] === Infinity) { hops[next] = hops[at] + 1; queue.push(next); }
+    }
+    return hops;
+  }
+
+  /**
+   * What to hold with the viewer in chunk `current`: that chunk and the chunks beyond its doorways, the neighbours at
+   * the coarsest level, the current chunk at the finest level whose splats fit the budget beside theirs, and never
+   * finer than `finest` (Save-Data: the coarsest). Anything two or more doorways away is let go.
+   */
+  function chunkPlan(chunked, current, { held = [], budget = Infinity, saveData = false, finest = 0 } = {}) {
+    const hops = chunkHops(chunked, current);
+    const coarsest = chunked.levels - 1;
+    const near = chunked.chunks.filter(chunk => hops[chunk.id] <= 1);
+    const others = near.reduce((sum, chunk) => sum + (chunk.id === current ? 0 : chunk.counts[coarsest]), 0);
+    const levelOf = chunk => {
+      if (chunk.id !== current || saveData) return coarsest;
+      const index = chunk.counts.findIndex((count, level) => level >= finest && count + others <= budget);
+      return index < 0 ? coarsest : index;
+    };
+    const hold = near.map(chunk => ({ id: chunk.id, level: levelOf(chunk) }));
+    return { current, hold, unload: held.filter(id => !(hops[id] <= 1)) };
+  }
+
+  /**
+   * The finest level a chunk may take on this device. A chunk is at most 750K splats, so a phone's budget often fits
+   * one whole where a single-scene room (larger) did not; phones stay one level down as they do for single scenes,
+   * unless the profile gave them the high-end WebGPU budget (8 GB, 8 cores, Wi-Fi).
+   */
+  const finestChunkLevel = profile => (profile.kind === 'phone' && profile.maxBudget < 1_000_000 ? 1 : 0);
+
+  /**
+   * The chunk a floor position (capture space) belongs to. The chunk you are in while you stay inside its box, so a
+   * doorway where two boxes overlap does not flip between them; else the chunk of the nearest stop (on this storey)
+   * among the chunks whose box holds the point; else the nearest stop's chunk.
+   */
+  function chunkAt(manifest, position, current = null, storey = Infinity) {
+    const { chunked } = manifest.scene;
+    const inside = chunk => [0, 1, 2].every(i => position[i] >= chunk.bounds.min[i] - (i === 1 ? 1 : 0) && position[i] <= chunk.bounds.max[i] + (i === 1 ? 1 : 0));
+    const own = current && chunked.chunks.find(chunk => chunk.id === current);
+    if (own && inside(own)) return current;
+    const boxes = new Set(chunked.chunks.filter(inside).map(chunk => chunk.id));
+    let best = null, distance = Infinity;
+    for (const pass of boxes.size ? [true, false] : [false]) {
+      for (const stop of manifest.stops) {
+        const chunk = chunked.chunkOfRoom[stop.room];
+        if (Math.abs(stop.position[1] - position[1]) > storey || (pass && !boxes.has(chunk))) continue;
+        const d = Math.hypot(stop.position[0] - position[0], stop.position[2] - position[2]);
+        if (d < distance) { best = chunk; distance = d; }
+      }
+      if (best) return best;
+    }
+    return current || chunked.opening;
   }
 
   /** Splat budget and pixel ratio for this device class; the governor adapts from here. */
@@ -685,15 +789,36 @@
     const camera = new pc.Entity('camera');
     camera.addComponent('camera', { clearColor: new pc.Color().fromString(manifest.scene.background), nearClip: 0.05, farClip: 200 });
     app.root.addChild(camera);
-    const splat = new pc.Entity('walkthrough');
-    splat.setLocalEulerAngles(...manifest.scene.rotation);
-    const asset = new pc.Asset('walkthrough', 'gsplat', { url: base + manifest.scene.lodMeta });
-    app.assets.add(asset);
-    splat.addComponent('gsplat', { asset, unified: true });
-    // First pass: the coarsest level only, so the room appears as soon as it can.
-    splat.gsplat.lodRangeMin = levels - 1;
-    splat.gsplat.lodRangeMax = levels - 1;
-    app.root.addChild(splat);
+    // A chunked package holds chunks instead (see chunkPlan): the opening chunk alone until the first 3D frame.
+    const chunked = manifest.scene.chunked || null;
+    const held = new Map(); // chunk id -> { entity, asset, level, settled }
+    let splat = null, asset = null;
+    let currentChunk = chunked ? chunked.opening : null;
+    function holdChunk(id) {
+      const chunk = chunked.chunks.find(item => item.id === id);
+      const entity = new pc.Entity(id);
+      entity.setLocalEulerAngles(...manifest.scene.rotation);
+      const chunkAsset = new pc.Asset(id, 'gsplat', { url: base + chunk.lodMeta });
+      app.assets.add(chunkAsset);
+      entity.addComponent('gsplat', { asset: chunkAsset, unified: true });
+      entity.gsplat.lodRangeMin = levels - 1;
+      entity.gsplat.lodRangeMax = levels - 1;
+      app.root.addChild(entity);
+      const item = { entity, asset: chunkAsset, level: levels - 1, settled: false };
+      held.set(id, item);
+      return item;
+    }
+    if (!chunked) {
+      splat = new pc.Entity('walkthrough');
+      splat.setLocalEulerAngles(...manifest.scene.rotation);
+      asset = new pc.Asset('walkthrough', 'gsplat', { url: base + manifest.scene.lodMeta });
+      app.assets.add(asset);
+      splat.addComponent('gsplat', { asset, unified: true });
+      // First pass: the coarsest level only, so the room appears as soon as it can.
+      splat.gsplat.lodRangeMin = levels - 1;
+      splat.gsplat.lodRangeMax = levels - 1;
+      app.root.addChild(splat);
+    } else holdChunk(currentChunk);
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
@@ -805,8 +930,14 @@
           more.remove();
           note.textContent = 'Loading full detail.';
           if (!ready) return;
-          stats.level = detailLevel(manifest.scene.counts, governor.state.budget);
-          splat.gsplat.lodRangeMin = stats.level;
+          if (chunked) {
+            // Mid-room change: the promotion that follows reads saveData.
+            if (phase === 'room') return;
+            promoteCurrent();
+          } else {
+            stats.level = detailLevel(manifest.scene.counts, governor.state.budget);
+            splat.gsplat.lodRangeMin = stats.level;
+          }
           if (phase === 'complete') { phase = 'detail'; maxLoading = 0; sawLoading = false; readyFrames = 0; continuous++; }
           ui.status.textContent = 'Sharpening detail…';
           ui.progress.hidden = false;
@@ -960,12 +1091,15 @@
       dismissHint();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
-      flyTo([...stop.position], look.yaw, look.pitch, () => arrived(index));
+      // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
+      if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
+      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); });
     }
     function walkTo(point) {
       const eye = walkable ? walkable.eyeHeight : 1.4;
       const target = [point[0], point[1] + eye, point[2]];
-      flyTo(target, state.yaw, state.pitch, () => arrived(nearestStop(manifest, target, 0.35, sameLevel)));
+      if (chunked) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
+      flyTo(target, state.yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); });
     }
     let messageTimer = null;
     function say(message) {
@@ -1169,9 +1303,97 @@
 
     // ----- rendering, loading phases and frame pacing -----
     const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, saveData, frames: [], changes: [] };
+    if (chunked) stats.rooms = []; // per room change: the chunk and how long "Loading this room…" showed
+
+    // ----- chunked packages: the room you are in, the rooms beyond its doorways, nothing further -----
+    // Phases after the first frame: 'room' while newly held chunks load at the coarsest level (the room you walked
+    // into first, then its neighbours), then 'detail' while the current chunk streams its promoted level.
+    const ROOM_LOADING = 'Loading this room…';
+    let roomWait = null; // { chunk, since } while "Loading this room…" shows
+    let progressBase = 0; // share of the bar the neighbours' coarse pass took on this run
+    const coarsest = levels - 1;
+    function setChunkLevel(item, level) {
+      if (!item || item.level === level) return;
+      item.level = level;
+      item.entity.gsplat.lodRangeMin = level;
+    }
+    function addChunk(id) {
+      const item = holdChunk(id);
+      item.asset.on('error', () => fail('engine-unavailable'));
+      app.assets.load(item.asset);
+      return item;
+    }
+    function startRun() {
+      if (phase === 'complete') continuous++;
+      maxLoading = 0; sawLoading = false; readyFrames = 0;
+    }
+    function promoteCurrent() {
+      const plan = chunkPlan(chunked, currentChunk, { held: [...held.keys()], budget: governor.state.budget, saveData, finest: finestChunkLevel(profile) });
+      stats.level = plan.hold.find(item => item.id === currentChunk).level;
+      setChunkLevel(held.get(currentChunk), stats.level);
+    }
+    // The next step of a run: neighbours not yet held load at the coarsest level, then the current chunk is promoted.
+    function nextChunkStep() {
+      const missing = chunkPlan(chunked, currentChunk, { held: [...held.keys()] }).hold.filter(item => !held.has(item.id));
+      maxLoading = 0; sawLoading = false; readyFrames = 0;
+      if (missing.length) { for (const item of missing) addChunk(item.id); phase = 'room'; return; }
+      // The first run's bar: the neighbours' coarse pass fills the first 30 %, the room's detail the rest.
+      progressBase = sharpening() ? 0.3 : 0;
+      phase = 'detail';
+      promoteCurrent();
+    }
+    const sharpening = () => ui.status.textContent === 'Sharpening detail…';
+    // Everything held has arrived at its level.
+    function chunksSettled() {
+      for (const item of held.values()) item.settled = true;
+      if (roomWait) {
+        stats.rooms.push({ chunk: roomWait.chunk, ms: Math.round(performance.now() - roomWait.since) });
+        roomWait = null;
+        if (ui.status.textContent === ROOM_LOADING) ui.status.textContent = '';
+        ui.progress.hidden = true;
+      }
+      nextChunkStep();
+    }
+    // The viewer is heading into chunk `id`: the chunk left behind drops to the coarsest level, the new one loads
+    // first if it is not here yet (with a small note that does not block looking or moving), then its neighbours.
+    function enterChunk(id) {
+      if (!ready || !id || id === currentChunk) return;
+      setChunkLevel(held.get(currentChunk), coarsest);
+      currentChunk = id;
+      startRun();
+      progressBase = 0;
+      if (roomWait) { roomWait = null; if (ui.status.textContent === ROOM_LOADING) ui.status.textContent = ''; ui.progress.hidden = true; }
+      const item = held.get(id);
+      if (item && item.settled) { nextChunkStep(); return; }
+      if (!item) addChunk(id);
+      phase = 'room';
+      roomWait = { chunk: id, since: performance.now() };
+      ui.status.textContent = ROOM_LOADING;
+      ui.progress.hidden = false;
+      ui.progress.firstChild.style.transform = 'scaleX(0)';
+    }
+    // On arrival: chunks two or more doorways from here are destroyed and their data unloaded.
+    function releaseFarChunks() {
+      for (const id of chunkPlan(chunked, currentChunk, { held: [...held.keys()] }).unload) {
+        const item = held.get(id);
+        held.delete(id);
+        item.entity.destroy();
+        app.assets.remove(item.asset);
+        item.asset.unload();
+      }
+    }
+
     app.systems.gsplat.on('frame:request', requestRender);
     app.systems.gsplat.on('frame:ready', (cam, layer, frameReady, loadingCount) => {
       if (loadingCount > 0) sawLoading = true;
+      if (phase === 'room') {
+        maxLoading = Math.max(maxLoading, loadingCount);
+        const done = maxLoading ? (maxLoading - loadingCount) / maxLoading : 1;
+        if (roomWait) ui.progress.firstChild.style.transform = `scaleX(${done.toFixed(3)})`;
+        else if (sharpening()) ui.progress.firstChild.style.transform = `scaleX(${(done * 0.3).toFixed(3)})`;
+        if (frameReady && loadingCount === 0 && (sawLoading || ++readyFrames >= 30)) chunksSettled();
+        return;
+      }
       if (phase === 'coarse') {
         if (!frameReady || loadingCount > 0) return;
         // Data served from cache may never show as loading; a settled second of frames will do.
@@ -1186,8 +1408,14 @@
         ui.progress.hidden = saveData;
         ui.progress.firstChild.style.transform = 'scaleX(0)';
         // Finer levels now stream under the budget, over what is already on screen.
-        stats.level = detailLevel(manifest.scene.counts, governor.state.budget, saveData);
-        splat.gsplat.lodRangeMin = stats.level;
+        if (chunked) {
+          // The rooms beyond the doorways at the coarsest level, then this room's detail.
+          stats.level = coarsest;
+          nextChunkStep();
+        } else {
+          stats.level = detailLevel(manifest.scene.counts, governor.state.budget, saveData);
+          splat.gsplat.lodRangeMin = stats.level;
+        }
         sawLoading = false;
         readyFrames = 0;
         requestRender();
@@ -1200,10 +1428,12 @@
       if (phase === 'detail') {
         maxLoading = Math.max(maxLoading, loadingCount);
         const done = maxLoading ? (maxLoading - loadingCount) / maxLoading : 1;
-        ui.progress.firstChild.style.transform = `scaleX(${done.toFixed(3)})`;
+        if (!chunked) ui.progress.firstChild.style.transform = `scaleX(${done.toFixed(3)})`;
+        else if (sharpening()) ui.progress.firstChild.style.transform = `scaleX(${(progressBase + (1 - progressBase) * done).toFixed(3)})`;
         if (frameReady && loadingCount === 0 && (sawLoading || ++readyFrames >= 30)) {
           phase = 'complete';
-          mark('detail');
+          // A chunked home completes again after each room change; the mark is the opening room's detail.
+          if (!chunked || !marks.detail) mark('detail');
           ui.progress.hidden = true;
           if (ui.status.textContent === 'Sharpening detail…') ui.status.textContent = '';
           continuous = Math.max(0, continuous - 1);
@@ -1234,7 +1464,8 @@
           if (change.budget) {
             app.scene.gsplat.splatBudget = change.budget;
             stats.budget = change.budget;
-            if (phase !== 'coarse') { stats.level = detailLevel(manifest.scene.counts, change.budget, saveData); splat.gsplat.lodRangeMin = stats.level; }
+            if (chunked) { if (phase === 'detail' || phase === 'complete') promoteCurrent(); }
+            else if (phase !== 'coarse') { stats.level = detailLevel(manifest.scene.counts, change.budget, saveData); splat.gsplat.lodRangeMin = stats.level; }
           }
         }
       }
@@ -1261,9 +1492,11 @@
     app.autoRender = false;
     app.updateCanvasSize();
     applyCamera();
-    app.assets.load(asset);
+    if (chunked) for (const item of held.values()) app.assets.load(item.asset);
+    else app.assets.load(asset);
     app.start();
-    asset.on('error', () => fail('engine-unavailable'));
+    if (chunked) for (const item of held.values()) item.asset.on('error', () => fail('engine-unavailable'));
+    else asset.on('error', () => fail('engine-unavailable'));
     // A wide screen has room for the map from the start; phones, and frames on
     // someone else's page, open it on request.
     toggleMap(stage.clientWidth >= 900 && !framed);
@@ -1282,7 +1515,8 @@
       },
     };
     const controller = {
-      stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames) }),
+      stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames),
+        ...(chunked ? { chunk: currentChunk, chunks: [...held].map(([id, item]) => ({ id, level: item.level, settled: item.settled })) } : {}) }),
       goToStop, tapAt,
       // For QA: whether a tap here aims at open floor on the walkable mask.
       probe: (clientX, clientY) => {
@@ -1315,6 +1549,7 @@
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
     fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
+    chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     start, current: null,
   };
 })();

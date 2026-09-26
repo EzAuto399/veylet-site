@@ -1,0 +1,44 @@
+{
+ "screens": [
+  "opening | opening | Loading 3D… | Stop 1 of 5 | progress hidden",
+  "first-3d | ready | Sharpening detail… | Stop 1 of 5 | progress scaleX(0)",
+  "streaming | ready | Sharpening detail… | Stop 1 of 5 | progress scaleX(0.000)",
+  "detail | ready |  | Stop 1 of 5 | progress hidden",
+  "next | ready |  | Stop 2 of 5 | progress hidden",
+  "key 4 | ready |  | Stop 4 of 5 | progress hidden",
+  "prev | ready |  | Stop 3 of 5 | progress hidden",
+  "home | ready |  | Stop 1 of 5 | progress hidden"
+ ],
+ "stats": {
+  "keys": [
+   "api",
+   "budget",
+   "changes",
+   "fps",
+   "frames",
+   "kind",
+   "level",
+   "marks",
+   "phase",
+   "pixelRatio",
+   "saveData",
+   "stop"
+  ],
+  "level": 1,
+  "phase": "complete",
+  "budget": 500000,
+  "stop": 0
+ },
+ "log": [
+  "fetch:https://veylet.com/pkg/manifest.json",
+  "img:https://veylet.com/pkg/preview.webp",
+  "img:https://veylet.com/pkg/poster-portrait.webp",
+  "visible",
+  "gsplat:https://veylet.com/pkg/lod/lod-meta.json unified",
+  "scene.lodRangeMin=3",
+  "scene.lodRangeMax=3",
+  "asset.load:scene",
+  "app.start",
+  "scene.lodRangeMin=1"
+ ]
+}
