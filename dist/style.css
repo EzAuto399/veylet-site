@@ -2032,7 +2032,8 @@ footer > span {
 .guide-intro { max-width: 800px; margin-bottom: 48px; }
 .guide-intro h1 { font-size: clamp(38px, 6vw, 68px); line-height: 1.07; margin: 18px 0 24px; letter-spacing: -0.03em; }
 .guide-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.guide-choice { padding: 28px; border: 1px solid var(--line); border-radius: 12px; }
+/* Marketing surfaces are square: each choice is a hairline-ruled row, not a card (DESIGN.md, Shapes). */
+.guide-choice { padding: 24px 0 0; border-top: 1px solid var(--line); border-radius: 0; }
 .guide-choice h2 { font-size: 28px; margin: 16px 0; }
 .guide-choice .button { margin-top: 24px; }
 .guide-section { padding: 40px 0; border-top: 1px solid var(--line); margin-top: 40px; }
@@ -2059,7 +2060,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus
 @media (max-width: 640px) {
   .guide-page { padding-top: 32px; }
   .guide-choices { grid-template-columns: 1fr; gap: 18px; }
-  .guide-choice { padding: 22px; }
+  .guide-choice { padding: 20px 0 0; }
   .guide-section { padding-top: 28px; margin-top: 28px; }
   .guide-steps li { grid-template-columns: 30px 1fr; gap: 12px; }
 }

@@ -76,7 +76,8 @@ test('self-capture intent survives the form, recovery copy and next-step context
   assert.match(h.copied[0], /Exact device model: iPhone 15 Pro/);
   const thanks = setup({ thanks: true, search: '?route=managed&ref=' + ref + '&capture=self' });
   assert.match(thanks.elements['enquiry-route-next'].textContent, /device check and one practice capture/);
-  assert.match(thanks.elements['enquiry-route-next'].textContent, /private transfer route/);
+  assert.match(thanks.elements['enquiry-route-next'].textContent, /Send from the app: it uploads in the background and is usually ready in 1–2 hours\./);
+  assert.doesNotMatch(thanks.elements['enquiry-route-next'].textContent, /private transfer route/);
 });
 
 test('an old visit link leads to capture advice and keeps the device in the brief', async () => {

@@ -8,6 +8,7 @@ Short answers:
 - Processing: automatic, with no person checking. An automatic quality check (held-out photo match, coverage, floaters and walkable paths) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms. The walkthrough is usually ready for review within 1–2 hours of the upload finishing. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
 - The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- Sending: Send from the app: it uploads in the background and is usually ready in 1–2 hours.
 - Price in one line: 3 free months with 6 accepted walkthroughs in total for eligible accounts, with a payment method on file and the first charge on the day they end, then the Veylet plan at A$99 a month by card or studio invoice (A$119.99 a month in the App Store) with 2 accepted walkthroughs a month and unused ones rolling over (up to 4 banked), or A$990 a year by card or studio invoice (A$1,199.99 a year in the App Store) with 24 walkthroughs to use any time in the plan year; Super fast renders at A$29 (ready in about 30 minutes, any day, any time, or refunded) and walkthrough packs of 3 (A$169) or 10 (A$499) for busier months. Totals in AUD. Details: https://veylet.com/offer
 - Viewers: tour viewers need no app. Studio visits are not currently offered.
 - Contact: yoda@yodalai.xyz
@@ -15,11 +16,10 @@ Short answers:
 ## Pages
 - Site: https://veylet.com/
 - Offer and prices: https://veylet.com/offer
-- Start with one space (enquiry; we reply with the app invitation): https://veylet.com/request
+- Join the waitlist, the way to start (new accounts are admitted in weekly groups; joining is free and creates no account): https://veylet.com/waitlist
 - Apply as a capture partner (capturing for your own clients): https://veylet.com/apply
 - First-tour guide: https://veylet.com/start
 - Website sharing and embed guide: https://veylet.com/website-guide
-- Join the waitlist (new accounts open in weekly groups; joining is free and creates no account): https://veylet.com/waitlist
 - Support: https://veylet.com/support (email support; what to include; the quick answers)
 - Subscription terms (eligible 3 free months with 6 accepted walkthroughs total, with a payment method on file and the first charge on the day they end, one trial per agency (ABN) and workspace; the Veylet plan monthly with rollover up to 4 banked, or annual with a 24-walkthrough yearly pool; walkthrough packs valid 12 months; Super fast renders refunded if late; the first walkthrough redone free if it is not listing-ready; bonus walkthroughs for an early annual choice and for referrals; one walkthrough covers up to 8 rooms of one property, and each further 8 rooms uses one more; activation through the App Store, a card saved on the website once card payment opens, or an agreed studio trial; App Store automatic renewal at the plan price with the full amount and date disclosed, studio invoices do not auto-renew; cancel through Settings › Subscriptions or contact the studio for invoiced service; refund terms depend on the payment channel): https://veylet.com/terms
 - Delete your account (ask in the app or on the desk; completed within 30 days; cancel the request before removal starts; once removal starts, access and sharing stop and covered hosted files cannot be restored through your account; your device/exported/downloaded copies are outside this deletion; minimal accounting and legal records may be retained; deleting Veylet does not cancel an Apple subscription): https://veylet.com/account
@@ -93,12 +93,11 @@ How-to answers for the Veylet Capture app and the account desk. Index: https://v
 - Pack walkthroughs are added only once the pack's payment has settled; no automatic debt or early paid trial switch is available.
 - Route checks in the app do not prove quality; the automatic quality check after upload assesses the capture.
 
-## Enquiries, applications and accounts
-- Enquiries and applications are free.
+## Waitlist, applications and accounts
+- Joining the waitlist and applying as a partner are free.
 - Applying is free assessment. It does not create an account, grant app access, take payment, or promise jobs, leads or earnings.
-- Managed enquiries begin with name/business, email, space category, general region and viewer purpose. Further agency/space details are optional initially.
 - Scope, capture authority, exclusions, quote, hosting dates and sharing approval are confirmed separately before the corresponding work.
 - Enquiries and applications use FormSubmit; a return page is not proof of inbox delivery.
 - The website takes no live card payment yet: a plan is started in the app through the App Store, or invoiced by the studio under agreed terms. When card payment opens, a card saved in Square's card field in the account starts the free months, and nothing is charged until they end.
-- Email accounts are free when access is available; access is currently a limited studio test. Contact the studio before a first sign-in.
+- Email accounts are free. New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz.
 - Production capture needs assessment; capture, processing, hosting and invited pilot allowances require agreed scope. Phone recording does not automatically reconstruct a tour.

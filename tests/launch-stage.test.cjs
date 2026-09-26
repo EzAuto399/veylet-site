@@ -136,3 +136,64 @@ test('sign-in stays at every stage: the email-link form is markup the stage scri
   const signIn = fs.readFileSync(path.join(dist, 'account.js'), 'utf8');
   assert.match(signIn, /signInWithOtp\(/, 'sign-in by email link is unchanged');
 });
+
+// Owner decisions, 26 September 2026: captures are sent from the app; the public pages have one main
+// path, the waitlist, with the weekly-groups line beside it; /request stays only for existing agreements.
+const SEND = 'Send from the app: it uploads in the background and is usually ready in 1–2 hours.';
+const flatText = html => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+
+test('home and /start describe sending from the app, and no export or private-transfer route survives', () => {
+  for (const page of ['index.html', 'start/index.html']) {
+    const words = flatText(read(page));
+    assert.ok(words.includes(SEND), `${page} says: ${SEND}`);
+    assert.doesNotMatch(words, /\bZIP\b|AirDrop|to Files|private transfer|capture-upload form|sending directly from the app|in-app sending is not|Export capture/i, page);
+    assert.match(words, /automatic quality check/, `${page} keeps the automatic quality check`);
+  }
+  assert.match(flatText(read('start/index.html')), /Review before sharing\./);
+  const uploading = flatText(read('help/uploading/index.html'));
+  assert.ok(uploading.includes(SEND), 'help: sending your capture');
+});
+
+test('home and /start have one main path, the waitlist, and do not send visitors to the enquiry form', () => {
+  for (const page of ['index.html', 'start/index.html']) {
+    const html = read(page);
+    assert.doesNotMatch(html, /href="\/request/, `${page} does not link /request`);
+    assert.doesNotMatch(html, /Request a walkthrough|Tell us about your space|Ask about capture|Managed clients/i, page);
+    assert.match(flatText(html), /New accounts are admitted in weekly groups\./, page);
+    const mainButtons = [...html.matchAll(/<a class="button"[^>]*href="([^"]*)"/g)].map(m => m[1]);
+    assert.ok(mainButtons.length > 0 && mainButtons.every(href => href === '/waitlist'), `${page} main buttons: ${mainButtons}`);
+  }
+  assert.doesNotMatch(read('index.html'), /without the capture app/, 'the managed-option answer is gone');
+});
+
+test('the privacy notices describe weekly admission from the waitlist with a legal-review marker, and no studio test', () => {
+  const sentence = 'New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz.';
+  for (const page of ['privacy/index.html', 'app/privacy/index.html']) {
+    const html = read(page);
+    assert.ok(html.includes(`<!-- LEGAL REVIEW 2026-09-26: access wording (stage open) -->${sentence}`), page);
+    assert.doesNotMatch(html, /limited studio test|contact the studio before/i, page);
+  }
+  assert.doesNotMatch(read('app/privacy/index.html'), /href="\/waitlist"|A\$/, '/app/privacy names no purchase path or price');
+});
+
+test('the marketing, guide, help and privacy pages name no support@veylet.com address', () => {
+  const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
+  const roots = ['guides', 'help', 'app/help', 'privacy', 'app/privacy', 'start', 'request', 'waitlist'].map(dir => path.join(dist, dir));
+  const files = [...roots.flatMap(walk), ...['index.html', 'llms.txt', 'enquiry.js'].map(file => path.join(dist, file))];
+  for (const file of files.filter(f => /\.(?:html|js|txt)$/.test(f))) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /support@veylet/i, path.relative(dist, file));
+  }
+});
+
+test('the guides state the plan-bound hosting rule and the app send, with no studio route or twelve-month hosting', () => {
+  const hosting = 'stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts.';
+  for (const page of ['guides/what-is-a-3d-walkthrough/index.html', 'guides/iphone-lidar-vs-matterport/index.html']) {
+    const words = flatText(read(page));
+    assert.ok(words.includes(hosting), `${page}: ${hosting}`);
+    assert.doesNotMatch(words, /twelve months after release|agreed private route|send it to the studio|the studio (?:reconstructs|processes)/i, page);
+  }
+  assert.ok(flatText(read('guides/iphone-lidar-vs-matterport/index.html')).includes(SEND));
+  for (const page of ['guides/index.html', 'guides/what-is-a-3d-walkthrough/index.html', 'guides/iphone-lidar-vs-matterport/index.html']) {
+    assert.doesNotMatch(read(page), /href="\/request/, `${page} does not link /request`);
+  }
+});

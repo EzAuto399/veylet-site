@@ -197,7 +197,7 @@ const ARTICLES = [
   {
     slug: 'uploading', group: 'sending', title: 'Sending your capture', short: 'Sending',
     description: 'How a capture uploads: Wi-Fi or mobile data, in the background, with pause, resume and cancel.',
-    lead: 'After the phone check, **Send to Veylet** uploads the capture. It keeps going in the background, even if you leave the app.',
+    lead: 'Send from the app: it uploads in the background and is usually ready in 1–2 hours. After the phone check, tap **Send to Veylet**; sending keeps going even if you leave the app.',
     body: [{ steps: [
       'Tap **Send to Veylet**. The first time, the app asks to send you notifications. Allow them to hear when your walkthrough is ready.',
       'The upload uses Wi-Fi or mobile data, whichever the phone has. A whole home is large, so Wi-Fi is quicker and saves your data.',

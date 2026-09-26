@@ -455,7 +455,8 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.match(terms.Stopping, /Manage an App Store subscription in Settings › Subscriptions/);
   assert.match(terms.Stopping, /email us to cancel/);
   assert.ok(terms.Stopping.endsWith(`Released walkthroughs stay live for ${graceDays} days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.`));
-  assert.equal(free.earlyPaidSwitchAvailable, false);
+  // Draft 20260926141000: "Start my plan today" on the website card and invoice lanes, never the App Store.
+  assert.deepEqual(JSON.parse(JSON.stringify(free.earlyPaidSwitchAvailable)), { websiteCard: true, studioInvoice: true, appStore: false });
   assert.equal(free.cardRequired, true, 'every channel starts with a payment method on file');
   assert.equal(record.counting.notGoodEnoughCounts, false);
   assert.doesNotMatch(body, /Larger spaces|one allowance unit|we remind you|cancel[^.]*on your desk/i);
@@ -665,7 +666,9 @@ test('unavailable in-person work is absent from the public offer and enquiry cho
   const start = read('start/index.html');
   assert.doesNotMatch(request, /capture_route" value="visit"|ask for a studio visit/i);
   assert.doesNotMatch(start, /request\?capture=visit|Ask us to capture it/i);
-  assert.match(start, /request\?capture=unsure/);
+  // Owner decision, 26 September 2026: /start has one main path, the waitlist; device help is the help page.
+  assert.doesNotMatch(start, /href="\/request/);
+  assert.match(start, /href="\/help\/what-you-need"/);
 });
 
 test('the offer page makes no claim the product cannot back', () => {
@@ -944,7 +947,7 @@ test('the short pricing lines on the home page and /start name the plan monthly 
   const heroNote = flat(home.match(/<p class="hero-note">([\s\S]*?)<\/p>/)[1]);
   assert.ok(heroNote.startsWith(`${lead}, which you can cancel any time.`), heroNote);
   const walkAfter = flat(home.match(/<div class="walk-after">[\s\S]*?<p class="contact-note">([\s\S]*?)<\/p>/)[1]);
-  assert.equal(walkAfter, `Enquiries are free. ${lead}; cancel any time. This site takes no card payment yet.`);
+  assert.equal(walkAfter, `New accounts are admitted in weekly groups. ${lead}; cancel any time. This site takes no card payment yet.`);
   assert.equal(record.freeMonths.autoRenewalByChannel.studioInvoice, false, 'an invoice does not renew by itself');
   assert.equal(record.freeMonths.cancelAnytime, true);
   for (const [page, html] of [['index.html', home], ['start/index.html', start]]) {
@@ -1101,4 +1104,16 @@ test('retired plan names appear on no public page, and the desks name them only 
     const rest = code.replace(SHARED_PLAN_NAMES, '');
     for (const name of retiredNames) assert.doesNotMatch(rest, name, `${script} names a retired plan outside the shared constant (${name})`);
   }
+});
+
+test('owner decisions of 26 September 2026 on /offer: send from the app, one main button to the waitlist, one-tick approval, no /request', () => {
+  const page = read('offer/index.html');
+  const flat = visible('offer/index.html');
+  assert.ok(flat.includes('Send from the app: it uploads in the background and is usually ready in 1–2 hours.'), 'the send-from-app sentence');
+  assert.doesNotMatch(page, /href="\/request/, 'no link to the request form');
+  const buttons = [...page.matchAll(/<a class="button[^"]*" href="([^"]*)"/g)].map(match => match[1]);
+  assert.ok(buttons.length >= 1, 'a main button');
+  assert.deepEqual([...new Set(buttons)], ['/waitlist'], 'every main button goes to /waitlist');
+  assert.ok(flat.includes('I have the right to share this walkthrough'), 'the one-tick approval sentence');
+  assert.doesNotMatch(flat, /AirDrop|Export capture|transfer route|to your Mac/, 'no export or transfer steps');
 });

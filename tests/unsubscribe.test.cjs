@@ -144,7 +144,7 @@ test('a backend with neither function says so and gives the support route, with 
   const view = page({ answers: { unsubscribe_email_tips: [MISSING], unsubscribe_mail: [{ status: 404, body: { code: 'PGRST202', message: 'Could not find the function' } }] } });
   assert.equal(await view.api.run(view.window), 'unavailable');
   assert.equal(shown(view.ids).retry, false);
-  assert.match(shown(view.ids).message, /support@veylet\.com/);
+  assert.match(shown(view.ids).message, /yoda@yodalai\.xyz/);
   assert.equal(view.api.outcome({ a: 'missing', b: 'error' }), 'error', 'a failure next to a missing function can be retried');
 });
 
@@ -162,10 +162,11 @@ test('the page matches the site shell: noindex, no referrer, versioned assets, l
   for (const file of ['style.css', 'brand-host.js', 'supabase-public.js', 'unsubscribe.js']) {
     assert.ok(markup.includes(`/${file}?v=${hash(file)}`), `${file} is versioned by its bytes`);
   }
-  // Every state's words are plain and name no person, address or amount.
+  // Every state's words are plain and name no amount, and no address but the site's one support
+  // address (the owner's, 26 September 2026: yoda@yodalai.xyz everywhere on the site).
   const { COPY, NEXT } = page().api;
   for (const words of [...Object.values(COPY).map(copy => copy.title + ' ' + copy.message), ...Object.values(NEXT)]) {
-    assert.doesNotMatch(words, /A\$|\d{3,}|@(?!veylet\.com)/);
+    assert.doesNotMatch(words.replace(/yoda@yodalai\.xyz/g, 'SUPPORT'), /A\$|\d{3,}|@/);
   }
   // Only the two unsubscribe functions are ever named.
   assert.deepEqual([...page().api.FUNCTIONS], ['unsubscribe_email_tips', 'unsubscribe_mail']);

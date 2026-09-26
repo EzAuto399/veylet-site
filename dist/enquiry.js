@@ -87,7 +87,7 @@
     const nextStep = document.getElementById('enquiry-route-next');
     const captures = query.getAll('capture');
     const nextSteps = {
-      self: 'Your next step is a device check and one practice capture. Keep the original capture; we will confirm the private transfer route before you send it.',
+      self: 'Your next step is a device check and one practice capture. Keep the original capture on your phone. Send from the app: it uploads in the background and is usually ready in 1–2 hours.',
       visit: 'Studio visits are not currently available. Ask us about a self-capture practice route or help checking your device.',
       unsure: 'Your next step is a device check. Tell us your iPhone or iPad model if you find it (a Pro model with LiDAR); you do not need to buy equipment now.',
     };

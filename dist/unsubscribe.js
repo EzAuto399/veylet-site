@@ -39,11 +39,11 @@
     },
     unavailable: {
       title: 'We couldn’t record that',
-      message: 'Unsubscribing online isn’t available yet, so nothing has changed. Write to support@veylet.com from the address that receives these emails and we’ll stop them.',
+      message: 'Unsubscribing online isn’t available yet, so nothing has changed. Write to yoda@yodalai.xyz from the address that receives these emails and we’ll stop them.',
     },
     error: {
       title: 'We couldn’t record that',
-      message: 'Nothing has changed yet. Try again in a minute; if it keeps failing, write to support@veylet.com.',
+      message: 'Nothing has changed yet. Try again in a minute; if it keeps failing, write to yoda@yodalai.xyz.',
     },
   };
   var NEXT = {

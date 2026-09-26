@@ -701,6 +701,11 @@
   background: var(--ink);
   color: var(--paper);
 }
+/* The author display above would otherwise beat the hidden attribute: without script, or under
+   reduced motion where nothing moves, there is nothing to pause. */
+.walk-toggle[hidden] {
+  display: none;
+}
 .walk-toggle::before {
   content: "";
   width: 7px;
@@ -896,6 +901,9 @@
   .walk-checks li,
   .walk-check-mark::after {
     transition: none;
+  }
+  .walk-toggle {
+    display: none;
   }
 }
 
