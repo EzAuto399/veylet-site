@@ -125,7 +125,13 @@ test('splat budgets follow the device class, and one detail level is chosen to f
   const { player } = load();
   const phone = player.deviceProfile(phoneWebgl2);
   assert.deepEqual([phone.kind, phone.api, phone.budget, phone.maxPixelRatio], ['phone', 'webgl2', 500_000, 1.5]);
-  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true }).budget, 1_000_000);
+  // A WebGPU phone stays one level down (the WebGL2 budget) unless it reports high-end hardware on Wi-Fi.
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true }).budget, 500_000);
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true, memory: 8, cores: 8 }).budget, 500_000); // on mobile data
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true, memory: 8, cores: 8, connectionType: 'wifi' }).budget, 1_000_000);
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true, memory: 6, cores: 8, connectionType: 'wifi' }).budget, 500_000);
+  assert.equal(player.deviceProfile({ screenWidth: 1920, screenHeight: 1080, dpr: 2, webgl2: true, webgpu: true, memory: 4, cores: 4 }).budget, 3_000_000);
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, saveData: true }).saveData, true);
   assert.equal(player.deviceProfile({ ...phoneWebgl2, memory: 3 }).budget, 350_000);
   const desktop = player.deviceProfile({ screenWidth: 1920, screenHeight: 1080, dpr: 2, webgl2: true, webgpu: true });
   assert.deepEqual([desktop.kind, desktop.budget, desktop.maxPixelRatio], ['desktop', 3_000_000, 2]);
@@ -135,6 +141,7 @@ test('splat budgets follow the device class, and one detail level is chosen to f
   assert.equal(player.detailLevel(counts, 500_000), 1);
   assert.equal(player.detailLevel(counts, 150_000), 2);
   assert.equal(player.detailLevel(counts, 10_000), 3);
+  assert.equal(player.detailLevel(counts, 3_000_000, true), 3); // Save-Data: the coarsest level only
 });
 
 test('a slow device gives back pixels first, then splats; a fast one earns splats back', () => {
@@ -193,6 +200,7 @@ async function started(options = {}) {
     base: 'https://veylet.com/pkg/', env: options.env || phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
     loadEngine: () => { engineRequested++; harness.log.push('engine:import'); return options.noEngine ? Promise.reject(new Error('offline')) : Promise.resolve(engine); },
     onVisible: () => harness.log.push('visible'), onRetry: () => harness.log.push('retry'),
+    ...options.startOptions,
   });
   pending.catch(() => {}); // a test may expect the rejection; it must not be unhandled meanwhile
   for (let i = 0; i < 12; i++) await tick();
@@ -352,4 +360,173 @@ test('pages pass the share row’s version and package location to the player', 
   assert.match(play, /<div id="tour-stage"[^>]*hidden><\/div>/);
   // No player or engine code is loaded eagerly by the listing embed.
   assert.doesNotMatch(read('embed/index.html'), /<script src="\/(vendor\/playcanvas|tour-player-v2)/);
+});
+
+// ---------- tap to walk, full screen, frames and Save-Data (review round 2) ----------
+
+// A 4 x 3 m room (0.1 m cells) with a 1 m sofa block in the middle: open floor round it.
+function room() {
+  const columns = 40, rows = 30, bits = new Uint8Array(Math.ceil(columns * rows / 8));
+  for (let r = 0; r < rows; r++) for (let c = 0; c < columns; c++) {
+    const sofa = c >= 15 && c < 25 && r >= 10 && r < 20;
+    if (!sofa) bits[(r * columns + c) >> 3] |= 1 << ((r * columns + c) & 7);
+  }
+  return { version: 1, cell_metres: 0.1, origin: [0, 0], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
+}
+
+test('a tap walks to open floor, snaps to floor beside furniture, or walks as far as the floor runs', () => {
+  const { player } = load();
+  const walkable = player.decodeWalkable(room());
+  const from = [0.5, 1.5];
+  // Open floor in a straight line: straight there.
+  assert.deepEqual([...player.walkTarget(walkable, from, [1.2, 0.5])], [1.2, 0.5]);
+  // On the sofa's edge: the nearest open floor within 0.75 m that can be walked to.
+  const beside = player.walkTarget(walkable, from, [1.6, 1.5]);
+  assert.ok(beside && walkable.walkable(...beside) && Math.hypot(beside[0] - 1.6, beside[1] - 1.5) <= 0.75, String(beside));
+  // Deep in the sofa and behind it: as far as the floor runs towards it, short of the sofa.
+  const towards = player.walkTarget(walkable, [0.5, 1.5], [2.4, 1.5], { snap: 0.2 });
+  assert.ok(towards && towards[0] > 0.8 && towards[0] < 1.5 && Math.abs(towards[1] - 1.5) < 1e-9, String(towards));
+  // Past the wall of the room: to the wall, not through it.
+  const wall = player.walkTarget(walkable, [0.5, 0.5], [0.5, -3], { snap: 0.2 });
+  assert.equal(wall, null); // 0.5 m from the edge, less the margin, is too short a move to count
+  const wallFar = player.walkTarget(walkable, [0.5, 2.9], [0.5, -3], { snap: 0.2 });
+  assert.ok(wallFar && wallFar[1] >= 0 && wallFar[1] < 0.5, String(wallFar));
+  // Facing straight into the sofa from its edge: nothing to walk to.
+  assert.equal(player.walkTarget(walkable, [1.45, 1.5], [2.0, 1.5], { snap: 0.2 }), null);
+  // Standing a hair off the mask (a stop at the edge of the sofa) still lets you walk away.
+  assert.deepEqual([...player.walkTarget(walkable, [1.52, 1.5], [0.5, 1.5])], [0.5, 1.5]);
+});
+
+test('where a tap aims: the floor it meets, a clamped point towards a wall, never the ceiling', () => {
+  const { player } = load();
+  assert.deepEqual([...player.tapAim([0, 0, 0], [0, -1, 0], -1.4)], [0, 0]);
+  const level = player.tapAim([0, 0, 0], [0, 0, -1], -1.4, 8);
+  assert.deepEqual([...level].map(v => Math.round(v * 1000) / 1000), [0, -8]);
+  assert.equal(player.tapAim([0, 0, 0], [0, 0.8, -0.6], -1.4), null);
+});
+
+test('a short wobbly touch still walks, and the refusal fits a phone frame on one line', async () => {
+  const x = await started({ manifest: manifest({ walkable: { path: 'walkable.json' } }) });
+  x.log.length = 0;
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  const canvas = byClass(x.stage, 'v2-canvas');
+  canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100, pointerType: 'touch' });
+  canvas.dispatch('pointermove', { pointerId: 1, clientX: 110, clientY: 106, pointerType: 'touch' });
+  canvas.dispatch('pointerup', { pointerId: 1, clientX: 110, clientY: 106, pointerType: 'touch' });
+  // No walkable floor in this package, so the tap is answered with the stops rule.
+  const status = byClass(x.stage, 'v2-status').textContent;
+  assert.equal(status, 'Tap a circle or Next stop to move.');
+  assert.ok(status.length <= 36);
+});
+
+test('without the Fullscreen API (iPhone Safari) Full screen fills the window, and Escape restores the page', async () => {
+  const x = await started();
+  x.document.documentElement = x.document.createElement('html');
+  x.document.documentElement.style.overflow = '';
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  const full = byClass(x.stage, 'v2-fullscreen');
+  assert.ok(full, 'a Full screen control');
+  assert.equal(full.getAttribute('aria-label'), 'Full screen');
+  assert.equal(full.hidden, false);
+  assert.equal(byClass(x.stage, 'v2-full'), null, 'not the class the stylesheet hides at 330 px');
+  full.click();
+  assert.equal(x.stage.style.position, 'fixed');
+  assert.equal(x.document.documentElement.style.overflow, 'hidden');
+  assert.equal(full.getAttribute('aria-label'), 'Exit full screen');
+  for (const listener of x.document.listeners.get('keydown') || []) listener({ key: 'Escape', preventDefault() {} });
+  assert.equal(full.getAttribute('aria-label'), 'Full screen');
+  assert.equal(x.document.documentElement.style.overflow, '');
+});
+
+test('a frame under 320 px keeps Full screen and drops the map toggle instead', async () => {
+  const narrow = load({ files: { 'manifest.json': manifest() } });
+  narrow.stage.clientWidth = 304;
+  const engine = fakeEngine(narrow.log);
+  const pending = narrow.player.start(narrow.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+  for (let i = 0; i < 12; i++) await tick();
+  for (let i = 0; i < 31; i++) engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+  assert.equal(byClass(narrow.stage, 'v2-fullscreen').hidden, false);
+  assert.equal(byClass(narrow.stage, 'v2-map-toggle').hidden, true);
+});
+
+test('in someone else’s page the map starts closed and a pinch zooms only after the visitor uses the player', async () => {
+  const wide = { ...phoneWebgl2, screenWidth: 1920, screenHeight: 1080, coarse: false, touchPoints: 0 };
+  const framedRun = load({ files: { 'manifest.json': manifest() } });
+  framedRun.stage.clientWidth = 1000;
+  const engine = fakeEngine(framedRun.log);
+  const pending = framedRun.player.start(framedRun.stage, { base: 'https://veylet.com/pkg/', env: wide, framed: true, page: { href: 'https://veylet.com/tour', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+  for (let i = 0; i < 12; i++) await tick();
+  engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  for (let i = 0; i < 30; i++) engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+  assert.equal(byClass(framedRun.stage, 'v2-map').hidden, true);
+  const canvas = byClass(framedRun.stage, 'v2-canvas');
+  const before = canvas.dispatch('wheel', { ctrlKey: true, deltaY: -10 });
+  assert.equal(Boolean(before.defaultPrevented), false, 'the page keeps the gesture');
+  canvas.dispatch('pointerdown', { pointerId: 1, clientX: 5, clientY: 5 });
+  canvas.dispatch('pointercancel', { pointerId: 1 });
+  const after = canvas.dispatch('wheel', { ctrlKey: true, deltaY: -10 });
+  assert.equal(after.defaultPrevented, true);
+  // Not framed, the same wide stage opens with the map.
+  const ownRun = load({ files: { 'manifest.json': manifest() } });
+  ownRun.stage.clientWidth = 1000;
+  const engine2 = fakeEngine(ownRun.log);
+  const pending2 = ownRun.player.start(ownRun.stage, { base: 'https://veylet.com/pkg/', env: wide, framed: false, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine2 });
+  for (let i = 0; i < 12; i++) await tick();
+  for (let i = 0; i < 31; i++) engine2.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending2;
+  assert.equal(byClass(ownRun.stage, 'v2-map').hidden, false);
+});
+
+test('waitForTap: poster and Explore first; no engine or scene until the press', async () => {
+  const x = await started({ startOptions: { waitForTap: true } });
+  const outcome = await x.pending;
+  assert.equal(outcome.readiness, 'waiting-for-tap');
+  assert.equal(x.requested(), 0);
+  assert.equal(x.log.includes('asset.load'), false);
+  assert.ok(x.log.includes('img:https://veylet.com/pkg/poster-portrait.webp'));
+  assert.equal(x.stage.hidden, false);
+  const invite = byClass(x.stage, 'v2-fallback');
+  assert.equal(invite.hidden, false);
+  assert.match(invite.textContent, /Explore this property in 3D\./);
+  invite.querySelector('button').click();
+  for (let i = 0; i < 12; i++) await tick();
+  assert.equal(x.requested(), 1);
+  assert.ok(x.log.includes('asset.load'));
+  assert.equal(invite.hidden, true);
+});
+
+test('Save-Data: the coarsest level stays, with no automatic upgrade, until the visitor asks', async () => {
+  const x = await started({ env: { ...phoneWebgl2, saveData: true } });
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  assert.equal(x.log.at(-1), 'gsplat.lodRangeMin=3');
+  assert.equal(byClass(x.stage, 'v2-status').textContent, '');
+  const more = byClass(x.stage, 'v2-about').querySelectorAll('button').find(b => b.textContent === 'Load full detail');
+  assert.ok(more, 'About offers full detail');
+  more.click();
+  assert.ok(x.log.includes('gsplat.lodRangeMin=1'));
+  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Sharpening detail…');
+});
+
+test('the page glue asks for Explore first only when framed and not yet pressed', async () => {
+  for (const [top, active, expected] of [['other', false, true], ['other', true, false], ['self', false, false]]) {
+    const calls = [];
+    const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'k' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
+      VeyletPlayerV2: { start: async (stage, options) => { calls.push(options.waitForTap); return { readiness: 'viewer-ready' }; } } };
+    window.self = window; window.top = top === 'self' ? window : {};
+    const document = { hidden: false, addEventListener() {}, removeEventListener() {}, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, head: { append() {} } };
+    vm.runInNewContext(read('tour-player.js'), { window, document, performance, setTimeout, clearTimeout, AbortController, navigator: { onLine: true, userActivation: { hasBeenActive: active } }, location: { reload() {} } });
+    await window.VeyletPlayer.boot({ els: { title: {}, body: {}, status: {}, frame: { hidden: true }, stage: { hidden: true } }, resolve: async () => ({ packageFormatVersion: 2, packageBaseUrl: 'https://tours.veylet.com/t/a/', title: 'S' }) });
+    assert.deepEqual(calls, [expected], `${top} ${active}`);
+  }
 });

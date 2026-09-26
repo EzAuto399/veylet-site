@@ -16,8 +16,8 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://veylet.com/media/share/offer.jpg?v=a664ddb0c4fc4567">
 <meta name="twitter:image:alt" content="Veylet Studio: Capture on iPhone. Get a walkthrough. One plan, with hosting, link and embed included.">
-<link rel="stylesheet" href="/style.css?v=318869d165d8e548"><link rel="stylesheet" href="/conversion.css?v=8d4c2655506ee01d"><link rel="stylesheet" href="/showcase.css?v=0073b35fd389575a">
-<script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer></script><script src="/showcase.js?v=68afa4d01a1662de" defer></script><script src="/offer.js?v=bfc2c5e0b04d1355" defer></script>
+<link rel="preload" href="/media/Outfit-400.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/media/Outfit-500.woff2" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="/style.css?v=318869d165d8e548"><link rel="stylesheet" href="/conversion.css?v=8d4c2655506ee01d"><link rel="stylesheet" href="/showcase.css?v=0073b35fd389575a">
+<script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer fetchpriority="low"></script><script src="/showcase.js?v=68afa4d01a1662de" defer fetchpriority="low"></script><script src="/offer.js?v=bfc2c5e0b04d1355" defer></script>
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -211,7 +211,7 @@
             </div>
             <div class="stage-phone device" aria-hidden="true">
               <div class="device-screen">
-                <div class="cap-camera"><img data-cap-camera src="/media/illus-hero-room-900.webp" alt="" width="900" height="600" decoding="async" /></div>
+                <div class="cap-camera"><img data-cap-camera src="/media/illus-hero-room-900.webp" alt="" width="900" height="600" loading="lazy" decoding="async" /></div>
                 <div class="cap-scrim"></div>
                 <span class="device-island"></span>
                 <div class="cap-top">
@@ -225,7 +225,7 @@
           </div>
           <div class="stage-link" data-stage-link aria-hidden="true">
             <div class="link-bar"><svg viewBox="0 0 12 12"><rect x="2" y="5.2" width="8" height="5.6" rx="1.2" /><path d="M4 5.2V3.8a2 2 0 0 1 4 0v1.4" /></svg><span>veylet.com/play/9fk2-q7</span></div>
-            <div class="link-view"><img data-stage-walk src="/media/illus-hero-room-900.webp" alt="" width="900" height="600" decoding="async" /></div>
+            <div class="link-view"><img data-stage-walk src="/media/illus-hero-room-900.webp" alt="" width="900" height="600" loading="lazy" decoding="async" /></div>
             <div class="link-meta"><span>Your walkthrough<small>Checked, then approved by you</small></span><em>Open</em></div>
           </div>
           <figcaption><strong>Illustration.</strong> The capture screen is drawn from Veylet Capture; the room is a generated image, not a captured client space.</figcaption>
@@ -282,7 +282,7 @@
 <!-- legal review: fair use 2026-09-26.3 (12 render attempts in the free months) -->
 <div><dt>Starting</dt><dd>Starting needs a payment method on file: Apple’s 3-month free introductory offer in the App Store, a card saved in Square’s card field in your account on this website, or a paid start date agreed in writing for a studio invoice. It provides 3 free months of the Veylet plan with 6 walkthroughs, monthly or annual. During them, nothing is charged unless the account owner buys a pack or a Super fast render. Card payment on this website is coming later. One trial per agency (ABN) and workspace; real captures unlock in the app once the practice room passes. Fair use: up to 12 render attempts during the free months, including retries.</dd></div>
 <div><dt>Before the first charge</dt><dd>The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.</dd></div>
-<div><dt>Stopping</dt><dd>Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email the studio to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.</dd></div>
+<div><dt>Stopping</dt><dd>Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.</dd></div>
 </dl>
 </div>
 <p class="offer-fine">Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.</p>
@@ -374,7 +374,7 @@
     </ol>
     <div class="walk-visual">
       <figure class="walk-stage" id="walk-stage" aria-label="Illustration: a floor plan with a capture route, rebuilt as a 3D walkthrough and opened in a browser.">
-        <img class="walk-fallback" src="/media/walk-demo.svg" alt="" width="640" height="470" />
+        <img class="walk-fallback" src="/media/walk-demo.svg" alt="" width="640" height="470" loading="lazy" decoding="async" />
         <svg data-walk-scene viewBox="0 0 640 440" aria-hidden="true" focusable="false"></svg>
         <div class="walk-overlay" data-walk-overlay="capture" aria-hidden="true">
           <div class="walk-chip"><small>Capturing</small><b data-walk-count>0</b> views saved</div>

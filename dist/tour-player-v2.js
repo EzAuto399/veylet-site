@@ -108,11 +108,20 @@
     const api = env.webgpu ? 'webgpu' : env.webgl2 ? 'webgl2' : null;
     const budgets = { phone: { webgpu: 1_000_000, webgl2: 500_000 }, tablet: { webgpu: 1_500_000, webgl2: 750_000 }, desktop: { webgpu: 3_000_000, webgl2: 2_000_000 } };
     let budget = api ? budgets[kind][api] : 0;
+    // A phone on mobile data pays for every level. WebGPU phones take the
+    // WebGL2 budget (one level down: 4 to 5 MB less on the rooms tested) unless
+    // the browser reports a high-end device on Wi-Fi. Safari reports neither,
+    // so iPhones stay one level down.
+    const highEnd = env.memory >= 8 && env.cores >= 8;
+    const unmetered = env.connectionType === 'wifi' || env.connectionType === 'ethernet';
+    if (kind === 'phone' && api === 'webgpu' && !(highEnd && unmetered)) budget = budgets.phone.webgl2;
     const modest = (env.memory && env.memory <= 4) || (env.cores && env.cores <= 4);
     if (modest && kind !== 'desktop') budget = Math.round(budget * 0.7);
     const dpr = env.dpr || 1;
     const maxPixelRatio = kind === 'desktop' ? Math.min(dpr, 2) : Math.min(dpr, 1.5);
-    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, minPixelRatio: Math.min(1, dpr) };
+    // Save-Data: the coarsest level only, and no automatic upgrade.
+    const saveData = Boolean(env.saveData);
+    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, minPixelRatio: Math.min(1, dpr), saveData };
   }
 
   /**
@@ -162,7 +171,8 @@
    * single level everywhere looks even and downloads only that level's files;
    * letting levels mix inside a room fetched most levels on a 0.5M budget.
    */
-  function detailLevel(counts, budget) {
+  function detailLevel(counts, budget, saveData = false) {
+    if (saveData) return counts.length - 1;
     const index = counts.findIndex(count => count <= budget);
     return index < 0 ? counts.length - 1 : index;
   }
@@ -211,10 +221,16 @@
     const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
     const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
     // Every sample on the straight line must be floor: no walking through walls.
-    const clear = (from, to) => {
+    // `skip` metres from the start are not checked, so a viewer standing a hair
+    // off the mask (a stop at the edge of the floor) can still walk away from it.
+    const clear = (from, to, skip = 0) => {
       const dx = to[0] - from[0], dz = to[1] - from[1];
-      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / (cell / 2)));
-      for (let i = 0; i <= steps; i++) if (!walkable(from[0] + dx * i / steps, from[1] + dz * i / steps)) return false;
+      const length = Math.hypot(dx, dz);
+      const steps = Math.max(1, Math.ceil(length / (cell / 2)));
+      for (let i = 0; i <= steps; i++) {
+        if (length * i / steps < skip) continue;
+        if (!walkable(from[0] + dx * i / steps, from[1] + dz * i / steps)) return false;
+      }
       return true;
     };
     const runs = [];
@@ -226,7 +242,41 @@
         if (!lit && start >= 0) { runs.push([x0 + start * cell, z0 + r * cell, (c - start) * cell, cell]); start = -1; }
       }
     }
-    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, runs };
+    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, on, runs };
+  }
+
+  /**
+   * Where a tap should take the viewer, on the walkable mask (x, z), or null.
+   * The tap's floor point if it is open floor in a straight line from here;
+   * else the nearest open cell within `snap` metres of it that is (a tap on a
+   * bed or a bench beside the path goes to the floor next to it); else as far
+   * as the floor runs from here towards it, stopping `margin` short of the
+   * obstacle. Moves shorter than `minStep` do not count.
+   */
+  function walkTarget(walkable, from, hit, { snap = 1, minStep = 0.3, margin = 0.2, skip = 0.25 } = {}) {
+    const far = (point) => Math.hypot(point[0] - from[0], point[1] - from[1]) >= minStep;
+    if (walkable.walkable(hit[0], hit[1]) && walkable.clear(from, hit, skip) && far(hit)) return hit;
+    const { cell, origin: [x0, z0] } = walkable;
+    const c0 = Math.floor((hit[0] - x0) / cell), r0 = Math.floor((hit[1] - z0) / cell), n = Math.ceil(snap / cell);
+    let best = null, bestDistance = Infinity;
+    for (let r = r0 - n; r <= r0 + n; r++) for (let c = c0 - n; c <= c0 + n; c++) {
+      if (!walkable.on(c, r)) continue;
+      const point = [x0 + (c + 0.5) * cell, z0 + (r + 0.5) * cell];
+      const distance = Math.hypot(point[0] - hit[0], point[1] - hit[1]);
+      if (distance > snap || distance >= bestDistance || !far(point) || !walkable.clear(from, point, skip)) continue;
+      best = point; bestDistance = distance;
+    }
+    if (best) return best;
+    const dx = hit[0] - from[0], dz = hit[1] - from[1], length = Math.hypot(dx, dz);
+    if (!(length > 0)) return null;
+    const step = cell / 2;
+    let open = 0, blocked = false;
+    for (let d = step; d <= length + 1e-9; d += step) {
+      if (d >= skip && !walkable.walkable(from[0] + dx * d / length, from[1] + dz * d / length)) { blocked = true; break; }
+      open = d;
+    }
+    const reach = blocked ? open - margin : length;
+    return reach >= minStep ? [from[0] + dx * reach / length, from[1] + dz * reach / length] : null;
   }
 
   /** Where a view ray meets the floor plane, if in front and within reach. */
@@ -235,6 +285,17 @@
     const t = (floorY - origin[1]) / direction[1];
     if (!(t > 0) || t > reach) return null;
     return [origin[0] + direction[0] * t, floorY, origin[2] + direction[2] * t];
+  }
+
+  /** The point on the floor a tap aims at: where the ray meets it, or (for a
+   *  tap at a wall, the horizon or above) `reach` metres along its heading. */
+  function tapAim(origin, direction, floorY, reach = 8) {
+    if (direction[1] > 0.35) return null; // the ceiling is not somewhere to go
+    const hit = floorHit(origin, direction, floorY, reach);
+    if (hit) return [hit[0], hit[2]];
+    const flat = Math.hypot(direction[0], direction[2]);
+    if (!(flat > 1e-6)) return null;
+    return [origin[0] + direction[0] / flat * reach, origin[2] + direction[2] / flat * reach];
   }
 
   function nearestStop(manifest, position, within = 0.35) {
@@ -255,6 +316,8 @@
       coarse: Boolean(window.matchMedia && window.matchMedia('(pointer: coarse)').matches), touchPoints: navigator.maxTouchPoints || 0,
       memory: navigator.deviceMemory, cores: navigator.hardwareConcurrency,
       webgpu: Boolean(navigator.gpu), webgl2,
+      saveData: Boolean(navigator.connection && navigator.connection.saveData),
+      connectionType: navigator.connection && navigator.connection.type,
     };
   }
 
@@ -384,7 +447,9 @@
     stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
     const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
     mapToggle.setAttribute('aria-pressed', 'false');
-    const full = iconButton('full', 'Full screen', 'v2-icon v2-full');
+    // Not .v2-full: the stylesheet hides that class in frames of 330 px and
+    // under, which is exactly where full screen is needed most.
+    const full = iconButton('full', 'Full screen', 'v2-icon v2-fullscreen');
     const bar = el('div', { class: 'v2-bar', role: 'toolbar', 'aria-label': 'Walkthrough controls', hidden: true });
     const moves = el('div', { class: 'v2-moves' });
     moves.append(prev, stopsToggle, next);
@@ -397,7 +462,7 @@
     const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
     root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, bar, fallback, announce);
     stage.append(root);
-    return { root, preview, poster, canvas, hotspots, room, stopLine, truth, about, status, progress, announce, hint,
+    return { root, preview, poster, canvas, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
       prev, next, stopsToggle, mapToggle, full, bar, stopsPanel, map, aboutPanel, fallback };
   }
 
@@ -410,7 +475,16 @@
 
   // ---------- the player ----------
 
-  async function start(stage, options = {}) {
+  /**
+   * Resolves with the first 3D frame's outcome, or, with `waitForTap`, as soon
+   * as the poster and its "Explore in 3D" invitation are on screen: the 3D
+   * engine and scene download only after that press.
+   */
+  function start(stage, options = {}) {
+    return new Promise((resolve, reject) => { play(stage, options, resolve).then(resolve, reject); });
+  }
+
+  async function play(stage, options, waiting) {
     const signal = options.signal;
     const page = options.page || location;
     const base = resolveBase(options.base, page);
@@ -420,9 +494,15 @@
     const marks = {};
     const mark = name => { marks[name] = performance.now(); try { performance.mark('veylet:' + name); } catch { /* optional */ } };
     mark('start');
-    // The engine download starts now, in parallel with the manifest.
+    let framed = Boolean(options.framed);
+    if (options.framed === undefined) { try { framed = window.top !== window.self; } catch { framed = true; } }
+    const waitForTap = Boolean(options.waitForTap && profile.api);
+    // The engine download starts now, in parallel with the manifest, unless
+    // the visitor is first asked to press Explore.
     const loadEngine = options.loadEngine || (() => import(ENGINE_URL));
-    const engine = profile.api ? Promise.resolve().then(loadEngine).catch(() => null) : Promise.resolve(null);
+    let enginePromise = null;
+    const requestEngine = () => (enginePromise ||= Promise.resolve().then(loadEngine).catch(() => null));
+    if (profile.api && !waitForTap) requestEngine();
     const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal);
     manifestPromise.catch(() => {}); // handled below, after the styles
     await ensureStyle();
@@ -502,8 +582,25 @@
       await Promise.race([new Promise(resolve => ui.poster.addEventListener('load', resolve, { once: true })), new Promise(resolve => setTimeout(resolve, 4000))]);
       return fail('no-graphics', false);
     }
+    if (waitForTap) {
+      // Poster first, and nothing heavy until the visitor asks (a portal's frame).
+      const explore = el('button', { type: 'button', class: 'v2-primary' }, 'Explore in 3D');
+      const pressed = new Promise(resolve => explore.addEventListener('click', resolve, { once: true }));
+      ui.fallback.replaceChildren(el('h2', { id: 'v2-fallback-title' }, 'Explore this property in 3D.'),
+        el('p', {}, 'The walkthrough downloads when you start, so give it a moment on mobile data.'), explore);
+      ui.fallback.hidden = false;
+      ui.top.hidden = true; // a short frame has room for the invitation or the labels, not both
+      becomeVisible();
+      waiting({ readiness: 'waiting-for-tap', marks });
+      await pressed;
+      if (signal?.aborted) throw new PlayerError('playback-cancelled');
+      ui.top.hidden = false;
+      ui.fallback.hidden = true;
+      ui.fallback.replaceChildren();
+      mark('explore');
+    }
     ui.status.textContent = 'Loading 3D…';
-    const pc = await engine;
+    const pc = await requestEngine();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
     if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');
     mark('engine');
@@ -524,6 +621,7 @@
     if (api !== profile.api) Object.assign(profile, deviceProfile({ ...env, webgpu: false }));
     const governor = createGovernor(profile);
     device.maxPixelRatio = governor.state.pixelRatio;
+    let saveData = profile.saveData; // until the visitor asks for full detail
 
     const app = new pc.Application(ui.canvas, { graphicsDevice: device });
     viewer = app;
@@ -643,7 +741,26 @@
       const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.2 (MIT licence). ');
       const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
       credits.append(licence);
-      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls, credits);
+      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
+      if (saveData) {
+        // Data Saver is on: low detail stays unless the visitor asks for more.
+        const more = el('button', { type: 'button', class: 'v2-primary' }, 'Load full detail');
+        more.addEventListener('click', () => {
+          saveData = false;
+          more.remove();
+          note.textContent = 'Loading full detail.';
+          if (!ready) return;
+          stats.level = detailLevel(manifest.scene.counts, governor.state.budget);
+          splat.gsplat.lodRangeMin = stats.level;
+          if (phase === 'complete') { phase = 'detail'; maxLoading = 0; sawLoading = false; readyFrames = 0; continuous++; }
+          ui.status.textContent = 'Sharpening detail…';
+          ui.progress.hidden = false;
+          requestRender();
+        });
+        const note = el('p', { class: 'v2-credits' }, 'Data Saver is on, so this walkthrough shows at low detail.');
+        ui.aboutPanel.append(note, more);
+      }
+      ui.aboutPanel.append(credits);
     }
 
     // Map of stops: floor from the walkable mask, turned so the opening view points up.
@@ -770,33 +887,36 @@
       messageTimer = setTimeout(() => { if (ui.status.textContent === message) ui.status.textContent = ''; }, 3500);
     }
     function stepForward(sign) {
-      if (!walkable) { say('Use Next stop, or the N and P keys, to move.'); return; }
+      if (!walkable) { say('Use Next stop, or N and P, to move.'); return; }
       const forward = forwardOf(state.yaw, 0);
       const to = [state.position[0] + forward[0] * 0.35 * sign, state.position[2] + forward[2] * 0.35 * sign];
       if (!walkable.clear([state.position[0], state.position[2]], to)) { say('A wall or furniture is in the way.'); return; }
       walkTo([to[0], walkable.floorY, to[1]]);
     }
-    function tapAt(clientX, clientY) {
+    function aimFor(clientX, clientY) {
       const rect = ui.canvas.getBoundingClientRect();
       const x = clientX - rect.left, y = clientY - rect.top;
-      if (!walkable) { say('Tap a numbered circle, or use Next stop, to move.'); return; }
       const near = camera.camera.screenToWorld(x, y, camera.camera.nearClip, new pc.Vec3());
       const far = camera.camera.screenToWorld(x, y, camera.camera.farClip, new pc.Vec3());
       const direction = [far.x - near.x, far.y - near.y, far.z - near.z];
       const length = Math.hypot(...direction);
-      const hit = floorHit([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
-      if (!hit || !walkable.walkable(hit[0], hit[2]) || !walkable.clear([state.position[0], state.position[2]], [hit[0], hit[2]])) {
-        say('You can’t walk there. Tap open floor, or a numbered circle.');
-        return;
-      }
-      walkTo(hit);
+      return tapAim([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
+    }
+    function tapAt(clientX, clientY) {
+      if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
+      const aim = aimFor(clientX, clientY);
+      const to = aim && walkTarget(walkable, [state.position[0], state.position[2]], aim);
+      // Short enough to fit a 280 px phone frame on one line.
+      if (!to) { say('Can’t walk there. Try open floor.'); return; }
+      walkTo([to[0], walkable.floorY, to[1]]);
     }
 
     // ----- input -----
     const pointers = new Map();
-    let drag = null, pinch = null;
+    let drag = null, pinch = null, engaged = false;
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
+      engaged = true;
       dismissHint();
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -831,21 +951,25 @@
       if (!pointers.has(event.pointerId)) return;
       pointers.delete(event.pointerId);
       continuous = Math.max(0, continuous - 1);
-      if (drag && event.type === 'pointerup' && drag.moved < 8 && performance.now() - drag.time < 450) tapAt(event.clientX, event.clientY);
+      // A finger wobbles: a short press that moved a little is still a tap.
+      const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
+      if (drag && event.type === 'pointerup' && drag.moved < (touch ? 16 : 8) && performance.now() - drag.time < (touch ? 600 : 450)) tapAt(event.clientX, event.clientY);
       if (pointers.size < 2) pinch = null;
       drag = null;
     };
     ui.canvas.addEventListener('pointerup', release);
     ui.canvas.addEventListener('pointercancel', release);
-    // A listing page scrolls with the wheel; zoom only on a trackpad pinch.
+    // A listing page scrolls with the wheel; zoom only on a trackpad pinch,
+    // and inside someone else's page only once the visitor has used the player.
     ui.canvas.addEventListener('wheel', event => {
-      if (!ready || !event.ctrlKey) return;
+      if (!ready || !event.ctrlKey || (framed && !engaged)) return;
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
     }, { passive: false });
     ui.canvas.addEventListener('keydown', event => {
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
+      engaged = true;
       const key = event.key;
       const handled = () => { event.preventDefault(); dismissHint(); };
       if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); flight = null; state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
@@ -866,6 +990,8 @@
       if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
+    const escapeFull = event => { if (event.key === 'Escape' && pseudo) { event.preventDefault(); setPseudo(false); } };
+    document.addEventListener('keydown', escapeFull);
     ui.prev.addEventListener('click', () => goToStop(stepStop(state.stop < 0 ? 0 : state.stop, -1, manifest.stops.length)));
     ui.next.addEventListener('click', () => goToStop(stepStop(Math.max(state.stop, 0), 1, manifest.stops.length)));
     ui.stopsToggle.addEventListener('click', () => togglePanel(ui.stopsPanel, ui.stopsToggle));
@@ -878,19 +1004,65 @@
       ui.mapToggle.title = ui.mapToggle.getAttribute('aria-label');
     }
     ui.mapToggle.addEventListener('click', () => toggleMap());
-    const canFullscreen = Boolean(document.fullscreenEnabled && stage.requestFullscreen);
-    ui.full.hidden = !canFullscreen;
+    // Full screen: the Fullscreen API where there is one (prefixed on iPad);
+    // otherwise the stage fills the window (iPhone Safari has no element
+    // full screen). In a frame without the API, filling the frame changes
+    // nothing, so the button opens the walkthrough's own page when given one.
+    const nativeFull = document.fullscreenEnabled && stage.requestFullscreen ? 'standard'
+      : document.webkitFullscreenEnabled && stage.webkitRequestFullscreen ? 'webkit' : null;
+    const openUrl = typeof options.fullscreenUrl === 'string' && /^https:\/\//.test(options.fullscreenUrl) ? options.fullscreenUrl : null;
+    const fullMode = nativeFull || (!framed ? 'pseudo' : openUrl ? 'open' : null);
+    const fullElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+    let pseudo = null; // the stage's own inline style while it fills the window
+    const isFull = () => pseudo !== null || (fullElement() !== null && fullElement() === stage);
+    function setPseudo(on) {
+      if (on === (pseudo !== null)) return;
+      const root = document.documentElement;
+      if (on) {
+        pseudo = { style: stage.getAttribute('style'), overflow: root.style.overflow };
+        Object.assign(stage.style, { position: 'fixed', top: '0', right: '0', bottom: '0', left: '0', width: '100vw', height: '100vh',
+          maxWidth: 'none', minHeight: '0', margin: '0', borderRadius: '0', zIndex: '2147483000' });
+        stage.style.height = '100dvh'; // kept at 100vh where dvh is unknown
+        root.style.overflow = 'hidden';
+      } else {
+        if (pseudo.style === null) stage.removeAttribute('style'); else stage.setAttribute('style', pseudo.style);
+        root.style.overflow = pseudo.overflow;
+        pseudo = null;
+      }
+      fullscreenChanged();
+    }
+    ui.full.hidden = !fullMode;
     ui.full.addEventListener('click', () => {
-      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-      else stage.requestFullscreen().catch(() => say('Full screen isn’t available here.'));
+      if (fullMode === 'open') { window.open(openUrl, '_blank', 'noopener'); return; }
+      if (pseudo) { setPseudo(false); return; }
+      if (fullMode === 'pseudo') { setPseudo(true); return; }
+      const fallback = () => (framed ? say('Full screen isn’t available here.') : setPseudo(true));
+      try {
+        if (fullElement()) {
+          const done = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen?.();
+          done?.catch?.(() => {});
+        } else {
+          const done = nativeFull === 'standard' ? stage.requestFullscreen() : stage.webkitRequestFullscreen();
+          done?.catch?.(fallback);
+        }
+      } catch { fallback(); }
     });
-    const fullscreenChanged = () => {
-      const on = document.fullscreenElement === stage;
+    function fullscreenChanged() {
+      const on = isFull();
       ui.full.replaceChildren(icon(on ? 'exit' : 'full'));
       ui.full.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
       ui.full.title = ui.full.getAttribute('aria-label');
-    };
+      fitBar();
+    }
+    // Under 320 px the bar has room for five controls, not six: the map (which
+    // would cover most of so small a view) gives way to Full screen.
+    function fitBar() {
+      const narrow = stage.clientWidth > 0 && stage.clientWidth < 320 && !isFull();
+      if (narrow && !ui.map.hidden) toggleMap(false);
+      ui.mapToggle.hidden = narrow;
+    }
     document.addEventListener('fullscreenchange', fullscreenChanged);
+    document.addEventListener('webkitfullscreenchange', fullscreenChanged);
 
     let hintTimer = null;
     function dismissHint() {
@@ -909,7 +1081,7 @@
     }
 
     // ----- rendering, loading phases and frame pacing -----
-    const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, frames: [], changes: [] };
+    const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, saveData, frames: [], changes: [] };
     app.systems.gsplat.on('frame:request', requestRender);
     app.systems.gsplat.on('frame:ready', (cam, layer, frameReady, loadingCount) => {
       if (loadingCount > 0) sawLoading = true;
@@ -923,11 +1095,11 @@
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
-        ui.status.textContent = 'Sharpening detail…';
-        ui.progress.hidden = false;
+        ui.status.textContent = saveData ? '' : 'Sharpening detail…';
+        ui.progress.hidden = saveData;
         ui.progress.firstChild.style.transform = 'scaleX(0)';
         // Finer levels now stream under the budget, over what is already on screen.
-        stats.level = detailLevel(manifest.scene.counts, governor.state.budget);
+        stats.level = detailLevel(manifest.scene.counts, governor.state.budget, saveData);
         splat.gsplat.lodRangeMin = stats.level;
         sawLoading = false;
         readyFrames = 0;
@@ -975,13 +1147,14 @@
           if (change.budget) {
             app.scene.gsplat.splatBudget = change.budget;
             stats.budget = change.budget;
-            if (phase !== 'coarse') { stats.level = detailLevel(manifest.scene.counts, change.budget); splat.gsplat.lodRangeMin = stats.level; }
+            if (phase !== 'coarse') { stats.level = detailLevel(manifest.scene.counts, change.budget, saveData); splat.gsplat.lodRangeMin = stats.level; }
           }
         }
       }
       lastRender = now;
     });
     const observer = new ResizeObserver(() => {
+      fitBar();
       posterSpec = ready ? posterFor(manifest, aspect()) : posterSpec;
       app.updateCanvasSize();
       applyCamera();
@@ -1004,8 +1177,10 @@
     app.assets.load(asset);
     app.start();
     asset.on('error', () => fail('engine-unavailable'));
-    // A wide screen has room for the map from the start; phones open it on request.
-    toggleMap(stage.clientWidth >= 900);
+    // A wide screen has room for the map from the start; phones, and frames on
+    // someone else's page, open it on request.
+    toggleMap(stage.clientWidth >= 900 && !framed);
+    fitBar();
 
     const originalDestroy = app.destroy.bind(app);
     viewer = {
@@ -1013,12 +1188,20 @@
         observer.disconnect();
         document.removeEventListener('visibilitychange', visibility);
         document.removeEventListener('fullscreenchange', fullscreenChanged);
+        document.removeEventListener('webkitfullscreenchange', fullscreenChanged);
+        document.removeEventListener('keydown', escapeFull);
+        setPseudo(false);
         originalDestroy();
       },
     };
     const controller = {
       stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames) }),
       goToStop, tapAt,
+      // For QA: whether a tap here aims at open floor on the walkable mask.
+      probe: (clientX, clientY) => {
+        const aim = walkable && aimFor(clientX, clientY);
+        return { aim, openFloor: Boolean(aim && walkable.walkable(aim[0], aim[1])) };
+      },
       // For QA and measurement: the camera state and where each stop's floor disc projects.
       inspect: () => {
         const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
@@ -1044,7 +1227,7 @@
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, nearestStop, medianFps, detailLevel,
+    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel,
     start, current: null,
   };
 })();

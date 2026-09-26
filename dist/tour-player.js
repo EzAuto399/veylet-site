@@ -405,15 +405,26 @@
     if (!stage) { failed(PACKAGE_BODY, false); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=bd562fe9dec8be84');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=be1f8950976a8940');
     } catch {
       failed(OFFLINE_BODY, true);
       return;
     }
     const controller = new AbortController();
+    // Framed on someone else's page (a portal's /tour frame) before anyone has
+    // pressed anything there: the poster and an Explore press come first, so a
+    // listing page never pulls megabytes of 3D nobody asked for. The embed's
+    // own Explore press counts, so it is not asked twice.
+    let framed = false;
+    try { framed = window.top !== window.self; } catch { framed = true; }
+    const activation = navigator.userActivation;
+    const waitForTap = options.waitForTap ?? Boolean(framed && activation && !activation.hasBeenActive);
     const playback = await settleWithDeadline(window.VeyletPlayerV2.start(stage, {
       base: resolved.packageBaseUrl,
       signal: controller.signal,
+      waitForTap,
+      // Where Full screen goes when this frame cannot fill the screen (iPhone).
+      fullscreenUrl: options.fullscreenUrl,
       onVisible: () => {
         if (surface.frame) surface.frame.hidden = true;
         try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }

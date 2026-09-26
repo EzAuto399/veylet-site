@@ -25,4 +25,17 @@
   .tour-frame-shell .tour-stage {
     border-radius: 8px;
   }
+  /* The client page on a phone: the whole player, its controls included, on
+     the first screen under the title, truth line and agent card (about
+     330px), and clear of the fixed Call/Email bar when the page shows one.
+     A page can set either reserve to match its own layout. */
+  .client-page .tour-stage {
+    --tour-stage-above: 330px;
+    height: clamp(300px, calc(100vh - var(--tour-stage-above) - var(--tour-stage-below, 0px)), 62vh);
+    height: clamp(300px, calc(100svh - var(--tour-stage-above) - var(--tour-stage-below, 0px)), 62svh);
+    min-height: 0;
+  }
+  body.has-agent-bar .client-page .tour-stage {
+    --tour-stage-below: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
 }
