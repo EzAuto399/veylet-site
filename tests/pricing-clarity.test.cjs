@@ -75,7 +75,7 @@ test('the canonical offer is 2026-09-26.3 and separates payment channels and una
     invoice: 'an agreed paid start date in writing' });
   assert.equal(record.freeMonths.autoRenews, null);
   assert.deepEqual(record.freeMonths.autoRenewalByChannel, { appStore: true, websiteCard: true, studioInvoice: false });
-  assert.equal(record.freeMonths.earlyPaidSwitchAvailable, false);
+  assert.deepEqual(record.freeMonths.earlyPaidSwitchAvailable, { websiteCard: true, studioInvoice: true, appStore: false });
   // The reminder has a day count but is not running: every surface says planned.
   assert.equal(record.freeMonths.reminderDaysBeforeFirstCharge, 7);
   assert.match(record.freeMonths.reminderStatus, /^planned: reminder email 7 days before the first charge \(not yet operational\)$/);

@@ -21,14 +21,14 @@
     "cancelAnytime": true,
     "paymentSetup": "App Store payment arrangement in the app, or written studio invoice terms; on the website, card entry happens only in Square's own card field on the account page, which is Square Sandbox until the card lane opens",
     "renewalNotice": "Check the renewal date in your account and Apple subscription settings; Veylet email reminders are not yet operational",
-    "earlyPaidSwitchAvailable": false,
+    "earlyPaidSwitchAvailable": {"websiteCard": true, "studioInvoice": true, "appStore": false},
     "autoRenewalByChannel": {
       "appStore": true,
       "websiteCard": true,
       "studioInvoice": false
     },
     "morePacks": "walkthrough packs can be bought during the free months on the website; the free-months end date stays the same",
-    "earlyPaidSwitchNote": "an App Store free trial cannot be switched to paid early; the website members' annual 'start today' option (membersAnnual.startNow) is a separate card plan and only applies when no paid period would overlap",
+    "earlyPaidSwitchNote": "When the free months' 12 render attempts are used, the owner of a website card or invoice trial can start the plan today: the free months end today, the chosen plan (monthly or annual at the current price) starts with the first charge now, rendering continues at once, and walkthroughs left from the free months stay usable until the original end date. An App Store free trial cannot be started early. The website members' annual 'start today' option (membersAnnual.startNow) is a separate card plan and only applies when no paid period would overlap.",
     "verification": "one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)",
     "reminderStatus": "planned: reminder email 7 days before the first charge (not yet operational)",
     "cardOnFile": {
