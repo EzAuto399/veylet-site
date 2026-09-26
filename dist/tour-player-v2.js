@@ -95,6 +95,7 @@
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
     return {
       synthetic: json.synthetic === true,
+      researchSample: json.research_sample === true,
       truthLabel: json.truth_label,
       scene: { lodMeta: scene.lod_meta, levels: scene.lod_levels, counts: scene.lod_counts, rotation: scene.rotation_degrees, background: scene.background,
         ...(chunked ? { chunked } : {}) },
@@ -669,7 +670,8 @@
     // Preview, then poster. Both are renders of this package from the opening stop.
     const aspect = () => (stage.clientWidth || 16) / (stage.clientHeight || 9);
     let posterSpec = posterFor(manifest, aspect());
-    ui.truth.textContent = manifest.synthetic ? 'Synthetic test scene · not to scale' : 'Captured on site · not to scale';
+    ui.truth.textContent = manifest.researchSample ? 'Research sample · not a Veylet capture · not to scale'
+      : manifest.synthetic ? 'Synthetic test scene · not to scale' : 'Captured on site · not to scale';
     ui.poster.alt = 'Opening view, rendered from the walkthrough';
     let visible = false;
     const becomeVisible = () => {

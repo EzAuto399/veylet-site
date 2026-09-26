@@ -530,3 +530,11 @@ test('the page glue asks for Explore first only when framed and not yet pressed'
     assert.deepEqual(calls, [expected], `${top} ${active}`);
   }
 });
+
+test('a research sample says so: research_sample is read only when exactly true', () => {
+  const { player } = load();
+  assert.equal(player.validateManifest(manifest()).researchSample, false);
+  assert.equal(player.validateManifest(manifest({ research_sample: true })).researchSample, true);
+  assert.equal(player.validateManifest(manifest({ research_sample: 'yes' })).researchSample, false);
+  assert.match(playerSource, /'Research sample · not a Veylet capture · not to scale'/);
+});
