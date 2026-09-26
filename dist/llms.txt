@@ -10,6 +10,7 @@ Short answers:
 - The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
 - Sending: Send from the app: it uploads in the background and is usually ready in 1–2 hours.
 - Price in one line: 3 free months with 6 accepted walkthroughs in total for eligible accounts, with a payment method on file and the first charge on the day they end, then the Veylet plan at A$99 a month by card or studio invoice (A$119.99 a month in the App Store) with 2 accepted walkthroughs a month and unused ones rolling over (up to 4 banked), or A$990 a year by card or studio invoice (A$1,199.99 a year in the App Store) with 24 walkthroughs to use any time in the plan year; Super fast renders at A$29 (ready in about 30 minutes, any day, any time, or refunded) and walkthrough packs of 3 (A$169) or 10 (A$499) for busier months. Totals in AUD. Details: https://veylet.com/offer
+- See a result (a public research capture processed by our pipeline, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
 - Viewers: tour viewers need no app. Studio visits are not currently offered.
 - Contact: yoda@yodalai.xyz
 

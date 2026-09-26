@@ -1008,3 +1008,56 @@
     display: none;
   }
 }
+
+/* ---------- Home: the See a result band (the page itself is /see) ---------- */
+.see-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 28px clamp(36px, 6vw, 96px);
+  align-items: center;
+  padding-bottom: var(--chapter-space);
+}
+.see-band-media {
+  margin: 0;
+}
+.see-band-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--ink);
+}
+.see-band-media figcaption {
+  max-width: 60ch;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.see-band-copy h2 {
+  margin: 0 0 18px;
+}
+.see-band-copy p {
+  max-width: 44ch;
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+@media (max-width: 800px) {
+  .see-band {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .see-band-copy {
+    order: -1;
+  }
+}
+/* Five header links wrap at 320-380 px; keep the second row short and left-aligned. */
+@media (max-width: 380px) {
+  .refined-marketing > header nav {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0 16px;
+  }
+}
