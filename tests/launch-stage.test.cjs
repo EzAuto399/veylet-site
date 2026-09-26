@@ -1,6 +1,7 @@
 /*
  * The launch stage switch (dist/stage.js; launch readiness plan §5 in the product repository):
- * one line, window.VEYLET_STAGE, decides what /, /start and /account say about getting an account.
+ * one line, window.VEYLET_STAGE, decides what /, /start and /account say about getting an account,
+ * and every marked waitlist call to action and access note on the other public pages (wave 2 lane E).
  * The markup carries the default stage's words, so the pages read correctly before the script runs
  * and without it; sign-in by email link stays for existing and invited accounts at every stage.
  */
@@ -15,6 +16,8 @@ const dist = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
 const source = read('stage.js');
 const PAGES = ['index.html', 'start/index.html', 'account/index.html'];
+// Other pages whose waitlist calls to action carry the stage marker (SITE_PUBLIC-10).
+const MARKED = ['offer/index.html', 'terms/index.html', 'support/index.html', 'website-guide/index.html', 'apply/index.html'];
 
 function load(extra = {}) {
   const window = { VEYLET_STAGE_MANUAL: true, ...extra };
@@ -29,7 +32,7 @@ function marked(html) {
   const pick = attr => [...clean.matchAll(new RegExp(`<(\\w+)\\b([^>]*\\b${attr}\\b[^>]*)>([\\s\\S]*?)</\\1\\s*>`, 'g'))]
     .map(m => ({ attrs: m[2], text: text(m[3]), href: (/\bhref="([^"]*)"/.exec(m[2]) || [])[1] || null,
       links: [...m[3].matchAll(/<a\b[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/g)].map(l => ({ href: l[1], text: text(l[2]) })) }));
-  return { labels: pick('data-launch-label'), ctas: pick('data-launch-cta'), accounts: pick('data-launch-account') };
+  return { labels: pick('data-launch-label'), ctas: pick('data-launch-cta'), accounts: pick('data-launch-account'), notes: pick('data-launch-note') };
 }
 
 /** A page with one label, one CTA (with its arrow icon) and one account line. */
@@ -41,10 +44,11 @@ function fakePage() {
   cta.append(icon);
   cta.selectors = { '.icon-arrow': icon };
   const account = new Element('p');
+  const note = new Element('p');
   const root = new Element('html');
-  const lists = { '[data-launch-label]': [label], '[data-launch-cta]': [cta], '[data-launch-account]': [account] };
+  const lists = { '[data-launch-label]': [label], '[data-launch-cta]': [cta], '[data-launch-account]': [account], '[data-launch-note]': [note] };
   const doc = { documentElement: root, querySelectorAll: selector => lists[selector] || [], createElement: tag => new Element(tag) };
-  return { doc, label, cta, icon, account, root };
+  return { doc, label, cta, icon, account, note, root };
 }
 
 test('the stage is one line, window.VEYLET_STAGE, and it is open (offer 2026-09-26.3: open to anyone, admitted weekly)', () => {
@@ -60,20 +64,23 @@ test('the stage is one line, window.VEYLET_STAGE, and it is open (offer 2026-09-
 test('each page loads stage.js and its markup already reads as the default stage', () => {
   const { STAGES } = load().VeyletStage;
   const words = STAGES.open;
-  for (const page of PAGES) {
+  for (const page of [...PAGES, ...MARKED]) {
     const html = read(page);
     assert.match(html, /<script src="\/stage\.js(\?v=[a-f\d]{16})?" defer><\/script>/, page);
-    const { labels, ctas, accounts } = marked(html);
+    const { labels, ctas, accounts, notes } = marked(html);
     for (const label of labels) assert.equal(label.text, words.label, page);
     for (const cta of ctas) assert.deepEqual([cta.text, cta.href], [words.cta.text, words.cta.href], page);
+    for (const note of notes) assert.equal(note.text, words.note, page);
     for (const account of accounts) {
       assert.equal(account.text, `${words.account} ${words.accountLink.text}.`, page);
       assert.deepEqual(account.links, [{ href: words.accountLink.href, text: words.accountLink.text }], page);
     }
   }
   const home = marked(read('index.html')), start = marked(read('start/index.html')), account = marked(read('account/index.html'));
-  assert.deepEqual([home.labels.length, home.ctas.length], [1, 1]);
-  assert.deepEqual([start.labels.length, start.ctas.length], [1, 1]);
+  // Home: the hero, the process, the closing invitation and the phone bar; each access note is marked too.
+  assert.deepEqual([home.labels.length, home.ctas.length, home.notes.length], [1, 4, 3]);
+  assert.deepEqual([start.labels.length, start.ctas.length, start.notes.length], [1, 1, 2]);
+  for (const page of MARKED) assert.ok(marked(read(page)).ctas.length >= 1, page);
   assert.equal(account.accounts.length, 1);
   assert.match(account.accounts[0].attrs, /\bid="account-access-note"/, 'account.js still hides this line once signed in');
 });
@@ -96,6 +103,7 @@ test('invitation and waitlist say "By invitation" with their own call to action;
   assert.equal(invited.cta.links().length, 0);
   assert.ok(invited.cta.children.includes(invited.icon), 'the arrow icon is kept');
   assert.match(invited.account.textContent, /^New accounts are by invitation for now\./);
+  assert.equal(invited.note.textContent, 'New accounts are by invitation for now.');
   assert.equal(invited.account.links()[0].getAttribute('href'), '/request?capture=self');
   assert.equal(invited.root.getAttribute('data-launch-stage'), 'invitation');
 
@@ -115,12 +123,14 @@ test('test stage says Limited test with no sign-up link; open admits weekly from
   assert.equal(limited.cta.hidden, true);
   assert.equal(limited.account.links().length, 0);
   assert.doesNotMatch(limited.account.textContent, /waitlist|invitation/i);
+  assert.equal(limited.note.textContent, 'Account access is in a limited test for accounts we have set up.');
 
   const open = fakePage();
   apply(open.doc, 'open');
   assert.deepEqual([open.label.textContent, open.cta.textContent.trim(), open.cta.getAttribute('href'), open.cta.hidden],
     ['Open to anyone, admitted weekly', 'Join the waitlist', '/waitlist', false]);
   assert.match(open.account.textContent, /^Anyone can join\. New accounts are admitted in weekly groups from the waitlist\./);
+  assert.equal(open.note.textContent, 'New accounts are admitted in weekly groups.');
   assert.doesNotMatch(open.label.textContent + open.account.textContent, /invitation|Start free/i);
 
   const typo = fakePage();

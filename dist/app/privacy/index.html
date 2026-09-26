@@ -46,10 +46,10 @@
         passed to anyone outside Veylet without your instruction.
       </p>
       <p>
-        <strong>Enquiries.</strong> Apply and request forms go to
-        yoda@yodalai.xyz via FormSubmit. Use them to assess a walkthrough or
-        operator application. Do not send access codes, identity documents or
-        private client images.
+        <strong>Waitlist and enquiries.</strong> Waitlist answers are stored with
+        Supabase to run the waitlist and to email you when it is your turn. The
+        request form, when it is open, goes to yoda@yodalai.xyz via FormSubmit.
+        Do not send access codes, identity documents or private client images.
       </p>
       <p>
         <strong>Accounts.</strong> <!-- LEGAL REVIEW 2026-09-26: access wording (stage open) -->New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz. Once an account is admitted, signing in with an email address either
@@ -69,22 +69,23 @@
         spaces and tours from your desk at any time, and ask us to correct
         anything that is wrong.
       </p>
+      <!-- LEGAL REVIEW 2026-09-27: automatic upload and processors -->
       <p>
-        <strong>Room captures on your device.</strong> Veylet Capture saves camera
-        photographs, LiDAR depth and camera-position data locally so you can
-        inspect and export a capture. The current beta does not automatically
-        upload original room captures to Veylet. When you export through the
-        device's share menu, the package goes to the app or recipient you choose.
-        Device backups and third-party sharing services follow your settings
-        with those services.
+        <strong>Room captures.</strong> Veylet Capture saves camera photographs,
+        LiDAR depth and camera-position data on your iPhone while you capture.
+        When you tap Send to Veylet, the app uploads the capture to Veylet: it is
+        stored privately for your workspace and made into a walkthrough
+        automatically. Your original stays on the iPhone until you delete it.
+        Device backups and any sharing you choose from the device follow your
+        settings with those services. We have not yet set a fixed period for
+        keeping uploaded captures; until this notice states one, ask us and we
+        delete them, and deleting your account removes them.
       </p>
       <p>
-        <strong>Tour files.</strong> When you send a reconstructed tour from
-        Veylet Capture, the package is stored privately for the property's
-        workspace. Active workspace members can open finished tours for review.
-        Unfinished uploads remain available only to their uploader while that
-        membership is active. A client handoff lets anyone holding its link
-        open the shared tour.
+        <strong>Walkthrough files.</strong> The finished walkthrough is stored
+        privately for the property's workspace. Active workspace members can
+        open finished walkthroughs for review. A walkthrough is shared only after
+        your account approves it, and then anyone holding its link can open it.
         Street addresses, access codes and ID documents do not belong in these
         records.
       </p>
@@ -93,9 +94,10 @@
         <strong>How walkthroughs are processed.</strong> Walkthroughs are
         processed automatically on cloud GPUs in Australia (Modal, Sydney
         region). No Veylet staff member views a capture as part of normal
-        processing. An automatic quality check decides whether a walkthrough is
-        ready for your review. An AI visual check is planned; it will be listed
-        here before it is switched on.
+        processing. An automatic quality check stops a render that cannot work
+        and flags areas worth a look for your review; nobody checks it by hand.
+        An AI visual check is planned; it will be listed here before it is
+        switched on.
       </p>
       <p>
         <strong>Client handoff links.</strong> A handoff is an unlisted link you
@@ -120,11 +122,11 @@
         walkthroughs and the account records used to deliver them are removed.
         Once removal starts, these files cannot be restored through your account.
         Copies on your own device, exported files and copies already downloaded
-        by someone else are outside this account deletion. Contact us about
-        any copies held separately by the studio.
+        by someone else are outside this account deletion. Ask us about any
+        other copy you believe we hold.
       </p>
       <p>
-        <strong>Limited records we retain.</strong> Invoices, receipts and minimal
+        <strong>Limited records we retain.</strong> Receipts, tax invoices and minimal
         records of payments, accepted services and deletion may be retained for
         accounting and legal obligations. These retained records do not provide
         access to your imagery, captures or walkthroughs. Deleting a Veylet
@@ -132,10 +134,16 @@
         subscription in your Apple account.
       </p>
       <p>
-        Cloudflare provides hosting and website performance measurements.
-        Hosting logs may also exist at Vercel and Supabase. An App Store
-        subscription is sold and charged by Apple; this public site does not
-        collect card numbers.
+        <strong>Who processes your information for us.</strong> Supabase stores
+        accounts, records and uploaded captures in Sydney (ap-southeast-2).
+        Modal renders walkthroughs on cloud GPUs in its Australian region.
+        Cloudflare stores finished walkthrough files for delivery (Cloudflare R2,
+        which does not guarantee that storage stays in Australia) and measures
+        website performance. Vercel hosts the website. Resend delivers the email
+        we send, such as sign-in links and walkthrough notices. Hosting logs may
+        exist at Vercel, Cloudflare and Supabase. An App Store subscription is
+        sold and charged by Apple; this public site does not collect card
+        numbers.
       </p>
       <p>
         Ask to access, correct or delete your account data:

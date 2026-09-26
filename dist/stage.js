@@ -9,8 +9,14 @@
  *   open        stages 3-4  open to anyone (offer 2026-09-26.3): new accounts admitted in weekly groups from the waitlist
  *
  * Sign-in is never removed: /account signs in existing and invited accounts at every stage.
- * The pages carry the default stage's words in their markup (tests/stage.test.cjs checks
+ * The pages carry the default stage's words in their markup (tests/launch-stage.test.cjs checks
  * they match), so without JavaScript, or before this runs, a page reads as the default.
+ *
+ * Markers (every waitlist call to action carries one; tests/copy-contract-e.test.cjs):
+ *   data-launch-label    the stage's label
+ *   data-launch-cta      a call to action: its text and link, hidden when the stage has none
+ *   data-launch-note     the one-sentence access note ("New accounts are admitted in weekly groups.")
+ *   data-launch-account  the account page's access line, with its link
  */
 window.VEYLET_STAGE = 'open';
 
@@ -26,14 +32,16 @@ window.VEYLET_STAGE = 'open';
     test: {
       label: 'Limited test',
       cta: null,
+      note: 'Account access is in a limited test for accounts we have set up.',
       account: 'Account access is in a limited test for accounts we have set up.',
       accountLink: null,
     },
-    invitation: { label: 'By invitation', cta: INVITATION, account: INVITED, accountLink: INVITATION },
-    waitlist: { label: 'By invitation', cta: WAITLIST, account: INVITED, accountLink: WAITLIST },
+    invitation: { label: 'By invitation', cta: INVITATION, note: 'New accounts are by invitation for now.', account: INVITED, accountLink: INVITATION },
+    waitlist: { label: 'By invitation', cta: WAITLIST, note: 'New accounts are by invitation for now.', account: INVITED, accountLink: WAITLIST },
     open: {
       label: 'Open to anyone, admitted weekly',
       cta: WAITLIST,
+      note: 'New accounts are admitted in weekly groups.',
       account: 'Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with.',
       accountLink: WAITLIST,
     },
@@ -62,6 +70,7 @@ window.VEYLET_STAGE = 'open';
       el.setAttribute('href', words.cta.href);
       el.hidden = false;
     });
+    each(doc, '[data-launch-note]', function (el) { el.textContent = words.note; });
     each(doc, '[data-launch-account]', function (el) {
       el.textContent = words.account;
       if (!words.accountLink) return;

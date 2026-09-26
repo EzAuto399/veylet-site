@@ -11,6 +11,11 @@
  * only "unsubscribed" or "This link has already been used or is not valid": it never names a person
  * and never says whether a token existed. A failed request can be tried again. It sends nothing but
  * the token, with the public key, no cookie and no referrer.
+ *
+ * Opening the link changes nothing (LEGAL_LIFECYCLE-21): mail scanners open links, so the page first
+ * takes the token out of the address bar and shows "Confirm unsubscribe"; only that press asks the
+ * functions. The press reuses the page's one button, which says "Try again" after a failure. The
+ * one-click header an email client sends (RFC 8058, List-Unsubscribe-Post) is the mail sender's work.
  */
 (function () {
   'use strict';
@@ -20,7 +25,14 @@
   var KIND = { unsubscribe_email_tips: 'tips', unsubscribe_mail: 'reminder' };
   var SERVICE = 'Service messages about your account and walkthroughs still arrive.';
 
+  var CONFIRM = 'Confirm unsubscribe';
+  var RETRY = 'Try again';
+
   var COPY = {
+    confirm: {
+      title: 'Unsubscribe from these emails?',
+      message: 'Press Confirm unsubscribe to stop them. Nothing has changed yet. ' + SERVICE,
+    },
     loading: {
       title: 'Unsubscribing…',
       message: 'One moment while we record your choice.',
@@ -107,7 +119,9 @@
     if (main) main.setAttribute('data-state', state);
     doc.getElementById('unsubscribe-title').textContent = copy.title;
     doc.getElementById('unsubscribe-message').textContent = copy.message;
-    doc.getElementById('unsubscribe-retry').hidden = state !== 'error';
+    var button = doc.getElementById('unsubscribe-retry');
+    button.hidden = state !== 'error' && state !== 'confirm';
+    button.textContent = state === 'confirm' ? CONFIRM : RETRY;
     var next = doc.getElementById('unsubscribe-scope');
     next.textContent = NEXT[state] || '';
     next.hidden = !NEXT[state];
@@ -115,13 +129,19 @@
     return state;
   }
 
-  async function run(win) {
-    var doc = win.document;
+  // The token is a key to this one preference: keep it out of history and screenshots.
+  function takeToken(win) {
     var token = readToken(win.location.search);
-    // The token is a key to this one preference: keep it out of history and screenshots.
     if (win.history && typeof win.history.replaceState === 'function') {
       win.history.replaceState(null, '', win.location.pathname);
     }
+    return token;
+  }
+
+  /** Records the choice now. `token` is given by prepare(); otherwise it is read from the address. */
+  async function run(win, given) {
+    var doc = win.document;
+    var token = arguments.length > 1 ? given : takeToken(win);
     if (!token) return show(doc, 'used');
     var config = win.VEYLET_SUPABASE;
     if (!config || !config.url || !config.anonKey) return show(doc, 'error');
@@ -142,14 +162,23 @@
     return attempt();
   }
 
-  var api = { readToken: readToken, ask: ask, outcome: outcome, run: run, COPY: COPY, NEXT: NEXT, FUNCTIONS: FUNCTIONS };
+  /** On page load: take the token and ask for one press; nothing is sent before it. */
+  function prepare(win) {
+    var doc = win.document;
+    var token = takeToken(win);
+    if (!token) return show(doc, 'used');
+    doc.getElementById('unsubscribe-retry').addEventListener('click', function () { return run(win, token); }, { once: true });
+    return show(doc, 'confirm');
+  }
+
+  var api = { readToken: readToken, ask: ask, outcome: outcome, run: run, prepare: prepare, COPY: COPY, NEXT: NEXT, FUNCTIONS: FUNCTIONS };
   if (typeof window !== 'undefined') {
     window.VeyletUnsubscribe = api;
     if (!window.VEYLET_UNSUBSCRIBE_MANUAL) {
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { run(window); });
+        document.addEventListener('DOMContentLoaded', function () { prepare(window); });
       } else {
-        run(window);
+        prepare(window);
       }
     }
   }

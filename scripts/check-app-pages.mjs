@@ -3,7 +3,11 @@
  * The pages the Veylet Capture app opens (/app/*) state no price and sell
  * nothing (App Store Guideline 3.1.1; launch plan C1). This fails when any of
  * them, rendered or in reach of their scripts in app mode, says "A$", "$",
- * "pack", "Super fast", "express", "/offer" or "price", or links out of /app.
+ * "pack", "Super fast", "express", "/offer" or "price", names another way to
+ * buy ("Square", an invoice, "on this website") or the retired studio
+ * (BILLING_APPLE-13; Guideline 3.1.1 and 3.1.3), or links out of /app. The
+ * brand "Veylet Studio", a "tax invoice" (Apple's receipt) and the
+ * studio-avatar image are not these words.
  *
  * Two passes, both local and offline:
  * 1. Static: every dist/app/<page>/index.html, and every page of the in-app help
@@ -38,6 +42,10 @@ export const BANNED = Object.freeze([
   ['express', /\bexpress\b/i],
   ['/offer', /\/offer\b/i],
   ['price', /pric(?:e|ing)/i],
+  ['Square', /\bSquare\b/],
+  ['invoice', /(?<!\btax\s)\binvoic(?:e|es|ed|ing)\b/i],
+  ['on this website', /\bon this (?:web)?site\b/i],
+  ['studio', /(?<!\bVeylet\s)\bstudio\b(?!-avatar)/i],
 ]);
 // Functions that only exist to sell something. App mode never asks for them.
 export const MONEY_CALLS = Object.freeze(['get_trial_offer', 'get_pack_offer', 'get_members_annual_offer', 'get_express_offer',

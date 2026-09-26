@@ -42,11 +42,14 @@ test('the checker fails on each forbidden word, an outside link, a missing noind
   }
   for (const text of ['Packing it for phones', 'The package changed.', 'expressly', 'Offered']) assert.deepEqual(findBanned(text, 'x'), [], text);
   const f = copyDist(t);
-  f.edit('app/terms/index.html', html => html.replace('<strong>Refunds.</strong>', '<strong>Refunds.</strong> Packs cost A$169, see <a href="/offer">the offer</a>.'));
+  f.edit('app/terms/index.html', html => html.replace('<strong>Refunds.</strong>', '<strong>Refunds.</strong> Packs cost A$169, see <a href="/offer">the offer</a>.'
+    // Another way to buy, and the retired studio (BILLING_APPLE-13): each is caught on its own.
+    + ' Or pay with a card in Square’s card field on this website, or by studio invoice; the studio reviews it.'));
   f.edit('app/support/index.html', html => html.replace('<meta name="robots" content="noindex,nofollow" />', '').replace('</header>', '<nav aria-label="Main"><a href="/start">Start</a></nav></header>'));
   const { problems } = await checkAppPages(f.root);
   const said = problems.map(item => item.where + ' ' + item.word);
   for (const expected of ['app/terms/index.html (text) A$', 'app/terms/index.html (text) pack', 'app/terms/index.html (href) /offer',
+    'app/terms/index.html (text) Square', 'app/terms/index.html (text) on this website', 'app/terms/index.html (text) invoice', 'app/terms/index.html (text) studio',
     'app/terms/index.html (link) outside /app', 'app/support/index.html noindex', 'app/support/index.html navigation', 'app/support/index.html (link) outside /app']) {
     assert.ok(said.includes(expected), expected + ' in ' + said.join(', '));
   }
