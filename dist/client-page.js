@@ -394,6 +394,53 @@
   }
 
   /*
+   * The link's token (§5.2 "Link incomplete"). A share token is 32 hex characters
+   * (lookup_tour_share answers nothing else), so a hex token of any other length is
+   * a link cut off or run on, and a token with characters no link carries (a space,
+   * a quote) is broken: both read as incomplete, never as "turned off". Punctuation a
+   * message glues on (a full stop, a bracket) and capitals are taken off first. Any
+   * other token of 16 or more link characters is looked up as it is. The head script
+   * of /handoff applies the same rule before first paint.
+   */
+  function linkToken(search) {
+    let raw = '';
+    try { raw = String(new URLSearchParams(search || '').get('t') || ''); } catch { raw = ''; }
+    let token = raw.trim().replace(/[.,;:!?)\]}>'"_-]+$/, '');
+    if (/^[0-9a-f]+$/i.test(token)) token = token.toLowerCase();
+    const hex = /^[0-9a-f]+$/.test(token);
+    const complete = hex ? token.length === 32 : token.length >= 16 && token.length <= 64 && /^[A-Za-z0-9_-]+$/.test(token);
+    return { token, complete };
+  }
+
+  /*
+   * The embed's invitation (§5.2 "Embed, small frame"): the walkthrough's own
+   * poster behind it, from the package manifest (a few KB) on the tour host or this
+   * origin. Nothing 3D loads before Explore. Anything unexpected is no poster.
+   */
+  const POSTER_HOSTS = ['https://tours.veylet.com'];
+  const POSTER_PATH = /^(?:r\/[0-9a-f]{8,64}\/)?(?:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}\/){0,3}[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}\.webp$/;
+  async function invitationPoster(options = {}) {
+    try {
+      const request = options.fetch || (typeof fetch === 'function' ? fetch : null);
+      const here = options.origin || (typeof location !== 'undefined' ? location.origin : '');
+      const base = new URL(String(options.base || ''), here || undefined);
+      if (!request || base.search || base.hash || !base.pathname.endsWith('/')) return null;
+      if (!POSTER_HOSTS.includes(base.origin) && base.origin !== here) return null;
+      const response = await request(base.href + 'manifest.json', { credentials: 'omit', referrerPolicy: 'no-referrer' });
+      if (!response || !response.ok) return null;
+      const text = await response.text();
+      if (text.length > 512 * 1024) return null;
+      const poster = (JSON.parse(text) || {}).poster || {};
+      const choice = (options.portrait ? poster.portrait : poster.landscape) || poster.landscape || poster.portrait;
+      const path = choice && choice.path;
+      if (typeof path !== 'string' || !POSTER_PATH.test(path) || path.split('/').includes('..')) return null;
+      return base.href + path;
+    } catch {
+      return null;
+    }
+  }
+
+  /*
    * "Report this walkthrough" (launch plan C2.3): a quiet link to /report with this
    * link's token and nothing else. It shows whenever the token looks complete,
    * whatever the lookup says, so the link never tells anyone whether a token exists.
@@ -439,6 +486,6 @@
     channelFrom, referrerHost, viewBeacon,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
-    reportHref, mountReport,
+    reportHref, mountReport, linkToken, invitationPoster,
   };
 })();

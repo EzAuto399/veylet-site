@@ -26,10 +26,15 @@
     <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
+    <!-- Time to poster: the lookup (account service) and the package's manifest and poster (tour host)
+         connect while this page parses. Nothing of the player or 3D loads before Explore. -->
+    <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
-    <script src="/tour-player.js?v=af59bfb5e6d284af"></script>
-    <script src="/client-page.js?v=7d3ee104107829aa"></script>
+    <script src="/tour-player.js?v=9be0d465882b7e68"></script>
+    <script src="/client-page.js?v=2ae924003e904336"></script>
     <style>
       html,
       body {
@@ -149,6 +154,12 @@
       /* Quiet on purpose: a small underlined line under the invitation, still a 44px target. */
       .embed-fallback a.embed-report { align-self: flex-start; justify-content: flex-start; padding: 0 2px; border: 0; color: rgba(244, 241, 233, 0.72); font-size: 13px; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
       @media (max-width: 380px), (max-height: 380px) { .embed-fallback { padding: 16px; } }
+      /* The walkthrough's own poster behind the invitation (the manifest's poster only; no 3D before Explore),
+         darkened so the words stay readable. */
+      .embed-fallback[data-poster="shown"] {
+        background: linear-gradient(rgba(16, 35, 29, 0.62), rgba(16, 35, 29, 0.9)), var(--embed-poster) center / cover no-repeat, #10231d;
+      }
+      .embed-fallback[data-poster="shown"][data-mode="loading"] { background: transparent; }
     </style>
   </head>
   <body>
@@ -190,7 +201,10 @@
         const start = document.getElementById('embed-start');
         const open = document.getElementById('embed-open');
 
-        const token = new URLSearchParams(location.search).get('t') || '';
+        // A cut-off or broken link reads as incomplete (client-page.js linkToken).
+        const raw = new URLSearchParams(location.search).get('t') || '';
+        const link = window.VeyletClientPage?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
+        const token = link.complete ? link.token : '';
         // Views for the agent's desk: an embed's channel is embed unless its link
         // says otherwise, and the site framing it is named by hostname only.
         const beacon = token.length < 16 || !window.VeyletClientPage?.viewBeacon ? null : window.VeyletClientPage.viewBeacon({
@@ -203,7 +217,7 @@
           els.title.textContent = 'This walkthrough is not available.';
           els.body.textContent =
             'The player files did not load on this device. Check the connection and reload.';
-        } else if (token.length < 16) {
+        } else if (!link.complete) {
           window.VeyletPlayer.showFailure(
             { ...els, actions: null, retry: null },
             {
@@ -234,7 +248,16 @@
             ]).then((answer) => {
               if (!answer || answer.error) { offer(); return; }
               const row = Array.isArray(answer.data) ? answer.data[0] : answer.data;
-              if (row && (row.storage_path || row.package_base_url)) offer(); else dead();
+              if (row && (row.storage_path || row.package_base_url)) offer(); else { dead(); return; }
+              // A streamed walkthrough's own poster behind the invitation: its manifest only, nothing 3D.
+              if (row.package_format_version === 2 && row.package_base_url && window.VeyletClientPage?.invitationPoster) {
+                const portrait = typeof window.innerWidth === 'number' && window.innerWidth < window.innerHeight;
+                window.VeyletClientPage.invitationPoster({ base: row.package_base_url, portrait }).then((poster) => {
+                  if (!poster || !fallback.style) return;
+                  fallback.style.setProperty('--embed-poster', 'url("' + poster + '")');
+                  fallback.dataset.poster = 'shown';
+                });
+              }
             }, offer);
           } else offer();
           // The agent's name under the invitation, when the server returns their

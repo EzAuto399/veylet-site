@@ -57,3 +57,23 @@ test('missing and cyclic local dependencies fail without partially rewriting sou
   assert.throws(() => versionAssets(f.root), /Cyclic public asset/);
   assert.equal(f.read('index.html'), '<script src="a.js"></script>');
 });
+
+test('every ?v= in dist names the current bytes of its file, so no page can pin a stale player (VIEWER-23)', async () => {
+  const { assetHash, mapAssetReferences, publicFiles } = await api;
+  const dist = path.join(__dirname, '../dist');
+  const stale = [];
+  let checked = 0;
+  for (const source of publicFiles(dist).filter(file => /\.(?:html|js|css)$/.test(file) && !file.startsWith('vendor/'))) {
+    mapAssetReferences(fs.readFileSync(path.join(dist, source), 'utf8'), source, (target, url) => {
+      const version = url.searchParams.get('v');
+      if (version !== null) {
+        checked++;
+        const actual = assetHash(fs.readFileSync(path.join(dist, target)));
+        if (version !== actual) stale.push(`${source} → /${target}?v=${version} (file is ${actual})`);
+      }
+      return url.pathname + url.search + url.hash;
+    });
+  }
+  assert.ok(checked > 50, `${checked} versioned references`);
+  assert.deepEqual(stale, [], 'run node scripts/write-build-info.mjs and commit its changes');
+});

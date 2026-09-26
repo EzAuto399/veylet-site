@@ -24,10 +24,16 @@
     <meta name="theme-color" content="#10231d" />
     <!-- Unbranded: no maker's icon either, and no favicon request. -->
     <link rel="icon" href="data:," />
+    <!-- Time to poster: the lookup (account service) and the package (tour host) connect while this page
+         parses; the streamed player downloads beside the lookup. -->
+    <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" />
+    <link rel="preload" href="/tour-player-v2.js?v=ed1cd1998002cc3a" as="script" />
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=af59bfb5e6d284af"></script>
-    <script src="/client-page.js?v=7d3ee104107829aa"></script>
+    <script src="/tour-player.js?v=9be0d465882b7e68"></script>
+    <script src="/client-page.js?v=2ae924003e904336"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
@@ -210,7 +216,10 @@
         const help = document.getElementById('tour-help');
         const player = window.VeyletPlayer;
         const page = window.VeyletClientPage;
-        const token = new URLSearchParams(location.search).get('t') || '';
+        // A cut-off or broken link reads as incomplete (client-page.js linkToken).
+        const raw = new URLSearchParams(location.search).get('t') || '';
+        const link = page?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
+        const token = link.complete ? link.token : '';
 
         // Unbranded: the player names the tab "… — Veylet"; this page keeps it plain.
         const titleEl = document.querySelector('title');
@@ -221,7 +230,7 @@
         // otherwise; framed on another site, that site's hostname and nothing more.
         let framed = false;
         try { framed = window.top !== window.self; } catch { framed = true; }
-        const beacon = token.length < 16 || !page?.viewBeacon ? null : page.viewBeacon({
+        const beacon = !link.complete || !page?.viewBeacon ? null : page.viewBeacon({
           config: window.VEYLET_SUPABASE,
           token,
           src: page.channelFrom(location.search, 'portal'),
@@ -234,7 +243,7 @@
           els.body.textContent = 'The player files did not load on this device. Check the connection and reload.';
           return;
         }
-        if (token.length < 16) {
+        if (!link.complete) {
           player.showFailure(
             { ...els, actions: null, retry: null },
             { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' }
@@ -243,8 +252,12 @@
           return;
         }
         let unavailable = false;
+        // In a portal's frame on an iPhone (no element full screen), Full screen opens this page on its own.
+        const own = typeof location.origin === 'string' && location.origin.startsWith('https://')
+          ? location.origin + location.pathname + '?t=' + encodeURIComponent(token) : undefined;
         player.boot({
           els,
+          fullscreenUrl: own,
           onVisible: () => {
             // A streamed walkthrough carries its own status; a version 1 frame
             // shares the stage with the compact notice.
