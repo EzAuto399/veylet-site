@@ -133,6 +133,9 @@
     ['sharing permission required', 'permission'],
     ['occupancy not declared', 'occupancy'],
     ['tenant consent required', 'consent'],
+    // Property variety (launch review #10, 26 September 2026): a business or workplace
+    // recorded as its own occupancy value, blocked on the business's own written permission.
+    ['business permission required', 'business'],
     // The office's plan ended more than 14 days ago (hosting enforcement, draft 20260926132000).
     ['restart your plan to share this walkthrough', 'plan'],
   ];
@@ -141,6 +144,7 @@
     permission: 'someone with sharing permission',
     occupancy: 'you to say whether anyone lives here',
     consent: 'the tenant’s signed consent',
+    business: 'the business’s written permission',
   };
   // Approvals whose sharing did not turn on, until their card is drawn again.
   const sharePending = new Map();
@@ -550,8 +554,8 @@
           // Sharing waits for the listing's answer or the tenant's consent: that is the next step.
           const gate = gateBlock(selected.property_id);
           if (gate && gateCanOpen(selected.property_id)) {
-            guide(shareWords(gate), gate === 'consent' ? GATE_WORDS.guideConsent : GATE_WORDS.guideOccupancy, gateFixLabel(gate),
-              () => gateOpen(selected.property_id, gate));
+            guide(shareWords(gate), gate === 'business' ? GATE_BUSINESS.guide : gate === 'consent' ? GATE_WORDS.guideConsent : GATE_WORDS.guideOccupancy,
+              gateFixLabel(gate), () => gateOpen(selected.property_id, gate));
             return;
           }
           if (hosting?.released_at) guide('Sharing is off.', 'The link and embed show "not available" until you turn sharing back on from its card below.', 'Open its sharing controls', open);
@@ -703,7 +707,7 @@
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
       } else if (reason === 'plan' && !APP_MODE) {
         fix = restartPlanButton();
-      } else if ((reason === 'occupancy' || reason === 'consent') && gateCanOpen(tour.property_id)) {
+      } else if ((reason === 'occupancy' || reason === 'consent' || reason === 'business') && gateCanOpen(tour.property_id)) {
         // The listing's question, or its consent form, opened where the person is.
         fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
         fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-' + reason;
@@ -957,7 +961,7 @@
         if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(), resume); fixed = true; }
         return;
       }
-      if (refused === 'occupancy' || refused === 'consent') { resume.disabled = false; blocked(refused); return; }
+      if (refused === 'occupancy' || refused === 'consent' || refused === 'business') { resume.disabled = false; blocked(refused); return; }
       if (failed(result) || missingFunction(result)) { say('Resuming was not confirmed. Refresh the desk to check before retrying.'); resume.disabled = false; return; }
       const readback = await settled(Promise.resolve().then(() => supabase.from('tours').select('id,share_token,share_paused_at').eq('id', tour.id).single()));
       if (ticket !== deskVersion) return;
@@ -1163,6 +1167,7 @@
     if (words.includes('tour unavailable')) return 'unavailable';
     if (words.includes('occupancy not declared')) return 'occupancy';
     if (words.includes('tenant consent required')) return 'consent';
+    if (words.includes('business permission required')) return 'business';
     return 'unknown';
   }
   /*
@@ -1271,7 +1276,7 @@
           const reason = exportRefusal(reply);
           // The statement was withdrawn since this was drawn: exports are closed again.
           if (reason === 'inactive') { say(''); draw({ ...row, consent_version: null }, true); return; }
-          if (reason === 'occupancy' || reason === 'consent') { say(''); slot.replaceChildren(); gateLine(reason, true); return; }
+          if (reason === 'occupancy' || reason === 'consent' || reason === 'business') { say(''); slot.replaceChildren(); gateLine(reason, true); return; }
           make.disabled = false;
           say(reason === 'approve' ? EXPORT_WORDS.approveFirst : reason === 'unavailable' ? EXPORT_WORDS.notYours : EXPORT_WORDS.unconfirmed);
           return;
@@ -1368,11 +1373,17 @@
    * here goes beyond the one sentence about Queensland.
    *
    * Property variety (launch review #10, 26 September 2026): the question is "Is anyone
-   * living or working here?" with a fourth answer, "It's a business or workplace". The
-   * server's occupancy values are unchanged: a business is recorded as 'tenanted' (staff or
-   * tenants occupy it, so permission is still recorded before sharing); an empty business
-   * answers "No — it's empty" ('vacant'). The server does not keep "business", so this
-   * browser remembers it per listing to word the permission step for a business; anywhere
+   * living or working here?" with a fourth answer, "It's a business or workplace", sent as
+   * its own occupancy value, 'business' (release-2 draft 20260926122000_tenant_consent_gate.sql).
+   * An unanswered business reads back blocked_reason 'business_permission_required' until
+   * the business's written permission is recorded (record_tenant_consent, the same reference
+   * and date form as tenant consent, worded for a business); an empty business answers "No —
+   * it's empty" ('vacant'). An old server without the 'business' value (its set_listing_occupancy
+   * refusal names only owner_occupied, vacant, tenanted and unknown) refuses it: this browser
+   * then saves 'tenanted' instead (staff or tenants occupy it, so permission is still recorded
+   * before sharing) and remembers locally, per listing, that it asked the business wording for
+   * it — read back from the server's own 'business' value where a current server gives one,
+   * and from that local memory only for a 'tenanted' answer an old server recorded. Anywhere
    * else a 'tenanted' listing reads with the residential tenant wording, the legal default.
    */
   const GATE_WORDS = Object.freeze({
@@ -1409,23 +1420,29 @@
     guideOccupancy: 'Answer the question on its listing below: is anyone living or working here? Then turn sharing on.',
     guideConsent: 'Record the tenant’s written consent on its listing below, then turn sharing on.',
   });
-  // [choice, server value, label]. 'business' is recorded as 'tenanted' (see above).
+  // [choice, server value, label]. A server too old for 'business' refuses it; gateSave
+  // then retries as 'tenanted' (see above).
   const GATE_OPTIONS = Object.freeze([['tenanted', 'tenanted', 'Yes — tenants live here'], ['owner_occupied', 'owner_occupied', 'Yes — the owner lives here'],
-    ['business', 'tenanted', 'It’s a business or workplace'], ['vacant', 'vacant', 'No — it’s empty']]);
+    ['business', 'business', 'It’s a business or workplace'], ['vacant', 'vacant', 'No — it’s empty']]);
   const GATE_SUMMARY = Object.freeze({ owner_occupied: 'The owner lives here.', vacant: 'Nobody lives or works here.' });
   // The business wording for the permission step (no Queensland tenancy sentence).
   const GATE_BUSINESS = Object.freeze({
     answer: 'You said it’s a business or workplace.',
-    title: 'Record the business’s permission',
+    title: 'Record the business’s written permission',
     note: 'Get permission from the business before you capture people, screens or documents. Keep its written permission; record its reference here.',
     reference: 'Permission reference',
     referenceHint: 'For example, the email or letter that gave permission.',
     noReference: 'Enter the permission’s name or number.',
     noDate: 'Enter the date permission was given.',
     signed: 'Date given',
-    saved: 'Saved. Now record the business’s permission.',
+    saved: 'Saved. Now record the business’s written permission.',
     recorded: 'Permission recorded.',
+    fix: 'Add permission',
+    guide: 'Record the business’s written permission on its listing below, then turn sharing on.',
   });
+  // Only needed for an old server's fallback: it keeps no 'business' value, so this browser
+  // remembers, per listing, that a 'tenanted' answer it saved there was really a business.
+  // A current server's own 'business' occupancy is read back directly, never from here.
   const GATE_KIND_KEY = 'veylet-listing-business';
   function gateBusiness(propertyId) {
     try { return JSON.parse(window.localStorage?.getItem(GATE_KIND_KEY) || '[]').includes(propertyId); } catch { return false; }
@@ -1437,9 +1454,14 @@
       window.localStorage?.setItem(GATE_KIND_KEY, JSON.stringify([...kept].slice(-200)));
     } catch { /* this browser keeps nothing; the tenant wording stands */ }
   }
-  const GATE_OCCUPANCY = Object.freeze(['owner_occupied', 'vacant', 'tenanted', 'unknown']);
+  // Whether this answer is a business: the server's own 'business' occupancy first, and
+  // only for a 'tenanted' answer (an old server's fallback) this browser's local memory.
+  function gateIsBusiness(answer, propertyId) {
+    return answer?.occupancy === 'business' || (answer?.occupancy === 'tenanted' && gateBusiness(propertyId));
+  }
+  const GATE_OCCUPANCY = Object.freeze(['owner_occupied', 'vacant', 'tenanted', 'business', 'unknown']);
   // blocked_reason → the refusal it stands for (SHARE_REFUSALS).
-  const GATE_REASONS = Object.freeze({ occupancy_not_declared: 'occupancy', tenant_consent_required: 'consent' });
+  const GATE_REASONS = Object.freeze({ occupancy_not_declared: 'occupancy', tenant_consent_required: 'consent', business_permission_required: 'business' });
   const GATE_HELP = APP_MODE ? '/app/help/privacy-and-consent' : '/help/privacy-and-consent';
   // get_listing_sharing_readiness, until an answer says the backend does not have it.
   let gateAvailable = true;
@@ -1460,12 +1482,12 @@
       reference: typeof row.consent_reference === 'string' ? row.consent_reference.trim() : '',
       recordedAt: typeof row.consent_recorded_at === 'string' ? row.consent_recorded_at : null };
   }
-  // What sharing on this listing waits for ('occupancy' or 'consent'), or null. A
-  // grandfathered live share keeps working, but anything shared anew still waits.
+  // What sharing on this listing waits for ('occupancy', 'consent' or 'business'), or null.
+  // A grandfathered live share keeps working, but anything shared anew still waits.
   function gateBlock(propertyId) { return gateAvailable ? listingGates.get(propertyId)?.answer?.reason || null : null; }
   function gateReady(propertyId) { return listingGates.get(propertyId)?.ready || Promise.resolve(); }
   function gateCanOpen(propertyId) { return gateAvailable && listingGates.has(propertyId); }
-  function gateFixLabel(reason) { return reason === 'consent' ? GATE_WORDS.fixConsent : GATE_WORDS.fixOccupancy; }
+  function gateFixLabel(reason) { return reason === 'consent' ? GATE_WORDS.fixConsent : reason === 'business' ? GATE_BUSINESS.fix : GATE_WORDS.fixOccupancy; }
   function gateSay(entry, text, announce = false) {
     if (entry.said) { entry.said.textContent = text; entry.said.hidden = !text; }
     if (announce && text) setStatus(text);
@@ -1492,7 +1514,7 @@
   function gateDraw(entry, focus = false) {
     const { slot, answer } = entry;
     const mode = !answer || !gateAvailable ? null : entry.changing || answer.reason === 'occupancy' ? 'question'
-      : answer.reason === 'consent' ? 'consent' : answer.occupancy !== 'unknown' ? 'summary' : null;
+      : (answer.reason === 'consent' || answer.reason === 'business') ? 'consent' : answer.occupancy !== 'unknown' ? 'summary' : null;
     slot.dataset.occupancy = mode || 'none';
     if (!mode) { slot.hidden = true; slot.replaceChildren(); return; }
     slot.hidden = false;
@@ -1506,7 +1528,9 @@
       const box = annualNode('details', 'account-details occupancy-later');
       box.open = entry.open || entry.changing || focus;
       const summary = annualNode('summary');
-      summary.append(annualNode('span', 'occupancy-later-title', mode === 'consent' ? GATE_WORDS.consentTitle : GATE_WORDS.question),
+      const laterTitle = mode !== 'consent' ? GATE_WORDS.question
+        : gateIsBusiness(answer, entry.space.id) ? GATE_BUSINESS.title : GATE_WORDS.consentTitle;
+      summary.append(annualNode('span', 'occupancy-later-title', laterTitle),
         annualNode('span', 'occupancy-quiet', GATE_WORDS.quiet));
       box.addEventListener('toggle', () => { entry.open = box.open; });
       box.append(summary, body, said);
@@ -1528,12 +1552,14 @@
     group.setAttribute('aria-describedby', why.id);
     group.append(annualNode('legend', refs.titleClass, GATE_WORDS.question), why);
     const inputs = [];
-    const business = gateBusiness(space.id);
+    const isBusinessAnswer = gateIsBusiness(answer, space.id);
     for (const [value, occupancy, label] of GATE_OPTIONS) {
       const choice = annualNode('label', 'choice occupancy-choice');
       const input = annualNode('input'); input.type = 'radio'; input.name = 'occupancy-' + space.id; input.value = value;
       input.dataset.occupancy = occupancy;
-      input.checked = entry.changing && answer.occupancy === occupancy && (occupancy !== 'tenanted' || (value === 'business') === business);
+      input.checked = entry.changing && (value === 'business' ? isBusinessAnswer
+        : occupancy === 'tenanted' ? answer.occupancy === 'tenanted' && !isBusinessAnswer
+        : answer.occupancy === occupancy);
       input.dataset.control = 'occupancy-' + value;
       choice.append(input, annualNode('span', 'occupancy-choice-text', label));
       group.append(choice); inputs.push(input);
@@ -1577,7 +1603,7 @@
     const { space } = entry;
     const form = annualNode('form', 'veylet-form occupancy-form occupancy-consent'); form.noValidate = true;
     // A business: permission from the business, not the Queensland tenancy sentence.
-    const business = gateBusiness(space.id);
+    const business = gateIsBusiness(entry.answer, space.id);
     const heading = annualNode('h4', refs.titleClass, business ? GATE_BUSINESS.title : GATE_WORDS.consentTitle);
     const note = annualNode('p', 'occupancy-note', (business ? GATE_BUSINESS.note : GATE_WORDS.consentNote) + ' ');
     const help = annualNode('a', 'occupancy-help', GATE_WORDS.help); help.href = GATE_HELP;
@@ -1630,9 +1656,9 @@
     const { answer } = entry;
     const wrap = annualNode('div', 'occupancy-summary');
     let words = GATE_SUMMARY[answer.occupancy];
-    if (answer.occupancy === 'tenanted') {
+    if (answer.occupancy === 'tenanted' || answer.occupancy === 'business') {
       const date = window.VeyletSharing?.hostingDate?.(answer.recordedAt) || '';
-      words = (gateBusiness(entry.space.id) ? 'A business or workplace. Permission recorded' : 'Tenants live here. Written consent recorded')
+      words = (gateIsBusiness(answer, entry.space.id) ? 'A business or workplace. Permission recorded' : 'Tenants live here. Written consent recorded')
         + (date ? ' on ' + date : '') + (answer.reference ? ' (reference: ' + answer.reference + ').' : '.');
     }
     const change = button(GATE_WORDS.change, () => { entry.changing = true; gateDraw(entry, true); });
@@ -1641,12 +1667,23 @@
     refs.change = change;
     return wrap;
   }
+  // An old server's set_listing_occupancy names only owner_occupied, vacant, tenanted and
+  // unknown: it has no 'business' value yet and refuses one asking for it by name.
+  function oldOccupancyServer(reply) {
+    return String((reply?.value?.error || reply?.error || {}).message || '').toLowerCase().includes('tenanted or unknown');
+  }
   // Saves one answer, then reads the desk again so every card on the listing says what sharing waits for now.
   async function gateSave(entry, name, args, control, notice) {
     if (entry.busy) return;
     entry.busy = true; control.disabled = true;
     gateSay(entry, GATE_WORDS.saving);
-    const reply = await settled(Promise.resolve().then(() => entry.supabase.rpc(name, args)));
+    let reply = await settled(Promise.resolve().then(() => entry.supabase.rpc(name, args)));
+    // A server too old for 'business' refuses it by name: fall back to 'tenanted' (see
+    // above), keeping the business wording locally (gateBusinessKeep already ran).
+    if (name === 'set_listing_occupancy' && args.p_occupancy === 'business' && failed(reply)
+        && !sessionGone(reply) && !missingFunction(reply) && oldOccupancyServer(reply)) {
+      reply = await settled(Promise.resolve().then(() => entry.supabase.rpc(name, { ...args, p_occupancy: 'tenanted' })));
+    }
     entry.busy = false;
     if (entry.ticket !== deskVersion || listingGates.get(entry.space.id) !== entry) return;
     control.disabled = false;
@@ -1679,11 +1716,11 @@
   function gateOpen(propertyId, reason) {
     const entry = listingGates.get(propertyId);
     if (!entry || !gateAvailable) return;
-    const wanted = reason === 'consent' ? 'consent' : 'occupancy';
+    const wanted = reason === 'consent' || reason === 'business' ? reason : 'occupancy';
     // The refusal is newer than what this page read: ask for what it says is missing.
     if (!entry.answer || entry.answer.reason !== wanted) {
       entry.answer = { reference: '', recordedAt: null, grandfathered: false, ...(entry.answer || {}),
-        occupancy: wanted === 'consent' ? 'tenanted' : 'unknown', reason: wanted };
+        occupancy: wanted === 'business' ? 'business' : wanted === 'consent' ? 'tenanted' : 'unknown', reason: wanted };
     }
     entry.changing = false; entry.open = true;
     gateDraw(entry, true);

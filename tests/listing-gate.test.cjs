@@ -17,6 +17,7 @@ const { loadDesk, missing } = require('./desk-fake.cjs');
 const NOTE = 'In Queensland you need the tenant’s written consent before advertising images show their belongings. Keep the signed form; record its reference here.';
 const WAIT_OCCUPANCY = 'Approved. Sharing waits for you to say whether anyone lives here.';
 const WAIT_CONSENT = 'Approved. Sharing waits for the tenant’s signed consent.';
+const WAIT_BUSINESS = 'Approved. Sharing waits for the business’s written permission.';
 const readiness = (fields = {}) => () => ({ data: { occupancy: 'unknown', consent_recorded_at: null, consent_reference: null, blocked_reason: 'occupancy_not_declared', grandfathered: false, ...fields } });
 const LIVE = { id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: 'abcdefghijklmnop' };
 const radios = gate => gate.all().filter(el => el.tagName === 'INPUT' && el.type === 'radio');
@@ -293,28 +294,88 @@ test('consent refused because the home is no longer tenanted asks the question a
   assert.equal(radios(gate)[0].wasFocused, true);
 });
 
-test('a business or workplace is recorded as occupied (tenanted), and its permission step names the business, not the Queensland tenancy rule', async () => {
-  // Server values unchanged: a business is 'tenanted' (staff or tenants occupy it); an empty one answers "No — it’s empty".
+test('a business or workplace is sent as its own occupancy, and its permission step names the business, not the Queensland tenancy rule', async () => {
+  // release-2 draft 20260926122000_tenant_consent_gate.sql: 'business' is its own
+  // occupancy value, blocked on 'business_permission_required' until permission is recorded.
+  let state = { occupancy: 'unknown', blocked_reason: 'occupancy_not_declared' };
+  const h = await loadDesk({ approved: [], rpc: {
+    get_listing_sharing_readiness: () => ({ data: { consent_recorded_at: null, consent_reference: null, grandfathered: false, ...state } }),
+    set_listing_occupancy: args => {
+      state = { occupancy: args.p_occupancy, blocked_reason: args.p_occupancy === 'business' ? 'business_permission_required'
+        : args.p_occupancy === 'tenanted' ? 'tenant_consent_required' : null };
+      return { data: null };
+    },
+    record_tenant_consent: args => { state = { occupancy: 'business', blocked_reason: null, consent_reference: args.p_consent_reference, consent_recorded_at: '2026-09-25T02:00:00Z' }; return { data: null }; },
+  } });
+  const gate = h.gate();
+  radios(gate).find(el => el.value === 'business').checked = true;
+  await gate.all().find(el => el.tagName === 'FORM').fire('submit'); await h.settle();
+  // Sent as its own value: a server that keeps 'business' needs no local memory to know it.
+  assert.deepEqual(h.called('set_listing_occupancy'), [{ p_property_id: 'p1', p_occupancy: 'business' }]);
+  const after = h.gate();
+  assert.equal(after.dataset.occupancy, 'consent');
+  const words = h.words(after);
+  assert.ok(words.includes('Saved. Now record the business’s written permission.'));
+  assert.ok(words.includes('You said it’s a business or workplace.'));
+  assert.ok(words.includes('Record the business’s written permission'));
+  assert.ok(words.some(text => text.startsWith('Get permission from the business before you capture people, screens or documents.')));
+  assert.equal(words.some(text => /Queensland|tenant’s written consent/.test(text)), false, 'no residential tenancy note for a business');
+  const reference = h.control(after, 'consent-reference'), signed = h.control(after, 'consent-signed');
+  reference.value = 'Letter from the practice manager';
+  signed.value = '2026-09-20';
+  await after.all().find(el => el.tagName === 'FORM').fire('submit'); await h.settle();
+  assert.deepEqual(h.called('record_tenant_consent'), [{ p_property_id: 'p1', p_consent_reference: 'Letter from the practice manager', p_consented_on: '2026-09-20' }]);
+  const done = h.gate();
+  assert.equal(done.dataset.occupancy, 'summary');
+  assert.ok(h.words(done).some(text => /^A business or workplace\. Permission recorded on 25 Sep 2026 \(reference: Letter from the practice manager\)\.$/.test(text)));
+  assert.ok(h.words(done).includes('Permission recorded.'));
+  // A tenanted listing keeps the residential tenant wording (the legal default).
+  const other = await loadDesk({ approved: [], rpc: { get_listing_sharing_readiness: readiness({ occupancy: 'tenanted', blocked_reason: 'tenant_consent_required' }) } });
+  assert.ok(h.words(other.gate()).some(text => /In Queensland you need the tenant’s written consent/.test(text)));
+});
+
+test('an old server without the business value refuses it by name: this browser saves tenanted instead and remembers the business wording locally', async () => {
   const data = {};
   const storage = { getItem: key => (key in data ? data[key] : null), setItem: (key, value) => { data[key] = String(value); } };
   let state = { occupancy: 'unknown', blocked_reason: 'occupancy_not_declared' };
   const h = await loadDesk({ approved: [], localStorage: storage, rpc: {
     get_listing_sharing_readiness: () => ({ data: { consent_recorded_at: null, consent_reference: null, grandfathered: false, ...state } }),
-    set_listing_occupancy: args => { state = { occupancy: args.p_occupancy, blocked_reason: args.p_occupancy === 'tenanted' ? 'tenant_consent_required' : null }; return { data: null }; },
-    record_tenant_consent: () => { state = { occupancy: 'tenanted', blocked_reason: null, consent_reference: 'Letter 7', consent_recorded_at: '2026-09-26T00:00:00Z' }; return { data: null }; },
+    set_listing_occupancy: args => {
+      if (args.p_occupancy === 'business') return { data: null, error: { code: 'P0001', message: 'occupancy is owner_occupied, vacant, tenanted or unknown' } };
+      state = { occupancy: args.p_occupancy, blocked_reason: args.p_occupancy === 'tenanted' ? 'tenant_consent_required' : null };
+      return { data: null };
+    },
   } });
   const gate = h.gate();
   radios(gate).find(el => el.value === 'business').checked = true;
   await gate.all().find(el => el.tagName === 'FORM').fire('submit'); await h.settle();
-  assert.deepEqual(h.called('set_listing_occupancy'), [{ p_property_id: 'p1', p_occupancy: 'tenanted' }]);
+  // Tried as 'business' first; refused by name, so it fell back to 'tenanted'.
+  assert.deepEqual(h.called('set_listing_occupancy'), [
+    { p_property_id: 'p1', p_occupancy: 'business' },
+    { p_property_id: 'p1', p_occupancy: 'tenanted' },
+  ]);
   const after = h.gate();
+  assert.equal(after.dataset.occupancy, 'consent');
   const words = h.words(after);
-  assert.ok(words.includes('Saved. Now record the business’s permission.'));
+  assert.ok(words.includes('Saved. Now record the business’s written permission.'));
+  // The server still reads 'tenanted': the business wording comes from local memory.
   assert.ok(words.includes('You said it’s a business or workplace.'));
-  assert.ok(words.includes('Record the business’s permission'));
-  assert.ok(words.some(text => text.startsWith('Get permission from the business before you capture people, screens or documents.')));
-  assert.equal(words.some(text => /Queensland|tenant’s written consent/.test(text)), false, 'no residential tenancy note for a business');
-  // A tenanted listing in a browser that does not know it is a business keeps the tenant wording (the legal default).
-  const other = await loadDesk({ approved: [], rpc: { get_listing_sharing_readiness: readiness({ occupancy: 'tenanted', blocked_reason: 'tenant_consent_required' }) } });
-  assert.ok(h.words(other.gate()).some(text => /In Queensland you need the tenant’s written consent/.test(text)));
+  assert.equal(words.some(text => /Queensland|tenant’s written consent/.test(text)), false);
+});
+
+test('enable_tour_share’s business refusal reads in the contract’s words, with its own fix', async () => {
+  const h = await loadDesk({ rpc: {
+    get_listing_sharing_readiness: readiness({ occupancy: 'business', blocked_reason: null }),
+    enable_tour_share: () => ({ data: null, error: { code: 'P0001', message: 'business permission required' } }),
+  } });
+  const card = h.card();
+  await h.button(card, 'Turn sharing on').fire('click'); await h.settle();
+  assert.equal(h.status(), WAIT_BUSINESS);
+  const fix = h.control(card, 'share-fix-business');
+  assert.equal(fix.textContent, 'Add permission');
+  // The refusal is newer than the page's answer: the permission form opens anyway.
+  await fix.fire('click');
+  assert.equal(h.gate().dataset.occupancy, 'consent');
+  assert.ok(h.words(h.gate()).includes('Record the business’s written permission'));
+  assert.equal(h.control(h.gate(), 'consent-reference').wasFocused, true);
 });

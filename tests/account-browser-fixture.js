@@ -219,22 +219,27 @@
    * C2. `?occupancy=` answers get_listing_sharing_readiness for every listing: by default
    * `missing` (PGRST202 for the three functions, as today's backend: no question anywhere,
    * sharing as before). `question` has nothing declared (blocked occupancy_not_declared),
-   * `tenanted` tenants without consent (tenant_consent_required), `vacant`, `owner` and
-   * `consented` (tenants, consent recorded yesterday, reference "Form 18a signed copy")
-   * need nothing, `mixed` is the practice space unanswered, the corner office tenanted and
-   * the hall empty, `error` fails the read and `loading` never answers. A listing with a
+   * `tenanted` tenants without consent (tenant_consent_required), `vacant`, `owner`,
+   * `business` a business or workplace without its written permission
+   * (business_permission_required, draft 20260926122000_tenant_consent_gate.sql's property
+   * variety) and `consented` (tenants, consent recorded yesterday, reference "Form 18a signed
+   * copy") need nothing, `mixed` is the practice space unanswered, the corner office tenanted
+   * and the hall empty, `error` fails the read and `loading` never answers. A listing with a
    * live link is grandfathered while it is blocked (its link keeps working). While a
    * listing is blocked, enable_tour_share, resume_tour_share and request_listing_exports
-   * refuse with "occupancy not declared" or "tenant consent required", as the drafts do.
-   * set_listing_occupancy and record_tenant_consent check what the drafts check and keep
-   * the answer for the next read; `&occupancy-save=permission|fail|offline|expired|missing`
+   * refuse with "occupancy not declared", "tenant consent required" or "business permission
+   * required", as the drafts do. set_listing_occupancy and record_tenant_consent check what
+   * the drafts check (owner_occupied, vacant, tenanted, business or unknown) and keep the
+   * answer for the next read; `&occupancy-save=permission|fail|offline|expired|missing`
    * answers every save with "sharing permission required", a failure, a lost connection,
-   * an expired sign-in or PGRST202. `&occupancy-open=1` opens every grandfathered
-   * listing's quiet question for a capture. */
+   * an expired sign-in or PGRST202; `&occupancy-save=old-server` refuses only a 'business'
+   * value, by the words a server without it uses (owner_occupied, vacant, tenanted or
+   * unknown), so the browser's own fallback to 'tenanted' can be seen. `&occupancy-open=1`
+   * opens every grandfathered listing's quiet question for a capture. */
   const occupancyCase = params.get('occupancy') || 'missing';
   const occupancySaveCase = params.get('occupancy-save');
   const occupancyMissing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
-  const occupancyStart = { question: 'unknown', tenanted: 'tenanted', vacant: 'vacant', owner: 'owner_occupied', consented: 'tenanted' }[occupancyCase];
+  const occupancyStart = { question: 'unknown', tenanted: 'tenanted', vacant: 'vacant', owner: 'owner_occupied', business: 'business', consented: 'tenanted' }[occupancyCase];
   const occupancy = new Map();
   for (const place of properties) {
     const start = occupancyCase === 'mixed' ? { 'synthetic-office': 'tenanted', 'synthetic-venue': 'vacant' }[place.id] || 'unknown' : occupancyStart || 'unknown';
@@ -244,9 +249,13 @@
     if (occupancyCase === 'missing') return null;
     const row = occupancy.get(propertyId);
     if (!row) return null;
-    return row.occupancy === 'unknown' ? 'occupancy_not_declared' : row.occupancy === 'tenanted' && !row.consentAt ? 'tenant_consent_required' : null;
+    if (row.occupancy === 'unknown') return 'occupancy_not_declared';
+    if (row.occupancy === 'tenanted' && !row.consentAt) return 'tenant_consent_required';
+    if (row.occupancy === 'business' && !row.consentAt) return 'business_permission_required';
+    return null;
   };
-  const occupancyRefusal = propertyId => ({ occupancy_not_declared: 'occupancy not declared', tenant_consent_required: 'tenant consent required' })[occupancyBlocked(propertyId)] || null;
+  const occupancyRefusal = propertyId => ({ occupancy_not_declared: 'occupancy not declared', tenant_consent_required: 'tenant consent required',
+    business_permission_required: 'business permission required' })[occupancyBlocked(propertyId)] || null;
   const tourProperty = tourId => tours.find(tour => tour.id === tourId)?.property_id || null;
   /* Team (invite a teammate): the release-2 drafts (not released). `?team=` answers
    * list_workspace_invites on /__qa/account/: by default `missing` (PGRST202 for the
@@ -1674,9 +1683,16 @@
         if (occupancySaveCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
         if (occupancySaveCase === 'permission') return { data: null, error: { code: 'P0001', message: 'sharing permission required' } };
         if (occupancySaveCase === 'fail') return { data: null, error: { message: 'Synthetic occupancy save failure' } };
+        // A server too old for the 'business' value (property variety, draft
+        // 20260926122000): it refuses only that value, by an old server's own words.
+        if (occupancySaveCase === 'old-server' && name === 'set_listing_occupancy' && args?.p_occupancy === 'business') {
+          return { data: null, error: { code: 'P0001', message: 'occupancy is owner_occupied, vacant, tenanted or unknown' } };
+        }
         if (!row) return { data: null, error: { code: 'P0001', message: 'listing unavailable' } };
         if (name === 'set_listing_occupancy') {
-          if (!['owner_occupied', 'vacant', 'tenanted'].includes(args?.p_occupancy)) return { data: null, error: { code: 'P0001', message: 'occupancy must be owner_occupied, vacant or tenanted' } };
+          if (!['owner_occupied', 'vacant', 'tenanted', 'business', 'unknown'].includes(args?.p_occupancy)) {
+            return { data: null, error: { code: 'P0001', message: 'occupancy is owner_occupied, vacant, tenanted, business or unknown' } };
+          }
           if (row.occupancy !== args.p_occupancy) { row.consentAt = null; row.reference = null; }
           row.occupancy = args.p_occupancy;
           return { data: null };
@@ -1685,7 +1701,7 @@
         const today = new Date().toISOString().slice(0, 10);
         if (!reference || reference.length > 120) return { data: null, error: { code: 'P0001', message: 'consent reference must be 1 to 120 characters' } };
         if (!/^\d{4}-\d{2}-\d{2}$/.test(String(args?.p_consented_on || '')) || args.p_consented_on > today) return { data: null, error: { code: 'P0001', message: 'consent date must be a date that is not in the future' } };
-        if (row.occupancy !== 'tenanted') return { data: null, error: { code: 'P0001', message: 'listing is not tenanted' } };
+        if (!['tenanted', 'business'].includes(row.occupancy)) return { data: null, error: { code: 'P0001', message: 'declare the home tenanted before recording tenant consent' } };
         row.consentAt = new Date().toISOString(); row.reference = reference;
         return { data: null };
       }
