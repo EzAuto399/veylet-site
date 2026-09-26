@@ -151,6 +151,69 @@
   font-size: 13px;
 }
 
+/* Held places (layout shift). The head script sets html.client-pending and
+   html.client-contact-pending when the token looks complete; the page script
+   clears both once the walkthrough is on screen or has failed, and the second
+   sooner when the contact answers or 300ms after the walkthrough is found
+   (client-page.js). Until then the truth and date lines
+   keep their lines, the shell holds the stage's height (tour-stage.css) and
+   the agent card its height, so nothing under them moves when they arrive.
+   !important because style.css's [hidden] rule is !important. */
+.client-pending .client-truth[hidden],
+.client-pending .client-page .tour-meta[hidden]:not(.tour-meta-none) {
+  display: block !important;
+  visibility: hidden;
+}
+/* The date line is empty until the lookup names it; hold one line of its type. */
+.client-pending .client-page .tour-meta[hidden]:empty::before {
+  content: "\00a0";
+}
+.client-pending .tour-frame-wrap[hidden] {
+  display: block !important;
+}
+/* Unseen until the card is settled, so a card place that goes moves nothing on screen. */
+.client-contact-pending .tour-frame-wrap {
+  visibility: hidden;
+}
+.client-pending .tour-frame-shell::before {
+  content: "";
+  display: block;
+  height: min(74vh, 680px);
+  border-radius: 10px;
+  background: var(--ink);
+}
+.client-contact-pending .agent-card[hidden] {
+  display: block !important;
+  visibility: hidden;
+  min-height: 105px;
+}
+@media (max-width: 800px) {
+  .client-pending .tour-frame-shell::before {
+    height: clamp(300px, calc(100vh - 330px), 62vh);
+    height: clamp(300px, calc(100svh - 330px), 62svh);
+    border-radius: 8px;
+  }
+  /* A found contact brings the phone bar, and the stage makes room for it. */
+  .client-pending.client-contact-pending .tour-frame-shell::before,
+  .client-pending body.has-agent-bar .tour-frame-shell::before {
+    height: clamp(300px, calc(100vh - 330px - 64px - env(safe-area-inset-bottom, 0px)), 62vh);
+    height: clamp(300px, calc(100svh - 330px - 64px - env(safe-area-inset-bottom, 0px)), 62svh);
+  }
+}
+@media (max-width: 560px) {
+  .client-contact-pending .agent-card[hidden] {
+    min-height: 101px;
+  }
+}
+/* A contact that answers after the card's place went: above the stage it would
+   push the walkthrough down, so there only the phone bar and the named lines
+   show it; from 1080px the card sits beside the stage and shows. */
+@media (max-width: 1079px) {
+  .agent-card.agent-card-late {
+    display: none;
+  }
+}
+
 /* Desktop: the walkthrough takes the width (tour-stage.css keeps its height
    at min(74vh, 680px), so a wider column is a landscape stage) and the agent
    stays in view beside it. Title and truth line sit above both columns. */
@@ -181,6 +244,9 @@
     grid-template-columns: minmax(0, 1fr);
     margin-top: 0;
   }
+  .client-contact-pending .client-side .agent-card[hidden] {
+    min-height: 161px;
+  }
   .client-side .agent-card .agent-action {
     flex: 1 1 0;
     min-width: 0;
@@ -201,12 +267,15 @@
   display: none;
 }
 @media (max-width: 768px) {
-  .agent-bar:not([hidden]) {
+  /* Fixed from first paint, so the bar never takes a place in the page. */
+  .agent-bar {
     position: fixed;
     right: 0;
     bottom: 0;
     left: 0;
     z-index: 20;
+  }
+  .agent-bar:not([hidden]) {
     display: flex;
     align-items: center;
     gap: 12px;

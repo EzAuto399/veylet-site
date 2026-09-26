@@ -359,3 +359,12 @@
   .v2-preview,
   .v2-progress span { transition: none !important; }
 }
+
+/* The floor switcher (stops[].floor_id: Ground / Level 1 …); its buttons reuse .v2-icon and its pressed state. */
+.v2-floors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 6px;
+}

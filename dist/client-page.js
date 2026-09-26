@@ -246,7 +246,7 @@
     return actions;
   }
 
-  function renderCard(doc, host, contact, title, beacon) {
+  function renderCard(doc, host, contact, title, beacon, late) {
     if (!host) return;
     const name = element(doc, 'h2', 'agent-name', contact.name);
     name.setAttribute('id', 'agent-card-name');
@@ -258,6 +258,8 @@
     if (details) who.append(element(doc, 'p', 'agent-details', details));
     host.replaceChildren(who, contactActions(doc, contact, title, beacon));
     host.setAttribute('aria-labelledby', 'agent-card-name');
+    // Late (its held place already went): shown only where it cannot move the stage (client-page.css).
+    if (late) host.classList?.add('agent-card-late');
     host.hidden = false;
   }
 
@@ -270,9 +272,9 @@
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
-  function showContact(doc, contact, title, beacon) {
+  function showContact(doc, contact, title, beacon, late) {
     if (!contact) return false;
-    renderCard(doc, doc.getElementById('agent-card'), contact, title, beacon);
+    renderCard(doc, doc.getElementById('agent-card'), contact, title, beacon, late);
     renderBar(doc, doc.getElementById('agent-bar'), contact, title, beacon);
     const note = doc.getElementById('client-footnote');
     if (note) note.textContent = privateNote(contact);
@@ -349,10 +351,19 @@
     });
   }
 
+  // How long after the walkthrough is found the agent card's held place waits
+  // for the contact before it goes (layout shift; client-page.css "Held places").
+  const CONTACT_GRACE_MS = 300;
+
   /*
    * Called once the page's own lookup has found the walkthrough: the truth
    * line, Share, the movement help (streamed walkthroughs only, whose controls
-   * it describes) and the contact lookup, which never holds the walkthrough up.
+   * it describes) and the contact, which never holds the walkthrough up. The
+   * page starts the contact lookup beside its own (options.contact); an answer
+   * already in settles the card in this same step. Otherwise the card's held
+   * place waits CONTACT_GRACE_MS, or until the stage shows (the page clears it
+   * then), and a contact that answers after that is late: the bar and the named
+   * lines as usual, the card only where it cannot move the stage.
    */
   function showWalkthrough(options) {
     const doc = options.document;
@@ -368,7 +379,18 @@
       document: doc,
       beacon: options.beacon,
     });
-    return lookupContact(options.client, options.token, options).then(contact => showContact(doc, contact, options.title, options.beacon));
+    const held = doc.documentElement?.classList;
+    const release = () => held?.remove('client-contact-pending');
+    const grace = held ? setTimeout(release, options.contactGraceMs ?? CONTACT_GRACE_MS) : null;
+    const lookup = options.contact || lookupContact(options.client, options.token, options);
+    return Promise.resolve(lookup).then(contact => {
+      clearTimeout(grace);
+      const late = Boolean(held) && !held.contains('client-contact-pending');
+      const shown = showContact(doc, contact, options.title, options.beacon, late);
+      // The held place goes in the same step the card fills it, or not.
+      release();
+      return shown;
+    });
   }
 
   /*

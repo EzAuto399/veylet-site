@@ -54,7 +54,11 @@ function handoffPage({ search = '?t=' + TOKEN, nav = {} } = {}) {
   };
   const window = { VeyletPlayer: player };
   const location = { origin: 'https://veylet.com', pathname: '/handoff', search };
+  document.documentElement = document.createElement('html');
   const context = { window, document, location, navigator: nav, URLSearchParams, setTimeout, clearTimeout };
+  // The head's held-place script runs first, as it does before first paint.
+  const heldPlaces = handoff.split('</head>')[0].match(/<script>([\s\S]*?)<\/script>/);
+  if (heldPlaces) vm.runInNewContext(heldPlaces[1], context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   const id = name => document.getElementById(name);
@@ -379,6 +383,104 @@ test('from 1080px the stage column takes the width beside a 320px sticky column;
   const order = ['id="handoff-title"', 'id="client-truth"', 'class="client-layout"', 'id="agent-card"', 'id="tour-frame-wrap"', 'id="client-extras"', 'id="client-trouble"'].map(mark => handoff.indexOf(mark));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
   assert.ok(order.every(index => index > 0));
+});
+
+test('the stage, the truth and date lines and the agent card hold their places from first paint (layout shift)', () => {
+  const css = read('client-page.css');
+  const stageCss = read('tour-stage.css');
+  // Set in the head, before first paint, and only for a token that looks complete.
+  const head = handoff.split('</head>')[0];
+  assert.match(head, /<script>\s*if \(\(new URLSearchParams\(location\.search\)\.get\('t'\) \|\| ''\)\.length >= 16\) \{\s*document\.documentElement\.classList\.add\('client-pending', 'client-contact-pending'\);\s*\}\s*<\/script>/);
+  // style.css's [hidden] is !important, so a held place must be too.
+  assert.match(css, /\.client-pending \.tour-frame-wrap\[hidden\] \{\s*display: block !important;\s*\}/);
+  assert.match(css, /\.client-pending \.client-truth\[hidden\],\s*\.client-pending \.client-page \.tour-meta\[hidden\]:not\(\.tour-meta-none\) \{\s*display: block !important;\s*visibility: hidden;\s*\}/);
+  assert.match(css, /\.client-pending \.client-page \.tour-meta\[hidden\]:empty::before \{\s*content: "\\00a0";\s*\}/, 'the empty date line holds one line');
+  // The shell holds the stage's height as tour-stage.css sets it.
+  assert.match(stageCss, /\.tour-stage \{[^}]*height: min\(74vh, 680px\);/);
+  assert.match(css, /\.client-pending \.tour-frame-shell::before \{\s*content: "";\s*display: block;\s*height: min\(74vh, 680px\);/);
+  assert.match(stageCss, /\.client-page \.tour-stage \{\s*--tour-stage-above: 330px;[\s\S]*?62svh\);/);
+  assert.match(stageCss, /--tour-stage-below: calc\(64px \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  const narrow = css.match(/@media \(max-width: 800px\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(narrow, /\.client-pending \.tour-frame-shell::before \{\s*height: clamp\(300px, calc\(100vh - 330px\), 62vh\);\s*height: clamp\(300px, calc\(100svh - 330px\), 62svh\);/);
+  assert.match(narrow, /\.client-pending\.client-contact-pending \.tour-frame-shell::before,\s*\.client-pending body\.has-agent-bar \.tour-frame-shell::before \{\s*height: clamp\(300px, calc\(100vh - 330px - 64px - env\(safe-area-inset-bottom, 0px\)\), 62vh\);\s*height: clamp\(300px, calc\(100svh - 330px - 64px - env\(safe-area-inset-bottom, 0px\)\), 62svh\);/);
+  // The card's measured heights: two columns 105px, a phone 101px, the 1080px side column 161px.
+  assert.match(css, /\.client-contact-pending \.agent-card\[hidden\] \{\s*display: block !important;\s*visibility: hidden;\s*min-height: 105px;\s*\}/);
+  assert.match(css, /@media \(max-width: 560px\) \{\s*\.client-contact-pending \.agent-card\[hidden\] \{\s*min-height: 101px;/);
+  const wide = css.match(/@media \(min-width: 1080px\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(wide, /\.client-contact-pending \.client-side \.agent-card\[hidden\] \{\s*min-height: 161px;\s*\}/);
+  // The phone bar is fixed whether or not it is showing yet, so it never takes a place in the page.
+  const phone = css.match(/@media \(max-width: 768px\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(phone, /\.agent-bar \{\s*position: fixed;\s*right: 0;\s*bottom: 0;\s*left: 0;\s*z-index: 20;\s*\}/);
+  // The footer comes after the stage's held place.
+  assert.ok(handoff.indexOf('id="tour-frame-wrap"') < handoff.indexOf('class="wrap client-footer"'));
+});
+
+test('the page starts the contact lookup together with the share lookup, with the same token', async () => {
+  const h = handoffPage();
+  const client = fakeClient({ share: new Promise(() => {}) });
+  h.bootOptions.resolve(client);
+  await settle();
+  assert.deepEqual(plain(client.calls), [
+    ['lookup_tour_share', { p_token: TOKEN }],
+    ['lookup_tour_share_contact', { p_token: TOKEN }],
+  ], 'the contact is asked before the share has answered');
+});
+
+test('each held place goes in the step that settles it; a contact after the short wait is late', async () => {
+  const held = h => ['client-pending', 'client-contact-pending'].filter(name => h.document.documentElement.classList.contains(name));
+  assert.deepEqual(held(handoffPage({ search: '?t=short' })), [], 'an incomplete link holds nothing');
+
+  // Both answered: the card is settled in the step the walkthrough is found.
+  const h = handoffPage();
+  assert.deepEqual(held(h), ['client-pending', 'client-contact-pending']);
+  // One task, microtasks included, is what paints first; a browser renders only between tasks.
+  await h.bootOptions.resolve(fakeClient());
+  await tick();
+  assert.deepEqual(held(h), ['client-pending'], 'card shown and its place gone before anything paints');
+  assert.equal(h.id('agent-card').hidden, false);
+  assert.equal(h.id('agent-card').classList.contains('agent-card-late'), false);
+  assert.equal(h.id('handoff-meta').classList.contains('tour-meta-none'), true, 'no date: its held line goes with the lookup, not with the stage');
+  assert.equal(typeof h.bootOptions.onVisible, 'function');
+  h.bootOptions.onVisible();
+  assert.deepEqual(held(h), [], 'the stage shows in the same step its place goes');
+
+  const none = handoffPage();
+  await none.bootOptions.resolve(fakeClient({ contact: { data: [] } }));
+  await tick();
+  assert.deepEqual(held(none), ['client-pending'], 'no contact: the card’s place goes in the same step');
+  assert.equal(none.id('agent-card').hidden, true);
+
+  // A slow contact never holds the stage: the place goes when the stage shows, and the card is late.
+  const slow = handoffPage();
+  let answer;
+  await slow.bootOptions.resolve(fakeClient({ contact: () => new Promise(resolve => { answer = resolve; }) }));
+  await settle();
+  assert.deepEqual(held(slow), ['client-pending', 'client-contact-pending'], 'waiting briefly for the contact');
+  slow.bootOptions.onVisible();
+  assert.deepEqual(held(slow), []);
+  answer({ data: [CONTACT] });
+  await settle();
+  assert.equal(slow.id('agent-card').hidden, false);
+  assert.ok(slow.id('agent-card').classList.contains('agent-card-late'), 'only where it cannot move the stage');
+  assert.equal(slow.id('agent-bar').hidden, false, 'the fixed bar still shows');
+
+  // Or the place goes after the short wait on its own.
+  const waited = handoffPage();
+  await waited.bootOptions.resolve(fakeClient({ contact: () => new Promise(() => {}) }));
+  await new Promise(resolve => setTimeout(resolve, 360));
+  assert.deepEqual(held(waited), ['client-pending'], 'about 300ms, then the card’s place goes');
+  assert.match(clientSource, /const CONTACT_GRACE_MS = 300;/);
+
+  const missing = handoffPage();
+  await assert.rejects(missing.bootOptions.resolve(fakeClient({ share: { data: [] } })));
+  missing.finishBoot();
+  await settle();
+  assert.deepEqual(held(missing), [], 'a failure lets both places go');
+  assert.equal(missing.id('agent-card').hidden, true);
+
+  const css = read('client-page.css');
+  assert.match(css, /\.client-contact-pending \.tour-frame-wrap \{\s*visibility: hidden;\s*\}/, 'the stage stays unseen until the card is settled');
+  assert.match(css, /@media \(max-width: 1079px\) \{\s*\.agent-card\.agent-card-late \{\s*display: none;/);
 });
 
 // ---------- the embed invitation ----------

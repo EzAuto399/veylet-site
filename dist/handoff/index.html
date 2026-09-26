@@ -26,15 +26,23 @@
     <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css?v=318869d165d8e548" />
+    <link rel="stylesheet" href="/style.css?v=a8e48561929d7ca9" />
     <link rel="stylesheet" href="/tour-stage.css?v=6800a56190b61207" />
-    <link rel="stylesheet" href="/client-page.css?v=589b23c3c4cb0597" />
+    <link rel="stylesheet" href="/client-page.css?v=86b52db17ca6b659" />
+    <!-- A complete-looking token: hold the stage's and the agent card's places
+         from first paint (client-page.css, "Held places"). Without JavaScript
+         nothing is held and the page reads as it always has. -->
+    <script>
+      if ((new URLSearchParams(location.search).get('t') || '').length >= 16) {
+        document.documentElement.classList.add('client-pending', 'client-contact-pending');
+      }
+    </script>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
-    <script src="/tour-player.js?v=549f8bcd3ac17352"></script>
-    <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
+    <script src="/tour-player.js?v=1d922e076991ba60"></script>
+    <script src="/client-page.js?v=7d3ee104107829aa"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -119,6 +127,11 @@
       const trouble = document.getElementById('client-trouble');
       const page = window.VeyletClientPage;
       const token = new URLSearchParams(location.search).get('t') || '';
+      // The held places (see the head script) go once the walkthrough is on
+      // screen or has failed; the card's sooner when the contact answers, or
+      // after a short wait (client-page.js, showWalkthrough).
+      const root = document.documentElement;
+      const releaseHeld = () => root?.classList.remove('client-pending', 'client-contact-pending');
       page?.mountColumns(document, window);
       page?.mountReport?.(document.getElementById('client-report'), token);
       // Views for the agent's desk: one first-party call per event, never in the way.
@@ -141,6 +154,7 @@
       }
 
       if (token.length < 16) {
+        releaseHeld();
         window.VeyletPlayer.showFailure(
           {
             ...els,
@@ -159,9 +173,14 @@
           els,
           auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
           resolve: async (client) => {
-            const { data, error } = await client.rpc('lookup_tour_share', {
+            // Both lookups start together, so the card is usually settled in
+            // the step the walkthrough is found. The contact function answers
+            // no row for a dead or paused token, and its lookup never rejects.
+            const shareLookup = client.rpc('lookup_tour_share', {
               p_token: token,
             });
+            const contact = page?.lookupContact?.(client, token) ?? null;
+            const { data, error } = await shareLookup;
             const row = Array.isArray(data) ? data[0] : data;
             if (error) {
               // A transport or service error may pass; a token miss will not.
@@ -181,6 +200,8 @@
               const label = sharedLabel(row.shared_at);
               meta.textContent = label;
               meta.hidden = !label;
+              // No date: its held line goes now, while the stage is still unseen.
+              if (!label) meta.classList.add('tour-meta-none');
             }
             const title = row.space_title || 'Shared space';
             if (els.body) els.body.textContent = '';
@@ -196,6 +217,7 @@
               title,
               streamed: row.package_format_version === 2,
               beacon,
+              contact,
             });
             return {
               storagePath: row.storage_path,
@@ -210,7 +232,10 @@
           missingBody: 'The agent may have turned it off or not shared it yet.',
           transientBody:
             'The walkthrough couldn’t be reached just now. Check your connection and try again.',
+          // Called in the same step that reveals the frame or the stage.
+          onVisible: releaseHeld,
         }).then(() => {
+          releaseHeld();
           if (unavailable && trouble) trouble.hidden = true;
           // Nothing left on the stage (a failure the player explained above):
           // no empty shell, and no help for controls that are not there.
