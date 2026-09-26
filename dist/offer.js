@@ -6,7 +6,7 @@
 // pays one year, once, on the day the free months end, and that year runs past month twelve.
 // Nothing is charged during the free months; the first charge is on the day they end. A
 // walkthrough pack is optional and bought once, at its website (card or invoice) price on
-// either channel: the app sells packs only in a later version.
+// either channel: packs are never sold in the app.
 function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 3, packPrice = 0 }) {
   const packCents = Math.round(Number(packPrice) * 100);
   if (!['studio', 'apple'].includes(channel) || !['monthly', 'annual'].includes(cadence)
@@ -78,7 +78,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const saving = annual && !apple && Number.isInteger(monthsFree) && monthsFree > 0
       ? ` That is ${monthsFree} months free: ${money(12 * webMonth - webYear)} less than 12 monthly payments.` : '';
     put('[data-billing-explanation]', apple
-      ? `Illustration for the Veylet plan with an eligible ${months}-month App Store introductory offer, then ${money(cost.billCents)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase.${code ? ' The pack is bought on the website by card or invoice; the app sells packs in a later version.' : ''} Nothing is charged by this calculator.`
+      ? `Illustration for the Veylet plan with an eligible ${months}-month App Store introductory offer, then ${money(cost.billCents)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase.${code ? ' The pack is bought on the website by card or invoice; packs are never sold in the app.' : ''} Nothing is charged by this calculator.`
       : `Illustration for the Veylet plan ${annual ? 'paid once a year' : 'paid monthly'} by card or studio invoice${code ? ', with the pack bought the same way' : ''}.${saving} Card payment on this website is coming later, and nothing is charged by this calculator.`);
   };
   if (!form || !lines || !input) return;

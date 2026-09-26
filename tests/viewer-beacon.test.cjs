@@ -329,7 +329,7 @@ test('/tour failures read plainly, with no agent to ask, and the tab keeps no ma
   assert.equal(failure.transient, true);
   const incomplete = tourPage({ search: '?t=short' });
   assert.equal(incomplete.bootOptions, null);
-  assert.deepEqual(plain(incomplete.calls[0]), { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' });
+  assert.deepEqual(plain(incomplete.calls[0]), { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
   assert.equal(incomplete.document.title, 'This link looks incomplete', 'the player’s “— Veylet” is taken off');
 });
 

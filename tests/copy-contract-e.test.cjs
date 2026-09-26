@@ -174,17 +174,8 @@ test('/app/terms names no Square, invoice, website purchase or studio; the check
 
 // ---- the launch stage reaches every waitlist call to action ----------------------------------------
 
-// Pages outside this lane that still carry an unmarked waitlist link: {file: count}. Each is a follow-up for
-// its owner; the test fails if one gains a link or loses one without this list being lowered.
-const UNMARKED_ELSEWHERE = {
-  '404.html': 2, 'account/index.html': 2, 'auth/callback/index.html': 2, 'guides/3d-tour-cost-australia/index.html': 1,
-  'guides/3d-tours-realestate-com-au-domain/index.html': 1, 'guides/do-3d-tours-help-sell-faster/index.html': 1,
-  'guides/iphone-lidar-vs-matterport/index.html': 2, 'guides/privacy-3d-home-tour/index.html': 1,
-  'guides/what-is-a-3d-walkthrough/index.html': 1, 'join/index.html': 1, 'studio/index.html': 1, 'thanks/index.html': 1,
-  'unsubscribe/index.html': 1,
-  // This lane may change /see's copy only, and tests/see-page.test.cjs pins its buttons' exact markup.
-  'see/index.html': 4,
-};
+// Every public waitlist link participates in the configured launch stage.
+const UNMARKED_ELSEWHERE = {};
 
 function unmarkedWaitlistLinks(html) {
   // A link inside the stage's account line is written by stage.js with the rest of that line.
@@ -213,7 +204,7 @@ test('every waitlist call to action carries a stage marker, and every page with 
 // ---- partner lane and the sitemap ------------------------------------------------------------------
 
 test('no public page sends visitors to /apply or /request; both are kept out of search', () => {
-  for (const file of OWNED_PAGES.filter(page => !['apply/index.html', 'request/index.html'].includes(page))) {
+  for (const file of HTML.filter(page => !['apply/index.html', 'request/index.html'].includes(page))) {
     const html = read(file);
     assert.doesNotMatch(html, /href="\/(?:apply|request)(?:[?#"])/, `${file} links /apply or /request`);
     assert.doesNotMatch(visible(html), /Capture partners|Apply as a (?:capture )?partner|handoff pages carry your branding/i, file);
@@ -329,7 +320,7 @@ test('an unsubscribe link asks before it acts: nothing is sent until Confirm uns
   el('unsubscribe-retry', true);
   const requests = [], replaced = [];
   const window = {
-    VEYLET_SUPABASE: { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' },
+    VEYLET_SUPABASE: { url: 'https://project.supabase.invalid', anonKey: 'sb_publishable_synthetic_example' },
     location: { search: '?t=' + TOKEN, pathname: '/unsubscribe' },
     history: { replaceState: (_, __, url) => replaced.push(url) },
     document: { readyState: 'complete', getElementById: id => elements[id], addEventListener() {} },

@@ -228,5 +228,5 @@ test('/tour in a portal’s frame offers full screen as its own page, and a cut-
   const cut = tourPage('?t=' + HEX.slice(0, 20));
   assert.equal(cut.bootOptions, null);
   // /tour is not a §5.2 surface: in a portal's frame there is no one to ask (viewer-beacon.test.cjs pins its words).
-  assert.deepEqual({ ...cut.failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' });
+  assert.deepEqual({ ...cut.failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
 });

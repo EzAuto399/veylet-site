@@ -69,16 +69,30 @@
     return match ? match[1] : null;
   }
 
+  // Publishable keys are not JWTs. The server validates real credentials; this
+  // guard keeps privileged/malformed configuration from receiving a URL token.
+  function publicHeaders(key) {
+    if (typeof key !== 'string' || !key || key.length > 16384 || /[^\x21-\x7e]/.test(key)) return null;
+    var headers = { apikey: key, 'Content-Type': 'application/json' };
+    if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return headers;
+    if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(key)) return null;
+    try {
+      var payload = key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      var claims = JSON.parse(atob(payload + '='.repeat((4 - payload.length % 4) % 4)));
+      if (!claims || claims.role !== 'anon') return null;
+    } catch (invalid) { return null; }
+    headers.Authorization = 'Bearer ' + key;
+    return headers;
+  }
+
   /** One function's answer: unsubscribed, already, invalid, missing (not deployed) or error. */
   async function ask(fetchImpl, config, token, name) {
     try {
+      var headers = publicHeaders(config.anonKey);
+      if (!headers) return 'error';
       var response = await fetchImpl(config.url + '/rest/v1/rpc/' + name, {
         method: 'POST',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: 'Bearer ' + config.anonKey,
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify({ p_token: token }),
         credentials: 'omit',
         referrerPolicy: 'no-referrer',

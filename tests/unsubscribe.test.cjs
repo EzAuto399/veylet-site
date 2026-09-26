@@ -17,7 +17,8 @@ const dist = path.join(__dirname, '../dist');
 const script = fs.readFileSync(path.join(dist, 'unsubscribe.js'), 'utf8');
 const markup = fs.readFileSync(path.join(dist, 'unsubscribe/index.html'), 'utf8');
 const TOKEN = 'a1'.repeat(32);
-const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' };
+const ANON = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({role:'anon'})).toString('base64url') + '.synthetic';
+const CONFIG = { url: 'https://project.supabase.invalid', anonKey: ANON };
 const RPC = CONFIG.url + '/rest/v1/rpc/';
 const MISSING = { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.unsubscribe_email_tips(p_token) in the schema cache' } };
 const ok = state => ({ status: 200, body: { state, unsubscribed: state !== 'invalid' } });
@@ -51,7 +52,7 @@ function page({ search = `?t=${TOKEN}`, answers = {}, config = CONFIG } = {}) {
       return { ok: answer.status >= 200 && answer.status < 300, status: answer.status, json: async () => answer.body };
     },
   };
-  vm.runInNewContext(script, { window, document: window.document, JSON, Promise });
+  vm.runInNewContext(script, { window, document: window.document, JSON, Promise, atob: value => Buffer.from(value, 'base64').toString('binary') });
   return { api: window.VeyletUnsubscribe, window, ids, requests, replaced };
 }
 
@@ -67,8 +68,8 @@ test('a tips link unsubscribes from tips and offers, asking both functions once 
   assert.deepEqual(asked(view), ['unsubscribe_email_tips', 'unsubscribe_mail']);
   for (const { init } of view.requests) {
     assert.equal(init.method, 'POST');
-    assert.equal(init.headers.apikey, 'public-anon-key');
-    assert.equal(init.headers.Authorization, 'Bearer public-anon-key');
+    assert.equal(init.headers.apikey, ANON);
+    assert.equal(init.headers.Authorization, 'Bearer ' + ANON);
     assert.deepEqual(JSON.parse(init.body), { p_token: TOKEN });
     assert.equal(init.credentials, 'omit');
     assert.equal(init.referrerPolicy, 'no-referrer');
@@ -153,9 +154,9 @@ test('the page matches the site shell: noindex, no referrer, versioned assets, l
   assert.match(markup, /<meta name="referrer" content="no-referrer" \/>/);
   assert.match(markup, /<header class="wrap">[\s\S]*VEYLET STUDIO[\s\S]*<\/header>/);
   assert.match(markup, /<footer class="wrap">/);
-  assert.match(markup, /<main id="main" class="form-page wrap unsubscribe-page" data-state="loading">/);
+  assert.match(markup, /<main id="main" class="form-page wrap unsubscribe-page" data-state="confirm">/);
   assert.match(markup, /id="unsubscribe-message" role="status" aria-live="polite"/);
-  assert.match(markup, /<button type="button" class="button" id="unsubscribe-retry" hidden>Try again<\/button>/);
+  assert.match(markup, /<button type="button" class="button" id="unsubscribe-retry" hidden>Confirm unsubscribe<\/button>/);
   assert.match(markup, /<a class="button button-ghost" href="\/account">Sign in to change email preferences<\/a>/);
   assert.match(markup, /min-height: 44px/);
   const hash = file => createHash('sha256').update(fs.readFileSync(path.join(dist, file))).digest('hex').slice(0, 16);
@@ -170,4 +171,30 @@ test('the page matches the site shell: noindex, no referrer, versioned assets, l
   }
   // Only the two unsubscribe functions are ever named.
   assert.deepEqual([...page().api.FUNCTIONS], ['unsubscribe_email_tips', 'unsubscribe_mail']);
+});
+
+
+test('initial HTML asks for confirmation and never claims a page load is recording a preference', () => {
+  assert.match(markup, /id="unsubscribe-title"[^>]*>Unsubscribe from these emails\?<\/h1>/);
+  assert.match(markup, /Nothing has changed yet/);
+  assert.doesNotMatch(markup, /One moment while we record|>Unsubscribing/);
+});
+test('publishable keys use apikey only and legacy anon JWTs keep the bearer header', async () => {
+  for (const key of ['sb_publishable_synthetic_example', ANON]) {
+    const view = page({config: {...CONFIG, anonKey:key}, answers: {unsubscribe_email_tips:[ok('unsubscribed')],unsubscribe_mail:[ok('invalid')]}});
+    assert.equal(await view.api.run(view.window), 'tips');
+    for (const {init} of view.requests) {
+      assert.equal(init.headers.apikey, key);
+      assert.equal(init.headers.Authorization, key === ANON ? 'Bearer ' + key : undefined);
+    }
+  }
+});
+test('privileged or malformed keys fail before any token leaves the page', async () => {
+  for (const role of ['service_role','authenticated',null]) {
+    const key = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({role})).toString('base64url') + '.synthetic';
+    const view=page({config:{...CONFIG,anonKey:key}}); assert.equal(await view.api.run(view.window),'error'); assert.equal(view.requests.length,0);
+  }
+  for (const key of ['sb_secret_synthetic_example','not-a-key','sb_publishable_bad\nheader']) {
+    const view=page({config:{...CONFIG,anonKey:key}}); assert.equal(await view.api.run(view.window),'error'); assert.equal(view.requests.length,0);
+  }
 });

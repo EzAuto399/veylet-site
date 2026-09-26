@@ -18,7 +18,7 @@
 
   var COPY = {
     sending: 'Sending your report…',
-    received: 'Thanks. We’ll review this within 24 hours for privacy reports.',
+    received: 'Thanks. Veylet support reads every report, privacy reports first.',
     chooseReason: 'Choose what is wrong before sending.',
     incomplete: 'This report link is incomplete. Email ' + SUPPORT + ' with what you saw and the address of the page you saw it on.',
     missing: 'Online reports aren’t open yet. Email your report to ' + SUPPORT + '; the button below writes it for you with a reference to this walkthrough (not its link).',

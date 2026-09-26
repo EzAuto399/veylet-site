@@ -31,6 +31,7 @@ export const CARDS = {
   home: 'index.html',
   offer: 'offer/index.html',
   start: 'start/index.html',
+  see: 'see/index.html',
   guides: 'guides/index.html',
   help: null,
 };

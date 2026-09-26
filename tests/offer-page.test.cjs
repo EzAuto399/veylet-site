@@ -368,7 +368,7 @@ test('the calculator states the plan monthly and annual, on each channel, with n
         const explanation = v['[data-billing-explanation]'];
         if (apple) {
           assert.ok(explanation.includes(`an eligible ${free.months}-month App Store introductory offer, then ${aud(bill)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple`), label);
-          assert.equal(explanation.includes('The pack is bought on the website by card or invoice; the app sells packs in a later version.'), !!entry, label);
+          assert.equal(explanation.includes('The pack is bought on the website by card or invoice; packs are never sold in the app.'), !!entry, label);
           assert.doesNotMatch(explanation, /months free/, `${label}: months free is stated only against the website price`);
         } else {
           assert.match(explanation, /Card payment on this website is coming later/, label);
@@ -1136,4 +1136,13 @@ test('owner decisions of 26 September 2026 on /offer: send from the app, one mai
   assert.deepEqual([...new Set(buttons)], ['/waitlist'], 'every main button goes to /waitlist');
   assert.ok(flat.includes('I have the right to share this walkthrough'), 'the one-tick approval sentence');
   assert.doesNotMatch(flat, /AirDrop|Export capture|transfer route|to your Mac/, 'no export or transfer steps');
+});
+
+
+test('unpublished free-month fair use excludes platform failures and retries without changing the cap or offer version', () => {
+  const record=JSON.parse(read('offer/offer.json'));
+  assert.equal(record.version,'2026-09-26.3');
+  assert.equal(record.freeMonths.renderAttemptCap,12);
+  assert.match(record.freeMonths.fairUse.text,/excluding Veylet-side failures and retries/);
+  assert.match(record.freeMonths.fairUse.counts,/normal recaptures.*count; Veylet-side failures and retries do not/);
 });

@@ -41,7 +41,7 @@ test('the page states who made it, from its head: title, description, canonical 
   assert.match(html, /<title>See a result — Veylet<\/title>/);
   assert.match(html, /<link rel="canonical" href="https:\/\/veylet.com\/see" \/>/);
   assert.match(html, /<meta\s+name="description"\s+content="[^"]{80,200}"/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/veylet.com\/media\/result-poster-16x9.webp" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/veylet.com\/media\/share\/see.jpg\?v=[a-f0-9]{16}" \/>/);
   assert.match(html, /<html lang="en">/);
   // Video dates are real: nothing after the day the cuts were exported.
   for (const date of html.matchAll(/"uploadDate": "([\d-]+)"/g)) assert.ok(date[1] <= '2026-09-26', date[1]);
@@ -134,7 +134,7 @@ test('every price on the page is offer.json 2026-09-26.3, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  assert.equal(heroLine, `${offer.freeMonths.months} free months · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.webAud)} a month`);
+  assert.equal(heroLine, `${offer.freeMonths.months} free months · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.webAud)} a month · payment method needed`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
   assert.ok(statement.includes(`${aud(plan.webAud)} a month by card or invoice`));
   assert.ok(statement.includes(`${aud(plan.annualAud)} a year by card or invoice`));
@@ -153,7 +153,7 @@ test('every price on the page is offer.json 2026-09-26.3, set on data-price elem
 
 test('the main action is Join the waitlist, to /waitlist, everywhere it appears', () => {
   const actions = element('data-hero-actions', 'div');
-  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist <span class="icon-arrow"/);
+  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="hero" data-launch-cta>Join the waitlist <span class="icon-arrow"/);
   assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the 3 free months<\/a>/);
   const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)"([^>]*)>([^<]+)</g)]
     .map(match => [match[1], match[3].trim(), match[2]]);
@@ -164,8 +164,10 @@ test('the main action is Join the waitlist, to /waitlist, everywhere it appears'
     assert.match(attributes, /\bdata-analytics-placement="(?:hero|body)"/);
   }
   assert.match(body, /<a class="text-link" href="\/offer" data-analytics-cta="offer" data-analytics-placement="body">See the full offer<\/a>/);
-  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist<\/a>/);
+  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky" data-launch-cta>Join the waitlist<\/a>/);
   assert.ok(body.includes('id="offer"'), 'the offer anchor exists');
+  assert.match(flat(actions), /payment method needed/);
+  assert.match(actions, /data-launch-cta/);
 });
 
 test('without JavaScript the page is complete; with it, nothing heavy loads before the press', () => {
@@ -235,4 +237,26 @@ test('the sample package location is one switch: data-sample-base on the stage, 
   // see.js reads the attribute and names no package path of its own.
   assert.match(js, /stage\.dataset\.sampleBase/);
   assert.doesNotMatch(js, /\/samples\//);
+});
+
+test('the research sample share card is a fingerprinted 1200 by 630 JPEG with truthful text-only source', () => {
+  const bytes = fs.readFileSync(path.join(dist, 'media/share/see.jpg'));
+  assert.equal(bytes.readUInt16BE(0), 0xffd8);
+  let dimensions;
+  for (let at=2; at<bytes.length;) {
+    assert.equal(bytes[at++], 0xff);
+    while (bytes[at]===0xff) at++;
+    const marker=bytes[at++];
+    if (marker===0xda || marker===0xd9) break;
+    const length=bytes.readUInt16BE(at);
+    if ([0xc0,0xc1,0xc2].includes(marker)) { dimensions=[bytes.readUInt16BE(at+5),bytes.readUInt16BE(at+3)]; break; }
+    at+=length;
+  }
+  assert.deepEqual(dimensions,[1200,630]);
+  const hash=require('node:crypto').createHash('sha256').update(bytes).digest('hex').slice(0,16);
+  assert.equal(html.split('https://veylet.com/media/share/see.jpg?v='+hash).length-1,2);
+  const template=fs.readFileSync(path.join(__dirname,'../scripts/share-cards/see.html'),'utf8');
+  assert.match(template,/Research sample/);
+  assert.match(template,/Not a client property\. Not captured with Veylet Capture\./);
+  assert.doesNotMatch(template,/<img|url\(http/);
 });

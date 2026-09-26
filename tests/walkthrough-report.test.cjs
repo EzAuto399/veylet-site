@@ -127,8 +127,8 @@ test('a report is one POST to rpc/report_walkthrough; any token reads "received"
   assert.deepEqual(body, { p_token: TOKEN, p_reason: 'privacy', p_details: 'A framed photo of the family in the hall.', p_email: null });
   assert.equal(view.ids['report-form'].hidden, true);
   assert.equal(view.ids['report-done'].hidden, false);
-  assert.match(markup, /<h2 id="report-done-title" tabindex="-1">Thanks\. We’ll review this within 24 hours for privacy reports\.<\/h2>/);
-  assert.equal(api.COPY.received, 'Thanks. We’ll review this within 24 hours for privacy reports.');
+  assert.match(markup, /<h2 id="report-done-title" tabindex="-1">Thanks\. Veylet support reads every report, privacy reports first\.<\/h2>/);
+  assert.equal(api.COPY.received, 'Thanks. Veylet support reads every report, privacy reports first.');
   assert.equal(view.ids['report-done-title'].focused, 1);
 });
 
@@ -176,5 +176,5 @@ test('the app\'s support page tells an owner how to report someone else\'s walkt
   const support = read('app/support/index.html');
   assert.match(support, /<div id="report"><dt>Reporting someone else’s walkthrough<\/dt>/);
   assert.match(support, /href="mailto:yoda@yodalai\.xyz\?subject=Report%20a%20walkthrough"/);
-  assert.match(support, /Privacy reports are reviewed within 24 hours\./);
+  assert.match(support, /Privacy reports are read first\./);
 });
