@@ -12,6 +12,15 @@ const ACCEPTED = 'veylet:waitlist-accepted:v1';
 const NOW = 1790467200000;
 const consent = (analytics, ads, savedAt = NOW) => JSON.stringify({ version: 1, savedAt, analytics, ads });
 const plain = value => JSON.parse(JSON.stringify(value));
+const organicCampaigns = [
+  { source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'faq' },
+  { source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'room_connections' },
+  { source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'before_capture' },
+  { source: 'instagram', medium: 'organic_social', name: 'pilot_202609', content: 'link_in_bio' },
+  { source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'enquiry_details' },
+];
+const campaignQuery = campaign => new URLSearchParams({ utm_source: campaign.source, utm_medium: campaign.medium,
+  utm_campaign: campaign.name, utm_content: campaign.content });
 
 class Element {
   constructor(tag) { this.tagName = tag.toUpperCase(); this.children = []; this.events = {}; this.attrs = {}; this.hidden = false; this.checked = false; }
@@ -272,7 +281,15 @@ test('delegated hooks measure only fixed CTA attributes and matching forms, with
 test('unknown events including manual page_view are rejected and deployment kill switch wins over consent', () => {
   const h = harness({ choice: consent(true, true), config: { deploymentEnabled: false } });
   assert.equal(h.scripts.length, 0); assert.equal(h.track('page_view', {}), false);
-  assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.campaignRegistry.length, 2, 'fixed proposed tuples, no paid campaign launch');
+});
+
+test('campaign registry contains only the seven approved exact tuples, preserving both paid rows', () => {
+  const h = harness();
+  assert.deepEqual(plain(h.window.VEYLET_ANALYTICS_CONFIG.campaignRegistry), [
+    { source: 'facebook', medium: 'paid_social', name: 'veylet_waitlist_20260927', content: 'walkthrough_demo' },
+    { source: 'instagram', medium: 'paid_social', name: 'veylet_waitlist_20260927', content: 'walkthrough_demo' },
+    ...organicCampaigns,
+  ]);
 });
 
 test('failed consent overwrite cannot reload into an old grant, even if local removal also fails', () => {
@@ -321,6 +338,57 @@ test('registered paid landing values are fixed, held only in memory and attached
   assert.equal(page.campaign_name, 'veylet_waitlist_20260927'); assert.equal(page.campaign_content, 'walkthrough_demo');
   assert.equal(page.page_location, 'https://veylet.com/');
   assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.local, h.session, h.cookieWrites, h.scripts.map(script => script.src)]), /PRIVATE_CLICK|fbclid|_fbc=/);
+});
+
+for (const campaign of organicCampaigns) test(`registered organic ${campaign.source}/${campaign.content} reaches GA only after analytics consent`, () => {
+  const pathname = campaign.source === 'facebook' ? '/request' : '/';
+  const query = campaignQuery(campaign); query.set('fbclid', 'PRIVATE_CLICK_CANARY');
+  const h = harness({ url: `https://veylet.com${pathname}?${query}` });
+  assert.deepEqual(h.replaced, [pathname]); assert.equal(h.window.location.search, '');
+  assert.equal(h.scripts.length, 0); assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+  h.choose(true, false);
+  assert.equal(h.scripts.length, 1); assert.match(h.scripts[0].src, /^https:\/\/www\.googletagmanager\.com\//);
+  assert.deepEqual(h.meta(), []);
+  assert.equal(h.track('funnel_cta_click', { destination: 'offer', placement: 'body', email: 'PRIVATE_FORM_CANARY' }), true);
+  const events = h.ga().filter(args => args[0] === 'event');
+  assert.deepEqual(events.map(args => args[1]), ['page_view', 'funnel_cta_click']);
+  for (const [, , params] of events) {
+    assert.deepEqual([params.campaign_source, params.campaign_medium, params.campaign_name, params.campaign_content],
+      [campaign.source, campaign.medium, campaign.name, campaign.content]);
+    assert.equal(params.page_location, `https://veylet.com${pathname}`); assert.equal(params.page_referrer, '');
+  }
+  if (pathname === '/request') {
+    h.choose(true, true);
+    assert.equal(h.scripts.length, 1, 'Meta stays off the enquiry form even with advertising consent');
+    assert.deepEqual(h.meta(), []);
+  }
+  assert.doesNotMatch(JSON.stringify([h.local, h.session, h.writes, h.cookieWrites]), /pilot_202609|organic_social|facebook|instagram|PRIVATE/);
+  assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.replaced, h.local, h.session, h.writes, h.cookieWrites, h.scripts.map(script => script.src)]),
+    /PRIVATE|fbclid|_fbc=|utm_source|utm_medium|utm_campaign|utm_content/);
+});
+
+test('organic missing, duplicate, unknown and legacy incomplete Instagram UTMs remain blocked', () => {
+  const rejected = [];
+  for (const campaign of organicCampaigns) {
+    const pathname = campaign.source === 'facebook' ? '/request' : '/';
+    const known = campaignQuery(campaign);
+    for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content']) {
+      const missing = new URLSearchParams(known); missing.delete(key);
+      const duplicate = new URLSearchParams(known); duplicate.append(key, known.get(key));
+      const unknown = new URLSearchParams(known); unknown.set(key, 'PRIVATE_UNREGISTERED_CANARY');
+      rejected.push(...[missing, duplicate, unknown].map(query => `https://veylet.com${pathname}?${query}`));
+    }
+    rejected.push(`https://veylet.com${pathname}?${known}&utm_term=PRIVATE_TERM_CANARY`);
+  }
+  const legacy = 'https://veylet.com/?utm_source=ig&utm_medium=social&utm_content=link_in_bio';
+  rejected.push(legacy, legacy + '&fbclid=PRIVATE_CLICK_CANARY');
+  for (const url of rejected) {
+    const h = harness({ url, choice: consent(true, true) });
+    assert.equal(h.scripts.length, 0, url); assert.deepEqual(h.replaced, [], url);
+    assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []); assert.equal(h.panel, undefined);
+    assert.equal(h.track('funnel_cta_click', { destination: 'offer', placement: 'body' }), false);
+    assert.doesNotMatch(JSON.stringify([h.local, h.session, h.writes, h.cookieWrites]), /PRIVATE/);
+  }
 });
 
 test('click IDs alone are discarded; unknown/duplicate campaign fields and failed URL cleanup never load vendors', () => {
