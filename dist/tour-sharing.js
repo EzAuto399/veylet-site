@@ -160,13 +160,17 @@ window.VeyletSharing = (() => {
     const hosting = released ? hostingState(row, now, opts.planEndedAt) : null;
     if (!hosting) return hostingUnavailable;
     const day = hostingDate(hosting.date);
-    if (hosting.state === 'live_with_plan') return 'Live while your plan is active.';
+    // `opts.office`: the office's name when the reader belongs to more than one, so each line
+    // says whose plan it is ("Harbour Realty's plan has ended.").
+    const whose = typeof opts.office === 'string' && opts.office.trim() ? opts.office.trim() + '’s plan' : 'your plan';
+    const Whose = whose.charAt(0).toUpperCase() + whose.slice(1);
+    if (hosting.state === 'live_with_plan') return 'Live while ' + whose + ' is active.';
     if (hosting.state === 'live_with_extension') {
       if (!day) return hostingUnavailable;
       return opts.app ? 'Online until ' + day + '.' : 'Live until ' + day + ' with a hosting extension.';
     }
     if (hosting.state === 'offline_on') {
-      return 'Your plan has ended. ' + (day ? 'This walkthrough goes offline on ' + day + '. ' : '') + restartWords(opts) + ' to keep it live.';
+      return Whose + ' has ended. ' + (day ? 'This walkthrough goes offline on ' + day + '. ' : '') + restartWords(opts) + ' to keep it live.';
     }
     return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + restartWords(opts) + ' and this link works again \u2014 same link, embed and QR.';
   }

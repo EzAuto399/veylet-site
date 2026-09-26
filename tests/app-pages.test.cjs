@@ -139,7 +139,12 @@ test('the QA fixture holds waiting captures and flags the ready one, for each do
     assert.equal(job.hold.until === null, reason !== 'weekly_limit', reason);
   }
   const [limited] = await jobs('?render=waiting&hold=trial_limit');
-  assert.deepEqual(limited.hold, { reason: 'trial_limit', until: null });
+  assert.equal(limited.hold.reason, 'trial_limit');
+  assert.match(limited.hold.plan_starts_on, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(limited.hold.start_plan_now, false, 'offered only with ?start-now=');
+  assert.equal((await jobs('?render=waiting&hold=trial_limit&start-now=web'))[0].hold.start_plan_now, true);
+  const [paused] = await jobs('?render=paused');
+  assert.deepEqual([paused.state, paused.share_paused], ['paused', true]);
   // Offer 2026-09-26.3: ?rooms= gives each capture its rooms and walkthroughs_used = max(1, ceil(rooms / 8)).
   for (const [rooms, used] of [[1, 1], [8, 1], [9, 2], [17, 3]]) {
     const [job] = await jobs('?render=ready&rooms=' + rooms);

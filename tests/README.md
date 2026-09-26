@@ -222,8 +222,13 @@ not yet written, so every answer is the fixture's):
 - `?primary=office` (draft 20260926127000): the person's empty personal workspace (hidden), this office (main, shown first)
   and a second office with "Make this my main office"; `&primary-set=fail` refuses the change. Without it, the
   memberships read's `is_empty_personal` is unknown (42703) and `get_primary_workspace` answers PGRST202.
-- `?render=waiting&hold=trial_limit`: the free months' 12 render attempts are used; the capture
-  waits with "Choose a plan" (the plan panel) on the website and the words only on `/app/account`.
+- `?render=paused` (draft 20260926142000): the approved walkthrough's link is paused; its render card says Paused with
+  Resume sharing (not the queue's `hold=paused`, which keeps the waiting line).
+- `?render=waiting&hold=trial_limit`: the free months' 12 render attempts are used; the capture waits and says the
+  day the plan starts. `&start-now=web|invoice|declined|pending|refused|closed|not-owner|missing` offers "Start my plan
+  today" (draft 20260926141000): web charges the saved card (hooks 200), invoice waits for the invoice, declined 402,
+  pending 202 every time, refused 409, closed 503, not-owner refuses the press, missing PGRST202. `/app/account`
+  shows the words only.
   `?rooms=1|8|9|17` (with any `?render=`): each capture reports that many rooms and uses 1, 1, 2 or
   3 walkthroughs ("9 rooms · uses 2 walkthroughs" on the status and in the review).
 - `/__qa/play/?id=synthetic-tour&from=app`: the preview's links go to `/app/*`.

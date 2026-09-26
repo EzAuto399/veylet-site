@@ -109,6 +109,10 @@ test('the member hosting read wins when the row carries it', () => {
   assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'live_with_extension' }), true, AFTER), share.hostingUnavailable, 'no day, no invented date');
   // The app's pages never name the extension.
   assert.equal(share.hostingLine(extended, true, AFTER, { app: true }), 'Online until 3 Nov 2027.');
+  // Several offices (launch review #3): the line says whose plan it is.
+  assert.equal(share.hostingLine(read({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' }), true, AFTER, { office: 'Harbour Realty' }),
+    'Harbour Realty’s plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.equal(share.hostingLine(read({ hosting_state: 'live_with_plan' }), true, AFTER, { office: 'Hill Office' }), 'Live while Hill Office’s plan is active.');
 });
 test('the app’s pages name no purchase path: restart in the app', () => {
   const share = load();

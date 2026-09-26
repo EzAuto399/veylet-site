@@ -108,6 +108,8 @@ async function loadDesk(options = {}) {
     VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' }, supabase: { createClient: () => supabase },
     VeyletPlace: { generalLocationProblem: () => '' }, VEYLET_HOOKS: { url: 'https://hooks.example.invalid' }, addEventListener() {},
   };
+  // `options.localStorage`: this browser's storage (absent unless a test supplies one).
+  if (options.localStorage) window.localStorage = options.localStorage;
   const documentStub = Object.assign(doc, {
     getElementById: id => ids[id] || null, createElement: tag => new Element(tag, doc), addEventListener() {},
     head: { append() {} }, documentElement: { dataset: options.appMode ? { appMode: 'true' } : {} },

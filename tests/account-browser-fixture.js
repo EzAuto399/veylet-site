@@ -384,7 +384,8 @@
   const renderJobOf = state => (renderSpace(state) === 'synthetic-terrace' ? EXPRESS_JOB
     : 'f' + String(RENDER_STATES.indexOf(state) + 1).padStart(7, '0') + '-0000-4000-8000-' + String(RENDER_STATES.indexOf(state) + 1).padStart(12, '0'));
   const renderTourOf = state => 'render-tour-' + state;
-  const renderShown = renderCase === 'all' ? RENDER_STATES : RENDER_STATES.includes(renderCase) ? [renderCase] : renderCase === 'walk' ? ['walk'] : [];
+  // `?render=paused` (draft 20260926142000): the approved walkthrough's link exists and its sharing is paused.
+  const renderShown = renderCase === 'all' ? RENDER_STATES : RENDER_STATES.includes(renderCase) || renderCase === 'paused' ? [renderCase] : renderCase === 'walk' ? ['walk'] : [];
   if ((renderShown.length || ['empty', 'loading', 'error'].includes(renderCase)) && !properties.some(row => row.id === 'synthetic-terrace')) {
     properties.push({ id: 'synthetic-terrace', title: 'Fictional terrace house', category: 'QA fixture', location_general: 'Example region', workspace_id: 'synthetic-workspace' });
   }
@@ -397,11 +398,12 @@
   // approved) or live (approved and shared).
   const renderTour = state => ({ id: renderTourOf(state), property_id: renderSpace(state), status: 'ready', storage_path: 'synthetic/render-' + state + '.zip',
     created_by: 'synthetic-user', created_at: new Date().toISOString() });
-  for (const state of renderShown.filter(item => ['ready', 'live'].includes(item))) {
+  for (const state of renderShown.filter(item => ['ready', 'live', 'paused'].includes(item))) {
     tours.push(renderTour(state));
-    if (state === 'live') {
+    if (state === 'live' || state === 'paused') {
       approvedTours.add(renderTourOf(state)); tokens.set(renderTourOf(state), 'synthetic-fixture-token-render');
       releasedAt.set(renderTourOf(state), new Date(Date.now() - 86400000).toISOString());
+      if (state === 'paused') pausedAt.set(renderTourOf(state), new Date(Date.now() - 3600000).toISOString());
     }
   }
   if (scenario === 'new') { properties.length = 0; tours.length = 0; }
@@ -867,7 +869,8 @@
     rendering: { state: 'rendering', status: 'processing', step: 3, stage: 'train', progress_pct: 64, eta_seconds: 720, heartbeat: 8, attempt: 1 },
     checking: { state: 'studio_check', status: 'awaiting_review' },
     ready: { state: 'ready_for_review', status: 'awaiting_review', tour: true },
-    live: { state: 'live', status: 'awaiting_review', tour: true },
+    live: { state: 'live', status: 'awaiting_review', tour: true, share_paused: false },
+    paused: { state: 'paused', status: 'awaiting_review', tour: true, share_paused: true },
     // capture_recapture_reasons (20260926110000): an array of {room, reason, rule}, one per room the gate blocked.
     recapture: { state: 'needs_recapture', status: 'awaiting_review', recapture: [
       { room: 'Kitchen', reason: 'Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.', rule: 'few_views' },
@@ -899,8 +902,18 @@
     { room: '', reason: 'We could not find a clear path on the floor from here to the other rooms. Recapture the doorway and the floor between rooms.' },
   ];
   const roomsCase = /^\d+$/.test(params.get('rooms') || '') ? Number(params.get('rooms')) : null;
+  /* "Start my plan today" (draft 20260926141000): with `?hold=trial_limit`, the hold names the plan's
+   * start day and, with `&start-now=web|invoice|declined|pending|refused|closed|not-owner|missing`,
+   * offers the start (start_plan_now true): web charges the saved card (200), invoice waits for the
+   * invoice, declined answers 402, pending 202 every time, refused 409, closed 503, not-owner
+   * refuses the press, missing answers PGRST202 for get_start_plan_now. Without it, start_plan_now
+   * is false (an App Store trial, or before the draft). */
+  const startNowCase = params.get('start-now');
+  const startNowDay = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
   const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit', 'trial_limit'].includes(holdCase) ? null
-    : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
+    : holdCase === 'trial_limit' ? { reason: 'trial_limit', until: startNowDay + 'T00:00:00+10:00', plan_starts_on: startNowDay,
+      message: 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts on ' + startNowDay + '.', start_plan_now: Boolean(startNowCase) }
+      : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
   const renderFlagsOf = state => (!['ready_for_review', 'approved', 'live'].includes(state) ? null
     : flagsCase === 'all' ? REVIEW_FLAGS.map(flag => ({ ...flag }))
       : flagsCase === 'unknown' ? [...REVIEW_FLAGS.slice(0, 1), { room: 'Garage', reason: 'A check this page has never heard of found something.' }] : []);
@@ -985,6 +998,11 @@
     const bearer = /^Bearer \S+$/.test((init.headers && init.headers.Authorization) || '');
     window.VEYLET_QA_CALLS.push({ name: method + ' ' + path, args: body, bearer });
     const reply = (status, value) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
+    if (method === 'POST' && path === '/square/trial/start-now') {
+      if (!bearer) return reply(401, { error: 'unauthorized' });
+      const status = { declined: 402, pending: 202, refused: 409, closed: 503 }[startNowCase] || 200;
+      return reply(status, status === 200 ? { started: true, attempt_id: body?.attempt_id } : status === 202 ? { pending: true } : { error: 'start_now_unavailable' });
+    }
     if (method === 'GET' && path === '/square/lane') {
       if (laneCase === 'error') return reply(503, { error: 'unavailable' });
       const open = laneCase !== 'closed';
@@ -1154,6 +1172,9 @@
       let columns = '', only = null;
       const answer = () => {
         if (table === 'properties') return { data: properties };
+        // Office names (workspaces.name), which label spaces and hosting lines when there are several.
+        if (table === 'workspaces') return { data: [{ id: 'synthetic-workspace', name: 'Fictional Realty' }, { id: 'synthetic-workspace-ended', name: 'Fictional Venues' },
+          { id: 'synthetic-office-b', name: 'Fictional Second Office' }, { id: 'synthetic-personal', name: 'My workspace' }] };
         if (table === 'memberships') {
           // Before the draft: the computed field is unknown to PostgREST.
           if (primaryCase !== 'office' && /is_empty_personal/.test(columns)) return { error: { code: '42703', message: 'column memberships.is_empty_personal does not exist' } };
@@ -1178,6 +1199,17 @@
     },
     async rpc(name, args) {
       window.VEYLET_QA_CALLS.push({ name, args });
+      if (name === 'get_start_plan_now') {
+        if (startNowCase === 'missing') return { error: { code: 'PGRST202', message: 'Could not find the function public.get_start_plan_now(p_workspace)' } };
+        const lane = startNowCase === 'invoice' ? 'invoice' : 'web';
+        return { data: { available: Boolean(startNowCase), lane, missing: [], plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
+          plan_interval: 'monthly', charge_today: lane === 'web', invoice_today: lane === 'invoice', starts_on: new Date().toISOString().slice(0, 10),
+          free_months_end_on: startNowDay, free_walkthroughs_left: 3, free_walkthroughs_usable_until: startNowDay + 'T00:00:00+10:00', request: null } };
+      }
+      if (name === 'start_plan_now') {
+        if (startNowCase === 'not-owner') return { data: { error: 'not_owner' } };
+        return { data: { attempt_id: 'synthetic-start-now-attempt', lane: startNowCase === 'invoice' ? 'invoice' : 'web', state: 'open' } };
+      }
       if (name === 'get_primary_workspace') return primaryCase === 'office' ? { data: primaryNow } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_primary_workspace' } };
       if (name === 'set_primary_workspace') {
         if (primaryCase !== 'office') return { error: { code: 'PGRST202', message: 'Could not find the function public.set_primary_workspace(p_workspace_id)' } };

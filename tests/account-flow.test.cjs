@@ -30,6 +30,8 @@ async function load(options = {}) {
   const pollTimers = new Set(), documentEvents = {}, exported = [];
   const scheduleTimeout = (fn, ms) => {
     if (ms === 45000) { const timer = { fire: fn, poll: true }; pollTimers.add(timer); return timer; }
+    // `options.fastRetries`: the start-now hooks retry (every 3 s) runs at once.
+    if (options.fastRetries && ms === 3000) return setTimeout(fn, 0);
     if (!options.manualTimeouts || ms !== 20000) return controlledTimer(fn, ms);
     const timer = { fire: fn }; requestTimers.add(timer); return timer;
   };
@@ -333,12 +335,42 @@ test('release review checks the exact package, then turns sharing on in the same
   assert.equal(payload.p_expected_storage_path, tour.storage_path);
   assert.equal(payload.p_expected_package_revision, 'a'.repeat(64));
   assert.equal(h.calls.some(call => call[0] === 'review_tour'), false);
-  assert.equal(Object.keys(payload.p_checks).sort().join(','), 'alignment,coverage,mobile,navigation,privacy');
-  assert.equal(payload.p_capture_permission, true);
-  assert.equal(payload.p_publication_permission, true);
+  // One-press approval (draft 20260926128000): one tick, the new shape.
+  assert.equal(form.all().filter(el => el.type === 'checkbox').length, 1, 'one required tick');
+  assert.equal(form.all().find(el => el.tagName === 'LABEL' && el.children.some(child => child.type === 'checkbox')).children[1].textContent, 'I have the right to share this walkthrough.');
+  assert.deepEqual({ ...payload.p_checks }, { right_to_share: true });
+  // The new function's permission parameters default to null; passing false would refuse, so they are left out.
+  assert.equal('p_capture_permission' in payload, false);
+  assert.equal('p_publication_permission' in payload, false);
   // Approve and share: sharing is turned on once, for this tour, after the approval.
   assert.deepEqual(h.calls.filter(call => ['review_tour_versioned', 'enable_tour_share'].includes(call[0])).map(call => [call[0], call[1].p_tour_id]),
     [['review_tour_versioned', 't1'], ['enable_tour_share', 't1']]);
+});
+test('a server that still wants the five attestations gets the old shape from the same one tick', async () => {
+  // An old server refuses the new shape with its own words, or (its permission parameters have no
+  // defaults) with PGRST202; either way the old shape follows, with both permissions.
+  for (const refusal of [{ error: { message: 'complete every quality and permission check before approval' } },
+    { error: { code: 'PGRST202', message: 'Could not find the function public.review_tour_versioned(p_checks, p_expected_package_revision, p_expected_storage_path, p_tour_id) in the schema cache' } }]) {
+    const sent = [];
+    const h = await load({ tours: [tour], rpc: { review_tour_versioned: async args => {
+      sent.push(JSON.parse(JSON.stringify(args)));
+      return 'right_to_share' in args.p_checks ? refusal : { data: [{ tour_id: 't1', approved: true }] };
+    } } });
+    const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+    form.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
+    await form.fire('submit'); await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(sent.map(args => args.p_checks), [{ right_to_share: true }, { coverage: true, alignment: true, navigation: true, privacy: true, mobile: true }]);
+    assert.deepEqual([sent[1].p_capture_permission, sent[1].p_publication_permission], [true, true]);
+    assert.ok(h.calls.some(call => call[0] === 'enable_tour_share'), 'approved on the old server too');
+  }
+  // Any other refusal is not retried in the old shape.
+  const other = [];
+  const refused = await load({ tours: [tour], rpc: { review_tour_versioned: async args => { other.push(args.p_checks);
+    return { error: { message: 'confirm you have the right to share this walkthrough before approval' } }; } } });
+  const form2 = refused.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+  form2.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
+  await form2.fire('submit'); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(other.length, 1);
 });
 test('review preview and checks wait for the original opaque target snapshot', async () => {
   let finish;
@@ -660,15 +692,14 @@ test('a confirmed handoff is still explained in its row after the desk reloads',
     assert.ok(h.all().some(el => el.textContent === 'Copy link'));
   } finally { delete tour.share_token; }
 });
-test('a failed check becomes one itemised correction request without recording a review', async () => {
+test('something to fix becomes one correction request without recording a review', async () => {
   const h = await load({ tours: [tour] });
-  const boxes = h.all().filter(el => el.tagName === 'INPUT' && el.type === 'checkbox');
-  for (const box of boxes) box.checked = box.name !== 'alignment';
   const link = h.all().find(el => el.textContent === 'Request corrections by email');
   await link.fire('click');
   const body = decodeURIComponent(link.href.split('&body=')[1]);
-  assert.match(body, /Walls, furniture and edges stay aligned/);
-  assert.doesNotMatch(body, /Every included room/);
+  assert.match(body, /Walkthrough reference: /);
+  assert.match(body, /What needs correcting:/);
+  assert.doesNotMatch(body, /Walls, furniture|Every included room|physical phone/, 'no retired attestation');
   assert.doesNotMatch(link.href, /Sample space|original\.zip/);
   assert.match(link.href, /^mailto:/);
   assert.equal(h.calls.some(call => call[0] === 'review_tour_versioned'), false);
@@ -1032,9 +1063,10 @@ test('signing out clears the plan panel', async () => {
 test('the desk first-capture steps follow the app-first flow', () => {
   assert.match(markup, /Install Veylet Capture on a LiDAR iPhone and sign in with this same email/);
   assert.match(markup, /Do one practice capture in a space you are allowed to record/);
-  assert.match(markup, /choose Export capture/);
-  assert.match(markup, /Direct sending from the app and public website import are not available/);
-  assert.match(markup, /Review the walkthrough here, confirm its permissions, then press Approve and share/);
+  // Owner decision 26 September 2026: sending happens from the app; one tick before Approve and share.
+  assert.match(markup, /Send from the app: it uploads in the background and is usually ready in 1–2 hours\./);
+  assert.doesNotMatch(markup, /Export capture|AirDrop|transfer route|to your Mac|not available in the current release/);
+  assert.match(markup, /Review the walkthrough here, tick that you have the right to share it, then press Approve and share/);
   assert.doesNotMatch(markup, /Save a space\. Suburb or city only/);
   // The walkthroughs come first and the plan follows them; the page still says
   // the heading without JavaScript having to write it.
@@ -1448,7 +1480,7 @@ test('verified acceptance capacity distinguishes included units from pack and ex
   assert.match(capacityText(h), /0 included walkthroughs remaining · 2 extra walkthroughs available/);
   assert.match(capacityText(h), /next new walkthrough uses one extra walkthrough, the one that expires first/);
   assert.match(capacityText(h), /Each new walkthrough you approve uses one per 8 rooms \(counted automatically\); a correction of the same walkthrough, a recapture of the rooms the check names, saving a space or a failed capture uses none\./);
-  assert.ok(planValues(h).includes('6 of 6 included accepted'));
+  assert.ok(planValues(h).includes('6 of 6 used'));
   assert.ok(planValues(h).includes('2 available'), 'the Extra walkthroughs row states the ledger’s count');
   assert.match(planText(h), /6 of 6 included free walkthroughs used/);
   assert.doesNotMatch(planText(h), /8 of 6 free walkthroughs used/);
@@ -1546,9 +1578,9 @@ test('production subscriptions still show the authoritative monthly included bal
         billing_interval, apple_product_id: 'dev.property3d.capture.plan.' + billing_interval,
         renewal_price_aud_cents: billing_interval === 'annual' ? 318999 : 21999,
         accepted_this_period: 2, current_period_ends_at: inDays(30) });
-    assert.ok(planValues(h).includes('2 of 3 included accepted'));
+    assert.ok(planValues(h).includes('2 of 3 used'));
     assert.match(capacityText(h), /1 included walkthrough remaining · 0 extra walkthroughs available/);
-    assert.match(planText(h), /2 of 3 walkthroughs this month/);
+    assert.match(planText(h), billing_interval === 'monthly' ? /2 of 3 walkthroughs used this month\./ : /2 of 3 walkthroughs this month/);
     assert.doesNotMatch(planText(h), /Test subscription|Production walkthroughs are not included/);
   }
 });
@@ -1645,6 +1677,20 @@ test('each hosting situation reads its own line on the card', async () => {
       live_with_plan: ['Live', 'pill pill-good'], offline_on: ['Offline on 10 Oct 2027', 'pill pill-busy'],
       offline: ['Offline', 'pill pill-quiet'], live_with_extension: ['Live', 'pill pill-good'] }[extra.hosting_state], line);
   }
+});
+test('with two offices, each space and each hosting line says whose office it is (workspaces.name); with one, nothing extra', async () => {
+  const two = { data: [{ workspace_id: 'w1', role: 'owner', status: 'active' }, { workspace_id: 'w2', role: 'owner', status: 'active' }] };
+  const props = { data: [{ id: 'p1', title: 'Sample space', workspace_id: 'w1' }, { id: 'p2', title: 'Other hall', workspace_id: 'w2' }] };
+  const workspaces = { data: [{ id: 'w1', name: 'Harbour Realty' }, { id: 'w2', name: 'Hill Office' }] };
+  const h = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })],
+    { tours: [liveTour], tables: { memberships: two, properties: props, workspaces } });
+  const metas = h.all().filter(el => el.className === 'dash-space-meta').map(el => el.textContent);
+  assert.ok(metas.includes('Harbour Realty') && metas.includes('Hill Office'), metas.join(' | '));
+  assert.equal(hostingText(h), 'Harbour Realty’s plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.match(planText(h), /Showing Harbour Realty\./, 'the plan panel names the office, not a space');
+  const one = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })], { tours: [liveTour], tables: { workspaces } });
+  assert.equal(hostingText(one), 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.equal(one.all().some(el => el.className === 'dash-space-meta' && /Harbour Realty/.test(el.textContent)), false);
 });
 const extensionFix = h => h.all().find(el => el.className === 'tour-actions-row tour-hosting-fix');
 
@@ -3170,7 +3216,10 @@ test('offer v9: a monthly plan of 2 a month states its banked rollover, up to 4,
   const h = await withCapacity(BANKED_CAP, ACTIVE_MONTHLY);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
   assert.deepEqual(planTerms(h), ACTIVE_TERMS, 'the ledger keeps its rows');
-  assert.equal(planValues(h)[1], '0 of 4 included accepted', 'the bank is part of this month’s limit');
+  assert.equal(planValues(h)[1], '0 of 4 used', 'the bank is part of this month’s limit');
+  // Launch review #1: one count on the panel; the sentence says the same numbers, never "0 of 2 this month".
+  assert.match(planText(h), /0 of 4 walkthroughs used this month \(2 a month \+ 2 banked\)\./);
+  assert.doesNotMatch(planText(h), /0 of 2 walkthroughs this month|included accepted/);
   assert.equal(allowanceLine(h), '4 included walkthroughs remaining · 0 extra walkthroughs available.');
   assert.match(capacityText(h), /This month’s 4 include 2 banked from earlier months\. Unused monthly walkthroughs roll over, up to 4 banked\./);
   assert.doesNotMatch(planText(h), /resets monthly|do not carry over/);
@@ -3202,7 +3251,7 @@ test('offer v9: an annual plan states its yearly pool of 24, the bonus as extra 
   const h = await withCapacity(POOL_CAP, ACTIVE_ANNUAL);
   assert.equal(planTitle(h), 'Veylet plan · A$990 a year');
   assert.deepEqual(planTerms(h), ['State', 'Plan year', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in']);
-  assert.equal(planValues(h)[1], '5 of 24 included accepted');
+  assert.equal(planValues(h)[1], '5 of 24 used');
   assert.equal(allowanceLine(h), '19 of 24 walkthroughs left this plan year · 0 extra walkthroughs available.');
   assert.ok(capacityText(h).includes('Your 24 walkthroughs are a yearly pool to use any time, with no monthly limit; it resets on ' + resets +
     '. Unused ones do not carry into the next plan year.'), capacityText(h));
@@ -3998,4 +4047,87 @@ test('offer v9 truth check: A$29 reads the same in the offer, the button, the ch
   assert.deepEqual([...new Set(said)], ['A' + price], said.join(' | '));
   // The page never sells it in the app's words, and no string pairs it with the App Store.
   assert.doesNotMatch(account, /(?:express|super fast)[^'\n]{0,80}App Store|App Store[^'\n]{0,80}(?:express|super fast)/i);
+});
+
+/* ---- Start my plan today (draft 20260926141000_trial_start_now.sql) ------------------------- */
+
+const START_HOLD = { reason: 'trial_limit', until: '2026-12-01T00:00:00+10:00', plan_starts_on: '2026-12-01', message: 'x', start_plan_now: true };
+const START_OFFER = { available: true, lane: 'web', missing: [], plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
+  plan_interval: 'monthly', charge_today: true, invoice_today: false, starts_on: '2026-09-26', free_months_end_on: '2026-12-01',
+  free_walkthroughs_left: 3, free_walkthroughs_usable_until: '2026-12-01T00:00:00+10:00', request: null };
+async function withStartNow(options = {}) {
+  const service = hooksService(options.hooks);
+  const job = { job_id: 'j1', property_id: 'p1', state: 'waiting', status: 'queued', attempts_allowed: 2, hold: { ...START_HOLD, ...options.hold } };
+  const h = await load({ ...options, fetch: service.fetch, fastRetries: true, rpc: {
+    list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p1', job }] } }),
+    get_start_plan_now: options.offer === undefined ? async () => ({ data: START_OFFER }) : options.offer,
+    start_plan_now: options.start || (async () => ({ data: { attempt_id: 'attempt-1', lane: 'web', state: 'open' } })),
+    ...options.rpc,
+  } });
+  await settle(); await settle();
+  const block = () => h.ids['account-properties'].all().find(el => /\brender-block\b/.test(el.className || ''));
+  const control = () => block()?.all().find(el => el.dataset?.control === 'start-plan-today');
+  const blockText = () => block().all().filter(el => !el.hidden).map(el => el.textContent).join('\n');
+  return Object.assign(h, { requests: service.requests, block, control, blockText });
+}
+
+test('start my plan today: the hold names its day; the button and its detail come from the server’s offer', async () => {
+  const h = await withStartNow();
+  assert.match(h.blockText(), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts on 1 Dec 2026\./);
+  assert.equal(h.control().textContent, 'Start my plan today');
+  assert.match(h.blockText(), /Your free months end today and your plan starts now\. Walkthroughs left from your free months stay usable until 1 Dec 2026\. The plan is A\$99 a month, charged today to the card on your account\./);
+  assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_start_plan_now')[1] }, { p_workspace: 'w1' });
+});
+
+test('start my plan today: the website card lane records the attempt, then the hooks service starts it (200 reloads)', async () => {
+  const h = await withStartNow({ hooks: { '/square/trial/start-now': () => [200, { started: true }] } });
+  const before = h.queries.length;
+  await h.control().fire('click'); await settle(); await settle();
+  assert.deepEqual({ ...h.calls.find(call => call[0] === 'start_plan_now')[1] }, { p_workspace: 'w1', p_plan_interval: 'monthly' });
+  const [post] = posts(h, '/square/trial/start-now');
+  assert.deepEqual(post.body, { workspace_id: 'w1', attempt_id: 'attempt-1' });
+  assert.equal(post.auth, 'Bearer token-1');
+  assert.ok(h.queries.length > before, 'the desk is read again');
+  assert.equal(h.ids['account-status'].textContent, 'Your plan has started. Rendering continues.');
+});
+
+test('start my plan today: 202 re-posts about every 3 s up to 5 times; 402, 409 and anything else each say their own words', async () => {
+  let n = 0;
+  const pending = await withStartNow({ hooks: { '/square/trial/start-now': () => (++n < 3 ? [202, { pending: true }] : [200, { started: true }]) } });
+  await pending.control().fire('click'); for (let i = 0; i < 6; i++) await settle();
+  assert.equal(posts(pending, '/square/trial/start-now').length, 3);
+  const always = await withStartNow({ hooks: { '/square/trial/start-now': () => [202, { pending: true }] } });
+  await always.control().fire('click'); for (let i = 0; i < 12; i++) await settle();
+  assert.equal(posts(always, '/square/trial/start-now').length, 6, 'the first post and 5 more');
+  for (const [status, words] of [[402, 'Your card was declined. Update it and try again.'], [409, 'Your plan didn’t start. Try again or contact support.'],
+    [503, 'Starting your plan isn’t open yet.'], [500, 'Starting your plan isn’t open yet.']]) {
+    const h = await withStartNow({ hooks: { '/square/trial/start-now': () => [status, { error: 'x' }] } });
+    await h.control().fire('click'); await settle(); await settle();
+    assert.equal(h.ids['account-status'].textContent, words, String(status));
+    assert.equal(h.control().disabled, false, 'it can be pressed again');
+  }
+});
+
+test('start my plan today: the invoice lane waits for the invoice; not_owner says who can; not_available and PGRST202 hide it', async () => {
+  const invoice = await withStartNow({ offer: async () => ({ data: { ...START_OFFER, lane: 'invoice', charge_today: false, invoice_today: true } }),
+    start: async () => ({ data: { attempt_id: 'attempt-2', lane: 'invoice', state: 'open' } }) });
+  assert.match(invoice.blockText(), /A\$99 a month, invoiced today\./);
+  await invoice.control().fire('click'); await settle();
+  assert.equal(invoice.ids['account-status'].textContent, 'We’ll send your invoice; rendering continues once it’s paid.');
+  assert.equal(posts(invoice, '/square/trial/start-now').length, 0, 'no card charge on the invoice lane');
+  const owner = await withStartNow({ start: async () => ({ data: { error: 'not_owner' } }) });
+  await owner.control().fire('click'); await settle();
+  assert.equal(owner.ids['account-status'].textContent, 'Only the account owner can start the plan.');
+  const gone = await withStartNow({ start: async () => ({ data: { error: 'not_available' } }) });
+  await gone.control().fire('click'); await settle();
+  assert.equal(gone.control(), undefined);
+  for (const offer of [async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }), async () => ({ data: { available: false, lane: 'apple', missing: ['lane'] } })]) {
+    const hidden = await withStartNow({ offer });
+    assert.equal(hidden.control(), undefined);
+    assert.match(hidden.blockText(), /Rendering continues when your plan starts on 1 Dec 2026\./);
+  }
+  // The hold itself says whether it is offered (App Store trials never are).
+  const apple = await withStartNow({ hold: { start_plan_now: false } });
+  assert.equal(apple.control(), undefined);
+  assert.equal(apple.calls.some(call => call[0] === 'get_start_plan_now'), false);
 });

@@ -1137,23 +1137,68 @@ test('each capture and its review say how many rooms it has and the walkthroughs
   assert.ok(approving.calls.some(([name]) => name === 'review_tour_versioned'));
 });
 
-test('a trial past its 12 render attempts waits, never fails: the web desk offers Choose a plan, the app only the words', async () => {
-  const words = 'Your free months include up to 12 render attempts. Choose a plan to keep rendering.';
+test('a paused walkthrough (render state paused) says so on its card and offers Resume sharing; the queue’s global pause keeps its own line', async () => {
+  const PAUSED = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
+  const resumed = [];
+  const h = await load({ tours: [liveTour({ share_paused_at: '2026-09-26T00:00:00Z' })], approved: true,
+    rpc: { list_workspace_render_status: renderAnswer({ state: 'paused', status: 'awaiting_review', tour_id: 't1', share_paused: true }),
+      resume_tour_share: async args => { resumed.push({ ...args }); return { data: TOKEN }; } } });
+  await settle();
+  const block = renderBlockOf(h);
+  assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Paused');
+  assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [PAUSED]);
+  const resume = block.all().find(el => el.dataset.control === 'render-resume-share');
+  assert.equal(resume.textContent, 'Resume sharing');
+  await resume.fire('click'); await settle();
+  assert.deepEqual(resumed, [{ p_tour_id: 't1' }]);
+  // A server before the draft: a live row whose share_paused is true reads the same.
+  const older = await load({ tours: [liveTour()], approved: true,
+    rpc: { list_workspace_render_status: renderAnswer({ state: 'live', status: 'awaiting_review', tour_id: 't1', share_paused: true }) } });
+  await settle();
+  assert.equal(renderBlockOf(older).all().find(el => el.className === 'render-title').textContent, 'Paused');
+  // Someone who may not share reads the state without the button.
+  const operator = await load({ role: 'operator', tours: [liveTour({ share_paused_at: '2026-09-26T00:00:00Z' })], approved: true,
+    rpc: { list_workspace_render_status: renderAnswer({ state: 'paused', status: 'awaiting_review', tour_id: 't1', share_paused: true }) } });
+  await settle();
+  assert.equal(renderBlockOf(operator).all().some(el => el.dataset.control === 'render-resume-share'), false);
+  // Not the render queue's global pause: that is a waiting capture with its own words.
+  const queue = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', hold: { reason: 'paused', until: null } }) } });
+  assert.deepEqual(renderBlockOf(queue).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent),
+    ['Rendering is paused for a moment. Yours keeps its place in line.']);
+});
+
+test('what approving uses is never shown on a card that says nothing was used (Failed, Needs recapture)', async () => {
+  for (const job of [{ state: 'failed', status: 'failed' }, { state: 'needs_recapture', status: 'awaiting_review', recapture: [{ room: 'Kitchen', reason: 'Too dark' }] }]) {
+    const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ ...job, rooms: 9, walkthroughs_used: 2 }) } });
+    assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, job.state);
+    assert.doesNotMatch(textOf(renderBlockOf(h)), /uses 2 walkthroughs/, job.state);
+  }
+});
+
+test('a trial past its 12 render attempts waits, never fails, and says when rendering continues; the app says the words only', async () => {
+  // Owner decision 5 (26 September 2026): the date is the day this workspace's free months end.
+  const trial = { status: 'trial', plan_code: 'solo', source: 'web', billing_interval: 'monthly', trial_started_at: '2026-09-01T00:00:00Z',
+    trial_ends_at: '2026-12-01T00:00:00Z', trial_included_walkthroughs: 6, accepted_in_free_months: 1, auto_renews: true, renewal_price_aud_cents: 9900 };
+  const words = 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts on 1 Dec 2026.';
   const job = { state: 'waiting', status: 'queued', queue_position: 3, typical_start_minutes: 40, hold: { reason: 'trial_limit', until: null } };
-  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job), get_workspace_plan: async () => ({ data: [trial] }) } });
+  await settle();
   const block = renderBlockOf(h);
   assert.equal(block.dataset.state, 'waiting');
   assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
   assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
-  assert.doesNotMatch(textOf(block), /Failed|Try again|Retry|Contact Veylet support|You’re \d|Usually starts/);
-  const choose = block.all().find(el => el.dataset.control === 'trial-limit-plan');
-  assert.equal(choose.textContent, 'Choose a plan');
-  assert.equal(choose.className, 'tour-action tour-action-primary');
-  assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.', 'Choose a plan']);
-  await choose.fire('click');
-  assert.equal(h.documentStub.activeElement, h.ids['account-plan'], 'the filled action goes to the plan section');
+  assert.doesNotMatch(textOf(block), /Failed|Try again|Retry|Contact Veylet support|You’re \d|Usually starts|Choose a plan/);
+  // "Start my plan today" waits for the backend's function: until it is named, nothing to press.
+  assert.equal(block.all().some(el => el.dataset.control === 'start-plan-today'), false);
+  assert.equal(block.all().some(el => el.tagName === 'BUTTON'), false);
+  assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.']);
+  // Without a readable plan, no date is invented.
+  const undated = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  assert.deepEqual(renderBlockOf(undated).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent),
+    ['You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts.']);
   // /app/account: the words only; no price, no purchase link and nothing to press.
-  const app = await load({ markup: appMarkup, tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  const app = await load({ markup: appMarkup, tours: [], rpc: { list_workspace_render_status: renderAnswer(job), get_workspace_plan: async () => ({ data: [trial] }) } });
+  await settle();
   const appBlock = renderBlockOf(app);
   assert.deepEqual(appBlock.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
   assert.equal(appBlock.all().some(el => el.tagName === 'BUTTON' || el.tagName === 'A'), false);
@@ -1188,8 +1233,11 @@ test('the review shows the quality check’s advice as plain lines just above Ap
     'Bathroom: there may be stray smudges in the air', 'Hallway: the floor may be hard to walk on', 'Walking on to the next room may not work',
     'Garage: worth a closer look', 'Study: some corners may be missing']);
   assert.equal(flags.children[2].textContent, 'Open the preview to check these areas. They never stop you approving.');
+  // One-press approval: the advice, then what approving uses, then the one tick, then Approve and share.
   const order = form.children.map(el => el.className || el.textContent);
-  assert.equal(order.indexOf('tour-flags') + 1, order.indexOf('button'), 'right above Approve and share');
+  assert.ok(order.indexOf('tour-flags') < order.indexOf('tour-state-help tour-review-units'), 'advice first');
+  assert.equal(order.indexOf('tour-state-help tour-review-units') + 1, order.indexOf('review-right'), 'then the one tick');
+  assert.equal(order.indexOf('review-right') + 1, order.indexOf('button'), 'right above Approve and share');
   assert.doesNotMatch(textOf(flags), /Recapture|Needs recapture|failed/i, 'advice, not the recapture words');
   await approve(h);
   assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name]) => name), ['review_tour_versioned', 'enable_tour_share'], 'flags never block');

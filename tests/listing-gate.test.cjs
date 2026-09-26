@@ -38,7 +38,7 @@ test('a listing without a walkthrough is not asked', async () => {
   assert.equal(h.gate(), null);
 });
 
-test('the question: three answers in order, nothing chosen until the person chooses, then saved and read again', async () => {
+test('the question: four answers in order, nothing chosen until the person chooses, then saved and read again', async () => {
   let state = { occupancy: 'unknown', blocked_reason: 'occupancy_not_declared' };
   const h = await loadDesk({ approved: [], rpc: {
     get_listing_sharing_readiness: () => ({ data: { consent_recorded_at: null, consent_reference: null, grandfathered: false, ...state } }),
@@ -47,10 +47,11 @@ test('the question: three answers in order, nothing chosen until the person choo
   const gate = h.gate();
   assert.equal(gate.hidden, false);
   assert.equal(gate.dataset.occupancy, 'question');
-  assert.ok(h.words(gate).includes('Is anyone living here?'));
+  assert.ok(h.words(gate).includes('Is anyone living or working here?'));
   assert.ok(h.words(gate).includes('Veylet asks once for each listing, before its walkthrough is shared.'));
-  assert.deepEqual(gate.all().filter(el => el.className === 'occupancy-choice-text').map(el => el.textContent), ['Yes — tenants', 'Yes — the owner', 'No — it’s empty']);
-  assert.deepEqual(radios(gate).map(el => [el.value, el.checked]), [['tenanted', false], ['owner_occupied', false], ['vacant', false]]);
+  assert.deepEqual(gate.all().filter(el => el.className === 'occupancy-choice-text').map(el => el.textContent),
+    ['Yes — tenants live here', 'Yes — the owner lives here', 'It’s a business or workplace', 'No — it’s empty']);
+  assert.deepEqual(radios(gate).map(el => [el.value, el.checked]), [['tenanted', false], ['owner_occupied', false], ['business', false], ['vacant', false]]);
   // Saving without an answer says so beside the question and sends nothing.
   const form = gate.all().find(el => el.tagName === 'FORM');
   await form.fire('submit');
@@ -63,7 +64,7 @@ test('the question: three answers in order, nothing chosen until the person choo
   assert.equal(h.called('get_listing_sharing_readiness').length, 2, 'the desk is read again after a save');
   const after = h.gate();
   assert.equal(after.dataset.occupancy, 'summary');
-  assert.ok(h.words(after).includes('Nobody lives here.'));
+  assert.ok(h.words(after).includes('Nobody lives or works here.'));
   assert.ok(h.words(after).includes('Saved.'));
   assert.ok(h.button(after, 'Change answer'));
   // Change answer reopens the question with the answer chosen, and Keep my answer closes it.
@@ -179,7 +180,7 @@ test('a grandfathered live share gets one quiet line and no warning; its link ke
   assert.equal(box.tagName, 'DETAILS');
   assert.equal(box.open, false);
   const summary = box.children[0];
-  assert.deepEqual(summary.children.map(el => el.textContent), ['Is anyone living here?', 'Answer this before sharing again.']);
+  assert.deepEqual(summary.children.map(el => el.textContent), ['Is anyone living or working here?', 'Answer this before sharing again.']);
   // Inside, the question is said to assistive technology but not drawn a second time.
   assert.equal(box.all().find(el => el.tagName === 'LEGEND').className, 'occupancy-title render-sr');
   const card = h.card();
@@ -274,7 +275,7 @@ test('the app’s page asks the same question, links the in-app help, and still 
     const problems = [...new Set(written)].flatMap(value => findBanned(value, search));
     assert.deepEqual(problems, [], search);
     assert.ok(calls.includes('get_listing_sharing_readiness'), search);
-    assert.ok(written.includes('Is anyone living here?') || written.includes('Record the tenant’s written consent') || written.some(text => /lives here|Tenants live here/.test(text)), search);
+    assert.ok(written.includes('Is anyone living or working here?') || written.includes('Record the tenant’s written consent') || written.some(text => /lives here|lives or works here|Tenants live here/.test(text)), search);
   }
 });
 
@@ -290,4 +291,30 @@ test('consent refused because the home is no longer tenanted asks the question a
   assert.equal(gate.dataset.occupancy, 'question');
   assert.ok(h.words(gate).includes('Say whether anyone lives here first. Nothing was recorded.'));
   assert.equal(radios(gate)[0].wasFocused, true);
+});
+
+test('a business or workplace is recorded as occupied (tenanted), and its permission step names the business, not the Queensland tenancy rule', async () => {
+  // Server values unchanged: a business is 'tenanted' (staff or tenants occupy it); an empty one answers "No — it’s empty".
+  const data = {};
+  const storage = { getItem: key => (key in data ? data[key] : null), setItem: (key, value) => { data[key] = String(value); } };
+  let state = { occupancy: 'unknown', blocked_reason: 'occupancy_not_declared' };
+  const h = await loadDesk({ approved: [], localStorage: storage, rpc: {
+    get_listing_sharing_readiness: () => ({ data: { consent_recorded_at: null, consent_reference: null, grandfathered: false, ...state } }),
+    set_listing_occupancy: args => { state = { occupancy: args.p_occupancy, blocked_reason: args.p_occupancy === 'tenanted' ? 'tenant_consent_required' : null }; return { data: null }; },
+    record_tenant_consent: () => { state = { occupancy: 'tenanted', blocked_reason: null, consent_reference: 'Letter 7', consent_recorded_at: '2026-09-26T00:00:00Z' }; return { data: null }; },
+  } });
+  const gate = h.gate();
+  radios(gate).find(el => el.value === 'business').checked = true;
+  await gate.all().find(el => el.tagName === 'FORM').fire('submit'); await h.settle();
+  assert.deepEqual(h.called('set_listing_occupancy'), [{ p_property_id: 'p1', p_occupancy: 'tenanted' }]);
+  const after = h.gate();
+  const words = h.words(after);
+  assert.ok(words.includes('Saved. Now record the business’s permission.'));
+  assert.ok(words.includes('You said it’s a business or workplace.'));
+  assert.ok(words.includes('Record the business’s permission'));
+  assert.ok(words.some(text => text.startsWith('Get permission from the business before you capture people, screens or documents.')));
+  assert.equal(words.some(text => /Queensland|tenant’s written consent/.test(text)), false, 'no residential tenancy note for a business');
+  // A tenanted listing in a browser that does not know it is a business keeps the tenant wording (the legal default).
+  const other = await loadDesk({ approved: [], rpc: { get_listing_sharing_readiness: readiness({ occupancy: 'tenanted', blocked_reason: 'tenant_consent_required' }) } });
+  assert.ok(h.words(other.gate()).some(text => /In Queensland you need the tenant’s written consent/.test(text)));
 });

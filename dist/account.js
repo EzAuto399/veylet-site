@@ -438,7 +438,7 @@
   // The hosting line in the words the app uses. The pages the app opens state no
   // amount: a sentence that names one is left out there.
   function hostingWords(row, live) {
-    const line = window.VeyletSharing.hostingLine(row, live, Date.now(), { app: APP_MODE, planEndedAt: deskPlanEndedAt });
+    const line = window.VeyletSharing.hostingLine(row, live, Date.now(), { app: APP_MODE, planEndedAt: deskPlanEndedAt, office: officeLabel(row?.property_id) });
     if (!APP_MODE || !/\$/.test(line)) return line;
     return (line.replace(/\s*\([^)]*\$[^)]*\)/g, '').match(/[^.]+\./g) || []).filter(sentence => !/\$/.test(sentence)).join('').trim();
   }
@@ -464,13 +464,23 @@
     return wrap;
   }
 
-  const reviewChecks = {
-    coverage: 'Every included room and required surface is present.',
-    alignment: 'Walls, furniture and edges stay aligned while turning.',
-    navigation: 'Viewpoints and movement do not cross walls or expose broken areas.',
-    privacy: 'People, documents, screens and excluded areas have been checked.',
-    mobile: 'This exact tour has been checked on a physical phone.',
-  };
+  /*
+   * One-press approval (owner decision 26 September 2026; draft 20260926128000): the review
+   * shows the quality check's advice, then ONE required tick, then Approve and share. The new
+   * server takes p_checks {right_to_share: true} and no permission parameters (they default to
+   * null there; false refuses). A server that still wants the five attestations answers that
+   * call with its own refusal ("complete every quality and permission check before approval"),
+   * or, since its two permission parameters have no defaults, PGRST202 (no function takes
+   * those arguments); the desk then sends the old shape, five checks and both permissions
+   * true, which is what the one tick stands for, so the same screen works on both servers.
+   */
+  const RIGHT_TO_SHARE = 'I have the right to share this walkthrough.';
+  const REVIEW_CHECKS_NEW = Object.freeze({ right_to_share: true });
+  const REVIEW_CHECKS_OLD = Object.freeze({ coverage: true, alignment: true, navigation: true, privacy: true, mobile: true });
+  function reviewOldShapeRefusal(result) {
+    const error = result?.value?.error || null;
+    return Boolean(error) && /complete every quality and permission check/i.test(String(error.message || ''));
+  }
   function failed(result) { return result.timedOut || result.error || result.value?.error; }
   function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
   // `extra`: a secondary link beside the action ({ label, href, control }), never filled.
@@ -568,9 +578,9 @@
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
-      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope. Inspect the saved photographs, keep the originals and confirm the transfer receipt before moving on.', 'See capture preparation', '/start#capture-partners');
+      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See capture preparation', '/start#capture-partners');
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Export the saved capture to Files or AirDrop, then use the private transfer route Veylet support confirms.', 'See your first-tour steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See your first-tour steps', '/start');
     }
   }
   function button(label, fn) {
@@ -1356,9 +1366,17 @@
    * line. A backend without the functions (PGRST202, today's hosted project) shows
    * nothing and every card reads as before. The app says the same words, and nothing
    * here goes beyond the one sentence about Queensland.
+   *
+   * Property variety (launch review #10, 26 September 2026): the question is "Is anyone
+   * living or working here?" with a fourth answer, "It's a business or workplace". The
+   * server's occupancy values are unchanged: a business is recorded as 'tenanted' (staff or
+   * tenants occupy it, so permission is still recorded before sharing); an empty business
+   * answers "No — it's empty" ('vacant'). The server does not keep "business", so this
+   * browser remembers it per listing to word the permission step for a business; anywhere
+   * else a 'tenanted' listing reads with the residential tenant wording, the legal default.
    */
   const GATE_WORDS = Object.freeze({
-    question: 'Is anyone living here?',
+    question: 'Is anyone living or working here?',
     why: 'Veylet asks once for each listing, before its walkthrough is shared.',
     save: 'Save answer',
     change: 'Change answer',
@@ -1388,11 +1406,37 @@
     askFirst: 'Say whether anyone lives here first. Nothing was recorded.',
     fixOccupancy: 'Answer the question',
     fixConsent: 'Add consent',
-    guideOccupancy: 'Answer the question on its listing below: is anyone living here? Then turn sharing on.',
+    guideOccupancy: 'Answer the question on its listing below: is anyone living or working here? Then turn sharing on.',
     guideConsent: 'Record the tenant’s written consent on its listing below, then turn sharing on.',
   });
-  const GATE_OPTIONS = Object.freeze([['tenanted', 'Yes — tenants'], ['owner_occupied', 'Yes — the owner'], ['vacant', 'No — it’s empty']]);
-  const GATE_SUMMARY = Object.freeze({ owner_occupied: 'The owner lives here.', vacant: 'Nobody lives here.' });
+  // [choice, server value, label]. 'business' is recorded as 'tenanted' (see above).
+  const GATE_OPTIONS = Object.freeze([['tenanted', 'tenanted', 'Yes — tenants live here'], ['owner_occupied', 'owner_occupied', 'Yes — the owner lives here'],
+    ['business', 'tenanted', 'It’s a business or workplace'], ['vacant', 'vacant', 'No — it’s empty']]);
+  const GATE_SUMMARY = Object.freeze({ owner_occupied: 'The owner lives here.', vacant: 'Nobody lives or works here.' });
+  // The business wording for the permission step (no Queensland tenancy sentence).
+  const GATE_BUSINESS = Object.freeze({
+    answer: 'You said it’s a business or workplace.',
+    title: 'Record the business’s permission',
+    note: 'Get permission from the business before you capture people, screens or documents. Keep its written permission; record its reference here.',
+    reference: 'Permission reference',
+    referenceHint: 'For example, the email or letter that gave permission.',
+    noReference: 'Enter the permission’s name or number.',
+    noDate: 'Enter the date permission was given.',
+    signed: 'Date given',
+    saved: 'Saved. Now record the business’s permission.',
+    recorded: 'Permission recorded.',
+  });
+  const GATE_KIND_KEY = 'veylet-listing-business';
+  function gateBusiness(propertyId) {
+    try { return JSON.parse(window.localStorage?.getItem(GATE_KIND_KEY) || '[]').includes(propertyId); } catch { return false; }
+  }
+  function gateBusinessKeep(propertyId, business) {
+    try {
+      const kept = new Set(JSON.parse(window.localStorage?.getItem(GATE_KIND_KEY) || '[]').filter(id => typeof id === 'string'));
+      if (business) kept.add(propertyId); else kept.delete(propertyId);
+      window.localStorage?.setItem(GATE_KIND_KEY, JSON.stringify([...kept].slice(-200)));
+    } catch { /* this browser keeps nothing; the tenant wording stands */ }
+  }
   const GATE_OCCUPANCY = Object.freeze(['owner_occupied', 'vacant', 'tenanted', 'unknown']);
   // blocked_reason → the refusal it stands for (SHARE_REFUSALS).
   const GATE_REASONS = Object.freeze({ occupancy_not_declared: 'occupancy', tenant_consent_required: 'consent' });
@@ -1484,10 +1528,12 @@
     group.setAttribute('aria-describedby', why.id);
     group.append(annualNode('legend', refs.titleClass, GATE_WORDS.question), why);
     const inputs = [];
-    for (const [value, label] of GATE_OPTIONS) {
+    const business = gateBusiness(space.id);
+    for (const [value, occupancy, label] of GATE_OPTIONS) {
       const choice = annualNode('label', 'choice occupancy-choice');
       const input = annualNode('input'); input.type = 'radio'; input.name = 'occupancy-' + space.id; input.value = value;
-      input.checked = entry.changing && answer.occupancy === value;
+      input.dataset.occupancy = occupancy;
+      input.checked = entry.changing && answer.occupancy === occupancy && (occupancy !== 'tenanted' || (value === 'business') === business);
       input.dataset.control = 'occupancy-' + value;
       choice.append(input, annualNode('span', 'occupancy-choice-text', label));
       group.append(choice); inputs.push(input);
@@ -1511,25 +1557,29 @@
         group.setAttribute('aria-describedby', why.id + ' ' + problem.id); inputs[0].focus?.();
         return;
       }
-      void gateSave(entry, 'set_listing_occupancy', { p_property_id: space.id, p_occupancy: chosen.value }, save,
-        chosen.value === 'tenanted' ? GATE_WORDS.savedTenants : GATE_WORDS.saved);
+      const isBusiness = chosen.value === 'business';
+      gateBusinessKeep(space.id, isBusiness);
+      void gateSave(entry, 'set_listing_occupancy', { p_property_id: space.id, p_occupancy: chosen.dataset.occupancy }, save,
+        isBusiness ? GATE_BUSINESS.saved : chosen.value === 'tenanted' ? GATE_WORDS.savedTenants : GATE_WORDS.saved);
     });
     return form;
   }
-  function gateConsentProblems(reference, signed) {
+  function gateConsentProblems(reference, signed, business = false) {
     const problems = {};
     const text = reference.trim();
-    if (!text) problems.reference = GATE_WORDS.noReference;
+    if (!text) problems.reference = business ? GATE_BUSINESS.noReference : GATE_WORDS.noReference;
     else if (text.length > 120) problems.reference = GATE_WORDS.longReference;
-    if (!annualDay(signed)) problems.signed = GATE_WORDS.noDate;
+    if (!annualDay(signed)) problems.signed = business ? GATE_BUSINESS.noDate : GATE_WORDS.noDate;
     else if (signed > annualToday()) problems.signed = GATE_WORDS.future;
     return problems;
   }
   function gateConsent(entry, refs) {
     const { space } = entry;
     const form = annualNode('form', 'veylet-form occupancy-form occupancy-consent'); form.noValidate = true;
-    const heading = annualNode('h4', refs.titleClass, GATE_WORDS.consentTitle);
-    const note = annualNode('p', 'occupancy-note', GATE_WORDS.consentNote + ' ');
+    // A business: permission from the business, not the Queensland tenancy sentence.
+    const business = gateBusiness(space.id);
+    const heading = annualNode('h4', refs.titleClass, business ? GATE_BUSINESS.title : GATE_WORDS.consentTitle);
+    const note = annualNode('p', 'occupancy-note', (business ? GATE_BUSINESS.note : GATE_WORDS.consentNote) + ' ');
     const help = annualNode('a', 'occupancy-help', GATE_WORDS.help); help.href = GATE_HELP;
     note.append(help);
     const field = (key, label, input, hint) => {
@@ -1546,12 +1596,12 @@
     referenceInput.dataset.control = 'consent-reference';
     const signedInput = annualNode('input'); signedInput.type = 'date'; signedInput.max = annualToday(); signedInput.setAttribute('max', annualToday());
     signedInput.dataset.control = 'consent-signed';
-    const reference = field('reference', GATE_WORDS.reference, referenceInput, GATE_WORDS.referenceHint);
-    const signed = field('signed', GATE_WORDS.signed, signedInput, '');
+    const reference = field('reference', business ? GATE_BUSINESS.reference : GATE_WORDS.reference, referenceInput, business ? GATE_BUSINESS.referenceHint : GATE_WORDS.referenceHint);
+    const signed = field('signed', business ? GATE_BUSINESS.signed : GATE_WORDS.signed, signedInput, '');
     const record = annualNode('button', 'tour-action tour-action-primary', GATE_WORDS.record); record.type = 'submit'; record.dataset.control = 'consent-record';
     const change = button(GATE_WORDS.change, () => { entry.changing = true; gateDraw(entry, true); });
     change.dataset.control = 'occupancy-change';
-    form.append(annualNode('p', 'occupancy-answer', GATE_WORDS.tenants), heading, note, reference.wrap, signed.wrap, annualRow(record, change));
+    form.append(annualNode('p', 'occupancy-answer', business ? GATE_BUSINESS.answer : GATE_WORDS.tenants), heading, note, reference.wrap, signed.wrap, annualRow(record, change));
     refs.first = referenceInput; refs.change = change;
     let attempted = false;
     const paint = problems => {
@@ -1563,16 +1613,16 @@
         if (described) part.input.setAttribute('aria-describedby', described); else part.input.removeAttribute('aria-describedby');
       }
     };
-    form.addEventListener('input', () => { if (attempted) paint(gateConsentProblems(referenceInput.value, signedInput.value)); });
+    form.addEventListener('input', () => { if (attempted) paint(gateConsentProblems(referenceInput.value, signedInput.value, business)); });
     form.addEventListener('submit', event => {
       event?.preventDefault?.();
       attempted = true;
-      const problems = gateConsentProblems(referenceInput.value, signedInput.value);
+      const problems = gateConsentProblems(referenceInput.value, signedInput.value, business);
       paint(problems);
       if (problems.reference) { referenceInput.focus?.(); return; }
       if (problems.signed) { signedInput.focus?.(); return; }
       void gateSave(entry, 'record_tenant_consent', { p_property_id: space.id, p_consent_reference: referenceInput.value.trim(), p_consented_on: signedInput.value },
-        record, GATE_WORDS.recorded);
+        record, business ? GATE_BUSINESS.recorded : GATE_WORDS.recorded);
     });
     return form;
   }
@@ -1582,7 +1632,8 @@
     let words = GATE_SUMMARY[answer.occupancy];
     if (answer.occupancy === 'tenanted') {
       const date = window.VeyletSharing?.hostingDate?.(answer.recordedAt) || '';
-      words = 'Tenants live here. Written consent recorded' + (date ? ' on ' + date : '') + (answer.reference ? ' (reference: ' + answer.reference + ').' : '.');
+      words = (gateBusiness(entry.space.id) ? 'A business or workplace. Permission recorded' : 'Tenants live here. Written consent recorded')
+        + (date ? ' on ' + date : '') + (answer.reference ? ' (reference: ' + answer.reference + ').' : '.');
     }
     const change = button(GATE_WORDS.change, () => { entry.changing = true; gateDraw(entry, true); });
     change.dataset.control = 'occupancy-change';
@@ -1749,48 +1800,49 @@
     const summary = document.createElement('summary'); summary.textContent = 'Review this walkthrough'; details.append(summary);
     const form = document.createElement('form');
     const fields = {};
-    const labels = { ...reviewChecks, capture_permission: 'I have the property’s permission for this capture.', publication_permission: 'I have permission to publish and share this exact tour.' };
-    for (const [key, label] of Object.entries(labels)) {
-      const row = document.createElement('label'); const input = document.createElement('input');
-      input.type = 'checkbox'; input.required = true; input.name = key; fields[key] = input;
-      const text = document.createElement('span'); text.textContent = label;
-      row.append(input, text); form.append(row);
-    }
-    message(form, 'Open the review preview in a new tab, then check this exact package. This records a human review, not an automatic quality score. Leave a check clear if it needs correction.');
+    message(form, 'Open the preview and walk through it. If something needs fixing, ask for a correction instead of approving.');
     // What the one press does, before it is pressed. A correction says its own (the
     // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
     if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.', 'tour-state-help tour-share-terms');
-    // The quality check's advice for this walkthrough, if any: read, never a block.
-    // What approving uses, from its capture's rooms; nothing until the server counted them.
-    const unitSlot = document.createElement('p'); unitSlot.className = 'tour-state-help tour-review-units'; unitSlot.hidden = true; form.append(unitSlot);
-    reviewUnitSlots.set(tour.id, unitSlot); paintReviewUnits(unitSlot, reviewUnits.get(tour.id));
+    // The quality check's advice first, read, never a block; then what approving uses.
     const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
     reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
+    const unitSlot = document.createElement('p'); unitSlot.className = 'tour-state-help tour-review-units'; unitSlot.hidden = true; form.append(unitSlot);
+    reviewUnitSlots.set(tour.id, unitSlot); paintReviewUnits(unitSlot, reviewUnits.get(tour.id));
+    // The one required tick.
+    {
+      const row = document.createElement('label'); row.className = 'review-right';
+      const input = document.createElement('input'); input.type = 'checkbox'; input.required = true; input.name = 'right_to_share'; fields.right_to_share = input;
+      const text = document.createElement('span'); text.textContent = RIGHT_TO_SHARE;
+      row.append(input, text); form.append(row);
+    }
     const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
     // is sent from this page and no approval is recorded.
     const corrections = document.createElement('a'); corrections.className = 'tour-action'; corrections.textContent = 'Request corrections by email';
     const correctionsHref = () => {
-      const open = Object.keys(reviewChecks).filter(key => !fields[key].checked).map(key => '- ' + reviewChecks[key]);
       // The walkthrough reference lets the studio record the new package against this
       // walkthrough, so the correction uses no second walkthrough from the allowance.
       const reference = String(walkthroughOf(tour)).slice(0, 8);
       const body = ['Walkthrough reference: ' + reference, 'Version: ' + revisionOf(tour), 'Tour reference: ' + String(tour.id).slice(0, 8),
         'Package: ' + snapshot.revision.slice(0, 12), '',
-        'Checks that need correction:', ...(open.length ? open : ['- (tick the checks that pass, then use this link again)']), '',
-        'Where it happens (captured view number, room or doorway):', '', 'Leave out street addresses and access details.'].join('\n');
+        'What needs correcting:', '', 'Where it happens (captured view number, room or doorway):', '', 'Leave out street addresses and access details.'].join('\n');
       return 'mailto:yoda@yodalai.xyz?subject=' + encodeURIComponent('Veylet corrections · walkthrough ' + reference) + '&body=' + encodeURIComponent(body);
     };
     corrections.href = correctionsHref();
-    corrections.addEventListener('click', () => { corrections.href = correctionsHref(); say('Your mail app opens with the unchecked items listed. One consolidated request keeps corrections to a single round.'); });
+    corrections.addEventListener('click', () => { corrections.href = correctionsHref(); say('Your mail app opens with the walkthrough’s reference. List everything in one request, so corrections take a single round.'); });
     form.append(corrections);
     form.addEventListener('submit', async event => {
       event.preventDefault(); if (save.disabled || Object.values(fields).some(field => !field.checked)) return;
       save.disabled = true;
-      const checks = Object.fromEntries(Object.keys(reviewChecks).map(key => [key, fields[key].checked]));
-      const reply = await settled(supabase.rpc('review_tour_versioned', { p_tour_id: tour.id, p_expected_storage_path: snapshot.path, p_expected_package_revision: snapshot.revision, p_checks: checks, p_capture_permission: fields.capture_permission.checked, p_publication_permission: fields.publication_permission.checked }));
+      const base = { p_tour_id: tour.id, p_expected_storage_path: snapshot.path, p_expected_package_revision: snapshot.revision };
+      let reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_NEW }));
+      // A server before 20260926128000 wants the five attestations: the one tick stands for them.
+      if ((reviewOldShapeRefusal(reply) || missingFunction(reply)) && ticket === deskVersion) {
+        reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_OLD, p_capture_permission: true, p_publication_permission: true }));
+      }
       if (ticket !== deskVersion) return;
       if (sessionGone(reply)) { showSignedOut('Your sign-in expired. Sign in and check the saved review before continuing.'); return; }
       if (failed(reply) || firstRow(reply.value?.data)?.approved !== true) {
@@ -2075,6 +2127,7 @@
     referralSkeleton();
   }
   function planWorkspaceName(id, props) {
+    if (officeNames.has(id)) return officeNames.get(id);
     const properties = props && !failed(props) ? props.value?.data || [] : [];
     const match = properties.find(row => row.workspace_id === id);
     return match?.title || 'workspace ' + String(id || '').slice(0, 8);
@@ -2128,6 +2181,7 @@
       if (ticket !== deskVersion) return;
       row = !failed(reply) ? firstRow(reply.value?.data) : null;
       planEndedKnown(row);
+      planKnown(workspaceID, row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : !workspaceID && !failed(members) ? 'pending' : null;
@@ -2165,6 +2219,7 @@
       row = reply && !failed(reply) ? firstRow(reply.value?.data) : null;
       view = planVocabulary(row);
       planEndedKnown(row);
+      planKnown(workspaceID, row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     // The app leads with the vocabulary title, then the rows, then the sentence.
@@ -2340,11 +2395,18 @@
       // Offer 2026-09-25.1, only where the answer carries it (older servers do not):
       // a monthly plan's banked rollover, and an annual plan's yearly pool.
       const { banked, rollover, pool, poolEnds, bonus } = planAllowance(row, cap);
-      if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' included accepted';
+      // One count per panel, from the capacity answer (the plan row's per-month figure leaves out
+      // banked walkthroughs): the cell and the sentence say the same numbers.
+      if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
       if (pool && usageTerm) usageTerm.textContent = 'Plan year';
       if (extraCell) extraCell.textContent = cap.extra_credits_available + ' available';
       if (cap.plan_status === 'trial') body.textContent = view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
       if (pool) body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this plan year.');
+      else if (cap.plan_status === 'active' && planInterval(row) === 'monthly') {
+        const perMonth = Number.isInteger(row.included_per_month) ? row.included_per_month : cap.included_limit - (banked || 0);
+        body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this month'
+          + (banked > 0 ? ' (' + perMonth + ' a month + ' + banked + ' banked)' : '') + '.');
+      }
       // Bonus walkthroughs (early annual, referral) are extra walkthroughs too; the line says how many.
       const extras = cap.extra_credits_available + ' extra walkthrough' + (cap.extra_credits_available === 1 ? '' : 's') + ' available' +
         (bonus ? ', including ' + bonus + ' bonus' : '') + '.';
@@ -5519,9 +5581,12 @@
   // The server's state (capture_render_state) to what this page draws.
   // No person checks a walkthrough: an older answer's studio_check is step 5, Checking quality.
   const RENDER_SERVER_STATES = { uploading: 'uploading', waiting: 'waiting', rendering: 'rendering', studio_check: 'checking',
-    ready_for_review: 'ready', live: 'live', needs_recapture: 'recapture', retrying: 'retrying', failed: 'failed' };
+    ready_for_review: 'ready', live: 'live', paused: 'paused', needs_recapture: 'recapture', retrying: 'retrying', failed: 'failed' };
+  // `paused` (draft 20260926142000): the approved walkthrough's link exists and its sharing is
+  // paused (tours.share_paused_at). Not the queue's hold {reason: 'paused'}, the global render
+  // pause, which keeps its own waiting line.
   const RENDER_TITLES = { uploading: 'Uploading', waiting: 'Waiting to render', rendering: 'Rendering',
-    ready: 'Ready for your review', live: 'Live', recapture: 'Needs recapture', retrying: 'Retrying', failed: 'Failed',
+    ready: 'Ready for your review', live: 'Live', paused: 'Paused', recapture: 'Needs recapture', retrying: 'Retrying', failed: 'Failed',
     stale: 'Still working — checking in' };
   // Whose turn it is, beside the state: rendering is automatic; a failure is Veylet support's.
   const RENDER_TURNS = { uploading: 'Sending from your phone', waiting: 'Automatic', rendering: 'Automatic',
@@ -5584,19 +5649,122 @@
    * Waiting to render, with no failure and nothing to press. The contract's words.
    */
   // trial_limit (20260926140000, offer 2026-09-26.3): a trial reached its 12 render attempts
-  // (freeMonths.renderAttemptCap); until is null. Still waiting, never Failed: choosing a plan
-  // lets it render. The web desk's filled action goes to the plan panel; the app's pages say
-  // the words only, with no price and no purchase link.
+  // (freeMonths.renderAttemptCap). Still waiting, never Failed: rendering goes on when the plan
+  // starts, on the day the free months end (owner decision 5, 26 September 2026): the hold's
+  // plan_starts_on (draft 20260926141000), else the date this desk read from that workspace's
+  // plan. start_plan_now marks the website card and invoice lanes, which may start it today.
   const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit', 'trial_limit'];
-  const RENDER_TRIAL_LIMIT = 'Your free months include up to 12 render attempts. Choose a plan to keep rendering.';
-  function renderHold(value) {
+  // Per workspace: when its free months end, and how its plan is paid (web, studio, apple).
+  const planTrialEnds = new Map(), planLanes = new Map();
+  function planKnown(workspaceID, row) {
+    if (!workspaceID) return;
+    const ends = row && row.status === 'trial' && typeof row.trial_ends_at === 'string' && !Number.isNaN(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
+    const lane = row && PLAN_SOURCES.includes(row.source) ? row.source : null;
+    const changed = planTrialEnds.get(workspaceID) !== ends || planLanes.get(workspaceID) !== lane;
+    planTrialEnds.set(workspaceID, ends); planLanes.set(workspaceID, lane);
+    if (changed && render?.answers) renderDraw();
+  }
+  function renderTrialLimitWords(hold) {
+    const day = hold.planStarts ? window.VeyletSharing?.hostingDate?.(hold.planStarts) || '' : '';
+    return 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts' + (day ? ' on ' + day : '') + '.';
+  }
+  /*
+   * "Start my plan today" (draft 20260926141000_trial_start_now.sql). The hold says whether it is
+   * offered (start_plan_now: website card and invoice lanes only); get_start_plan_now(p_workspace)
+   * reads the server's offer (prices in cents, walkthroughs left and until when). The press records
+   * one attempt (start_plan_now; a repeat press answers the same attempt); the website card lane
+   * then asks the hooks service (POST /square/trial/start-now) to charge the saved card now, and
+   * the invoice lane waits for the studio's invoice. Never on the app's pages; a backend without
+   * the functions (PGRST202) or an offer not available shows the words only.
+   */
+  const startNowOffers = new Map();   // workspace -> { state: 'loading' | 'ready' | 'none', offer }
+  const startNowSaid = new Map();     // workspace -> the last result sentence
+  const START_NOW_RETRIES = 5, START_NOW_RETRY_MS = 3000;
+  function startNowOfferValid(offer) {
+    return Boolean(offer) && typeof offer === 'object' && offer.available === true && ['web', 'invoice'].includes(offer.lane)
+      && Array.isArray(offer.plans) && offer.plans.every(plan => plan && ['monthly', 'annual'].includes(plan.interval) && Number.isInteger(plan.cents) && plan.cents > 0);
+  }
+  function startNowRead(workspaceID, supabase) {
+    if (!workspaceID || !supabase || startNowOffers.has(workspaceID)) return;
+    startNowOffers.set(workspaceID, { state: 'loading', offer: null });
+    void settled(Promise.resolve().then(() => supabase.rpc('get_start_plan_now', { p_workspace: workspaceID }))).then(reply => {
+      const offer = failed(reply) || missingFunction(reply) ? null : firstRow(reply.value?.data);
+      startNowOffers.set(workspaceID, startNowOfferValid(offer) ? { state: 'ready', offer } : { state: 'none', offer: null });
+      if (render?.answers) renderDraw();
+    });
+  }
+  const startNowWait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  async function startNowPress(workspaceID, supabase, control) {
+    const entry = startNowOffers.get(workspaceID);
+    if (!entry || entry.state !== 'ready' || control.disabled) return;
+    const { offer } = entry;
+    control.disabled = true;
+    const say = text => { startNowSaid.set(workspaceID, text); setStatus(text); if (render?.answers) renderDraw(); };
+    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
+    const result = await settled(Promise.resolve().then(() => supabase.rpc('start_plan_now', { p_workspace: workspaceID, p_plan_interval: plan.interval })));
+    if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
+    if (missingFunction(result)) { startNowOffers.set(workspaceID, { state: 'none', offer: null }); if (render?.answers) renderDraw(); return; }
+    const answer = failed(result) ? null : firstRow(result.value?.data);
+    if (answer?.error === 'not_available') { startNowOffers.set(workspaceID, { state: 'none', offer: null }); startNowSaid.delete(workspaceID); if (render?.answers) renderDraw(); return; }
+    if (answer?.error === 'not_owner') { control.disabled = false; say('Only the account owner can start the plan.'); return; }
+    if (!answer || typeof answer.attempt_id !== 'string' || !answer.attempt_id) { control.disabled = false; say('Your plan didn’t start. Try again or contact support.'); return; }
+    if (answer.state === 'started') { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
+    if ((answer.lane || offer.lane) === 'invoice') { say('We’ll send your invoice; rendering continues once it’s paid.'); return; }
+    // The website card lane: the hooks service charges the saved card now.
+    const token = await annualToken(supabase);
+    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
+    for (let attempt = 0; attempt <= START_NOW_RETRIES; attempt++) {
+      const reply = await settled(annualHooks('/square/trial/start-now', { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ workspace_id: workspaceID, attempt_id: answer.attempt_id }) }), 30000);
+      const status = reply.timedOut || reply.error ? 0 : reply.value?.status;
+      if (status === 401) { showSignedOut('Your sign-in has expired. Sign in again to start your plan.'); return; }
+      if (status === 200) { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
+      if (status === 202 && attempt < START_NOW_RETRIES) { await startNowWait(START_NOW_RETRY_MS); continue; }
+      control.disabled = false;
+      if (status === 202) { say('Your plan is still starting. Check again in a minute; nothing is charged twice.'); return; }
+      if (status === 402) { say('Your card was declined. Update it and try again.'); return; }
+      if (status === 409) { say('Your plan didn’t start. Try again or contact support.'); return; }
+      say('Starting your plan isn’t open yet.'); return;
+    }
+  }
+  // The button and its detail, beside the hold: web and invoice lanes only, never on the app's pages.
+  function startPlanTodayParts(hold, supabase) {
+    if (APP_MODE || !hold.startNow || !hold.workspace) return [];
+    const entry = startNowOffers.get(hold.workspace);
+    if (!entry) { startNowRead(hold.workspace, supabase); return []; }
+    const said = startNowSaid.get(hold.workspace);
+    if (entry.state !== 'ready') return [];
+    const { offer } = entry;
+    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
+    const until = window.VeyletSharing?.hostingDate?.(offer.free_walkthroughs_usable_until || offer.free_months_end_on) || '';
+    const detail = annualNode('p', 'render-note', 'Your free months end today and your plan starts now. Walkthroughs left from your free months stay usable until '
+      + (until || 'the day your free months were due to end') + '. The plan is ' + planMoney(plan.cents) + (plan.interval === 'annual' ? ' a year' : ' a month')
+      + (offer.lane === 'invoice' ? ', invoiced today.' : ', charged today to the card on your account.'));
+    const start = button('Start my plan today', () => startNowPress(hold.workspace, supabase, start));
+    start.className = 'tour-action tour-action-primary'; start.dataset.control = 'start-plan-today';
+    const actions = annualNode('p', 'render-actions'); actions.append(start);
+    const parts = [actions, detail];
+    if (said) parts.push(annualNode('p', 'render-note render-start-said', said));
+    return parts;
+  }
+  function renderHold(value, workspaceID = null) {
     if (!value || typeof value !== 'object' || !RENDER_HOLDS.includes(value.reason)) return null;
-    return { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
+    const hold = { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
+    if (value.reason === 'trial_limit') {
+      hold.workspace = workspaceID;
+      const starts = typeof value.plan_starts_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.plan_starts_on) ? value.plan_starts_on + 'T00:00:00+10:00' : null;
+      hold.planStarts = starts || (workspaceID ? planTrialEnds.get(workspaceID) || null : null);
+      hold.startNow = value.start_plan_now === true;
+      // What the offer read and the last press said: part of the view, so a change redraws the card.
+      if (hold.startNow && !APP_MODE && workspaceID) { hold.offer = startNowOffers.get(workspaceID)?.state || null; hold.said = startNowSaid.get(workspaceID) || ''; }
+    }
+    return hold;
   }
   function renderHoldWords(hold) {
     if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
     if (hold.reason === 'paused') return 'Rendering is paused for a moment. Yours keeps its place in line.';
-    if (hold.reason === 'trial_limit') return RENDER_TRIAL_LIMIT;
+    if (hold.reason === 'trial_limit') return renderTrialLimitWords(hold);
     const day = hold.until ? window.VeyletSharing?.hostingDate?.(hold.until) || '' : '';
     return 'You’ve used this week’s renders. ' + (day ? 'This one starts on ' + day + '.' : 'This one starts as soon as the week allows another.');
   }
@@ -5699,7 +5867,7 @@
     if (key === 'uploading') view = { key, pct: renderInt(job.progress_pct, 0, 100) };
     // A held job stays Waiting to render; the hold replaces its place in line and minutes.
     else if (key === 'waiting') {
-      const hold = renderHold(job.hold);
+      const hold = renderHold(job.hold, desk?.properties?.get?.(job.property_id)?.workspace_id || null);
       view = hold ? { key, position: null, wait: null, hold } : { key, position: renderInt(job.queue_position, 1, 100000), wait: renderInt(job.typical_start_minutes, 1, 100000) };
     }
     // A render that has not checked in for 3 minutes (the server's stale) shows no live progress.
@@ -5711,11 +5879,14 @@
     // Approved and not yet shared: the walkthrough's card below owns the next step.
     else if (key === 'ready') view = tourID && renderApproved.has(tourID) ? null : { key, tour: tourID };
     // A paused link is not live: the walkthrough's card says Paused and owns Resume.
-    else if (key === 'live') view = tourID && sharePaused(desk?.tours?.get(tourID)) ? null : { key, tour: tourID };
+    // A live row that says share_paused (or a server before the draft, when the tour itself says so) is paused.
+    else if (key === 'live' && (job.share_paused === true || (tourID && sharePaused(desk?.tours?.get(tourID))))) view = { key: 'paused', tour: tourID };
+    else if (key === 'live' || key === 'paused') view = { key, tour: tourID };
     else if (key === 'recapture') view = { key, rooms: renderRooms(job.recapture) };
     else view = { key };
     if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
-    if (view) { const units = renderRoomsUse(job); if (units) view.units = units; }
+    // What approving uses; never on a card that says nothing was used (Failed, Needs recapture).
+    if (view && !['failed', 'recapture'].includes(view.key)) { const units = renderRoomsUse(job); if (units) view.units = units; }
     return view;
   }
   function renderStepWords(step) { return 'Step ' + step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[step - 1] + '.'; }
@@ -5815,10 +5986,7 @@
       case 'waiting': {
         if (view.hold) {
           line(renderHoldWords(view.hold)).classList.add('render-hold');
-          if (view.hold.reason === 'trial_limit' && !APP_MODE) {
-            const choose = button('Choose a plan', focusPlan); choose.className = 'tour-action tour-action-primary'; choose.dataset.control = 'trial-limit-plan';
-            const actions = annualNode('p', 'render-actions'); actions.append(choose); block.append(actions);
-          }
+          if (view.hold.reason === 'trial_limit') block.append(...startPlanTodayParts(view.hold, render?.supabase));
           break;
         }
         const words = [view.position ? 'You’re ' + renderOrdinal(view.position) + ' in line.' : '',
@@ -5849,6 +6017,22 @@
         break;
       case 'live':
         line(LIVE_LINE);
+        break;
+      case 'paused':
+        line(PAUSED_LINE);
+        // Whoever may share resumes it here; the link stays the same.
+        if (canReview && view.tour && render?.supabase) {
+          const resume = button('Resume sharing', async () => {
+            if (resume.disabled) return;
+            resume.disabled = true;
+            const result = await settled(Promise.resolve().then(() => render.supabase.rpc('resume_tour_share', { p_tour_id: view.tour })));
+            if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing resumed.'); return; }
+            if (failed(result)) { resume.disabled = false; setStatus('Resuming was not confirmed. Refresh the desk to check before retrying.'); return; }
+            setStatus(RESUMED_SAID); await loadDesk(render.supabase);
+          });
+          resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'render-resume-share';
+          const actions = annualNode('p', 'render-actions'); actions.append(resume); block.append(actions);
+        }
         break;
       case 'recapture':
         if (view.rooms.length) {
@@ -5916,7 +6100,7 @@
     if (!said || said === renderGuideSaid) return;
     renderGuideSaid = said;
     if (said === 'held-trial_limit') {
-      guide('Your capture is waiting to start.', RENDER_TRIAL_LIMIT + ' It shows on ' + moving.title + ' below.', APP_MODE ? null : 'Choose a plan', APP_MODE ? null : focusPlan);
+      guide('Your capture is waiting to start.', renderTrialLimitWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.');
       return;
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
@@ -5958,7 +6142,7 @@
       if (view) {
         views.push({ view, propertyID, title });
         const canReview = ['owner', 'reviewer'].includes(desk.roles.get(space.workspace_id));
-        if (view.tour && ['ready', 'live'].includes(view.key)) covered.set(view.tour, view.key === 'ready' && !canReview ? 'Ready for review' : RENDER_TITLES[view.key]);
+        if (view.tour && ['ready', 'live', 'paused'].includes(view.key)) covered.set(view.tour, view.key === 'ready' && !canReview ? 'Ready for review' : RENDER_TITLES[view.key]);
         signature = JSON.stringify([view, row.job_id, canReview, view.express ? expressMoment(view.express) : '']);
         draw = () => renderBlock(view, row, title, canReview);
         const said = renderSignature(view);
@@ -6128,6 +6312,26 @@
     return answer;
   }
   // The memberships the desk uses, main office first; the empty personal one left out.
+  // Office labels (launch review #3): with more than one workspace, each space and each hosting
+  // line says whose office it is, from workspaces.name (no name, no label).
+  const officeNames = new Map();
+  const officeOfProperty = new Map();
+  let deskMultiOffice = false;
+  function deskOffices(members, offices, props) {
+    officeNames.clear(); officeOfProperty.clear();
+    for (const row of !failed(offices) && Array.isArray(offices.value?.data) ? offices.value.data : []) {
+      const name = row && typeof row.name === 'string' ? row.name.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+      if (row?.id && name) officeNames.set(row.id, name);
+    }
+    const rows = failed(members) ? [] : (members.value?.data || []).filter(row => row && row.workspace_id);
+    deskMultiOffice = rows.length > 1;
+    for (const row of !failed(props) && Array.isArray(props.value?.data) ? props.value.data : []) {
+      // Only a real office name labels a space; a space's own title would name the wrong thing.
+      if (row?.id && row.workspace_id && officeNames.has(row.workspace_id)) officeOfProperty.set(row.id, officeNames.get(row.workspace_id));
+    }
+  }
+  // The office a property belongs to, only when there is more than one to tell apart.
+  function officeLabel(propertyID) { return deskMultiOffice ? officeOfProperty.get(propertyID) || '' : ''; }
   function deskMemberships(members, primary) {
     if (failed(members) || !Array.isArray(members.value?.data)) return members;
     let rows = members.value.data.filter(row => row && row.workspace_id);
@@ -6192,7 +6396,7 @@
     stopPolling();
     let ticket = shown ? deskVersion : deskReset();
     if (shown) list.setAttribute('aria-busy', 'true');
-    let [props, tours, members, production, hosting, hostingStates, primary] = await Promise.all([
+    let [props, tours, members, production, hosting, hostingStates, primary, offices] = await Promise.all([
       settled(supabase.from('properties').select('id,title,category,location_general,workspace_id,created_at').order('created_at', { ascending: false })),
       readTours(supabase),
       readMemberships(supabase),
@@ -6204,12 +6408,15 @@
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting_states', {}))),
       // The main office (draft 20260926127000); absent, the order is as before.
       settled(Promise.resolve().then(() => supabase.rpc('get_primary_workspace', {}))),
+      // Office names (workspaces.name; members may read their own workspaces). Only labels.
+      settled(Promise.resolve().then(() => supabase.from('workspaces').select('id,name'))),
     ]);
     // Supported when it answers null (no membership yet) or one of this person's own workspaces.
     const primaryID = failed(primary) || missingFunction(primary) ? undefined : primary.value?.data ?? null;
     primarySupported = primaryID === null || (typeof primaryID === 'string' && !failed(members)
       && (members.value?.data || []).some(row => row?.workspace_id === primaryID));
     members = deskMemberships(members, primarySupported ? primaryID : null);
+    deskOffices(members, offices, props);
     if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
     list.setAttribute('aria-busy', 'false');
     const reads = [props, tours, members];
@@ -6304,7 +6511,7 @@
       // The name is the heading; what kind of space and where are its details.
       const title = document.createElement('h3'); title.className = 'dash-space-title';
       title.textContent = row.title || 'Untitled space'; li.append(title);
-      const where = [row.category, row.location_general].filter(Boolean).join(' · ');
+      const where = [officeLabel(row.id), row.category, row.location_general].filter(Boolean).join(' · ');
       if (where) { const meta = document.createElement('p'); meta.className = 'dash-space-meta'; meta.textContent = where; li.append(meta); }
       // Where this space's capture is now, drawn when the render status answer arrives.
       const renderSlot = document.createElement('div'); renderSlot.className = 'dash-render'; renderSlot.hidden = true;
