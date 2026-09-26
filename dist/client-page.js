@@ -481,11 +481,36 @@
     else if (typeof query.addListener === 'function') query.addListener(apply);
   }
 
+  /*
+   * The buyer's page admits a failed start in buyer words (VIEWER-09). Once the
+   * walkthrough is on screen it works, so a stray error elsewhere changes nothing;
+   * a missing image is not a failure. No support address: the buyer's contact is
+   * the agent. (The desk pages keep place-fields.js's reporter.)
+   */
+  const FAILED_START = 'This page didn’t finish loading. Reload it, or ask the agent who sent you the link.';
+  function watchFailures(win, doc) {
+    let reported = false;
+    const shown = id => { const node = doc.getElementById(id); return Boolean(node && !node.hidden); };
+    const report = () => {
+      if (reported || shown('tour-stage') || shown('tour-frame')) return;
+      const status = doc.getElementById('handoff-status');
+      if (!status) return;
+      reported = true;
+      status.textContent = FAILED_START;
+    };
+    win.addEventListener('error', event => {
+      if (event && event.target && event.target !== win && event.target.tagName) return;
+      report();
+    });
+    win.addEventListener('unhandledrejection', () => report());
+    return report;
+  }
+
   window.VeyletClientPage = {
     dialable, telHref, mailtoHref, contactFrom, lookupContact, restClient,
     channelFrom, referrerHost, viewBeacon,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
-    reportHref, mountReport, linkToken, invitationPoster,
+    reportHref, mountReport, linkToken, invitationPoster, watchFailures,
   };
 })();

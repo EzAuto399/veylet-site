@@ -338,19 +338,9 @@ window.VeyletPlace = (() => {
  */
 (() => {
   let reported = false;
-  // The client's page (/handoff): a buyer, not an account holder.
-  const BUYER_MESSAGE = 'This page didn’t finish loading. Reload it, or ask the agent who sent you the link.';
-  const shown = id => { const node = document.getElementById(id); return Boolean(node && !node.hidden); };
   function report(what) {
     if (reported) return;
-    const buyer = !document.getElementById('account-status') && !document.getElementById('play-status') && Boolean(document.getElementById('handoff-status'));
-    // Once the walkthrough is on screen it works; a stray error elsewhere must not cover it.
-    if (buyer && (shown('tour-stage') || shown('tour-frame'))) return;
     reported = true;
-    if (buyer) {
-      document.getElementById('handoff-status').textContent = BUYER_MESSAGE;
-      return;
-    }
     const status =
       document.getElementById('account-status') ||
       document.getElementById('play-status') ||

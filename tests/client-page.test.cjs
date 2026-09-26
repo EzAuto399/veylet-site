@@ -621,29 +621,45 @@ test('a cut-off, run-on or malformed link reads as incomplete, never as turned o
 });
 
 test('a stray script error on the client page never covers a working walkthrough or names the support address (VIEWER-09)', () => {
-  const reporter = ({ status = 'handoff-status', stageShown = false } = {}) => {
+  // The buyer's page watches for its own failures (client-page.js); it no longer loads the desk's reporter.
+  const head = handoff.split('</head>')[0];
+  assert.doesNotMatch(head, /place-fields\.js/, '/handoff does not load the desk reporter');
+  const scripts = [...head.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[0]);
+  const watch = scripts.findIndex(tag => /VeyletClientPage\.watchFailures\(window, document\)/.test(tag));
+  const clientScript = scripts.findIndex(tag => /src="\/client-page\.js\?v=[a-f\d]{16}"/.test(tag));
+  const playerScript = scripts.findIndex(tag => /src="\/tour-player\.js\?v=[a-f\d]{16}"/.test(tag));
+  assert.ok(clientScript >= 0 && watch === clientScript + 1, 'the watch starts as soon as client-page.js has loaded');
+  assert.ok(watch < playerScript, 'and before the player glue, so its errors are caught too');
+  const reporter = ({ stageShown = false } = {}) => {
     const document = createDocument();
-    for (const id of [status, 'tour-stage', 'tour-frame']) { const node = document.createElement(id === status ? 'p' : 'div'); node.id = id; node.hidden = id !== status; document.body.append(node); }
+    for (const id of ['handoff-status', 'tour-stage', 'tour-frame']) { const node = document.createElement(id === 'handoff-status' ? 'p' : 'div'); node.id = id; node.hidden = id !== 'handoff-status'; document.body.append(node); }
     document.getElementById('tour-stage').hidden = !stageShown;
     const handlers = {};
     const window = { addEventListener: (type, listener) => { handlers[type] = listener; } };
-    vm.runInNewContext(read('place-fields.js'), { window, document, console });
-    return { handlers, text: () => document.getElementById(status).textContent };
+    loadModule().watchFailures(window, document);
+    return { handlers, window, text: () => document.getElementById('handoff-status').textContent };
   };
   // The walkthrough is on screen: an error elsewhere on the page changes nothing the buyer sees.
   const playing = reporter({ stageShown: true });
   playing.handlers.error({ message: 'Script error.' });
   playing.handlers.unhandledrejection({});
   assert.equal(playing.text(), '');
+  // A missing image is not a page failure.
+  const image = reporter();
+  image.handlers.error({ target: { tagName: 'IMG' } });
+  assert.equal(image.text(), '');
   // Nothing on screen yet: buyer words that point to the agent, with no support address.
   const early = reporter();
   early.handlers.error({ message: 'Script error.' });
   assert.equal(early.text(), 'This page didn’t finish loading. Reload it, or ask the agent who sent you the link.');
   assert.doesNotMatch(early.text(), /@|email/i);
-  // The desk keeps its own line to the owner.
-  const desk = reporter({ status: 'account-status' });
-  desk.handlers.error({ message: 'Script error.' });
-  assert.match(desk.text(), /email yoda@yodalai\.xyz/);
+  // The desk keeps its own reporter and its own line to the owner.
+  const document = createDocument();
+  const desk = document.createElement('p'); desk.id = 'account-status'; document.body.append(desk);
+  const handlers = {};
+  vm.runInNewContext(read('place-fields.js'), { window: { addEventListener: (type, listener) => { handlers[type] = listener; } }, document, console });
+  handlers.error({ message: 'Script error.' });
+  assert.match(desk.textContent, /email yoda@yodalai\.xyz/);
 });
 
 test('the client page and /tour connect early to the account service and the tour host, and fetch the v2 player beside the lookup (VIEWER-13)', () => {

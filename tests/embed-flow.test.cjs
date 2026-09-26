@@ -17,7 +17,7 @@ function load(options = {}) {
   let finish, reject, bootCalls = 0, bootOptions = null;
   const player = {
     boot: (options) => { bootCalls++; bootOptions = options; return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
-    showFailure: (els, options) => { els.frame.hidden = true; els.body.textContent = options.body; if (els.actions) els.actions.hidden = !options.retry; if (els.retry) els.retry.hidden = !options.retry; },
+    showFailure: (els, options) => { els.frame.hidden = true; if (els.title && options.heading) els.title.textContent = options.heading; els.body.textContent = options.body; if (els.actions) els.actions.hidden = !options.retry; if (els.retry) els.retry.hidden = !options.retry; },
   };
   const calls = [];
   // `options.share`: what lookup_tour_share answers through the page's REST client (a promise).
@@ -197,7 +197,10 @@ test('the embed shows the walkthrough’s poster behind the invitation, and noth
 
 test('a cut-off link in the embed says the link is incomplete and looks nothing up (VIEWER-21)', () => {
   const h = load({ search: '?t=' + HEX.slice(0, 20), share: Promise.resolve({ data: [] }) });
-  assert.match(h.ids['embed-body'].textContent, /^The link on this page is incomplete\./);
+  // §5.2 "Link incomplete" covers the embed: the same words as /handoff, never the "not available" heading.
+  assert.equal(h.ids['embed-title'].textContent, 'This link looks incomplete.');
+  assert.equal(h.ids['embed-body'].textContent, 'Check you copied all of it, or ask the person who sent it.');
+  assert.doesNotMatch(h.ids['embed-title'].textContent + h.ids['embed-body'].textContent, /not available|turned it off/);
   assert.deepEqual(h.calls, []);
   assert.equal(h.ids['embed-start'].hidden, true);
 });
@@ -224,5 +227,6 @@ test('/tour in a portal’s frame offers full screen as its own page, and a cut-
   assert.equal(tourPage('?t=' + HEX, 'http://127.0.0.1:8905').bootOptions.fullscreenUrl, undefined, 'only an https page is offered');
   const cut = tourPage('?t=' + HEX.slice(0, 20));
   assert.equal(cut.bootOptions, null);
-  assert.equal(cut.failure.heading, 'This link looks incomplete.');
+  // /tour is not a §5.2 surface: in a portal's frame there is no one to ask (viewer-beacon.test.cjs pins its words).
+  assert.deepEqual({ ...cut.failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' });
 });
