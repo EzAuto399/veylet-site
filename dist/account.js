@@ -357,6 +357,7 @@
     if (updatedEl) updatedEl.textContent = '';
     resetSignInAttempt();
     sessionHeading(false);
+    termsContext = null;
     currentUserId = null;
     currentUserEmail = ''; currentUserConfirmedAt = null;
     focusedTourForUser = null;
@@ -2846,6 +2847,9 @@
     const abn = trialAbn(state.abn);
     if (!abn) { state.abnError = true; trialDraw(); state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
     const expected = { interval: plan.interval, cents: plan.cents, first_charge_on: state.offer.first_charge_on };
+    if (termsContextCurrent(termsContext) && termsContext.workspaceID === state.workspaceID) {
+      void termsIntentKeep(currentUserEmail, Date.now(), 'website_checkout', state.workspaceID).then(() => termsRecord(state.supabase));
+    }
     state.busy = true; state.problem = null;
     if (state.refs?.problem) state.refs.problem.hidden = true;
     control.disabled = true; control.textContent = 'Starting…';
@@ -2907,7 +2911,6 @@
       (differs ? ' These are the terms your free months started with; they differ from what was shown before you confirmed.' : '');
     state.attemptID = null;
     setStatus(planNotice);
-    void termsSend(state.supabase, TERMS_VERSION, Date.now());
     void loadDesk(state.supabase);
   }
 
@@ -5464,57 +5467,94 @@
     if (!hash || tipsIntent !== intent) return;
     try { window.localStorage?.setItem(TIPS_INTENT_KEY, JSON.stringify({ v: intent.version, at, h: hash })); } catch { /* this tab still has it */ }
   }
-  /*
-   * Terms assent (LEGAL_LIFECYCLE-15, wave 2): the sign-in form says "By continuing you agree
-   * to the Terms and Privacy notice" (TERMS_VERSION is the Terms page's Last updated date).
-   * Pressing it keeps that version and moment for this email in this tab (sessionStorage, as a SHA-256); once
-   * sign-in completes, record_terms_assent(p_terms_version, p_accepted_at) records it on the
-   * account (a proposed function: a server without it answers PGRST202, and nothing is kept).
-   * Starting the website free months records the same version at that moment.
+  /* Terms assent belongs to an actual press and an authenticated active workspace.
+   * Keep the intent in this tab until the release-2 RPC acknowledges this version;
+   * PGRST202, failed requests and stale auth/workspace answers never consume it.
+   * The database supplies accepted_at and deduplicates by member/workspace/version.
    */
-  const TERMS_VERSION = 'terms-2026-09-25';
+  const TERMS_VERSION = '2026-09-25';
   const TERMS_INTENT_KEY = 'veylet-terms-intent';
   const termsAssentEl = document.getElementById('account-terms-assent');
   let termsIntent = null;
   let termsRecording = null;
-  function termsIntentForget() {
+  let termsContext = null;
+  function termsIntentForget(intent) {
+    if (termsIntent !== intent) return;
     termsIntent = null;
     try { window.sessionStorage?.removeItem(TERMS_INTENT_KEY); } catch { /* nothing kept to clear */ }
   }
-  async function termsIntentKeep(email, at) {
-    termsIntentForget();
-    if (!termsAssentEl || termsAssentEl.hidden) return;
-    const address = String(email || '').trim().toLowerCase();
-    const intent = { email: address, version: TERMS_VERSION, at };
-    termsIntent = intent;
-    const hash = await emailDigest(address);
+  async function termsIntentPersist(intent) {
+    const hash = await emailDigest(intent.email);
     if (!hash || termsIntent !== intent) return;
-    try { window.sessionStorage?.setItem(TERMS_INTENT_KEY, JSON.stringify({ v: intent.version, at, h: hash })); } catch { /* this tab still has it */ }
+    try { window.sessionStorage?.setItem(TERMS_INTENT_KEY, JSON.stringify({ v: intent.version, at: intent.at, h: hash,
+      surface: intent.surface, workspace: intent.workspaceID, user: intent.userID })); } catch { /* this tab still has it */ }
+  }
+  async function termsIntentKeep(email, at, surface = 'sign_in', workspaceID = null) {
+    if (surface === 'sign_in' && (!termsAssentEl || termsAssentEl.hidden)) return;
+    const intent = { email: String(email || '').trim().toLowerCase(), version: TERMS_VERSION, at, surface,
+      workspaceID, userID: surface === 'website_checkout' ? currentUserId : null };
+    termsIntent = intent;
+    await termsIntentPersist(intent);
   }
   async function termsIntentTake(email) {
     const address = String(email || '').trim().toLowerCase();
     const now = Date.now();
-    if (termsIntent && termsIntent.email === address && now - termsIntent.at < TIPS_INTENT_MS) return { version: termsIntent.version, at: termsIntent.at };
+    const fresh = at => Number.isFinite(at) && at <= now && now - at < TIPS_INTENT_MS;
+    if (termsIntent) return termsIntent.email === address && fresh(termsIntent.at) ? termsIntent : null;
     let kept = null;
-    try { kept = JSON.parse(window.sessionStorage?.getItem(TERMS_INTENT_KEY) || 'null'); } catch { kept = null; }
-    if (kept && kept.v === TERMS_VERSION && Number.isFinite(kept.at) && now - kept.at < TIPS_INTENT_MS && kept.at <= now
-      && typeof kept.h === 'string' && kept.h === await emailDigest(address)) return { version: kept.v, at: kept.at };
-    return null;
+    try { kept = JSON.parse(window.sessionStorage?.getItem(TERMS_INTENT_KEY) || 'null'); } catch { return null; }
+    if (!kept || kept.v !== TERMS_VERSION || !fresh(kept.at) || !['sign_in', 'website_checkout'].includes(kept.surface)
+      || typeof kept.h !== 'string' || kept.h !== await emailDigest(address) || termsIntent) return null;
+    if ((kept.workspace && !TEAM_UUID.test(kept.workspace)) || (kept.user && typeof kept.user !== 'string')) return null;
+    termsIntent = { email: address, version: kept.v, at: kept.at, surface: kept.surface,
+      workspaceID: kept.workspace || null, userID: kept.user || null };
+    return termsIntent;
   }
-  async function termsSend(client, version, at) {
-    const reply = await settled(Promise.resolve().then(() => client.rpc('record_terms_assent',
-      { p_terms_version: version, p_accepted_at: new Date(at).toISOString() })));
-    // Recorded, or a server that cannot record it yet: either way nothing is kept for later.
-    return missingFunction(reply) || (!failed(reply) && Boolean(firstRow(reply.value?.data)));
+  function termsContextCurrent(context) {
+    return context && termsContext === context && currentUserId === context.userID
+      && authVersion === context.authVersion && deskReadVersion === context.read;
+  }
+  function termsWorkspaceRead(members, primary, read) {
+    termsContext = null;
+    if (failed(members) || !Array.isArray(members.value?.data)) return;
+    const active = members.value.data.filter(row => row?.status === 'active' && TEAM_UUID.test(row.workspace_id || ''));
+    const primaryID = failed(primary) ? null : primary.value?.data;
+    // Several memberships require the server's main-office choice. Never guess from DOM/order.
+    const workspaceID = active.some(row => row.workspace_id === primaryID) ? primaryID
+      : (missingFunction(primary) || primaryID === null) && active.length === 1 ? active[0].workspace_id : null;
+    if (workspaceID) termsContext = { userID: currentUserId, email: currentUserEmail, workspaceID, read, authVersion };
   }
   async function termsRecord(client) {
-    if (!currentUserId || termsRecording) return;
-    const intent = await termsIntentTake(currentUserEmail);
-    if (!intent) return;
-    termsRecording = termsSend(client, intent.version, intent.at);
-    const done = await termsRecording;
-    termsRecording = null;
-    if (done) termsIntentForget();
+    const context = termsContext;
+    if (!termsContextCurrent(context) || termsRecording) return;
+    const recording = { context };
+    termsRecording = recording; // Reserve before the asynchronous digest/session checks.
+    try {
+      const intent = await termsIntentTake(context.email);
+      if (!intent || !termsContextCurrent(context) || termsIntent !== intent
+        || (intent.workspaceID && intent.workspaceID !== context.workspaceID)
+        || (intent.userID && intent.userID !== context.userID)) return;
+      const session = await settled(client.auth.getSession());
+      if (failed(session) || session.value?.data?.session?.user?.id !== context.userID || !termsContextCurrent(context)) return;
+      intent.workspaceID = context.workspaceID; intent.userID = context.userID;
+      await termsIntentPersist(intent);
+      if (!termsContextCurrent(context) || termsIntent !== intent) return;
+      const reply = await settled(client.rpc('record_terms_acceptance', {
+        p_workspace_id: context.workspaceID, p_terms_version: intent.version, p_surface: intent.surface,
+      }));
+      if (failed(reply) || !termsContextCurrent(context) || termsIntent !== intent) return;
+      const receipt = firstRow(reply.value?.data);
+      const surface = receipt?.surface;
+      if (receipt?.terms_version === intent.version && typeof receipt.recorded === 'boolean'
+        && typeof receipt.accepted_at === 'string' && Number.isFinite(Date.parse(receipt.accepted_at))
+        && (receipt.recorded ? surface === intent.surface : ['sign_in', 'website_checkout', 'app_paywall', 'invoice'].includes(surface))) {
+        termsIntentForget(intent);
+      }
+    } catch {
+      // A client exception is unconfirmed too: leave the actual intent for a later refresh.
+    } finally {
+      if (termsRecording === recording) termsRecording = null;
+    }
   }
   /** The tick given for this email within the hour, if any. Taking it forgets it. */
   async function tipsIntentTake(email) {
@@ -5964,7 +6004,7 @@
   }
   function renderHoldWords(hold) {
     if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
-    if (hold.reason === 'paused') return 'Rendering is paused for a moment. Yours keeps its place in line.';
+    if (hold.reason === 'paused') return 'Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes.';
     if (hold.reason === 'trial_limit') return renderTrialLimitWords(hold);
     const day = hold.until ? window.VeyletSharing?.hostingDate?.(hold.until) || '' : '';
     return 'You’ve used this week’s renders. ' + (day ? 'This one starts on ' + day + '.' : 'This one starts as soon as the week allows another.');
@@ -6588,6 +6628,8 @@
     if (shown && offlineNow()) { deskOffline(); return; }
     const read = ++deskReadVersion;
     const loadingUser = currentUserId;
+    const loadingAuth = authVersion;
+    termsContext = null;
     stopPolling();
     let ticket = shown ? deskVersion : deskReset();
     if (shown) list.setAttribute('aria-busy', 'true');
@@ -6612,7 +6654,8 @@
       && (members.value?.data || []).some(row => row?.workspace_id === primaryID));
     members = deskMemberships(members, primarySupported ? primaryID : null);
     deskOffices(members, offices, props);
-    if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
+    if (read !== deskReadVersion || currentUserId !== loadingUser || authVersion !== loadingAuth || ticket !== deskVersion) return;
+    termsWorkspaceRead(members, primary, read);
     list.setAttribute('aria-busy', 'false');
     const reads = [props, tours, members];
     if (reads.some(failed) && !reads.some(sessionGone) && (offlineNow() || reads.some(networkFailed))) {
@@ -6825,6 +6868,7 @@
   async function showSession(session) {
     if (!session || !session.user) {
       sessionHeading(false);
+      termsContext = null;
       currentUserId = null;
       currentUserEmail = ''; currentUserConfirmedAt = null;
       emailHide();
@@ -6891,6 +6935,7 @@
 
   supabase.auth.onAuthStateChange((event, session) => {
     const version = ++authVersion;
+    termsContext = null;
     // Invalidate immediately, before the queued session render can run.
     if (session?.user || event === 'SIGNED_OUT') resetSignInAttempt();
     if (event === 'SIGNED_OUT' && !session) {
@@ -6917,6 +6962,7 @@
     setStatus('Sending sign-in email…');
     if (signInSubmit) signInSubmit.disabled = true;
     const askedAt = Date.now();
+    void termsIntentKeep(email, askedAt);
     const error = await requestLink(email, role_intent);
     if (requestVersion !== signInVersion || currentUserId) return;
     if (signInSubmit) signInSubmit.disabled = false;
@@ -6931,7 +6977,6 @@
     lastEmail = email;
     lastRoleIntent = role_intent;
     void tipsIntentKeep(email, askedAt);
-    void termsIntentKeep(email, askedAt);
     if (signInForm) signInForm.dataset.awaitingCode = 'yes';
     signInForm.hidden = true;
     if (verifyEmail) verifyEmail.textContent = email;

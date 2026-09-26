@@ -223,7 +223,7 @@ const ARTICLES = [
       ['Uploading', 'The capture is still being sent; the percentage shows how much has arrived. Nothing to do. See [sending your capture](help:uploading).'],
       ['Waiting to render', 'Your capture is in line, with your place and the usual start time. Instead of a place, it may say why it is waiting:', [
         '"We’ll start your render as soon as a rendering place opens for your account."',
-        '"Rendering is paused for a moment. Yours keeps its place in line."',
+        '"Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes."',
         '"You’ve used this week’s renders." It starts on the day shown.',
       ], 'None of these is a fault. It starts by itself.'],
       ['Rendering', 'Five steps: 1 Preparing photos, 2 Lining up camera positions, 3 Building your 3D walkthrough, 4 Packing it for phones, 5 Checking quality. Step 5 is an automatic check of the finished walkthrough.'],

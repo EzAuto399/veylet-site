@@ -746,11 +746,11 @@
   const studioDeletions = [
     { user_id: 'aaaaaaaa-1111-4222-8333-444444444444', requested_at: '2026-09-20T04:30:00Z',
       reason: 'Sold the agency; the new owner uses their own tools.', status: 'requested',
-      workspace_names: ['Northgate Property Co'], property_count: 4, tour_count: 6, active_share_count: 2 },
+      display_name: 'Northgate Property Co', workspaces: 1, properties: 4, tours: 6, active_shares: 2 },
     { user_id: 'bbbbbbbb-1111-4222-8333-444444444444', requested_at: '2026-09-21T22:05:00Z',
       reason: null, status: 'requested',
-      workspace_names: ['Kelvin Grove Dental', 'Kelvin Grove Rooms'], property_count: 2, tour_count: 1,
-      active_share_count: 0 },
+      display_name: 'Kelvin Grove Dental · Kelvin Grove Rooms', workspaces: 2, properties: 2, tours: 1,
+      active_shares: 0 },
   ];
 
   /* Annual plan fixtures (offer 2026-09-25.2). `?annual=` picks the answer of
@@ -1563,7 +1563,7 @@
         }
         if (name === 'studio_lift_takedown') {
           studioTakedowns = studioTakedowns.map(row => (row.tour_id === args.p_tour_id ? { ...row, lifted_at: new Date().toISOString() } : row));
-          return { data: { tour_id: args.p_tour_id, lifted_at: new Date().toISOString() } };
+          return { data: { tour_id: args.p_tour_id, lifted: 1, lifted_at: new Date().toISOString(), sharing_on: false } };
         }
         if (name === 'studio_set_waitlist_outcome') {
           const row = studioWaitlist.find(item => item.id === args.p_id);

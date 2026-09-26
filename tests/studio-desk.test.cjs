@@ -764,10 +764,10 @@ test('a refresh keeps the skeleton rather than briefly emptying the studio', asy
 const deletionRequests = () => [
   { user_id: 'aaaaaaaa-1111-4222-8333-444444444444', requested_at: '2026-09-20T04:30:00Z',
     reason: 'Sold the agency; the new owner uses their own tools.', status: 'requested',
-    workspace_names: ['Northgate Property Co'], property_count: 4, tour_count: 6, active_share_count: 2 },
+    display_name: 'Northgate Property Co', workspaces: 1, properties: 4, tours: 6, active_shares: 2 },
   { user_id: 'bbbbbbbb-1111-4222-8333-444444444444', requested_at: '2026-09-21T22:05:00Z',
-    reason: null, status: 'requested', workspace_names: ['Kelvin Grove Dental', 'Kelvin Grove Rooms'],
-    property_count: 2, tour_count: 1, active_share_count: 0 },
+    reason: null, status: 'requested', display_name: 'Kelvin Grove Dental · Kelvin Grove Rooms', workspaces: 2,
+    properties: 2, tours: 1, active_shares: 0 },
 ];
 const NEXT_STEP = 'Complete with the deletion CLI; the desk does not delete.';
 const shortDate = value => new Date(value).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -805,6 +805,7 @@ test('deletion requests are listed above the accounts table with their counts, r
     // SITE_DESK-21: the 30-day promise's day, marked when it is near or past.
     ['Due', dueText('2026-09-20T04:30:00Z')],
     ['Account id', 'aaaaaaaa-1111-4222-8333-444444444444'],
+    ['Workspaces', '1'],
     ['Spaces', '4'],
     ['Walkthroughs', '6'],
     ['Live links', '2'],
@@ -812,8 +813,8 @@ test('deletion requests are listed above the accounts table with their counts, r
     ['Next step', NEXT_STEP],
   ]);
   // A request with no reason says so rather than leaving the row blank.
-  assert.deepEqual(rows(items[1])[7], ['Reason', '—']);
-  assert.deepEqual(rows(items[1])[6], ['Live links', '0']);
+  assert.deepEqual(rows(items[1]).find(row => row[0] === 'Reason'), ['Reason', '—']);
+  assert.deepEqual(rows(items[1]).find(row => row[0] === 'Live links'), ['Live links', '0']);
   // The desk lists and explains; it never offers to delete anything itself.
   assert.equal(h.ids['studio-deletions'].all().some(el => el.tagName === 'BUTTON'), false);
   assert.equal(deletionsText(h).split(NEXT_STEP).length - 1, 2, 'every row carries the next step');

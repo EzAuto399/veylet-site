@@ -202,7 +202,7 @@ test('the status article uses the desk’s exact status words, and no page says 
   const status = main(pages.find(page => page.file === 'help/render-status/index.html').html).replace(/&quot;/g, '"');
   for (const label of JSON.parse(desk.match(/const RENDER_STEPS = (\[[^\]]+\])/)[1].replace(/'/g, '"'))) assert.ok(status.includes(label), label);
   for (const words of ['We’ll start your render as soon as a rendering place opens for your account.',
-    'Rendering is paused for a moment. Yours keeps its place in line.', 'You’ve used this week’s renders.']) {
+    'Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes.', 'You’ve used this week’s renders.']) {
     assert.ok(desk.includes(words), 'the desk still says: ' + words);
     assert.ok(status.includes(words), 'the article says: ' + words);
   }

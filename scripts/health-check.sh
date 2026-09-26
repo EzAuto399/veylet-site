@@ -27,10 +27,19 @@ body_of() { curl -sL -m 25 --compressed "$1"; }
 echo "health check → $BASE"
 
 # 1. Every public route answers 200.
-for route in / /offer /start /website-guide /apply /request /account /studio /privacy /terms /support /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
+for route in / /offer /start /website-guide /apply /request /account /studio /privacy /terms /support /app/terms /app/privacy /app/account /app/support /unsubscribe /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
   c=$(code_of "$BASE$route")
   [ "$c" = "200" ] && ok "route $route" || bad "route $route → $c"
 done
+
+# App links must be served as real JSON, never an HTML fallback with status 200.
+aasa_route='/.well-known/apple-app-site-association'
+aasa_code=$(code_of "$BASE$aasa_route")
+if [ "$aasa_code" = "200" ] && body_of "$BASE$aasa_route" | python3 -c 'import json,sys; d=json.load(sys.stdin); a=d.get("applinks"); assert isinstance(a,dict) and isinstance(a.get("details"),list) and len(a["details"]) > 0' >/dev/null 2>&1; then
+  ok "app links: 200 JSON with applinks details"
+else
+  bad "app links: expected 200 JSON with applinks details ($aasa_route)"
+fi
 
 # 2. The things the player cannot work without.
 for asset in /vendor/supabase-js-2.116.0.min.js /vendor/jszip-3.10.2.min.js /tour-player.js /account.js /studio.js /studio.css /tour-sharing.js /website-guide.js /place-fields.js /style.css; do

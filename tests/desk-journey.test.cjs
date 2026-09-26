@@ -1085,7 +1085,7 @@ const textOf = el => [el, ...el.all()].map(node => node.textContent).filter(Bool
 test('a held capture stays Waiting to render with the contract’s words for its hold, no failure and nothing to press', async () => {
   const words = {
     admission: 'We’ll start your render as soon as a rendering place opens for your account.',
-    paused: 'Rendering is paused for a moment. Yours keeps its place in line.',
+    paused: 'Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes.',
     weekly_limit: 'You’ve used this week’s renders. This one starts on 2 Oct 2026.',
   };
   for (const [reason, said] of Object.entries(words)) {
@@ -1166,7 +1166,7 @@ test('a paused walkthrough (render state paused) says so and points to its card�
   // Not the render queue's global pause: that is a waiting capture with its own words.
   const queue = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', hold: { reason: 'paused', until: null } }) } });
   assert.deepEqual(renderBlockOf(queue).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent),
-    ['Rendering is paused for a moment. Yours keeps its place in line.']);
+    ['Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes.']);
 });
 
 test('what approving uses is never shown on a card that says nothing was used (Failed, Needs recapture)', async () => {

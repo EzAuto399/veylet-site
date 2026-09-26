@@ -233,7 +233,7 @@ test('a function the server does not have yet reads "not available on this serve
   // The accounts and the rest of the desk still load.
   assert.equal(h.ids['studio-rows'].children.length > 0, true);
   // A missing lift function leaves Take down working and says Lift is not there yet.
-  assert.match(h.textOf('studio-takedowns-body'), /Lifting a takedown is not available on this server yet/);
+  assert.match(h.textOf('studio-takedowns-body'), /Taken-down walkthroughs are not available on this server yet/);
 });
 
 /* ---- Reports panel ------------------------------------------------------ */
@@ -308,7 +308,7 @@ test('a taken-down walkthrough is listed until lifted, and Lift needs a note and
       { tour_id: 'tour-2', walkthrough_id: 'wt-2', space_title: '12 Wren St', note: 'Family photos', created_at: hoursAgo(5), lifted_at: null },
       { tour_id: 'tour-3', walkthrough_id: 'wt-3', space_title: 'Old lift', note: 'x', created_at: hoursAgo(50), lifted_at: hoursAgo(40) },
     ] }),
-    studio_lift_takedown: async args => ({ data: { tour_id: args.p_tour_id, lifted_at: '2026-09-27T01:00:00Z' } }),
+    studio_lift_takedown: async args => ({ data: { tour_id: args.p_tour_id, lifted: 1, lifted_at: '2026-09-27T01:00:00Z', sharing_on: false } }),
   } });
   const body = h.textOf('studio-takedowns-body');
   assert.match(body, /12 Wren St/);
@@ -405,9 +405,9 @@ test('the waitlist lists who is waiting, oldest first, and Invite records the in
 test('deletion requests show their 30-day due date, overdue first', async () => {
   const day = 86400000;
   const rows = [
-    { user_id: 'u-new', requested_at: new Date(Date.now() - 2 * day).toISOString(), status: 'requested', workspace_names: ['New Co'] },
-    { user_id: 'u-old', requested_at: new Date(Date.now() - 31 * day).toISOString(), status: 'requested', workspace_names: ['Old Co'] },
-    { user_id: 'u-near', requested_at: new Date(Date.now() - 26 * day).toISOString(), status: 'processing', workspace_names: ['Near Co'] },
+    { user_id: 'u-new', requested_at: new Date(Date.now() - 2 * day).toISOString(), status: 'requested', display_name: 'New Co', workspaces: 1 },
+    { user_id: 'u-old', requested_at: new Date(Date.now() - 31 * day).toISOString(), status: 'requested', display_name: 'Old Co', workspaces: 1 },
+    { user_id: 'u-near', requested_at: new Date(Date.now() - 26 * day).toISOString(), status: 'processing', display_name: 'Near Co', workspaces: 1 },
   ];
   const h = await load({ rpc: { studio_list_deletion_requests: async () => ({ data: rows }) } });
   const names = h.ids['studio-deletions'].all().filter(el => el.className === 'studio-deletion-name').map(el => el.textContent);
@@ -426,4 +426,34 @@ test('the capture queue says why a held job waits', async () => {
   assert.match(text, /Held: waiting for admission/);
   assert.match(text, /Held/);
   assert.doesNotMatch(text, /On time/, 'a held job’s clock is not on time');
+});
+
+
+test('deletion requests use the deployed RPC names and show real counts', async () => {
+  const h = await load({ rpc: { studio_list_deletion_requests: async () => ({ data: [{
+    user_id: 'user-delete', display_name: 'Example Member', requested_at: new Date().toISOString(),
+    status: 'processing', workspaces: 2, properties: 7, tours: 9, active_shares: 3, reason: 'Leaving',
+  }] }) } });
+  const body = h.textOf('studio-deletions');
+  assert.match(body, /Example Member/);
+  assert.match(body, /Workspaces \| 2/);
+  assert.match(body, /Spaces \| 7/);
+  assert.match(body, /Walkthroughs \| 9/);
+  assert.match(body, /Live links \| 3/);
+});
+
+test('an unconfirmed lift response never hides an active takedown or claims success', async () => {
+  const h = await load({ rpc: {
+    studio_list_takedowns: async () => ({ data: [{ tour_id: 'tour-2', space_title: 'Fixture office', note: 'Review', created_at: hoursAgo(1) }] }),
+    studio_lift_takedown: async () => ({ data: { tour_id: 'other-tour', lifted: 1, lifted_at: new Date().toISOString(), sharing_on: false } }),
+  } });
+  h.control('studio-takedowns-body', 'lift-note').value = 'Reviewed';
+  await h.control('studio-takedowns-body', 'lift-form').fire('submit'); await h.settle();
+  assert.match(h.textOf('studio-takedowns-body'), /Fixture office/);
+  assert.doesNotMatch(h.textOf('studio-status'), /Takedown lifted/);
+});
+
+test('a missing takedown read makes no claim that resharing is allowed', async () => {
+  const h = await load({ rpc: { studio_list_takedowns: async () => MISSING } });
+  assert.doesNotMatch(h.textOf('studio-takedowns-body'), /office can turn sharing on again/);
 });

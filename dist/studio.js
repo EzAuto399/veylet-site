@@ -1253,10 +1253,8 @@
   }
 
   function deletionNames(row) {
-    const names = row && row.workspace_names;
-    const list = Array.isArray(names) ? names.filter(Boolean).map(String)
-      : typeof names === 'string' && names.trim() ? [names.trim()] : [];
-    return list.length ? list.join(' · ') : 'No workspace';
+    return typeof row?.display_name === 'string' && row.display_name.trim()
+      ? row.display_name.trim() : 'Account ' + String(row?.user_id || '').slice(0, 8);
   }
   function deletionTerm(parent, term, value, figure) {
     const group = element('div');
@@ -1272,9 +1270,10 @@
     deletionTerm(dl, 'Status', DELETION_WORDS[row.status] || DASH);
     deletionTerm(dl, 'Due', deletionDueText(row));
     deletionTerm(dl, 'Account id', row.user_id ? String(row.user_id) : DASH);
-    deletionTerm(dl, 'Spaces', countText(row.property_count), true);
-    deletionTerm(dl, 'Walkthroughs', countText(row.tour_count), true);
-    deletionTerm(dl, 'Live links', countText(row.active_share_count), true);
+    deletionTerm(dl, 'Workspaces', countText(row.workspaces), true);
+    deletionTerm(dl, 'Spaces', countText(row.properties), true);
+    deletionTerm(dl, 'Walkthroughs', countText(row.tours), true);
+    deletionTerm(dl, 'Live links', countText(row.active_shares), true);
     deletionTerm(dl, 'Reason', row.reason ? String(row.reason) : DASH);
     deletionTerm(dl, 'Next step', DELETION_NEXT_STEP);
     item.append(dl);
@@ -1740,7 +1739,7 @@
   /* ---- Rendering ---------------------------------------------------------
    * SITE_DESK-01 (wave 2, 27 September 2026): the operator runs rendering from here,
    * never from SQL. Reads: get_render_spend_guard (the kill switch, the month's cap and
-   * spend) and studio_render_settings (proposed: the admission settings that
+   * spend) and studio_render_settings (the admission settings that
    * studio_set_render_admission answers, readable by studio members). Writes:
    * studio_set_render_spend_guard and studio_set_render_admission, each confirmed first
    * and sent with every other value exactly as the server last answered it, so changing
@@ -2055,7 +2054,7 @@
    * has been open. Take down (studio_takedown_tour, a note required) ends every link to
    * that walkthrough and closes its open reports; Dismiss closes one; Delete contact
    * removes an email from reports and the waitlist. Taken down walkthroughs stay listed
-   * until lifted (proposed studio_list_takedowns and studio_lift_takedown, owner default
+   * until lifted (studio_list_takedowns and studio_lift_takedown, owner default
    * 5: a takedown is sticky until Veylet support lifts it). Every write is confirmed.
    */
   const reportsEl = document.getElementById('studio-reports-body');
@@ -2222,11 +2221,14 @@
       const details = element('details', 'studio-set-plan studio-money-resolve');
       details.append(element('summary', undefined, 'Lift takedown · ' + title), noteForm('lift-form', 'lift-note', 'Lift takedown', async (note, say) => {
         if (typeof confirm !== 'function' || !confirm('Lift the takedown of ' + title + '? The office can share it again with a new link; the old links stay ended. Note: ' + note)) return 'Left unchanged.';
+        const version = takedownsVersion;
         say('Lifting…');
         const reply = await settled(client.rpc('studio_lift_takedown', { p_tour_id: row.tour_id, p_note: note }));
+        if (version !== takedownsVersion) return '';
         if (missingFunction(reply)) return 'Lifting a takedown is not available on this server yet.';
         const answer = failed(reply) ? null : firstRow(reply.value?.data);
-        if (!answer || typeof answer !== 'object') {
+        if (!answer || answer.tour_id !== row.tour_id || !Number.isInteger(answer.lifted) || answer.lifted < 1
+          || answer.sharing_on !== false || !Number.isFinite(Date.parse(answer.lifted_at))) {
           const refused = serverRefusal(reply);
           return refused ? 'Not lifted: ' + refused : 'The lift was not confirmed. Refresh the accounts before trying again.';
         }
@@ -2248,7 +2250,7 @@
     const reply = await settled(client.rpc('studio_list_takedowns'));
     if (version !== takedownsVersion) return;
     if (missingFunction(reply)) {
-      takedownsEl.replaceChildren(element('p', 'contact-note', 'Lifting a takedown is not available on this server yet. Until it is, the office can turn sharing on again for a walkthrough taken down here, so check its reports.'));
+      takedownsEl.replaceChildren(element('p', 'contact-note', 'Taken-down walkthroughs are not available on this server yet. Refresh after the service is available; do not assume sharing is allowed.'));
       return;
     }
     if (failed(reply) || !Array.isArray(reply.value?.data)) {

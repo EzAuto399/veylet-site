@@ -4135,3 +4135,23 @@ test('start my plan today: the invoice lane waits for the invoice; not_owner say
   assert.equal(apple.control(), undefined);
   assert.equal(apple.calls.some(call => call[0] === 'get_start_plan_now'), false);
 });
+
+
+test('website checkout records assent only on its confirm press with an active workspace', async () => {
+  const workspace = '11111111-1111-4111-8111-111111111111';
+  const h = await withTrial(trialOffer(), { tables: {
+    memberships: { data: [{ workspace_id: workspace, role: 'owner', status: 'active' }] },
+    properties: { data: [] },
+  }, rpc: {
+    get_primary_workspace: async () => ({ data: workspace }),
+    get_workspace_plan: async () => ({ data: [{ ...planRow, ...PENDING, workspace_id: workspace }] }),
+    record_terms_acceptance: async args => ({ data: { terms_version: args.p_terms_version, surface: args.p_surface,
+      accepted_at: new Date().toISOString(), recorded: true } }),
+  } });
+  assert.equal(h.calls.filter(([name]) => name === 'record_terms_acceptance').length, 0);
+  await typeAbn(h, EXAMPLE_ABN); await pressTrial(h, ADD_CARD);
+  assert.equal(h.calls.filter(([name]) => name === 'record_terms_acceptance').length, 0, 'opening card form is not assent');
+  await pressTrial(h, 'Start free months'); await settle();
+  const calls = h.calls.filter(([name]) => name === 'record_terms_acceptance');
+  assert.deepEqual(calls.map(([,args]) => ({ ...args })), [{ p_workspace_id: workspace, p_terms_version: '2026-09-25', p_surface: 'website_checkout' }]);
+});
