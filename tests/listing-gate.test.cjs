@@ -154,7 +154,7 @@ test('enable_tour_share’s two new refusals read in the contract’s words, eac
   assert.equal(h.status(), WAIT_OCCUPANCY);
 });
 
-test('one press of Approve and share on an unanswered listing keeps the approval and names the fix', async () => {
+test('Approve and share first asks the missing occupancy question without recording an approval', async () => {
   let approvedNow = false;
   const h = await loadDesk({ approved: [], rpc: {
     get_listing_sharing_readiness: readiness(),
@@ -166,11 +166,12 @@ test('one press of Approve and share on an unanswered listing keeps the approval
   const form = card.all().find(el => el.tagName === 'FORM');
   for (const box of form.all().filter(el => el.tagName === 'INPUT')) box.checked = true;
   await form.fire('submit'); await h.settle();
-  assert.equal(h.called('review_tour_versioned').length, 1);
-  assert.equal(h.called('enable_tour_share').length, 1);
+  assert.equal(h.called('review_tour_versioned').length, 0);
+  assert.equal(h.called('enable_tour_share').length, 0);
   const after = h.card();
-  assert.ok(h.words(after).includes(WAIT_OCCUPANCY));
-  assert.ok(h.control(after, 'share-fix-occupancy'));
+  assert.match(h.words(after).join(' '), /Before approving and sharing, say whether anyone lives or works here/);
+  assert.equal(h.gate().hidden, false);
+  assert.equal(approvedNow, false);
 });
 
 test('a grandfathered live share gets one quiet line and no warning; its link keeps working', async () => {

@@ -506,6 +506,14 @@
   // their way; a ready walkthrough's next step waits for its review answer rather
   // than guessing whether it is approved.
   function guideDesk(properties, rows, items, supabase, desk = {}) {
+    const workspace = properties[0]?.workspace_id || planStates.keys().next().value;
+    const planState = workspace && planStates.get(workspace);
+    if (!rows.length && (planState === 'pending' || planState === 'ended')) {
+      guide(APP_MODE ? 'Check your plan.' : planState === 'pending' ? 'Start your free months.' : 'Restart your plan.',
+        APP_MODE ? 'See your plan in the app before sending your first capture.' : 'Your plan panel shows the next step before you send a capture. Saving a space does not start the plan.',
+        'See your plan', () => { planPanel?.scrollIntoView({ block: 'start', behavior: 'auto' }); planPanel?.focus?.(); });
+      return;
+    }
     if (!properties.length) {
       if (APP_MODE) { guide('Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
       guide('Start with one space.', 'Save a name and general location. This prepares your desk for its first capture.', 'Add your first space', () => {
@@ -1727,6 +1735,66 @@
     gateDraw(entry, true);
   }
 
+  // Release-2 20260927110000: a listing contains independent captures. Only
+  // this read may offer a member replacement; the write rechecks eligibility.
+  const listingWalkthroughs = new Map();
+  function listingWalkthroughRead(space, slot, supabase, ticket) {
+    const entry = { ready: null, answer: null };
+    listingWalkthroughs.set(space.id, entry);
+    entry.ready = settled(Promise.resolve().then(() => supabase.rpc('get_listing_walkthroughs', { p_property_id: space.id }))).then(reply => {
+      if (ticket !== deskVersion || listingWalkthroughs.get(space.id) !== entry) return null;
+      const answer = failed(reply) ? null : firstRow(reply.value?.data);
+      if (!answer || answer.property_id !== space.id || answer.link_per !== 'capture' || !Array.isArray(answer.walkthroughs)
+        || answer.new_capture?.makes_new_link !== true || answer.new_capture?.uses_walkthrough !== true
+        || typeof answer.new_capture?.can_replace_instead !== 'boolean') return null;
+      entry.answer = answer;
+      if (answer.walkthroughs.length) message(slot, 'A new capture makes a new link and uses your walkthrough allowance. A permitted whole recapture can replace an existing walkthrough instead.', 'tour-state-help capture-link-note');
+      return answer;
+    });
+    return entry.ready;
+  }
+  function replacementControls(tour, listing, form, save, say, supabase, ticket) {
+    if (!listing || revisionOf(tour) !== 1 || tour.revision_of) return;
+    const own = listing.walkthroughs.find(row => row?.tour_id === tour.id);
+    if (!own || own.approved !== false || own.walkthroughs_used !== 0) return;
+    const targets = listing.walkthroughs.filter(row => row && row.tour_id !== tour.id && row.can_replace === true
+      && row.taken_down === false && typeof row.tour_id === 'string' && typeof row.walkthrough_id === 'string'
+      && Number.isInteger(row.revision) && row.revision > 0 && Number.isInteger(row.replacements_left) && row.replacements_left > 0);
+    const controls = [];
+    for (const target of targets) {
+      const area = document.createElement('div'); area.className = 'tour-replacement';
+      message(area, 'Replace walkthrough ' + target.walkthrough_id.slice(0, 8) + ' with this whole capture. It keeps that walkthrough’s link and QR and uses no extra walkthrough. Every original room must be recaptured.');
+      const confirm = document.createElement('div'); confirm.hidden = true;
+      const show = button('Replace this walkthrough', () => { if (!save.disabled) { confirm.hidden = false; show.hidden = true; deskDirty = true; } });
+      const commit = button('Use this capture as replacement', async () => {
+        if (save.disabled || ticket !== deskVersion) return;
+        save.disabled = true; controls.forEach(control => { control.disabled = true; });
+        const reply = await settled(Promise.resolve().then(() => supabase.rpc('replace_walkthrough', { p_tour_id: tour.id, p_replaces_tour_id: target.tour_id })));
+        if (ticket !== deskVersion) return;
+        if (sessionGone(reply)) { showSignedOut('Your sign-in expired. Sign in and check the walkthrough before trying again.'); return; }
+        const receipt = failed(reply) ? null : firstRow(reply.value?.data);
+        const confirmed = receipt?.tour_id === tour.id && receipt.walkthrough_id === target.walkthrough_id
+          && receipt.replaces_tour_id === target.tour_id && receipt.revision === target.revision + 1
+          && typeof receipt.recorded === 'boolean' && receipt.keeps_link === true && receipt.uses_walkthrough === false
+          && typeof receipt.recorded_at === 'string' && Number.isFinite(Date.parse(receipt.recorded_at));
+        if (!confirmed) {
+          const detail = String(reply.value?.error?.message || '');
+          say(/capture every room|more rooms/.test(detail)
+            ? 'Capture every original room to replace this walkthrough. A capture with additional rooms may need its own walkthrough.'
+            : /already replaced|already approved|latest version/.test(detail)
+              ? 'This replacement is no longer available. Refresh the walkthroughs before choosing what to do.'
+              : 'Replacement was not confirmed. Refresh to check the saved record before approving.');
+          area.append(button('Refresh walkthroughs', () => loadDesk(supabase)));
+          return;
+        }
+        say('Replacement saved. Review this version and confirm your right to share it. Its existing link moves only after approval.', true);
+        await loadDesk(supabase);  // a fresh review snapshot and unticked rights, never automatic approval
+      });
+      const cancel = button('Keep as a new walkthrough', () => { confirm.hidden = true; show.hidden = false; });
+      controls.push(show, commit, cancel); confirm.append(commit, cancel); area.append(show, confirm); form.append(area);
+    }
+  }
+
   // `hosting` is this walkthrough's get_tour_hosting row: undefined when the
   // dates could not load. It only chooses words; it never gates a control.
   // `title` is its space's name, the listing title a share and a QR file carry.
@@ -1808,9 +1876,10 @@
     // A later version of a walkthrough asks the server how approving it counts:
     // whether it uses the allowance, and whether the existing link moves to it.
     const correction = revisionOf(tour) > 1;
-    const [targetResult, lineageResult] = await Promise.all([
+    const [targetResult, lineageResult, listing] = await Promise.all([
       settled(supabase.rpc('get_tour_review_target', { p_tour_id: tour.id })),
       correction ? settled(Promise.resolve().then(() => supabase.rpc('get_walkthrough_revision', { p_tour_id: tour.id }))) : null,
+      listingWalkthroughs.get(tour.property_id)?.ready || null,
     ]);
     if (ticket !== deskVersion) return;
     if (sessionGone(targetResult) || (lineageResult && sessionGone(lineageResult))) { showSignedOut('Your sign-in expired. Sign in before starting a fresh review.'); return; }
@@ -1859,6 +1928,7 @@
       row.append(input, text); form.append(row);
     }
     const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
+    replacementControls(tour, listing, form, save, say, supabase, ticket);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
     // is sent from this page and no approval is recorded.
@@ -1878,6 +1948,16 @@
     form.addEventListener('submit', async event => {
       event.preventDefault(); if (save.disabled || Object.values(fields).some(field => !field.checked)) return;
       save.disabled = true;
+      await gateReady(tour.property_id);
+      if (ticket !== deskVersion) return;
+      const blocked = gateBlock(tour.property_id);
+      if (blocked) {
+        save.disabled = false;
+        say(blocked === 'occupancy' ? 'Before approving and sharing, say whether anyone lives or works here.'
+          : blocked === 'business' ? 'Before approving and sharing, record the business’s written permission.'
+            : 'Before approving and sharing, record the tenant’s written consent.');
+        gateOpen(tour.property_id, blocked); return;
+      }
       const base = { p_tour_id: tour.id, p_expected_storage_path: snapshot.path, p_expected_package_revision: snapshot.revision };
       const reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_NEW }));
       if (ticket !== deskVersion) return;
@@ -2505,7 +2585,7 @@
    */
   const trialEl = document.getElementById('account-trial');
   const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started', 'waitlist'];
-  const TRIAL_WAITLIST = 'You’re on the waitlist. Your free months start when your account is invited.';
+  const TRIAL_WAITLIST = 'You’re on the waitlist. You can start your free months once your account is invited.';
   const TRIAL_INTERVALS = ['monthly', 'annual'];
   const TRIAL_CARD_FIELD = 'account-trial-card-field';
   const TRIAL_TEST_LINE = 'Test · Square Sandbox: a test card, not a live payment.';
@@ -5891,13 +5971,16 @@
   // plan. start_plan_now marks the website card and invoice lanes, which may start it today.
   const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit', 'trial_limit'];
   // Per workspace: when its free months end, and how its plan is paid (web, studio, apple).
-  const planTrialEnds = new Map(), planLanes = new Map();
+  const planTrialEnds = new Map(), planLanes = new Map(), planStates = new Map();
+  let deskGuideRefresh = null;
   function planKnown(workspaceID, row) {
     if (!workspaceID) return;
     const ends = row && row.status === 'trial' && typeof row.trial_ends_at === 'string' && !Number.isNaN(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
     const lane = row && PLAN_SOURCES.includes(row.source) ? row.source : null;
     const changed = planTrialEnds.get(workspaceID) !== ends || planLanes.get(workspaceID) !== lane;
     planTrialEnds.set(workspaceID, ends); planLanes.set(workspaceID, lane);
+    planStates.set(workspaceID, row && PLAN_STATUSES.includes(row.status) ? row.status : null);
+    deskGuideRefresh?.();
     if (changed && render?.answers) renderDraw();
   }
   function renderTrialLimitWords(hold) {
@@ -6606,7 +6689,8 @@
   }
   function deskReset() {
     const ticket = ++deskVersion;
-    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
+    deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); listingWalkthroughs.clear(); hostingCards.clear();
+    planStates.clear(); deskGuideRefresh = null;
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
@@ -6739,6 +6823,7 @@
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
       else guideDesk(properties, rows, items, supabase, { roles, hosting: hostingRows, reviewsPending });
     };
+    deskGuideRefresh = () => { if (ticket === deskVersion && !rows.length) updateGuide(); };
     if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in Veylet Capture; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with Veylet Capture. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
@@ -6760,6 +6845,7 @@
       // One walkthrough's versions sit together, newest first: a correction waiting
       // for its check comes before the version it will replace.
       const spaceTours = rows.filter(tour => tour.property_id === row.id);
+      if (roles.has(row.workspace_id)) void listingWalkthroughRead(row, li, supabase, ticket);
       const order = [...new Set(spaceTours.map(walkthroughOf))];
       spaceTours.sort((left, right) => (order.indexOf(walkthroughOf(left)) - order.indexOf(walkthroughOf(right)))
         || (revisionOf(right) - revisionOf(left)));

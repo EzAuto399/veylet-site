@@ -333,6 +333,13 @@
   const WALK = { one: '1a2b3c4d-0000-4000-8000-000000000001', two: '5e6f7a8b-0000-4000-8000-000000000002',
     other: '2b3c4d5e-0000-4000-8000-000000000003', otherTwo: '6f7a8b9c-0000-4000-8000-000000000004', three: '7a8b9c0d-0000-4000-8000-000000000005' };
   const correctionCase = ['correction', 'correction-superseded'].includes(scenario);
+  if (scenario === 'replacement') {
+    tours.splice(0, tours.length,
+      { ...tours[0], id: WALK.two, walkthrough_id: WALK.two, revision: 1, revision_of: null },
+      { ...tours[0], id: WALK.one, walkthrough_id: WALK.one, revision: 1, revision_of: null, storage_path: 'synthetic/previous-capture.zip' });
+    approvedTours.add(WALK.one); everApproved.add(WALK.one);
+    tokens.set(WALK.one, 'synthetic-fixture-token-replacement'); releasedAt.set(WALK.one, ago(10));
+  }
   if (correctionCase) {
     properties.push({ id: 'synthetic-office', title: 'Fictional corner office', category: 'QA fixture', location_general: 'Example region', workspace_id: 'synthetic-workspace' });
     const base = { status: 'ready', created_by: 'synthetic-user' };
@@ -1303,6 +1310,7 @@
         return { data: JSON.parse(JSON.stringify(annualLive || annualFallback())) };
       }
       if (name === 'get_trial_offer') {
+        if (trialCase === 'waitlist') return { data: { eligible: false, missing: ['waitlist'], plans: [] } };
         if (trialCase === 'loading') return new Promise(() => {});
         if (trialCase === 'error') return { error: { message: 'Synthetic trial offer failure' } };
         if (trialCase === 'missing') return { error: { code: 'PGRST202', message: 'Could not find the function public.get_trial_offer' } };
@@ -1662,11 +1670,31 @@
             extended_until: extended, sharing_on: row.sharing_on, share_paused: false, plan_active: active };
         }) };
       }
+      if (name === 'get_listing_walkthroughs') {
+        if (scenario !== 'replacement') return { error: { code: 'PGRST202', message: 'Fixture has no listing replacement scenario.' } };
+        return { data: { property_id: args.p_property_id, link_per: 'capture',
+          new_capture: { makes_new_link: true, uses_walkthrough: true, can_replace_instead: true },
+          walkthroughs: tours.filter(row => row.property_id === args.p_property_id && !row.superseded_at).map(row => ({
+            tour_id: row.id, walkthrough_id: walkthroughOf(row), revision: revisionOf(row),
+            approved: approvedTours.has(row.id), taken_down: false, walkthroughs_used: everApproved.has(row.id) ? 1 : 0,
+            replacements_left: row.id === WALK.one && !tours.some(t => t.revision_of === row.id) ? 1 : 0,
+            can_replace: row.id === WALK.one && !tours.some(t => t.revision_of === row.id),
+          })) } };
+      }
+      if (name === 'replace_walkthrough') {
+        if (scenario !== 'replacement' || args.p_tour_id !== WALK.two || args.p_replaces_tour_id !== WALK.one)
+          return { error: { message: 'Replacement unavailable in this synthetic fixture.' } };
+        const row = tours.find(tour => tour.id === WALK.two); const replay = row.revision === 2;
+        Object.assign(row, { walkthrough_id: WALK.one, revision: 2, revision_of: WALK.one });
+        return { data: { tour_id: WALK.two, walkthrough_id: WALK.one, revision: 2, replaces_tour_id: WALK.one,
+          recorded: !replay, recorded_at: '2026-09-27T00:00:00Z', keeps_link: true, uses_walkthrough: false } };
+      }
       if (name === 'get_tour_review') return { data: [{ approved: approvedTours.has(args.p_tour_id) }] };
       if (name === 'get_tour_review_target') { const tour = tours.find(row => row.id === args.p_tour_id); return { data: tour ? [{ tour_id: tour.id, storage_path: tour.storage_path, package_revision: packageRevision() }] : [] }; }
       if (name === 'review_tour_versioned') {
         if (args.p_expected_package_revision !== packageRevision() || args.p_expected_storage_path !== tours.find(row => row.id === args.p_tour_id)?.storage_path) return { error: { code: 'P0001', message: 'tour package changed; reload and review again', details: 'VEYLET_PACKAGE_REVISION_CHANGED' } };
-        if (!Object.values(args.p_checks || {}).every(value => value === true) || Object.keys(args.p_checks || {}).length !== 5 || !args.p_capture_permission || !args.p_publication_permission) return { error: { message: 'Complete all release checks.' } };
+        if (args.p_checks?.right_to_share !== true || args.p_capture_permission === false || args.p_publication_permission === false)
+          return { error: { message: 'Confirm you have the right to share this walkthrough before approval.' } };
         const reviewed = tours.find(row => row.id === args.p_tour_id);
         if (scenario === 'correction-superseded' && args.p_tour_id === WALK.two && !tours.some(row => row.id === WALK.three)) {
           // Meanwhile another reviewer approved version 3, which retired versions 1 and 2.
@@ -1708,7 +1736,7 @@
         if (refusal) return { data: null, error: { code: 'P0001', message: refusal } };
         if (shareCase === 'fail') return { data: null, error: { message: 'Synthetic sharing failure' } };
         if (!approvedTours.has(args.p_tour_id)) return { error: { message: 'Synthetic: approve before sharing.' } };
-        const live = args.p_tour_id === 'synthetic-tour' ? 'synthetic-fixture-token' : 'synthetic-fixture-token-' + args.p_tour_id.slice(10);
+        const live = tokens.get(args.p_tour_id) || (args.p_tour_id === 'synthetic-tour' ? 'synthetic-fixture-token' : 'synthetic-fixture-token-' + args.p_tour_id.slice(10));
         tokens.set(args.p_tour_id, live);
         if (!releasedAt.has(args.p_tour_id)) releasedAt.set(args.p_tour_id, new Date().toISOString());
         if (shareCase === 'lost') return { data: null, error: { message: 'TypeError: Failed to fetch', details: 'TypeError: Failed to fetch', hint: '', code: '' } };

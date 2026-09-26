@@ -130,6 +130,16 @@ test('an owner with a saved space gets self-capture preparation without an unava
   assert.doesNotMatch(elements.map(el => el.textContent).join(' '), /studio visit/i);
   assert.equal(elements.find(el => el.tagName === 'A').href, '/start');
 });
+test('the first step points to the authoritative pending or ended plan before another capture', async () => {
+  for (const status of ['pending', 'ended']) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [{ status }] }) } });
+    const action = h.ids['account-next-step'].all().find(el => el.textContent === 'See your plan');
+    assert.ok(action, status);
+    await action.fire('click');
+    assert.equal(h.ids['account-plan'].wasScrolled, true);
+    assert.equal(h.calls.some(([name]) => /start.*plan|open.*trial/.test(name)), false);
+  }
+});
 test('capture preparation does not claim a manual approval or send people to the retired partner form', async () => {
   for (const answer of [{ data: true }, { error: { message: 'offline' } }]) {
     const h = await load({ rpc: { can_produce_tours: () => answer } });
@@ -348,6 +358,110 @@ test('release review checks the exact package, then turns sharing on in the same
   assert.deepEqual(h.calls.filter(call => ['review_tour_versioned', 'enable_tour_share'].includes(call[0])).map(call => [call[0], call[1].p_tour_id]),
     [['review_tour_versioned', 't1'], ['enable_tour_share', 't1']]);
 });
+const REPLACE_OLD = 'previous-tour';
+const replacementListing = () => ({ property_id: 'p1', link_per: 'capture', new_capture: {
+  makes_new_link: true, uses_walkthrough: true, can_replace_instead: true }, walkthroughs: [
+  { tour_id: REPLACE_OLD, walkthrough_id: REPLACE_OLD, revision: 1, approved: true, taken_down: false,
+    replacements_left: 1, can_replace: true, walkthroughs_used: 1 },
+  { tour_id: 't1', walkthrough_id: 't1', revision: 1, approved: false, taken_down: false,
+    replacements_left: 1, can_replace: false, walkthroughs_used: 0 },
+] });
+async function replacementAccount(rpc = {}) {
+  return load({ tours: [tour, { ...tour, id: REPLACE_OLD, storage_path: 'w1/previous.zip' }], rpc: {
+    get_tour_review: async args => ({ data: [{ approved: args.p_tour_id === REPLACE_OLD }] }),
+    get_listing_walkthroughs: async () => ({ data: replacementListing() }), ...rpc,
+  } });
+}
+
+test('listing capture advice comes from the authoritative per-capture read and offers an explicit replacement', async () => {
+  const h = await replacementAccount();
+  assert.deepEqual(h.calls.filter(([name]) => name === 'get_listing_walkthroughs').map(([,args]) => ({ ...args })), [{ p_property_id: 'p1' }]);
+  assert.match(h.text(), /A new capture makes a new link/);
+  assert.equal(h.all().filter(el => el.textContent === 'Replace this walkthrough').length, 1);
+  assert.equal(h.calls.some(([name]) => name === 'replace_walkthrough'), false);
+});
+
+test('a confirmed replacement keeps the link only on matching receipt and never auto-approves or invents rights', async () => {
+  const h = await replacementAccount({ replace_walkthrough: async () => ({ data: {
+    tour_id: 't1', walkthrough_id: REPLACE_OLD, replaces_tour_id: REPLACE_OLD, revision: 2, recorded: true,
+    keeps_link: true, uses_walkthrough: false, recorded_at: '2026-09-27T00:00:00Z' } }) });
+  await h.all().find(el => el.textContent === 'Replace this walkthrough').fire('click');
+  assert.equal(h.calls.some(([name]) => name === 'replace_walkthrough'), false);
+  await h.all().find(el => el.textContent === 'Use this capture as replacement').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual({ ...h.calls.find(([name]) => name === 'replace_walkthrough')[1] }, { p_tour_id: 't1', p_replaces_tour_id: REPLACE_OLD });
+  assert.equal(h.calls.some(([name]) => name === 'review_tour_versioned' || name === 'enable_tour_share'), false);
+  assert.match(h.text(), /Replacement saved/);
+});
+
+test('an unconfirmed replacement never claims a preserved link or removes review controls', async () => {
+  for (const response of [{ data: {} }, { data: { tour_id: 'another-tour', walkthrough_id: REPLACE_OLD,
+    replaces_tour_id: REPLACE_OLD, revision: 2, recorded: true, keeps_link: true, uses_walkthrough: false,
+    recorded_at: '2026-09-27T00:00:00Z' } }, { error: { message: 'capture every room of the walkthrough again to replace it' } }]) {
+    const h = await replacementAccount({ replace_walkthrough: async () => response });
+    await h.all().find(el => el.textContent === 'Replace this walkthrough').fire('click');
+    await h.all().find(el => el.textContent === 'Use this capture as replacement').fire('click');
+    assert.doesNotMatch(h.text(), /Replacement saved/);
+    assert.equal(h.calls.some(([name]) => name === 'review_tour_versioned'), false);
+    assert.ok(h.all().some(el => el.textContent === 'Approve and share'));
+    const replacementForm = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.textContent === 'Refresh walkthroughs'));
+    assert.equal(replacementForm.all().find(el => el.textContent === 'Approve and share').disabled, true);
+  }
+});
+
+test('replacement choices refuse mismatched listing reads and unavailable or taken-down targets', async () => {
+  for (const row of [{ ...replacementListing(), property_id: 'other-property' },
+    { ...replacementListing(), walkthroughs: replacementListing().walkthroughs.map(t => ({ ...t, taken_down: true })) },
+    { ...replacementListing(), walkthroughs: replacementListing().walkthroughs.map(t => ({ ...t, can_replace: false })) }]) {
+    const h = await replacementAccount({ get_listing_walkthroughs: async () => ({ data: row }) });
+    assert.equal(h.all().some(el => el.textContent === 'Replace this walkthrough'), false);
+  }
+});
+
+test('a replacement reloads its lineage and requires a fresh rights tick before the normal versioned approval', async () => {
+  const rows = [{ ...tour }, { ...tour, id: REPLACE_OLD, storage_path: 'w1/previous.zip' }];
+  let replaced = false;
+  const h = await load({ tables: { tours: { data: rows } }, rpc: {
+    get_tour_review: async args => ({ data: [{ approved: args.p_tour_id === REPLACE_OLD }] }),
+    get_listing_walkthroughs: async () => ({ data: replacementListing() }),
+    get_walkthrough_revision: async () => ({ data: [{ tour_id: 't1', approval_uses_allowance: false, link_moves_on_approval: true }] }),
+    replace_walkthrough: async () => {
+      replaced = true; Object.assign(rows[0], { walkthrough_id: REPLACE_OLD, revision: 2, revision_of: REPLACE_OLD });
+      return { data: { tour_id: 't1', walkthrough_id: REPLACE_OLD, replaces_tour_id: REPLACE_OLD, revision: 2,
+        recorded: true, keeps_link: true, uses_walkthrough: false, recorded_at: '2026-09-27T00:00:00Z' } };
+    },
+  } });
+  await h.all().find(el => el.textContent === 'Replace this walkthrough').fire('click');
+  await h.all().find(el => el.textContent === 'Use this capture as replacement').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(replaced, true);
+  assert.ok(h.calls.some(([name]) => name === 'get_walkthrough_revision'));
+  const form = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.textContent === 'Approve and share'));
+  const right = form.all().find(el => el.name === 'right_to_share');
+  assert.notEqual(right.checked, true);
+  await form.fire('submit');
+  assert.equal(h.calls.some(([name]) => name === 'review_tour_versioned'), false);
+  right.checked = true; await form.fire('submit');
+  const approval = h.calls.find(([name]) => name === 'review_tour_versioned');
+  assert.equal(approval[1].p_tour_id, 't1');
+  assert.deepEqual({ ...approval[1].p_checks }, { right_to_share: true });
+});
+
+test('a replacement result arriving after sign-out cannot reload the previous account or announce success', async () => {
+  let finish;
+  const h = await replacementAccount({ replace_walkthrough: () => new Promise(resolve => { finish = resolve; }) });
+  await h.all().find(el => el.textContent === 'Replace this walkthrough').fire('click');
+  const pending = h.all().find(el => el.textContent === 'Use this capture as replacement').fire('click');
+  await new Promise(resolve => setImmediate(resolve));
+  h.supabase.auth.callback('SIGNED_OUT', null);
+  const reads = h.calls.filter(([name]) => name === 'get_listing_walkthroughs').length;
+  finish({ data: { tour_id: 't1', walkthrough_id: REPLACE_OLD, replaces_tour_id: REPLACE_OLD, revision: 2,
+    recorded: true, keeps_link: true, uses_walkthrough: false, recorded_at: '2026-09-27T00:00:00Z' } });
+  await pending;
+  assert.equal(h.calls.filter(([name]) => name === 'get_listing_walkthroughs').length, reads);
+  assert.doesNotMatch(h.ids['account-status'].textContent, /Replacement saved/);
+});
+
 test('one-press approval never invents legacy quality or permission attestations on an older server', async () => {
   for (const refusal of [{ error: { message: 'complete every quality and permission check before approval' } },
     { error: { code: 'PGRST202', message: 'Could not find the function public.review_tour_versioned(p_checks, p_expected_package_revision, p_expected_storage_path, p_tour_id) in the schema cache' } }]) {
