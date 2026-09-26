@@ -1,0 +1,1101 @@
+/* /see: one capture, shown two ways. Only what is new on this page lives here; the header,
+   footer, buttons, ledgers, statement, answers, closing invitation and device chrome come from
+   style.css, conversion.css, refinement.css and showcase.css. */
+
+.see-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- First viewport: the viewing room ---------- */
+/* Wide screens: the headline across the top, then a narrow column (intro, actions) beside a
+   diptych: the 3D walkthrough (16:10) and the phone (9:16), top-aligned, 24 px apart, equal in
+   height. The pair is as wide as the column allows and no wider than the first screen allows,
+   so the frames, their captions and the label all sit above the fold. */
+.see-hero {
+  --pair-gap: 24px;
+  --pair-ratio: 2.1625; /* 16/10 + 9/16: pair width = height x this + the gap */
+  --hero-rest: 470px; /* header, headline, captions and label: everything but the frames */
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    minmax(340px, 1fr)
+    minmax(0, min(900px, calc((100vh - var(--hero-rest)) * var(--pair-ratio) + var(--pair-gap))));
+  grid-template-areas:
+    "title title"
+    "intro stage"
+    "actions stage"
+    ". stage";
+  grid-template-rows: auto auto auto 1fr;
+  column-gap: clamp(36px, 4vw, 56px);
+  padding-top: 14px;
+  padding-bottom: var(--chapter-space);
+}
+.see-hero h1 {
+  grid-area: title;
+  position: relative;
+  z-index: 1;
+  margin: 0 0 40px;
+  font-size: clamp(44px, 4.6vw, 66px);
+  line-height: 1.06;
+  letter-spacing: -0.04em;
+  text-wrap: initial;
+}
+.see-hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* Where the hairline starts: just after "One capture." */
+.see-node {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.7em;
+}
+.see-intro {
+  grid-area: intro;
+  max-width: 46ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.65;
+}
+.see-intro .intro-lead {
+  display: block;
+  margin-bottom: 6px;
+}
+.see-actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: start;
+  gap: 12px 28px;
+  margin-top: 28px;
+}
+/* Phones only: the offer in one line under the full-width button. */
+.see-actions-line {
+  display: none;
+}
+
+/* The phones-only choice between the two frames (see.js reveals it). */
+.see-switch {
+  display: none;
+}
+.see-stage {
+  grid-area: stage;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.see-pair {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pair-gap);
+}
+.see-frame {
+  min-width: 0;
+  margin: 0;
+}
+/* Grow in proportion to the aspect ratios, so both frames come out the same height. */
+.see-player {
+  flex: 1.6 1 0;
+}
+.see-video {
+  flex: 0.5625 1 0;
+}
+.see-player-stage {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--paper);
+}
+.see-player-stage:focus {
+  outline: none;
+}
+.see-player-stage picture,
+.see-player-poster {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.see-player-poster {
+  object-fit: cover;
+}
+/* The press that loads the engine: one square paper button, inset from the corner. */
+.see-player-start {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+}
+.see-player-start[hidden] {
+  display: none;
+}
+.see-player-start .button {
+  min-height: 52px;
+  min-width: 0;
+  padding: 14px 20px;
+  border-color: rgba(16, 35, 29, 0.28);
+  font-size: 14px;
+}
+.refined-marketing .see-player-start .button:focus-visible {
+  outline-color: var(--paper);
+  outline-offset: 3px;
+}
+.see-player-start .button:disabled {
+  opacity: 0.8;
+  cursor: progress;
+}
+.see-player-status,
+.see-player-note {
+  max-width: 40ch;
+  padding: 10px 12px;
+  background: rgba(16, 35, 29, 0.92);
+  color: var(--paper);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.see-player-status:empty {
+  display: none;
+}
+.see-player-note {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  max-width: calc(100% - 32px);
+}
+
+/* Device chrome: the one place this page rounds and lifts (DESIGN.md, Elevation). */
+.see-phone {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border: 5px solid var(--device);
+  border-radius: 22px;
+  background: #07100c;
+  box-shadow: var(--lift), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  isolation: isolate;
+}
+.see-phone video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #07100c;
+}
+/* On a phone held upright, the 16:9 listing cut plays letterboxed, as it would in the hand. */
+.see-video[data-cut="listing"] video {
+  object-fit: contain;
+}
+.see-video-bar {
+  position: absolute;
+  z-index: 2;
+  left: 8px;
+  right: 8px;
+  bottom: 7%; /* clear of the export's own label along the bottom of the video */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  pointer-events: none;
+}
+.see-video-bar > * {
+  pointer-events: auto;
+}
+.see-pause {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(16, 35, 29, 0.78);
+  color: var(--paper);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.see-pause:hover {
+  background: var(--ink);
+}
+.see-pause::before {
+  content: "";
+  width: 8px;
+  height: 11px;
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+.see-pause[data-state="paused"]::before {
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border: 0;
+  border-left: 10px solid currentColor;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+.see-cuts {
+  display: flex;
+  border-radius: 999px;
+  background: rgba(16, 35, 29, 0.78);
+}
+.see-cuts button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(244, 241, 233, 0.84);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.see-cuts button:hover {
+  color: var(--paper);
+}
+.see-cuts button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+}
+.refined-marketing .see-pause:focus-visible,
+.refined-marketing .see-cuts button:focus-visible {
+  outline: 2px solid var(--paper);
+  outline-offset: 2px;
+}
+
+/* Captions share a first line: what the frame is, and the Research sample tag beside it. */
+.see-frame figcaption {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.see-caption-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: var(--ink);
+}
+.see-caption-head strong {
+  font-weight: 500;
+}
+.see-tag {
+  padding: 1px 8px;
+  font-size: 11.5px;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.see-caption-line {
+  color: var(--muted);
+}
+.see-player-weight {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.see-cut-file a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* The full label, once, on a hairline under the pair. */
+.see-label {
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* The signature: one hairline from "One capture." that runs right and drops onto the top edge
+   of each frame. Drawn by default; see.js lays it out and, with motion allowed, lets the scroll
+   draw it. */
+.see-thread {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.see-thread path {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.see-thread circle {
+  fill: var(--ink);
+}
+
+/* 801-1100 px: the same diptych, full width under the intro and actions. */
+@media (max-width: 1100px) and (min-width: 801px) {
+  .see-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "intro" "actions" "stage";
+    grid-template-rows: none;
+  }
+  .see-stage {
+    max-width: 900px;
+    margin-top: 44px;
+  }
+}
+/* Phones: headline, intro, the action and the offer in a line, then one frame at a time. */
+@media (max-width: 800px) {
+  .see-hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "intro" "actions" "stage";
+    grid-template-rows: none;
+    padding-top: 22px;
+  }
+  .see-hero h1 {
+    margin-bottom: 18px;
+    font-size: clamp(26px, 8.2vw, 56px);
+    line-height: 1.08;
+  }
+  .see-intro {
+    font-size: 16px;
+  }
+  .see-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    margin-top: 22px;
+  }
+  .see-actions .button {
+    width: 100%;
+    min-height: 54px;
+    font-size: 15px;
+  }
+  .see-actions-more {
+    display: none;
+  }
+  .see-actions-line {
+    display: block;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .see-actions-line a {
+    display: inline-block;
+    padding: 12px 0;
+    line-height: 20px;
+    color: var(--muted);
+    text-decoration: underline;
+    text-decoration-color: var(--field-line);
+    text-underline-offset: 4px;
+  }
+  .see-actions-line [data-price] {
+    color: var(--ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .see-stage {
+    margin-top: 18px;
+  }
+  .see-thread {
+    display: none;
+  }
+  .see-switch:not([hidden]) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 16px;
+    border: 1px solid var(--field-line);
+  }
+  .see-switch button {
+    min-height: 48px;
+    padding: 0 8px;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font-size: 14px;
+  }
+  .see-switch button + button {
+    border-left: 1px solid var(--field-line);
+  }
+  /* The active choice takes the accent, as the desk's active sort control does. */
+  .see-switch button[aria-pressed="true"] {
+    background: var(--sage);
+    font-weight: 500;
+  }
+  .see-pair {
+    display: block;
+  }
+  .see-player-stage {
+    aspect-ratio: 1 / 1;
+  }
+  .see-video {
+    margin-top: 32px;
+  }
+  .see-stage[data-show] .see-video {
+    margin-top: 0;
+  }
+  .see-stage[data-show="explore"] .see-video,
+  .see-stage[data-show="watch"] .see-player {
+    display: none;
+  }
+  .see-phone {
+    width: min(58%, 250px);
+    margin-inline: auto;
+  }
+  .see-video[data-cut="listing"] .see-phone {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+  }
+  .see-video[data-cut="listing"] video {
+    object-fit: cover;
+  }
+}
+
+/* ---------- Shared section heads ---------- */
+.see-section-head h2 {
+  max-width: 16ch;
+  margin: 0;
+}
+.see-section-head p {
+  max-width: 50ch;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* ---------- What this example is: heading left, ledger right, rooms beneath ---------- */
+.see-about {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 32px clamp(36px, 4.4vw, 64px);
+  align-items: start;
+  padding-bottom: var(--chapter-space);
+}
+.see-ledger dd a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.see-rooms {
+  grid-column: 1 / -1;
+  margin: clamp(16px, 2.4vw, 32px) 0 0;
+}
+.see-rooms ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(12px, 1.6vw, 24px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.see-rooms img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #d9d6cb;
+}
+.see-rooms li span {
+  display: block;
+  padding-top: 10px;
+  font-size: 14px;
+}
+.see-rooms figcaption {
+  max-width: 72ch;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+/* ---------- Explore it or watch it: a comparison ledger, not cards ---------- */
+.see-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 32px clamp(36px, 4.4vw, 64px);
+  align-items: start;
+  padding-bottom: var(--chapter-space);
+}
+.see-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.see-table th,
+.see-table td {
+  padding: 17px 20px 17px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  vertical-align: baseline;
+}
+.see-table thead th,
+.see-table thead td {
+  padding-top: 0;
+  padding-bottom: 14px;
+  border-top: 0;
+  border-bottom: 2px solid var(--ink);
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.see-table thead th small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.see-table tbody th {
+  width: 24%;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.see-table tbody tr:first-child > * {
+  border-top: 0;
+}
+.see-table tbody tr:last-child > * {
+  border-bottom: 1px solid var(--line);
+}
+.see-cell-label {
+  display: none;
+}
+
+/* ---------- From your phone to their browser ---------- */
+.see-flow {
+  padding-bottom: var(--chapter-space);
+}
+.see-flow .see-section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px clamp(36px, 4.4vw, 64px);
+  align-items: end;
+  margin-bottom: clamp(28px, 3.4vw, 48px);
+}
+.see-flow .see-section-head p {
+  margin: 0;
+}
+.see-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Without the pinned sequence (phones, reduced motion, no script): a plain list, each step
+   beside its own screen. */
+.see-step {
+  --p: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 640px) minmax(0, 170px);
+  justify-content: start;
+  gap: 20px clamp(32px, 8vw, 120px);
+  align-items: start;
+  padding: 26px 0 30px;
+  border-top: 1px solid var(--line);
+}
+.see-step:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.see-step-text {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 24px;
+  max-width: 640px;
+}
+.see-step h3 {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  transition: color 0.2s ease;
+}
+.see-step-text .see-step-time {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.see-step-text p:last-child {
+  grid-column: 1 / -1;
+  max-width: 46ch;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.see-step-screen {
+  width: 100%;
+  margin: 0;
+  justify-self: end;
+}
+.see-step-screen figcaption {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.see-step-screen figcaption small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+/* Pinned (801 px and wider, motion allowed; see.js sets data-mode): the list on the left with a
+   progress rule per step, one phone on the right whose screen follows the scroll. */
+.see-flow[data-mode="pinned"] {
+  --flow-device: min(270px, calc((100vh - 190px) / 2.3), 30vw);
+  --flow-list: min(660px, calc(100% - var(--flow-device) - 64px));
+}
+.see-flow[data-mode="pinned"] .see-flow-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--flow-device) * 2.17 + 64px);
+}
+.see-flow[data-mode="pinned"] .see-steps {
+  width: var(--flow-list);
+}
+/* The screens are placed against the whole body, so the steps are not their containing blocks. */
+.see-flow[data-mode="pinned"] .see-step {
+  position: static;
+  display: block;
+  padding: 18px 0 20px;
+}
+.see-flow[data-mode="pinned"] .see-step-text {
+  position: relative;
+  max-width: none;
+}
+.see-flow[data-mode="pinned"] .see-step-text::before {
+  content: "";
+  position: absolute;
+  top: -19px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--ink);
+  transform: scaleX(var(--p));
+  transform-origin: left center;
+}
+.see-flow[data-mode="pinned"] .see-step h3 {
+  color: var(--muted);
+}
+.see-flow[data-mode="pinned"] .see-step[aria-current] h3 {
+  color: var(--ink);
+}
+/* One phone, centred in the space beside the list. */
+.see-flow[data-mode="pinned"] .see-step-screen {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--flow-list) + (100% - var(--flow-list) - var(--flow-device)) / 2);
+  width: var(--flow-device);
+  translate: 0 -50%;
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.see-flow[data-mode="pinned"] .see-step-screen[data-shown] {
+  opacity: 1;
+}
+
+/* Drawn screens (Illustration): the app's own dark ground and vocabulary, sized in the
+   device's container units like the home page's capture screen. */
+.see-ui {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3.4cqw;
+  padding: 17cqw 6cqw 8cqw;
+  background: #0f1a16;
+  color: #eef3ee;
+  font-size: 4.4cqw;
+  line-height: 1.35;
+}
+.see-ui p {
+  margin: 0;
+}
+.see-ui-top {
+  font-size: 4.4cqw;
+  font-weight: 500;
+  text-align: center;
+}
+.see-ui-h {
+  margin-top: 2cqw;
+  font-size: 8.4cqw;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.see-ui-card {
+  display: grid;
+  gap: 3.2cqw;
+  padding: 5cqw;
+  border: 1px solid rgba(198, 220, 201, 0.18);
+  border-radius: 5cqw;
+  background: #16241f;
+}
+.see-ui-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  font-size: 5.2cqw;
+  font-weight: 500;
+}
+.see-ui-pill {
+  flex: none;
+  padding: 1cqw 2.6cqw;
+  border-radius: 99px;
+  background: rgba(198, 220, 201, 0.16);
+  color: #cfe0d2;
+  font-size: 3.5cqw;
+  font-weight: 400;
+  white-space: nowrap;
+}
+[data-state="ready"] .see-ui-pill,
+[data-ui-layer="shared"] .see-ui-pill {
+  background: var(--sage);
+  color: var(--ink);
+}
+.see-ui-line {
+  color: rgba(238, 243, 238, 0.74);
+  font-size: 4cqw;
+}
+.see-ui-steps {
+  display: grid;
+  gap: 2.2cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: rgba(238, 243, 238, 0.55);
+  font-size: 3.9cqw;
+}
+.see-ui-steps li {
+  display: flex;
+  align-items: center;
+  gap: 2.4cqw;
+}
+.see-ui-steps li::before {
+  content: "";
+  flex: none;
+  width: 3.4cqw;
+  height: 3.4cqw;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.see-ui-steps li.is-done,
+.see-ui-steps li.is-now {
+  color: #eef3ee;
+}
+.see-ui-steps li.is-done::before {
+  border-color: var(--sage);
+  background: var(--sage);
+}
+.see-ui-steps li.is-now::before {
+  border: 2px solid var(--sage);
+}
+.see-ui-btn {
+  display: block;
+  padding: 3.2cqw;
+  border-radius: 3.4cqw;
+  background: var(--sage);
+  color: var(--ink);
+  font-size: 4.4cqw;
+  font-weight: 500;
+  text-align: center;
+}
+[data-state="rendering"] [data-ui-cta] {
+  visibility: hidden;
+}
+[data-ui="share"] {
+  padding: 0;
+}
+.see-ui-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3.6cqw;
+  padding: 17cqw 6cqw 8cqw;
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-state="review"] [data-ui-layer="review"],
+[data-state="shared"] [data-ui-layer="shared"],
+[data-state="browser"] [data-ui-layer="browser"] {
+  opacity: 1;
+}
+.see-ui-thumb {
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  border-radius: 4cqw;
+  background: #16241f;
+}
+.see-ui-thumb img,
+.see-ui-view img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.see-ui-check {
+  display: flex;
+  align-items: center;
+  gap: 2.6cqw;
+  color: rgba(238, 243, 238, 0.86);
+  font-size: 3.9cqw;
+}
+.see-ui-box {
+  position: relative;
+  flex: none;
+  width: 4.6cqw;
+  height: 4.6cqw;
+  border-radius: 1.2cqw;
+  background: var(--sage);
+}
+.see-ui-box::after {
+  content: "";
+  position: absolute;
+  left: 1.5cqw;
+  top: 0.7cqw;
+  width: 1.3cqw;
+  height: 2.4cqw;
+  border: solid var(--ink);
+  border-width: 0 0.6cqw 0.6cqw 0;
+  transform: rotate(45deg);
+}
+.see-ui-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2cqw;
+  padding: 3cqw 3.4cqw;
+  border: 1px solid rgba(198, 220, 201, 0.22);
+  border-radius: 3cqw;
+  font-size: 3.8cqw;
+}
+.see-ui-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.see-ui-link em {
+  flex: none;
+  color: var(--sage);
+  font-style: normal;
+}
+.see-ui-qr {
+  display: block;
+  width: 46cqw;
+  height: auto;
+  margin: 1cqw auto;
+  border-radius: 2cqw;
+}
+.see-ui-code {
+  padding: 3cqw 3.4cqw;
+  border-radius: 3cqw;
+  background: #16241f;
+  color: rgba(238, 243, 238, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 3.3cqw;
+  overflow-wrap: anywhere;
+}
+[data-ui-layer="browser"] {
+  gap: 0;
+  padding: 14cqw 0 0;
+  background: #0f1a16;
+}
+.see-ui-url {
+  margin: 0 5cqw 3cqw;
+  padding: 2.4cqw 3.4cqw;
+  border-radius: 99px;
+  background: #1c2b25;
+  color: rgba(238, 243, 238, 0.86);
+  font-size: 3.6cqw;
+  text-align: center;
+}
+.see-ui-view {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+.see-ui-view span {
+  position: absolute;
+  top: 4cqw;
+  left: 4cqw;
+  padding: 1.6cqw 3cqw;
+  border-radius: 1.4cqw;
+  background: rgba(16, 35, 29, 0.88);
+  color: var(--paper);
+  font-size: 3.6cqw;
+}
+
+/* ---------- Your first 3 months ---------- */
+.see-offer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.86fr);
+  gap: 40px clamp(36px, 6vw, 96px);
+  align-items: start;
+  padding-bottom: var(--chapter-space);
+  scroll-margin-top: 24px;
+}
+.see-offer h2 {
+  margin: 0;
+}
+.see-offer-intro {
+  max-width: 50ch;
+  margin: 18px 0 28px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+.see-statement h3 {
+  margin: 0 0 12px;
+  font-size: clamp(22px, 2.4vw, 27px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.see-statement .statement-lines > div:not(.line-paid) .amount {
+  font-size: 26px;
+}
+.see-offer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+  margin: 28px 0 0;
+}
+.see-offer-note {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ---------- Breakpoints ---------- */
+@media (max-width: 1000px) {
+  .see-about,
+  .see-compare,
+  .see-offer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .see-flow .see-section-head {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+}
+@media (max-width: 800px) {
+  .see-section-head p {
+    font-size: 16px;
+  }
+  .see-offer-intro {
+    font-size: 16px;
+  }
+}
+@media (max-width: 640px) {
+  .see-rooms ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .see-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .see-table,
+  .see-table tbody,
+  .see-table tr,
+  .see-table th,
+  .see-table td {
+    display: block;
+    width: auto;
+  }
+  .see-table tbody tr {
+    padding: 16px 0 14px;
+    border-top: 1px solid var(--line);
+  }
+  .see-table tbody tr:last-child {
+    border-bottom: 1px solid var(--line);
+  }
+  .see-table tbody th,
+  .see-table tbody td,
+  .see-table tbody tr:first-child > *,
+  .see-table tbody tr:last-child > * {
+    padding: 0;
+    border: 0;
+  }
+  .see-table tbody th {
+    margin-bottom: 8px;
+  }
+  .see-table tbody td {
+    display: grid;
+    grid-template-columns: 8ch minmax(0, 1fr);
+    gap: 12px;
+    padding: 3px 0;
+    font-size: 15px;
+  }
+  .see-cell-label {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .see-step {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 36%);
+    gap: 16px 20px;
+  }
+  .see-step-text {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .see-step h3 {
+    font-size: 19px;
+  }
+  .see-step-text .see-step-time {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 4px;
+    text-align: left;
+    white-space: normal;
+  }
+  .see-step-text p:last-child {
+    font-size: 15px;
+  }
+  .see-step-screen figcaption {
+    font-size: 11.5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .see-pause,
+  .see-cuts button,
+  .see-ui-layer,
+  .see-step h3 {
+    transition: none;
+  }
+}

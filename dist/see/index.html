@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>See a result — Veylet</title>
+    <meta
+      name="description"
+      content="One apartment shown two ways: a 3D walkthrough to explore in the browser and a walkthrough video to post, both from one capture processed by the Veylet pipeline. A labelled public research example."
+    />
+    <meta name="theme-color" content="#10231d" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://veylet.com/see" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Veylet Studio" />
+    <meta property="og:locale" content="en_AU" />
+    <meta property="og:title" content="See a result — Veylet" />
+    <meta
+      property="og:description"
+      content="One apartment shown two ways: a 3D walkthrough to explore in the browser and a walkthrough video to post, both from one capture processed by the Veylet pipeline. A labelled public research example."
+    />
+    <meta property="og:url" content="https://veylet.com/see" />
+    <meta property="og:image" content="https://veylet.com/media/result-poster-16x9.webp" />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+    <meta
+      property="og:image:alt"
+      content="The living area of the example apartment, from its walkthrough video. Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline; not a client property."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://veylet.com/media/result-poster-16x9.webp" />
+    <meta
+      name="twitter:image:alt"
+      content="The living area of the example apartment, from its walkthrough video. Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline; not a client property."
+    />
+    <link rel="icon" href="/media/studio-avatar.png" />
+    <link rel="preload" href="/media/Outfit-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/media/Outfit-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/style.css?v=a8e48561929d7ca9" />
+    <link rel="stylesheet" href="/conversion.css?v=8d4c2655506ee01d" />
+    <link rel="stylesheet" href="/refinement.css?v=907b8eadc1315d5c" />
+    <link rel="stylesheet" href="/showcase.css?v=ea6204437475895d" />
+    <link rel="stylesheet" href="/see/see.css?v=9c36a3cc15808c37" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://veylet.com/see#webpage",
+            "url": "https://veylet.com/see",
+            "name": "See a result — Veylet",
+            "description": "One apartment shown two ways: a 3D walkthrough to explore in the browser and a walkthrough video to post, both from one capture processed by the Veylet pipeline. A labelled public research example.",
+            "inLanguage": "en-AU",
+            "isPartOf": { "@id": "https://veylet.com/#website" },
+            "publisher": { "@id": "https://veylet.com/#organization" },
+            "breadcrumb": { "@id": "https://veylet.com/see#breadcrumb" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "@id": "https://veylet.com/see#breadcrumb",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://veylet.com/" },
+              { "@type": "ListItem", "position": 2, "name": "See a result", "item": "https://veylet.com/see" }
+            ]
+          },
+          {
+            "@type": "VideoObject",
+            "@id": "https://veylet.com/see#video-social",
+            "name": "Example walkthrough video, 9:16 social cut",
+            "description": "A set route through the kitchen, living area, workshop and bedroom of the example apartment, made automatically from one capture. Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline. Not captured with Veylet Capture; not a client property.",
+            "thumbnailUrl": "https://veylet.com/media/result-poster-9x16.webp",
+            "contentUrl": "https://veylet.com/media/result-social-9x16.mp4",
+            "uploadDate": "2026-09-26",
+            "duration": "PT28S",
+            "width": 720,
+            "height": 1280,
+            "inLanguage": "en-AU",
+            "publisher": { "@id": "https://veylet.com/#organization" }
+          },
+          {
+            "@type": "VideoObject",
+            "@id": "https://veylet.com/see#video-listing",
+            "name": "Example walkthrough video, 16:9 listing cut",
+            "description": "A set route through the kitchen, living area, workshop and bedroom of the example apartment, made automatically from one capture. Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline. Not captured with Veylet Capture; not a client property.",
+            "thumbnailUrl": "https://veylet.com/media/result-poster-16x9.webp",
+            "contentUrl": "https://veylet.com/media/result-listing-16x9.mp4",
+            "uploadDate": "2026-09-26",
+            "duration": "PT1M1S",
+            "width": 1280,
+            "height": 720,
+            "inLanguage": "en-AU",
+            "publisher": { "@id": "https://veylet.com/#organization" }
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://veylet.com/see#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Was this example made with an iPhone?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. It is the apartment scene from Meta’s Eyeful Tower research dataset, photographed with a research camera rig and published under the MIT licence. We processed it with the same pipeline your captures go through, from camera positions to the video export. An iPhone capture of your space will look different, and every walkthrough is checked before you can share it."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do my clients need an app?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. They open the link, the QR code or the embed on your website in a current browser on a phone, tablet or computer. There is nothing to install and no account to make."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What if my capture isn’t good enough?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The app checks your saved route before you send it. After you send it, an automatic quality check tests the walkthrough before it reaches you; if it does not pass, it retries once, then names the rooms to recapture, and that attempt is not counted. And if your first walkthrough isn’t listing-ready, we redo it free."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "When can I start?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted weekly, and we email you when it’s your turn."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body id="top" class="refined-marketing refined-home see-page">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap">
+      <a class="brand" href="/" aria-label="Veylet Studio home"
+        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      >
+      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" aria-current="page">See a result</a><a href="/offer">Offer</a><a href="/apply">Capture partners</a><a href="/account">Sign in</a></nav>
+    </header>
+    <main id="main">
+      <section class="see-hero wrap" aria-labelledby="see-title" data-see-hero>
+        <h1 id="see-title">One capture.<span class="see-node" aria-hidden="true" data-thread-node></span><br /><em data-thread-em>Two ways to show it.</em></h1>
+        <p class="see-intro">
+          <span class="intro-lead">The same apartment as a 3D walkthrough people explore in their
+          browser, and as a walkthrough video you can post.</span>
+          Both came out of one capture, processed by our pipeline.
+        </p>
+        <div class="see-actions" data-hero-actions>
+          <a class="button" href="/waitlist">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a
+          ><a class="text-link see-actions-more" href="#offer">What’s in the 3 free months</a>
+          <p class="see-actions-line"><a href="#offer">3 free months · 6 walkthroughs · then <span data-price="see-hero-month">A$99</span> a month</a></p>
+        </div>
+
+        <!-- The sample walkthrough's package location, read by see.js and nowhere else. At release it
+             becomes "https://tours.veylet.com/samples/eyeful-apartment/" (the player accepts this
+             origin or the tour host); change this one attribute. -->
+        <div class="see-stage" data-see-stage data-sample-base="/samples/eyeful-apartment/">
+          <div class="see-switch" role="group" aria-label="Show the example as" data-see-switch hidden>
+            <button type="button" data-show="explore" aria-pressed="true">Explore in 3D</button
+            ><button type="button" data-show="watch" aria-pressed="false">Watch the video</button>
+          </div>
+
+          <div class="see-pair">
+            <figure class="see-frame see-player" aria-describedby="see-label" data-see-frame="explore">
+              <div class="see-player-stage" data-see-player tabindex="-1">
+                <picture>
+                  <source media="(max-width: 800px)" srcset="/media/result-sample-poster-portrait.webp" width="900" height="1600" />
+                  <img
+                    class="see-player-poster"
+                    src="/media/result-sample-poster.webp"
+                    alt="The living area of the example apartment: the opening view, rendered from its 3D walkthrough."
+                    width="1600"
+                    height="900"
+                    fetchpriority="high"
+                    decoding="async"
+                  />
+                </picture>
+                <div class="see-player-start" data-player-start hidden>
+                  <button class="button button-paper" type="button" data-explore>Explore the apartment</button>
+                  <p class="see-player-status" role="status" data-player-status></p>
+                </div>
+                <noscript><p class="see-player-note">The 3D walkthrough needs JavaScript. The walkthrough video plays without it.</p></noscript>
+              </div>
+              <figcaption>
+                <span class="see-caption-head"><strong>3D walkthrough</strong> <span class="pill see-tag">Research sample</span></span>
+                <span class="see-caption-line">Drag to look, tap the floor to walk. <span class="see-player-weight" data-player-weight>Explore loads about 35 MB.</span></span>
+              </figcaption>
+            </figure>
+
+            <figure class="see-frame see-video" aria-describedby="see-label" data-see-frame="watch" data-see-video data-cut="social">
+              <div class="see-phone" data-see-phone>
+                <video
+                  class="see-cut"
+                  data-cut-video="social"
+                  src="/media/result-social-9x16.mp4"
+                  poster="/media/result-poster-9x16.webp"
+                  width="720"
+                  height="1280"
+                  preload="none"
+                  muted
+                  loop
+                  playsinline
+                  controls
+                  aria-label="Walkthrough video, 9:16 social cut, 28 seconds, no sound: a set route through the example apartment."
+                ></video>
+                <video
+                  class="see-cut"
+                  data-cut-video="listing"
+                  src="/media/result-listing-16x9.mp4"
+                  poster="/media/result-poster-16x9.webp"
+                  width="1280"
+                  height="720"
+                  preload="none"
+                  muted
+                  loop
+                  playsinline
+                  controls
+                  hidden
+                  aria-label="Walkthrough video, 16:9 listing cut, 61 seconds, no sound: a set route through the example apartment."
+                ></video>
+                <div class="see-video-bar">
+                  <button class="see-pause" type="button" aria-label="Pause the video" title="Pause the video" data-video-toggle hidden></button>
+                  <div class="see-cuts" role="group" aria-label="Video cut" data-cut-switch hidden>
+                    <button type="button" data-cut-choice="social" aria-pressed="true" aria-label="Social cut, 9:16">9:16</button
+                    ><button type="button" data-cut-choice="listing" aria-pressed="false" aria-label="Listing cut, 16:9">16:9</button>
+                  </div>
+                </div>
+              </div>
+              <figcaption>
+                <span class="see-caption-head"><strong>Walkthrough video</strong> <span class="pill see-tag">Research sample</span></span>
+                <span class="see-caption-line">Made automatically from the same capture.<span class="see-cut-file" data-cut-file> <a href="/media/result-listing-16x9.mp4">Open the 16:9 listing cut</a></span></span>
+              </figcaption>
+            </figure>
+          </div>
+
+          <p class="see-label" id="see-label">Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline. Not captured with Veylet Capture; not a client property.</p>
+        </div>
+
+        <svg class="see-thread" aria-hidden="true" focusable="false" data-thread hidden>
+          <path data-thread-part="run-explore" pathLength="1" />
+          <path data-thread-part="explore" pathLength="1" />
+          <path data-thread-part="run-watch" pathLength="1" />
+          <path data-thread-part="watch" pathLength="1" />
+          <circle data-thread-dot="start" r="3.5" />
+        </svg>
+      </section>
+
+      <section class="see-about wrap" aria-labelledby="about-title">
+        <div class="see-section-head">
+          <h2 id="about-title">What this example is.</h2>
+          <p>A public research capture run through our own pipeline, so you can judge the result before you capture anything.</p>
+        </div>
+        <dl class="conversion-benefits see-ledger">
+          <div>
+            <dt>Source</dt>
+            <dd>The apartment scene from Meta’s Eyeful Tower research dataset, photographed with a research camera rig. MIT licence, Copyright (c) Meta Platforms, Inc. and affiliates. <a href="/see/eyeful-tower-LICENSE.txt">Read the licence</a></dd>
+          </div>
+          <div>
+            <dt>Processed by</dt>
+            <dd>The Veylet pipeline, end to end: camera positions, training, the automatic quality check, packaging for the browser, and the video export.</dd>
+          </div>
+          <div>
+            <dt>Rooms</dt>
+            <dd>Kitchen, living area, workshop and bedroom, with one stop in each.</dd>
+          </div>
+          <div>
+            <dt>What it is not</dt>
+            <dd>Not captured with Veylet Capture, and not a client property. It was photographed with a research rig, so an iPhone capture of your space will look different, and every walkthrough is checked before you can share it.</dd>
+          </div>
+        </dl>
+        <figure class="see-rooms">
+          <ol>
+            <li><img src="/media/result-room-kitchen.webp" alt="The kitchen: fridge, oven and wall cabinets." width="960" height="540" loading="lazy" decoding="async" /><span>Kitchen</span></li>
+            <li><img src="/media/result-room-living-area.webp" alt="The living area: a desk with three monitors and a pegboard wall." width="960" height="540" loading="lazy" decoding="async" /><span>Living area</span></li>
+            <li><img src="/media/result-room-workshop.webp" alt="The workshop: a workbench under a pegboard of tools." width="960" height="540" loading="lazy" decoding="async" /><span>Workshop</span></li>
+            <li><img src="/media/result-room-bedroom.webp" alt="The bedroom: a bed under a wide window." width="960" height="540" loading="lazy" decoding="async" /><span>Bedroom</span></li>
+          </ol>
+          <figcaption>Stills from the listing video, one per room. The line along the bottom of each is the video export’s own label.</figcaption>
+        </figure>
+      </section>
+
+      <section class="see-compare wrap" aria-labelledby="compare-title">
+        <div class="see-section-head">
+          <h2 id="compare-title">Explore it or watch it.</h2>
+          <p>Same capture, different jobs. The walkthrough lets people look for themselves; the video takes them round.</p>
+        </div>
+        <table class="see-table">
+          <caption class="see-sr">The 3D walkthrough and the walkthrough video compared</caption>
+          <thead>
+            <tr>
+              <td></td>
+              <th scope="col">Explore it<small>The 3D walkthrough</small></th>
+              <th scope="col">Watch it<small>The walkthrough video</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Where it goes</th>
+              <td><span class="see-cell-label">Explore</span>A link, a QR code, your website</td>
+              <td><span class="see-cell-label">Watch</span>Instagram, Reels, a listing’s video slot</td>
+            </tr>
+            <tr>
+              <th scope="row">Who steers</th>
+              <td><span class="see-cell-label">Explore</span>The viewer, anywhere they like</td>
+              <td><span class="see-cell-label">Watch</span>A set route through every room</td>
+            </tr>
+            <tr>
+              <th scope="row">Length</th>
+              <td><span class="see-cell-label">Explore</span>As long as they like</td>
+              <td><span class="see-cell-label">Watch</span>20–45 s social cut, 60–180 s listing cut</td>
+            </tr>
+            <tr>
+              <th scope="row">What they need</th>
+              <td><span class="see-cell-label">Explore</span>A browser, no app</td>
+              <td><span class="see-cell-label">Watch</span>Any video player</td>
+            </tr>
+            <tr>
+              <th scope="row">In the plan</th>
+              <td><span class="see-cell-label">Explore</span>Every walkthrough</td>
+              <td><span class="see-cell-label">Watch</span>Included, when video exports open</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="see-flow wrap" aria-labelledby="flow-title" data-see-flow>
+        <div class="see-section-head">
+          <h2 id="flow-title">From your phone to their browser.</h2>
+          <p>Five steps, from a practice room to a link your client opens.</p>
+        </div>
+        <div class="see-flow-body" data-flow-body>
+          <ol class="see-steps">
+            <li class="see-step" data-step="1">
+              <div class="see-step-text">
+                <h3>Practise one room.</h3>
+                <p class="see-step-time">Once</p>
+                <p>The app unlocks real captures once the practice room passes.</p>
+              </div>
+              <figure class="see-step-screen" data-screen="1">
+                <div class="device"><div class="device-screen"><img src="/media/app-captures.webp" alt="Veylet Capture’s Your captures screen, with a button to start a practice capture." width="660" height="1434" loading="lazy" decoding="async" /></div></div>
+                <figcaption>App screen (iOS Simulator)</figcaption>
+              </figure>
+            </li>
+            <li class="see-step" data-step="2">
+              <div class="see-step-text">
+                <h3>Capture room by room.</h3>
+                <p class="see-step-time">About 3 minutes a room</p>
+                <p>The app coaches you as you walk each room.</p>
+              </div>
+            </li>
+            <li class="see-step" data-step="3">
+              <div class="see-step-text">
+                <h3>Send.</h3>
+                <p class="see-step-time">In the background</p>
+                <p>Send it from the app when the last room is done; it uploads in the background.</p>
+              </div>
+              <figure class="see-step-screen" data-screen="3">
+                <div class="device"><div class="device-screen"><img src="/media/app-ready-to-send.webp" alt="Ready to send screen: route checks, the saved route, and Finish and save." width="660" height="1434" loading="lazy" decoding="async" /></div></div>
+                <figcaption>App screen (iOS Simulator)</figcaption>
+              </figure>
+            </li>
+            <li class="see-step" data-step="4">
+              <div class="see-step-text">
+                <h3>Automatic render and quality check.</h3>
+                <p class="see-step-time">Typically 1–2 hours</p>
+                <p>You get “Ready for your review” when it passes.</p>
+              </div>
+              <figure class="see-step-screen" data-screen="4">
+                <div class="device" aria-hidden="true"><div class="device-screen">
+                  <div class="see-ui" data-ui="render" data-state="ready">
+                    <p class="see-ui-top">Spaces</p>
+                    <p class="see-ui-h">Your space</p>
+                    <div class="see-ui-card">
+                      <p class="see-ui-state"><span data-ui-title>Ready for your review</span><span class="see-ui-pill" data-ui-turn>Your turn</span></p>
+                      <p class="see-ui-line" data-ui-line>It passed the automatic quality check.</p>
+                      <ol class="see-ui-steps">
+                        <li class="is-done" data-ui-step>Preparing photos</li>
+                        <li class="is-done" data-ui-step>Lining up camera positions</li>
+                        <li class="is-done" data-ui-step>Building your 3D walkthrough</li>
+                        <li class="is-done" data-ui-step>Packing it for phones</li>
+                        <li class="is-done" data-ui-step>Checking quality</li>
+                      </ol>
+                      <span class="see-ui-btn" data-ui-cta>Review walkthrough</span>
+                    </div>
+                  </div>
+                </div></div>
+                <figcaption>Illustration<span class="see-sr">: the render status, from Rendering, step 3 of 5, to Ready for your review.</span></figcaption>
+              </figure>
+            </li>
+            <li class="see-step" data-step="5">
+              <div class="see-step-text">
+                <h3>Approve and share.</h3>
+                <p class="see-step-time">One press</p>
+                <p>Then a link, a QR code and a website embed. Clients walk it in their browser, no app.</p>
+              </div>
+              <figure class="see-step-screen" data-screen="5">
+                <div class="device" aria-hidden="true"><div class="device-screen">
+                  <div class="see-ui" data-ui="share" data-state="shared">
+                    <div class="see-ui-layer" data-ui-layer="review">
+                      <p class="see-ui-top">Review</p>
+                      <div class="see-ui-thumb"><img src="/media/result-sample-poster-portrait.webp" alt="" width="900" height="1600" loading="lazy" decoding="async" /></div>
+                      <p class="see-ui-check"><span class="see-ui-box"></span>I have the right to share this walkthrough</p>
+                      <span class="see-ui-btn">Approve and share</span>
+                    </div>
+                    <div class="see-ui-layer" data-ui-layer="shared">
+                      <p class="see-ui-top">Share</p>
+                      <p class="see-ui-state"><span>Live</span><span class="see-ui-pill">Link on</span></p>
+                      <p class="see-ui-link"><span>veylet.com/play/9fk2-q7</span><em>Copy link</em></p>
+                      <img class="see-ui-qr" src="/media/result-share-qr.svg" alt="" width="29" height="29" loading="lazy" decoding="async" />
+                      <p class="see-ui-code">&lt;iframe src="…/embed/9fk2-q7"&gt;</p>
+                    </div>
+                    <div class="see-ui-layer" data-ui-layer="browser">
+                      <p class="see-ui-url">veylet.com/play/9fk2-q7</p>
+                      <div class="see-ui-view"><img src="/media/result-sample-poster-portrait.webp" alt="" width="900" height="1600" loading="lazy" decoding="async" /><span>Living area</span></div>
+                    </div>
+                  </div>
+                </div></div>
+                <figcaption>Illustration<span class="see-sr">: Approve and share, then the link, QR code and embed, then the walkthrough in a phone browser.</span><small>The view is the example above: a research capture, not captured with Veylet Capture.</small></figcaption>
+              </figure>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="see-offer wrap" id="offer" aria-labelledby="offer-title">
+        <div class="see-offer-copy">
+          <h2 id="offer-title">Your first 3 months.</h2>
+          <p class="see-offer-intro">Try it on your own spaces before you pay anything. This is what the 3 free months include, and what follows them.</p>
+          <dl class="offer-terms see-offer-terms">
+            <div><dt>6 walkthroughs included</dt><dd>Across the 3 free months in total, not 6 a month.</dd></div>
+            <div><dt>Each walkthrough</dt><dd>The 3D walkthrough, a private link, a QR code and a website embed, hosted while your plan runs.</dd></div>
+            <div><dt>Listing videos and stills</dt><dd>A 16:9 listing video, a 9:16 social video and stills of each walkthrough, included in the plan when video exports open.</dd></div>
+            <div><dt>Your first walkthrough</dt><dd>If your first walkthrough isn’t listing-ready, we redo it free.</dd></div>
+            <div><dt>Card on file, cancel any time</dt><dd>Apple’s free introductory offer in the app, or a studio invoice; card payment on this website is coming later. Cancel before the 3 months end and nothing is charged.</dd></div>
+          </dl>
+        </div>
+        <aside class="statement see-statement" aria-labelledby="statement-title">
+          <h3 id="statement-title">What you pay.</h3>
+          <dl class="statement-lines">
+            <div><dt><span class="line-when">3 free months</span><span class="line-what">Nothing is charged unless you buy a pack or a Super fast render</span></dt><dd class="amount"><span data-price="see-free">A$0</span></dd></div>
+            <div class="line-paid"><dt><span class="line-when">Then the Veylet plan</span><span class="line-what">2 walkthroughs a month; unused ones roll over, up to 4 banked</span></dt><dd class="amount"><span data-price="see-plan-month">A$99</span> <span class="amount-note">a month by card or invoice</span></dd></div>
+            <div><dt><span class="line-when">Or by the year</span><span class="line-what">24 walkthroughs to use any time in the plan year</span></dt><dd class="amount"><span data-price="see-plan-year">A$990</span> <span class="amount-note">a year by card or invoice</span></dd></div>
+          </dl>
+          <p class="statement-note">In the App Store, the Veylet plan is <span data-price="see-plan-month-app">A$119.99</span> a month.</p>
+          <p class="see-offer-actions"><a class="button" href="/waitlist">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a
+            ><a class="text-link" href="/offer">See the full offer</a></p>
+          <p class="see-offer-note">New accounts are admitted weekly. You need an iPhone Pro or iPad Pro with LiDAR.</p>
+        </aside>
+      </section>
+
+      <section class="faq-block wrap see-answers" aria-labelledby="answers-title">
+        <h2 id="answers-title">Four short answers.</h2>
+        <div class="faq-list">
+          <details>
+            <summary>Was this example made with an iPhone?</summary>
+            <p>No. It is the apartment scene from Meta’s Eyeful Tower research dataset, photographed with a research camera rig and published under the MIT licence. We processed it with the same pipeline your captures go through, from camera positions to the video export. An iPhone capture of your space will look different, and every walkthrough is checked before you can share it.</p>
+          </details>
+          <details>
+            <summary>Do my clients need an app?</summary>
+            <p>No. They open the link, the QR code or the embed on your website in a current browser on a phone, tablet or computer. There is nothing to install and no account to make.</p>
+          </details>
+          <details>
+            <summary>What if my capture isn’t good enough?</summary>
+            <p>The app checks your saved route before you send it. After you send it, an automatic quality check tests the walkthrough before it reaches you; if it does not pass, it retries once, then names the rooms to recapture, and that attempt is not counted. And if your first walkthrough isn’t listing-ready, we redo it free.</p>
+          </details>
+          <details>
+            <summary>When can I start?</summary>
+            <p>Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted weekly, and we email you when it’s your turn.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="closing-invitation" aria-labelledby="closing-title">
+        <div class="closing-inner wrap">
+          <h2 id="closing-title">Start with<br />one space.</h2>
+          <div class="closing-action">
+            <p>Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups.</p>
+            <a class="button" href="/waitlist">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer">Offer</a><a href="/start">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <nav class="sticky-cta" aria-label="Mobile actions" data-sticky-cta>
+      <a href="#offer">3 free months</a>
+      <a href="/waitlist">Join the waitlist</a>
+    </nav>
+    <script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer></script>
+    <script src="/vendor/ScrollTrigger-3.15.0.min.js?v=b0b14d67b55b0c43" defer></script>
+    <script src="/see/see.js?v=9d1af063bdc579dd" defer></script>
+  </body>
+</html>
