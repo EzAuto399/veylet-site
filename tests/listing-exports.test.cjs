@@ -309,6 +309,22 @@ test('listing exports: a download asks the server lane’s endpoint with the ses
   assert.equal(odd.row().textContent, 'The download didn’t start. Try again.');
 });
 
+test('listing exports: unavailable generation is a final availability refusal, not a queued or retrying job', async () => {
+  for (const initial of [nothing(), row('failed')]) {
+    const h = await load({ exports: initial, request: () => ({ error: { code: 'P0001',
+      message: 'Listing export generation is not available yet. No export request was queued.' } }) });
+    h.control('exports-consent').checked = true;
+    await h.form().fire('submit'); await settle();
+    assert.equal(h.state().textContent, 'Listing video generation is not available yet. No export request was queued.');
+    assert.equal(h.state().wasFocused, true);
+    assert.equal(h.form(), undefined);
+    assert.equal(h.control('exports-make'), undefined);
+    assert.equal(h.requests().length, 1);
+    assert.doesNotMatch(h.text().join(' '), /Try again|Preparing your video|We couldn’t make|included in your plan/);
+    assert.equal(h.block().dataset.exports, 'unavailable');
+  }
+});
+
 test('listing exports: the endpoint’s answers, in the words the app uses too', async () => {
   // deploy/hooks-vercel/listing_exports/download.py: {error} codes with these statuses.
   const words = {

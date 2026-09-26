@@ -1139,6 +1139,7 @@
     approveFirst: 'Approve this walkthrough first, then make its videos.',
     notYours: 'Ask the workspace owner or a reviewer to make these videos.',
     unconfirmed: 'Your request wasn’t confirmed. Try again.',
+    generationUnavailable: 'Listing video generation is not available yet. No export request was queued.',
     getting: 'Getting your download…',
     notOpen: 'Downloads aren’t open yet. Try again later.',
     notAllowed: 'Your role in this office can’t download videos. Ask an office admin.',
@@ -1171,6 +1172,7 @@
   }
   function exportRefusal(result) {
     const words = String((result?.value?.error || result?.error || {}).message || '').toLowerCase();
+    if (words === 'listing export generation is not available yet. no export request was queued.') return 'generation_unavailable';
     if (words.includes('consent statement version is not active')) return 'inactive';
     if (words.includes('approve this walkthrough')) return 'approve';
     if (words.includes('tour unavailable')) return 'unavailable';
@@ -1191,7 +1193,7 @@
     const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.heading;
     summary.append(summaryText);
     const body = document.createElement('div'); body.className = 'tour-exports-body';
-    message(body, EXPORT_WORDS.what, 'tour-state-help tour-exports-what');
+    const description = message(body, EXPORT_WORDS.what, 'tour-state-help tour-exports-what');
     message(body, EXPORT_WORDS.where, 'tour-state-help tour-exports-where');
     // Where the export stands: focused after a press, so the result is where the reader is.
     const state = document.createElement('p'); state.className = 'tour-exports-state'; state.tabIndex = -1; state.hidden = true;
@@ -1283,6 +1285,10 @@
         if (missingFunction(reply)) { gone(); return; }
         if (failed(reply)) {
           const reason = exportRefusal(reply);
+          if (reason === 'generation_unavailable') {
+            say(''); slot.replaceChildren(); chip(''); description.hidden = true;
+            box.dataset.exports = 'unavailable'; show(EXPORT_WORDS.generationUnavailable, true); return;
+          }
           // The statement was withdrawn since this was drawn: exports are closed again.
           if (reason === 'inactive') { say(''); draw({ ...row, consent_version: null }, true); return; }
           if (reason === 'occupancy' || reason === 'consent' || reason === 'business') { say(''); slot.replaceChildren(); gateLine(reason, true); return; }

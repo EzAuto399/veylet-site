@@ -2267,11 +2267,23 @@
    * free months start, past the weekly ceiling (render_admission_invited, lane A draft
    * 20260927100000). studio_list_waitlist reads the entries (release-2 draft
    * 20260926120000); Invite is studio_set_waitlist_outcome(id, 'invited'), confirmed. The
-   * desk sends no email and says so.
+   * optional invitation_mail receipt says whether email is off, queued or accepted.
    */
   const waitlistEl = document.getElementById('studio-waitlist-body');
   let waitlistVersion = 0;
   let waitlist = null;
+  function invitationEmailWords(receipt) {
+    if (!Object.prototype.hasOwnProperty.call(receipt, 'invitation_mail') || receipt.invitation_mail?.state === 'disabled') {
+      return 'No invitation email was sent. Contact them manually; they sign in with this email.';
+    }
+    switch (receipt.invitation_mail?.state) {
+      case 'pending': case 'leased': return 'Invitation email queued; delivery is not confirmed.';
+      case 'sent': return 'Email provider accepted the invitation; inbox delivery is not confirmed.';
+      case 'attention': return 'Invitation email needs attention. Check before sending manually.';
+      case 'cancelled': return 'Email sending was cancelled. Check for an earlier send before contacting them manually.';
+      default: return 'Invitation email status is not confirmed. Check before sending manually.';
+    }
+  }
   function paintWaitlist() {
     if (!waitlistEl || !waitlist) return;
     const waiting = waitlist.filter(row => !row.invited_at && !row.declined_at);
@@ -2292,7 +2304,7 @@
       const invite = element('button', 'tour-action', 'Invite'); invite.type = 'button'; invite.dataset.control = 'invite';
       invite.addEventListener('click', async () => {
         if (invite.disabled) return;
-        const question = 'Invite ' + email + '? When they sign in with this email and their free months start, their account is admitted to rendering, past the weekly ceiling. The desk sends no email: tell them yourself.';
+        const question = 'Invite ' + email + '? When they sign in with this email and their free months start, their account is admitted to rendering, past the weekly ceiling. The result will show the invitation email status.';
         if (typeof confirm !== 'function' || !confirm(question)) { say.textContent = 'Left unchanged.'; return; }
         invite.disabled = true;
         const version = waitlistVersion;
@@ -2305,7 +2317,7 @@
           const refused = serverRefusal(reply); say.textContent = refused ? 'Not invited: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return;
         }
         row.invited_at = answer.at;
-        setStatus('Invited: ' + email + '. Tell them it is their turn; they sign in with this email.');
+        setStatus('Invited: ' + email + '. ' + invitationEmailWords(answer));
         paintWaitlist();
       });
       const actions = element('p', 'studio-save-row'); actions.append(invite, say);

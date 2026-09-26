@@ -1576,8 +1576,14 @@
         if (name === 'studio_set_waitlist_outcome') {
           const row = studioWaitlist.find(item => item.id === args.p_id);
           if (!row) return { error: { code: 'P0001', message: 'waitlist entry not found' } };
-          row.invited_at = new Date().toISOString();
-          return { data: { id: row.id, outcome: args.p_outcome } };
+          row.invited_at = row.invited_at || new Date().toISOString();
+          const data = { id: row.id, outcome: args.p_outcome, at: row.invited_at };
+          // Explicit local QA switch only; absent models the older/default-off server.
+          const mailState = params.get('invitation-mail');
+          if (['disabled', 'pending', 'leased', 'sent', 'attention', 'cancelled'].includes(mailState)) {
+            data.invitation_mail = { state: mailState };
+          }
+          return { data };
         }
       }
       if (name === 'studio_capture_queue') {
@@ -1892,6 +1898,8 @@
           return { data: exportJson(tourId) };
         }
         if (name === 'request_listing_exports') {
+          if (exportsRequestCase === 'generation-unavailable') return { data: null, error: { code: 'P0001',
+            message: 'Listing export generation is not available yet. No export request was queued.' } };
           if (exportsRequestCase === 'expired') return { data: null, error: { code: 'PGRST301', message: 'JWT expired' } };
           if (occupancyRefusal(tourProperty(tourId))) return { data: null, error: { code: 'P0001', message: occupancyRefusal(tourProperty(tourId)) } };
           if (exportsRequestCase === 'fail') return { data: null, error: { message: 'Synthetic export request failure' } };

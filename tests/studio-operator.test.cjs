@@ -396,8 +396,35 @@ test('the waitlist lists who is waiting, oldest first, and Invite records the in
   assert.match(h.confirms.at(-1), /Invite priya@example\.invalid/);
   assert.match(h.confirms.at(-1), /admitted to rendering/);
   assert.match(h.textOf('studio-waitlist-body'), /0 waiting · 2 invited/);
-  // The desk says honestly that it sends no email.
-  assert.match(markup.slice(markup.indexOf('id="studio-waitlist"'), markup.indexOf('id="studio-waitlist-body"')), /sends no email/);
+  assert.match(h.textOf('studio-status'), /No invitation email was sent\. Contact them manually/);
+  assert.match(h.confirms.at(-1), /result will show the invitation email status/);
+  assert.doesNotMatch(h.confirms.at(-1), /sends no email/);
+  assert.match(markup.slice(markup.indexOf('id="studio-waitlist"'), markup.indexOf('id="studio-waitlist-body"')), /email status/);
+});
+
+test('invitation email wording follows the authoritative optional receipt without promising delivery', async () => {
+  const cases = [
+    ['disabled', /No invitation email was sent\. Contact them manually/],
+    ['pending', /Invitation email queued; delivery is not confirmed/],
+    ['leased', /Invitation email queued; delivery is not confirmed/],
+    ['sent', /Email provider accepted the invitation; inbox delivery is not confirmed/],
+    ['attention', /Invitation email needs attention\. Check before sending manually/],
+    ['cancelled', /Email sending was cancelled\. Check for an earlier send before contacting them manually/],
+    ['unknown', /Invitation email status is not confirmed\. Check before sending manually/],
+  ];
+  for (const [state, words] of cases) {
+    const at = '2026-09-25T01:02:03Z';
+    const h = await load({ rpc: {
+      studio_list_waitlist: async () => ({ data: [{ id: 3, email: 'fixture@example.invalid' }] }),
+      studio_set_waitlist_outcome: async () => ({ data: { id: 3, outcome: 'invited', at, invitation_mail: { state } } }),
+    } });
+    await h.control('studio-waitlist-body', 'invite').fire('click');
+    await h.settle();
+    assert.match(h.textOf('studio-status'), words, state);
+    assert.equal(h.controls('studio-waitlist-body', 'invite').length, 0, 'saved invitation cannot be clicked again');
+    assert.equal(h.called('studio_set_waitlist_outcome').length, 1);
+    assert.match(h.textOf('studio-waitlist-body'), /0 waiting · 1 invited/);
+  }
 });
 
 /* ---- Deletions and the queue ---------------------------------------------- */
