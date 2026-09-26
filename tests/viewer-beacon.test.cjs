@@ -206,8 +206,11 @@ function embedPage({ search = '?t=' + TOKEN, referrer = 'https://agency.example.
   let bootOptions = null;
   const player = { TourFailure, boot: options => { bootOptions = options; return new Promise(() => {}); }, showFailure: () => {}, clientFor: () => ({ rpc: async () => ({ data: [] }) }) };
   const net = recorder();
+  // The share lookup before Explore (a live share here) is not a view: only the beacon's posts are recorded.
+  const fetch = (url, init) => (String(url).endsWith('/lookup_tour_share')
+    ? Promise.resolve({ ok: true, status: 200, json: async () => [{ storage_path: 'p/package.zip' }] }) : net.fetch(url, init));
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: CONFIG, supabase: { createClient() {} }, addEventListener() {} };
-  const context = { window, document: { getElementById: id => ids[id], referrer }, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch: net.fetch };
+  const context = { window, document: { getElementById: id => ids[id], referrer }, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(embed.match(/<script>([\s\S]*?)<\/script>/)[1], context);
   return { ids, net, get bootOptions() { return bootOptions; } };
@@ -221,10 +224,12 @@ test('the embed counts an open when Explore finds the walkthrough, as the embed 
   await h.bootOptions.resolve(client()); await settle();
   assert.deepEqual(h.net.sent.map(item => item.body), [{ p_token: TOKEN, p_kind: 'open', p_src: 'embed', p_host: 'agency.example.invalid', p_detail: null }]);
   const tagged = embedPage({ search: '?t=' + TOKEN + '&src=portal', referrer: '' });
+  await settle();
   tagged.ids['embed-start'].events.click();
   await tagged.bootOptions.resolve(client()); await settle();
   assert.deepEqual([tagged.net.sent[0].body.p_src, tagged.net.sent[0].body.p_host], ['portal', null]);
   const off = embedPage();
+  await settle();
   off.ids['embed-start'].events.click();
   await off.bootOptions.resolve(client({ data: [] })).catch(() => {}); await settle();
   assert.equal(off.net.sent.length, 0);

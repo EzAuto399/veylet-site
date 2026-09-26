@@ -453,7 +453,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.equal(terms['Before the first charge'], 'The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. '
     + `Your account shows that date and the price. A reminder email ${free.reminderDaysBeforeFirstCharge} days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.`);
   assert.match(terms.Stopping, /Manage an App Store subscription in Settings › Subscriptions/);
-  assert.match(terms.Stopping, /email the studio to cancel/);
+  assert.match(terms.Stopping, /email us to cancel/);
   assert.ok(terms.Stopping.endsWith(`Released walkthroughs stay live for ${graceDays} days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.`));
   assert.equal(free.earlyPaidSwitchAvailable, false);
   assert.equal(free.cardRequired, true, 'every channel starts with a payment method on file');

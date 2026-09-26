@@ -26,7 +26,7 @@
     <link rel="icon" href="data:," />
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=5482618ced498fe7"></script>
+    <script src="/tour-player.js?v=549f8bcd3ac17352"></script>
     <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
@@ -46,11 +46,14 @@
         font-weight: 500;
         font-display: swap;
       }
+      /* The page fits its frame exactly: nothing scrolls inside a portal's iframe, so the
+         wheel belongs to the walkthrough or the host page, never to a few stray pixels. */
       html,
       body {
         margin: 0;
         padding: 0;
         height: 100%;
+        overflow: hidden;
         background: #10231d;
         color: #f4f1e9;
         font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
@@ -61,7 +64,6 @@
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         height: 100%;
-        min-height: 280px;
       }
       .tour-head {
         padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));

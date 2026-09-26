@@ -28,7 +28,7 @@
     <link rel="icon" href="/media/studio-avatar.png" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
-    <script src="/tour-player.js?v=5482618ced498fe7"></script>
+    <script src="/tour-player.js?v=549f8bcd3ac17352"></script>
     <script src="/client-page.js?v=009d0f4c4f5ddd9d"></script>
     <style>
       html,
@@ -213,9 +213,30 @@
           );
         } else {
           open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
-          open.hidden = false;
+          // Report shows for any complete-looking token, whatever the lookup says.
           window.VeyletClientPage?.mountReport?.(document.getElementById('embed-report'), token);
-          start.hidden = false;
+          // The share is looked up (lookup_tour_share, one REST call) BEFORE Explore is
+          // offered: a dead or unknown link reads as the handoff page does, with nothing
+          // to press and no download. An error or no answer offers Explore as before:
+          // starting looks the share up again and explains its own failure.
+          const offer = () => { open.hidden = false; start.hidden = false; els.status.textContent = ''; };
+          const dead = () => {
+            start.hidden = true; open.hidden = true; els.status.textContent = '';
+            els.title.textContent = 'This walkthrough isn’t available right now.';
+            els.body.textContent = 'The agent may have turned it off or not shared it yet.';
+          };
+          const shareClient = window.VeyletClientPage?.restClient?.(window.VEYLET_SUPABASE) || null;
+          if (shareClient) {
+            els.status.textContent = 'Checking this walkthrough…';
+            Promise.race([
+              Promise.resolve(shareClient.rpc('lookup_tour_share', { p_token: token })),
+              new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+            ]).then((answer) => {
+              if (!answer || answer.error) { offer(); return; }
+              const row = Array.isArray(answer.data) ? answer.data[0] : answer.data;
+              if (row && (row.storage_path || row.package_base_url)) offer(); else dead();
+            }, offer);
+          } else offer();
           // The agent's name under the invitation, when the server returns their
           // opt-in contact for this live link. No account SDK before Explore: a
           // page that already has it reuses it, otherwise one REST call. Any
@@ -236,6 +257,7 @@
           els.body.textContent =
             'Walk through the space at your own pace. The walkthrough downloads when you start, so give it a moment on mobile data.';
           start.addEventListener('click', async () => {
+            if (start.hidden) return;
             start.disabled = true;
             start.hidden = true;
             // Keep the whole panel while the viewport is still empty; drop to
@@ -243,6 +265,8 @@
             fallback.dataset.mode = 'preparing';
             await window.VeyletPlayer.boot({
             els,
+            // On an iPhone (no element fullscreen) the fullscreen button opens the full page.
+            fullscreenUrl: open.href,
             // A streamed walkthrough carries its own status line; a version 1
             // frame shares the viewport with the compact notice.
             onVisible: () => {
@@ -274,9 +298,8 @@
                 intro: '',
               };
             },
-            missingHeading: 'This walkthrough is not available.',
-            missingBody:
-              'It has been turned off, or this link is no longer current. Ask the agent for the property’s photographs and a viewing.',
+            missingHeading: 'This walkthrough isn’t available right now.',
+            missingBody: 'The agent may have turned it off or not shared it yet.',
             transientBody:
               'The walkthrough service did not answer. Check the connection and try again.',
           }).catch(() => window.VeyletPlayer.showFailure(

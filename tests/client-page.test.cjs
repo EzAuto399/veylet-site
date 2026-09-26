@@ -430,7 +430,8 @@ test('the embed leaves the line out on PGRST202, no row or an error, over the SD
   const missing = embedPage({ withSdk: false, fetch: rest({ ok: false, status: 404, json: async () => ({ code: 'PGRST202' }) }) });
   await settle();
   assert.equal(missing.ids['embed-agent'].hidden, true);
-  assert.deepEqual(requests[0], { url: 'https://fixture.invalid/rest/v1/rpc/lookup_tour_share_contact', body: { p_token: TOKEN } });
+  // The share lookup before Explore goes the same REST way; the contact read is its own call.
+  assert.deepEqual(requests.find(request => request.url.endsWith('/lookup_tour_share_contact')), { url: 'https://fixture.invalid/rest/v1/rpc/lookup_tour_share_contact', body: { p_token: TOKEN } });
   assert.equal(missing.client.calls.length, 0, 'no SDK client before Explore');
   const found = embedPage({ withSdk: false, fetch: rest({ ok: true, status: 200, json: async () => [CONTACT] }) });
   await settle();

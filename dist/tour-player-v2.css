@@ -199,10 +199,15 @@
   border-radius: 2px;
   background: rgba(16, 35, 29, 0.92);
   font-size: 13px;
+  line-height: 1.35;
   text-align: center;
-  white-space: nowrap;
+  /* A status is a sentence the visitor needs whole: it wraps, up to 3 lines, never an ellipsis. */
+  width: max-content;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  max-height: calc(3 * 1.35em + 16px);
   overflow: hidden;
-  text-overflow: ellipsis;
   pointer-events: none;
 }
 .v2-status:empty { display: none; }
@@ -346,9 +351,6 @@
   .v2-where { max-width: calc(100% - 56px); }
   .v2-map { top: auto; bottom: 68px; width: min(56%, 210px); }
   .v2-panel { left: 12px; right: 12px; width: auto; }
-}
-@container (max-width: 330px) {
-  .v2-full { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

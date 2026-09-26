@@ -1922,6 +1922,13 @@
         if (forms.length || ++tries > 30) clearInterval(open);
       }, 100);
     }
+    // Framed pages (the portal URL and the embed) must fit their frame exactly, so there the
+    // notice floats over the top edge instead of pushing the page down (it made /__qa/tour/
+    // scroll 41–58 px inside a frame the real page fits).
+    if (['/__qa/tour/', '/__qa/embed/'].includes(location.pathname)) {
+      notice.textContent = 'QA fixture';
+      notice.style.cssText += ';position:fixed;bottom:0;left:0;z-index:99;padding:2px 6px;font-size:11px;opacity:.85;pointer-events:none';
+    }
     document.body.prepend(notice);
   });
 })();

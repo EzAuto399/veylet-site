@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.22.2.min.js?v=5c9bf4a346ca2e3d';
-  const STYLE_URL = '/tour-player-v2.css?v=c2f13c1427bd10b6';
+  const STYLE_URL = '/tour-player-v2.css?v=87df4538ced18a76';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
