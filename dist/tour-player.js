@@ -405,7 +405,7 @@
     if (!stage) { failed(PACKAGE_BODY, false); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=df19e3cce37292e3');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=ed1cd1998002cc3a');
     } catch {
       failed(OFFLINE_BODY, true);
       return;
@@ -419,7 +419,10 @@
     try { framed = window.top !== window.self; } catch { framed = true; }
     const activation = navigator.userActivation;
     const waitForTap = options.waitForTap ?? Boolean(framed && activation && !activation.hasBeenActive);
-    const playback = await settleWithDeadline(window.VeyletPlayerV2.start(stage, {
+    // No deadline here: the player keeps its own (45 s of visible time from the start of the 3D download), and
+    // then keeps the poster and offers Keep waiting or Try again. A second, page-level deadline would abort a
+    // slow but working download and take the poster with it.
+    const playback = await window.VeyletPlayerV2.start(stage, {
       base: resolved.packageBaseUrl,
       signal: controller.signal,
       waitForTap,
@@ -430,17 +433,13 @@
         try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }
       },
       onRetry: () => location.reload(),
-    }), 65000, true);
-    if (playback.timedOut || playback.error) controller.abort();
+    }).then(value => ({ value }), error => ({ error }));
     if (playback.error) {
+      controller.abort();
       const code = playback.error.code || '';
       if (code === 'package-unavailable') failed(options.missingBody || 'The link is missing, revoked, or the tour is not ready.', false);
       else if (code.startsWith('manifest-invalid') || code === 'package-location-invalid' || code === 'package-oversized') failed(PACKAGE_BODY, false);
       else failed(options.transientBody || OFFLINE_BODY, true);
-      return;
-    }
-    if (playback.timedOut) {
-      failed('The 3D view did not start in time. Try a current browser with graphics enabled, or ask the person who sent this tour for photographs and help.', true);
       return;
     }
     if (playback.value?.readiness === 'viewer-failed') {

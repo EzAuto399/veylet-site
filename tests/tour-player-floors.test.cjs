@@ -18,7 +18,7 @@ const playerSource = fs.readFileSync(path.join(__dirname, '../dist/tour-player-v
 const stopAt = (id, room, x, z, floorY, floorId) => ({ id, room, position: [x, floorY + 1.4, z], target: [x, floorY + 1.1, z - 2],
   floor: [x, floorY, z], floor_measured: true, ...(floorId === undefined ? {} : { floor_id: floorId }) });
 
-function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }]) {
+function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }], walkable = null) {
   return {
     format: 'veylet.tour-package', package_format_version: 2, synthetic: true, captured_on: null,
     truth_label: 'Synthetic test scene. Not a captured property. Not to scale.', generative_model_used: false,
@@ -28,7 +28,7 @@ function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2',
       portrait: { path: 'poster-portrait.webp', width: 900, height: 1600, fov_degrees: 90 },
       preview: { path: 'preview.webp', width: 256, height: 144, fov_degrees: 70 },
     },
-    walkable: null, rooms, stops, start_stop: 0, files: [],
+    walkable, rooms, stops, start_stop: 0, files: [],
   };
 }
 
@@ -49,7 +49,9 @@ function fakeEngine() {
   class Vec3 { constructor(x = 0, y = 0, z = 0) { Object.assign(this, { x, y, z }); } set(x, y, z) { Object.assign(this, { x, y, z }); return this; } }
   class Entity {
     addComponent(type) {
-      if (type === 'camera') this.camera = { fov: 70, horizontalFov: false, nearClip: 0.05, farClip: 200, worldToScreen: (w, s) => s.set(100, 100, 1) };
+      // screenToWorld: every tap looks down and ahead (-z) from where the upstairs stop stands.
+      if (type === 'camera') this.camera = { fov: 70, horizontalFov: false, nearClip: 0.05, farClip: 200, worldToScreen: (w, s) => s.set(100, 100, 1),
+        screenToWorld: (x, y, depth, out) => out.set(0, 2.8 - depth * 0.6, -3 - depth * 0.8) };
       if (type === 'gsplat') this.gsplat = { lodRangeMin: 0, lodRangeMax: 99 };
     }
     setPosition() {} setEulerAngles() {} setLocalEulerAngles() {}
@@ -90,9 +92,10 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const desktop = { screenWidth: 1280, screenHeight: 800, dpr: 1, coarse: false, touchPoints: 0, webgl2: true, webgpu: false };
 
 /** The player on a 1000 px stage of its own page (the map opens), ready, with reduced motion (moves are cuts). */
-async function ready(stops) {
+async function ready(stops, { walkable = null } = {}) {
   const run = load();
-  run.context.fetch = async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(manifest(stops)) });
+  const files = { 'manifest.json': manifest(stops, undefined, walkable ? { path: 'walkable.json' } : null), 'walkable.json': walkable };
+  run.context.fetch = async url => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(files[url.replace('https://veylet.com/pkg/', '')]) });
   const stage = run.document.createElement('div');
   stage.clientWidth = 1000; stage.clientHeight = 640;
   run.document.body.append(stage);
@@ -107,7 +110,8 @@ async function ready(stops) {
   const map = stage.querySelector('.v2-map');
   const shown = node => node.getAttribute('display') !== 'none';
   return {
-    stage, map, player: run.player,
+    stage, map, player: run.player, canvas,
+    status: () => stage.querySelector('.v2-status').textContent,
     dots: () => map.querySelectorAll('.v2-map-stop').filter(shown).map(dot => dot.textContent),
     floors: () => map.querySelectorAll('.v2-floor').map(button => [button.textContent, button.getAttribute('aria-pressed')]),
     youShown: () => shown(map.querySelector('.v2-map-you')),
@@ -194,4 +198,37 @@ test('a home on one level keeps its map as before: no switcher, every stop drawn
     assert.ok(x.map.querySelectorAll('.v2-map-stop, .v2-map-you, .v2-map-floor').every(node => node.getAttribute('display') === null));
     assert.deepEqual(x.discs(), ['2', '3', '4', '5']);
   }
+});
+
+// The ground floor's walkable mask (package_tour_v2.mjs carves it for the opening stop's storey only):
+// 5 x 9 m of open floor under the whole home, 0.1 m cells, floor at -1.4 m.
+function groundMask() {
+  const columns = 50, rows = 90;
+  const bits = new Uint8Array(Math.ceil(columns * rows / 8)).fill(255);
+  return { version: 1, cell_metres: 0.1, origin: [-2, -7], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
+}
+
+test('upstairs, a tap or an arrow-key walk is refused with a hint: it never drops the viewer to the ground storey (VIEWER-01)', async () => {
+  const x = await ready(TWO_FLOORS, { walkable: groundMask() });
+  const eye = () => x.player.current.inspect().state.position;
+  // On the ground floor the mask is the floor you stand on: the arrow keys walk.
+  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
+  assert.ok(Math.abs(eye()[2] + 0.35) < 1e-6, 'ground floor: one step ahead');
+  assert.notEqual(x.status(), 'Use Next stop or a numbered circle on this floor.');
+  x.canvas.dispatch('keydown', { key: 'Home' });
+  // Upstairs (stop 4), the mask is the floor below: a step or a tap would fall through it.
+  const next = x.stage.querySelector('.v2-next');
+  next.click(); next.click(); next.click();
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
+  const upstairs = [...eye()];
+  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
+  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
+  assert.deepEqual([...eye()], upstairs, 'the arrow key does not move the viewer');
+  x.player.current.tapAt(100, 100);
+  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
+  assert.deepEqual([...eye()], upstairs, 'a tap does not move the viewer');
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
+  assert.deepEqual(x.floors(), [['Ground', 'false'], ['Level 1', 'true']]);
+  // The next stop upstairs is still offered on the floor, although the ground mask has no say up here.
+  assert.deepEqual(x.discs(), ['5']);
 });

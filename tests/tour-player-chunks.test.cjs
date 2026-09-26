@@ -376,4 +376,49 @@ test('a single-scene package plays exactly as it did before chunk support', asyn
   assert.deepEqual(await singleSceneSession(), JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')));
 });
 
+// ---------- chunked packages as the tours Worker serves them (VIEWER-03) ----------
+
+// deploy/tours-worker/src/index.js revisedManifest (property-3d-studio, 26 September 2026): every file path the
+// player reads gains r/<rev>/ (rev = first 16 hex of the stored manifest's SHA-256), so files cache immutably.
+// As written that day it prefixes scene.lod_meta, the posters and walkable, but not chunks[].lod_meta; the fix
+// recorded for the Worker prefixes those too. The player must accept both, and nothing else.
+const REV = '0123456789abcdef';
+function workerRevised(manifest, { chunks = true } = {}) {
+  const copy = JSON.parse(JSON.stringify(manifest));
+  const prefix = holder => { if (holder && typeof holder.path === 'string') holder.path = `r/${REV}/${holder.path}`; };
+  copy.scene.lod_meta = `r/${REV}/${copy.scene.lod_meta}`;
+  for (const key of ['landscape', 'portrait', 'preview']) prefix(copy.poster[key]);
+  prefix(copy.walkable);
+  if (chunks && Array.isArray(copy.scene.chunks)) for (const chunk of copy.scene.chunks) chunk.lod_meta = `r/${REV}/${chunk.lod_meta}`;
+  return copy;
+}
+
+test('a chunked package from the tours Worker (r/<rev>/ paths) validates and streams its chunks under that revision (VIEWER-03)', async () => {
+  const { player } = load();
+  for (const chunks of [true, false]) {
+    const read = plain(player.validateManifest(workerRevised(chunkedManifest(), { chunks })));
+    assert.equal(read.scene.lodMeta, `r/${REV}/lod/chunk_1/lod-meta.json`, `chunks prefixed: ${chunks}`);
+    assert.deepEqual(read.scene.chunked.chunks.map(chunk => chunk.lodMeta), [1, 2, 3].map(n => `r/${REV}/lod/chunk_${n}/lod-meta.json`),
+      'every chunk is read under the revision the manifest names');
+    assert.equal(read.scene.chunked.opening, 'chunk_1');
+    assert.equal(read.posters.portrait.path, `r/${REV}/poster-portrait.webp`);
+  }
+  // A single scene from the Worker is unchanged by this.
+  assert.equal(player.validateManifest(workerRevised(singleManifest())).scene.lodMeta, `r/${REV}/lod/lod-meta.json`);
+  // One verified prefix only: not a second one, not a different revision per chunk, not a bad revision.
+  const broken = change => { const m = workerRevised(chunkedManifest()); change(m); return () => player.validateManifest(m); };
+  assert.throws(broken(m => { m.scene.chunks[1].lod_meta = `r/${REV}/r/${REV}/lod/chunk_2/lod-meta.json`; }), /manifest-invalid:chunk/);
+  assert.throws(broken(m => { m.scene.chunks[1].lod_meta = `r/fedcba9876543210/lod/chunk_2/lod-meta.json`; }), /manifest-invalid:chunk/);
+  assert.throws(broken(m => { m.scene.chunks[1].lod_meta = `r/../lod/chunk_2/lod-meta.json`; }), /manifest-invalid:chunk/);
+  assert.throws(broken(m => { m.scene.lod_meta = `r/NOTHEX/lod/chunk_1/lod-meta.json`; }), /manifest-invalid:scene/);
+  assert.throws(broken(m => { m.scene.lod_meta = `r/${REV}/r/${REV}/lod/chunk_1/lod-meta.json`; }), /manifest-invalid:scene/);
+
+  // The player streams the Worker's manifest: every chunk under the revision.
+  const x = await started({ manifest: workerRevised(chunkedManifest(), { chunks: false }) });
+  x.settleStep();
+  assert.equal((await x.pending).readiness, 'viewer-ready');
+  assert.deepEqual(x.log.filter(line => line.startsWith('gsplat:')),
+    [`gsplat:https://veylet.com/pkg/r/${REV}/lod/chunk_1/lod-meta.json unified`, `gsplat:https://veylet.com/pkg/r/${REV}/lod/chunk_2/lod-meta.json unified`]);
+});
+
 module.exports = { singleSceneSession };

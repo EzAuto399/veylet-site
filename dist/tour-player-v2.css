@@ -78,7 +78,11 @@
   touch-action: none;
   outline: none;
   cursor: grab;
+  transition: opacity 0.2s ease-out;
 }
+/* Laid out from the start (the engine sizes itself to it) but unseen until the
+   first level of detail has drawn: until then the poster is what shows. */
+.v2:not([data-state="ready"]) .v2-canvas { opacity: 0; }
 .v2-canvas:active { cursor: grabbing; }
 .v2-canvas:focus-visible { outline: 3px solid var(--v2-sage); outline-offset: -3px; }
 .v2[data-state="fallback"] .v2-poster { opacity: 1; }
@@ -241,6 +245,12 @@
   text-align: center;
   pointer-events: none;
 }
+/* A phone's stage: the one-line version, on one line. */
+.v2-hint-short {
+  padding: 8px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
 
 /* Map of stops: floor from the package, turned so the opening view faces up. */
 .v2-map {
@@ -332,6 +342,7 @@
   -webkit-user-select: text;
 }
 .v2-fallback h2 { font-size: 18px; font-weight: 500; line-height: 1.3; }
+.v2-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .v2-fallback p { color: var(--v2-muted); font-size: 14px; line-height: 1.5; }
 
 .v2-sr {
@@ -343,14 +354,46 @@
   white-space: nowrap;
 }
 
-/* Narrow frames (a phone, or a sidebar embed): the arrow keeps its name for
-   assistive technology; the visible words go. */
+/* Narrow frames (a phone, or a sidebar embed): the button keeps its full name
+   for assistive technology and a short "Next" on screen (a 375 px phone's
+   client page is a 319 px stage, where the map toggle has given way); under
+   300 px the arrow alone. */
 @container (max-width: 430px) {
-  .v2-next .v2-label { display: none; }
-  .v2-next { padding: 0 10px; }
+  .v2-next .v2-label-more { display: none; }
+  .v2-next { padding: 0 8px 0 12px; }
   .v2-where { max-width: calc(100% - 56px); }
   .v2-map { top: auto; bottom: 68px; width: min(56%, 210px); }
   .v2-panel { left: 12px; right: 12px; width: auto; }
+}
+@container (max-width: 359px) {
+  .v2-stops-toggle svg { display: none; }
+  .v2-moves,
+  .v2-tools { gap: 6px; }
+}
+@container (max-width: 299px) {
+  .v2-next .v2-label { display: none; }
+  .v2-next { padding: 0 10px; }
+}
+
+/* Full screen on an iPhone (the stage fills the window) or through the
+   Fullscreen API: the controls stay clear of the sensor housing and the home
+   indicator. The page must set viewport-fit=cover for the insets to apply. */
+.v2-stage:is(.v2-filled, :fullscreen) .v2-top {
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+}
+.v2-stage:is(.v2-filled, :fullscreen) .v2-bar {
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+}
+.v2-stage:is(.v2-filled, :fullscreen) .v2-fallback {
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+.v2-stage:is(.v2-filled, :fullscreen) .v2-status,
+.v2-stage:is(.v2-filled, :fullscreen) .v2-panel:not(.v2-about) {
+  bottom: calc(56px + max(12px, env(safe-area-inset-bottom, 0px)));
 }
 
 @media (prefers-reduced-motion: reduce) {

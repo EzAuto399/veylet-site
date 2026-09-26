@@ -390,7 +390,8 @@ test('the stage, the truth and date lines and the agent card hold their places f
   const stageCss = read('tour-stage.css');
   // Set in the head, before first paint, and only for a token that looks complete.
   const head = handoff.split('</head>')[0];
-  assert.match(head, /<script>\s*if \(\(new URLSearchParams\(location\.search\)\.get\('t'\) \|\| ''\)\.length >= 16\) \{\s*document\.documentElement\.classList\.add\('client-pending', 'client-contact-pending'\);\s*\}\s*<\/script>/);
+  // (Which tokens look complete: the linkToken rule, checked case by case in the VIEWER-21 test below.)
+  assert.match(head, /<script>[\s\S]*?document\.documentElement\.classList\.add\('client-pending', 'client-contact-pending'\);[\s\S]*?<\/script>/);
   // style.css's [hidden] is !important, so a held place must be too.
   assert.match(css, /\.client-pending \.tour-frame-wrap\[hidden\] \{\s*display: block !important;\s*\}/);
   assert.match(css, /\.client-pending \.client-truth\[hidden\],\s*\.client-pending \.client-page \.tour-meta\[hidden\]:not\(\.tour-meta-none\) \{\s*display: block !important;\s*visibility: hidden;\s*\}/);
@@ -579,4 +580,122 @@ test('the client’s page and the embed imply no studio, no person checking and 
   for (const [index, text] of shown.entries()) {
     for (const phrase of NO_STUDIO) assert.doesNotMatch(text, phrase, 'client page output ' + index + ': ' + phrase);
   }
+});
+
+// ---------- launch audit 26 September 2026 (VIEWER-09, 13, 15, 21) ----------
+
+const HEX = '0123456789abcdef0123456789abcdef'; // the shape of a real share token: 32 hex characters
+
+test('a cut-off, run-on or malformed link reads as incomplete, never as turned off (VIEWER-21)', async () => {
+  // The page: a cut-off link is incomplete (no lookup), in §5.2's words; a full link is looked up as sent.
+  for (const search of ['?t=' + HEX.slice(0, 20), '?t=' + HEX + 'a']) {
+    const cut = handoffPage({ search });
+    assert.equal(cut.bootOptions, null, 'no lookup for ' + search);
+    assert.deepEqual({ ...cut.calls[0].failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
+    assert.doesNotMatch(cut.id('handoff-body').textContent, /turned it off|not shared/);
+    assert.equal(cut.id('client-report').hidden, true, 'no report link for a token that is not one');
+  }
+  const glued = handoffPage({ search: '?t=' + HEX + '.' });
+  const client = fakeClient();
+  await glued.bootOptions.resolve(client);
+  assert.deepEqual(plain(client.calls.find(([name]) => name === 'lookup_tour_share')), ['lookup_tour_share', { p_token: HEX }]);
+  const page = loadModule({ URLSearchParams });
+  const read = search => plain(page.linkToken(search));
+  // Real links: 32 hex characters, with the punctuation a message glues on, and any capitals, taken off.
+  assert.deepEqual(read('?t=' + HEX), { token: HEX, complete: true });
+  assert.deepEqual(read('?t=' + HEX + '.'), { token: HEX, complete: true });
+  assert.deepEqual(read('?t=' + HEX + ')&src=qr'), { token: HEX, complete: true });
+  assert.deepEqual(read('?t=%20' + HEX.toUpperCase() + '%20'), { token: HEX, complete: true });
+  // Cut off (20 characters), run on (33), too short, broken by a space or a quote, or missing.
+  for (const search of ['?t=' + HEX.slice(0, 20), '?t=' + HEX + 'a', '?t=' + HEX.slice(0, 20) + '-', '?t=short', '?t=' + HEX.slice(0, 16) + '%20' + HEX.slice(16),
+    '?t=' + HEX.slice(0, 16) + '%22' + HEX.slice(16), '', '?x=' + HEX]) {
+    assert.equal(read(search).complete, false, search);
+  }
+  // The head's held places use the same rule before first paint.
+  const head = handoff.split('</head>')[0].match(/<script>([\s\S]*?)<\/script>/)[1];
+  for (const search of ['?t=' + HEX, '?t=' + HEX + '.', '?t=' + HEX.slice(0, 20), '?t=' + TOKEN, '?t=short', '?t=' + HEX.slice(0, 16) + '%20' + HEX.slice(16)]) {
+    const classes = new Set();
+    vm.runInNewContext(head, { location: { search }, URLSearchParams, document: { documentElement: { classList: { add: (...names) => names.forEach(name => classes.add(name)) } } } });
+    assert.equal(classes.has('client-pending'), read(search).complete, search);
+  }
+});
+
+test('a stray script error on the client page never covers a working walkthrough or names the support address (VIEWER-09)', () => {
+  // The buyer's page watches for its own failures (client-page.js); it no longer loads the desk's reporter.
+  const head = handoff.split('</head>')[0];
+  assert.doesNotMatch(head, /place-fields\.js/, '/handoff does not load the desk reporter');
+  const scripts = [...head.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[0]);
+  const watch = scripts.findIndex(tag => /VeyletClientPage\.watchFailures\(window, document\)/.test(tag));
+  const clientScript = scripts.findIndex(tag => /src="\/client-page\.js\?v=[a-f\d]{16}"/.test(tag));
+  const playerScript = scripts.findIndex(tag => /src="\/tour-player\.js\?v=[a-f\d]{16}"/.test(tag));
+  assert.ok(clientScript >= 0 && watch === clientScript + 1, 'the watch starts as soon as client-page.js has loaded');
+  assert.ok(watch < playerScript, 'and before the player glue, so its errors are caught too');
+  const reporter = ({ stageShown = false } = {}) => {
+    const document = createDocument();
+    for (const id of ['handoff-status', 'tour-stage', 'tour-frame']) { const node = document.createElement(id === 'handoff-status' ? 'p' : 'div'); node.id = id; node.hidden = id !== 'handoff-status'; document.body.append(node); }
+    document.getElementById('tour-stage').hidden = !stageShown;
+    const handlers = {};
+    const window = { addEventListener: (type, listener) => { handlers[type] = listener; } };
+    loadModule().watchFailures(window, document);
+    return { handlers, window, text: () => document.getElementById('handoff-status').textContent };
+  };
+  // The walkthrough is on screen: an error elsewhere on the page changes nothing the buyer sees.
+  const playing = reporter({ stageShown: true });
+  playing.handlers.error({ message: 'Script error.' });
+  playing.handlers.unhandledrejection({});
+  assert.equal(playing.text(), '');
+  // A missing image is not a page failure.
+  const image = reporter();
+  image.handlers.error({ target: { tagName: 'IMG' } });
+  assert.equal(image.text(), '');
+  // Nothing on screen yet: buyer words that point to the agent, with no support address.
+  const early = reporter();
+  early.handlers.error({ message: 'Script error.' });
+  assert.equal(early.text(), 'This page didn’t finish loading. Reload it, or ask the agent who sent you the link.');
+  assert.doesNotMatch(early.text(), /@|email/i);
+  // The desk keeps its own reporter and its own line to the owner.
+  const document = createDocument();
+  const desk = document.createElement('p'); desk.id = 'account-status'; document.body.append(desk);
+  const handlers = {};
+  vm.runInNewContext(read('place-fields.js'), { window: { addEventListener: (type, listener) => { handlers[type] = listener; } }, document, console });
+  handlers.error({ message: 'Script error.' });
+  assert.match(desk.textContent, /email yoda@yodalai\.xyz/);
+});
+
+test('the client page and /tour connect early to the account service and the tour host, and fetch the v2 player beside the lookup (VIEWER-13)', () => {
+  const supabaseOrigin = read('supabase-public.js').match(/url: '(https:\/\/[a-z0-9]+\.supabase\.co)'/)[1];
+  const player = read('tour-player.js').match(/'(\/tour-player-v2\.js\?v=[a-f\d]{16})'/)[1];
+  const tourPage = read('tour/index.html');
+  for (const [name, markup] of [['handoff', handoff], ['tour', tourPage], ['embed', embed]]) {
+    const head = markup.split('</head>')[0];
+    assert.ok(head.includes(`<link rel="preconnect" href="${supabaseOrigin}" crossorigin />`), name + ': the lookup');
+    assert.ok(head.includes('<link rel="preconnect" href="https://tours.veylet.com" crossorigin />'), name + ': the manifest');
+    assert.ok(head.includes('<link rel="preconnect" href="https://tours.veylet.com" />'), name + ': the poster');
+    // The v2 player downloads while the lookup runs, at the URL the page glue will ask for; never on the embed before Explore.
+    if (name === 'embed') assert.doesNotMatch(head, /rel="preload"/);
+    else assert.ok(head.includes(`<link rel="preload" href="${player}" as="script" />`), name + ': the player');
+  }
+});
+
+test('the embed invitation carries the walkthrough’s own poster: the manifest only, never 3D data (VIEWER-15)', async () => {
+  const page = loadModule({ URLSearchParams, URL });
+  const base = 'https://tours.veylet.com/t/' + HEX + '/';
+  const manifest = { poster: { landscape: { path: 'r/0123456789abcdef/poster.webp', width: 1600, height: 900 }, portrait: { path: 'r/0123456789abcdef/poster-portrait.webp', width: 900, height: 1600 } } };
+  const requests = [];
+  const fetch = async (url, init) => { requests.push([url, init.credentials]); return { ok: true, status: 200, text: async () => JSON.stringify(manifest) }; };
+  assert.equal(await page.invitationPoster({ base, fetch, portrait: false }), base + 'r/0123456789abcdef/poster.webp');
+  assert.equal(await page.invitationPoster({ base, fetch, portrait: true }), base + 'r/0123456789abcdef/poster-portrait.webp');
+  assert.deepEqual(plain(requests), [[base + 'manifest.json', 'omit'], [base + 'manifest.json', 'omit']]);
+  // Anything unexpected is no poster, never an error: another host, a path out of the package, a broken answer.
+  for (const [where, answer] of [
+    ['https://evil.invalid/t/x/', manifest],
+    [base, { poster: { landscape: { path: '../poster.webp' } } }],
+    [base, { poster: { landscape: { path: 'poster.svg' } } }],
+    [base, 'not json'],
+  ]) {
+    const odd = async () => ({ ok: true, status: 200, text: async () => (typeof answer === 'string' ? answer : JSON.stringify(answer)) });
+    assert.equal(await page.invitationPoster({ base: where, fetch: odd, portrait: false }), null, where + ' ' + JSON.stringify(answer));
+  }
+  assert.equal(await page.invitationPoster({ base, fetch: async () => { throw new TypeError('offline'); } }), null);
+  assert.equal(await page.invitationPoster({ base, fetch: async () => ({ ok: false, status: 404, text: async () => '' }) }), null);
 });

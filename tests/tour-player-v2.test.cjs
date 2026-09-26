@@ -35,7 +35,9 @@ function fakeEngine(log, { deviceType = 'webgl2' } = {}) {
   class Entity {
     constructor(name) { this.name = name; }
     addComponent(type, data) {
-      if (type === 'camera') this.camera = { ...data, fov: 70, horizontalFov: false, nearClip: 0.05, farClip: 200, worldToScreen: (w, s) => s.set(100, 100, 1) };
+      // screenToWorld: a tap at (x, y) looks straight down at the floor point (x / 100, y / 100).
+      if (type === 'camera') this.camera = { ...data, fov: 70, horizontalFov: false, nearClip: 0.05, farClip: 200, worldToScreen: (w, s) => s.set(100, 100, 1),
+        screenToWorld: (x, y, depth, out) => out.set(x / 100, -depth, y / 100) };
       if (type === 'gsplat') {
         this.gsplat = new Proxy({ lodRangeMin: 0, lodRangeMax: 99 }, { set(t, k, v) { t[k] = v; log.push(`gsplat.${String(k)}=${v}`); return true; } });
         log.push('gsplat:' + data.asset.file.url);
@@ -62,7 +64,7 @@ function fakeEngine(log, { deviceType = 'webgl2' } = {}) {
   return engine;
 }
 
-function load({ files = {}, reduced = true } = {}) {
+function load({ files = {}, reduced = true, context: extra = {}, size = [390, 700] } = {}) {
   const log = [];
   const document = createDocument({
     onImage: node => { log.push('img:' + node.src); setImmediate(() => node.dispatch('load')); },
@@ -83,10 +85,11 @@ function load({ files = {}, reduced = true } = {}) {
     location: { href: 'https://veylet.com/handoff?t=abcdefghijklmnop', origin: 'https://veylet.com', reload() { log.push('reload'); } },
     navigator: {}, localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)) },
     ResizeObserver: class { observe() {} disconnect() {} },
+    ...extra,
   };
   vm.runInNewContext(playerSource, context);
   const stage = document.createElement('div');
-  stage.clientWidth = 390; stage.clientHeight = 700; stage.hidden = true;
+  [stage.clientWidth, stage.clientHeight] = size; stage.hidden = true;
   document.body.append(stage);
   return { player: window.VeyletPlayerV2, window, document, stage, log };
 }
@@ -193,12 +196,12 @@ test('camera, stop and floor geometry', () => {
 // ---------- the player in a stand-in page ----------
 
 async function started(options = {}) {
-  const harness = load({ files: { 'manifest.json': options.manifest || manifest() }, reduced: options.reduced ?? true });
+  const harness = load({ files: { 'manifest.json': options.manifest || manifest(), ...options.files }, reduced: options.reduced ?? true, context: options.context, size: options.size });
   const engine = fakeEngine(harness.log, options.engine);
   let engineRequested = 0;
   const pending = harness.player.start(harness.stage, {
     base: 'https://veylet.com/pkg/', env: options.env || phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
-    loadEngine: () => { engineRequested++; harness.log.push('engine:import'); return options.noEngine ? Promise.reject(new Error('offline')) : Promise.resolve(engine); },
+    loadEngine: () => { engineRequested++; harness.log.push('engine:import'); return options.slowEngine ? new Promise(() => {}) : options.noEngine ? Promise.reject(new Error('offline')) : Promise.resolve(engine); },
     onVisible: () => harness.log.push('visible'), onRetry: () => harness.log.push('retry'),
     ...options.startOptions,
   });
@@ -537,4 +540,208 @@ test('a research sample says so: research_sample is read only when exactly true'
   assert.equal(player.validateManifest(manifest({ research_sample: true })).researchSample, true);
   assert.equal(player.validateManifest(manifest({ research_sample: 'yes' })).researchSample, false);
   assert.match(playerSource, /'Research sample · not a Veylet capture · not to scale'/);
+});
+
+// ---------- launch audit 26 September 2026 (VIEWER-02, 07, 08, 10, 11, 12, 16) ----------
+
+/** Timers the test fires by hand: { ms, fire } for every pending setTimeout. */
+function manualTimers() {
+  const pending = new Map();
+  let next = 1;
+  return {
+    setTimeout: (fn, ms) => { const id = next++; pending.set(id, { fn, ms }); return id; },
+    clearTimeout: id => { pending.delete(id); },
+    waiting: ms => [...pending.values()].filter(timer => timer.ms === ms).length,
+    fire(ms) { for (const [id, timer] of [...pending]) if (timer.ms === ms) { pending.delete(id); timer.fn(); } },
+  };
+}
+const clock = () => { const c = { t: 1000, now: () => c.t, mark() {} }; return c; };
+async function readyPlayer(options = {}) {
+  const x = await started(options);
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  return { ...x, app, canvas: byClass(x.stage, 'v2-canvas'), stopLine: () => byClass(x.stage, 'v2-stop').textContent, status: () => byClass(x.stage, 'v2-status').textContent };
+}
+
+test('the render loop goes idle after an interrupted flight: a drag, a turn or a new move (VIEWER-08)', async () => {
+  const time = clock();
+  const x = await readyPlayer({ reduced: false, context: { performance: time } });
+  x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
+  x.app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  assert.equal(x.window.VeyletPlayerV2.current.stats().phase, 'complete');
+  // One engine update: does it ask for another frame when nothing moves?
+  const renders = () => { x.app.renderNextFrame = false; x.app.fire('update'); return x.app.renderNextFrame; };
+  assert.equal(renders(), false, 'at rest nothing is drawn');
+  const next = byClass(x.stage, 'v2-next');
+  next.click();
+  assert.equal(renders(), true, 'a flight draws every frame');
+  // A drag takes the camera mid-flight.
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
+  assert.equal(renders(), false, 'idle again after a drag cut the flight short');
+  // An arrow key turns mid-flight.
+  next.click();
+  x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
+  assert.equal(renders(), false, 'idle again after a turn cut the flight short');
+  // A second move replaces the first before it lands, and then lands.
+  next.click(); next.click();
+  time.t += 5000;
+  x.app.fire('update');
+  assert.equal(renders(), false, 'idle again once the replacing flight lands');
+});
+
+test('Next and Previous from “Between stops” go on from the nearest stop, not from the first or last (VIEWER-07)', async () => {
+  // 6 x 2 m of open floor along the five stops (x 0 to 4 m).
+  const columns = 60, rows = 20;
+  const open = { version: 1, cell_metres: 0.1, origin: [-1, -1], columns, rows, floor_y: -1.4, eye_height: 1.4,
+    mask: Buffer.from(new Uint8Array(Math.ceil(columns * rows / 8)).fill(255)).toString('base64') };
+  const x = await readyPlayer({ manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': open } });
+  const walkBetween = () => { x.window.VeyletPlayerV2.current.tapAt(340, 0); assert.equal(x.stopLine(), 'Between stops'); };
+  // 3.4 m along: stop 4 (3 m) is nearest, stop 5 (4 m) is next, stop 3 (2 m) is behind.
+  walkBetween();
+  byClass(x.stage, 'v2-next').click();
+  assert.equal(x.stopLine(), 'Stop 5 of 5');
+  walkBetween();
+  byClass(x.stage, 'v2-prev').click();
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  walkBetween();
+  x.canvas.dispatch('keydown', { key: 'n' });
+  assert.equal(x.stopLine(), 'Stop 5 of 5');
+  walkBetween();
+  x.canvas.dispatch('keydown', { key: 'p' });
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+});
+
+test('a phone-sized stage (334 x 300) still gets a one-line movement hint, and Next keeps its name and a short label (VIEWER-02)', async () => {
+  const x = await readyPlayer({ size: [334, 300] });
+  const hint = byClass(x.stage, 'v2-hint');
+  assert.equal(hint.hidden, false, 'the first view says how to move');
+  assert.equal(hint.textContent, 'Drag to look. Tap to move.');
+  assert.ok(hint.className.includes('v2-hint-short'));
+  // A roomy stage keeps the full sentence.
+  const roomy = await readyPlayer();
+  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor or a circle to move.');
+  // Next: named for assistive technology, and "Next" stays on screen down to 300 px.
+  const next = byClass(x.stage, 'v2-next');
+  assert.equal(next.getAttribute('aria-label'), 'Next stop');
+  assert.equal(next.querySelector('.v2-label').textContent, 'Next stop');
+  assert.equal(next.querySelector('.v2-label-more').textContent, ' stop');
+  const css = read('tour-player-v2.css');
+  const narrow = css.match(/@container \(max-width: 430px\) \{([\s\S]*?)\n\}/)[1];
+  assert.doesNotMatch(narrow, /\.v2-next \.v2-label \{ display: none; \}/, 'the word Next stays at phone widths');
+  assert.match(narrow, /\.v2-next \.v2-label-more \{ display: none; \}/);
+  assert.match(css, /@container \(max-width: 299px\) \{[^@]*\.v2-next \.v2-label \{ display: none; \}/);
+});
+
+test('the canvas stays invisible until the first frame is drawn; the poster shows until then (VIEWER-12)', async () => {
+  const css = read('tour-player-v2.css');
+  assert.match(css, /\.v2:not\(\[data-state="ready"\]\) \.v2-canvas \{[^}]*opacity: 0;/);
+  const x = await started();
+  const root = byClass(x.stage, 'v2');
+  // The engine is running and the canvas is laid out (for sizing), but no frame is finished yet.
+  assert.equal(byClass(x.stage, 'v2-canvas').hidden, false);
+  assert.equal(root.dataset.poster, 'shown');
+  assert.notEqual(root.dataset.state, 'ready');
+  x.engine.apps[0].systems.gsplat.fire('frame:ready', null, null, false, 1);
+  assert.notEqual(root.dataset.state, 'ready', 'loading frames do not reveal the canvas');
+  x.engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  assert.equal(root.dataset.state, 'ready');
+});
+
+test('a slow first load keeps the poster and offers Keep waiting or Try again; the page adds no second deadline (VIEWER-10)', async () => {
+  const timers = manualTimers();
+  const x = await started({ slowEngine: true, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const root = byClass(x.stage, 'v2');
+  const fallback = byClass(x.stage, 'v2-fallback');
+  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Loading 3D…');
+  // A slow connection is said to be slow, without blame, while the download goes on.
+  timers.fire(10000);
+  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Still loading. A slow connection can take a minute.');
+  assert.equal(timers.waiting(45000), 1, 'one deadline, counted from the start of the 3D download');
+  timers.fire(45000);
+  assert.equal(fallback.hidden, false);
+  assert.match(fallback.textContent, /^3D is taking a while\./);
+  assert.doesNotMatch(fallback.textContent, /browser/i);
+  const [keep, retry] = fallback.querySelectorAll('button');
+  assert.deepEqual([keep.textContent, retry.textContent], ['Keep waiting', 'Try again']);
+  assert.equal(root.dataset.poster, 'shown');
+  assert.notEqual(root.dataset.state, 'fallback', 'the poster stays and the download is not thrown away');
+  assert.equal(x.stage.querySelector('.v2'), root);
+  keep.click();
+  assert.equal(fallback.hidden, true);
+  assert.equal(timers.waiting(45000), 1, 'Keep waiting gives the download another 45 s');
+  timers.fire(45000);
+  fallback.querySelectorAll('button')[1].click();
+  assert.equal(x.log.at(-1), 'retry');
+
+  // The page glue: a streamed walkthrough gets no outer deadline that would tear the poster down.
+  const page = manualTimers();
+  let startOptions = null;
+  const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'k' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
+    VeyletPlayerV2: { start: (stage, options) => { startOptions = options; return new Promise(() => {}); } } };
+  window.self = window; window.top = window;
+  const document = { hidden: false, addEventListener() {}, removeEventListener() {}, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, head: { append() {} } };
+  vm.runInNewContext(read('tour-player.js'), { window, document, performance, setTimeout: page.setTimeout, clearTimeout: page.clearTimeout, AbortController, navigator: { onLine: true }, location: { reload() {} } });
+  const status = {};
+  window.VeyletPlayer.boot({ els: { title: {}, body: {}, status, frame: { hidden: true }, stage: { hidden: true } }, resolve: async () => ({ packageFormatVersion: 2, packageBaseUrl: 'https://tours.veylet.com/t/a/', title: 'S' }) });
+  for (let i = 0; i < 12; i++) await tick();
+  assert.ok(startOptions, 'the player started');
+  for (const ms of [45000, 65000, 90000]) page.fire(ms);
+  for (let i = 0; i < 12; i++) await tick();
+  assert.equal(startOptions.signal.aborted, false, 'nothing in the page aborts a slow download');
+  assert.equal(status.textContent, 'Loading the walkthrough…');
+});
+
+test('a lost graphics context waits for its restore; a final loss retries one budget lower at the same stop (VIEWER-11)', async () => {
+  const timers = manualTimers();
+  const store = new Map();
+  const sessionStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
+  const context = { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, sessionStorage };
+  const x = await readyPlayer({ context });
+  const root = byClass(x.stage, 'v2');
+  byClass(x.stage, 'v2-next').click(); byClass(x.stage, 'v2-next').click();
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  // iOS reclaims the context when Messages opens, and gives it back on return.
+  const lost = x.canvas.dispatch('webglcontextlost', {});
+  assert.equal(lost.defaultPrevented, true, 'the browser is told a restore is wanted');
+  assert.equal(root.dataset.state, 'ready', 'not the end of the walkthrough');
+  assert.equal(x.status(), 'Restoring 3D…');
+  x.canvas.dispatch('webglcontextrestored', {});
+  assert.equal(root.dataset.state, 'ready');
+  assert.equal(x.status(), '');
+  timers.fire(5000);
+  assert.equal(root.dataset.state, 'ready', 'a restored context has no deadline left');
+  // No restore within 5 s of visible time: the fallback, and Try again comes back lower, at stop 3.
+  x.canvas.dispatch('webglcontextlost', {});
+  timers.fire(5000);
+  assert.equal(root.dataset.state, 'fallback');
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D stopped on this device\./);
+  assert.ok(store.size === 1, 'the place and a lower budget are kept for the retry');
+  const again = await readyPlayer({ context: { sessionStorage } });
+  assert.equal(again.app.scene.gsplat.splatBudget, 250_000, 'one budget level lower than the phone’s 500K');
+  assert.equal(again.stopLine(), 'Stop 3 of 5', 'back where the visitor was');
+  assert.equal(store.size, 0, 'used once');
+  const fresh = await readyPlayer({ context: { sessionStorage } });
+  assert.equal(fresh.app.scene.gsplat.splatBudget, 500_000);
+  assert.equal(fresh.stopLine(), 'Stop 1 of 5');
+});
+
+test('full screen on an iPhone clears the notch and the home indicator (VIEWER-16)', async () => {
+  const css = read('tour-player-v2.css');
+  for (const [part, sides] of [['v2-top', ['top', 'left', 'right']], ['v2-bar', ['bottom', 'left', 'right']]]) {
+    const rule = css.match(new RegExp(`\\.v2-stage:is\\(\\.v2-filled, :fullscreen\\) \\.${part} \\{([^}]*)\\}`));
+    assert.ok(rule, part);
+    for (const side of sides) assert.match(rule[1], new RegExp(`${side}: max\\(12px, env\\(safe-area-inset-${side}, 0px\\)\\);`), `${part} ${side}`);
+  }
+  const x = await readyPlayer();
+  x.document.documentElement = x.document.createElement('html');
+  const full = byClass(x.stage, 'v2-fullscreen');
+  full.click();
+  assert.equal(x.stage.classList.contains('v2-filled'), true);
+  full.click();
+  assert.equal(x.stage.classList.contains('v2-filled'), false);
 });

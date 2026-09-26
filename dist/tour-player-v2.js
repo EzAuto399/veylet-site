@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.22.2.min.js?v=5c9bf4a346ca2e3d';
-  const STYLE_URL = '/tour-player-v2.css?v=020748308707ba0e';
+  const STYLE_URL = '/tour-player-v2.css?v=72a09df6f0e1e23b';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -20,6 +20,11 @@
   const WALKABLE_LIMIT = 2 * 1024 * 1024;
   const SAFE_PATH = /^(?:[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}\/){0,3}[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$/;
   const HINT_KEY = 'veylet-player-hint-seen';
+  // After a lost graphics context: where the visitor was, for one retry at a lower budget (this tab only).
+  const RESUME_KEY = 'veylet-player-resume';
+  // The tours Worker serves a shared package's files under r/<rev>/ (rev: the stored manifest's hash) so they cache
+  // immutably; one such folder is accepted in front of a package path, never two.
+  const REVISION = /^r\/[0-9a-f]{8,64}\//;
 
   class PlayerError extends Error {
     constructor(code, options) {
@@ -34,6 +39,11 @@
   const finite3 = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
   const safePath = value => typeof value === 'string' && SAFE_PATH.test(value) && !value.split('/').includes('..');
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  /** [the r/<rev>/ folder or '', the package path under it]. */
+  const revisionOf = value => {
+    const match = typeof value === 'string' ? value.match(REVISION) : null;
+    return match ? [match[0], value.slice(match[0].length)] : ['', value];
+  };
 
   /** The package folder URL. Only this origin or the tour host; never a query. */
   function resolveBase(value, page) {
@@ -61,7 +71,8 @@
     if (!json || typeof json !== 'object' || json.format !== 'veylet.tour-package') bad('format');
     if (json.package_format_version !== FORMAT) bad('version');
     const scene = json.scene || {};
-    if (!safePath(scene.lod_meta) || !scene.lod_meta.endsWith('lod-meta.json')) bad('scene');
+    const sceneMeta = revisionOf(scene.lod_meta)[1];
+    if (!safePath(sceneMeta) || !sceneMeta.endsWith('lod-meta.json') || REVISION.test(sceneMeta)) bad('scene');
     if (!Number.isInteger(scene.lod_levels) || scene.lod_levels < 1 || scene.lod_levels > 8) bad('lod_levels');
     if (!Array.isArray(scene.lod_counts) || scene.lod_counts.length !== scene.lod_levels
         || !scene.lod_counts.every((count, i) => Number.isSafeInteger(count) && count > 0 && (i === 0 || count <= scene.lod_counts[i - 1]))) bad('lod_counts');
@@ -114,19 +125,23 @@
   function readChunks(json, scene, rooms, stops, bad) {
     if (scene.layout !== 'chunked' || !Array.isArray(scene.chunks) || scene.chunks.length < 2 || scene.chunks.length > 40) bad('chunks');
     const roomIds = new Set(rooms.map(room => room.id));
+    // The Worker's r/<rev>/ folder, if the scene has one: every chunk is read under it (the Worker as written on
+    // 26 September 2026 prefixes scene.lod_meta but not the chunks'). A chunk naming another revision is refused.
+    const revision = revisionOf(scene.lod_meta)[0];
     const chunkOfRoom = {};
     const ids = new Set();
     const chunks = scene.chunks.map(chunk => {
       if (!chunk || typeof chunk.id !== 'string' || !/^chunk_\d{1,3}$/.test(chunk.id) || ids.has(chunk.id)) bad('chunk');
       ids.add(chunk.id);
-      if (!safePath(chunk.lod_meta) || chunk.lod_meta !== 'lod/' + chunk.id + '/lod-meta.json') bad('chunk');
+      const [chunkRevision, chunkMeta] = revisionOf(chunk.lod_meta);
+      if ((chunkRevision && chunkRevision !== revision) || !safePath(chunkMeta) || chunkMeta !== 'lod/' + chunk.id + '/lod-meta.json') bad('chunk');
       if (!Array.isArray(chunk.lod_counts) || chunk.lod_counts.length !== scene.lod_levels
           || !chunk.lod_counts.every((count, i) => Number.isSafeInteger(count) && count > 0 && (i === 0 || count <= chunk.lod_counts[i - 1]))) bad('chunk');
       if (!Array.isArray(chunk.rooms) || !chunk.rooms.length || chunk.rooms.some(room => !roomIds.has(room) || chunkOfRoom[room])) bad('chunk');
       for (const room of chunk.rooms) chunkOfRoom[room] = chunk.id;
       const bounds = chunk.bounds || {};
       if (!finite3(bounds.min) || !finite3(bounds.max) || bounds.min.some((v, i) => v > bounds.max[i])) bad('chunk');
-      return { id: chunk.id, rooms: [...chunk.rooms], lodMeta: chunk.lod_meta, counts: chunk.lod_counts, bounds: { min: bounds.min, max: bounds.max }, listed: chunk.adjacent };
+      return { id: chunk.id, rooms: [...chunk.rooms], lodMeta: revision + chunkMeta, counts: chunk.lod_counts, bounds: { min: bounds.min, max: bounds.max }, listed: chunk.adjacent };
     });
     if (Object.keys(chunkOfRoom).length !== roomIds.size) bad('chunk');
     const links = new Map(chunks.map(chunk => [chunk.id, new Set()]));
@@ -595,7 +610,11 @@
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
     const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor or a circle to move.');
     const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
-    const next = iconButton('next', 'Next stop', 'v2-primary v2-next', 'Next stop');
+    // "Next stop" on screen; "Next" on a phone (the stylesheet drops " stop"); the arrow alone under 300 px.
+    const next = iconButton('next', 'Next stop', 'v2-primary v2-next');
+    const nextLabel = el('span', { class: 'v2-label', 'aria-hidden': 'true' }, 'Next');
+    nextLabel.append(el('span', { class: 'v2-label-more' }, ' stop'));
+    next.append(nextLabel);
     const stopsToggle = el('button', { type: 'button', class: 'v2-stops-toggle', 'aria-expanded': 'false', 'aria-haspopup': 'true' });
     stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
     const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
@@ -623,7 +642,7 @@
     'no-graphics': ['3D can’t open in this browser.', 'This still is rendered from the walkthrough. Open the link in a current browser, such as Safari or Chrome with hardware acceleration on, to walk through it.'],
     'engine-unavailable': ['3D didn’t load.', 'The 3D player files didn’t arrive. Check the connection and try again. This still is rendered from the walkthrough.'],
     'context-lost': ['3D stopped on this device.', 'The graphics memory was reclaimed, which can happen on phones with many tabs open. Try again, or close other tabs first.'],
-    'too-slow': ['3D is taking too long.', 'The walkthrough is still loading. Try again on a faster connection. This still is rendered from the walkthrough.'],
+    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this still is from it.'],
   };
 
   // ---------- the player ----------
@@ -699,8 +718,8 @@
     let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
     let resolveReady;
     const firstFrame = new Promise(resolve => { resolveReady = resolve; });
-    const settle = outcome => { if (settled) return; settled = true; cancelDeadline(); resolveReady(outcome); };
-    let cancelDeadline = () => {};
+    const settle = outcome => { if (settled) return; settled = true; cancelDeadline(); clearTimeout(slowNote); resolveReady(outcome); };
+    let cancelDeadline = () => {}, slowNote = null, slowShown = false;
 
     function fail(kind, retryable = true) {
       const [heading, body] = FALLBACK_WORDS[kind] || FALLBACK_WORDS['engine-unavailable'];
@@ -724,6 +743,27 @@
       const outcome = { readiness: 'viewer-failed', reason: kind, marks };
       settle(outcome);
       return outcome;
+    }
+    // The first 3D frame is slow to come: the poster stays, the download goes on, and the visitor chooses.
+    function tooSlow() {
+      if (settled || torndown) return;
+      const [heading, body] = FALLBACK_WORDS['too-slow'];
+      const keep = el('button', { type: 'button', class: 'v2-primary' }, 'Keep waiting');
+      const retry = el('button', { type: 'button', class: 'v2-icon' }, 'Try again');
+      keep.addEventListener('click', () => { hideSlow(); if (!settled) cancelDeadline = visibleDeadline(tooSlow, 45000); });
+      retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
+      const actions = el('div', { class: 'v2-actions' });
+      actions.append(keep, retry);
+      ui.fallback.replaceChildren(el('h2', { id: 'v2-fallback-title' }, heading), el('p', {}, body), actions);
+      ui.fallback.hidden = false;
+      slowShown = true;
+      becomeVisible();
+    }
+    function hideSlow() {
+      if (!slowShown) return;
+      slowShown = false;
+      ui.fallback.hidden = true;
+      ui.fallback.replaceChildren();
     }
     function teardown() {
       if (torndown) return;
@@ -754,14 +794,16 @@
       mark('explore');
     }
     ui.status.textContent = 'Loading 3D…';
+    // One deadline for the first 3D frame, from the start of the 3D download: 45 s of visible time (a hidden tab
+    // keeps its allowance), then Keep waiting or Try again over the poster. The page adds none of its own.
+    cancelDeadline = visibleDeadline(tooSlow, 45000);
+    slowNote = setTimeout(() => { if (!ready && ui.status.textContent === 'Loading 3D…') ui.status.textContent = 'Still loading. A slow connection can take a minute.'; }, 10000);
     const pc = await requestEngine();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
     if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');
     mark('engine');
     const walkable = await walkablePromise;
     becomeVisible();
-    // The first 3D frame gets 45 s of visible time; a hidden tab keeps its allowance.
-    cancelDeadline = visibleDeadline(() => fail('too-slow'), 45000);
 
     let device;
     try {
@@ -773,6 +815,12 @@
     if (!device || device.deviceType === 'null') return fail('no-graphics', false);
     const api = device.deviceType === 'webgpu' ? 'webgpu' : 'webgl2';
     if (api !== profile.api) Object.assign(profile, deviceProfile({ ...env, webgpu: false }));
+    let resume = null;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null');
+      if (saved && saved.base === base) { resume = saved; sessionStorage.removeItem(RESUME_KEY); }
+    } catch { resume = null; }
+    if (resume) profile.budget = profile.maxBudget = Math.max(profile.minBudget, Math.round(profile.budget / 2));
     const governor = createGovernor(profile);
     device.maxPixelRatio = governor.state.pixelRatio;
     let saveData = profile.saveData; // until the visitor asks for full detail
@@ -841,7 +889,8 @@
     const levelOf = storeys ? manifest.stops.map((_, index) => storeys.findIndex(level => level.stops.includes(index))) : null;
     let viewerLevel = storeys ? levelOf[manifest.start] : 0;
     const hotspotButtons = manifest.stops.map((stop, index) => {
-      const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1' });
+      // Hidden until placeHotspots puts it on its floor point (after the first frame), not in the corner.
+      const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1', hidden: true });
       button.append(el('span', {}, String(index + 1)));
       button.addEventListener('click', event => { event.stopPropagation(); goToStop(index); });
       ui.hotspots.append(button);
@@ -860,7 +909,8 @@
         const d = stop.floor.map((v, i) => v - state.position[i]);
         const distance = Math.hypot(d[0], d[2]);
         const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
-        const reachable = !walkable || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]]);
+        // The mask says nothing about a storey it was not carved for.
+        const reachable = !walkable || (storeys && viewerLevel !== levelOf[manifest.start]) || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]]);
         if (index === state.stop && distance < 0.4 || !inFront || !reachable || distance > 12) { button.hidden = true; return; }
         world.set(...stop.floor);
         camera.camera.worldToScreen(world, screen);
@@ -1053,9 +1103,15 @@
 
     // ----- movement -----
     let flight = null;
+    // Every flight holds the render loop (continuous) until it lands or is cut short here.
+    function cancelFlight() {
+      if (!flight) return;
+      flight = null;
+      continuous = Math.max(0, continuous - 1);
+    }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     function flyTo(position, yaw, pitch, onArrive) {
-      flight = null;
+      cancelFlight();
       if (reduced()) {
         Object.assign(state, { position, yaw, pitch });
         applyCamera();
@@ -1080,6 +1136,11 @@
     }
     // On a home with levels, a stop straight above or below is not where you are.
     const sameLevel = storeys ? STOREY_METRES : Infinity;
+    // The walkable mask is carved for the opening stop's storey; on any other storey it is the floor below, so
+    // free walking there is refused rather than dropping the viewer through it (per-storey masks: later).
+    const maskLevel = storeys ? levelOf[manifest.start] : 0;
+    const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
+    const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
     function arrived(index) {
       state.stop = index;
       const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
@@ -1103,6 +1164,8 @@
       if (chunked) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
       flyTo(target, state.yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); });
     }
+    // Where Next and Previous count from: this stop, or between stops the nearest one on this level (as the labels say).
+    const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
     let messageTimer = null;
     function say(message) {
       ui.status.textContent = message;
@@ -1111,6 +1174,7 @@
     }
     function stepForward(sign) {
       if (!walkable) { say('Use Next stop, or N and P, to move.'); return; }
+      if (offMask()) { say(OFF_MASK); return; }
       const forward = forwardOf(state.yaw, 0);
       const to = [state.position[0] + forward[0] * 0.35 * sign, state.position[2] + forward[2] * 0.35 * sign];
       if (!walkable.clear([state.position[0], state.position[2]], to)) { say('A wall or furniture is in the way.'); return; }
@@ -1127,6 +1191,7 @@
     }
     function tapAt(clientX, clientY) {
       if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
+      if (offMask()) { say(OFF_MASK); return; }
       const aim = aimFor(clientX, clientY);
       const to = aim && walkTarget(walkable, [state.position[0], state.position[2]], aim);
       // Short enough to fit a 280 px phone frame on one line.
@@ -1164,7 +1229,7 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        flight = null;
+        cancelFlight();
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1195,11 +1260,11 @@
       engaged = true;
       const key = event.key;
       const handled = () => { event.preventDefault(); dismissHint(); };
-      if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); flight = null; state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
+      if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); cancelFlight(); state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
       else if (key === 'ArrowUp' || key === 'ArrowDown') { handled(); stepForward(key === 'ArrowUp' ? 1 : -1); }
       else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
-      else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(Math.max(state.stop, 0), 1, manifest.stops.length)); }
-      else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(state.stop < 0 ? 0 : state.stop, -1, manifest.stops.length)); }
+      else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
+      else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
       else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(Number(key) - 1); }
       else if (key === 'Home') { handled(); goToStop(manifest.start); }
       else if (key === '+' || key === '=') { handled(); state.zoom = clamp(state.zoom * 0.9, 0.55, 1.3); applyCamera(); }
@@ -1215,8 +1280,8 @@
     });
     const escapeFull = event => { if (event.key === 'Escape' && pseudo) { event.preventDefault(); setPseudo(false); } };
     document.addEventListener('keydown', escapeFull);
-    ui.prev.addEventListener('click', () => goToStop(stepStop(state.stop < 0 ? 0 : state.stop, -1, manifest.stops.length)));
-    ui.next.addEventListener('click', () => goToStop(stepStop(Math.max(state.stop, 0), 1, manifest.stops.length)));
+    ui.prev.addEventListener('click', () => goToStop(stepStop(hereStop(), -1, manifest.stops.length)));
+    ui.next.addEventListener('click', () => goToStop(stepStop(hereStop(), 1, manifest.stops.length)));
     ui.stopsToggle.addEventListener('click', () => togglePanel(ui.stopsPanel, ui.stopsToggle));
     ui.about.addEventListener('click', () => togglePanel(ui.aboutPanel, ui.about));
     function toggleMap(show) {
@@ -1246,9 +1311,11 @@
         Object.assign(stage.style, { position: 'fixed', top: '0', right: '0', bottom: '0', left: '0', width: '100vw', height: '100vh',
           maxWidth: 'none', minHeight: '0', margin: '0', borderRadius: '0', zIndex: '2147483000' });
         stage.style.height = '100dvh'; // kept at 100vh where dvh is unknown
+        stage.classList.add('v2-filled'); // the stylesheet keeps the controls inside the safe area
         root.style.overflow = 'hidden';
       } else {
         if (pseudo.style === null) stage.removeAttribute('style'); else stage.setAttribute('style', pseudo.style);
+        stage.classList.remove('v2-filled');
         root.style.overflow = pseudo.overflow;
         pseudo = null;
       }
@@ -1297,8 +1364,14 @@
     function offerHint() {
       let seen = false;
       try { seen = localStorage.getItem(HINT_KEY) === '1'; } catch { seen = false; }
-      // A small embed has no room for a hint over the room itself.
-      if (seen || stage.clientHeight < 420 || stage.clientWidth < 360) return;
+      if (seen) return;
+      if (stage.clientHeight < 420 || stage.clientWidth < 360) {
+        // A small frame on someone else's page has no room for a hint over the room (About has the controls);
+        // a phone's own page gets the one-line version.
+        if (framed) return;
+        ui.hint.textContent = 'Drag to look. Tap to move.';
+        ui.hint.classList.add('v2-hint-short');
+      }
       ui.hint.hidden = false;
       hintTimer = setTimeout(dismissHint, 9000);
     }
@@ -1397,12 +1470,21 @@
         return;
       }
       if (phase === 'coarse') {
+        // The first pass reports its files: a bar under the poster, so a slow connection is seen to be moving.
+        if (loadingCount > 0) {
+          maxLoading = Math.max(maxLoading, loadingCount);
+          ui.progress.hidden = false;
+          ui.progress.firstChild.style.transform = `scaleX(${((maxLoading - loadingCount) / maxLoading).toFixed(3)})`;
+        }
         if (!frameReady || loadingCount > 0) return;
         // Data served from cache may never show as loading; a settled second of frames will do.
         if (!sawLoading && ++readyFrames < 30) return;
         phase = 'detail';
         mark('first-3d');
         ready = true;
+        hideSlow();
+        maxLoading = 0;
+        // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
@@ -1425,6 +1507,8 @@
         markCurrent();
         offerHint();
         settle({ readiness: 'viewer-ready', marks, stats });
+        // Back where the visitor was before the graphics context was lost.
+        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop);
         return;
       }
       if (phase === 'detail') {
@@ -1480,9 +1564,32 @@
       applyCamera();
     });
     observer.observe(stage);
-    const lost = () => fail('context-lost');
+    // A lost graphics context (iOS reclaims it when another app opens) usually comes back: wait 5 s of visible
+    // time for the restore before giving up. The engine itself restores its resources. A final loss keeps the
+    // visitor's stop for Try again, which comes back one budget level lower (RESUME_KEY).
+    let lostWait = null;
+    const lost = event => {
+      event?.preventDefault?.();
+      if (lostWait || torndown) return;
+      ui.status.textContent = 'Restoring 3D…';
+      lostWait = visibleDeadline(() => {
+        lostWait = null;
+        if (torndown) return;
+        try { sessionStorage.setItem(RESUME_KEY, JSON.stringify({ base, stop: state.stop })); } catch { /* the retry starts at the opening stop */ }
+        fail('context-lost');
+      }, 5000);
+    };
+    const restored = () => {
+      if (!lostWait) return;
+      lostWait();
+      lostWait = null;
+      if (ui.status.textContent === 'Restoring 3D…') ui.status.textContent = '';
+      requestRender();
+    };
     device.on?.('devicelost', lost);
+    device.on?.('devicerestored', restored);
     ui.canvas.addEventListener('webglcontextlost', lost);
+    ui.canvas.addEventListener('webglcontextrestored', restored);
     const visibility = () => { if (!document.hidden) requestRender(); };
     document.addEventListener('visibilitychange', visibility);
 

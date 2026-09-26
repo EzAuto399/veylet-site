@@ -26,23 +26,36 @@
     <meta name="twitter:image" content="https://veylet.com/media/walkthrough-card.png" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
+    <!-- Time to poster: the lookup (account service) and the package (tour host) connect while this page
+         parses; the streamed player downloads beside the lookup. -->
+    <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
+    <link rel="preconnect" href="https://tours.veylet.com" />
+    <link rel="preload" href="/tour-player-v2.js?v=ed1cd1998002cc3a" as="script" />
     <link rel="stylesheet" href="/style.css?v=a8e48561929d7ca9" />
     <link rel="stylesheet" href="/tour-stage.css?v=6800a56190b61207" />
     <link rel="stylesheet" href="/client-page.css?v=86b52db17ca6b659" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
-         nothing is held and the page reads as it always has. -->
+         nothing is held and the page reads as it always has. The rule is
+         client-page.js linkToken: 32 hex characters, or 16 to 64 other link
+         characters, after trailing punctuation. -->
     <script>
-      if ((new URLSearchParams(location.search).get('t') || '').length >= 16) {
-        document.documentElement.classList.add('client-pending', 'client-contact-pending');
-      }
+      (function () {
+        var t = (new URLSearchParams(location.search).get('t') || '').trim().replace(/[.,;:!?)\]}>'"_-]+$/, '');
+        var hex = /^[0-9a-f]+$/i.test(t);
+        if (hex ? t.length === 32 : t.length >= 16 && t.length <= 64 && /^[A-Za-z0-9_-]+$/.test(t)) {
+          document.documentElement.classList.add('client-pending', 'client-contact-pending');
+        }
+      })();
     </script>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
-    <script src="/tour-player.js?v=af59bfb5e6d284af"></script>
-    <script src="/client-page.js?v=7d3ee104107829aa"></script>
+    <script src="/client-page.js?v=d210ebdd6f0af45a"></script>
+    <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
+    <script>window.VeyletClientPage.watchFailures(window, document);</script>
+    <script src="/tour-player.js?v=9be0d465882b7e68"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -126,7 +139,11 @@
       const wrap = document.getElementById('tour-frame-wrap');
       const trouble = document.getElementById('client-trouble');
       const page = window.VeyletClientPage;
-      const token = new URLSearchParams(location.search).get('t') || '';
+      // A cut-off or broken link reads as incomplete (client-page.js linkToken); without that
+      // script, the old rule: anything of 16 characters or more is looked up.
+      const raw = new URLSearchParams(location.search).get('t') || '';
+      const link = page?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
+      const token = link.complete ? link.token : '';
       // The held places (see the head script) go once the walkthrough is on
       // screen or has failed; the card's sooner when the contact answers, or
       // after a short wait (client-page.js, showWalkthrough).
@@ -135,7 +152,7 @@
       page?.mountColumns(document, window);
       page?.mountReport?.(document.getElementById('client-report'), token);
       // Views for the agent's desk: one first-party call per event, never in the way.
-      const beacon = token.length < 16 ? null : page?.viewBeacon?.({
+      const beacon = !link.complete ? null : page?.viewBeacon?.({
         config: window.VEYLET_SUPABASE,
         token,
         src: page.channelFrom(location.search, 'unknown'),
@@ -153,7 +170,7 @@
         });
       }
 
-      if (token.length < 16) {
+      if (!link.complete) {
         releaseHeld();
         window.VeyletPlayer.showFailure(
           {
