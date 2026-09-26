@@ -20,8 +20,6 @@
   const verifyResend = document.getElementById('account-verify-resend');
   const signInSubmit = document.getElementById('account-sign-in-submit');
   const verifySubmit = verifyForm?.querySelector('button[type="submit"]');
-  const gateTitle = document.getElementById('account-gate-title');
-  const gateBody = document.getElementById('account-gate-body');
   const spaceForm = document.getElementById('account-space');
   const home = document.getElementById('account-home');
   const who = document.getElementById('account-who');
@@ -474,16 +472,12 @@
   /*
    * One-press approval (owner decision 26 September 2026; draft 20260926128000): the review
    * shows the quality check's advice, then ONE required tick, then Approve and share. The new
-   * server takes p_checks {right_to_share: true} and no permission parameters (they default to
-   * null there; false refuses). A server that still wants the five attestations answers that
-   * call with its own refusal ("complete every quality and permission check before approval"),
-   * or, since its two permission parameters have no defaults, PGRST202 (no function takes
-   * those arguments); the desk then sends the old shape, five checks and both permissions
-   * true, which is what the one tick stands for, so the same screen works on both servers.
+   * server takes p_checks {right_to_share: true} and no permission parameters.
+   * An older server must be updated before this screen can approve: a rights
+   * tick cannot stand in for quality checks or permissions the person never gave.
    */
   const RIGHT_TO_SHARE = 'I have the right to share this walkthrough.';
   const REVIEW_CHECKS_NEW = Object.freeze({ right_to_share: true });
-  const REVIEW_CHECKS_OLD = Object.freeze({ coverage: true, alignment: true, navigation: true, privacy: true, mobile: true });
   function reviewOldShapeRefusal(result) {
     const error = result?.value?.error || null;
     return Boolean(error) && /complete every quality and permission check/i.test(String(error.message || ''));
@@ -511,7 +505,7 @@
   // `desk` carries the roles, hosting rows and whether review answers are still on
   // their way; a ready walkthrough's next step waits for its review answer rather
   // than guessing whether it is approved.
-  function guideDesk(properties, rows, production, items, supabase, desk = {}) {
+  function guideDesk(properties, rows, items, supabase, desk = {}) {
     if (!properties.length) {
       if (APP_MODE) { guide('Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
       guide('Start with one space.', 'Save a name and general location. This prepares your desk for its first capture.', 'Add your first space', () => {
@@ -582,10 +576,6 @@
       };
       const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
       guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase) : open);
-    } else if (failed(production)) {
-      guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
-    } else if (production.value?.data === true) {
-      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See capture preparation', '/start#capture-partners');
     } else {
       guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See your first-tour steps', '/start');
     }
@@ -1889,12 +1879,13 @@
       event.preventDefault(); if (save.disabled || Object.values(fields).some(field => !field.checked)) return;
       save.disabled = true;
       const base = { p_tour_id: tour.id, p_expected_storage_path: snapshot.path, p_expected_package_revision: snapshot.revision };
-      let reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_NEW }));
-      // A server before 20260926128000 wants the five attestations: the one tick stands for them.
-      if ((reviewOldShapeRefusal(reply) || missingFunction(reply)) && ticket === deskVersion) {
-        reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_OLD, p_capture_permission: true, p_publication_permission: true }));
-      }
+      const reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_NEW }));
       if (ticket !== deskVersion) return;
+      if (reviewOldShapeRefusal(reply) || missingFunction(reply)) {
+        save.disabled = false;
+        say('Approval is not available on this server yet. Contact Veylet support; your walkthrough has not been shared.');
+        return;
+      }
       if (sessionGone(reply)) { showSignedOut('Your sign-in expired. Sign in and check the saved review before continuing.'); return; }
       if (failed(reply) || firstRow(reply.value?.data)?.approved !== true) {
         if (reply.value?.error?.details === 'VEYLET_REVISION_SUPERSEDED') {
@@ -2513,7 +2504,8 @@
    * not started and is not an App Store plan, and it has one filled action.
    */
   const trialEl = document.getElementById('account-trial');
-  const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started'];
+  const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started', 'waitlist'];
+  const TRIAL_WAITLIST = 'You’re on the waitlist. Your free months start when your account is invited.';
   const TRIAL_INTERVALS = ['monthly', 'annual'];
   const TRIAL_CARD_FIELD = 'account-trial-card-field';
   const TRIAL_TEST_LINE = 'Test · Square Sandbox: a test card, not a live payment.';
@@ -2523,6 +2515,7 @@
     trial_used: 'This agency or workspace has already had its free months, so nothing was set up. Ask Veylet support about starting the plan.',
     abn_invalid: 'That ABN wasn’t accepted, so nothing was set up. Check the 11 digits, then try again.',
     not_eligible: 'Free months aren’t available for this workspace right now, so nothing was set up.',
+    waitlist: TRIAL_WAITLIST,
     lane_closed: 'Card sign-up is closed right now, so nothing was set up.',
     invalid_request: 'The start wasn’t accepted, so nothing was set up. Try again.',
   };
@@ -2563,6 +2556,7 @@
     // Started meanwhile (another tab, or the app): the plan above says so.
     if (offer.missing.includes('already_started')) return 'hidden';
     if (offer.missing.includes('not_owner')) return 'not-owner';
+    if (offer.missing.includes('waitlist')) return 'waitlist';
     if (offer.missing.includes('trial_used')) return 'used';
     if (!lane) return 'lane-error';
     return lane.open ? 'choose' : 'lane-closed';
@@ -2683,6 +2677,7 @@
       return parts;
     }
     if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can start the free months here.'); return parts; }
+    if (kind === 'waitlist') { say('annual-lead', TRIAL_WAITLIST); return parts; }
     if (kind === 'used') {
       say('annual-lead', 'This agency or workspace has already had its free months.');
       say('annual-note', 'A second free trial is not available. Veylet support can start the plan with you.');
@@ -2895,6 +2890,12 @@
     }
     // A refusal is final for this attempt, so the next try is a new intent.
     if (TRIAL_REFUSALS[code]) state.attemptID = null;
+    if (code === 'waitlist') {
+      trialDropCard(state);
+      state.kind = 'waitlist'; state.offer = { eligible: false, missing: ['waitlist'], plans: [] };
+      state.problem = null; trialDraw(); setStatus(TRIAL_WAITLIST);
+      return;
+    }
     if (code === 'abn_invalid') { state.abnRefused = abn; trialProblem(state, TRIAL_REFUSALS.abn_invalid); trialAbnCheck(state, state.refs || {}); state.refs?.abn?.focus(); return; }
     trialProblem(state, TRIAL_REFUSALS[code] || TRIAL_UNCONFIRMED);
     control.focus?.();
@@ -6633,11 +6634,10 @@
     stopPolling();
     let ticket = shown ? deskVersion : deskReset();
     if (shown) list.setAttribute('aria-busy', 'true');
-    let [props, tours, members, production, hosting, hostingStates, primary, offices] = await Promise.all([
+    let [props, tours, members, hosting, hostingStates, primary, offices] = await Promise.all([
       settled(supabase.from('properties').select('id,title,category,location_general,workspace_id,created_at').order('created_at', { ascending: false })),
       readTours(supabase),
       readMemberships(supabase),
-      settled(supabase.rpc('can_produce_tours')),
       // A throwing client still settles, so hosting can never stop the desk.
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_hosting', {}))),
       // The member hosting read (draft 20260926132000). A backend without it (PGRST202)
@@ -6684,8 +6684,6 @@
     void emailRender(supabase);
     // The Terms the sign-in form showed, recorded once sign-in completed (LEGAL_LIFECYCLE-15).
     void termsRecord(supabase);
-    if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
-    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
     if (failed(props)) { guide('Reload your spaces.', 'Your saved work could not be checked. Refresh before creating another space or repeating an upload.', 'Refresh spaces', () => loadDesk(supabase)); targetMessage(requestedTour ? 'The requested walkthrough could not be checked. Refresh spaces to try again.' : ''); message(list, 'Spaces could not load. Refresh the desk to try again.'); return; }
     if (failed(tours)) { message(list, 'Tour status could not load. Your spaces are shown below, but the tour list is unavailable. Refresh to retry.'); }
@@ -6739,7 +6737,7 @@
     const items = new Map();
     const updateGuide = (reviewsPending = false) => {
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
-      else guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
+      else guideDesk(properties, rows, items, supabase, { roles, hosting: hostingRows, reviewsPending });
     };
     if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in Veylet Capture; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with Veylet Capture. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
@@ -6901,11 +6899,6 @@
     if (verifyForm) verifyForm.hidden = true;
     if (home) home.hidden = false;
     if (who) who.textContent = session.user.email ? 'Signed in as ' + session.user.email : 'Signed in';
-    if (gateTitle) gateTitle.textContent = 'Checking capture approval…';
-    if (gateBody) {
-      gateBody.textContent =
-        'Save a space and arrange a practice capture. Client work needs device and practice assessment.';
-    }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
     setStatus('Signed in. Loading your spaces…');
     // A landed email link returns to the edition it began in (the app's pages, or the desk).

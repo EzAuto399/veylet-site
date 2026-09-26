@@ -1273,7 +1273,7 @@
     deletionTerm(dl, 'Workspaces', countText(row.workspaces), true);
     deletionTerm(dl, 'Spaces', countText(row.properties), true);
     deletionTerm(dl, 'Walkthroughs', countText(row.tours), true);
-    deletionTerm(dl, 'Live links', countText(row.active_shares), true);
+    deletionTerm(dl, 'Share links', countText(row.active_shares), true);
     deletionTerm(dl, 'Reason', row.reason ? String(row.reason) : DASH);
     deletionTerm(dl, 'Next step', DELETION_NEXT_STEP);
     item.append(dl);
@@ -2300,8 +2300,11 @@
         if (version !== waitlistVersion) return;
         invite.disabled = false;
         const answer = failed(reply) ? null : firstRow(reply.value?.data);
-        if (!answer || typeof answer !== 'object') { const refused = serverRefusal(reply); say.textContent = refused ? 'Not invited: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return; }
-        row.invited_at = new Date().toISOString();
+        if (!answer || typeof answer !== 'object' || String(answer.id) !== String(row.id)
+          || answer.outcome !== 'invited' || typeof answer.at !== 'string' || !Number.isFinite(Date.parse(answer.at))) {
+          const refused = serverRefusal(reply); say.textContent = refused ? 'Not invited: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return;
+        }
+        row.invited_at = answer.at;
         setStatus('Invited: ' + email + '. Tell them it is their turn; they sign in with this email.');
         paintWaitlist();
       });

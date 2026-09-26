@@ -402,6 +402,20 @@ test('the waitlist lists who is waiting, oldest first, and Invite records the in
 
 /* ---- Deletions and the queue ---------------------------------------------- */
 
+test('Invite keeps the waitlist entry until an exact authoritative invitation receipt is returned', async () => {
+  for (const answer of [{}, { id: 99, outcome: 'invited', at: '2026-09-27T00:00:00Z' },
+    { id: 3, outcome: 'declined', at: '2026-09-27T00:00:00Z' }, { id: 3, outcome: 'invited', at: 'invalid' }]) {
+    const h = await load({ rpc: {
+      studio_list_waitlist: async () => ({ data: [{ id: 3, email: 'fixture@example.invalid', created_at: '2026-09-20T00:00:00Z' }] }),
+      studio_set_waitlist_outcome: async () => ({ data: answer }),
+    } });
+    await h.control('studio-waitlist-body', 'invite').fire('click');
+    assert.match(h.textOf('studio-waitlist-body'), /1 waiting · 0 invited/);
+    assert.match(h.textOf('studio-waitlist-body'), /Not confirmed/);
+    assert.equal(h.controls('studio-waitlist-body', 'invite').length, 1);
+  }
+});
+
 test('deletion requests show their 30-day due date, overdue first', async () => {
   const day = 86400000;
   const rows = [
@@ -439,7 +453,7 @@ test('deletion requests use the deployed RPC names and show real counts', async 
   assert.match(body, /Workspaces \| 2/);
   assert.match(body, /Spaces \| 7/);
   assert.match(body, /Walkthroughs \| 9/);
-  assert.match(body, /Live links \| 3/);
+  assert.match(body, /Share links \| 3/);
 });
 
 test('an unconfirmed lift response never hides an active takedown or claims success', async () => {

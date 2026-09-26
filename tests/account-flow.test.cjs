@@ -121,7 +121,7 @@ test('a new account gets one setup action without changing access or creating a 
   assert.equal(h.ids['account-add-space'].open, true);
   // Reading the plan, hosting dates and the team's invites and members are the only calls
   // added here; nothing changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['can_produce_tours', 'get_tour_hosting', 'get_tour_hosting_states', 'get_primary_workspace', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  assert.deepEqual(h.calls.map(call => call[0]), ['get_tour_hosting', 'get_tour_hosting_states', 'get_primary_workspace', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();
@@ -130,12 +130,14 @@ test('an owner with a saved space gets self-capture preparation without an unava
   assert.doesNotMatch(elements.map(el => el.textContent).join(' '), /studio visit/i);
   assert.equal(elements.find(el => el.tagName === 'A').href, '/start');
 });
-test('an approved operator sees capture preparation only from confirmed production access', async () => {
-  const h = await load({ rpc: { can_produce_tours: () => ({ data: true }) } });
-  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#capture-partners');
-  const unavailable = await load({ rpc: { can_produce_tours: () => ({ error: { message: 'offline' } }) } });
-  assert.match(unavailable.ids['account-next-step'].all().map(el => el.textContent).join(' '), /approval could not be checked/);
-  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#capture-partners'), false);
+test('capture preparation does not claim a manual approval or send people to the retired partner form', async () => {
+  for (const answer of [{ data: true }, { error: { message: 'offline' } }]) {
+    const h = await load({ rpc: { can_produce_tours: () => answer } });
+    assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start');
+    assert.equal(h.calls.some(call => call[0] === 'can_produce_tours'), false);
+    assert.doesNotMatch(h.text(), /production approval|capture approval/i);
+  }
+  assert.doesNotMatch(markup, /id="account-gate"|Apply to use Veylet/);
 });
 test('tour guidance follows the requested visible tour and never publishes or approves', async () => {
   const target = { ...tour, id: requestedID, status: 'draft' };
@@ -346,9 +348,7 @@ test('release review checks the exact package, then turns sharing on in the same
   assert.deepEqual(h.calls.filter(call => ['review_tour_versioned', 'enable_tour_share'].includes(call[0])).map(call => [call[0], call[1].p_tour_id]),
     [['review_tour_versioned', 't1'], ['enable_tour_share', 't1']]);
 });
-test('a server that still wants the five attestations gets the old shape from the same one tick', async () => {
-  // An old server refuses the new shape with its own words, or (its permission parameters have no
-  // defaults) with PGRST202; either way the old shape follows, with both permissions.
+test('one-press approval never invents legacy quality or permission attestations on an older server', async () => {
   for (const refusal of [{ error: { message: 'complete every quality and permission check before approval' } },
     { error: { code: 'PGRST202', message: 'Could not find the function public.review_tour_versioned(p_checks, p_expected_package_revision, p_expected_storage_path, p_tour_id) in the schema cache' } }]) {
     const sent = [];
@@ -359,9 +359,10 @@ test('a server that still wants the five attestations gets the old shape from th
     const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
     form.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
     await form.fire('submit'); await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(sent.map(args => args.p_checks), [{ right_to_share: true }, { coverage: true, alignment: true, navigation: true, privacy: true, mobile: true }]);
-    assert.deepEqual([sent[1].p_capture_permission, sent[1].p_publication_permission], [true, true]);
-    assert.ok(h.calls.some(call => call[0] === 'enable_tour_share'), 'approved on the old server too');
+    assert.deepEqual(sent.map(args => args.p_checks), [{ right_to_share: true }]);
+    assert.equal('p_capture_permission' in sent[0], false);
+    assert.equal('p_publication_permission' in sent[0], false);
+    assert.equal(h.calls.some(call => call[0] === 'enable_tour_share'), false);
   }
   // Any other refusal is not retried in the old shape.
   const other = [];
@@ -1808,7 +1809,7 @@ test('the signed-in desk puts walkthroughs first and leaving last', () => {
   // the account follow the walkthroughs in source order, so a phone reads the
   // same sequence the wide two-column desk shows.
   const order = ['id="account-next-step"', '>Your walkthroughs<', 'id="account-refresh"', 'id="account-add-space"', 'id="account-properties"',
-    'id="account-plan"', '>First capture? See the steps<', 'id="account-gate"', '>Account details<', 'id="account-leaving"', 'id="account-sign-out"'];
+    'id="account-plan"', '>First capture? See the steps<', '>Account details<', 'id="account-leaving"', 'id="account-sign-out"'];
   const positions = order.map(marker => home.indexOf(marker));
   assert.ok(positions.every(position => position >= 0), 'every section is present');
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
@@ -3644,6 +3645,24 @@ const pressTrial = async (h, text) => { await trialButton(h, text).fire('click')
 const typeAbn = async (h, value) => { const input = trialAbnInput(h); input.value = value; await input.fire('input'); await input.fire('blur'); };
 const chooseTrial = async (h, value) => { const radio = trialNodes(h).find(el => el.tagName === 'INPUT' && el.value === value); radio.checked = true; await radio.fire('change'); };
 const ADD_CARD = 'Add a card and start free months';
+
+test('a waitlisted account shows its queue state without a card, prices or an App Store bypass', async () => {
+  const h = await withTrial(trialLocked(['waitlist']));
+  assert.match(trialText(h), /You’re on the waitlist/);
+  assert.doesNotMatch(trialText(h), /couldn’t check|App Store|A\$/i);
+  assert.equal(trialNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
+  assert.equal(h.scripts.length, 0);
+});
+
+test('a waitlist refusal after the card opens removes checkout controls and preserves the queue state', async () => {
+  const h = await withTrial(trialOffer(), { hooks: { '/square/trial/start': () => [403, { error: 'waitlist' }] } });
+  await typeAbn(h, EXAMPLE_ABN);
+  await pressTrial(h, ADD_CARD);
+  await pressTrial(h, 'Start free months');
+  assert.match(trialText(h), /You’re on the waitlist/);
+  assert.equal(trialNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
+  assert.equal(posts(h, '/square/trial/start').length, 1);
+});
 
 test('offer v9: a pending plan offers the free months with a card on file: both plans, the first charge day and “Nothing is charged today”', async () => {
   const offer = trialOffer();

@@ -808,13 +808,13 @@ test('deletion requests are listed above the accounts table with their counts, r
     ['Workspaces', '1'],
     ['Spaces', '4'],
     ['Walkthroughs', '6'],
-    ['Live links', '2'],
+    ['Share links', '2'],
     ['Reason', 'Sold the agency; the new owner uses their own tools.'],
     ['Next step', NEXT_STEP],
   ]);
   // A request with no reason says so rather than leaving the row blank.
   assert.deepEqual(rows(items[1]).find(row => row[0] === 'Reason'), ['Reason', '—']);
-  assert.deepEqual(rows(items[1]).find(row => row[0] === 'Live links'), ['Live links', '0']);
+  assert.deepEqual(rows(items[1]).find(row => row[0] === 'Share links'), ['Share links', '0']);
   // The desk lists and explains; it never offers to delete anything itself.
   assert.equal(h.ids['studio-deletions'].all().some(el => el.tagName === 'BUTTON'), false);
   assert.equal(deletionsText(h).split(NEXT_STEP).length - 1, 2, 'every row carries the next step');
