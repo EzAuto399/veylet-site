@@ -583,6 +583,144 @@ main.studio-page noscript p,
   }
 }
 
+/* Rendering, walkthrough reports and the waitlist (wave 2, 27 September 2026): the
+   operator's day without SQL. The money band's ledger grammar: each fact beside its
+   short label, the write forms inline under their own item, never in a modal. */
+.studio-rendering,
+.studio-reports,
+.studio-waitlist {
+  margin: 0 0 30px;
+}
+.studio-rendering > .dash-heading,
+.studio-reports > .dash-heading,
+.studio-waitlist > .dash-heading {
+  margin: 0 0 10px;
+}
+.studio-rendering > .contact-note,
+.studio-reports > .contact-note,
+.studio-waitlist > .contact-note,
+.studio-rendering-part > p,
+.studio-admission-body > p,
+.studio-alerts-body > p,
+.studio-reports-body > p,
+.studio-waitlist-body > p {
+  max-width: 68ch;
+  margin: 0 0 14px;
+}
+.studio-alerts-body > .contact-note,
+.studio-reports-body > .contact-note,
+.studio-waitlist-body > .contact-note {
+  color: var(--muted);
+}
+.studio-alerts-body > p .tour-action,
+.studio-reports-body > p .tour-action,
+.studio-waitlist-body > p .tour-action,
+.studio-rendering-part > p .tour-action {
+  margin-left: 8px;
+}
+.studio-rendering-grid {
+  display: grid;
+  gap: 18px;
+  margin: 0 0 18px;
+}
+.studio-rendering-part {
+  min-width: 0;
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+.studio-rendering-name {
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+.studio-rendering-part .plan-list,
+.studio-report .plan-list,
+.studio-alert .plan-list,
+.studio-takedown .plan-list,
+.studio-waitlist-entry .plan-list {
+  margin: 0;
+}
+.studio-rendering-part .leaving-list > div,
+.studio-report .leaving-list > div,
+.studio-alert .leaving-list > div,
+.studio-takedown .leaving-list > div,
+.studio-waitlist-entry .leaving-list > div {
+  grid-template-columns: minmax(0, 14ch) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 8px 0;
+}
+.studio-rendering-part .leaving-list dt,
+.studio-report .leaving-list dt,
+.studio-alert .leaving-list dt,
+.studio-takedown .leaving-list dt,
+.studio-waitlist-entry .leaving-list dt {
+  font-size: 13px;
+}
+.studio-rendering-part dd,
+.studio-report dd,
+.studio-alert dd,
+.studio-takedown dd,
+.studio-waitlist-entry dd {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.studio-rendering-part .studio-save-row,
+.studio-report .studio-save-row,
+.studio-takedown .studio-save-row,
+.studio-waitlist-entry .studio-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 0 0;
+}
+.studio-rendering-part .studio-field-note,
+.studio-report > .studio-field-note,
+.studio-takedown > .studio-field-note {
+  max-width: 62ch;
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.studio-rendering-form input[type='number'] {
+  width: 12ch;
+}
+.studio-rendering-form select {
+  width: min(36ch, 100%);
+}
+.studio-report {
+  min-width: 0;
+  border-top: 1px solid var(--ink);
+  padding-top: 12px;
+}
+.studio-report[data-reason='privacy'] {
+  border-top-width: 3px;
+}
+.studio-report textarea,
+.studio-takedown textarea {
+  width: min(60ch, 100%);
+  min-height: 64px;
+  font: inherit;
+}
+.studio-rendering .studio-set-plan summary,
+.studio-reports .studio-set-plan summary {
+  position: relative;
+  left: auto;
+  max-width: none;
+}
+.studio-rendering .studio-plan-form,
+.studio-reports .studio-plan-form {
+  position: static;
+  max-width: none;
+}
+@media (min-width: 900px) {
+  .studio-rendering-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 40px;
+  }
+}
+
 /* Money exceptions: charges and payment states that need a person, first on
    the desk. The deletion band's ledger grammar, and the resolve form opens
    inline under its own item like Set plan, never in a modal. */

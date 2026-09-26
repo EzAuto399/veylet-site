@@ -771,6 +771,11 @@ const deletionRequests = () => [
 ];
 const NEXT_STEP = 'Complete with the deletion CLI; the desk does not delete.';
 const shortDate = value => new Date(value).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+const dueText = requested => {
+  const due = Date.parse(requested) + 30 * 86400000;
+  const left = due - Date.now();
+  return shortDate(new Date(due).toISOString()) + (left < 0 ? ' · overdue' : left < 7 * 86400000 ? ' · due within 7 days' : '');
+};
 const deletionsText = h => h.ids['studio-deletions'].all().map(el => el.textContent).filter(Boolean).join(' | ');
 const deletionItems = h => h.ids['studio-deletions'].all().filter(el => el.className === 'studio-deletion');
 
@@ -797,6 +802,8 @@ test('deletion requests are listed above the accounts table with their counts, r
   assert.deepEqual(rows(items[0]), [
     ['Requested', shortDate('2026-09-20T04:30:00Z')],
     ['Status', 'Requested'],
+    // SITE_DESK-21: the 30-day promise's day, marked when it is near or past.
+    ['Due', dueText('2026-09-20T04:30:00Z')],
     ['Account id', 'aaaaaaaa-1111-4222-8333-444444444444'],
     ['Spaces', '4'],
     ['Walkthroughs', '6'],
@@ -805,8 +812,8 @@ test('deletion requests are listed above the accounts table with their counts, r
     ['Next step', NEXT_STEP],
   ]);
   // A request with no reason says so rather than leaving the row blank.
-  assert.deepEqual(rows(items[1])[6], ['Reason', '—']);
-  assert.deepEqual(rows(items[1])[5], ['Live links', '0']);
+  assert.deepEqual(rows(items[1])[7], ['Reason', '—']);
+  assert.deepEqual(rows(items[1])[6], ['Live links', '0']);
   // The desk lists and explains; it never offers to delete anything itself.
   assert.equal(h.ids['studio-deletions'].all().some(el => el.tagName === 'BUTTON'), false);
   assert.equal(deletionsText(h).split(NEXT_STEP).length - 1, 2, 'every row carries the next step');
@@ -853,7 +860,9 @@ test('the studio next step is written once, and the desk never claims to delete'
   assert.equal(script.split(NEXT_STEP).length - 1, 1);
   assert.equal(script.split("'No deletion requests.'").length - 1, 1);
   assert.equal(script.split("'Deletion requests'").length - 1, 1);
-  assert.doesNotMatch(script, /delete_account|studio_delete_/);
+  // The one deletion the desk may ask for is a reporter's contact (LEGAL_LIFECYCLE-04,
+  // studio_delete_contact_by_email); it never deletes an account.
+  assert.doesNotMatch(script.replace(/studio_delete_contact_by_email/g, ''), /delete_account|studio_delete_/);
   assert.match(markup, /Read-only except\s*\n?\s*for Set plan/);
 });
 
@@ -1046,7 +1055,7 @@ test('once the free months end, the annual start is offered from that day, where
   assert.deepEqual([args.p_billing_interval, args.p_period_start, args.p_period_end], ['annual', endDay + 'T00:00:00.000Z', yearOn.toISOString()]);
   assert.ok(h.confirms[0].includes(' UTC? It starts where the free months ended, so ' + bonus));
   // Informational only: the desk makes no grant of its own.
-  assert.deepEqual(h.calls.filter(([name]) => !/^studio_(?:is_member|list_|money_|capture_|express_queue)/.test(name)).map(([name]) => name), ['studio_activate_invoice_plan']);
+  assert.deepEqual(h.calls.filter(([name]) => !/^(?:studio_(?:is_member|list_|money_|capture_|express_queue|render_settings|render_alerts)|get_render_spend_guard$)/.test(name)).map(([name]) => name), ['studio_activate_invoice_plan']);
   assert.equal(resultOf(form), 'Recorded: ' + aud(OFFER.year) + ' a year, ending ' + longDate(yearOn.toISOString()) + '. It started where the free months ended, so ' + bonus + ' No automatic renewal.');
 });
 
@@ -1880,10 +1889,10 @@ test('the hosted list is for studio members only and clears on sign-out', async 
  * here moves money, and a failed lookup is never an empty list.
  */
 const MONEY_LABELS = {
-  charge_refused: 'Annual charge not granted', duplicate_charge: 'Pack charged twice',
+  charge_refused: 'Plan charge not granted', duplicate_charge: 'Pack charged twice',
   mismatch: 'Pack charged a different amount', refunded_after_use: 'Pack refunded after use',
-  square_cancel_unconfirmed: 'Square cancel unconfirmed', start_failed: 'Annual first charge failed',
-  start_unconfirmed: 'Annual start not confirmed', apple_inbox_blocked: 'App Store stream blocked',
+  square_cancel_unconfirmed: 'Square cancel unconfirmed', start_failed: 'Plan first charge failed',
+  start_unconfirmed: 'Plan start not confirmed', apple_inbox_blocked: 'App Store stream blocked',
   apple_inbox_stuck: 'App Store notice waiting', pack_intent_unresolved: 'Pack payment unresolved',
 };
 const moneyRows = () => [
@@ -1926,7 +1935,7 @@ test('money exceptions wait as a stated line, then list each one with its facts'
   const items = moneyItems(h);
   // The server's order is kept, and an unknown kind is listed under its own text.
   assert.deepEqual(items.map(moneyHead), [
-    ['Annual charge not granted', 'High', 'Runbook R1'],
+    ['Plan charge not granted', 'High', 'Runbook R1'],
     ['Pack charged twice', 'High', 'Runbook R2'],
     ['App Store notice waiting', 'Medium', 'Runbook R8'],
     ['ledger_drift', 'Medium', 'Runbook R9'],
@@ -2022,7 +2031,7 @@ test('only a resolvable exception offers a resolve form, with a reference field 
   assert.deepEqual(items.map(item => Boolean(resolveFormOf(item))), [true, true, false, false]);
   assert.equal(items.slice(2).some(item => item.all().some(el => el.tagName === 'BUTTON' || el.tagName === 'INPUT')), false);
   const form = resolveFormOf(items[0]);
-  assert.equal(items[0].all().find(el => el.tagName === 'SUMMARY').textContent, 'Mark resolved · Annual charge not granted · Harbour Realty');
+  assert.equal(items[0].all().find(el => el.tagName === 'SUMMARY').textContent, 'Mark resolved · Plan charge not granted · Harbour Realty');
   const input = form.all().find(el => el.tagName === 'INPUT');
   assert.ok(labelOf(form, input).textContent);
   // The desk's one reference rule, as a pattern the browser can compile.
@@ -2045,7 +2054,7 @@ test('resolving sends exactly the key and reference after a named confirmation, 
   assert.equal(h.confirms.length, 1);
   for (const part of ['Pack charged twice', 'Deleted account', 'sq-refund-0042', 'does not refund']) assert.ok(h.confirms[0].includes(part), part);
   assert.deepEqual(resolveCalls(h).map(([, args]) => ({ ...args })), [{ p_exception_key: 'duplicate_charge:sq-pay-7', p_note: 'sq-refund-0042' }]);
-  assert.deepEqual(moneyItems(h).map(item => moneyHead(item)[0]), ['Annual charge not granted', 'App Store notice waiting', 'ledger_drift']);
+  assert.deepEqual(moneyItems(h).map(item => moneyHead(item)[0]), ['Plan charge not granted', 'App Store notice waiting', 'ledger_drift']);
   assert.equal(h.ids['studio-status'].textContent, 'Resolved: Pack charged twice for Deleted account.');
   // The other rows keep what was typed in them.
   assert.equal(resolveFormOf(moneyItems(h)[0]).all().find(el => el.tagName === 'INPUT').value, 'typed-but-not-sent');

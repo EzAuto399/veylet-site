@@ -116,6 +116,8 @@
   // viewers within a minute, and the words say so.
   const PAUSED_LINE = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
   const PAUSED_SAID = 'Sharing paused. Resume sharing opens the same link again.';
+  const RESUME_ON_CARD = 'Resume sharing on its card below opens the same link again.';
+  const PRIVACY_LOOK = 'Before you share, look in every room for people, family photos, mail or documents, and screens.';
   const RESUMED_SAID = 'Sharing resumed. Within a minute, the same link, embed and QR open the walkthrough again.';
   const PAUSE_HINT = 'Stops the link, embed and QR for now and keeps the same link, so printed QR codes work again when you resume.';
   // Where each link is handed out, so the walkthrough's views can say which one was
@@ -1000,6 +1002,14 @@
       const opened = document.createElement('p'); opened.className = 'tour-views-opens';
       opened.textContent = opens === 0 ? 'Not opened yet.' : 'Opened ' + opens + (opens === 1 ? ' time' : ' times') + (last ? ' · last ' + last : '');
       const parts = [opened];
+      // VIEWER-22: a page load is an impression; a walk through the 3D is its own count, once the
+      // server sends it (explores: the viewer's first 3D frame, draft pending). Never shown as zero before then.
+      const explores = viewCount(row?.explores);
+      if (explores !== null && opens > 0) {
+        const explored = document.createElement('p'); explored.className = 'tour-views-explored';
+        explored.textContent = explores === 0 ? 'Not walked through in 3D yet.' : 'Walked through in 3D ' + explores + (explores === 1 ? ' time' : ' times');
+        parts.push(explored);
+      }
       if (calls !== null && emails !== null && opens > 0) {
         const taps = document.createElement('p'); taps.className = 'tour-views-taps';
         taps.textContent = 'Call taps ' + calls + ' · Email taps ' + emails;
@@ -1838,6 +1848,9 @@
     const form = document.createElement('form');
     const fields = {};
     message(form, 'Open the preview and walk through it. If something needs fixing, ask for a correction instead of approving.');
+    // LEGAL_LIFECYCLE-06: nothing screens the 3D for privacy, so the one press is preceded by
+    // what to look for. A reminder only; it never blocks approving.
+    message(form, PRIVACY_LOOK, 'tour-state-help tour-privacy-look');
     // What the one press does, before it is pressed. A correction says its own (the
     // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
@@ -1892,13 +1905,17 @@
           await loadDesk(supabase); return;
         }
         const changed = reply.value?.error?.details === 'VEYLET_PACKAGE_REVISION_CHANGED';
-        const capacityBlocked = ['VEYLET_PLAN_NOT_ACTIVE', 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED'].includes(reply.value?.error?.details);
+        const capacityBlocked = reply.value?.error?.details === 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED';
+        // SITE_DESK-15: no running plan is not a used allowance: the plan is the fix, never a pack.
+        const planBlocked = reply.value?.error?.details === 'VEYLET_PLAN_NOT_ACTIVE';
         const sandboxBlocked = reply.value?.error?.details === 'VEYLET_SANDBOX_TEST_ONLY';
-        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
+        const explanation = planBlocked ? 'This walkthrough was not accepted. ' + shareWords('plan') + ' No charge was created. Start a fresh review once your plan is running.'
+          : sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
           : 'This walkthrough was not accepted. Refresh your plan allowance below; a walkthrough pack adds more, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
         for (const field of Object.values(fields)) { field.checked = false; field.disabled = true; }
         preview.removeAttribute('href'); preview.setAttribute('aria-disabled', 'true'); preview.tabIndex = -1;
         status.textContent = explanation; say(explanation);
+        if (planBlocked && !APP_MODE) item.append(restartPlanButton());
         item.append(button('Start a fresh review', () => loadDesk(supabase))); return;
       }
       // A correction's first approval moves the walkthrough's link here and retires the
@@ -2388,10 +2405,18 @@
       // A plan paid by card is a website plan, not an invoice. During the free months
       // the card on file is not charged until they end, and cancelling first charges nothing.
       const firstCharge = view.status === 'trial' && row.auto_renews === true ? planDate(row.trial_ends_at) : '';
+      // SITE_DESK-04: a website card trial, or the monthly plan it became, cancels here through
+      // POST /square/trial/cancel; only its owner may, and only while it still renews. A yearly
+      // card plan may be the members' annual (its own card cancels it), so it stays with support.
+      const owner = memberships.length > 0 && memberships[0].role === 'owner';
+      const cancellable = source === 'web' && owner && Boolean(workspaceID) && row.auto_renews !== false && !row.cancelled_at
+        && (view.status === 'trial' || (view.status === 'active' && planInterval(row) !== 'annual'));
       manageNote(source === 'web'
         ? (firstCharge ? 'Your card is charged first on ' + firstCharge + ', the day your free months end. Cancel before then and nothing is charged. ' : '') +
-          'Your card plan is managed by Veylet support: email to change or cancel it; nothing changes until Veylet confirms it in writing.'
+          (cancellable ? 'Cancel your card plan here at any time, or email Veylet support to change it.'
+            : 'Your card plan is managed by Veylet support: email to change or cancel it; nothing changes until Veylet confirms it in writing.')
         : 'Invoiced plans are managed by Veylet support; nothing changes until Veylet confirms it in writing.');
+      if (cancellable) actions.append(webCancelControls(supabase, workspaceID, view.status === 'trial'));
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
@@ -2696,7 +2721,16 @@
     const problem = annualAlert(state.problem || '', 'annual-alert annual-problem', refs);
     problem.hidden = !state.problem; refs.problem = problem; parts.push(problem);
     say('annual-note', 'Your card goes into Square’s secure form on this page; Veylet never sees it.');
+    parts.push(termsAssentLine('By starting your free months you agree to the '));
     return parts;
+  }
+  // "By … you agree to the Terms and Privacy notice." with both links (LEGAL_LIFECYCLE-15).
+  function termsAssentLine(lead) {
+    const line = annualNode('p', 'annual-note plan-terms-assent');
+    const terms = annualNode('a', 'text-link', 'Terms'); terms.href = '/terms';
+    const privacy = annualNode('a', 'text-link', 'Privacy notice'); privacy.href = '/privacy';
+    line.append(annualNode('span', undefined, lead), terms, annualNode('span', undefined, ' and '), privacy, annualNode('span', undefined, '.'));
+    return line;
   }
   function trialDraw(focus) {
     const state = trial;
@@ -2873,6 +2907,7 @@
       (differs ? ' These are the terms your free months started with; they differ from what was shown before you confirmed.' : '');
     state.attemptID = null;
     setStatus(planNotice);
+    void termsSend(state.supabase, TERMS_VERSION, Date.now());
     void loadDesk(state.supabase);
   }
 
@@ -3649,6 +3684,61 @@
     annualRefused(state, answer);
   }
 
+  /* ---- Cancel a website card plan (SITE_DESK-04) ---------------------------------
+   * The web lane only (never the app's pages, an invoice or an App Store plan): one quiet
+   * "Cancel plan", then "Yes, cancel my plan" or "Keep plan". POST /square/trial/cancel
+   * {workspace_id} records the cancellation first and then cancels at Square; it answers
+   * {cancelled, started} (web_trial_cancel in the hooks service). A reply that is not a
+   * confirmed cancellation never says it was cancelled.
+   */
+  const WEB_CANCEL_REFUSALS = {
+    not_eligible: 'Only the account owner can cancel the plan.',
+    invalid_request: 'There is no website card plan to cancel here. For a yearly plan use Cancel yearly plan; otherwise email Veylet support.',
+    lane_closed: 'Cancelling here isn’t open yet. Email Veylet support to cancel; your email is the record.',
+    checkout_failed: 'Your cancellation is being confirmed. Check your plan here again in a few minutes; pressing Cancel plan again is safe and never charges.',
+  };
+  function webCancelControls(supabase, workspaceID, trial) {
+    const wrap = document.createElement('span'); wrap.className = 'plan-cancel';
+    let busy = false;
+    const ask = () => {
+      const question = document.createElement('span'); question.className = 'plan-cancel-question';
+      question.textContent = trial ? 'Cancel your plan before it starts? Nothing is charged. ' : 'Cancel your plan? It stops renewing at the end of the period you’ve paid for. ';
+      const yes = button('Yes, cancel my plan', () => { void press(yes); }); yes.dataset.control = 'confirm-cancel-web-plan';
+      const keep = button('Keep plan', () => { if (busy) return; setStatus('Your plan is unchanged.'); idle(); }); keep.dataset.control = 'keep-web-plan';
+      wrap.replaceChildren(question, yes, keep);
+      yes.focus?.();
+    };
+    const idle = () => {
+      const cancel = button('Cancel plan', ask); cancel.dataset.control = 'cancel-web-plan';
+      wrap.replaceChildren(cancel);
+    };
+    async function press(control) {
+      if (busy) return;
+      busy = true; control.disabled = true; control.textContent = 'Cancelling…';
+      setStatus('Cancelling your plan…');
+      const token = await annualToken(supabase);
+      if (!token) { showSignedOut('Your sign-in has expired. Sign in again to cancel your plan. Nothing was changed.'); return; }
+      const reply = await settled(annualHooks('/square/trial/cancel', { method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ workspace_id: workspaceID }) }));
+      busy = false;
+      const answer = reply.timedOut || reply.error ? null : reply.value;
+      if (answer?.status === 401) { showSignedOut('Your sign-in has expired. Sign in again and check whether your plan was cancelled.'); return; }
+      if (answer?.ok && answer.body?.cancelled === true && typeof answer.body.started === 'boolean') {
+        const done = answer.body.started ? 'Plan cancelled. It stops renewing at the end of the period you’ve paid for.' : 'Plan cancelled. Nothing was charged and nothing will be.';
+        setStatus(done);
+        await loadDesk(supabase);
+        setStatus(done);
+        return;
+      }
+      idle();
+      const code = typeof answer?.body?.error === 'string' ? answer.body.error : '';
+      setStatus(WEB_CANCEL_REFUSALS[code] || 'The cancellation was not confirmed. Check your plan below before trying again.');
+    }
+    idle();
+    return wrap;
+  }
+
   // Opening a card form elsewhere on the desk closes this one, quietly.
   function annualCloseOther() {
     const state = annual;
@@ -4099,9 +4189,11 @@
     if (!capture || typeof capture !== 'object' || typeof capture.job_id !== 'string' || !capture.job_id
       || typeof capture.property_id !== 'string' || !EXPRESS_LISTED.includes(capture.status)) return false;
     const order = capture.express;
-    if (order === null || order === undefined) return EXPRESS_OFFERED.includes(capture.status) && (unavailable || Boolean(expressMoment(capture.ready_by)));
+    // 20260927101000 (SITE_DESK-03): a capture the server holds has no ready_by and is not offered.
+    if (order === null || order === undefined) return EXPRESS_OFFERED.includes(capture.status) && (unavailable || expressHeld(capture) || Boolean(expressMoment(capture.ready_by)));
     return expressOrderValid(order);
   }
+  function expressHeld(capture) { return Boolean(capture && capture.hold && typeof capture.hold === 'object'); }
   // An older answer still counts against a daily cap; the current one has none.
   function expressCapped(offer) { return Number.isInteger(offer.daily_cap) && offer.daily_cap > 0; }
   function expressValid(offer) {
@@ -4157,6 +4249,13 @@
     const head = annualNode('div', 'express-head');
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     const problemText = express.problems.get(capture.job_id) || '';
+    if (expressHeld(capture)) {
+      // Held (admission, paused, weekly or trial limit): nothing would render, so nothing is sold.
+      head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
+      parts.push(head);
+      say('express-note', 'Super fast isn’t available for this capture right now. It keeps its place in line; the line above says why it is waiting.');
+      return parts;
+    }
     if (expressUnavailable(offer)) {
       head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
       parts.push(head);
@@ -4279,7 +4378,7 @@
     const state = express;
     if (!state || state.busy || state.card) return;
     const { offer, capture } = expressFind(workspaceID, jobID);
-    if (!offer || !capture || capture.express || expressUnavailable(offer) || !offer.can_order) return;
+    if (!offer || !capture || capture.express || expressHeld(capture) || expressUnavailable(offer) || !offer.can_order) return;
     closeCardForms('express');
     state.busy = true; state.problems.delete(jobID);
     control.disabled = true; control.textContent = 'Loading card form…';
@@ -4385,7 +4484,7 @@
     const state = express;
     if (!state || state.busy) return;
     const { offer, capture } = expressFind(workspaceID, jobID);
-    if (!offer || !capture || capture.express || expressUnavailable(offer) || offer.credits_available < 1) return;
+    if (!offer || !capture || capture.express || expressHeld(capture) || expressUnavailable(offer) || offer.credits_available < 1) return;
     closeCardForms('express');
     state.busy = true; state.problems.delete(jobID);
     control.disabled = true; control.textContent = 'Using a super fast render…';
@@ -5238,8 +5337,12 @@
   // transfer_workspace_ownership, the owner only; the old owner becomes a reviewer).
   function teamManageMember(state, person, name, item) {
     const member = person.user_id;
+    // SITE_DESK-14: an owner's read carries the accepted invite's email (lane A draft
+    // 20260927101000), so the confirmation says exactly whom it is about.
+    const email = typeof person.email === 'string' && /^[^\s@]+@[^\s@]+$/.test(person.email.trim()) ? person.email.trim() : '';
+    const who = email ? name + ' (' + email + ')' : name;
     if (teamRemoveAvailable) {
-      teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + name + '? ' + TEAM_WORDS.removeWarn,
+      teamConfirmed(item, { label: TEAM_WORDS.remove, confirm: TEAM_WORDS.confirmRemove, warn: 'Remove ' + who + '? ' + TEAM_WORDS.removeWarn,
         keep: TEAM_WORDS.keepThem, kept: TEAM_WORDS.keptThem, control: 'team-remove', onMissing: () => { teamRemoveAvailable = false; },
         run: async (say, reset) => {
           let answer = null;
@@ -5257,7 +5360,7 @@
     const more = annualNode('details', 'account-details team-more');
     const summary = annualNode('summary', '', TEAM_WORDS.more); summary.setAttribute('aria-label', 'More for ' + name);
     more.append(summary); item.append(more);
-    teamConfirmed(more, { label: TEAM_WORDS.makeOwner, confirm: TEAM_WORDS.confirmOwner, warn: 'Make ' + name + ' the owner? ' + TEAM_WORDS.ownerWarn,
+    teamConfirmed(more, { label: TEAM_WORDS.makeOwner, confirm: TEAM_WORDS.confirmOwner, warn: 'Make ' + who + ' the owner? ' + TEAM_WORDS.ownerWarn,
       keep: TEAM_WORDS.keepOwnership, kept: TEAM_WORDS.keptOwnership, control: 'team-owner',
       onMissing: () => { teamTransferAvailable = false; more.hidden = true; },
       run: async (say, reset) => {
@@ -5360,6 +5463,58 @@
     const hash = await emailDigest(address);
     if (!hash || tipsIntent !== intent) return;
     try { window.localStorage?.setItem(TIPS_INTENT_KEY, JSON.stringify({ v: intent.version, at, h: hash })); } catch { /* this tab still has it */ }
+  }
+  /*
+   * Terms assent (LEGAL_LIFECYCLE-15, wave 2): the sign-in form says "By continuing you agree
+   * to the Terms and Privacy notice" (TERMS_VERSION is the Terms page's Last updated date).
+   * Pressing it keeps that version and moment for this email in this tab (sessionStorage, as a SHA-256); once
+   * sign-in completes, record_terms_assent(p_terms_version, p_accepted_at) records it on the
+   * account (a proposed function: a server without it answers PGRST202, and nothing is kept).
+   * Starting the website free months records the same version at that moment.
+   */
+  const TERMS_VERSION = 'terms-2026-09-25';
+  const TERMS_INTENT_KEY = 'veylet-terms-intent';
+  const termsAssentEl = document.getElementById('account-terms-assent');
+  let termsIntent = null;
+  let termsRecording = null;
+  function termsIntentForget() {
+    termsIntent = null;
+    try { window.sessionStorage?.removeItem(TERMS_INTENT_KEY); } catch { /* nothing kept to clear */ }
+  }
+  async function termsIntentKeep(email, at) {
+    termsIntentForget();
+    if (!termsAssentEl || termsAssentEl.hidden) return;
+    const address = String(email || '').trim().toLowerCase();
+    const intent = { email: address, version: TERMS_VERSION, at };
+    termsIntent = intent;
+    const hash = await emailDigest(address);
+    if (!hash || termsIntent !== intent) return;
+    try { window.sessionStorage?.setItem(TERMS_INTENT_KEY, JSON.stringify({ v: intent.version, at, h: hash })); } catch { /* this tab still has it */ }
+  }
+  async function termsIntentTake(email) {
+    const address = String(email || '').trim().toLowerCase();
+    const now = Date.now();
+    if (termsIntent && termsIntent.email === address && now - termsIntent.at < TIPS_INTENT_MS) return { version: termsIntent.version, at: termsIntent.at };
+    let kept = null;
+    try { kept = JSON.parse(window.sessionStorage?.getItem(TERMS_INTENT_KEY) || 'null'); } catch { kept = null; }
+    if (kept && kept.v === TERMS_VERSION && Number.isFinite(kept.at) && now - kept.at < TIPS_INTENT_MS && kept.at <= now
+      && typeof kept.h === 'string' && kept.h === await emailDigest(address)) return { version: kept.v, at: kept.at };
+    return null;
+  }
+  async function termsSend(client, version, at) {
+    const reply = await settled(Promise.resolve().then(() => client.rpc('record_terms_assent',
+      { p_terms_version: version, p_accepted_at: new Date(at).toISOString() })));
+    // Recorded, or a server that cannot record it yet: either way nothing is kept for later.
+    return missingFunction(reply) || (!failed(reply) && Boolean(firstRow(reply.value?.data)));
+  }
+  async function termsRecord(client) {
+    if (!currentUserId || termsRecording) return;
+    const intent = await termsIntentTake(currentUserEmail);
+    if (!intent) return;
+    termsRecording = termsSend(client, intent.version, intent.at);
+    const done = await termsRecording;
+    termsRecording = null;
+    if (done) termsIntentForget();
   }
   /** The tick given for this email within the hour, if any. Taking it forgets it. */
   async function tipsIntentTake(email) {
@@ -5618,12 +5773,15 @@
   // The server's state (capture_render_state) to what this page draws.
   // No person checks a walkthrough: an older answer's studio_check is step 5, Checking quality.
   const RENDER_SERVER_STATES = { uploading: 'uploading', waiting: 'waiting', rendering: 'rendering', studio_check: 'checking',
-    ready_for_review: 'ready', live: 'live', paused: 'paused', needs_recapture: 'recapture', retrying: 'retrying', failed: 'failed' };
+    ready_for_review: 'ready', live: 'live', paused: 'paused', needs_recapture: 'recapture', retrying: 'retrying', failed: 'failed',
+    // offline (lane A draft 20260927101000, SITE_DESK-06): approved and shared, but hosting no longer serves it.
+    offline: 'offline' };
+  const OFFLINE_LINE = 'Offline. The link, embed and QR show "not available".';
   // `paused` (draft 20260926142000): the approved walkthrough's link exists and its sharing is
   // paused (tours.share_paused_at). Not the queue's hold {reason: 'paused'}, the global render
   // pause, which keeps its own waiting line.
   const RENDER_TITLES = { uploading: 'Uploading', waiting: 'Waiting to render', rendering: 'Rendering',
-    ready: 'Ready for your review', live: 'Live', paused: 'Paused', recapture: 'Needs recapture', retrying: 'Retrying', failed: 'Failed',
+    ready: 'Ready for your review', live: 'Live', paused: 'Paused', offline: 'Offline', recapture: 'Needs recapture', retrying: 'Retrying', failed: 'Failed',
     stale: 'Still working — checking in' };
   // Whose turn it is, beside the state: rendering is automatic; a failure is Veylet support's.
   const RENDER_TURNS = { uploading: 'Sending from your phone', waiting: 'Automatic', rendering: 'Automatic',
@@ -5702,6 +5860,9 @@
     if (changed && render?.answers) renderDraw();
   }
   function renderTrialLimitWords(hold) {
+    // The server's own sentence (render_trial_limit_message through the hold, with its date
+    // filled in) is the one said; the desk's words only stand in for a server that sent none.
+    if (hold.message) return hold.message;
     const day = hold.planStarts ? window.VeyletSharing?.hostingDate?.(hold.planStarts) || '' : '';
     return 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts' + (day ? ' on ' + day : '') + '.';
   }
@@ -5793,6 +5954,9 @@
       const starts = typeof value.plan_starts_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.plan_starts_on) ? value.plan_starts_on + 'T00:00:00+10:00' : null;
       hold.planStarts = starts || (workspaceID ? planTrialEnds.get(workspaceID) || null : null);
       hold.startNow = value.start_plan_now === true;
+      // A sentence the server finished: no template left in it, and short enough to be one.
+      const said = typeof value.message === 'string' ? value.message.trim().replace(/'/g, '’') : '';
+      hold.message = said && said.length <= 300 && !/[{}]/.test(said) ? said : '';
       // What the offer read and the last press said: part of the view, so a change redraws the card.
       if (hold.startNow && !APP_MODE && workspaceID) { hold.offer = startNowOffers.get(workspaceID)?.state || null; hold.said = startNowSaid.get(workspaceID) || ''; }
     }
@@ -5918,7 +6082,7 @@
     // A paused link is not live: the walkthrough's card says Paused and owns Resume.
     // A live row that says share_paused (or a server before the draft, when the tour itself says so) is paused.
     else if (key === 'live' && (job.share_paused === true || (tourID && sharePaused(desk?.tours?.get(tourID))))) view = { key: 'paused', tour: tourID };
-    else if (key === 'live' || key === 'paused') view = { key, tour: tourID };
+    else if (key === 'live' || key === 'paused' || key === 'offline') view = { key, tour: tourID };
     else if (key === 'recapture') view = { key, rooms: renderRooms(job.recapture) };
     else view = { key };
     if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
@@ -6057,19 +6221,13 @@
         break;
       case 'paused':
         line(PAUSED_LINE);
-        // Whoever may share resumes it here; the link stays the same.
-        if (canReview && view.tour && render?.supabase) {
-          const resume = button('Resume sharing', async () => {
-            if (resume.disabled) return;
-            resume.disabled = true;
-            const result = await settled(Promise.resolve().then(() => render.supabase.rpc('resume_tour_share', { p_tour_id: view.tour })));
-            if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in and check whether sharing resumed.'); return; }
-            if (failed(result)) { resume.disabled = false; setStatus('Resuming was not confirmed. Refresh the desk to check before retrying.'); return; }
-            setStatus(RESUMED_SAID); await loadDesk(render.supabase);
-          });
-          resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'render-resume-share';
-          const actions = annualNode('p', 'render-actions'); actions.append(resume); block.append(actions);
-        }
+        // SITE_DESK-07: one Resume per paused listing. The walkthrough's card owns sharing
+        // (its Resume handles the listing gate and the plan), so this block only points to it.
+        if (canReview && view.tour) note(RESUME_ON_CARD);
+        break;
+      case 'offline':
+        // Never "Live" beside "Offline": the server says hosting no longer serves this link.
+        line(OFFLINE_LINE);
         break;
       case 'recapture':
         if (view.rooms.length) {
@@ -6179,7 +6337,7 @@
       if (view) {
         views.push({ view, propertyID, title });
         const canReview = ['owner', 'reviewer'].includes(desk.roles.get(space.workspace_id));
-        if (view.tour && ['ready', 'live', 'paused'].includes(view.key)) covered.set(view.tour, view.key === 'ready' && !canReview ? 'Ready for review' : RENDER_TITLES[view.key]);
+        if (view.tour && ['ready', 'live', 'paused', 'offline'].includes(view.key)) covered.set(view.tour, view.key === 'ready' && !canReview ? 'Ready for review' : RENDER_TITLES[view.key]);
         signature = JSON.stringify([view, row.job_id, canReview, view.express ? expressMoment(view.express) : '']);
         draw = () => renderBlock(view, row, title, canReview);
         const said = renderSignature(view);
@@ -6481,6 +6639,8 @@
     void renderDeletion(supabase, ticket);
     // The email preferences read their own record, once per account.
     void emailRender(supabase);
+    // The Terms the sign-in form showed, recorded once sign-in completed (LEGAL_LIFECYCLE-15).
+    void termsRecord(supabase);
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
     if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
@@ -6771,6 +6931,7 @@
     lastEmail = email;
     lastRoleIntent = role_intent;
     void tipsIntentKeep(email, askedAt);
+    void termsIntentKeep(email, askedAt);
     if (signInForm) signInForm.dataset.awaitingCode = 'yes';
     signInForm.hidden = true;
     if (verifyEmail) verifyEmail.textContent = email;

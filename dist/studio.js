@@ -1237,6 +1237,20 @@
    */
   const DELETION_WORDS = { requested: 'Requested', processing: 'In progress', cancelled: 'Cancelled', completed: 'Completed' };
   const DELETION_NEXT_STEP = 'Complete with the deletion CLI; the desk does not delete.';
+  // The privacy notice promises deletion within 30 days of the request (SITE_DESK-21):
+  // open requests show that day, overdue and near-due first.
+  const DELETION_DAYS = 30;
+  const DELETION_OPEN = ['requested', 'processing'];
+  function deletionDue(row) {
+    const at = moment(row.requested_at);
+    return at === null ? null : at + DELETION_DAYS * 86400000;
+  }
+  function deletionDueText(row) {
+    const due = deletionDue(row);
+    if (due === null || !DELETION_OPEN.includes(row.status)) return DASH;
+    const left = due - Date.now();
+    return shortDate(new Date(due).toISOString()) + (left < 0 ? ' · overdue' : left < 7 * 86400000 ? ' · due within 7 days' : '');
+  }
 
   function deletionNames(row) {
     const names = row && row.workspace_names;
@@ -1256,6 +1270,7 @@
     const dl = element('dl', 'leaving-list plan-list');
     deletionTerm(dl, 'Requested', shortDate(row.requested_at) || DASH);
     deletionTerm(dl, 'Status', DELETION_WORDS[row.status] || DASH);
+    deletionTerm(dl, 'Due', deletionDueText(row));
     deletionTerm(dl, 'Account id', row.user_id ? String(row.user_id) : DASH);
     deletionTerm(dl, 'Spaces', countText(row.property_count), true);
     deletionTerm(dl, 'Walkthroughs', countText(row.tour_count), true);
@@ -1274,6 +1289,7 @@
     deletionsShow(element('p', 'contact-note', 'Checking for deletion requests…'));
     const reply = await settled(client.rpc('studio_list_deletion_requests'));
     if (version !== listVersion) return;
+    if (missingFunction(reply)) { deletionsShow(element('p', 'contact-note', 'Deletion requests are not available on this server yet.')); return; }
     if (failed(reply)) {
       const note = element('p', 'contact-note', 'Deletion requests could not be loaded. This is a failed request, not an empty list. ');
       const retry = element('button', 'tour-action', 'Retry');
@@ -1283,7 +1299,11 @@
       deletionsShow(note);
       return;
     }
-    const rows = (Array.isArray(reply.value?.data) ? reply.value.data : []).filter(row => row && typeof row === 'object');
+    const open = row => DELETION_OPEN.includes(row.status) && deletionDue(row) !== null;
+    const rows = (Array.isArray(reply.value?.data) ? reply.value.data : []).filter(row => row && typeof row === 'object')
+      .map((row, index) => ({ row, index }))
+      .sort((left, right) => (open(right.row) - open(left.row)) || (open(left.row) ? deletionDue(left.row) - deletionDue(right.row) : 0) || left.index - right.index)
+      .map(entry => entry.row);
     if (!rows.length) { deletionsShow(element('p', 'contact-note', 'No deletion requests.')); return; }
     const heading = element('h2', 'dash-heading', 'Deletion requests');
     const list = element('ul', 'studio-deletion-list');
@@ -1500,18 +1520,32 @@
    */
   const moneyBody = document.getElementById('studio-money-body');
   // Each kind named once. An unknown kind keeps its raw text; no row is dropped.
+  // Every kind studio_money_exceptions emits (latest body: release-2 draft
+  // 20260927101000_status_money_edges.sql) has a label. charge_refused, start_failed
+  // and start_unconfirmed cover the yearly card plan and the website trial's monthly
+  // plan alike, so their labels name neither (SITE_DESK-17).
   const MONEY_KINDS = {
-    charge_refused: 'Annual charge not granted',
+    charge_refused: 'Plan charge not granted',
     duplicate_charge: 'Pack charged twice',
     mismatch: 'Pack charged a different amount',
     refunded_after_use: 'Pack refunded after use',
     square_cancel_unconfirmed: 'Square cancel unconfirmed',
-    start_failed: 'Annual first charge failed',
-    start_unconfirmed: 'Annual start not confirmed',
+    start_failed: 'Plan first charge failed',
+    start_unconfirmed: 'Plan start not confirmed',
     apple_inbox_blocked: 'App Store stream blocked',
     apple_inbox_stuck: 'App Store notice waiting',
     pack_intent_unresolved: 'Pack payment unresolved',
+    express_refund_failed: 'Super fast refund failed',
+    express_refund_unconfirmed: 'Super fast refund not confirmed',
+    express_intent_unresolved: 'Super fast payment unresolved',
+    apple_superseded_charge: 'App Store charge after card plan',
+    apple_orphan_charge: 'App Store charge, account deleted',
+    start_plan_now_invoice: 'Start-today invoice to send',
   };
+  // A Super fast payment charged twice or at another amount shares its kind with a
+  // pack's; its key (express_payment:…) tells them apart.
+  const MONEY_EXPRESS_KINDS = { duplicate_charge: 'Super fast charged twice', mismatch: 'Super fast charged a different amount' };
+  const ATTEMPT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const MONEY_SEVERITY = { high: 'High', medium: 'Medium' };
   let moneyVersion = 0;
   // Each shown exception and its list item, so resolving one keeps the others'
@@ -1520,6 +1554,8 @@
 
   function moneyLabel(row) {
     const kind = typeof row.kind === 'string' ? row.kind.trim() : '';
+    const key = typeof row.exception_key === 'string' ? row.exception_key : '';
+    if (key.startsWith('express_payment:') && Object.prototype.hasOwnProperty.call(MONEY_EXPRESS_KINDS, kind)) return MONEY_EXPRESS_KINDS[kind];
     return Object.prototype.hasOwnProperty.call(MONEY_KINDS, kind) ? MONEY_KINDS[kind] : kind || 'Unnamed money exception';
   }
   function moneyAccount(row) {
@@ -1626,7 +1662,59 @@
     item.append(head, dl);
     const key = typeof row.exception_key === 'string' ? row.exception_key : '';
     if (row.resolvable === true && key) item.append(moneyResolveForm(key, label, account));
+    // SITE_DESK-05 (runbook R12): the owner asked to start the plan today on invoice. Once
+    // the invoice is settled, it is recorded here and the plan starts; the row then clears.
+    if (row.kind === 'start_plan_now_invoice' && key && ATTEMPT_ID.test(String(row.reference || ''))) item.append(startNowForm(row, key, account));
     return item;
+  }
+  function startNowForm(row, key, account) {
+    const details = element('details', 'studio-set-plan studio-money-resolve');
+    const summary = element('summary', undefined, 'Record settled invoice · ' + account);
+    const form = element('form', 'veylet-form studio-plan-form studio-money-form');
+    form.dataset.control = 'start-now-form';
+    const fields = {};
+    for (const [name, title] of [['agreement_id', 'Written agreement reference'], ['settlement_id', 'Settled invoice line reference'],
+      ['receipt_key', 'Unique receipt reference (keep the same when retrying)']]) {
+      const label = element('label', 'studio-inline-field', title);
+      const input = document.createElement('input');
+      referenceInput(input); input.required = true; input.name = name;
+      label.append(input); form.append(label); fields[name] = input;
+    }
+    const note = element('p', 'studio-field-note', 'Opaque references only. Recording it ends the free months now and starts the plan at the requested price; no card is charged here.');
+    const noteRow = element('div', 'studio-form-row'); noteRow.append(note);
+    const save = element('button', 'button', 'Record and start the plan'); save.type = 'submit';
+    const result = element('span', 'studio-result'); result.setAttribute('role', 'status');
+    const saveRow = element('p', 'studio-save-row'); saveRow.append(save, result);
+    form.append(noteRow, saveRow);
+    details.append(summary, form);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (save.disabled) return;
+      const args = { p_attempt_id: String(row.reference) };
+      for (const name of ['agreement_id', 'settlement_id', 'receipt_key']) {
+        const value = String(fields[name].value || '').trim();
+        if (!REFERENCE.test(value)) { result.textContent = 'Enter all three opaque evidence references (' + REFERENCE_FORMAT + ').'; return; }
+        args['p_' + name] = value;
+      }
+      const question = 'Record the settled start-today invoice for ' + account + ' (' + moneyAmount(row) + ') and start its plan today? Its free months end now. No card is charged.';
+      if (typeof confirm !== 'function' || !confirm(question)) { result.textContent = 'Left unchanged.'; return; }
+      const version = moneyVersion;
+      save.disabled = true; result.textContent = 'Recording…';
+      const reply = await settled(client.rpc('studio_complete_start_plan_now', args));
+      if (version !== moneyVersion) return;
+      save.disabled = false;
+      const answer = failed(reply) ? null : firstRow(reply.value?.data);
+      if (!answer || typeof answer !== 'object' || !answer.started) {
+        const refused = serverRefusal(reply);
+        result.textContent = refused ? 'Not recorded: ' + refused
+          : 'The start was not confirmed. Refresh the accounts before trying again, with the same receipt reference.';
+        return;
+      }
+      money = money.filter(entry => entry.row.exception_key !== key);
+      paintMoney();
+      setStatus('Plan started today for ' + account + '.');
+    });
+    return details;
   }
   async function loadMoney() {
     if (!moneyBody) return;
@@ -1647,6 +1735,594 @@
     }
     money = reply.value.data.filter(row => row && typeof row === 'object').map(row => ({ row, item: moneyItem(row) }));
     paintMoney();
+  }
+
+  /* ---- Rendering ---------------------------------------------------------
+   * SITE_DESK-01 (wave 2, 27 September 2026): the operator runs rendering from here,
+   * never from SQL. Reads: get_render_spend_guard (the kill switch, the month's cap and
+   * spend) and studio_render_settings (proposed: the admission settings that
+   * studio_set_render_admission answers, readable by studio members). Writes:
+   * studio_set_render_spend_guard and studio_set_render_admission, each confirmed first
+   * and sent with every other value exactly as the server last answered it, so changing
+   * one never moves another. Per account: studio_admit_workspace and
+   * studio_revoke_render_admission. Alerts: studio_render_alerts, whose
+   * studio_check_due rows (awaiting review with no verdict) have their own list. A
+   * function the server does not have yet (PGRST202) reads "not available on this server
+   * yet" with nothing to press; a failed read is never shown as a setting or an empty list.
+   */
+  const renderingSwitchesEl = document.getElementById('studio-rendering-switches');
+  const renderingSpendEl = document.getElementById('studio-rendering-spend');
+  const admissionEl = document.getElementById('studio-admission-body');
+  const alertsEl = document.getElementById('studio-alerts-body');
+  const verdictEl = document.getElementById('studio-verdict-body');
+  const VERDICT_MINUTES = 30;
+  const ALERT_WORDS = { stale_heartbeat: 'No heartbeat for 3 minutes', gpu_unavailable: 'Waiting for a GPU', retrying: 'Retrying',
+    render_failed: 'Render failed', studio_check_due: 'Ready for review, no verdict' };
+  let renderingVersion = 0;
+  let alertsVersion = 0;
+  let renderSettings = null;
+  let spendGuard = null;
+  let alertRows = null;
+  const renderingState = { switches: 'loading', spend: 'loading' };
+  const renderingSaid = { switches: '', spend: '' };
+  const renderingBusy = { switches: false, spend: false };
+
+  function missingFunction(reply) { return Boolean(reply && !reply.timedOut && reply.value?.error?.code === 'PGRST202'); }
+  function failedNote(text, retry) {
+    const note = element('p', 'contact-note', text + ' ');
+    if (retry) {
+      const again = element('button', 'tour-action', 'Retry'); again.type = 'button';
+      again.addEventListener('click', () => { void retry(); });
+      note.append(again);
+    }
+    return note;
+  }
+  function usd(value) {
+    const amount = Number(value);
+    if (value === null || value === undefined || value === '' || !Number.isFinite(amount)) return DASH;
+    return 'US$' + amount.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function minutesSince(value) {
+    const when = moment(value);
+    return when === null ? null : Math.max(0, (Date.now() - when) / 60000);
+  }
+  function settingsValid(value) {
+    return Boolean(value) && typeof value === 'object' && typeof value.renders_enabled === 'boolean'
+      && Number.isInteger(value.weekly_admission_ceiling) && Number.isInteger(value.default_weekly_gpu_jobs)
+      && (value.worker_id === null || value.worker_id === undefined || typeof value.worker_id === 'string');
+  }
+  function guardValid(value) {
+    return Boolean(value) && typeof value === 'object' && typeof value.kill_switch === 'boolean'
+      && value.monthly_cap_usd !== null && value.monthly_cap_usd !== undefined && Number.isFinite(Number(value.monthly_cap_usd));
+  }
+  // What a write that did not come back as a setting says: the server's refusal, or unknown.
+  function notChanged(reply) {
+    const refused = serverRefusal(reply);
+    return refused ? 'Not changed: ' + refused : 'The change was not confirmed. Refresh the accounts to read the settings again before trying again.';
+  }
+  function paintSwitches() {
+    if (!renderingSwitchesEl) return;
+    const parts = [element('h3', 'studio-rendering-name', 'New renders and admission')];
+    const state = renderingState.switches;
+    if (state === 'loading') parts.push(element('p', 'contact-note', 'Reading the render settings…'));
+    else if (state === 'missing') {
+      parts.push(element('p', 'contact-note', 'Render admission settings are not available on this server yet. Until they are, the renders switch and the weekly ceiling cannot be changed here.'));
+    } else if (state === 'failed' || !renderSettings) {
+      parts.push(failedNote('Render settings could not be loaded. This is a failed request, not a setting.', loadRendering));
+    } else {
+      const s = renderSettings;
+      const dl = element('dl', 'leaving-list plan-list');
+      deletionTerm(dl, 'New renders', s.renders_enabled ? 'On' : 'Off · captures wait in line');
+      deletionTerm(dl, 'Weekly admission ceiling', plural(s.weekly_admission_ceiling, 'new account'), true);
+      if (Number.isInteger(s.admitted_this_week)) deletionTerm(dl, 'Admitted this week', String(s.admitted_this_week), true);
+      if (Number.isInteger(s.waitlisted)) deletionTerm(dl, 'Waiting for a place', String(s.waitlisted), true);
+      deletionTerm(dl, 'Render worker', s.worker_id ? 'Set' : 'Not set: no account can be admitted');
+      deletionTerm(dl, 'GPU renders a week per account', String(s.default_weekly_gpu_jobs), true);
+      parts.push(dl);
+      const toggle = element('button', 'tour-action', s.renders_enabled ? 'Pause new renders' : 'Start new renders again');
+      toggle.type = 'button'; toggle.dataset.control = 'renders-switch'; toggle.disabled = renderingBusy.switches;
+      toggle.addEventListener('click', () => {
+        const question = s.renders_enabled
+          ? 'Pause new renders for every account? Captures keep their place in line and renders already running finish. Customers read "Rendering is paused".'
+          : 'Start new renders again for every admitted account?';
+        void saveAdmission({ renders_enabled: !s.renders_enabled }, question);
+      });
+      const form = element('form', 'veylet-form studio-plan-form studio-rendering-form');
+      form.dataset.control = 'admission-ceiling-form';
+      const label = element('label', 'studio-inline-field', 'Weekly admission ceiling');
+      const input = document.createElement('input');
+      input.type = 'number'; input.min = '0'; input.max = '10000'; input.step = '1'; input.required = true; input.name = 'weekly_admission_ceiling';
+      input.value = String(s.weekly_admission_ceiling); input.dataset.control = 'admission-ceiling'; input.disabled = renderingBusy.switches;
+      label.append(input);
+      const save = element('button', 'button', 'Save ceiling'); save.type = 'submit'; save.disabled = renderingBusy.switches;
+      form.append(label, save);
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        const typed = String(input.value || '').trim();
+        const ceiling = Number(typed);
+        if (!/^\d+$/.test(typed) || !Number.isInteger(ceiling) || ceiling < 0 || ceiling > 10000) {
+          renderingSaid.switches = 'Enter a whole number of new accounts from 0 to 10,000.'; paintSwitches(); return;
+        }
+        void saveAdmission({ weekly_admission_ceiling: ceiling }, 'Set the weekly admission ceiling to ' + plural(ceiling, 'new account') +
+          '? Past it, a new account waits for a place; an invited or studio-admitted account never waits.');
+      });
+      const actions = element('p', 'studio-save-row'); actions.append(toggle);
+      parts.push(actions, form);
+    }
+    const said = element('p', 'studio-result', renderingSaid.switches); said.setAttribute('role', 'status');
+    parts.push(said);
+    renderingSwitchesEl.replaceChildren(...parts);
+  }
+  async function saveAdmission(change, question) {
+    const s = renderSettings;
+    if (!s || renderingBusy.switches) return;
+    if (typeof confirm !== 'function' || !confirm(question)) { renderingSaid.switches = 'Left unchanged.'; paintSwitches(); return; }
+    const args = {
+      p_renders_enabled: typeof change.renders_enabled === 'boolean' ? change.renders_enabled : s.renders_enabled,
+      p_weekly_admission_ceiling: Number.isInteger(change.weekly_admission_ceiling) ? change.weekly_admission_ceiling : s.weekly_admission_ceiling,
+      p_worker_id: s.worker_id || null,
+      p_default_weekly_gpu_jobs: s.default_weekly_gpu_jobs,
+    };
+    const version = renderingVersion;
+    renderingBusy.switches = true; renderingSaid.switches = 'Saving…'; paintSwitches();
+    const reply = await settled(client.rpc('studio_set_render_admission', args));
+    if (version !== renderingVersion) return;
+    renderingBusy.switches = false;
+    const answer = failed(reply) ? null : firstRow(reply.value?.data);
+    if (!settingsValid(answer)) { renderingSaid.switches = notChanged(reply); paintSwitches(); return; }
+    renderSettings = { ...s, ...answer };
+    renderingSaid.switches = 'Saved: new renders ' + (renderSettings.renders_enabled ? 'on' : 'paused') + ', ceiling ' +
+      plural(renderSettings.weekly_admission_ceiling, 'new account') + ' a week.';
+    paintSwitches();
+  }
+  function paintSpend() {
+    if (!renderingSpendEl) return;
+    const parts = [element('h3', 'studio-rendering-name', 'GPU spend this month')];
+    const state = renderingState.spend;
+    if (state === 'loading') parts.push(element('p', 'contact-note', 'Reading the spend guard…'));
+    else if (state === 'missing') parts.push(element('p', 'contact-note', 'The spend guard is not available on this server yet.'));
+    else if (state === 'failed' || !spendGuard) parts.push(failedNote('The spend guard could not be loaded. This is a failed request, not a setting.', loadRendering));
+    else {
+      const g = spendGuard;
+      const dl = element('dl', 'leaving-list plan-list');
+      deletionTerm(dl, 'Kill switch', g.kill_switch ? 'On · every render is stopped' : 'Off');
+      deletionTerm(dl, 'Spent this month', usd(g.month_spend_usd) + ' of ' + usd(g.monthly_cap_usd), true);
+      deletionTerm(dl, 'Left this month', usd(g.remaining_usd), true);
+      parts.push(dl);
+      parts.push(element('p', 'studio-field-note', 'The monthly cap is read here, not changed. When the month’s spend reaches it, renders wait until the next month or a higher cap.'));
+      const kill = element('button', 'tour-action' + (g.kill_switch ? ' tour-action-primary' : ''), g.kill_switch ? 'Let renders run again' : 'Stop every render now');
+      kill.type = 'button'; kill.dataset.control = 'kill-switch'; kill.disabled = renderingBusy.spend;
+      kill.addEventListener('click', () => { void saveKillSwitch(!g.kill_switch); });
+      const actions = element('p', 'studio-save-row'); actions.append(kill);
+      parts.push(actions);
+    }
+    const said = element('p', 'studio-result', renderingSaid.spend); said.setAttribute('role', 'status');
+    parts.push(said);
+    renderingSpendEl.replaceChildren(...parts);
+  }
+  async function saveKillSwitch(on) {
+    const g = spendGuard;
+    if (!g || renderingBusy.spend) return;
+    const question = on
+      ? 'Stop every render now? The kill switch stops every new claim and every running render at once, for every account, until you let renders run again.'
+      : 'Let renders run again, within the monthly cap of ' + usd(g.monthly_cap_usd) + '?';
+    if (typeof confirm !== 'function' || !confirm(question)) { renderingSaid.spend = 'Left unchanged.'; paintSpend(); return; }
+    const version = renderingVersion;
+    renderingBusy.spend = true; renderingSaid.spend = 'Saving…'; paintSpend();
+    const reply = await settled(client.rpc('studio_set_render_spend_guard', { p_monthly_cap_usd: Number(g.monthly_cap_usd), p_kill_switch: on }));
+    if (version !== renderingVersion) return;
+    renderingBusy.spend = false;
+    const answer = failed(reply) ? null : firstRow(reply.value?.data);
+    if (!guardValid(answer)) { renderingSaid.spend = notChanged(reply); paintSpend(); return; }
+    spendGuard = answer;
+    renderingSaid.spend = answer.kill_switch ? 'Kill switch on: every render is stopped.' : 'Kill switch off: renders run again.';
+    setStatus(renderingSaid.spend);
+    paintSpend();
+  }
+  async function loadRendering() {
+    const version = ++renderingVersion;
+    renderingState.switches = 'loading'; renderingState.spend = 'loading';
+    renderingBusy.switches = false; renderingBusy.spend = false;
+    renderingSaid.switches = ''; renderingSaid.spend = '';
+    paintSwitches(); paintSpend();
+    const [settingsReply, guardReply] = await Promise.all([settled(client.rpc('studio_render_settings')), settled(client.rpc('get_render_spend_guard'))]);
+    if (version !== renderingVersion) return;
+    const settingsAnswer = failed(settingsReply) ? null : firstRow(settingsReply.value?.data);
+    renderSettings = settingsValid(settingsAnswer) ? settingsAnswer : null;
+    renderingState.switches = missingFunction(settingsReply) ? 'missing' : renderSettings ? 'ready' : 'failed';
+    const guardAnswer = failed(guardReply) ? null : firstRow(guardReply.value?.data);
+    spendGuard = guardValid(guardAnswer) ? guardAnswer : null;
+    renderingState.spend = missingFunction(guardReply) ? 'missing' : spendGuard ? 'ready' : 'failed';
+    paintSwitches(); paintSpend();
+  }
+
+  // Admit or revoke one account: built once, so a choice survives every answer.
+  let admissionSelect = null;
+  let admissionResult = null;
+  let admissionBusy = false;
+  function paintAdmissionOptions() {
+    if (!admissionSelect) return;
+    const chosen = admissionSelect.value;
+    const first = element('option', undefined, 'Choose an account'); first.value = '';
+    const named = accounts.filter(row => row && row.workspace_id).slice()
+      .sort((left, right) => String(left.workspace_name || '').localeCompare(String(right.workspace_name || '')));
+    admissionSelect.replaceChildren(first, ...named.map(row => {
+      const option = element('option', undefined, row.workspace_name || 'Account ' + String(row.workspace_id).slice(0, 8));
+      option.value = row.workspace_id;
+      return option;
+    }));
+    admissionSelect.value = named.some(row => row.workspace_id === chosen) ? chosen : '';
+  }
+  const ADMISSION_REASONS = { no_worker: 'no render worker is set', weekly_ceiling: 'this week’s ceiling is reached', plan_not_running: 'its plan is not running' };
+  function admissionWords(name, answer) {
+    if (answer.state === 'admitted') return name + ' is admitted: its renders can start.';
+    if (answer.state === 'revoked') return name + ' is revoked: no new render starts for it.';
+    if (answer.state === 'waitlisted') return name + ' is still waiting: ' + (ADMISSION_REASONS[answer.reason] || 'the server did not admit it') + '.';
+    return name + ': ' + String(answer.state || 'no change') + '.';
+  }
+  async function admissionPress(kind) {
+    if (admissionBusy || !admissionSelect) return;
+    const id = admissionSelect.value;
+    const account = accounts.find(row => row.workspace_id === id);
+    const say = text => { if (admissionResult) admissionResult.textContent = text; };
+    if (!id || !account) { say('Choose the account first.'); return; }
+    const name = account.workspace_name || 'this account';
+    const question = kind === 'admit'
+      ? 'Admit ' + name + ' to rendering now? Its renders can start at once, past this week’s ceiling.'
+      : 'Stop rendering for ' + name + '? No new render starts for it; renders already running and its uploads are left alone.';
+    if (typeof confirm !== 'function' || !confirm(question)) { say('Left unchanged.'); return; }
+    admissionBusy = true; say(kind === 'admit' ? 'Admitting…' : 'Revoking…');
+    const version = listVersion;
+    const reply = await settled(client.rpc(kind === 'admit' ? 'studio_admit_workspace' : 'studio_revoke_render_admission', { p_workspace_id: id }));
+    admissionBusy = false;
+    if (version !== listVersion) return;
+    const answer = failed(reply) ? null : firstRow(reply.value?.data);
+    if (missingFunction(reply)) { say('Admission is not available on this server yet.'); return; }
+    if (!answer || typeof answer !== 'object' || typeof answer.state !== 'string') { say(notChanged(reply)); return; }
+    say(admissionWords(name, answer));
+    setStatus(admissionWords(name, answer));
+  }
+  function buildAdmission() {
+    if (!admissionEl) return;
+    const row = element('div', 'veylet-form studio-plan-form studio-rendering-form');
+    const label = element('label', 'studio-inline-field', 'Account');
+    admissionSelect = element('select'); admissionSelect.dataset.control = 'admission-account'; admissionSelect.name = 'admission_account';
+    label.append(admissionSelect);
+    const admit = element('button', 'tour-action', 'Admit'); admit.type = 'button'; admit.dataset.control = 'admit';
+    const revoke = element('button', 'tour-action', 'Revoke'); revoke.type = 'button'; revoke.dataset.control = 'revoke';
+    admit.addEventListener('click', () => { void admissionPress('admit'); });
+    revoke.addEventListener('click', () => { void admissionPress('revoke'); });
+    admissionResult = element('p', 'studio-result'); admissionResult.setAttribute('role', 'status');
+    const actions = element('p', 'studio-save-row'); actions.append(admit, revoke);
+    row.append(label, actions);
+    admissionEl.replaceChildren(row, admissionResult);
+    paintAdmissionOptions();
+  }
+
+  function alertItem(row, verdict) {
+    const item = element('li', 'studio-money-item studio-alert');
+    const minutes = minutesSince(row.since);
+    const head = element('div', 'studio-money-head');
+    head.append(element('h4', 'studio-money-name', 'Job ' + String(row.job_id || '').slice(0, 8)));
+    const label = ALERT_WORDS[row.alert] || 'Needs a look';
+    if (verdict) { if (minutes !== null && minutes > VERDICT_MINUTES) head.append(element('span', 'pill pill-busy', 'Over 30 min')); }
+    else head.append(element('span', 'pill' + (['stale_heartbeat', 'render_failed'].includes(row.alert) ? ' pill-busy' : ''), label));
+    const dl = element('dl', 'leaving-list plan-list');
+    deletionTerm(dl, 'Account', queueAccount(row));
+    deletionTerm(dl, verdict ? 'Finished' : 'Since', brisbaneClock(row.since) || DASH);
+    deletionTerm(dl, 'Age', minutes === null ? DASH : moneyAge(minutes), true);
+    if (!verdict) {
+      const detail = [row.status, row.stage, row.failure_code || row.error_code].filter(Boolean).map(value => String(value).replace(/_/g, ' '));
+      deletionTerm(dl, 'Detail', detail.length ? detail.join(' · ') : DASH);
+      if (Number.isInteger(row.attempt)) deletionTerm(dl, 'Attempt', String(row.attempt), true);
+    }
+    item.append(head, dl);
+    return item;
+  }
+  function paintAlerts() {
+    if (!alertsEl || !verdictEl || !alertRows) return;
+    const verdicts = alertRows.filter(row => row.alert === 'studio_check_due');
+    const others = alertRows.filter(row => row.alert !== 'studio_check_due');
+    const list = (rows, verdict) => { const ul = element('ul', 'studio-money-list studio-alert-list'); ul.append(...rows.map(row => alertItem(row, verdict))); return ul; };
+    alertsEl.replaceChildren(others.length ? list(others, false) : element('p', 'contact-note', 'No render alerts.'));
+    verdictEl.replaceChildren(verdicts.length ? list(verdicts, true) : element('p', 'contact-note', 'Every finished render has its verdict.'));
+  }
+  async function loadAlerts() {
+    if (!alertsEl || !verdictEl) return;
+    const version = ++alertsVersion;
+    alertRows = null;
+    alertsEl.replaceChildren(element('p', 'contact-note', 'Checking render alerts…'));
+    verdictEl.replaceChildren(element('p', 'contact-note', 'Checking finished renders…'));
+    const reply = await settled(client.rpc('studio_render_alerts'));
+    if (version !== alertsVersion) return;
+    if (missingFunction(reply)) {
+      alertsEl.replaceChildren(element('p', 'contact-note', 'Render alerts are not available on this server yet.'));
+      verdictEl.replaceChildren(element('p', 'contact-note', 'Render alerts are not available on this server yet.'));
+      return;
+    }
+    if (failed(reply) || !Array.isArray(reply.value?.data)) {
+      alertsEl.replaceChildren(failedNote('Render alerts could not be loaded. This is a failed request, not an empty list.', loadAlerts));
+      verdictEl.replaceChildren(element('p', 'contact-note', 'Finished renders could not be checked with the alerts above.'));
+      return;
+    }
+    alertRows = reply.value.data.filter(row => row && typeof row === 'object' && row.job_id);
+    paintAlerts();
+  }
+
+  /* ---- Walkthrough reports -------------------------------------------------
+   * LEGAL_LIFECYCLE-04 (wave 2): the reports people send from Report this walkthrough
+   * (release-2 draft 20260926121000), privacy first, then the oldest, each with how long it
+   * has been open. Take down (studio_takedown_tour, a note required) ends every link to
+   * that walkthrough and closes its open reports; Dismiss closes one; Delete contact
+   * removes an email from reports and the waitlist. Taken down walkthroughs stay listed
+   * until lifted (proposed studio_list_takedowns and studio_lift_takedown, owner default
+   * 5: a takedown is sticky until Veylet support lifts it). Every write is confirmed.
+   */
+  const reportsEl = document.getElementById('studio-reports-body');
+  const takedownsEl = document.getElementById('studio-takedowns-body');
+  const REPORT_REASONS = { privacy: 'Privacy report', misleading: 'Misleading', offensive: 'Offensive', other: 'Other' };
+  const REPORT_PROMISE_HOURS = 24;
+  const NOTE_WORDS = 'Write a note of 1 to 500 characters: what was reported and what you checked.';
+  let reportsVersion = 0;
+  let takedownsVersion = 0;
+  let reports = null;
+  let takedowns = null;
+
+  // How long a report has been open: minutes, then hours up to three days, then days.
+  function openFor(minutes) {
+    if (minutes === null) return DASH;
+    if (minutes < 60) return Math.floor(minutes) + ' min';
+    const hours = Math.floor(minutes / 60);
+    if (hours < 72) return hours + ' h';
+    return Math.floor(hours / 24) + ' days';
+  }
+  function reportTitle(row) {
+    const title = typeof row.space_title === 'string' ? row.space_title.trim() : '';
+    return title || (row.walkthrough_id ? 'Walkthrough ' + String(row.walkthrough_id).slice(0, 8) : 'No walkthrough linked');
+  }
+  function noteForm(control, noteControl, buttonText, onSend) {
+    const form = element('form', 'veylet-form studio-plan-form studio-money-form');
+    form.dataset.control = control;
+    const label = element('label', 'studio-inline-field', 'Note');
+    const note = document.createElement('textarea');
+    note.name = 'note'; note.maxLength = 500; note.required = true; note.rows = 2; note.dataset.control = noteControl;
+    label.append(note);
+    const send = element('button', 'button', buttonText); send.type = 'submit';
+    const result = element('span', 'studio-result'); result.setAttribute('role', 'status');
+    const row = element('p', 'studio-save-row'); row.append(send, result);
+    form.append(label, row);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (send.disabled) return;
+      const text = String(note.value || '').trim();
+      if (text.length < 1 || text.length > 500) { result.textContent = NOTE_WORDS; return; }
+      send.disabled = true;
+      const said = await onSend(text, value => { result.textContent = value; });
+      send.disabled = false;
+      if (said) result.textContent = said;
+    });
+    return form;
+  }
+  function paintReports() {
+    if (!reportsEl || !reports) return;
+    if (!reports.length) { reportsEl.replaceChildren(element('p', 'contact-note', 'No open reports.')); return; }
+    const privacy = reports.filter(row => row.reason === 'privacy');
+    const oldest = privacy.length ? minutesSince(privacy[0].created_at) : null;
+    const summary = element('p', 'studio-queue-summary', reports.length + ' open · ' + privacy.length + ' privacy' +
+      (oldest !== null ? ' · oldest privacy report open ' + openFor(oldest) : ''));
+    const list = element('ul', 'studio-money-list studio-report-list');
+    list.append(...reports.map(reportItem));
+    reportsEl.replaceChildren(summary, list);
+  }
+  function reportItem(row) {
+    const item = element('li', 'studio-report');
+    item.dataset.report = String(row.id); item.dataset.reason = String(row.reason || '');
+    const label = REPORT_REASONS[row.reason] || 'Report';
+    const title = reportTitle(row);
+    const minutes = minutesSince(row.created_at);
+    const head = element('div', 'studio-money-head');
+    head.append(element('h3', 'studio-money-name', label), element('span', 'pill', 'Open ' + openFor(minutes)));
+    if (minutes !== null && minutes > REPORT_PROMISE_HOURS * 60) head.append(element('span', 'pill pill-busy', 'Over 24 h'));
+    const dl = element('dl', 'leaving-list plan-list');
+    deletionTerm(dl, 'Walkthrough', title);
+    deletionTerm(dl, 'Sharing', row.sharing_on === true ? 'On: its link still opens' : 'Off');
+    deletionTerm(dl, 'Reported', brisbaneClock(row.created_at) || DASH);
+    deletionTerm(dl, 'Details', row.details ? String(row.details) : DASH);
+    deletionTerm(dl, 'Reporter', row.reporter_email ? String(row.reporter_email) : 'Not given');
+    item.append(head, dl);
+    if (row.tour_id) {
+      const details = element('details', 'studio-set-plan studio-money-resolve');
+      details.append(element('summary', undefined, 'Take down · ' + title), noteForm('takedown-form', 'takedown-note', 'Take down', async (note, say) => {
+        const question = 'Take down ' + title + '? Every link, embed and QR code of this walkthrough stops opening at once, and its open reports close. Note: ' + note;
+        if (typeof confirm !== 'function' || !confirm(question)) return 'Left unchanged.';
+        say('Taking down…');
+        const version = reportsVersion;
+        const reply = await settled(client.rpc('studio_takedown_tour', { p_tour_id: row.tour_id, p_note: note }));
+        if (version !== reportsVersion) return '';
+        const answer = failed(reply) ? null : firstRow(reply.value?.data);
+        if (!answer || typeof answer !== 'object' || !Number.isInteger(answer.links_ended)) {
+          const refused = serverRefusal(reply);
+          return refused ? 'Not taken down: ' + refused : 'The takedown was not confirmed. Refresh the accounts to read the reports again before trying again.';
+        }
+        setStatus('Taken down: ' + title + '. ' + plural(answer.links_ended, 'link') + ' ended, ' + plural(answer.reports_closed || 0, 'report') + ' closed.');
+        reports = reports.filter(entry => !(entry.tour_id === row.tour_id || (row.walkthrough_id && entry.walkthrough_id === row.walkthrough_id)));
+        paintReports();
+        void loadTakedowns();
+        return '';
+      }));
+      item.append(details);
+    } else item.append(element('p', 'studio-field-note', 'No walkthrough is linked to this report: its link may already have ended. Dismiss it once checked.'));
+    const say = element('span', 'studio-result'); say.setAttribute('role', 'status');
+    const dismiss = element('button', 'tour-action', 'Dismiss'); dismiss.type = 'button'; dismiss.dataset.control = 'dismiss';
+    dismiss.addEventListener('click', async () => {
+      if (dismiss.disabled) return;
+      if (typeof confirm !== 'function' || !confirm('Dismiss this ' + label.toLowerCase() + ' about ' + title + '? It closes; nothing else changes.')) { say.textContent = 'Left unchanged.'; return; }
+      dismiss.disabled = true;
+      const version = reportsVersion;
+      const reply = await settled(client.rpc('studio_dismiss_walkthrough_report', { p_report_id: row.id }));
+      if (version !== reportsVersion) return;
+      dismiss.disabled = false;
+      const answer = failed(reply) ? null : firstRow(reply.value?.data);
+      if (!answer || typeof answer !== 'object') { const refused = serverRefusal(reply); say.textContent = refused ? 'Not dismissed: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return; }
+      reports = reports.filter(entry => entry.id !== row.id);
+      setStatus('Dismissed: ' + label + ' about ' + title + '.');
+      paintReports();
+    });
+    const actions = element('p', 'studio-save-row'); actions.append(dismiss);
+    if (row.reporter_email) {
+      const email = String(row.reporter_email);
+      const forget = element('button', 'tour-action', 'Delete contact'); forget.type = 'button'; forget.dataset.control = 'delete-contact';
+      forget.addEventListener('click', async () => {
+        if (forget.disabled) return;
+        if (typeof confirm !== 'function' || !confirm('Delete the contact ' + email + '? It is removed from every report and from the waitlist. This cannot be undone.')) { say.textContent = 'Left unchanged.'; return; }
+        forget.disabled = true;
+        const reply = await settled(client.rpc('studio_delete_contact_by_email', { p_email: email }));
+        forget.disabled = false;
+        const answer = failed(reply) ? null : firstRow(reply.value?.data);
+        if (!answer || typeof answer !== 'object') { const refused = serverRefusal(reply); say.textContent = refused ? 'Not deleted: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return; }
+        setStatus('Contact deleted: ' + plural(count(answer.report_emails_cleared), 'report') + ' cleared, ' + count(answer.waitlist_deleted) + (count(answer.waitlist_deleted) === 1 ? ' waitlist entry' : ' waitlist entries') + ' removed.');
+        void loadReports(); void loadWaitlist();
+      });
+      actions.append(forget);
+    }
+    actions.append(say);
+    item.append(actions);
+    return item;
+  }
+  async function loadReports() {
+    if (!reportsEl) return;
+    const version = ++reportsVersion;
+    reports = null;
+    reportsEl.replaceChildren(element('p', 'contact-note', 'Checking for reports…'));
+    const reply = await settled(client.rpc('studio_list_walkthrough_reports', { p_status: 'open' }));
+    if (version !== reportsVersion) return;
+    if (missingFunction(reply)) { reportsEl.replaceChildren(element('p', 'contact-note', 'Walkthrough reports are not available on this server yet.')); return; }
+    if (failed(reply) || !Array.isArray(reply.value?.data)) {
+      reportsEl.replaceChildren(failedNote('Reports could not be loaded. This is a failed request, not an empty list.', loadReports));
+      return;
+    }
+    const at = row => moment(row.created_at) ?? Infinity;
+    reports = reply.value.data.filter(row => row && typeof row === 'object' && row.id !== null && row.id !== undefined)
+      .sort((left, right) => (right.reason === 'privacy') - (left.reason === 'privacy') || at(left) - at(right) || Number(left.id) - Number(right.id));
+    paintReports();
+  }
+  function paintTakedowns() {
+    if (!takedownsEl || !takedowns) return;
+    const active = takedowns.filter(row => !row.lifted_at);
+    if (!active.length) { takedownsEl.replaceChildren(element('p', 'contact-note', 'No walkthrough is taken down.')); return; }
+    const list = element('ul', 'studio-money-list studio-takedown-list');
+    list.append(...active.map(row => {
+      const title = reportTitle(row);
+      const item = element('li', 'studio-money-item studio-takedown');
+      item.append(element('h3', 'studio-money-name', title));
+      const dl = element('dl', 'leaving-list plan-list');
+      deletionTerm(dl, 'Taken down', brisbaneClock(row.created_at) || DASH);
+      deletionTerm(dl, 'Note', row.note ? String(row.note) : DASH);
+      item.append(dl, element('p', 'studio-field-note', 'Sharing again is refused until the takedown is lifted.'));
+      const details = element('details', 'studio-set-plan studio-money-resolve');
+      details.append(element('summary', undefined, 'Lift takedown · ' + title), noteForm('lift-form', 'lift-note', 'Lift takedown', async (note, say) => {
+        if (typeof confirm !== 'function' || !confirm('Lift the takedown of ' + title + '? The office can share it again with a new link; the old links stay ended. Note: ' + note)) return 'Left unchanged.';
+        say('Lifting…');
+        const reply = await settled(client.rpc('studio_lift_takedown', { p_tour_id: row.tour_id, p_note: note }));
+        if (missingFunction(reply)) return 'Lifting a takedown is not available on this server yet.';
+        const answer = failed(reply) ? null : firstRow(reply.value?.data);
+        if (!answer || typeof answer !== 'object') {
+          const refused = serverRefusal(reply);
+          return refused ? 'Not lifted: ' + refused : 'The lift was not confirmed. Refresh the accounts before trying again.';
+        }
+        setStatus('Takedown lifted: ' + title + '. The office can share it again.');
+        takedowns = takedowns.filter(entry => entry.tour_id !== row.tour_id);
+        paintTakedowns();
+        return '';
+      }));
+      item.append(details);
+      return item;
+    }));
+    takedownsEl.replaceChildren(list);
+  }
+  async function loadTakedowns() {
+    if (!takedownsEl) return;
+    const version = ++takedownsVersion;
+    takedowns = null;
+    takedownsEl.replaceChildren(element('p', 'contact-note', 'Checking taken-down walkthroughs…'));
+    const reply = await settled(client.rpc('studio_list_takedowns'));
+    if (version !== takedownsVersion) return;
+    if (missingFunction(reply)) {
+      takedownsEl.replaceChildren(element('p', 'contact-note', 'Lifting a takedown is not available on this server yet. Until it is, the office can turn sharing on again for a walkthrough taken down here, so check its reports.'));
+      return;
+    }
+    if (failed(reply) || !Array.isArray(reply.value?.data)) {
+      takedownsEl.replaceChildren(failedNote('Taken-down walkthroughs could not be loaded. This is a failed request, not an empty list.', loadTakedowns));
+      return;
+    }
+    takedowns = reply.value.data.filter(row => row && typeof row === 'object' && row.tour_id);
+    paintTakedowns();
+  }
+
+  /* ---- Waitlist -------------------------------------------------------------
+   * SITE_PUBLIC-04 (owner default 1, 27 September 2026): one queue. The waitlist
+   * invitation is the render admission: an invited email's account is admitted when its
+   * free months start, past the weekly ceiling (render_admission_invited, lane A draft
+   * 20260927100000). studio_list_waitlist reads the entries (release-2 draft
+   * 20260926120000); Invite is studio_set_waitlist_outcome(id, 'invited'), confirmed. The
+   * desk sends no email and says so.
+   */
+  const waitlistEl = document.getElementById('studio-waitlist-body');
+  let waitlistVersion = 0;
+  let waitlist = null;
+  function paintWaitlist() {
+    if (!waitlistEl || !waitlist) return;
+    const waiting = waitlist.filter(row => !row.invited_at && !row.declined_at);
+    const invited = waitlist.filter(row => row.invited_at).length;
+    const summary = element('p', 'studio-queue-summary', waiting.length + ' waiting · ' + invited + ' invited');
+    if (!waiting.length) { waitlistEl.replaceChildren(summary, element('p', 'contact-note', 'Nobody is waiting.')); return; }
+    const list = element('ul', 'studio-money-list studio-waitlist-list');
+    list.append(...waiting.map(row => {
+      const email = String(row.email || '');
+      const item = element('li', 'studio-money-item studio-waitlist-entry');
+      item.append(element('h3', 'studio-money-name', row.name ? String(row.name) : email || 'No name given'));
+      const dl = element('dl', 'leaving-list plan-list');
+      deletionTerm(dl, 'Email', email || DASH);
+      deletionTerm(dl, 'Business', row.business_type ? String(row.business_type).replace(/_/g, ' ') : DASH);
+      deletionTerm(dl, 'Region', row.region ? String(row.region) : DASH);
+      deletionTerm(dl, 'Joined', hostedDate(row.created_at) || DASH);
+      const say = element('span', 'studio-result'); say.setAttribute('role', 'status');
+      const invite = element('button', 'tour-action', 'Invite'); invite.type = 'button'; invite.dataset.control = 'invite';
+      invite.addEventListener('click', async () => {
+        if (invite.disabled) return;
+        const question = 'Invite ' + email + '? When they sign in with this email and their free months start, their account is admitted to rendering, past the weekly ceiling. The desk sends no email: tell them yourself.';
+        if (typeof confirm !== 'function' || !confirm(question)) { say.textContent = 'Left unchanged.'; return; }
+        invite.disabled = true;
+        const version = waitlistVersion;
+        const reply = await settled(client.rpc('studio_set_waitlist_outcome', { p_id: row.id, p_outcome: 'invited' }));
+        if (version !== waitlistVersion) return;
+        invite.disabled = false;
+        const answer = failed(reply) ? null : firstRow(reply.value?.data);
+        if (!answer || typeof answer !== 'object') { const refused = serverRefusal(reply); say.textContent = refused ? 'Not invited: ' + refused : 'Not confirmed. Refresh the accounts before trying again.'; return; }
+        row.invited_at = new Date().toISOString();
+        setStatus('Invited: ' + email + '. Tell them it is their turn; they sign in with this email.');
+        paintWaitlist();
+      });
+      const actions = element('p', 'studio-save-row'); actions.append(invite, say);
+      item.append(dl, actions);
+      return item;
+    }));
+    waitlistEl.replaceChildren(summary, list);
+  }
+  async function loadWaitlist() {
+    if (!waitlistEl) return;
+    const version = ++waitlistVersion;
+    waitlist = null;
+    waitlistEl.replaceChildren(element('p', 'contact-note', 'Reading the waitlist…'));
+    const reply = await settled(client.rpc('studio_list_waitlist'));
+    if (version !== waitlistVersion) return;
+    if (missingFunction(reply)) { waitlistEl.replaceChildren(element('p', 'contact-note', 'The waitlist is not available on this server yet.')); return; }
+    if (failed(reply) || !Array.isArray(reply.value?.data)) {
+      waitlistEl.replaceChildren(failedNote('The waitlist could not be loaded. This is a failed request, not an empty list.', loadWaitlist));
+      return;
+    }
+    waitlist = reply.value.data.filter(row => row && typeof row === 'object' && row.id !== null && row.id !== undefined);
+    paintWaitlist();
   }
 
   /* ---- Capture queue ----------------------------------------------------
@@ -1673,6 +2349,16 @@
   let slaVersion = 0;
   // The last answered queue, so the account names can follow the accounts list.
   let queue = null;
+  // SITE_DESK-18: why a queued job waits (studio_capture_queue_holds, lane A draft
+  // 20260927102000), by job; empty while the server does not have it.
+  let queueHolds = new Map();
+  const QUEUE_HOLDS = { admission: 'Held: waiting for admission', paused: 'Held: renders paused', weekly_limit: 'Held: weekly limit reached',
+    trial_limit: 'Held: trial render attempts used' };
+  function queueHold(row) {
+    const hold = queueHolds.get(row.job_id);
+    if (!hold || row.status !== 'queued') return '';
+    return QUEUE_HOLDS[hold.reason] || 'Held';
+  }
 
   // Hours as the desk reads them: minutes under an hour, one decimal under two
   // days, then days and hours. Tabular in the cell, so a changed age shifts nothing.
@@ -1701,7 +2387,8 @@
     const label = QUEUE_STATUS[row.status] || (row.status ? String(row.status) : DASH);
     if (row.status === 'processing' && row.stage) return label + ' · ' + String(row.stage).replace(/_/g, ' ');
     if (row.status === 'failed' && row.error_code) return label + ' · ' + String(row.error_code).replace(/_/g, ' ');
-    return label;
+    const held = queueHold(row);
+    return held ? label + ' · ' + held : label;
   }
   function queueShow(...rows) {
     if (!queueRowsEl) return;
@@ -1755,6 +2442,8 @@
     cell(row, 'Since upload', 'studio-figure').textContent = job.queued_at ? hoursText(job.elapsed_hours) : DASH;
     cell(row, 'Due', 'studio-figure').textContent = queueDue(job.sla_due_at) || DASH;
     const target = cell(row, 'Target');
+    // A held job's clock waits on the hold, not on the queue: it is never "on time".
+    if (queueHold(job)) { target.append(element('span', 'pill', 'Held')); return row; }
     const verdict = QUEUE_SLA[job.sla_state] || (job.sla_state ? String(job.sla_state) : DASH);
     const hours = typeof job.sla_hours === 'number' && job.sla_hours > 0 ? ' (' + hoursText(job.sla_hours) + ')' : '';
     // Over target is a word and a mark, never colour alone.
@@ -1783,8 +2472,15 @@
     const version = ++queueVersion;
     queueSkeleton();
     if (queueSummaryEl) queueSummaryEl.textContent = 'Reading the capture queue…';
-    const reply = await settled(client.rpc('studio_capture_queue'));
+    const [reply, holds] = await Promise.all([settled(client.rpc('studio_capture_queue')), settled(client.rpc('studio_capture_queue_holds'))]);
     if (version !== queueVersion) return;
+    queueHolds = new Map();
+    const holdRows = failed(holds) ? null : holds.value?.data;
+    if (Array.isArray(holdRows)) {
+      for (const entry of holdRows) {
+        if (entry && typeof entry === 'object' && entry.job_id && entry.hold && typeof entry.hold === 'object') queueHolds.set(entry.job_id, entry.hold);
+      }
+    }
     if (failed(reply) || !Array.isArray(reply.value?.data)) {
       queue = null;
       if (queueSummaryEl) queueSummaryEl.textContent = 'The capture queue is unavailable.';
@@ -2254,6 +2950,11 @@
     // A refresh is the reconcile step: the rows are read again from the server.
     uncertainIntents.clear();
     skeletonRows();
+    void loadRendering();
+    void loadAlerts();
+    void loadReports();
+    void loadTakedowns();
+    void loadWaitlist();
     void loadMoney();
     void loadDeletions();
     void loadExpress();
@@ -2273,9 +2974,11 @@
     setStatus('');
     accounts = (Array.isArray(reply.value?.data) ? reply.value.data : []).filter(row => row && row.workspace_id);
     render();
-    // The queue and the express band name each job's account from this list once it has arrived.
+    // The queue, the express band and the alerts name each job's account from this list once it has arrived.
     paintQueue();
     paintExpress();
+    paintAlerts();
+    paintAdmissionOptions();
   }
 
   if (!window.supabase || !window.supabase.createClient) {
@@ -2337,6 +3040,7 @@
     paintSortControls();
     buildCorrection();
     buildHomeCount();
+    buildAdmission();
     await loadAccounts();
   }
 
@@ -2350,6 +3054,11 @@
       deletionsEl?.replaceChildren();
       moneyVersion += 1; money = [];
       moneyShow(false);
+      renderingVersion += 1; alertsVersion += 1; reportsVersion += 1; takedownsVersion += 1; waitlistVersion += 1;
+      renderSettings = null; spendGuard = null; alertRows = null; reports = null; takedowns = null; waitlist = null;
+      for (const el of [renderingSwitchesEl, renderingSpendEl, admissionEl, alertsEl, verdictEl, reportsEl, takedownsEl, waitlistEl]) el?.replaceChildren();
+      admissionSelect = null; admissionResult = null;
+      queueHolds = new Map();
       hostedVersion += 1; hosted = [];
       hostedRowsEl?.replaceChildren();
       queueVersion += 1; slaVersion += 1; queue = null;

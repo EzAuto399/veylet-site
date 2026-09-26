@@ -367,6 +367,8 @@
    * `&express-checkout=<error code>|fail` refuses the next card order;
    * `&express-card=open` presses Super fast for A$29 once. */
   const expressCase = params.get('express') || 'none';
+  // `?express=held` (wave 2): the capture is held (its reason from `?hold=`, else admission), so no Super fast is offered.
+  const expressHeld = expressCase === 'held';
   const EXPRESS_JOB = 'e1f2a3b4-0000-4000-8000-0000000000e1';
   if (!['none', 'error', 'missing'].includes(expressCase)) {
     properties.push({ id: 'synthetic-terrace', title: 'Fictional terrace house', category: 'QA fixture', location_general: 'Example region', workspace_id: 'synthetic-workspace' });
@@ -684,6 +686,36 @@
     expressRow('e5f6a7b8-0000-4000-8000-0000000000e5', 'ws-northgate', 'card', 4 * 1440, -4 * 1440 + 120, 'missed', 'refunded'),
     expressRow('e6f7a8b9-0000-4000-8000-0000000000e6', 'ws-kelvin-grove', 'card', 1440 + 30, -1440 + 90, 'missed', 'pending'),
   ];
+  /* The operator's day (wave 2 lane D): the Rendering panel, render alerts, reports,
+   * takedowns and the waitlist, all fictional. `?ops=list` (the default) answers every
+   * function; `missing` answers PGRST202 (a server before the release-2 drafts), `error`
+   * fails each read. `?kill=on` starts with the kill switch on. Writes change what the
+   * next read answers, as the server would. */
+  const opsCase = params.get('ops') || 'list';
+  const opsMissing = name => ({ error: { code: 'PGRST202', message: 'Could not find the function public.' + name } });
+  let studioSettings = { renders_enabled: true, weekly_admission_ceiling: 0, worker_id: '0b0b0b0b-0000-4000-8000-00000000000b',
+    default_weekly_gpu_jobs: 10, admitted_this_week: 2, waitlisted: 5, updated_at: hoursAgo(20) };
+  let studioGuard = { kill_switch: params.get('kill') === 'on', monthly_cap_usd: 400, month: new Date().toISOString().slice(0, 8) + '01',
+    month_spend_usd: 123.4, remaining_usd: 276.6, updated_at: hoursAgo(50) };
+  const studioAlerts = [
+    { job_id: '6c5d4e3f-0000-4000-8000-00000000000d', workspace_id: 'ws-northgate', alert: 'stale_heartbeat', status: 'processing', stage: 'reconstructing', failure_code: null, error_code: null, attempt: 2, since: minutesAgo(9) },
+    { job_id: '7d6e5f40-0000-4000-8000-00000000000e', workspace_id: 'ws-wren', alert: 'render_failed', status: 'failed', stage: null, failure_code: 'worker_failed', error_code: 'lease_expired', attempt: 3, since: hoursAgo(1) },
+    { job_id: '9f807162-0000-4000-8000-000000000010', workspace_id: 'ws-wren', alert: 'studio_check_due', status: 'awaiting_review', stage: null, failure_code: null, error_code: null, attempt: 1, since: minutesAgo(48) },
+    { job_id: 'a0918273-0000-4000-8000-000000000011', workspace_id: 'ws-northgate', alert: 'studio_check_due', status: 'awaiting_review', stage: null, failure_code: null, error_code: null, attempt: 1, since: minutesAgo(6) },
+  ];
+  let studioReports = [
+    { id: 41, created_at: hoursAgo(30), reason: 'misleading', details: 'The floor plan shows a room that is not there.', reporter_email: null, status: 'open', closed_at: null, token_sha256: 'a'.repeat(64), tour_id: '1a2b3c4d-0000-4000-8000-000000000001', walkthrough_id: '1a2b3c4d-0000-4000-8000-000000000001', space_title: 'Fictional harbour loft', sharing_on: true },
+    { id: 42, created_at: hoursAgo(3), reason: 'privacy', details: 'My family photos are visible in the hallway.', reporter_email: 'tenant@example.invalid', status: 'open', closed_at: null, token_sha256: 'b'.repeat(64), tour_id: '4d5e6f70-0000-4000-8000-000000000004', walkthrough_id: '4d5e6f70-0000-4000-8000-000000000004', space_title: 'Fictional garden studio', sharing_on: true },
+    { id: 40, created_at: hoursAgo(26), reason: 'privacy', details: null, reporter_email: null, status: 'open', closed_at: null, token_sha256: 'c'.repeat(64), tour_id: null, walkthrough_id: null, space_title: null, sharing_on: false },
+  ];
+  let studioTakedowns = [
+    { tour_id: '3c4d5e6f-0000-4000-8000-000000000003', walkthrough_id: '3c4d5e6f-0000-4000-8000-000000000003', space_title: 'Fictional old showroom', note: 'A resident’s documents on the desk; reported by the resident.', created_at: hoursAgo(20), lifted_at: null },
+  ];
+  const studioWaitlist = [
+    { id: 7, created_at: hoursAgo(24 * 9), name: 'Priya Example', email: 'priya@example.invalid', business_type: 'agency', device: 'iphone_pro', region: 'QLD', channels: [], consent_tips: false, submissions: 1, invited_at: null, declined_at: null },
+    { id: 8, created_at: hoursAgo(24 * 6), name: 'Sam Example', email: 'sam@example.invalid', business_type: 'solo_agent', device: 'iphone', region: 'NSW', channels: [], consent_tips: true, submissions: 2, invited_at: null, declined_at: null },
+    { id: 9, created_at: hoursAgo(24 * 12), name: 'Lee Example', email: 'lee@example.invalid', business_type: 'agency', device: 'iphone', region: 'VIC', channels: [], consent_tips: false, submissions: 1, invited_at: hoursAgo(24 * 2), declined_at: null },
+  ];
   const studioSla = [
     { priority_class: 'founding', sla_hours: 12, completed: 4, met: 3, breached: 1, p50_hours: 7.25, p90_hours: 13.4, open_jobs: 2, open_breached: 1, oldest_queued_hours: 3.2 },
     { priority_class: 'standard', sla_hours: 24, completed: 9, met: 9, breached: 0, p50_hours: 11.6, p90_hours: 20.1, open_jobs: 4, open_breached: 1, oldest_queued_hours: 7.5 },
@@ -865,7 +897,10 @@
   const expressOffer = () => ({ price_cents: 2900, ...expressCap(), available: !expressNoCapacity, reason: expressNoCapacity ? 'capacity' : null,
     credits_available: expressLive.credits, can_order: scenario !== 'operator' && expressCase !== 'not-owner' && !expressNoCapacity,
     captures: expressCase === 'none' ? [] : [{ job_id: EXPRESS_JOB, property_id: 'synthetic-terrace',
-      status: expressLive.order?.state === 'met' ? 'awaiting_review' : 'queued', ready_by: expressNoCapacity ? null : minutesFromNow(30), express: expressLive.order ? { ...expressLive.order } : null }] });
+      status: expressLive.order?.state === 'met' ? 'awaiting_review' : 'queued', ready_by: expressNoCapacity || expressHeld ? null : minutesFromNow(30),
+      express: expressLive.order ? { ...expressLive.order } : null,
+      // Lane A draft 20260927101000 (SITE_DESK-03): a held capture carries its hold and no ready_by.
+      hold: expressHeld ? { reason: ['admission', 'paused', 'weekly_limit', 'trial_limit'].includes(params.get('hold')) ? params.get('hold') : 'admission', until: null } : null }] });
   // One capture as list_workspace_render_status answers it (migration
   // 20260925110000_render_status.sql, capture_render_status_json): the customer's state
   // as the server decides it, with only the fields that state carries. An open express
@@ -919,9 +954,12 @@
    * is false (an App Store trial, or before the draft). */
   const startNowCase = params.get('start-now');
   const startNowDay = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+  // render_trial_hold's own words: straight apostrophes and the Brisbane day as 'FMDD FMMonth YYYY'.
+  const startNowWords = (() => { const at = new Date(startNowDay + 'T00:00:00Z');
+    return at.getUTCDate() + ' ' + ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][at.getUTCMonth()] + ' ' + at.getUTCFullYear(); })();
   const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit', 'trial_limit'].includes(holdCase) ? null
     : holdCase === 'trial_limit' ? { reason: 'trial_limit', until: startNowDay + 'T00:00:00+10:00', plan_starts_on: startNowDay,
-      message: 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts on ' + startNowDay + '.', start_plan_now: Boolean(startNowCase) }
+      message: "You've used this trial's 12 render attempts. Rendering continues when your plan starts on " + startNowWords + '.', start_plan_now: Boolean(startNowCase) }
       : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
   const renderFlagsOf = state => (!['ready_for_review', 'approved', 'live'].includes(state) ? null
     : flagsCase === 'all' ? REVIEW_FLAGS.map(flag => ({ ...flag }))
@@ -1484,6 +1522,55 @@
         if (!row.resolvable) return { error: { message: 'this money exception clears when its state changes' } };
         studioMoney = studioMoney.filter(item => item !== row);
         return { data: { exception_key: row.exception_key, kind: row.kind, resolved_at: new Date().toISOString(), recorded: true } };
+      }
+      if (['studio_render_settings', 'get_render_spend_guard', 'studio_render_alerts', 'studio_list_walkthrough_reports', 'studio_list_takedowns',
+        'studio_list_waitlist', 'studio_capture_queue_holds', 'studio_set_render_admission', 'studio_set_render_spend_guard', 'studio_admit_workspace',
+        'studio_revoke_render_admission', 'studio_takedown_tour', 'studio_dismiss_walkthrough_report', 'studio_delete_contact_by_email',
+        'studio_lift_takedown', 'studio_set_waitlist_outcome'].includes(name)) {
+        if (opsCase === 'missing') return opsMissing(name);
+        if (opsCase === 'error' || studioCase === 'unavailable') return { error: { message: 'Synthetic operator service failure' } };
+        if (name === 'studio_render_settings') return { data: { ...studioSettings } };
+        if (name === 'get_render_spend_guard') return { data: { ...studioGuard } };
+        if (name === 'studio_render_alerts') return { data: studioAlerts.map(row => ({ ...row })) };
+        if (name === 'studio_list_walkthrough_reports') return { data: studioReports.filter(row => row.status === (args?.p_status || 'open')).map(row => ({ ...row })) };
+        if (name === 'studio_list_takedowns') return { data: studioTakedowns.map(row => ({ ...row })) };
+        if (name === 'studio_list_waitlist') return { data: studioWaitlist.map(row => ({ ...row })) };
+        if (name === 'studio_capture_queue_holds') return { data: [{ job_id: '5b4c3d2e-0000-4000-8000-00000000000c', hold: { reason: 'admission', until: null }, eligible: false, sla_state: 'held' }] };
+        if (name === 'studio_set_render_admission') {
+          if (!Number.isInteger(args.p_weekly_admission_ceiling) || args.p_weekly_admission_ceiling < 0 || args.p_weekly_admission_ceiling > 10000) return { error: { code: 'P0001', message: 'the switch, a weekly ceiling from 0 to 10000 and a weekly GPU job cap from 1 to 1000 are required' } };
+          studioSettings = { ...studioSettings, renders_enabled: args.p_renders_enabled, weekly_admission_ceiling: args.p_weekly_admission_ceiling, updated_at: new Date().toISOString() };
+          return { data: { ...studioSettings } };
+        }
+        if (name === 'studio_set_render_spend_guard') { studioGuard = { ...studioGuard, kill_switch: args.p_kill_switch, monthly_cap_usd: args.p_monthly_cap_usd, updated_at: new Date().toISOString() }; return { data: { ...studioGuard } }; }
+        if (name === 'studio_admit_workspace') return { data: { workspace_id: args.p_workspace_id, state: 'admitted', reason: null, changed: true } };
+        if (name === 'studio_revoke_render_admission') return { data: { workspace_id: args.p_workspace_id, state: 'revoked' } };
+        if (name === 'studio_takedown_tour') {
+          const closed = studioReports.filter(row => row.tour_id === args.p_tour_id && row.status === 'open');
+          closed.forEach(row => { row.status = 'actioned'; row.sharing_on = false; });
+          const title = closed[0]?.space_title || null;
+          studioTakedowns = [...studioTakedowns, { tour_id: args.p_tour_id, walkthrough_id: args.p_tour_id, space_title: title, note: args.p_note, created_at: new Date().toISOString(), lifted_at: null }];
+          return { data: { tour_id: args.p_tour_id, walkthrough_id: args.p_tour_id, links_ended: 1, reports_closed: closed.length, recorded_at: new Date().toISOString() } };
+        }
+        if (name === 'studio_dismiss_walkthrough_report') {
+          const row = studioReports.find(item => item.id === args.p_report_id && item.status === 'open');
+          if (!row) return { error: { code: 'P0001', message: 'report is not open' } };
+          row.status = 'dismissed';
+          return { data: { id: row.id, status: 'dismissed', closed_at: new Date().toISOString() } };
+        }
+        if (name === 'studio_delete_contact_by_email') {
+          let cleared = 0; studioReports.forEach(row => { if (row.reporter_email === args.p_email) { row.reporter_email = null; cleared += 1; } });
+          return { data: { waitlist_deleted: 0, report_emails_cleared: cleared, recorded_at: new Date().toISOString() } };
+        }
+        if (name === 'studio_lift_takedown') {
+          studioTakedowns = studioTakedowns.map(row => (row.tour_id === args.p_tour_id ? { ...row, lifted_at: new Date().toISOString() } : row));
+          return { data: { tour_id: args.p_tour_id, lifted_at: new Date().toISOString() } };
+        }
+        if (name === 'studio_set_waitlist_outcome') {
+          const row = studioWaitlist.find(item => item.id === args.p_id);
+          if (!row) return { error: { code: 'P0001', message: 'waitlist entry not found' } };
+          row.invited_at = new Date().toISOString();
+          return { data: { id: row.id, outcome: args.p_outcome } };
+        }
       }
       if (name === 'studio_capture_queue') {
         if (queueCase === 'loading') return new Promise(() => {});

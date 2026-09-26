@@ -8,16 +8,16 @@
     <meta name="referrer" content="no-referrer" />
     <meta
       name="description"
-      content="Veylet studio desk. Internal: accounts, free months and walkthroughs waiting for review."
+      content="Veylet studio desk. Internal: rendering, reports, accounts, free months and walkthroughs waiting for review."
     />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
     <link rel="stylesheet" href="/style.css?v=a8e48561929d7ca9" />
-    <link rel="stylesheet" href="/studio.css?v=dd35e6ff75d47f6b" />
+    <link rel="stylesheet" href="/studio.css?v=44121610f1c30987" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/studio.js?v=e98fb7febd839d7b" defer></script>
+    <script src="/studio.js?v=53d988e0f15ed87a" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -51,6 +51,48 @@
       <section id="studio-desk" hidden>
         <p class="contact-note" id="studio-who"></p>
         <p class="studio-summary" id="studio-summary" role="status"></p>
+        <section class="studio-rendering" id="studio-rendering" aria-labelledby="studio-rendering-title">
+          <h2 class="dash-heading" id="studio-rendering-title">Rendering</h2>
+          <p class="contact-note">
+            Whether new renders start, how many new accounts are admitted to
+            rendering each week, and the month's GPU spend against its cap.
+            Every change here is confirmed first and recorded by the server.
+            The kill switch stops every new claim and every running render at
+            once. Dates are Brisbane time.
+          </p>
+          <div class="studio-rendering-grid">
+            <div class="studio-rendering-part" id="studio-rendering-switches" aria-live="polite"></div>
+            <div class="studio-rendering-part" id="studio-rendering-spend" aria-live="polite"></div>
+          </div>
+          <h3 class="studio-queue-subhead" id="studio-admission-title">Admit or revoke one account</h3>
+          <p class="contact-note">
+            Admit lets an account's renders start now, past this week's
+            ceiling. Revoke stops new renders for it; renders already running
+            and its uploads are left alone.
+          </p>
+          <div class="studio-admission-body" id="studio-admission-body" aria-live="polite"></div>
+          <h3 class="studio-queue-subhead" id="studio-alerts-title">Render alerts</h3>
+          <div class="studio-alerts-body" id="studio-alerts-body" aria-live="polite"></div>
+          <h3 class="studio-queue-subhead" id="studio-verdict-title">Ready for review, no verdict</h3>
+          <p class="contact-note">
+            Finished renders the automatic check has not released or held.
+            One past 30 minutes is marked: its account is waiting on us.
+          </p>
+          <div class="studio-alerts-body" id="studio-verdict-body" aria-live="polite"></div>
+        </section>
+        <section class="studio-reports" id="studio-reports" aria-labelledby="studio-reports-title">
+          <h2 class="dash-heading" id="studio-reports-title">Walkthrough reports</h2>
+          <p class="contact-note">
+            Reports sent from Report this walkthrough, privacy reports first,
+            then the oldest. Take down ends every link, embed and QR code of
+            that walkthrough at once and closes its open reports; it needs a
+            note. Dismiss closes one report and changes nothing else. Delete
+            contact removes that email from reports and the waitlist.
+          </p>
+          <div class="studio-reports-body" id="studio-reports-body" aria-live="polite"></div>
+          <h3 class="studio-queue-subhead" id="studio-takedowns-title">Taken down</h3>
+          <div class="studio-reports-body" id="studio-takedowns-body" aria-live="polite"></div>
+        </section>
         <section class="studio-money" id="studio-money" aria-labelledby="studio-money-title">
           <h2 class="dash-heading" id="studio-money-title">Money exceptions</h2>
           <p class="contact-note">
@@ -60,6 +102,17 @@
           <div class="studio-money-body" id="studio-money-body" aria-live="polite"></div>
         </section>
         <section class="studio-deletions" id="studio-deletions" aria-label="Deletion requests" aria-live="polite"></section>
+        <section class="studio-waitlist" id="studio-waitlist" aria-labelledby="studio-waitlist-title">
+          <h2 class="dash-heading" id="studio-waitlist-title">Waitlist</h2>
+          <p class="contact-note">
+            People waiting for a place, oldest first. Invite records the
+            invitation: when that person signs in with the same email and
+            their free months start, their account is admitted to rendering,
+            past the weekly ceiling. The desk sends no email: tell them
+            yourself from yoda@yodalai.xyz that it is their turn.
+          </p>
+          <div class="studio-waitlist-body" id="studio-waitlist-body" aria-live="polite"></div>
+        </section>
         <section class="studio-queue studio-express" id="studio-express" aria-labelledby="studio-express-title">
           <h2 class="dash-heading" id="studio-express-title">Super fast renders</h2>
           <p class="contact-note">

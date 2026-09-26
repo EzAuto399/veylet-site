@@ -1137,7 +1137,7 @@ test('each capture and its review say how many rooms it has and the walkthroughs
   assert.ok(approving.calls.some(([name]) => name === 'review_tour_versioned'));
 });
 
-test('a paused walkthrough (render state paused) says so on its card and offers Resume sharing; the queue’s global pause keeps its own line', async () => {
+test('a paused walkthrough (render state paused) says so and points to its card’s Resume sharing; the queue’s global pause keeps its own line', async () => {
   const PAUSED = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
   const resumed = [];
   const h = await load({ tours: [liveTour({ share_paused_at: '2026-09-26T00:00:00Z' })], approved: true,
@@ -1147,9 +1147,10 @@ test('a paused walkthrough (render state paused) says so on its card and offers 
   const block = renderBlockOf(h);
   assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Paused');
   assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [PAUSED]);
-  const resume = block.all().find(el => el.dataset.control === 'render-resume-share');
-  assert.equal(resume.textContent, 'Resume sharing');
-  await resume.fire('click'); await settle();
+  // SITE_DESK-07 (wave 2): the card owns sharing, so the render block only points to its Resume.
+  assert.equal(block.all().some(el => el.dataset.control === 'render-resume-share'), false);
+  assert.ok(block.all().some(el => el.textContent === 'Resume sharing on its card below opens the same link again.'));
+  await byText(h.card('t1'), 'Resume sharing').fire('click'); await settle();
   assert.deepEqual(resumed, [{ p_tour_id: 't1' }]);
   // A server before the draft: a live row whose share_paused is true reads the same.
   const older = await load({ tours: [liveTour()], approved: true,
@@ -1161,6 +1162,7 @@ test('a paused walkthrough (render state paused) says so on its card and offers 
     rpc: { list_workspace_render_status: renderAnswer({ state: 'paused', status: 'awaiting_review', tour_id: 't1', share_paused: true }) } });
   await settle();
   assert.equal(renderBlockOf(operator).all().some(el => el.dataset.control === 'render-resume-share'), false);
+  assert.equal(renderBlockOf(operator).all().some(el => /Resume sharing on its card/.test(el.textContent)), false);
   // Not the render queue's global pause: that is a waiting capture with its own words.
   const queue = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', hold: { reason: 'paused', until: null } }) } });
   assert.deepEqual(renderBlockOf(queue).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent),
@@ -1256,4 +1258,170 @@ test('app mode: the review preview opens /play with from=app, so its links stay 
   assert.match(byText(h.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}&from=app$/);
   const site = await load({ tours: [readyTour()] });
   assert.match(byText(site.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}$/);
+});
+
+/* ---- Wave 2 lane D (27 September 2026): an honest customer desk ------------------------
+ * SITE_DESK-07 one Resume per paused listing; SITE_DESK-03 no Super fast on a held capture;
+ * the trial-limit words come from the server (render_trial_limit_message through the hold);
+ * SITE_DESK-04 the website card plan cancels itself through POST /square/trial/cancel.
+ */
+const resumeControls = h => h.all().filter(el => el.tagName === 'BUTTON' && el.textContent === 'Resume sharing' && !el.hidden);
+
+test('a paused listing has exactly one Resume sharing, on its card; the render block points to it', async () => {
+  const resumed = [];
+  const h = await load({ tours: [liveTour({ share_paused_at: '2026-09-26T00:00:00Z' })], approved: true,
+    rpc: { list_workspace_render_status: renderAnswer({ state: 'paused', status: 'awaiting_review', tour_id: 't1', share_paused: true }),
+      pause_tour_share: async () => ({ data: null }), resume_tour_share: async args => { resumed.push({ ...args }); return { data: TOKEN }; } } });
+  await settle();
+  assert.equal(resumeControls(h).length, 1, 'one Resume sharing per paused listing');
+  const block = renderBlockOf(h);
+  assert.equal(block.all().some(el => el.tagName === 'BUTTON'), false, 'the render block has nothing to press');
+  assert.match(textOf(block), /Resume sharing on its card below opens the same link again\./);
+  // The one Resume is the card's own, which handles the listing gate's refusals.
+  assert.ok(h.card('t1').contains(resumeControls(h)[0]));
+  await resumeControls(h)[0].fire('click'); await settle();
+  assert.deepEqual(resumed, [{ p_tour_id: 't1' }]);
+});
+
+test('a held capture is offered no Super fast render: it reads Not available right now, with no price and nothing to press', async () => {
+  const offer = hold => ({ data: { price_cents: 2900, daily_cap: null, taken_today: 0, full_today: false, credits_available: 1, can_order: true, available: true,
+    captures: [{ job_id: 'j1', property_id: 'p1', status: 'queued', ready_by: hold ? null : new Date(Date.now() + 1800000).toISOString(), express: null, hold }] } });
+  for (const reason of ['admission', 'paused', 'weekly_limit', 'trial_limit']) {
+    const h = await load({ tours: [], rpc: { get_express_offer: async () => offer({ reason, until: null }),
+      list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', hold: { reason, until: null } }) } });
+    await settle();
+    const blocks = h.all().filter(el => el.className === 'express-block');
+    assert.equal(blocks.length, 1, reason);
+    const words = textOf(blocks[0]);
+    assert.match(words, /Not available right now/, reason);
+    assert.doesNotMatch(words, /A\$29|ready by|Use a super fast render/, reason);
+    assert.equal(blocks[0].all().some(el => el.tagName === 'BUTTON'), false, reason);
+    assert.equal(h.count('use_express_credit'), 0);
+  }
+  // Not held: the offer is made as before.
+  const open = await load({ tours: [], rpc: { get_express_offer: async () => offer(null),
+    list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2 }) } });
+  await settle();
+  assert.match(textOf(open.all().find(el => el.className === 'express-block')), /Use a super fast render \(1 left\)/);
+});
+
+test('the trial-limit words are the server’s own when it sends them', async () => {
+  // As render_trial_hold words it (straight apostrophes, the month in full); the desk sets the apostrophes.
+  const message = 'You’ve used this trial’s 10 render attempts. Rendering continues when your plan starts on 3 January 2027.';
+  const job = { state: 'waiting', status: 'queued', hold: { reason: 'trial_limit', until: null, message: message.replace(/’/g, "'") } };
+  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
+  await settle();
+  assert.deepEqual(renderBlockOf(h).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [message]);
+  assert.equal(h.ids['account-next-step'].children[1].textContent, message + ' It shows on Sample space below.');
+  // A template the server did not fill, or no words at all: the desk's own sentence.
+  for (const said of ['Rendering continues when your plan starts on {date}.', '', null]) {
+    const other = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ ...job, hold: { ...job.hold, message: said } }) } });
+    await settle();
+    assert.match(textOf(renderBlockOf(other)), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts\./, String(said));
+  }
+});
+
+const WEB_TRIAL = { workspace_id: 'w1', status: 'trial', plan_code: 'solo', source: 'web', billing_interval: 'monthly', trial_started_at: '2026-09-01T00:00:00Z',
+  trial_ends_at: new Date(Date.now() + 60 * 86400000).toISOString(), trial_included_walkthroughs: 6, accepted_in_free_months: 1, auto_renews: true, renewal_price_aud_cents: 9900 };
+const cancelControl = h => h.all().find(el => el.dataset.control === 'cancel-web-plan');
+
+test('a website card plan cancels here: confirmed, posted to /square/trial/cancel and read back', async () => {
+  for (const [started, said] of [[false, /Plan cancelled\. Nothing was charged and nothing will be\./], [true, /Plan cancelled\. It stops renewing at the end of the period you’ve paid for\./]]) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
+    await settle();
+    const posts = [];
+    // Only the cancel route is counted; the desk's other reads (the card lane) may call too.
+    h.window.fetch = async (url, init) => { if (String(url).endsWith('/square/trial/cancel')) posts.push({ url, init }); return { status: 200, ok: true, json: async () => ({ cancelled: true, started }) }; };
+    const cancel = cancelControl(h);
+    assert.ok(cancel, 'the web lane has its own Cancel plan');
+    assert.equal(cancel.textContent, 'Cancel plan');
+    await cancel.fire('click'); await settle();
+    assert.equal(posts.length, 0, 'the first press asks to confirm');
+    const confirm = h.all().find(el => el.dataset.control === 'confirm-cancel-web-plan');
+    assert.equal(confirm.textContent, 'Yes, cancel my plan');
+    await confirm.fire('click'); await settle();
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].url, 'https://hooks.example.invalid/square/trial/cancel');
+    assert.equal(posts[0].init.method, 'POST');
+    assert.equal(posts[0].init.headers.Authorization, 'Bearer token-1');
+    assert.deepEqual(JSON.parse(posts[0].init.body), { workspace_id: 'w1' });
+    assert.match(h.status(), said);
+  }
+  // Square did not confirm: the cancel is recorded and being confirmed.
+  const pending = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
+  await settle();
+  pending.window.fetch = async () => ({ status: 502, ok: false, json: async () => ({ error: 'checkout_failed' }) });
+  await cancelControl(pending).fire('click'); await settle();
+  await pending.all().find(el => el.dataset.control === 'confirm-cancel-web-plan').fire('click'); await settle();
+  assert.match(pending.status(), /Your cancellation is being confirmed\./);
+  // Keep plan sends nothing.
+  const kept = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
+  await settle();
+  let asked = 0; kept.window.fetch = async () => { asked += 1; return { status: 200, ok: true, json: async () => ({}) }; };
+  await cancelControl(kept).fire('click'); await settle();
+  await kept.all().find(el => el.dataset.control === 'keep-web-plan').fire('click'); await settle();
+  assert.equal(asked, 0);
+  assert.match(kept.status(), /Your plan is unchanged\./);
+});
+
+test('Cancel plan is for the website card lane only: never an invoice or App Store plan, and never on the app’s pages', async () => {
+  for (const plan of [{ ...WEB_TRIAL, source: 'studio' }, { ...WEB_TRIAL, source: 'apple' }, { ...WEB_TRIAL, status: 'ended' }]) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [plan] }) } });
+    await settle();
+    assert.equal(cancelControl(h), undefined, JSON.stringify([plan.source, plan.status]));
+  }
+  const app = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
+  await settle();
+  assert.equal(cancelControl(app), undefined);
+  // A yearly card plan (possibly the members' annual, cancelled from its own card) stays with support.
+  const yearly = await load({ rpc: { get_workspace_plan: async () => ({ data: [{ ...WEB_TRIAL, status: 'active', billing_interval: 'annual' }] }) } });
+  await settle();
+  assert.equal(cancelControl(yearly), undefined);
+  // Someone who is not the owner cannot cancel, so is not offered it.
+  const reviewer = await load({ role: 'reviewer', rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
+  await settle();
+  assert.equal(cancelControl(reviewer), undefined);
+});
+
+test('views: a walk through the 3D is its own count once the server sends it, never an invented zero (VIEWER-22)', async () => {
+  const stats = { opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: {}, by_host: {}, last_opened_at: '2026-09-24T02:00:00Z' };
+  const h = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, explores: 9 }] }) } });
+  await settle();
+  assert.deepEqual(h.card('t1').all().find(el => el.className === 'tour-views').children.map(el => el.textContent),
+    ['Opened 14 times · last 24 Sep 2026', 'Walked through in 3D 9 times', 'Call taps 3 · Email taps 1']);
+  const older = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [stats] }) } });
+  await settle();
+  assert.doesNotMatch(older.visible(), /Walked through/);
+});
+
+test('a shared walkthrough hosting no longer serves reads Offline, never Live (render state offline, SITE_DESK-06)', async () => {
+  const h = await load({ tours: [liveTour()], approved: true,
+    rpc: { list_workspace_render_status: renderAnswer({ state: 'offline', status: 'awaiting_review', tour_id: 't1' }) } });
+  await settle();
+  const block = renderBlockOf(h);
+  assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Offline');
+  assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), ['Offline. The link, embed and QR show "not available".']);
+  assert.doesNotMatch(textOf(block), /Anyone with the link can open it/);
+});
+
+test('no running plan has its own words and fix, never a walkthrough pack (SITE_DESK-15)', async () => {
+  const h = await load({ tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { details: 'VEYLET_PLAN_NOT_ACTIVE', message: 'Confirm your plan.' } }) } });
+  await approve(h);
+  assert.equal(h.status(), 'This walkthrough was not accepted. Restart your plan to share this walkthrough. No charge was created. Start a fresh review once your plan is running.');
+  assert.doesNotMatch(h.status(), /pack|allowance/);
+  assert.ok(h.card('t1').all().some(el => el.dataset.control === 'share-fix-plan'), 'Restart your plan is the fix');
+  const app = await load({ markup: appMarkup, tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { details: 'VEYLET_PLAN_NOT_ACTIVE', message: 'Confirm your plan.' } }) } });
+  await approve(app);
+  assert.match(app.status(), /Restart your plan in the app to share this walkthrough\./);
+});
+
+test('the review says what to look for before sharing, above Approve and share, and never blocks it (LEGAL_LIFECYCLE-06)', async () => {
+  const h = await load({ tours: [readyTour()] });
+  const form = reviewForm(h.card('t1'));
+  const look = form.all().find(el => /\btour-privacy-look\b/.test(el.className));
+  assert.equal(look.textContent, 'Before you share, look in every room for people, family photos, mail or documents, and screens.');
+  const order = form.children;
+  assert.ok(order.indexOf(look) < order.indexOf(order.find(el => el.textContent === 'Approve and share')));
+  await approve(h);
+  assert.equal(h.count('enable_tour_share'), 1);
 });

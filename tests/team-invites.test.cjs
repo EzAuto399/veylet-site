@@ -406,3 +406,19 @@ test('the kept-links line: singular, the fallback name, a link only when What yo
   assert.equal(plain.status(), 'Removed Teammate. 3 live walkthroughs captured by Sam stay live. Check your contact card still shows the right person.');
   assert.equal(plain.control(team(plain), 'team-contact-card'), null);
 });
+
+test('an owner’s Remove and Make owner confirmations name the teammate’s email when the server sends it (SITE_DESK-14)', async () => {
+  // Lane A draft 20260927101000: list_workspace_members answers the accepted invite's email to owners only.
+  const withEmail = PEOPLE.map(row => (row.user_id.endsWith('003') ? { ...row, email: 'nameless@example.invalid' } : { ...row }));
+  const h = await owner({ rpc: { list_workspace_members: () => ({ data: withEmail }) } });
+  const nameless = members(h)[2];
+  await h.control(nameless, 'team-remove').fire('click');
+  assert.ok(h.words(nameless).includes('Remove Teammate (nameless@example.invalid)? They lose access to this office. Confirm to continue.'));
+  const more = nameless.all().find(el => el.tagName === 'DETAILS');
+  await h.control(more, 'team-owner').fire('click');
+  assert.ok(h.words(more).some(text => text.startsWith('Make Teammate (nameless@example.invalid) the owner? ')));
+  // Without an email the name alone is said, as before.
+  const plain = await owner({ rpc: { list_workspace_members: () => ({ data: PEOPLE }) } });
+  await plain.control(members(plain)[2], 'team-remove').fire('click');
+  assert.ok(plain.words(members(plain)[2]).some(text => text.startsWith('Remove Teammate? ')));
+});

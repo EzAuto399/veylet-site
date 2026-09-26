@@ -568,3 +568,13 @@
   gap: 8px 12px;
   overflow-wrap: anywhere;
 }
+
+/* Wave 2 lane D (27 September 2026). Cancel a website card plan: one quiet press, then the
+   question and its two answers on one wrapping line, never a modal. */
+.plan-cancel { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.plan-cancel-question { flex-basis: 100%; max-width: 62ch; }
+/* The Terms assent right under the sign-in press (hidden with the form) and beside the free
+   months card form. */
+.account-terms-assent, .plan-terms-assent { max-width: 62ch; }
+.account-terms-assent { margin-top: 10px; }
+#account-sign-in[hidden] + .account-terms-assent { display: none; }

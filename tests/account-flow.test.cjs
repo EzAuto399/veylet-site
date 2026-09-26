@@ -758,10 +758,12 @@ test('the records file is unavailable while tour status could not load', async (
  * as started, empty or approved. Nothing in this panel may take a payment.
  */
 // Offer 2026-09-25.2: the Veylet plan (code solo), 3 free months with 6 walkthroughs, 2 a month, no extra price.
+// The free months run from the test clock (TESTS_CI-18): a fixed end day would turn this suite red once it passed.
+const dayFromNow = days => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10) + 'T00:00:00Z';
 const planRow = {
   workspace_id: 'w1', plan_code: 'solo', source: 'studio', status: 'trial', trial_months: 3, billing_interval: 'monthly',
   trial_included_walkthroughs: 6, accepted_in_free_months: 2, extras_in_free_months: 0,
-  trial_started_at: '2026-09-01T00:00:00Z', trial_ends_at: '2026-12-01T00:00:00Z',
+  trial_started_at: dayFromNow(-26), trial_ends_at: dayFromNow(65),
   period_started_at: '2026-09-01T00:00:00Z', period_ends_at: '2026-10-01T00:00:00Z',
   current_period_ends_at: null, auto_renews: true, cancelled_at: null,
   included_per_month: 2, accepted_this_period: 0, accepted_total: 4,
@@ -2448,7 +2450,7 @@ test('truth check: the yearly price and start date read the same in the price, b
   assert.match(annualClass(moved, 'annual-lead').textContent, /Yearly plan starts 1 April 2027/);
   assert.match(annualClass(moved, 'annual-notice').textContent, /they differ from what was shown before you confirmed/);
   // The plan panel above states the same App Store end date as the card's start.
-  const panel = await withAnnual(renewalOff({ starts_on: '2026-12-01' }), { plan: { source: 'apple', apple_verified: true } });
+  const panel = await withAnnual(renewalOff({ starts_on: planRow.trial_ends_at.slice(0, 10) }), { plan: { source: 'apple', apple_verified: true } });
   assert.equal(planTitle(panel), 'Free until ' + longDate(planRow.trial_ends_at));
   assert.match(annualText(panel), new RegExp('runs until ' + longDate(planRow.trial_ends_at)));
 });
@@ -3365,7 +3367,7 @@ test('offer v9 truth check: A$990 and A$99 read the same in the plan panel and o
   const record = JSON.parse(fs.readFileSync(path.join(__dirname, '../dist/offer/offer.json'), 'utf8'));
   const solo = record.plans.find(entry => entry.code === 'solo');
   assert.deepEqual([YEAR.solo, planRow.price_aud_cents], [solo.annualAud * 100, solo.webAud * 100], 'these answers carry the record’s amounts');
-  const h = await withAnnual(annualOffer({ source: 'studio', apple_auto_renews: null, apple_in_free_trial: null, starts_on: '2026-12-01' }));
+  const h = await withAnnual(annualOffer({ source: 'studio', apple_auto_renews: null, apple_in_free_trial: null, starts_on: planRow.trial_ends_at.slice(0, 10) }));
   const monthly = planText(h).match(/, then (A\$[\d,.]+) a month unless you cancel\./)[1];
   const saving = annualText(h).match(/less than 12 monthly payments of (A\$[\d,.]+)/)[1];
   const amount = annualClass(h, 'annual-amount').textContent.match(/^(A\$[\d,.]+) a year$/)[1];
@@ -4051,7 +4053,9 @@ test('offer v9 truth check: A$29 reads the same in the offer, the button, the ch
 
 /* ---- Start my plan today (draft 20260926141000_trial_start_now.sql) ------------------------- */
 
-const START_HOLD = { reason: 'trial_limit', until: '2026-12-01T00:00:00+10:00', plan_starts_on: '2026-12-01', message: 'x', start_plan_now: true };
+// The hold as render_trial_hold (draft 20260926141000) sends it: its message is the server's own sentence.
+const START_HOLD = { reason: 'trial_limit', until: '2026-12-01T00:00:00+10:00', plan_starts_on: '2026-12-01',
+  message: "You've used this trial's 12 render attempts. Rendering continues when your plan starts on 1 December 2026.", start_plan_now: true };
 const START_OFFER = { available: true, lane: 'web', missing: [], plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
   plan_interval: 'monthly', charge_today: true, invoice_today: false, starts_on: '2026-09-26', free_months_end_on: '2026-12-01',
   free_walkthroughs_left: 3, free_walkthroughs_usable_until: '2026-12-01T00:00:00+10:00', request: null };
@@ -4073,7 +4077,7 @@ async function withStartNow(options = {}) {
 
 test('start my plan today: the hold names its day; the button and its detail come from the server’s offer', async () => {
   const h = await withStartNow();
-  assert.match(h.blockText(), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts on 1 Dec 2026\./);
+  assert.match(h.blockText(), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts on 1 December 2026\./);
   assert.equal(h.control().textContent, 'Start my plan today');
   assert.match(h.blockText(), /Your free months end today and your plan starts now\. Walkthroughs left from your free months stay usable until 1 Dec 2026\. The plan is A\$99 a month, charged today to the card on your account\./);
   assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_start_plan_now')[1] }, { p_workspace: 'w1' });
@@ -4124,7 +4128,7 @@ test('start my plan today: the invoice lane waits for the invoice; not_owner say
   for (const offer of [async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }), async () => ({ data: { available: false, lane: 'apple', missing: ['lane'] } })]) {
     const hidden = await withStartNow({ offer });
     assert.equal(hidden.control(), undefined);
-    assert.match(hidden.blockText(), /Rendering continues when your plan starts on 1 Dec 2026\./);
+    assert.match(hidden.blockText(), /Rendering continues when your plan starts on 1 December 2026\./);
   }
   // The hold itself says whether it is offered (App Store trials never are).
   const apple = await withStartNow({ hold: { start_plan_now: false } });
