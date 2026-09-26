@@ -1,7 +1,7 @@
 /*
  * /waitlist: one form, one call. The answers go to rpc/join_waitlist (the product repository's
- * supabase/drafts/release-2/20260926102000_waitlist.sql, not yet released) with the public key and
- * nothing else: no third-party script, no cookie, no analytics. A backend without the function
+ * supabase/drafts/release-2/20260926120000_waitlist.sql, not yet released) with the public key and
+ * the form answers only. Optional website measurement is separate and consent-controlled. A backend without the function
  * (PostgREST PGRST202 / 404) says the waitlist opens soon and gives the email route instead.
  * The server answers joined (new or already listed: the same words, so the page never says whether
  * an address was on the list), busy (its hourly limit), or invalid. The "tips and offers" box is a
@@ -119,17 +119,36 @@
     return state;
   }
 
+  // Only fixed outcomes from this submission may leave the form. No answers or raw errors.
+  function measureResult(win, state) {
+    var errorCodes = { busy: 'busy', invalid: 'validation', missing: 'unavailable', error: 'network' };
+    var name = state === 'joined' ? 'waitlist_submission_accepted' : 'form_error';
+    var props = { form_id: 'waitlist' };
+    if (state !== 'joined') {
+      if (!Object.prototype.hasOwnProperty.call(errorCodes, state)) return;
+      props.error_code = errorCodes[state];
+    }
+    try {
+      if (win.VeyletAnalytics && typeof win.VeyletAnalytics.track === 'function') {
+        win.VeyletAnalytics.track(name, props);
+      }
+    } catch (blocked) { /* optional measurement never interrupts joining or recovery */ }
+  }
+
   async function send(win, form) {
     var doc = win.document;
     var data = new win.FormData(form);
     // A filled honeypot is a form-filling robot: it sees the same success and nothing is sent.
     if (String(data.get('_honey') || '').trim()) return show(doc, 'joined');
     var answers = answersFrom(data);
-    if (problem(answers)) return show(doc, 'invalid');
+    if (problem(answers)) { measureResult(win, 'invalid'); return show(doc, 'invalid'); }
     var config = win.VEYLET_SUPABASE;
     if (!config || !config.url || !config.anonKey) return show(doc, 'error');
     show(doc, 'sending');
-    return show(doc, await join(win.fetch.bind(win), config, answers));
+    var state = await join(win.fetch.bind(win), config, answers);
+    // The honeypot and DOM success are not receipts. The measurement module enforces consent.
+    measureResult(win, state);
+    return show(doc, state);
   }
 
   function run(win) {
@@ -146,7 +165,7 @@
       event.preventDefault();
       if (busy) return;
       var where = place && place.briefLocationProblem && region ? place.briefLocationProblem(region.value) : '';
-      if (where) { status.textContent = where; if (region.focus) region.focus(); return; }
+      if (where) { measureResult(win, 'invalid'); status.textContent = where; if (region.focus) region.focus(); return; }
       busy = true;
       try { await send(win, form); } finally { busy = false; }
     });
