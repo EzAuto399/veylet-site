@@ -532,6 +532,12 @@ test('render status: the member read’s recapture ARRAY (capture_recapture_reas
   const help = h.slot().shown().filter(el => el.tagName === 'A' && /render-fix/.test(el.className)).map(el => [el.textContent, el.href]);
   assert.deepEqual(help, [['How to fix this', '/help/fix/few_views'], ['How to fix this', '/help/fix/no_floor']], 'only a rule this page knows links out');
   assert.doesNotMatch(h.slot().shown().map(el => el.textContent).join(' '), /Ask Veylet support what to capture/);
+  // The server sends up to 20 rooms: all 20 show; anything past that is dropped.
+  const many = Array.from({ length: 21 }, (_, index) => ({ room: 'Room ' + (index + 1), reason: 'Too dark here', rule: 'photo_match' }));
+  const twenty = await load({ status: [job({ ...JOBS.recapture, recapture: many })] });
+  const shown = twenty.slot().shown().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
+  assert.equal(shown.length, 20);
+  assert.equal(shown[19], 'Recapture Room 20');
   // An empty array reads as no reason at all.
   const empty = await load({ status: [job({ ...JOBS.recapture, recapture: [] })] });
   assert.deepEqual(empty.filled(), ['Contact Veylet support']);

@@ -59,6 +59,36 @@
   // the email link comes back through /auth/callback?join=1, and either way a signed-in
   // session goes straight back to /join, which keeps the invite itself out of every address.
   const joinReturn = !APP_MODE && new URLSearchParams(location.search || '').get('join') === '1';
+  // The edition a sign-in belongs to (App Review): the app's pages (/app/account) name no
+  // price, so an email link sent from there comes back there, never to the priced desk. The
+  // edition rides in the link's own address (app=1, with ?tour= and ?join=), and in this
+  // browser session as a fallback; /auth/callback reads either.
+  const AUTH_EDITION_KEY = 'veylet-auth-edition';
+  const authParams = new URLSearchParams(location.search || '');
+  const appJoin = APP_MODE && authParams.get('join') === '1';
+  function authCallbackQuery() {
+    const parts = [];
+    if (APP_MODE) parts.push('app=1');
+    if (joinReturn || appJoin) parts.push('join=1');
+    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    return parts.length ? '?' + parts.join('&') : '';
+  }
+  function authEditionKeep() {
+    try { if (APP_MODE) window.sessionStorage?.setItem(AUTH_EDITION_KEY, 'app'); else window.sessionStorage?.removeItem(AUTH_EDITION_KEY); } catch { /* the link's address carries it */ }
+  }
+  function authReturnsToApp() {
+    if (authParams.get('app') === '1') return true;
+    try { return window.sessionStorage?.getItem(AUTH_EDITION_KEY) === 'app'; } catch { return false; }
+  }
+  // Where a landed email link goes: the edition it began in, keeping ?tour= and ?join=.
+  function authReturnPath() {
+    if (!authReturnsToApp()) return joinReturn ? '/join' : '/account' + tourQuery;
+    try { window.sessionStorage?.removeItem(AUTH_EDITION_KEY); } catch { /* nothing kept */ }
+    const parts = [];
+    if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    if (authParams.get('join') === '1') parts.push('join=1');
+    return '/app/account' + (parts.length ? '?' + parts.join('&') : '');
+  }
   function referredForget() {
     referredBy = null;
     try { window.sessionStorage?.removeItem(REFERRAL_KEY); } catch { /* nothing kept to clear */ }
@@ -213,11 +243,12 @@
   }
 
   async function requestLink(email, roleIntent = lastRoleIntent) {
+    authEditionKeep();
     const result = await settled(
       supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: 'https://veylet.com/auth/callback' + (joinReturn ? '?join=1' : tourQuery),
+          emailRedirectTo: 'https://veylet.com/auth/callback' + authCallbackQuery(),
           data: { role_intent: roleIntent === 'operator' ? 'operator' : 'owner' },
         },
       })
@@ -5526,11 +5557,11 @@
   // The rooms to capture again, each with its plain reason and the gate rule that named it:
   // capture_recapture_reasons (20260926110000) answers an ARRAY of {room, reason, rule?}
   // (room may be null; rule is present when the gate report names one). An older row
-  // answers one {room, reason} object, which reads as a list of one. Up to 12 rooms, each once.
+  // answers one {room, reason} object, which reads as a list of one. Up to 20 rooms (the server's cap), each once.
   const RENDER_FIX_RULES = ['ai_visual', 'coverage', 'few_views', 'floaters', 'no_depth', 'no_floor', 'no_frames', 'not_connected',
     'not_property', 'phone_budget', 'photo_match', 'upload_limits'];
   function renderRooms(value) {
-    const entries = Array.isArray(value) ? value.slice(0, 12) : value ? [value] : [];
+    const entries = Array.isArray(value) ? value.slice(0, 20) : value ? [value] : [];
     const rooms = [];
     for (const entry of entries) {
       if (!entry || typeof entry !== 'object' || typeof entry.reason !== 'string' || !entry.reason.trim() || entry.reason.length > 240) continue;
@@ -6359,12 +6390,10 @@
     }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
     setStatus('Signed in. Loading your spaces…');
+    // A landed email link returns to the edition it began in (the app's pages, or the desk).
+    if (location.pathname.startsWith('/auth/')) { location.replace(authReturnPath()); return; }
     // Back to the invite that sent this person to sign in; /join accepts it.
     if (joinReturn) { location.replace('/join'); return; }
-    if (location.pathname.startsWith('/auth/')) {
-      location.replace('/account' + tourQuery);
-      return;
-    }
     await loadDesk(supabase);
   }
 
@@ -6626,10 +6655,11 @@
   });
   signOut?.addEventListener('click', async () => {
     signOut.disabled = true;
-    const result = await settled(supabase.auth.signOut());
+    // This browser only: the global default would also sign the iPhone app out.
+    const result = await settled(supabase.auth.signOut({ scope: 'local' }));
     signOut.disabled = false;
     if (failed(result)) { setStatus('Sign-out was not confirmed. Check the connection and try again before leaving this shared device.'); return; }
-    showSignedOut('Signed out.');
+    showSignedOut('Signed out on this browser.');
   });
 })().catch(() => {
   const el = document.getElementById('account-status');

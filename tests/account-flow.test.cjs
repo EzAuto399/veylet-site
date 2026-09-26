@@ -51,7 +51,7 @@ async function load(options = {}) {
       onAuthStateChange: callback => { supabase.auth.callback = callback; },
       signInWithOtp: async input => { calls.push(['otp', input]); return options.otp ? options.otp(input) : {}; },
       verifyOtp: async input => { calls.push(['verify', input]); return options.verify ? options.verify(input) : {}; },
-      signOut: async () => { calls.push(['signOut']); return options.signOutError ? { error: { message: 'offline' } } : {}; },
+      signOut: async (args) => { calls.push(['signOut', args === undefined ? undefined : JSON.parse(JSON.stringify(args))]); return options.signOutError ? { error: { message: 'offline' } } : {}; },
     },
     from(name) {
       queries.push(name);
@@ -91,6 +91,8 @@ async function load(options = {}) {
   const redirects = [];
   const FileURL = function (...args) { return new URL(...args); }; FileURL.createObjectURL = blob => { exported.push(blob); return 'blob:records'; }; FileURL.revokeObjectURL = () => {};
   const documentStub = { hidden: false, getElementById: id => ids[id], createElement: tag => new Element(tag), addEventListener: (name, handler) => { documentEvents[name] = handler; } };
+  // `options.appMode`: the page the iPhone app opens (/app/account marks its <html> data-app-mode).
+  if (options.appMode) documentStub.documentElement = { dataset: { appMode: 'true' } };
   // Script elements the page adds (Square's Web Payments SDK). `options.sdk` decides
   // each load: 'fail' fires onerror, anything else installs `options.square`.
   const scripts = [];
@@ -555,6 +557,38 @@ test('unconfirmed code verification requires reload or its authoritative session
   verify.resolve({ data: { session: { user: { id: 'confirmed-user' } } } }); await authRender();
   assert.equal(h.ids['account-home'].hidden, false);
   assert.equal(h.ids['account-verify'].hidden, true);
+});
+test('signing out of the website signs out this browser only, never the iPhone app', async () => {
+  const h = await load();
+  await h.ids['account-sign-out'].fire('click');
+  assert.deepEqual(h.calls.filter(([name]) => name === 'signOut'), [['signOut', { scope: 'local' }]]);
+  assert.equal(h.ids['account-status'].textContent, 'Signed out on this browser.');
+});
+test('an email link sent from the app’s page returns to /app/account, keeping ?tour= and ?join=, never the priced desk', async () => {
+  const store = () => { const data = {}; return { getItem: key => (key in data ? data[key] : null), setItem: (key, value) => { data[key] = String(value); }, removeItem: key => { delete data[key]; }, data }; };
+  const session = store();
+  const app = await load({ signedOut: true, appMode: true, search: '?tour=' + requestedID, sessionStorage: session });
+  app.ids['account-sign-in'].values = { email: 'owner@example.invalid' };
+  await app.ids['account-sign-in'].fire('submit');
+  assert.equal(app.calls.find(([name]) => name === 'otp')[1].options.emailRedirectTo, 'https://veylet.com/auth/callback?app=1&tour=' + requestedID);
+  assert.equal(session.data['veylet-auth-edition'], 'app');
+  // The link opened in another browser: its own address says app.
+  const landed = await load({ pathname: '/auth/callback', search: '?code=synthetic-code&app=1&tour=' + requestedID });
+  assert.deepEqual(landed.redirects, ['/app/account?tour=' + requestedID]);
+  const joined = await load({ pathname: '/auth/callback', search: '?code=synthetic-code&app=1&join=1' });
+  assert.deepEqual(joined.redirects, ['/app/account?join=1']);
+  // An older link without app=1, opened in the same browser session: the session remembers.
+  const remembered = await load({ pathname: '/auth/callback', search: '?code=synthetic-code', sessionStorage: session });
+  assert.deepEqual(remembered.redirects, ['/app/account']);
+  assert.equal(session.data['veylet-auth-edition'], undefined, 'used once');
+  // The website's own sign-in keeps coming back to the desk, and clears a stale app marker.
+  const web = store(); web.setItem('veylet-auth-edition', 'app');
+  const desk = await load({ signedOut: true, sessionStorage: web });
+  desk.ids['account-sign-in'].values = { email: 'owner@example.invalid' };
+  await desk.ids['account-sign-in'].fire('submit');
+  assert.equal(desk.calls.find(([name]) => name === 'otp')[1].options.emailRedirectTo, 'https://veylet.com/auth/callback');
+  assert.equal(web.data['veylet-auth-edition'], undefined);
+  assert.deepEqual((await load({ pathname: '/auth/callback', search: '?code=synthetic-code' })).redirects, ['/account']);
 });
 test('an unconfirmed sign-out does not report success', async () => {
   const h = await load({ signOutError: true });
