@@ -3,7 +3,7 @@
   // A reference helps reconcile correspondence. It is not an inbox receipt,
   // account identifier or capability, and contains no contact information.
   const referencePattern = /^VY-[a-f0-9]{24}$/;
-  const routes = { managed: 'Walkthrough enquiry', partner: 'Capture partner enquiry' };
+  const routes = { managed: 'Walkthrough enquiry', partner: 'Capture enquiry' };
   const form = document.querySelector('form[data-enquiry-route]');
   if (form) {
     const route = form.dataset.enquiryRoute;
@@ -51,7 +51,7 @@
       size_and_rooms: 'Size / rooms', enquiry_as: 'Enquiring as', agency_fit: 'Agency details',
       service_area: 'Service area', device_model: 'Exact device model', experience: 'Experience',
       portfolio: 'Portfolio', os_version: 'Operating system', equipment: 'Other equipment',
-      availability: 'Availability', assessment_understood: 'Assessment acknowledged',
+      availability: 'Availability', assessment_understood: 'Enquiry acknowledged',
     };
     button.addEventListener('click', async () => {
       if (button.disabled) return;
