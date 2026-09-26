@@ -132,22 +132,53 @@
     if (help && status) help.hidden = false;
   };
 
+  let clientContext = null;
+  const viewerConfiguration = () => {
+    const cfg = window.VEYLET_SUPABASE || {};
+    const headers = window.VeyletPublicRPC?.headers?.(cfg.anonKey);
+    if (!headers || typeof cfg.url !== 'string' || !cfg.url || cfg.url.length > 2048 || /\s|[?#]/.test(cfg.url)) return null;
+    try {
+      const url = new URL(cfg.url);
+      if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/') return null;
+      return { url: url.origin, key: cfg.anonKey, headers };
+    } catch { return null; }
+  };
+
   player.clientFor = (options) => {
-    if (player.client) return player.client;
+    // Validate before cache reuse too: a changed project or auth mode must not
+    // inherit another viewer's client/session. A fresh page or release is needed.
+    const cfg = viewerConfiguration();
+    if (!cfg) return null;
+    const auth = { ...(options || {}) };
+    if (player.client) {
+      return clientContext && clientContext.url === cfg.url && clientContext.key === cfg.key
+        && Object.keys(auth).length === Object.keys(clientContext.auth).length
+        && Object.keys(auth).every(key => auth[key] === clientContext.auth[key]) ? player.client : null;
+    }
     if (typeof window.supabase === 'undefined' || !window.supabase.createClient) {
       return null;
     }
-    const cfg = window.VEYLET_SUPABASE || {};
-    if (!cfg.url || !cfg.anonKey) return null;
-    player.client = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: options || {} });
+    const viewerFetch = async (input, init = {}) => {
+      const current = viewerConfiguration();
+      if (!current || current.url !== cfg.url || current.key !== cfg.key) throw new Error('viewer-configuration-changed');
+      const headers = new Headers(init.headers || input?.headers);
+      // Pinned SDK 2.116.0 adds its API key as Bearer on REST/storage calls.
+      // Remove only that publishable-key fallback; owner session JWTs survive.
+      if (!cfg.headers.Authorization && headers.get('Authorization') === 'Bearer ' + cfg.key) headers.delete('Authorization');
+      return window.fetch(input, { ...init, headers });
+    };
+    player.client = window.supabase.createClient(cfg.url, cfg.key, { auth, global: { fetch: viewerFetch } });
+    clientContext = { url: cfg.url, key: cfg.key, auth };
     return player.client;
   };
 
   /** Drop any cached client so a later page cannot inherit this page's session. */
   player.releaseClient = async () => {
-    if (!player.client) return;
+    const client = player.client;
+    clientContext = null;
+    if (!client) return;
     try {
-      await player.client.auth.signOut({ scope: 'local' });
+      await client.auth.signOut({ scope: 'local' });
     } catch {
       /* the client is discarded either way */
     }
@@ -279,6 +310,10 @@
     }
 
     player.showProgress(surface, 'Opening the walkthrough service…');
+    if (!viewerConfiguration()) {
+      player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
+      return;
+    }
     try {
       if (!window.supabase?.createClient) await player.loadScript('/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd');
     } catch {

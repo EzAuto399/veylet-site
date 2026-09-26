@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const playerSource = fs.readFileSync(path.join(__dirname, '../dist/tour-player.js'), 'utf8');
+const helperSource = fs.readFileSync(path.join(__dirname, '../dist/public-rpc.js'), 'utf8');
 const markup = fs.readFileSync(path.join(__dirname, '../dist/play/index.html'), 'utf8');
 const source = markup.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
 async function load(options = {}) {
@@ -16,14 +17,15 @@ async function load(options = {}) {
     rpc: async (name, args) => { calls.push([name, args]); return options.target || { data: [{ tour_id: 't1', storage_path: 'private/original.zip', package_revision: revision }] }; },
     storage: { from: () => ({ download: async storagePath => { calls.push(['download', storagePath]); return { error: { message: 'Stop fixture after download boundary' } }; } }) },
   };
-  const window = { VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'fixture' }, supabase: { createClient: () => client }, addEventListener() {} };
+  const window = { VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'sb_publishable_synthetic_viewer' }, supabase: { createClient: () => client }, addEventListener() {} };
   // Every link in the page, as the script sees them (href attribute only).
   const links = [...markup.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<a\b[^>]*\bhref="([^"]+)"[^>]*>/g)].map(match => {
     const attributes = { href: match[1] };
     return { getAttribute: name => attributes[name] ?? null, setAttribute: (name, value) => { attributes[name] = String(value); } };
   });
   const context = { window, document: { getElementById: id => ids[id], querySelector: () => null, querySelectorAll: selector => (selector === 'a[href]' ? links : []) },
-    navigator: { onLine: true, userAgent: options.userAgent || '' }, location: { search: options.search ?? '?id=t1&review_revision=' + revision }, URLSearchParams, setTimeout, clearTimeout };
+    navigator: { onLine: true, userAgent: options.userAgent || '' }, location: { search: options.search ?? '?id=t1&review_revision=' + revision }, URL, atob, URLSearchParams, setTimeout, clearTimeout };
+  vm.runInNewContext(helperSource, context);
   vm.runInNewContext(playerSource, context);
   const boot = window.VeyletPlayer.boot; let done;
   window.VeyletPlayer.boot = options => (done = boot(options));

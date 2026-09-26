@@ -6,6 +6,11 @@ const vm = require('node:vm');
 const { createDocument } = require('./fake-dom.cjs');
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
 const playerSource = read('tour-player-v2.js');
+function loadPagePlayer(context) {
+  Object.assign(context, { URL, atob });
+  vm.runInNewContext(read('public-rpc.js'), context);
+  vm.runInNewContext(read('tour-player.js'), context);
+}
 
 // The package shape package_tour.mjs --format v2 writes (numbers from the owner's practice room).
 function manifest(overrides = {}) {
@@ -322,14 +327,14 @@ test('a version 1 export, or a missing package, never starts the v2 player', asy
 function surfaceHarness() {
   const calls = [];
   const window = {
-    VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public-test-key' },
+    VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'sb_publishable_synthetic_viewer' },
     supabase: { createClient: () => ({ storage: { from: () => ({ download: async () => { calls.push('storage.download'); return { data: { size: 1 } }; } }) } }) },
     addEventListener() {}, removeEventListener() {},
   };
   const document = { hidden: false, addEventListener() {}, removeEventListener() {}, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; },
     createElement: () => ({ set src(value) { calls.push('script:' + value); setImmediate(() => { window.VeyletPlayerV2 = { start: async (stage, options) => { calls.push('v2.start:' + options.base); options.onVisible(); return { readiness: 'viewer-ready' }; } }; this.onload(); }); } }),
     head: { append() {} } };
-  vm.runInNewContext(read('tour-player.js'), { window, document, performance, setTimeout, clearTimeout, AbortController, navigator: { onLine: true }, location: { reload() {} } });
+  loadPagePlayer({ window, document, performance, setTimeout, clearTimeout, AbortController, navigator: { onLine: true }, location: { reload() {} } });
   return { player: window.VeyletPlayer, calls, window };
 }
 
@@ -524,11 +529,11 @@ test('Save-Data: the coarsest level stays, with no automatic upgrade, until the 
 test('the page glue asks for Explore first only when framed and not yet pressed', async () => {
   for (const [top, active, expected] of [['other', false, true], ['other', true, false], ['self', false, false]]) {
     const calls = [];
-    const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'k' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
+    const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'sb_publishable_synthetic_viewer' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
       VeyletPlayerV2: { start: async (stage, options) => { calls.push(options.waitForTap); return { readiness: 'viewer-ready' }; } } };
     window.self = window; window.top = top === 'self' ? window : {};
     const document = { hidden: false, addEventListener() {}, removeEventListener() {}, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, head: { append() {} } };
-    vm.runInNewContext(read('tour-player.js'), { window, document, performance, setTimeout, clearTimeout, AbortController, navigator: { onLine: true, userActivation: { hasBeenActive: active } }, location: { reload() {} } });
+    loadPagePlayer({ window, document, performance, setTimeout, clearTimeout, AbortController, navigator: { onLine: true, userActivation: { hasBeenActive: active } }, location: { reload() {} } });
     await window.VeyletPlayer.boot({ els: { title: {}, body: {}, status: {}, frame: { hidden: true }, stage: { hidden: true } }, resolve: async () => ({ packageFormatVersion: 2, packageBaseUrl: 'https://tours.veylet.com/t/a/', title: 'S' }) });
     assert.deepEqual(calls, [expected], `${top} ${active}`);
   }
@@ -681,11 +686,11 @@ test('a slow first load keeps the poster and offers Keep waiting or Try again; t
   // The page glue: a streamed walkthrough gets no outer deadline that would tear the poster down.
   const page = manualTimers();
   let startOptions = null;
-  const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'k' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
+  const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'sb_publishable_synthetic_viewer' }, supabase: { createClient: () => ({}) }, addEventListener() {}, removeEventListener() {},
     VeyletPlayerV2: { start: (stage, options) => { startOptions = options; return new Promise(() => {}); } } };
   window.self = window; window.top = window;
   const document = { hidden: false, addEventListener() {}, removeEventListener() {}, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, head: { append() {} } };
-  vm.runInNewContext(read('tour-player.js'), { window, document, performance, setTimeout: page.setTimeout, clearTimeout: page.clearTimeout, AbortController, navigator: { onLine: true }, location: { reload() {} } });
+  loadPagePlayer({ window, document, performance, setTimeout: page.setTimeout, clearTimeout: page.clearTimeout, AbortController, navigator: { onLine: true }, location: { reload() {} } });
   const status = {};
   window.VeyletPlayer.boot({ els: { title: {}, body: {}, status, frame: { hidden: true }, stage: { hidden: true } }, resolve: async () => ({ packageFormatVersion: 2, packageBaseUrl: 'https://tours.veylet.com/t/a/', title: 'S' }) });
   for (let i = 0; i < 12; i++) await tick();

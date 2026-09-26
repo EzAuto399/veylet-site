@@ -3,11 +3,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../dist/tour-player.js'), 'utf8');
+const helperSource = fs.readFileSync(require('node:path').join(__dirname, '../dist/public-rpc.js'), 'utf8');
 function load(options = {}) {
   const calls = [];
   const handlers = new Map();
   const window = {
-    VEYLET_SUPABASE: {url:'https://example.invalid',anonKey:'public-test-key'},
+    VEYLET_SUPABASE: {url:'https://example.invalid',anonKey:'sb_publishable_synthetic_viewer'},
     supabase: {createClient(...args) {calls.push(args);return {};}},
     addEventListener(name, fn) { handlers.set(name, fn); },
     removeEventListener(name) { handlers.delete(name); },
@@ -24,8 +25,9 @@ function load(options = {}) {
       return selector === '[data-tour-dead-end]' ? (options.deadEnds || []) : [];
     },
   };
-  const context = {window, document, performance, setTimeout, clearTimeout, AbortController,
+  const context = {window, document, URL, atob, performance, setTimeout, clearTimeout, AbortController,
     navigator: {onLine:true}, ...options.clock?.context};
+  vm.runInNewContext(helperSource, context);
   vm.runInNewContext(source, context);
   return {player:window.VeyletPlayer,window,calls,document,visibility};
 }
