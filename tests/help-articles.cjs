@@ -31,6 +31,9 @@ const SUPPORT = 'yoda@yodalai.xyz';
 const RECAPTURE_RULES = ['no_frames', 'no_depth', 'upload_limits', 'phone_budget', 'not_property'];
 const FLAG_RULES = ['photo_match', 'coverage', 'few_views', 'floaters', 'no_floor', 'not_connected', 'ai_visual'];
 const FLAG_ARTICLE = 'fix/worth-a-look';
+// The one tick before Approve and share, word for word: dist/account.js RIGHT_TO_SHARE and the app's
+// HostedReviewChecks.rightToShare (local-pipeline/ios/Sources/Core/HostedReview.swift).
+const RIGHT_TO_SHARE = 'I have the right to share this walkthrough.';
 
 const GROUPS = [
   { id: 'getting-started', title: 'Getting started', summary: 'The device you need, signing in, and the practice room.' },
@@ -158,8 +161,8 @@ const ARTICLES = [
   },
   {
     slug: 'whole-home', group: 'capturing', title: 'A whole home, room by room', short: 'Whole home',
-    description: 'Capture a whole home one room at a time: create the listing, name each room at its doorway, and finish with the phone check.',
-    lead: 'A whole home is captured one room at a time in one capture. It takes about 3 minutes a room.',
+    description: 'Capture a home one room at a time: create the listing, name each room at its doorway, and start another capture when one is full.',
+    lead: 'A home is captured one room at a time, about 3 minutes a room. The app shows how many rooms fit in one capture. Each capture is one walkthrough, with one link and one QR code.',
     body: [{ steps: [
       'Create a new listing. Give it a name you will recognise, not the full address, and choose the whole home.',
       'Start in the first room and capture it as usual: see [walk a room](help:walk-a-room).',
@@ -168,7 +171,7 @@ const ARTICLES = [
       'After the last room, tap **Finish & save**. The phone check looks at every room.',
     ] }],
     notWorking: [
-      'A capture holds up to 300 views. If it reaches the limit or its room limit, finish it and capture the other rooms as a new capture.',
+      'A capture holds up to 300 views, about 3 rooms. When it is full, finish it and capture the other rooms as a new capture. The new capture is its own walkthrough with its own link.',
       'If a home is too big for one walkthrough, it may come back as [too large for a phone](help:fix/phone_budget). Split it into two captures.',
       'If a room comes back as **Needs recapture** after rendering, tap **Recapture** and the room’s name. The capture starts in that room.',
     ],
@@ -351,28 +354,29 @@ const ARTICLES = [
 
   // ---- Reviewing and sharing ------------------------------------------------------------------
   {
-    slug: 'approve-and-share', group: 'sharing', title: 'Approve and share: the seven checks', short: 'Approve and share',
-    description: 'How to review a ready walkthrough on your phone, the five checks and two permissions, and what one press of Approve and share does.',
-    lead: 'When a walkthrough is **Ready for your review**, you walk it on your phone, tick seven checks and press **Approve and share** once. Nothing is shared before that.',
+    slug: 'approve-and-share', group: 'sharing', title: 'Approve and share', short: 'Approve and share',
+    description: 'How to review a ready walkthrough on your phone, the one box you tick, and what one press of Approve and share does.',
+    lead: 'When a walkthrough is **Ready for your review**, you walk it on your phone, tick one box and press **Approve and share** once. Nothing is shared before that.',
     body: [{ steps: [
       'Tap the **Ready for your review** notification, or open the listing and tap **Review walkthrough**.',
-      'Walk through every room on your phone. Read any areas listed as [worth a look](help:fix/worth-a-look) and check them.',
-      'Tick each check that is true (see the list below). Leave one off if something needs fixing.',
-      'Press **Approve and share** and confirm. Anyone with the link can open it and forward it. It stays online while your plan is active.',
+      'Walk through every room on your phone. If the review lists areas under **Worth a look before you share**, walk to each one: see [worth a look](help:fix/worth-a-look). They are advice and never stop you approving.',
+      `Tick the one box: “${RIGHT_TO_SHARE}”`,
+      'Press **Approve and share**. Anyone with the link can open it and forward it. It stays online while your plan is active.',
       'The listing now reads **Live**. Share it: see [share your walkthrough](help:share-your-walkthrough).',
-    ] }, { title: 'The seven checks', terms: [
-      ['Coverage', 'Every included room and required surface is present.'],
-      ['Alignment', 'Walls, furniture and edges stay aligned while turning.'],
-      ['Navigation', 'Viewpoints and movement do not cross walls or expose broken areas.'],
-      ['Privacy', 'People, documents, screens and excluded areas have been checked.'],
-      ['Phone', 'This exact tour has been checked on a physical phone.'],
-      ['Capture permission', 'I have the property’s permission for this capture.'],
-      ['Permission to publish', 'I have permission to publish and share this exact tour.'],
+    ] }, { title: 'A walk-through checklist (optional)', list: [
+      'Every room you meant to include is there, with its floor and walls.',
+      'Walls, furniture and edges stay straight as you turn.',
+      'You can walk from room to room without passing through a wall.',
+      'No people, photos, documents or screens show that should not be seen.',
+      'It opens and moves smoothly on your phone.',
+    ] }, { paras: [
+      'The checklist is a suggestion; nothing records it. The box you tick is your confirmation that you may share this walkthrough, which needs permission to capture the home and to publish it (see [privacy and permission](help:privacy-and-consent)).',
     ] }],
     notWorking: [
-      'The button stays off until all seven checks are ticked.',
+      'The button stays off until that one box is ticked.',
+      'If something needs fixing, don’t approve. Recapture the rooms that need it: a recapture replaces the walkthrough on the same link and uses no walkthrough.',
       '**Approved. Sharing waits for** a reason: the card names the one fix, such as someone with sharing permission. Your approval is kept.',
-      'You can also review in [your Veylet account](account) on a computer, with the same checks.',
+      'You can also review in [your Veylet account](account) on a computer, with the same one box.',
     ],
   },
   {
@@ -386,7 +390,8 @@ const ARTICLES = [
       ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
-      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM, and make listing videos for realestate.com.au and social media. Listing videos and stills are included in your plan, and files you download are yours to keep.',
+      'While your plan is active, use the link anywhere: embed it on any website, and add the listing URL to portals and your CRM.',
+      'You can also make listing videos for realestate.com.au and social media once video exports open: listing videos and stills are included in your plan, and files you download are yours to keep.',
     ] }],
     notWorking: [
       'Listing portals do not accept the embed code. Use the listing URL there instead.',
@@ -459,8 +464,8 @@ const ARTICLES = [
       'Before you capture, ask people and pets to leave the room, and check mirrors for reflections of anyone, including you.',
       'Put away documents, mail, photos, keys, medicines and valuables, and turn off screens.',
       'Get permission from whoever controls the home. If someone lives in it, such as a tenant, get the occupants’ agreement as well as the owner’s.',
-      'Before sharing, walk the whole walkthrough and tick the privacy check: people, documents, screens and excluded areas have been checked.',
-      'Approve only with both permissions: to capture the home, and to publish and share this exact walkthrough.',
+      'Before you approve, walk the whole walkthrough and look for people, photos, documents and screens. Nothing checks this for you.',
+      `Approve only when you have permission to capture the home and to publish this exact walkthrough. The box you tick before **Approve and share**, “${RIGHT_TO_SHARE}”, confirms both.`,
     ] }, { paras: [
       'Veylet cannot give legal advice. The rules for rented homes and personal information depend on your state and your agency, so check with your agency or a legal adviser. How Veylet handles captures and your details is in the [privacy notice](privacy).',
     ] }],
@@ -480,8 +485,8 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
-      'One walkthrough covers up to 8 rooms of one property, counted automatically from your capture; each further 8 rooms uses one more. Every property gets one link and one QR code. A correction of the same walkthrough, or a recapture of the rooms the quality check names, uses none.',
-      'Listing videos and stills are included in your plan. Files you already downloaded are yours to keep.',
+      'Each capture is one walkthrough, with one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a recapture of the rooms the quality check names, replaces it on the same link and uses none.',
+      'Listing videos and stills are included in your plan once video exports open. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {
       // Offer 2026-09-26.2: the hosting extension is sold on request from the website only; the app's edition never

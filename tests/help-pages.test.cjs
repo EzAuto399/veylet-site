@@ -213,3 +213,15 @@ test('the status article uses the desk’s exact status words, and no page says 
     assert.doesNotMatch(words, /A\$|\$\d|\bpric(e|ing)\b|super[\s-]*fast|\bexpress\b/i, page.file);
   }
 });
+
+test('approve and share is one tick, quoted word for word from the desk and the app; no page says "seven checks"', () => {
+  // IOS_JOURNEY-23: dist/account.js RIGHT_TO_SHARE and HostedReviewChecks.rightToShare in the app.
+  const tick = fs.readFileSync(path.join(DIST, 'account.js'), 'utf8').match(/const RIGHT_TO_SHARE = '([^']+)';/)[1];
+  const article = articles.filter(page => page.slug === 'approve-and-share');
+  assert.equal(article.length, 2, 'the public and the app edition');
+  for (const page of article) {
+    assert.ok(text(main(page.html)).includes(`“${tick}”`), page.file + ' quotes the tick');
+    assert.match(text(main(page.html)), /The button stays off until that one box is ticked\./, page.file);
+  }
+  for (const page of pages) assert.doesNotMatch(page.html, /seven checks|all seven/i, page.file);
+});

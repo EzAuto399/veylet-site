@@ -96,7 +96,8 @@
           "stills"
         ],
         "price": "included in the plan; not sold separately",
-        "ownership": "downloaded files stay the customer's, also after the plan ends"
+        "ownership": "downloaded files stay the customer's, also after the plan ends",
+        "status": "not open yet: video exports are included in the plan once they open"
       },
       "rollover": {
         "enabled": true,
@@ -172,8 +173,8 @@
     "unitsPerAcceptedWalkthrough": 1,
     "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 6 in total",
     "annualAllowanceIsYearlyPool": true,
-    "walkthroughsPerProperty": "max(1, ceil(rooms / 8)); see walkthroughScope",
-    "roomsRule": "counted automatically from the rooms captured at one property; a correction of the same walkthrough and a recapture of named rooms use none"
+    "walkthroughsPerCapture": "max(1, ceil(rooms / 8)); see walkthroughScope",
+    "roomsRule": "counted automatically from the rooms in one capture; a correction of the same walkthrough and a recapture of named rooms use none"
   },
   "devices": [
     "iPhone 12 Pro and later Pro or Pro Max models",
@@ -240,7 +241,7 @@
     "expires": "12 months after purchase; unused walkthroughs are not refunded after that",
     "channels": {
       "web": "Square card on /account (Sandbox until the card lane opens) or studio invoice",
-      "app": "in-app purchase arrives in a later app version"
+      "app": "never sold in the app"
     },
     "unit": "one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none"
   },
@@ -260,13 +261,14 @@
     "rule": "when a referred office becomes a paying account, both offices get 1 bonus walkthrough; the referrer shares their own link"
   },
   "walkthroughScope": {
-    "unit": "one property: one link and one QR code, counted by the rooms captured",
+    "unit": "one capture: one walkthrough with one link and one QR code, counted by the rooms captured",
     "roomsPerWalkthrough": 8,
-    "rule": "up to 8 rooms uses 1 walkthrough; each further 8 rooms uses 1 more",
+    "rule": "each capture is counted by its rooms: up to 8 rooms uses 1 walkthrough, each further 8 rooms 1 more; the app shows how many rooms fit in one capture (about 3 today), so a capture uses 1",
     "walkthroughs": "max(1, ceil(rooms / 8))",
     "countedBy": "the app counts the rooms captured; nothing is declared",
+    "severalCaptures": "a home with more rooms than fit in one capture takes more captures; each is its own walkthrough with its own link",
     "usesNone": "a correction of the same walkthrough, and a recapture of rooms the quality check names",
-    "linkPerProperty": "one link and one QR code per property, however many walkthroughs its rooms use",
+    "link": "one link and one QR code per capture; a correction or a recapture of named rooms keeps the same link",
     "status": "offer terms from 2026-09-26.3; the database and app still count by the 2026-09-25.1 whole-home rule until release 2; the terms still need legal review"
   },
   "expressRender": {
@@ -275,7 +277,7 @@
     "appStore": false,
     "promise": "rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically",
     "dailyCap": null,
-    "refund": "if it isn't ready for review within 30 minutes of the upload finishing, the A$29 is refunded automatically (a used credit is returned)",
+    "refund": "if it isn't ready for review within 30 minutes of the upload finishing or the purchase, whichever is later, the A$29 is refunded automatically (a used credit is returned)",
     "channels": [
       "web"
     ],
@@ -300,7 +302,7 @@
   "processing": {
     "automatic": true,
     "turnaround": "usually within 1–2 hours of the upload finishing; no person checks it",
-    "qualityGate": "an automatic quality check (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms",
+    "qualityGate": "an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving",
     "approval": "the account reviews and approves before sharing"
   },
   "retiredTerms": {
@@ -328,7 +330,8 @@
       "version": "2026-09-26.2",
       "replacedBy": "2026-09-26.3",
       "on": "2026-09-26",
-      "change": "owner decisions 26 September 2026 (offer v9.1): a walkthrough is counted by rooms: one link and QR code per property, up to 8 rooms uses 1 walkthrough and each further 8 rooms 1 more, counted by the app (was: a home with 5 or more bedrooms, a second dwelling or more than 350 m² counts as 2, declared at the listing); Super fast is sold only while fast GPUs start quickly in Sydney, refund promise unchanged for orders taken; open to anyone (agents, property managers, freelancers) with no separate tier; a fair-use cap of 12 render attempts during the free months, including retries; prices, allowances, packs, the redo, hosting and the A$49 extension unchanged"
+      "change": "owner decisions 26 September 2026 (offer v9.1): a walkthrough is counted by rooms: one link and QR code per property, up to 8 rooms uses 1 walkthrough and each further 8 rooms 1 more, counted by the app (was: a home with 5 or more bedrooms, a second dwelling or more than 350 m² counts as 2, declared at the listing); Super fast is sold only while fast GPUs start quickly in Sydney, refund promise unchanged for orders taken; open to anyone (agents, property managers, freelancers) with no separate tier; a fair-use cap of 12 render attempts during the free months, including retries; prices, allowances, packs, the redo, hosting and the A$49 extension unchanged",
+      "restated": "27 September 2026, owner decision, version unchanged: one walkthrough = one capture = one link and QR code (not one link per property); the rooms rule counts each capture; descriptive text only, no amount or product changed"
     }
   ]
 }

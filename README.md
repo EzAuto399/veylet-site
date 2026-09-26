@@ -19,6 +19,6 @@ Open `http://127.0.0.1:8904/` for the site. See [`tests/README.md`](tests/README
 
 ## Release boundary
 
-The site is deployed from a reviewed, frozen selection of public `dist/` files and `vercel.json`. A Git commit or push does not establish that those bytes are live. Before a release, reconcile the public offer and terms with the backend and app, review the exact upload list, and verify the deployed bytes and routes afterward.
+A push to `main` deploys to production: Vercel builds `main` automatically. Push to `main` only for an approved release. A push alone does not prove what is live, so verify the deployed bytes and routes afterward. Before a release, reconcile the public offer and terms with the backend and app, and review the exact upload list.
 
 Keep client captures, tour packages, credentials, logs, and internal planning out of this repository and deployment input. The site build serves public files from `dist/`; local QA packages are supplied to the fixture server by explicit path and are not copied into `dist/`. Product decisions, strategy history, and release evidence are maintained in the private product workspace.
