@@ -39,8 +39,8 @@
     },
     "renderAttemptCap": 12,
     "fairUse": {
-      "text": "up to 12 render attempts during the free months, excluding Veylet-side failures and retries",
-      "counts": "render attempts and normal recaptures during the free months count; Veylet-side failures and retries do not; the 6 included walkthroughs are unchanged",
+      "text": "up to 12 render attempts during the free months; attempts that fail because of Veylet do not count",
+      "counts": "render attempts, including normal recaptures and automatic retries, count; attempts that fail because of Veylet are excluded; the 6 included walkthroughs are unchanged",
       "kind": "fair-use line in the terms; an internal cap, not a sold allowance",
       "status": "offer term from 2026-09-26.3; server enforcement is not yet released",
       "cap": "freeMonths.renderAttemptCap"

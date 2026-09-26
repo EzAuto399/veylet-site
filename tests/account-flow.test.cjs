@@ -1732,7 +1732,7 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.equal(link.value, share.handoffUrl(TOKEN) + '&src=link');
   assert.equal(link.readOnly, true);
   assert.ok(byText(h, 'Copy link'));
-  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN));
+  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN) + '&src=owner');
   assert.ok(byText(h, 'Add to your website'));
   assert.deepEqual(radios(h).map(el => el.value), ['wordpress', 'squarespace', 'wix', 'webflow', 'other']);
   assert.deepEqual(radios(h).filter(el => el.checked).map(el => el.value), ['wordpress']);
@@ -4287,4 +4287,13 @@ test('website checkout records assent only on its confirm press with an active w
   await pressTrial(h, 'Start free months'); await settle();
   const calls = h.calls.filter(([name]) => name === 'record_terms_acceptance');
   assert.deepEqual(calls.map(([,args]) => ({ ...args })), [{ p_workspace_id: workspace, p_terms_version: '2026-09-25', p_surface: 'website_checkout' }]);
+});
+
+
+test('an already live capture handoff does not ask the owner to approve it again', async () => {
+  const h=await load({tours:[{...tour,id:requestedID,share_token:TOKEN}],search:'?tour='+requestedID,approved:true});
+  const selected=h.all().find(el=>el.id==='requested-tour');
+  assert.ok(selected);
+  assert.doesNotMatch(selected.all().map(el=>el.textContent).join(' '),/Review this walkthrough, then approve and share it/);
+  assert.ok(selected.all().some(el=>el.textContent==='Copy link'));
 });

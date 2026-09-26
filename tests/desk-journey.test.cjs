@@ -523,7 +523,7 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   const h = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released()], share: async () => {} });
   const card = h.card('t1');
   assert.deepEqual(filled(card), ['Share']);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF);
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&src=owner');
   assert.ok(byText(card, 'Copy link'));
   assert.equal(byText(card, 'Open as a visitor'), undefined);
   await byText(card, 'Share').fire('click');
@@ -969,7 +969,7 @@ test('Copy listing URL gives portals and CRMs the unbranded /tour address, tagge
   assert.equal(code.replace(/&src=embed/g, ''), h.window.VeyletSharing.embedCode(TOKEN));
   // The link field and Open as your client.
   assert.equal(card.all().find(el => el.tagName === 'INPUT' && el.className === 'copy-field').value, LINK);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF, 'the agent’s own look is untagged');
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&src=owner', 'the agent’s own look is tagged as owner metadata');
 });
 
 test('views: opens with the last day and the Call and Email taps, under the state line; hidden while the backend has none', async () => {

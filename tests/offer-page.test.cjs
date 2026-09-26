@@ -1139,10 +1139,10 @@ test('owner decisions of 26 September 2026 on /offer: send from the app, one mai
 });
 
 
-test('unpublished free-month fair use excludes platform failures and retries without changing the cap or offer version', () => {
+test('unpublished free-month fair use excludes platform failures without changing the cap or offer version', () => {
   const record=JSON.parse(read('offer/offer.json'));
   assert.equal(record.version,'2026-09-26.3');
   assert.equal(record.freeMonths.renderAttemptCap,12);
-  assert.match(record.freeMonths.fairUse.text,/excluding Veylet-side failures and retries/);
-  assert.match(record.freeMonths.fairUse.counts,/normal recaptures.*count; Veylet-side failures and retries do not/);
+  assert.match(record.freeMonths.fairUse.text,/attempts that fail because of Veylet do not count/);
+  assert.match(record.freeMonths.fairUse.counts,/render attempts, including normal recaptures and automatic retries, count; attempts that fail because of Veylet are excluded/);
 });

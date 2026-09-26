@@ -31,7 +31,7 @@ test('the canonical offer is 2026-09-26.3 and separates payment channels and una
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, 12);
-  assert.equal(record.freeMonths.fairUse.text, 'up to 12 render attempts during the free months, including retries');
+  assert.equal(record.freeMonths.fairUse.text, 'up to 12 render attempts during the free months; attempts that fail because of Veylet do not count');
   assert.equal(record.freeMonths.fairUse.cap, 'freeMonths.renderAttemptCap');
   assert.match(record.freeMonths.fairUse.kind, /^fair-use line in the terms; an internal cap, not a sold allowance$/);
   assert.equal(record.expressRender.availability, 'only while fast GPUs start quickly');

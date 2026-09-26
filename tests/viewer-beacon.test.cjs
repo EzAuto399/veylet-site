@@ -397,3 +397,19 @@ test('the QA fixture records record_tour_view from the beacon’s own POST and a
   assert.equal((await load('?pause=missing').supabase.createClient().rpc('pause_tour_share', { p_tour_id: 'x' })).error.code, 'PGRST202');
   assert.match(source, /`\?pause=paused` starts the live walkthrough on \/__qa\/account\/ paused/);
 });
+
+
+test('owner preview metadata reaches SQL without bypassing normal share lookup or changing public channels', async () => {
+  const owner=handoffPage({search:'?t='+TOKEN+'&src=owner'});
+  assert.equal(owner.net.sent.length,0);
+  await owner.bootOptions.resolve(client()); await settle();
+  assert.deepEqual(owner.net.sent[0].body,{p_token:TOKEN,p_kind:'open',p_src:'owner',p_host:null,p_detail:null});
+  const off=handoffPage({search:'?t='+TOKEN+'&src=owner'});
+  await off.bootOptions.resolve(client({data:[]})).catch(()=>{}); await settle();
+  assert.equal(off.net.sent.length,0,'owner is metadata only: unavailable shares remain unavailable');
+  const page=loadModule(),net=recorder();
+  page.viewBeacon({config:CONFIG,token:TOKEN,src:'owner',fetch:net.fetch}).send('first_frame',2);
+  assert.equal(net.sent[0].body.p_src,'owner');
+  assert.equal(net.sent[0].body.p_kind,'first_frame');
+  for(const src of ['link','qr','embed','video','portal','unknown']) assert.equal(page.channelFrom('?src='+src,'unknown'),src);
+});

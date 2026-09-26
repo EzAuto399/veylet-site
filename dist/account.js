@@ -821,7 +821,7 @@
   function liveSharing(tour, item, title) {
     const share = window.VeyletSharing;
     const page = share.handoffUrl(tour.share_token);
-    // What the agent hands out carries its channel; Open as your client is the page itself.
+    // Handouts keep their channel; the owner preview carries only an untrusted telemetry tag.
     const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
@@ -854,7 +854,7 @@
       actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
     actions.append(copyListing);
-    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
+    const open = document.createElement('a'); open.className = 'tour-action'; open.href = tagged(page, 'owner'); open.textContent = 'Open as your client';
     actions.append(open);
     // The link and what you do with it share one row where there is room.
     const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
@@ -6874,7 +6874,7 @@
           item.id = 'requested-tour'; item.tabIndex = -1;
           item.setAttribute('aria-label', 'Walkthrough opened from your capture');
           message(item, current ? 'A newer version of this walkthrough replaced the one in your link. This is the current version.'
-            : 'Opened from your capture. Review this walkthrough, then approve and share it.');
+            : 'Opened from your capture.');
         }
         const reviewRole = ['owner', 'reviewer'].includes(roles.get(row.workspace_id));
         if (tour.storage_path && tour.status === 'ready' && !reviewRole) tourPreview(tour, item);

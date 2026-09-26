@@ -119,7 +119,8 @@
   const VIEW_FUNCTION = 'record_tour_view';
   const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell'];
   const VIEW_ONCE = ['open', 'first_frame', 'dwell'];
-  const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown'];
+  // Release-2 1300 excludes future owner-preview events. This tag never grants access.
+  const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown', 'owner'];
   const DWELL_CAP_SECONDS = 3600;
   // The player marks its first 3D frame with performance.mark('veylet:first-3d').
   const FIRST_FRAME_MARK = 'veylet:first-3d';
