@@ -310,7 +310,7 @@ test('the website guide sends portals the listing URL, not the client link', () 
 });
 
 test('an unsubscribe link asks before it acts: nothing is sent until Confirm unsubscribe is pressed', async () => {
-  const script = read('unsubscribe.js');
+  const script = (read('public-rpc.js') + '\n' + read('unsubscribe.js'));
   const TOKEN = 'b2'.repeat(32);
   const elements = {};
   const el = (id, hidden = false) => (elements[id] = { hidden, disabled: false, textContent: '', attributes: {}, listeners: [],

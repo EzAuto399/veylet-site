@@ -63,13 +63,11 @@
 
   async function join(fetchImpl, config, answers) {
     try {
+      var headers = window.VeyletPublicRPC?.headers(config.anonKey);
+      if (!headers) return 'error';
       var response = await fetchImpl(config.url + '/rest/v1/rpc/join_waitlist', {
         method: 'POST',
-        headers: {
-          apikey: config.anonKey,
-          Authorization: 'Bearer ' + config.anonKey,
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(answers),
         credentials: 'omit',
         referrerPolicy: 'no-referrer',

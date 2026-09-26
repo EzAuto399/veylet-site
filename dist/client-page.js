@@ -78,14 +78,15 @@
   function restClient(config, fetchImpl) {
     const cfg = config || {};
     const request = fetchImpl || (typeof fetch === 'function' ? fetch : null);
-    if (!cfg.url || !cfg.anonKey || !request) return null;
+    const headers = window.VeyletPublicRPC?.headers(cfg.anonKey);
+    if (!cfg.url || !headers || !request) return null;
     const base = String(cfg.url).replace(/\/+$/, '');
     return {
       async rpc(name, args) {
         try {
           const response = await request(base + '/rest/v1/rpc/' + encodeURIComponent(name), {
             method: 'POST',
-            headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+            headers: { ...headers, Accept: 'application/json' },
             body: JSON.stringify(args || {}),
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
@@ -150,7 +151,8 @@
     const clock = typeof options.now === 'function' ? options.now : () => Date.now();
     const src = VIEW_SOURCES.includes(options.src) ? options.src : 'unknown';
     const host = typeof options.host === 'string' && options.host ? options.host : null;
-    let off = !cfg.url || !cfg.anonKey || !request || typeof token !== 'string' || token.length < 16;
+    const headers = window.VeyletPublicRPC?.headers(cfg.anonKey);
+    let off = !cfg.url || !headers || !request || typeof token !== 'string' || token.length < 16;
     const endpoint = off ? '' : String(cfg.url).replace(/\/+$/, '') + '/rest/v1/rpc/' + VIEW_FUNCTION;
     const said = new Set();
     let openedAt = null, openedMark = null;
@@ -165,7 +167,7 @@
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
           cache: 'no-store',
-          headers: { apikey: cfg.anonKey, Authorization: 'Bearer ' + cfg.anonKey, 'Content-Type': 'application/json' },
+          headers: headers,
           body: JSON.stringify({ p_token: token, p_kind: kind, p_src: src, p_host: host, p_detail: detail === undefined ? null : detail }),
         });
         Promise.resolve(pending).then(async response => {

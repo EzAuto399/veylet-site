@@ -8,7 +8,7 @@ const { createDocument } = require('./fake-dom.cjs');
 // The client's page (/handoff) and the embed invitation (journey D4, §5.2):
 // the agent card, Share, the buyer's words and the missing-function rule.
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
-const clientSource = read('client-page.js');
+const clientSource = (read('public-rpc.js') + '\n' + read('client-page.js'));
 const handoff = read('handoff/index.html');
 const embed = read('embed/index.html');
 const TOKEN = 'synthetic-valid-token-1234';
@@ -132,14 +132,14 @@ test('the embed’s REST lookup answers as client.rpc does, PGRST202 included', 
   const answers = [];
   const fetch = async (url, init) => { requests.push({ url, init }); return answers.shift(); };
   const page = loadModule({ fetch });
-  const client = page.restClient({ url: 'https://fixture.invalid/', anonKey: 'public-anon' });
+  const client = page.restClient({ url: 'https://fixture.invalid/', anonKey: 'sb_publishable_synthetic_example' });
   answers.push({ ok: true, status: 200, json: async () => [CONTACT] });
   assert.equal((await page.lookupContact(client, TOKEN)).phone, '+61 400 000 000');
   const { url, init } = requests[0];
   assert.equal(url, 'https://fixture.invalid/rest/v1/rpc/lookup_tour_share_contact');
   assert.equal(init.method, 'POST');
-  assert.equal(init.headers.apikey, 'public-anon');
-  assert.equal(init.headers.Authorization, 'Bearer public-anon');
+  assert.equal(init.headers.apikey, 'sb_publishable_synthetic_example');
+  assert.equal(init.headers.Authorization, undefined);
   assert.equal(init.credentials, 'omit');
   assert.equal(init.referrerPolicy, 'no-referrer');
   assert.deepEqual(JSON.parse(init.body), { p_token: TOKEN });
@@ -147,7 +147,7 @@ test('the embed’s REST lookup answers as client.rpc does, PGRST202 included', 
   assert.deepEqual(plain(await client.rpc('lookup_tour_share_contact', { p_token: TOKEN })), { data: null, error: { code: 'PGRST202', message: MISSING.error.message } });
   answers.push({ ok: false, status: 502, json: async () => { throw new Error('not json'); } });
   assert.equal(await page.lookupContact(client, TOKEN), null);
-  const offline = loadModule({ fetch: async () => { throw new TypeError('Failed to fetch'); } }).restClient({ url: 'https://x.invalid', anonKey: 'k' });
+  const offline = loadModule({ fetch: async () => { throw new TypeError('Failed to fetch'); } }).restClient({ url: 'https://x.invalid', anonKey: 'sb_publishable_synthetic_example' });
   assert.equal((await offline.rpc('lookup_tour_share_contact', {})).error.code, 'network');
   assert.equal(page.restClient({}), null);
 });
@@ -498,7 +498,7 @@ function embedPage({ withSdk = true, contact = { data: [CONTACT] }, fetch } = {}
     showFailure: () => {},
     clientFor: () => client,
   };
-  const window = { VeyletPlayer: player, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' } };
+  const window = { VeyletPlayer: player, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'sb_publishable_synthetic_example' } };
   if (withSdk) window.supabase = { createClient() {} };
   const context = { window, document: { getElementById: id => ids[id] }, location: { search: '?t=' + TOKEN }, URLSearchParams, setTimeout, clearTimeout, fetch };
   vm.runInNewContext(clientSource, context);

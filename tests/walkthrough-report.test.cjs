@@ -16,10 +16,10 @@ const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-
 const dist = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
 const markup = read('report/index.html');
-const script = read('report/report.js');
+const script = (read('public-rpc.js') + '\n' + read('report/report.js'));
 const TOKEN = '0123456789abcdef0123456789abcdef';
 const HASH = createHash('sha256').update(TOKEN).digest('hex');
-const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' };
+const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'sb_publishable_synthetic_example' };
 
 function load() {
   const window = { VEYLET_REPORT_MANUAL: true };
@@ -29,7 +29,7 @@ function load() {
 
 function clientPage() {
   const window = {};
-  vm.runInNewContext(read('client-page.js'), { window, setTimeout, clearTimeout });
+  vm.runInNewContext((read('public-rpc.js') + '\n' + read('client-page.js')), { window, setTimeout, clearTimeout });
   return window.VeyletClientPage;
 }
 
@@ -123,7 +123,7 @@ test('a report is one POST to rpc/report_walkthrough; any token reads "received"
   const [{ url, init, body }] = view.requests;
   assert.equal(url, 'https://project.supabase.invalid/rest/v1/rpc/report_walkthrough');
   assert.deepEqual([init.headers.apikey, init.headers.Authorization, init.credentials, init.referrerPolicy],
-    ['public-anon-key', 'Bearer public-anon-key', 'omit', 'no-referrer']);
+    ['sb_publishable_synthetic_example', undefined, 'omit', 'no-referrer']);
   assert.deepEqual(body, { p_token: TOKEN, p_reason: 'privacy', p_details: 'A framed photo of the family in the hall.', p_email: null });
   assert.equal(view.ids['report-form'].hidden, true);
   assert.equal(view.ids['report-done'].hidden, false);

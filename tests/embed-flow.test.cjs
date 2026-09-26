@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const markup = fs.readFileSync(path.join(__dirname, '../dist/embed/index.html'), 'utf8');
 const source = markup.match(/<script>([\s\S]*?)<\/script>/)[1];
-const clientSource = fs.readFileSync(path.join(__dirname, '../dist/client-page.js'), 'utf8');
+const clientSource = (fs.readFileSync(path.join(__dirname, '../dist/public-rpc.js'), 'utf8') + '\n' + fs.readFileSync(path.join(__dirname, '../dist/client-page.js'), 'utf8'));
 // The real token rule and poster reader from client-page.js (with this page's fetch); the rest of the page API is stubbed below.
 const realPage = fetch => { const window = {}; vm.runInNewContext(clientSource, { window, setTimeout, clearTimeout, URLSearchParams, URL, fetch, location: { origin: 'https://veylet.com' } }); return window.VeyletClientPage; };
 
@@ -29,7 +29,7 @@ function load(options = {}) {
     linkToken: realPage(options.fetch).linkToken,
     invitationPoster: realPage(options.fetch).invitationPoster,
   };
-  const window = { VeyletPlayer: player, VeyletClientPage: page, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'anon' } };
+  const window = { VeyletPlayer: player, VeyletClientPage: page, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'sb_publishable_synthetic_example' } };
   vm.runInNewContext(source, { window, document: { getElementById: id => ids[id] }, location: { search: options.search ?? '?t=synthetic-valid-token' }, URLSearchParams, setTimeout, Promise,
     ...(options.fetch ? { fetch: options.fetch } : {}) });
   return {

@@ -1205,7 +1205,7 @@
   const primaryCase = params.get('primary');
   let primaryNow = 'synthetic-workspace';
   window.VEYLET_QA_CALLS = [];
-  window.VEYLET_SUPABASE = { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' };
+  window.VEYLET_SUPABASE = { url: 'https://fixture.invalid', anonKey: 'sb_publishable_synthetic_example' };
   window.supabase = { createClient: () => ({
     auth: {
       getSession: async () => ({ data: { session: location.pathname === '/__qa/cache-upgrade/' || params.get('session') === 'out' ? null : { user, access_token: 'synthetic-access-token' } } }),

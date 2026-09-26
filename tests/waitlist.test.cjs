@@ -14,8 +14,8 @@ const { elementsById, FakeFormData, recordingFetch } = require('./form-page-fake
 
 const dist = path.join(__dirname, '../dist');
 const markup = fs.readFileSync(path.join(dist, 'waitlist/index.html'), 'utf8');
-const script = fs.readFileSync(path.join(dist, 'waitlist/waitlist.js'), 'utf8');
-const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' };
+const script = (fs.readFileSync(path.join(__dirname, '../dist/public-rpc.js'), 'utf8') + '\n' + fs.readFileSync(path.join(dist, 'waitlist/waitlist.js'), 'utf8'));
+const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'sb_publishable_synthetic_example' };
 const ANSWERS = {
   name: '  Sam   Agent ', email: ' Sam@Agency.com.au ', business_type: 'sales_agent', device: 'iphone_pro_lidar',
   region: 'Brisbane', channels: ['own_website', 'domain', 'domain', 'not-a-channel'],
@@ -105,7 +105,7 @@ test('joining is one POST to rpc/join_waitlist with the public key and the answe
   const [{ url, init, body }] = requests;
   assert.equal(url, 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist');
   assert.equal(init.method, 'POST');
-  assert.deepEqual([init.headers.apikey, init.headers.Authorization, init.credentials], ['public-anon-key', 'Bearer public-anon-key', 'omit']);
+  assert.deepEqual([init.headers.apikey, init.headers.Authorization, init.credentials], ['sb_publishable_synthetic_example', undefined, 'omit']);
   assert.deepEqual(Object.keys(body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_consent_wording', 'p_device', 'p_email', 'p_name', 'p_region']);
 });
 

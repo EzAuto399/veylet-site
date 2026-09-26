@@ -12,12 +12,12 @@ const vm = require('node:vm');
 const { createDocument } = require('./fake-dom.cjs');
 
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
-const clientSource = read('client-page.js');
+const clientSource = (read('public-rpc.js') + '\n' + read('client-page.js'));
 const handoff = read('handoff/index.html');
 const embed = read('embed/index.html');
 const tour = read('tour/index.html');
 const TOKEN = 'synthetic-valid-token-1234';
-const CONFIG = { url: 'https://fixture.invalid/', anonKey: 'non-network-fixture' };
+const CONFIG = { url: 'https://fixture.invalid/', anonKey: 'sb_publishable_synthetic_example' };
 const ENDPOINT = 'https://fixture.invalid/rest/v1/rpc/record_tour_view';
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const settle = async () => { for (let i = 0; i < 8; i++) await tick(); };
@@ -68,7 +68,7 @@ test('each event is one first-party POST with the token, kind, channel and host,
   assert.equal(init.keepalive, false, 'only the dwell sent on pagehide needs keepalive');
   assert.equal(init.credentials, 'omit');
   assert.equal(init.referrerPolicy, 'no-referrer', 'the page address (with its token) is never sent as a referrer');
-  assert.deepEqual(plain(init.headers), { apikey: CONFIG.anonKey, Authorization: 'Bearer ' + CONFIG.anonKey, 'Content-Type': 'application/json' });
+  assert.deepEqual(plain(init.headers), { apikey: CONFIG.anonKey, 'Content-Type': 'application/json' });
   // Unknown kinds, and a channel or host the page did not vouch for, are not sent as given.
   assert.equal(beacon.send('scroll'), false);
   const odd = page.viewBeacon({ config: CONFIG, token: TOKEN, src: 'facebook', host: '', fetch: net.fetch });

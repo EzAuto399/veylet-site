@@ -14,7 +14,7 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 
 const dist = path.join(__dirname, '../dist');
-const script = fs.readFileSync(path.join(dist, 'unsubscribe.js'), 'utf8');
+const script = (fs.readFileSync(path.join(__dirname, '../dist/public-rpc.js'), 'utf8') + '\n' + fs.readFileSync(path.join(dist, 'unsubscribe.js'), 'utf8'));
 const markup = fs.readFileSync(path.join(dist, 'unsubscribe/index.html'), 'utf8');
 const TOKEN = 'a1'.repeat(32);
 const ANON = 'eyJhbGciOiJIUzI1NiJ9.' + Buffer.from(JSON.stringify({role:'anon'})).toString('base64url') + '.synthetic';

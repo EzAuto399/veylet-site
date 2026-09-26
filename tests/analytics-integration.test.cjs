@@ -15,7 +15,7 @@ const destinations = ['waitlist', 'request', 'apply', 'see', 'offer', 'start'];
 const placements = ['header', 'hero', 'body', 'footer', 'sticky', 'form'];
 const answers = { name: 'Synthetic Name Canary', email: 'canary@example.invalid',
   business_type: 'sales_agent', device: 'iphone_pro_lidar', region: 'Synthetic Region', channels: ['own_website'] };
-const config = { url: 'https://fixture.invalid', anonKey: 'synthetic-public-key' };
+const config = { url: 'https://fixture.invalid', anonKey: 'sb_publishable_synthetic_example' };
 
 function attrs(tag) {
   return Object.fromEntries([...tag.matchAll(/\b([\w-]+)(?:="([^"]*)")?/g)].map(match => [match[1], match[2] ?? '']));
@@ -38,7 +38,7 @@ function fixture(replies = [{ status: 200, body: { state: 'joined' } }], overrid
   const window = { document, VEYLET_WAITLIST_MANUAL: true, VEYLET_SUPABASE: config, fetch: request.fetch,
     FormData: class { constructor(form) { return form.data; } },
     VeyletAnalytics: { track(name, props) { events.push(JSON.parse(JSON.stringify({ name, props }))); } } };
-  vm.runInNewContext(read('waitlist/waitlist.js'), { window, document, JSON, Promise, Object, String, encodeURIComponent });
+  vm.runInNewContext((read('public-rpc.js') + '\n' + read('waitlist/waitlist.js')), { window, document, JSON, Promise, Object, String, encodeURIComponent });
   return { window, ids, events, requests: request.requests, api: window.VeyletWaitlist,
     send: () => window.VeyletWaitlist.send(window, ids['waitlist-form']) };
 }
