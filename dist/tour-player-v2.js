@@ -86,7 +86,9 @@
       if (!stop || !/^s\d{1,3}$/.test(stop.id || '') || !rooms.some(room => room.id === stop.room)
           || !finite3(stop.position) || !finite3(stop.target) || !finite3(stop.floor)) bad('stop');
       if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
-      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor };
+      // floor_id (whole-home packages): which floor the stop stands on. Anything else is ignored, not refused.
+      const floorId = typeof stop.floor_id === 'string' && /^f\d{1,3}$/.test(stop.floor_id) ? stop.floor_id : null;
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId };
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
@@ -298,12 +300,58 @@
     return [origin[0] + direction[0] / flat * reach, origin[2] + direction[2] / flat * reach];
   }
 
-  function nearestStop(manifest, position, within = 0.35) {
+  /** The stop nearest `position` across the floor; with `storey`, only stops whose eye is within that height. */
+  function nearestStop(manifest, position, within = 0.35, storey = Infinity) {
     let best = -1, distance = within;
     manifest.stops.forEach((stop, index) => {
+      if (Math.abs(stop.position[1] - position[1]) > storey) return;
       const d = Math.hypot(stop.position[0] - position[0], stop.position[2] - position[2]);
       if (d <= distance) { best = index; distance = d; }
     });
+    return best;
+  }
+
+  // Floors more than this apart are different storeys, as package_tour_v2.mjs decides (STOREY_METRES).
+  const STOREY_METRES = 1.5;
+  const median = values => { const sorted = [...values].sort((a, b) => a - b); return sorted[Math.floor((sorted.length - 1) / 2)]; };
+
+  /**
+   * The levels of a whole-home package, lowest first: Ground, Level 1, Level 2 … Each floor (floor_id) sits at
+   * the median height of its stops' floor points; floors within STOREY_METRES of the one below are the same
+   * level (a sunken lounge or a split level is not a new storey). A stop without a floor id joins the level
+   * nearest its floor point. Returns null for one level, or when the package names fewer than two floors,
+   * so single-floor walkthroughs keep their map exactly as before.
+   */
+  function storeysOf(stops) {
+    const ids = [...new Set(stops.map(stop => stop.floorId).filter(Boolean))];
+    if (ids.length < 2) return null;
+    const floors = ids.map(id => ({ id, y: median(stops.filter(stop => stop.floorId === id).map(stop => stop.floor[1])) }))
+      .sort((a, b) => a.y - b.y);
+    const levels = [];
+    for (const floor of floors) {
+      const below = levels[levels.length - 1];
+      if (below && floor.y - below.top <= STOREY_METRES) { below.ids.push(floor.id); below.top = floor.y; }
+      else levels.push({ ids: [floor.id], y: floor.y, top: floor.y });
+    }
+    if (levels.length < 2) return null;
+    const levelOf = stops.map(stop => {
+      const own = levels.findIndex(level => level.ids.includes(stop.floorId));
+      if (own >= 0) return own;
+      let best = 0;
+      levels.forEach((level, index) => { if (Math.abs(stop.floor[1] - level.y) < Math.abs(stop.floor[1] - levels[best].y)) best = index; });
+      return best;
+    });
+    return levels.map((level, index) => {
+      const members = stops.map((_, stop) => stop).filter(stop => levelOf[stop] === index);
+      return { name: index === 0 ? 'Ground' : 'Level ' + index, floorIds: level.ids, stops: members,
+        eye: median(members.map(stop => stops[stop].position[1])) };
+    });
+  }
+
+  /** Which level an eye position is on: the one whose stops' eye height is nearest. */
+  function levelAt(levels, position) {
+    let best = 0;
+    levels.forEach((level, index) => { if (Math.abs(position[1] - level.eye) < Math.abs(position[1] - levels[best].eye)) best = index; });
     return best;
   }
 
@@ -661,6 +709,10 @@
     }
 
     // ----- stops, hotspots, map -----
+    // A home on more than one level: one level at a time, on the map and on the floor discs.
+    const storeys = storeysOf(manifest.stops);
+    const levelOf = storeys ? manifest.stops.map((_, index) => storeys.findIndex(level => level.stops.includes(index))) : null;
+    let viewerLevel = storeys ? levelOf[manifest.start] : 0;
     const hotspotButtons = manifest.stops.map((stop, index) => {
       const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1' });
       button.append(el('span', {}, String(index + 1)));
@@ -673,8 +725,11 @@
       if (!ready) return;
       const forward = forwardOf(state.yaw, state.pitch);
       const width = ui.canvas.clientWidth, height = ui.canvas.clientHeight;
+      if (storeys) viewerLevel = levelAt(storeys, state.position);
       manifest.stops.forEach((stop, index) => {
         const button = hotspotButtons[index];
+        // A stop on another level would draw through the ceiling or the floor.
+        if (storeys && levelOf[index] !== viewerLevel) { button.hidden = true; return; }
         const d = stop.floor.map((v, i) => v - state.position[i]);
         const distance = Math.hypot(d[0], d[2]);
         const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
@@ -766,6 +821,28 @@
     // Map of stops: floor from the walkable mask, turned so the opening view points up.
     const mapTurn = lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target).yaw;
     let mapMarker = null, mapHeading = null, mapGroup = null;
+    // With storeys: the level the map shows (it follows the viewer; a floor button picks another), each
+    // level's drawn parts, and the floor buttons.
+    let mapLevel = viewerLevel, mapShownFor = viewerLevel;
+    const mapParts = [], floorButtons = [];
+    function showMapLevel(level) {
+      mapLevel = level;
+      for (const [node, on] of mapParts) { if (on === level) node.removeAttribute('display'); else node.setAttribute('display', 'none'); }
+      floorButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(index === level)));
+      if (mapMarker) { if (level === viewerLevel) mapMarker.removeAttribute('display'); else mapMarker.setAttribute('display', 'none'); }
+    }
+    function buildFloorButtons() {
+      // Layout here until tour-player-v2.css carries .v2-floors (the buttons reuse .v2-icon and its pressed state).
+      const group = el('div', { class: 'v2-floors', role: 'group', 'aria-label': 'Floors' });
+      Object.assign(group.style, { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px', margin: '0 0 6px' });
+      storeys.forEach((level, index) => {
+        const button = el('button', { type: 'button', class: 'v2-icon v2-floor', 'aria-pressed': 'false' }, level.name);
+        button.addEventListener('click', () => showMapLevel(index));
+        floorButtons.push(button);
+        group.append(button);
+      });
+      return group;
+    }
     function buildMap() {
       const ns = 'http://www.w3.org/2000/svg';
       // Framed on the stops, with the floor around them for context.
@@ -783,6 +860,8 @@
         floor.setAttribute('class', 'v2-map-floor');
         floor.setAttribute('d', walkable.runs.map(([x, z, w, h]) => `M${x.toFixed(2)} ${z.toFixed(2)}h${w.toFixed(2)}v${h.toFixed(2)}h${(-w).toFixed(2)}z`).join(''));
         mapGroup.append(floor);
+        // The walkable floor is carved for the opening stop's level only.
+        if (storeys) mapParts.push([floor, levelOf[manifest.start]]);
       }
       manifest.stops.forEach((stop, index) => {
         const dot = document.createElementNS(ns, 'g');
@@ -799,6 +878,7 @@
         dot.append(circle, label);
         dot.addEventListener('click', () => goToStop(index));
         mapGroup.append(dot);
+        if (storeys) mapParts.push([dot, levelOf[index]]);
       });
       mapMarker = document.createElementNS(ns, 'g');
       mapMarker.setAttribute('class', 'v2-map-you');
@@ -810,10 +890,15 @@
       mapMarker.append(mapHeading, you);
       mapGroup.append(mapMarker);
       svg.append(mapGroup);
-      ui.map.replaceChildren(svg, el('figcaption', {}, 'Map of stops · not to scale'));
+      const caption = el('figcaption', {}, 'Map of stops · not to scale');
+      if (!storeys) { ui.map.replaceChildren(svg, caption); return; }
+      ui.map.replaceChildren(buildFloorButtons(), svg, caption);
+      showMapLevel(mapLevel);
     }
     function drawMapMarker() {
       if (!mapMarker) return;
+      // Reaching another level brings the map with you; a level picked by hand stays until then.
+      if (storeys && viewerLevel !== mapShownFor) { mapShownFor = viewerLevel; showMapLevel(viewerLevel); }
       // Heading in map space: yaw 0 looks toward -z, which is map-up before the turn.
       mapMarker.setAttribute('transform', `translate(${state.position[0].toFixed(3)} ${state.position[2].toFixed(3)}) rotate(${(-state.yaw).toFixed(1)})`);
     }
@@ -860,9 +945,11 @@
       applyCamera();
       if (t >= 1) { const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); done?.(); }
     }
+    // On a home with levels, a stop straight above or below is not where you are.
+    const sameLevel = storeys ? STOREY_METRES : Infinity;
     function arrived(index) {
       state.stop = index;
-      const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99)));
+      const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
       if (index < 0) ui.stopLine.textContent = 'Between stops';
       markCurrent();
       placeHotspots();
@@ -878,7 +965,7 @@
     function walkTo(point) {
       const eye = walkable ? walkable.eyeHeight : 1.4;
       const target = [point[0], point[1] + eye, point[2]];
-      flyTo(target, state.yaw, state.pitch, () => arrived(nearestStop(manifest, target)));
+      flyTo(target, state.yaw, state.pitch, () => arrived(nearestStop(manifest, target, 0.35, sameLevel)));
     }
     let messageTimer = null;
     function say(message) {
@@ -1227,7 +1314,7 @@
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel,
+    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     start, current: null,
   };
 })();
