@@ -1,6 +1,6 @@
 /* Public identifiers only. Adding a campaign requires an exact reviewed tuple. */
 window.VEYLET_ANALYTICS_CONFIG = Object.freeze({
-  deploymentEnabled: true,
+  deploymentEnabled: false,
   gaMeasurementId: 'G-M4SLEMNVP6',
   metaPixelId: '1617470229766948',
   // Keep Meta off data-entry pages until actual vendor payloads are inspected.

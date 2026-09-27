@@ -131,6 +131,39 @@ test('a real accepted waitlist response emits only the safe accepted-submission 
   assert.doesNotMatch(JSON.stringify(f.events), /Canary|canary@|Synthetic Region|sales_agent|iphone_pro|own_website|synthetic-public-key/);
 });
 
+test('real deployment-off analytics runtime preserves waitlist completion without vendor loads or queues', async () => {
+  const f = fixture();
+  const scripts = [], local = new Map(), session = new Map();
+  const storage = values => ({ getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)), removeItem: key => values.delete(key) });
+  const document = f.window.document;
+  Object.assign(document, { referrer: '', readyState: 'loading', cookie: '',
+    head: { appendChild(node) { scripts.push(node); return node; } }, addEventListener() {} });
+  Object.assign(f.window, { location: new URL('https://veylet.com/waitlist'),
+    navigator: { userAgent: 'Mozilla/5.0 Safari/605.1.15' },
+    localStorage: storage(local), sessionStorage: storage(session),
+    addEventListener() {}, setTimeout() { return 1; }, clearTimeout() {} });
+  f.window.self = f.window; f.window.top = f.window;
+  delete f.window.VeyletAnalytics;
+  const context = vm.createContext({ window: f.window, document, URL, Date, Set, JSON, Object, Number });
+  vm.runInContext(read('analytics-config.js'), context);
+  local.set('veylet:measurement-choice:v1', JSON.stringify({
+    version: f.window.VEYLET_ANALYTICS_CONFIG.consentVersion, savedAt: Date.now(), analytics: true, ads: true,
+  }));
+  vm.runInContext(read('analytics.js'), context);
+  assert.equal(typeof f.window.VeyletAnalytics.track, 'function', 'exercise the actual runtime, not a stub');
+  assert.equal(await f.send(), 'joined');
+  assert.equal(f.requests.length, 1, 'the existing first-party join still runs once');
+  assert.match(f.requests[0].url, /\/rest\/v1\/rpc\/join_waitlist$/);
+  assert.equal(f.ids['waitlist-form'].hidden, true);
+  assert.equal(f.ids['waitlist-done'].hidden, false);
+  assert.equal(scripts.length, 0, 'stored consent cannot enable SDK loading in this release');
+  assert.equal(f.window.gtag, undefined); assert.equal(f.window.fbq, undefined);
+  assert.equal(f.window.dataLayer, undefined);
+  assert.equal(session.has('veylet:waitlist-accepted:v1'), false, 'no measurement dedupe identifier is written');
+  assert.deepEqual(f.events, [], 'the former analytics stub is not involved');
+});
+
 test('the conversion waits for the RPC; duplicate in-flight submits do not create duplicate requests', async () => {
   const f = fixture();
   let finish;

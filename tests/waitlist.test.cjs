@@ -148,6 +148,53 @@ test('success hides the form and says the weekly-groups sentence; a missing wait
   assert.equal(missing.ids['waitlist-form'].hidden, false, 'nothing typed is lost');
 });
 
+for (const loss of ['transport', 'unreadable JSON']) {
+  for (const consent of [false, true]) {
+    test(`a simulated committed join with ${loss} loss retains answers and consent=${consent} for an explicit retry`, async () => {
+      const api = load();
+      const f = page();
+      const form = f.ids['waitlist-form'];
+      const entered = { ...ANSWERS, channels: [...ANSWERS.channels], consent_tips: consent ? 'yes' : '', _honey: '' };
+      form.data = new FakeFormData(JSON.parse(JSON.stringify(entered)));
+      const expected = {
+        p_name: 'Sam Agent', p_email: 'Sam@Agency.com.au', p_business_type: 'sales_agent',
+        p_device: 'iphone_pro_lidar', p_region: 'Brisbane', p_channels: ['own_website', 'domain'],
+        p_consent_tips: consent, p_consent_wording: 'tips-v1',
+      };
+      const simulatedCommits = [];
+      f.window.fetch = async (_url, init) => {
+        // A server write can precede either response failure. This client stand-in does
+        // not prove database deduplication: every attempt is recorded here separately.
+        simulatedCommits.push(JSON.parse(init.body));
+        if (simulatedCommits.length === 1) {
+          if (loss === 'transport') throw new TypeError('Response lost after simulated commit');
+          return { ok: true, status: 200, json: async () => { throw new SyntaxError('Truncated response JSON'); } };
+        }
+        return { ok: true, status: 200, json: async () => ({ state: 'joined' }) };
+      };
+      api.run(f.window);
+      await form.fire('submit');
+
+      assert.deepEqual(simulatedCommits, [expected], 'the write occurred; no automatic retry followed');
+      assert.deepEqual(form.data.values, entered, 'all fields, channels and the consent choice remain');
+      assert.equal(form.hidden, false);
+      assert.equal(f.ids['waitlist-submit'].disabled, false, 'the retry control is enabled');
+      assert.equal(f.ids['waitlist-done'].hidden, true, 'an uncertain response is not success');
+      assert.equal(f.ids['waitlist-fallback'].hidden, false);
+      assert.equal(f.ids['waitlist-fallback'].links()[0].getAttribute('href'), `mailto:${api.SUPPORT}?subject=Veylet%20waitlist`);
+      const uncertainMessage = f.ids['waitlist-fallback'].textContent;
+
+      await form.fire('submit');
+      assert.deepEqual(simulatedCommits, [expected, expected], 'explicit retry sends the same answers and consent');
+      assert.equal(form.hidden, true);
+      assert.equal(f.ids['waitlist-done'].hidden, false, 'only the readable joined receipt shows success');
+      assert.equal(f.ids['waitlist-fallback'].hidden, true);
+      assert.equal(uncertainMessage,
+        `We couldn’t confirm whether you joined the list. Your answers are still here. Try again in a minute, or email ${api.SUPPORT} for help.`);
+    });
+  }
+}
+
 test('a filled honeypot sees the same success and nothing is sent', async () => {
   const api = load();
   const bot = page([]);

@@ -150,7 +150,7 @@ test('service units: one accepted walkthrough; each capture is one walkthrough w
   assert.equal(scope.severalCaptures, 'a home with more rooms than fit in one capture takes more captures; each is its own walkthrough with its own link');
   assert.equal('linkPerProperty' in scope, false, 'no link per property');
   assert.match(scope.countedBy, /^the app counts the rooms captured; nothing is declared$/);
-  assert.match(scope.usesNone, /a correction of the same walkthrough, and a recapture of rooms the quality check names/);
+  assert.match(scope.usesNone, /^a correction of the same walkthrough, and a permitted whole recapture including every original room$/);
   for (const key of ['countsAsTwo', 'declaredAt']) assert.equal(key in scope, false, `walkthroughScope.${key} is retired`);
   for (const key of ['largeOrMultiLevelMayCountAsTwo', 'largeHomeUnits', 'largeHomeRule']) assert.equal(key in record.counting, false, key);
   assert.equal(record.retiredTerms.items['walkthroughScope.countsAsTwo'], '5 or more bedrooms, a second dwelling, or more than 350 m² of floor area');

@@ -76,7 +76,13 @@ function harness(options = {}) {
   class Clock extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
   const context = vm.createContext({ window, document, URL, Date: Clock, console, Set, JSON, Object, Number });
   vm.runInContext(configSource, context);
-  if (options.config) window.VEYLET_ANALYTICS_CONFIG = { ...window.VEYLET_ANALYTICS_CONFIG, ...options.config };
+  // Existing positive-mode cases exercise consent/payload behavior independently of the
+  // release default. Shipped-config cases deliberately bypass this test-only opt-in.
+  if (!options.useShippedConfig) {
+    window.VEYLET_ANALYTICS_CONFIG = { ...window.VEYLET_ANALYTICS_CONFIG, deploymentEnabled: true, ...options.config };
+  } else {
+    assert.equal(options.config, undefined, 'shipped-config coverage must not override the release flags');
+  }
   vm.runInContext(source, context);
   docEvents.DOMContentLoaded?.();
   const panel = document.body.children.find(node => node.id === 'analytics-consent');
@@ -97,6 +103,31 @@ function harness(options = {}) {
     setBlocked: value => { blocked = value; }, advance: amount => { clock += amount; }, reloads: () => reloads,
   };
 }
+
+test('shipped deployment-off config blocks SDKs, queues and events with stored or newly granted consent', () => {
+  for (const pathname of ['/', '/start', '/see', '/offer', '/waitlist', '/request', '/apply', '/privacy']) {
+    for (const choice of [undefined, consent(true, true)]) {
+      const h = harness({ url: 'https://veylet.com' + pathname, choice, useShippedConfig: true });
+      const assertOff = () => {
+        assert.equal(h.scripts.length, 0, pathname + ' must not attempt vendor loading');
+        assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+        assert.equal(h.window.gtag, undefined); assert.equal(h.window.fbq, undefined);
+        assert.equal(h.track('funnel_cta_click', { destination: 'waitlist', placement: 'hero' }), false);
+        assert.equal(h.session[ACCEPTED], undefined);
+      };
+      assertOff();
+      h.choose(true, true);
+      const saved = JSON.parse(h.local[CHOICE]);
+      assert.equal(saved.analytics, true); assert.equal(saved.ads, true);
+      assertOff();
+      h.events.storage({ key: CHOICE });
+      h.events.pageshow({ persisted: true });
+      assertOff();
+      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.deploymentEnabled, false);
+      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.metaFormTrackingEnabled, false);
+    }
+  }
+});
 
 test('unset and rejected choices cause no vendor loads, queues, or session identifiers', () => {
   for (const choice of [undefined, consent(false, false), '{broken', 'null', consent(true, true, NOW - 180 * 86400000)]) {

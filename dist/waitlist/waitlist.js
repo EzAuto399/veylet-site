@@ -26,7 +26,7 @@
     joined: 'We admit new accounts in weekly groups and will email you when it’s your turn.',
     missing: 'The waitlist opens soon. Email ' + SUPPORT + ' to be added.',
     busy: 'The waitlist is busy right now, so nothing was saved. Try again in an hour, or email ' + SUPPORT + ' to be added.',
-    error: 'We couldn’t add you just now, so nothing was saved. Try again in a minute, or email ' + SUPPORT + ' to be added.',
+    error: 'We couldn’t confirm whether you joined the list. Your answers are still here. Try again in a minute, or email ' + SUPPORT + ' for help.',
     invalid: 'One answer wasn’t accepted, so nothing was saved. Check your email address and the other answers, then send again.',
   };
 
