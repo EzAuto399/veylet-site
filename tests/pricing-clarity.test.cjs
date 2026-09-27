@@ -24,19 +24,18 @@ test('the canonical offer is 2026-09-27.1 and separates payment channels and una
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
   // never in the app. 2026-09-26.3 (owner, offer v9.1) counts walkthroughs by rooms, sells Super fast only
   // while fast GPUs start quickly, opens sign-up to anyone and adds a fair-use cap of 12 render attempts
-  // to the free months. 2026-09-27.1 changes prices and capture counting, retaining that attempt limit
-  // and its Veylet-failure exclusions independently from the six accepted walkthroughs.
+  // to the free months. 2026-09-27.1 supersedes that proposed cap and room-based charging;
+  // the six accepted walkthroughs and existing signed agreements stay distinct.
   assert.equal(record.version, '2026-09-27.1');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
     [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1']]);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
-  assert.equal(record.freeMonths.renderAttemptCap, 12);
-  assert.equal(record.freeMonths.fairUse.cap, 'freeMonths.renderAttemptCap');
-  assert.match(record.freeMonths.fairUse.counts, /normal recaptures and automatic retries, count/);
-  assert.match(record.freeMonths.fairUse.counts, /attempts that fail because of Veylet are excluded; the 6 included walkthroughs are unchanged/);
-  assert.match(record.history.at(-1).change, /supersedes room-based charging only/);
-  assert.match(record.history.at(-1).change, /12-render-attempt trial limit and Veylet-failure exclusions remain unchanged/);
+  assert.equal(record.freeMonths.renderAttemptCap, undefined);
+  assert.equal(record.freeMonths.fairUse, undefined);
+  assert.match(record.history.at(-2).change, /fair-use cap of 12 render attempts/);
+  assert.match(record.history.at(-1).change, /supersedes the rooms-per-eight and trial render-attempt cap proposals/);
+  assert.match(record.history.at(-1).change, /Existing signed agreements and bonuses are preserved/);
   assert.equal(record.expressRender.availability, 'only while fast GPUs start quickly');
   assert.equal(record.expressRender.unavailableText, "Super fast isn't available right now");
   assert.match(record.expressRender.availabilityRule, /fast GPUs in Sydney are starting quickly.*nothing is charged/);
@@ -98,13 +97,28 @@ test('the canonical offer is 2026-09-27.1 and separates payment channels and una
   assert.deepEqual(record.earlyAnnualBonus.channels.sort(), ['appStore', 'invoice', 'web']);
   assert.deepEqual([record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [1, 1]);
   assert.match(record.packRules.channels.web, /Square card on \/account \(Sandbox until the card lane opens\) or studio invoice/);
-  // Packs are website and invoice only, never in the app (SITE_PUBLIC-12).
-  assert.match(record.packRules.channels.app, /^never sold in the app$/);
+  // Packs use website/invoice channels in this app version; the accepted later-app roadmap remains.
+  assert.match(record.packRules.channels.app, /^in-app purchase arrives in a later app version$/);
   assert.match(record.packRules.expires, /12 months after purchase/);
   for (const pack of record.packs) assert.equal(pack.validMonths, 12, pack.code);
   // The single extra is gone from the record; packs replace it for new purchases.
   for (const key of ['extraWalkthroughWebAud', 'extraWalkthroughAppAud', 'extraWalkthroughInApp', 'extraAuthorizationRequired']) {
     assert.equal(record.freeMonths[key], undefined, key);
+  }
+});
+
+test('pack channels distinguish current availability from the accepted later-app roadmap', () => {
+  assert.equal(record.packRules.channels.app, 'in-app purchase arrives in a later app version');
+  assert.deepEqual(record.appStore.sold, ['soloMonthly', 'soloAnnual'], 'future pack availability does not make packs available in the current app');
+  assert.equal(record.subscriptionCheckout.websiteCardEnabled, false, 'future app availability does not open website card checkout');
+  assert.match(record.packRules.channels.web, /Sandbox until the card lane opens.*studio invoice/);
+  for (const file of ['dist/offer/index.html', 'dist/terms/index.html']) {
+    assert.match(current[file], /Packs are not sold in this app version; in-app purchase arrives in a later app version\./, file);
+    assert.match(current[file], /by studio invoice today, (?:or|and) by card.*once card payment.*opens/, file + ' preserves current payment availability');
+  }
+  assert.match(current['dist/llms.txt'], /Packs are currently sold on the website and by studio invoice only\. In-app purchase arrives in a later app version\./);
+  for (const file of ['dist/offer/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
+    assert.doesNotMatch(current[file], /packs[^.]*never[^.]*in the app/i, file + ' must not turn current availability into a permanent prohibition');
   }
 });
 
@@ -167,8 +181,7 @@ test('service units: one accepted capture is one unit; correction and recapture 
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
   assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
   for (const file of ['dist/offer/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
-    assert.match(current[file], /up to 12 render attempts during the free months, including normal recaptures and automatic retries/, `${file} states the trial attempt limit`);
-    assert.match(current[file], /attempts that fail because of Veylet do not count/, `${file} preserves the failure exclusion`);
+    assert.doesNotMatch(current[file], /12 render attempts|fair.use cap/i, `${file} does not publish the retired trial cap`);
   }
   assert.match(current['dist/offer/index.html'], /Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren’t, your account says “Super fast isn’t available right now” and nothing is charged\./);
   assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
@@ -193,8 +206,8 @@ test('human and machine summaries keep renewal and exhausted-trial recovery trut
   assert.match(current['dist/llms.txt'], /Existing card or invoice trials may start paid service early only with separate consent/);
   assert.match(current['dist/llms.txt'], /Existing website card subscriptions retain their agreed automatic renewal/);
   assert.match(current['dist/offer/index.html'], /A reminder email 7 days before the first charge is planned but not running yet/);
-  assert.match(current['dist/llms.txt'], /Packs are sold on the website and by studio invoice only, never in the app\./);
-  assert.doesNotMatch(current['dist/llms.txt'], /later app version/);
+  assert.match(current['dist/llms.txt'], /Packs are currently sold on the website and by studio invoice only\. In-app purchase arrives in a later app version\./);
+  assert.doesNotMatch(current['dist/llms.txt'], /packs[^.]*never[^.]*in the app/i);
   assert.doesNotMatch(current['dist/llms.txt'], /plan renews afterwards unless cancelled/);
   // No page or summary offers the retired single extra.
   for (const [file, text] of Object.entries(current)) {

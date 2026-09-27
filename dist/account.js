@@ -6019,134 +6019,31 @@
    * Why a queued capture waits (migration 20260926110000, hold): admission (the account
    * waits for a rendering place), paused (new renders are paused for everyone) or
    * weekly_limit (this week's renders are used; the next starts at until). The job stays
-   * Waiting to render, with no failure and nothing to press. The contract's words.
+   * Waiting to render, with no failure. An older backend may still answer trial_limit;
+   * offer 2026-09-27.1 retired that cap proposal. Keep the legacy hold waiting and
+   * offer only a status refresh or support contact, without guessing the account's
+   * signed terms. Ignore the old cap, plan-start date, message and billing fields.
    */
-  // trial_limit (20260926140000, offer 2026-09-26.3): a trial reached its 12 render attempts
-  // (freeMonths.renderAttemptCap). Still waiting, never Failed: rendering goes on when the plan
-  // starts, on the day the free months end (owner decision 5, 26 September 2026): the hold's
-  // plan_starts_on (draft 20260926141000), else the date this desk read from that workspace's
-  // plan. start_plan_now marks the website card and invoice lanes, which may start it today.
   const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit', 'trial_limit'];
-  // Per workspace: when its free months end, and how its plan is paid (web, studio, apple).
-  const planTrialEnds = new Map(), planLanes = new Map(), planStates = new Map();
+  // Keep plan state for the desk's existing first-capture guidance.
+  const planStates = new Map();
   let deskGuideRefresh = null;
   function planKnown(workspaceID, row) {
     if (!workspaceID) return;
-    const ends = row && row.status === 'trial' && typeof row.trial_ends_at === 'string' && !Number.isNaN(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
-    const lane = row && PLAN_SOURCES.includes(row.source) ? row.source : null;
-    const changed = planTrialEnds.get(workspaceID) !== ends || planLanes.get(workspaceID) !== lane;
-    planTrialEnds.set(workspaceID, ends); planLanes.set(workspaceID, lane);
     planStates.set(workspaceID, row && PLAN_STATUSES.includes(row.status) ? row.status : null);
     deskGuideRefresh?.();
-    if (changed && render?.answers) renderDraw();
   }
-  function renderTrialLimitWords(hold) {
-    // The server's own sentence (render_trial_limit_message through the hold, with its date
-    // filled in) is the one said; the desk's words only stand in for a server that sent none.
-    if (hold.message) return hold.message;
-    const day = hold.planStarts ? window.VeyletSharing?.hostingDate?.(hold.planStarts) || '' : '';
-    return 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts' + (day ? ' on ' + day : '') + '.';
+  function renderTrialLimitWords() {
+    return 'Your capture is waiting for a status update. Check again now; if it still waits, contact Veylet support.';
   }
-  /*
-   * "Start my plan today" (draft 20260926141000_trial_start_now.sql). The hold says whether it is
-   * offered (start_plan_now: website card and invoice lanes only); get_start_plan_now(p_workspace)
-   * reads the server's offer (prices in cents, walkthroughs left and until when). The press records
-   * one attempt (start_plan_now; a repeat press answers the same attempt); the website card lane
-   * then asks the hooks service (POST /square/trial/start-now) to charge the saved card now, and
-   * the invoice lane waits for the studio's invoice. Never on the app's pages; a backend without
-   * the functions (PGRST202) or an offer not available shows the words only.
-   */
-  const startNowOffers = new Map();   // workspace -> { state: 'loading' | 'ready' | 'none', offer }
-  const startNowSaid = new Map();     // workspace -> the last result sentence
-  const START_NOW_RETRIES = 5, START_NOW_RETRY_MS = 3000;
-  function startNowOfferValid(offer) {
-    return Boolean(offer) && typeof offer === 'object' && offer.available === true && ['web', 'invoice'].includes(offer.lane)
-      && Array.isArray(offer.plans) && offer.plans.every(plan => plan && ['monthly', 'annual'].includes(plan.interval) && Number.isInteger(plan.cents) && plan.cents > 0);
-  }
-  function startNowRead(workspaceID, supabase) {
-    if (!workspaceID || !supabase || startNowOffers.has(workspaceID)) return;
-    startNowOffers.set(workspaceID, { state: 'loading', offer: null });
-    void settled(Promise.resolve().then(() => supabase.rpc('get_start_plan_now', { p_workspace: workspaceID }))).then(reply => {
-      const offer = failed(reply) || missingFunction(reply) ? null : firstRow(reply.value?.data);
-      startNowOffers.set(workspaceID, startNowOfferValid(offer) ? { state: 'ready', offer } : { state: 'none', offer: null });
-      if (render?.answers) renderDraw();
-    });
-  }
-  const startNowWait = ms => new Promise(resolve => setTimeout(resolve, ms));
-  async function startNowPress(workspaceID, supabase, control) {
-    const entry = startNowOffers.get(workspaceID);
-    if (!entry || entry.state !== 'ready' || control.disabled) return;
-    const { offer } = entry;
-    control.disabled = true;
-    const say = text => { startNowSaid.set(workspaceID, text); setStatus(text); if (render?.answers) renderDraw(); };
-    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
-    const result = await settled(Promise.resolve().then(() => supabase.rpc('start_plan_now', { p_workspace: workspaceID, p_plan_interval: plan.interval })));
-    if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
-    if (missingFunction(result)) { startNowOffers.set(workspaceID, { state: 'none', offer: null }); if (render?.answers) renderDraw(); return; }
-    const answer = failed(result) ? null : firstRow(result.value?.data);
-    if (answer?.error === 'not_available') { startNowOffers.set(workspaceID, { state: 'none', offer: null }); startNowSaid.delete(workspaceID); if (render?.answers) renderDraw(); return; }
-    if (answer?.error === 'not_owner') { control.disabled = false; say('Only the account owner can start the plan.'); return; }
-    if (!answer || typeof answer.attempt_id !== 'string' || !answer.attempt_id) { control.disabled = false; say('Your plan didn’t start. Try again or contact support.'); return; }
-    if (answer.state === 'started') { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
-    if ((answer.lane || offer.lane) === 'invoice') { say('We’ll send your invoice; rendering continues once it’s paid.'); return; }
-    // The website card lane: the hooks service charges the saved card now.
-    const token = await annualToken(supabase);
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
-    for (let attempt = 0; attempt <= START_NOW_RETRIES; attempt++) {
-      const reply = await settled(annualHooks('/square/trial/start-now', { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ workspace_id: workspaceID, attempt_id: answer.attempt_id }) }), 30000);
-      const status = reply.timedOut || reply.error ? 0 : reply.value?.status;
-      if (status === 401) { showSignedOut('Your sign-in has expired. Sign in again to start your plan.'); return; }
-      if (status === 200) { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
-      if (status === 202 && attempt < START_NOW_RETRIES) { await startNowWait(START_NOW_RETRY_MS); continue; }
-      control.disabled = false;
-      if (status === 202) { say('Your plan is still starting. Check again in a minute; nothing is charged twice.'); return; }
-      if (status === 402) { say('Your card was declined. Update it and try again.'); return; }
-      if (status === 409) { say('Your plan didn’t start. Try again or contact support.'); return; }
-      say('Starting your plan isn’t open yet.'); return;
-    }
-  }
-  // The button and its detail, beside the hold: web and invoice lanes only, never on the app's pages.
-  function startPlanTodayParts(hold, supabase) {
-    if (APP_MODE || !hold.startNow || !hold.workspace) return [];
-    const entry = startNowOffers.get(hold.workspace);
-    if (!entry) { startNowRead(hold.workspace, supabase); return []; }
-    const said = startNowSaid.get(hold.workspace);
-    if (entry.state !== 'ready') return [];
-    const { offer } = entry;
-    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
-    const until = window.VeyletSharing?.hostingDate?.(offer.free_walkthroughs_usable_until || offer.free_months_end_on) || '';
-    const detail = annualNode('p', 'render-note', 'Your free months end today and your plan starts now. Walkthroughs left from your free months stay usable until '
-      + (until || 'the day your free months were due to end') + '. The plan is ' + planMoney(plan.cents) + (plan.interval === 'annual' ? ' a year' : ' a month')
-      + (offer.lane === 'invoice' ? ', invoiced today.' : ', charged today to the card on your account.'));
-    const start = button('Start my plan today', () => startNowPress(hold.workspace, supabase, start));
-    start.className = 'tour-action tour-action-primary'; start.dataset.control = 'start-plan-today';
-    const actions = annualNode('p', 'render-actions'); actions.append(start);
-    const parts = [actions, detail];
-    if (said) parts.push(annualNode('p', 'render-note render-start-said', said));
-    return parts;
-  }
-  function renderHold(value, workspaceID = null) {
+  function renderHold(value) {
     if (!value || typeof value !== 'object' || !RENDER_HOLDS.includes(value.reason)) return null;
-    const hold = { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
-    if (value.reason === 'trial_limit') {
-      hold.workspace = workspaceID;
-      const starts = typeof value.plan_starts_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.plan_starts_on) ? value.plan_starts_on + 'T00:00:00+10:00' : null;
-      hold.planStarts = starts || (workspaceID ? planTrialEnds.get(workspaceID) || null : null);
-      hold.startNow = value.start_plan_now === true;
-      // A sentence the server finished: no template left in it, and short enough to be one.
-      const said = typeof value.message === 'string' ? value.message.trim().replace(/'/g, '’') : '';
-      hold.message = said && said.length <= 300 && !/[{}]/.test(said) ? said : '';
-      // What the offer read and the last press said: part of the view, so a change redraws the card.
-      if (hold.startNow && !APP_MODE && workspaceID) { hold.offer = startNowOffers.get(workspaceID)?.state || null; hold.said = startNowSaid.get(workspaceID) || ''; }
-    }
-    return hold;
+    return { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
   }
   function renderHoldWords(hold) {
     if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
     if (hold.reason === 'paused') return 'Rendering is paused. Yours keeps its place in line and starts as soon as rendering resumes.';
-    if (hold.reason === 'trial_limit') return renderTrialLimitWords(hold);
+    if (hold.reason === 'trial_limit') return renderTrialLimitWords();
     const day = hold.until ? window.VeyletSharing?.hostingDate?.(hold.until) || '' : '';
     return 'You’ve used this week’s renders. ' + (day ? 'This one starts on ' + day + '.' : 'This one starts as soon as the week allows another.');
   }
@@ -6249,7 +6146,7 @@
     if (key === 'uploading') view = { key, pct: renderInt(job.progress_pct, 0, 100) };
     // A held job stays Waiting to render; the hold replaces its place in line and minutes.
     else if (key === 'waiting') {
-      const hold = renderHold(job.hold, desk?.properties?.get?.(job.property_id)?.workspace_id || null);
+      const hold = renderHold(job.hold);
       view = hold ? { key, position: null, wait: null, hold } : { key, position: renderInt(job.queue_position, 1, 100000), wait: renderInt(job.typical_start_minutes, 1, 100000) };
     }
     // A render that has not checked in for 3 minutes (the server's stale) shows no live progress.
@@ -6346,7 +6243,7 @@
     // "Ready for your review" is said to whoever reviews; anyone else reads whose it is.
     const others = view.key === 'ready' && !canReview;
     head.append(annualNode('p', 'render-title', others ? 'Ready for review' : RENDER_TITLES[view.key]));
-    const turn = others ? 'With the workspace owner' : view.hold?.reason === 'trial_limit' ? 'Your turn' : RENDER_TURNS[view.key];
+    const turn = others ? 'With the workspace owner' : RENDER_TURNS[view.key];
     if (turn) head.append(pill(turn, turn === 'Your turn' ? 'good' : 'busy'));
     block.append(head);
     const line = text => { const node = annualNode('p', 'render-line', text); block.append(node); return node; };
@@ -6368,7 +6265,11 @@
       case 'waiting': {
         if (view.hold) {
           line(renderHoldWords(view.hold)).classList.add('render-hold');
-          if (view.hold.reason === 'trial_limit') block.append(...startPlanTodayParts(view.hold, render?.supabase));
+          if (view.hold.reason === 'trial_limit') {
+            const check = button('Check again', () => { if (render?.supabase) void loadDesk(render.supabase); });
+            check.className = 'tour-action tour-action-primary'; check.dataset.control = 'render-check-again';
+            const actions = annualNode('p', 'render-actions'); actions.append(check, renderContact(row, false)); block.append(actions);
+          }
           break;
         }
         const words = [view.position ? 'You’re ' + renderOrdinal(view.position) + ' in line.' : '',
@@ -6476,7 +6377,7 @@
     if (!said || said === renderGuideSaid) return;
     renderGuideSaid = said;
     if (said === 'held-trial_limit') {
-      guide('Your capture is waiting to start.', renderTrialLimitWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.');
+      guide('Your capture is waiting to start.', renderTrialLimitWords() + ' Use Check again or Contact Veylet support on ' + moving.title + ' below.');
       return;
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }

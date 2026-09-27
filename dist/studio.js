@@ -2370,7 +2370,7 @@
   // 20260927102000), by job; empty while the server does not have it.
   let queueHolds = new Map();
   const QUEUE_HOLDS = { admission: 'Held: waiting for admission', paused: 'Held: renders paused', weekly_limit: 'Held: weekly limit reached',
-    trial_limit: 'Held: trial render attempts used' };
+    trial_limit: 'Held: legacy trial hold — check account status' };
   function queueHold(row) {
     const hold = queueHolds.get(row.job_id);
     if (!hold || row.status !== 'queued') return '';

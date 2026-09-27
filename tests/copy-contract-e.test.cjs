@@ -313,17 +313,20 @@ test('the Super fast refund clock runs from the later of the upload finishing an
 test('llms.txt states the early paid switch and the pack channels as offer.json does', () => {
   const llms = read('llms.txt');
   assert.deepEqual(offer.freeMonths.earlyPaidSwitchAvailable, { websiteCard: true, studioInvoice: true, appStore: false });
-  assert.doesNotMatch(llms, /no automatic debt or early paid trial switch|in a later app version|later app version/i);
+  assert.doesNotMatch(llms, /no automatic debt or early paid trial switch|packs[^.]*never[^.]*in the app/i);
   assert.equal(offer.subscriptionCheckout.websiteCardEnabled, false);
-  assert.equal(offer.freeMonths.renderAttemptCap, 12);
-  assert.match(offer.freeMonths.fairUse.text, /attempts that fail because of Veylet do not count/);
+  assert.equal(offer.freeMonths.renderAttemptCap, undefined);
+  assert.equal(offer.freeMonths.fairUse, undefined);
   assert.match(llms, /New subscriptions use Apple and have no early paid trial switch\./);
   assert.match(llms, /Existing card or invoice trials may start paid service early only with separate consent under their agreed terms/);
   assert.match(llms, /using the allowance never starts billing automatically\./);
   assert.match(llms, /Existing website card subscriptions retain their agreed automatic renewal/);
-  assert.match(offer.packRules.channels.app, /^never sold in the app$/);
-  assert.match(llms, /Packs are sold on the website and by studio invoice only, never in the app\./);
-  for (const file of ['offer/index.html', 'terms/index.html']) assert.doesNotMatch(visible(read(file)), /later (?:app )?version/i, file);
+  assert.match(offer.packRules.channels.app, /^in-app purchase arrives in a later app version$/);
+  assert.match(llms, /Packs are currently sold on the website and by studio invoice only\. In-app purchase arrives in a later app version\./);
+  for (const file of ['offer/index.html', 'terms/index.html']) {
+    assert.match(visible(read(file)), /Packs are not sold in this app version; in-app purchase arrives in a later app version\./, file);
+    assert.doesNotMatch(visible(read(file)), /packs[^.]*never[^.]*in the app/i, file);
+  }
 });
 
 // /see's hero line is pinned word for word by tests/see-page.test.cjs (a follow-up for its owner).

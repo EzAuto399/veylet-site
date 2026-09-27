@@ -3264,89 +3264,58 @@ test('offer v9 truth check: A$29 reads the same in the offer, the button, the ch
   assert.doesNotMatch(account, /(?:express|super fast)[^'\n]{0,80}App Store|App Store[^'\n]{0,80}(?:express|super fast)/i);
 });
 
-/* ---- Start my plan today (draft 20260926141000_trial_start_now.sql) ------------------------- */
+/* ---- Compatibility with the retired trial_limit hold ---------------------- */
 
-// The hold as render_trial_hold (draft 20260926141000) sends it: its message is the server's own sentence.
-const START_HOLD = { reason: 'trial_limit', until: '2026-12-01T00:00:00+10:00', plan_starts_on: '2026-12-01',
-  message: "You've used this trial's 12 render attempts. Rendering continues when your plan starts on 1 December 2026.", start_plan_now: true };
-const START_OFFER = { available: true, lane: 'web', missing: [], plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
-  plan_interval: 'monthly', charge_today: true, invoice_today: false, starts_on: '2026-09-26', free_months_end_on: '2026-12-01',
-  free_walkthroughs_left: 3, free_walkthroughs_usable_until: '2026-12-01T00:00:00+10:00', request: null };
-async function withStartNow(options = {}) {
+const LEGACY_TRIAL_HOLD = {
+  reason: 'trial_limit',
+  until: '2026-12-01T00:00:00+10:00',
+  plan_starts_on: '2026-12-01',
+  message: "You've used this trial's 12 render attempts. Rendering continues when your plan starts on 1 December 2026.",
+  start_plan_now: true,
+};
+async function withLegacyTrialLimit(options = {}) {
   const service = hooksService(options.hooks);
-  const job = { job_id: 'j1', property_id: 'p1', state: 'waiting', status: 'queued', attempts_allowed: 2, hold: { ...START_HOLD, ...options.hold } };
-  const h = await load({ ...options, fetch: service.fetch, fastRetries: true, rpc: {
-    list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p1', job }] } }),
-    get_start_plan_now: options.offer === undefined ? async () => ({ data: START_OFFER }) : options.offer,
-    start_plan_now: options.start || (async () => ({ data: { attempt_id: 'attempt-1', lane: 'web', state: 'open' } })),
+  let reads = 0;
+  const job = { job_id: 'j1', property_id: 'p1', state: 'waiting', status: 'queued', attempts_allowed: 2, hold: { ...LEGACY_TRIAL_HOLD, ...options.hold } };
+  const h = await load({ ...options, fetch: service.fetch, rpc: {
+    list_workspace_render_status: async () => { reads += 1; return { data: { active: true, spaces: [{ property_id: 'p1', job }] } }; },
+    // An older backend still offers a paid switch. Merely displaying its hold must not read or use it.
+    get_start_plan_now: async () => ({ data: { available: true, lane: 'web', plans: [{ interval: 'monthly', cents: 9900, included: 2 }],
+      plan_interval: 'monthly', free_months_end_on: '2026-12-01' } }),
+    start_plan_now: async () => ({ data: { attempt_id: 'legacy-attempt', lane: 'web', state: 'open' } }),
     ...options.rpc,
   } });
   await settle(); await settle();
   const block = () => h.ids['account-properties'].all().find(el => /\brender-block\b/.test(el.className || ''));
-  const control = () => block()?.all().find(el => el.dataset?.control === 'start-plan-today');
+  const control = name => block()?.all().find(el => el.dataset?.control === name);
   const blockText = () => block().all().filter(el => !el.hidden).map(el => el.textContent).join('\n');
-  return Object.assign(h, { requests: service.requests, block, control, blockText });
+  return Object.assign(h, { requests: service.requests, reads: () => reads, block, control, blockText });
 }
 
-test('start my plan today: the hold names its day; the button and its detail come from the server’s offer', async () => {
-  const h = await withStartNow();
-  assert.match(h.blockText(), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts on 1 December 2026\./);
-  assert.equal(h.control().textContent, 'Start my plan today');
-  assert.match(h.blockText(), /Your free months end today and your plan starts now\. Walkthroughs left from your free months stay usable until 1 Dec 2026\. The plan is A\$99 a month, charged today to the card on your account\./);
-  assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_start_plan_now')[1] }, { p_workspace: 'w1' });
+test('an older trial_limit hold stays waiting and ignores its retired cap, date, message and billing trigger', async () => {
+  const h = await withLegacyTrialLimit();
+  assert.equal(h.block().dataset.state, 'waiting');
+  assert.equal(h.block().all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
+  assert.equal(h.calls.some(call => ['get_start_plan_now', 'start_plan_now'].includes(call[0])), false, 'displaying a legacy hold must not request a paid switch');
+  assert.match(h.blockText(), /Your capture is waiting for a status update\. Check again now; if it still waits, contact Veylet support\./);
+  assert.doesNotMatch(h.blockText(), /12 render attempts|1 Dec(?:ember)? 2026|Start my plan|charged today|invoice|current offer has no/i);
+  assert.equal(h.block().all().find(el => /\bpill\b/.test(el.className || '')).textContent, 'Automatic');
+  assert.equal(h.control('render-check-again').textContent, 'Check again');
+  assert.equal(h.control('contact').textContent, 'Contact Veylet support');
+  assert.match(h.control('contact').href, /^mailto:yoda@yodalai\.xyz\?/);
+  assert.equal(h.control('start-plan-today'), undefined);
+  assert.equal(h.requests.some(request => request.path === '/square/trial/start-now'), false);
 });
 
-test('start my plan today: the website card lane records the attempt, then the hooks service starts it (200 reloads)', async () => {
-  const h = await withStartNow({ hooks: { '/square/trial/start-now': () => [200, { started: true }] } });
-  const before = h.queries.length;
-  await h.control().fire('click'); await settle(); await settle();
-  assert.deepEqual({ ...h.calls.find(call => call[0] === 'start_plan_now')[1] }, { p_workspace: 'w1', p_plan_interval: 'monthly' });
-  const [post] = posts(h, '/square/trial/start-now');
-  assert.deepEqual(post.body, { workspace_id: 'w1', attempt_id: 'attempt-1' });
-  assert.equal(post.auth, 'Bearer token-1');
-  assert.ok(h.queries.length > before, 'the desk is read again');
-  assert.equal(h.ids['account-status'].textContent, 'Your plan has started. Rendering continues.');
-});
-
-test('start my plan today: 202 re-posts about every 3 s up to 5 times; 402, 409 and anything else each say their own words', async () => {
-  let n = 0;
-  const pending = await withStartNow({ hooks: { '/square/trial/start-now': () => (++n < 3 ? [202, { pending: true }] : [200, { started: true }]) } });
-  await pending.control().fire('click'); for (let i = 0; i < 6; i++) await settle();
-  assert.equal(posts(pending, '/square/trial/start-now').length, 3);
-  const always = await withStartNow({ hooks: { '/square/trial/start-now': () => [202, { pending: true }] } });
-  await always.control().fire('click'); for (let i = 0; i < 12; i++) await settle();
-  assert.equal(posts(always, '/square/trial/start-now').length, 6, 'the first post and 5 more');
-  for (const [status, words] of [[402, 'Your card was declined. Update it and try again.'], [409, 'Your plan didn’t start. Try again or contact support.'],
-    [503, 'Starting your plan isn’t open yet.'], [500, 'Starting your plan isn’t open yet.']]) {
-    const h = await withStartNow({ hooks: { '/square/trial/start-now': () => [status, { error: 'x' }] } });
-    await h.control().fire('click'); await settle(); await settle();
-    assert.equal(h.ids['account-status'].textContent, words, String(status));
-    assert.equal(h.control().disabled, false, 'it can be pressed again');
-  }
-});
-
-test('start my plan today: the invoice lane waits for the invoice; not_owner says who can; not_available and PGRST202 hide it', async () => {
-  const invoice = await withStartNow({ offer: async () => ({ data: { ...START_OFFER, lane: 'invoice', charge_today: false, invoice_today: true } }),
-    start: async () => ({ data: { attempt_id: 'attempt-2', lane: 'invoice', state: 'open' } }) });
-  assert.match(invoice.blockText(), /A\$99 a month, invoiced today\./);
-  await invoice.control().fire('click'); await settle();
-  assert.equal(invoice.ids['account-status'].textContent, 'We’ll send your invoice; rendering continues once it’s paid.');
-  assert.equal(posts(invoice, '/square/trial/start-now').length, 0, 'no card charge on the invoice lane');
-  const owner = await withStartNow({ start: async () => ({ data: { error: 'not_owner' } }) });
-  await owner.control().fire('click'); await settle();
-  assert.equal(owner.ids['account-status'].textContent, 'Only the account owner can start the plan.');
-  const gone = await withStartNow({ start: async () => ({ data: { error: 'not_available' } }) });
-  await gone.control().fire('click'); await settle();
-  assert.equal(gone.control(), undefined);
-  for (const offer of [async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }), async () => ({ data: { available: false, lane: 'apple', missing: ['lane'] } })]) {
-    const hidden = await withStartNow({ offer });
-    assert.equal(hidden.control(), undefined);
-    assert.match(hidden.blockText(), /Rendering continues when your plan starts on 1 December 2026\./);
-  }
-  // The hold itself says whether it is offered (App Store trials never are).
-  const apple = await withStartNow({ hold: { start_plan_now: false } });
-  assert.equal(apple.control(), undefined);
-  assert.equal(apple.calls.some(call => call[0] === 'get_start_plan_now'), false);
+test('checking an older trial_limit hold only reloads status and never starts or charges a plan', async () => {
+  const h = await withLegacyTrialLimit();
+  const before = h.reads();
+  const check = h.control('render-check-again');
+  assert.ok(check, 'a legacy hold must offer a status refresh');
+  await check.fire('click'); await settle(); await settle();
+  assert.ok(h.reads() > before, 'render status is read again');
+  assert.equal(h.calls.some(call => ['get_start_plan_now', 'start_plan_now'].includes(call[0])), false);
+  assert.equal(h.requests.some(request => request.path === '/square/trial/start-now'), false);
 });
 
 

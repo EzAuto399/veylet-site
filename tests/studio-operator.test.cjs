@@ -469,6 +469,17 @@ test('the capture queue says why a held job waits', async () => {
   assert.doesNotMatch(text, /On time/, 'a held job’s clock is not on time');
 });
 
+test('a legacy trial hold asks the operator to check status without reviving the retired cap', async () => {
+  const job = { job_id: 'eeeeeeee-0000-4000-8000-000000000005', workspace_id: 'ws-harbour', status: 'queued', queue_position: 1, priority: 'standard',
+    queued_at: '2026-09-27T00:00:00Z', elapsed_hours: 3, sla_due_at: '2026-09-28T00:00:00Z', sla_state: 'open', sla_hours: 24 };
+  const h = await load({ rpc: { studio_capture_queue: async () => ({ data: [job] }),
+    studio_capture_queue_holds: async () => ({ data: [{ job_id: job.job_id, hold: { reason: 'trial_limit', until: null }, eligible: false, sla_state: 'held' }] }) } });
+  const text = h.ids['studio-queue-rows'].text();
+  assert.match(text, /Held: legacy trial hold — check account status/);
+  assert.doesNotMatch(text, /render attempts used|On time/);
+  assert.equal(h.calls.some(([name]) => ['start_plan_now', 'get_start_plan_now'].includes(name)), false);
+});
+
 
 test('deletion requests use the deployed RPC names and show real counts', async () => {
   const h = await load({ rpc: { studio_list_deletion_requests: async () => ({ data: [{

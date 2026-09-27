@@ -1180,35 +1180,32 @@ test('what approving uses is never shown on a card that says nothing was used (F
   }
 });
 
-test('a trial past its 12 render attempts waits, never fails, and says when rendering continues; the app says the words only', async () => {
-  // Owner decision 5 (26 September 2026): the date is the day this workspace's free months end.
+test('a legacy trial hold stays waiting and offers status refresh and support on both account pages', async () => {
   const trial = { status: 'trial', plan_code: 'solo', source: 'web', billing_interval: 'monthly', trial_started_at: '2026-09-01T00:00:00Z',
     trial_ends_at: '2026-12-01T00:00:00Z', trial_included_walkthroughs: 6, accepted_in_free_months: 1, auto_renews: true, renewal_price_aud_cents: 9900 };
-  const words = 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts on 1 Dec 2026.';
-  const job = { state: 'waiting', status: 'queued', queue_position: 3, typical_start_minutes: 40, hold: { reason: 'trial_limit', until: null } };
-  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job), get_workspace_plan: async () => ({ data: [trial] }) } });
-  await settle();
-  const block = renderBlockOf(h);
-  assert.equal(block.dataset.state, 'waiting');
-  assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
-  assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
-  assert.doesNotMatch(textOf(block), /Failed|Try again|Retry|Contact Veylet support|You’re \d|Usually starts|Choose a plan/);
-  // "Start my plan today" waits for the backend's function: until it is named, nothing to press.
-  assert.equal(block.all().some(el => el.dataset.control === 'start-plan-today'), false);
-  assert.equal(block.all().some(el => el.tagName === 'BUTTON'), false);
-  assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.']);
-  // Without a readable plan, no date is invented.
+  const words = 'Your capture is waiting for a status update. Check again now; if it still waits, contact Veylet support.';
+  const job = { state: 'waiting', status: 'queued', queue_position: 3, typical_start_minutes: 40,
+    hold: { reason: 'trial_limit', until: null, start_plan_now: true, plan_starts_on: '2026-12-01' } };
+  for (const page of [markup, appMarkup]) {
+    const h = await load({ markup: page, tours: [], rpc: { list_workspace_render_status: renderAnswer(job), get_workspace_plan: async () => ({ data: [trial] }) } });
+    await settle();
+    const block = renderBlockOf(h);
+    assert.equal(block.dataset.state, 'waiting');
+    assert.equal(block.all().find(el => el.className === 'render-title').textContent, 'Waiting to render');
+    assert.deepEqual(block.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
+    assert.doesNotMatch(textOf(block), /12 render attempts|1 Dec|Failed|Try again|Retry|You’re \d|Usually starts|Choose a plan|Start my plan/);
+    assert.equal(block.all().some(el => el.dataset.control === 'start-plan-today'), false);
+    assert.equal(block.all().find(el => el.dataset.control === 'render-check-again').textContent, 'Check again');
+    assert.equal(block.all().find(el => el.dataset.control === 'contact').textContent, 'Contact Veylet support');
+    assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent),
+      ['Your capture is waiting to start.', words + ' Use Check again or Contact Veylet support on Sample space below.']);
+    assert.equal(h.count('get_start_plan_now'), 0);
+    assert.equal(h.count('start_plan_now'), 0);
+    if (page === appMarkup) for (const pattern of BANNED) assert.doesNotMatch(h.visible(), pattern);
+  }
+  // An unreadable plan cannot turn an obsolete backend hold into a billing date or cap claim.
   const undated = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
-  assert.deepEqual(renderBlockOf(undated).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent),
-    ['You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts.']);
-  // /app/account: the words only; no price, no purchase link and nothing to press.
-  const app = await load({ markup: appMarkup, tours: [], rpc: { list_workspace_render_status: renderAnswer(job), get_workspace_plan: async () => ({ data: [trial] }) } });
-  await settle();
-  const appBlock = renderBlockOf(app);
-  assert.deepEqual(appBlock.all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
-  assert.equal(appBlock.all().some(el => el.tagName === 'BUTTON' || el.tagName === 'A'), false);
-  assert.deepEqual(app.ids['account-next-step'].children.map(el => el.textContent), ['Your capture is waiting to start.', words + ' It shows on Sample space below.']);
-  for (const pattern of BANNED) assert.doesNotMatch(app.visible(), pattern);
+  assert.deepEqual(renderBlockOf(undated).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
 });
 
 const GATE = {
@@ -1265,7 +1262,7 @@ test('app mode: the review preview opens /play with from=app, so its links stay 
 
 /* ---- Wave 2 lane D (27 September 2026): an honest customer desk ------------------------
  * SITE_DESK-07 one Resume per paused listing; SITE_DESK-03 no Super fast on a held capture;
- * the trial-limit words come from the server (render_trial_limit_message through the hold);
+ * legacy trial-limit holds use neutral refresh/support words without a billing action;
  * SITE_DESK-04 the website card plan cancels itself through POST /square/trial/cancel.
  */
 const resumeControls = h => h.all().filter(el => el.tagName === 'BUTTON' && el.textContent === 'Resume sharing' && !el.hidden);
@@ -1308,19 +1305,18 @@ test('a held capture is offered no Super fast render: it reads Not available rig
   assert.match(textOf(open.all().find(el => el.className === 'express-block')), /Use a super fast render \(1 left\)/);
 });
 
-test('the trial-limit words are the server’s own when it sends them', async () => {
-  // As render_trial_hold words it (straight apostrophes, the month in full); the desk sets the apostrophes.
-  const message = 'You’ve used this trial’s 10 render attempts. Rendering continues when your plan starts on 3 January 2027.';
-  const job = { state: 'waiting', status: 'queued', hold: { reason: 'trial_limit', until: null, message: message.replace(/’/g, "'") } };
-  const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
-  await settle();
-  assert.deepEqual(renderBlockOf(h).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [message]);
-  assert.equal(h.ids['account-next-step'].children[1].textContent, message + ' It shows on Sample space below.');
-  // A template the server did not fill, or no words at all: the desk's own sentence.
-  for (const said of ['Rendering continues when your plan starts on {date}.', '', null]) {
-    const other = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ ...job, hold: { ...job.hold, message: said } }) } });
+test('an older trial-limit message cannot revive a retired cap, billing date or payment instruction', async () => {
+  const words = 'Your capture is waiting for a status update. Check again now; if it still waits, contact Veylet support.';
+  for (const message of ["You've used this trial's 10 render attempts. Rendering continues when your plan starts on 3 January 2027.",
+    'Start my plan today and charge the saved card.', 'Rendering continues when your plan starts on {date}.', '', null]) {
+    const job = { state: 'waiting', status: 'queued', hold: { reason: 'trial_limit', until: null, message } };
+    const h = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer(job) } });
     await settle();
-    assert.match(textOf(renderBlockOf(other)), /You’ve used this trial’s 12 render attempts\. Rendering continues when your plan starts\./, String(said));
+    assert.deepEqual(renderBlockOf(h).all().filter(el => /\brender-line\b/.test(el.className)).map(el => el.textContent), [words]);
+    assert.equal(h.ids['account-next-step'].children[1].textContent,
+      words + ' Use Check again or Contact Veylet support on Sample space below.');
+    assert.equal(h.count('get_start_plan_now'), 0);
+    assert.equal(h.count('start_plan_now'), 0);
   }
 });
 
