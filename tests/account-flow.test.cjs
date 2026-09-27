@@ -1181,7 +1181,7 @@ test('the desk first-capture steps follow the app-first flow', () => {
   assert.match(markup, /Install Veylet Capture on a LiDAR iPhone and sign in with this same email/);
   assert.match(markup, /Do one practice capture in a space you are allowed to record/);
   // Owner decision 26 September 2026: sending happens from the app; one tick before Approve and share.
-  assert.match(markup, /Send from the app: it uploads in the background and is usually ready in 1–2 hours\./);
+  assert.match(markup, /Send from the app: it uploads in the background\. Check your account for rendering status\./);
   assert.doesNotMatch(markup, /Export capture|AirDrop|transfer route|to your Mac|not available in the current release/);
   assert.match(markup, /Review the walkthrough here, tick that you have the right to share it, then press Approve and share/);
   assert.doesNotMatch(markup, /Save a space\. Suburb or city only/);
@@ -4010,7 +4010,7 @@ const expressFilled = h => expressNodes(h).filter(el => /\btour-action-primary\b
 const expressClass = (h, name) => expressNodes(h).find(el => (el.className || '').split(' ').includes(name));
 const expressProblem = h => { const box = expressClass(h, 'annual-problem'); return box && !box.hidden ? box.all().find(el => el.className === 'annual-alert-text').textContent : null; };
 const pressExpress = async (h, text) => { await expressButton(h, text).fire('click'); await settle(); };
-const PROMISE = 'First in the queue: ready in about 30 minutes, any day, any time, instead of the usual 1–2 hours. If it isn’t, the A$29 is refunded automatically.';
+const PROMISE = 'First in the queue: ready in about 30 minutes, any day, any time. If it isn’t, the A$29 is refunded automatically.';
 
 test('offer v9: a sent capture’s space offers a super fast render: A$29, when it would be ready, the 30-minute and refund promises, and a quiet action', async () => {
   const h = await withExpress(expressOffer({ captures: [sentCapture({ status: 'processing' })] }));
@@ -4066,7 +4066,7 @@ test('offer v9: an older answer that is full offers nothing to press, keeps the 
   const h = await withExpress(cappedOffer({ taken_today: 5, full_today: true }));
   assert.equal(expressClass(h, 'express-title').textContent, 'Super fast render');
   assert.equal(expressClass(h, 'pill').textContent, 'Not available right now');
-  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place and is usually ready within 1–2 hours\./);
+  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
   assert.doesNotMatch(expressText(h), /5 a day|full today|taken|business/i);
   assert.equal(expressNodes(h).some(el => el.tagName === 'BUTTON'), false);
   // Refused as full meanwhile: before any charge, and the space offers nothing more.
@@ -4094,7 +4094,7 @@ test('offer 2026-09-26.3: while fast GPUs are not starting quickly (reason capac
   assert.equal(h.ids['account-express-status'].hidden, true, 'a readable answer, not an outage');
   assert.equal(expressClass(h, 'express-title').textContent, 'Super fast render');
   assert.equal(expressClass(h, 'pill').textContent, 'Not available right now');
-  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place and is usually ready within 1–2 hours\./);
+  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
   assert.equal(expressNodes(h).some(el => el.tagName === 'BUTTON'), false);
   assert.equal(posts(h, '/square/express/checkout').length, 0);
   // Even with bonus renders left, none is offered while it is unavailable.

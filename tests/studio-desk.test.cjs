@@ -2622,7 +2622,7 @@ test('offer v9: the capture queue names a Super fast job first, as Super fast, a
   assert.equal(cells.Target.text(), 'On time (30 min)');
   const classes = h.ids['studio-sla-body'].all().filter(el => el.tagName === 'H4').map(el => el.textContent);
   assert.deepEqual(classes, ['Super fast renders · 30-minute target', 'Founding accounts · 12-hour target', 'Everyone else · 24-hour target']);
-  assert.match(markup.replace(/\s+/g, ' '), /Super fast renders first, then founding accounts, then the longest waiting\. .*Processing is automatic and usually takes 1–2 hours\. Target from upload to ready: 30 minutes for a Super fast render, 12 hours for founding accounts, 24 hours for everyone else\./);
+  assert.match(markup.replace(/\s+/g, ' '), /Super fast renders first, then founding accounts, then the longest waiting\. .*Processing is automatic\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\. Target from upload to ready: 30 minutes for a Super fast render, 12 hours for founding accounts, 24 hours for everyone else\./);
 });
 
 test('offer v9: the first-walkthrough redo is recorded as a correction, confirmed as the account’s one free redo, and a refusal keeps what was typed', async () => {

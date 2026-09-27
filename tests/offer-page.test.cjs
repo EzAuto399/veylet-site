@@ -100,7 +100,7 @@ test('the canonical record is offer 2026-09-26.3: 3 free months with 6 and a car
   assert.match(express.refund, /within 30 minutes of the upload finishing or the purchase, whichever is later, the A\$29 is refunded automatically/);
   // Owner decision, 25 September 2026: processing is automatic; nobody checks a walkthrough by hand.
   assert.equal(record.processing.automatic, true);
-  assert.equal(record.processing.turnaround, 'usually within 1–2 hours of the upload finishing; no person checks it');
+  assert.equal(record.processing.turnaround, 'Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. No person checks it.');
   assert.match(record.processing.qualityGate, /plus an AI visual check once the privacy notice covers it/);
   assert.equal(record.processing.approval, 'the account reviews and approves before sharing');
   assert.equal(record.counting.acceptedMeans, 'the automatic quality check passed and the workspace approved the exact revision for release');
@@ -621,7 +621,7 @@ test('the straight answers match their structured data word for word, and answer
     + `Choose annual before your free months end and you get ${bonus} bonus walkthroughs and ${bonusExpress} Super fast renders in your first plan year, ${plan.annualIncluded + bonus} walkthroughs in total.`);
   assert.equal(byQuestion['What is a Super fast render?'],
     'Your capture goes first in the queue and is rendered on the fastest GPU available in Australia, so it is ready for your review in about 30 minutes, any day, any time, '
-    + `instead of the usual 1–2 hours, for ${aud(express.webAud)}. If it isn’t ready ${LATER}, the ${aud(express.webAud)} is refunded automatically. `
+    + `for ${aud(express.webAud)}. If it isn’t ready ${LATER}, the ${aud(express.webAud)} is refunded automatically. `
     + `There is no daily limit: your account offers it when you send a capture. ${SUPER_FAST_AVAILABILITY} It is sold on this website only, not in the app.`);
   assert.equal(plain(byQuestion['What if our first walkthrough is not good enough to list?']),
     `We redo it free. If your first walkthrough isn't listing-ready, we correct it on the same link, and the redo uses no walkthrough. It covers your account's first accepted walkthrough; a new capture visit is not included.`);
@@ -659,7 +659,7 @@ test('the offer page head and structured description state this offer', () => {
     `${aud(plan.webAud)} a month by card or studio invoice or ${aud(plan.appAud)} a month in the App Store`, `up to ${banked} banked`,
     `${aud(plan.annualAud)} a year by card or studio invoice or ${aud(plan.annualAppAud)} a year in the App Store`,
     `${plan.annualIncluded} walkthroughs to use any time in the plan year`, `A Super fast render, sold while fast GPUs are starting quickly, is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
-    'processed and quality-checked automatically, ready for your review usually within 1–2 hours of the upload finishing',
+    'processed and quality-checked automatically, ready for your review',
     'If your first walkthrough isn’t listing-ready, we redo it free.']) {
     assert.ok(page.description.includes(phrase), `WebPage description: ${phrase}`);
   }
@@ -1071,7 +1071,7 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.equal(lineStarting('- An accepted walkthrough'), '- An accepted walkthrough is one the automatic quality check passed and the account approved for release; a failed capture never counts.');
   const processing = lineStarting('- Processing:');
   assert.match(processing, /^- Processing: automatic, with no person checking\./);
-  assert.match(processing, /usually ready for review within 1–2 hours of the upload finishing/);
+  assert.match(processing, /Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
   assert.match(processing, /An AI visual check is planned and comes only once the privacy notice covers it; it does not run today\.$/);
   assert.doesNotMatch(llms, /studio check|(?<!no )business (?:day|hour)|express render|priority in the studio queue/i);
   assert.equal(lineStarting('- First walkthrough:'), `- First walkthrough: if an account's first walkthrough isn't listing-ready, we redo it free. The redo is a correction on the same link and uses no walkthrough; a new capture visit is not included.`);
@@ -1129,7 +1129,7 @@ test('retired plan names appear on no public page, and the desks name them only 
 test('owner decisions of 26 September 2026 on /offer: send from the app, one main button to the waitlist, one-tick approval, no /request', () => {
   const page = read('offer/index.html');
   const flat = visible('offer/index.html');
-  assert.ok(flat.includes('Send from the app: it uploads in the background and is usually ready in 1–2 hours.'), 'the send-from-app sentence');
+  assert.ok(flat.includes('Send from the app: it uploads in the background. Check your account for rendering status.'), 'the send-from-app sentence');
   assert.doesNotMatch(page, /href="\/request/, 'no link to the request form');
   const buttons = [...page.matchAll(/<a class="button[^"]*" href="([^"]*)"/g)].map(match => match[1]);
   assert.ok(buttons.length >= 1, 'a main button');

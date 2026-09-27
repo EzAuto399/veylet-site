@@ -579,13 +579,13 @@
       }
       const actions = {
         draft: ['Your walkthrough is at its quality check.', 'Rendering, step 5 of 5: Checking quality. The check is automatic; the walkthrough opens for your review once it passes. You can open its preview below.', 'Open walkthrough details'],
-        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. It is usually ready for your review within 1–2 hours of the upload finishing; refresh to check for an update.', 'Refresh progress'],
+        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. Refresh to check for an update.', 'Refresh progress'],
         revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
       };
       const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
       guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase) : open);
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See your first-tour steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-tour steps', '/start');
     }
   }
   function button(label, fn) {
@@ -4214,7 +4214,7 @@
   /* ---- Super fast render (code: express) ----------------------------------
    * Offer 2026-09-25.2, owner decision 25 September: a capture that has been sent
    * (queued or processing) can go first in the queue on the fastest GPU available,
-   * ready in about 30 minutes any day, any time, instead of the usual 1–2 hours, for
+   * ready in about 30 minutes any day, any time, for
    * A$29 by card on this website or with a render from the early-annual bonus. If it
    * is late the A$29 is refunded automatically, or the bonus render is returned.
    * There is no daily cap and no business hours. Which captures are open, when a
@@ -4299,7 +4299,7 @@
   }
   function expressTest() { return express && (express.lane?.sandbox === true || express.sandbox === true) ? 'Test · ' : ''; }
   function expressPromise(offer) {
-    return 'First in the queue: ready in about 30 minutes, any day, any time, instead of the usual 1–2 hours. If it isn’t, the ' +
+    return 'First in the queue: ready in about 30 minutes, any day, any time. If it isn’t, the ' +
       planMoney(offer.price_cents) + ' is refunded automatically.';
   }
   function expressCharge(offer, capture) {
@@ -4349,7 +4349,7 @@
     if (expressUnavailable(offer)) {
       head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
       parts.push(head);
-      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place and is usually ready within 1–2 hours.');
+      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.');
       // Refused as full after pressing: the reason stays beside it until the next read.
       if (problemText) parts.push(annualAlert(problemText, 'annual-alert annual-problem'));
       return parts;

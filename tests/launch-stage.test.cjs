@@ -149,7 +149,7 @@ test('sign-in stays at every stage: the email-link form is markup the stage scri
 
 // Owner decisions, 26 September 2026: captures are sent from the app; the public pages have one main
 // path, the waitlist, with the weekly-groups line beside it; /request stays only for existing agreements.
-const SEND = 'Send from the app: it uploads in the background and is usually ready in 1–2 hours.';
+const SEND = 'Send from the app: it uploads in the background. Check your account for rendering status.';
 const flatText = html => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 test('home and /start describe sending from the app, and no export or private-transfer route survives', () => {

@@ -502,7 +502,7 @@ test('no studio check, person check, studio contact, business hours or daily cap
   assert.match(checking.visible(), /Step 5 of 5: Checking quality\./);
   const selling = await load({ tours: [], rpc: { get_express_offer: async () => offers[3] } });
   assert.match(selling.visible(), /Need it sooner\? Super fast render/);
-  assert.match(selling.visible(), /ready in about 30 minutes, any day, any time, instead of the usual 1–2 hours\. If it isn’t, the A\$29 is refunded automatically\./);
+  assert.match(selling.visible(), /ready in about 30 minutes, any day, any time\. If it isn’t, the A\$29 is refunded automatically\./);
   assert.doesNotMatch(selling.visible(), /taken today|full today/i);
   // Every refusal line after Approve and share.
   for (const message of ['tour uploader membership is no longer active', 'boom']) {

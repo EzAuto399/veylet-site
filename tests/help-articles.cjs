@@ -200,7 +200,7 @@ const ARTICLES = [
   {
     slug: 'uploading', group: 'sending', title: 'Sending your capture', short: 'Sending',
     description: 'How a capture uploads: Wi-Fi or mobile data, in the background, with pause, resume and cancel.',
-    lead: 'Send from the app: it uploads in the background and is usually ready in 1–2 hours. After the phone check, tap **Send to Veylet**; sending keeps going even if you leave the app.',
+    lead: 'Send from the app: it uploads in the background. Check your account for rendering status. After the phone check, tap **Send to Veylet**; sending keeps going even if you leave the app.',
     body: [{ steps: [
       'Tap **Send to Veylet**. The first time, the app asks to send you notifications. Allow them to hear when your walkthrough is ready.',
       'The upload uses Wi-Fi or mobile data, whichever the phone has. A whole home is large, so Wi-Fi is quicker and saves your data.',
@@ -218,7 +218,7 @@ const ARTICLES = [
   {
     slug: 'render-status', group: 'sending', title: 'What each status means', short: 'Statuses',
     description: 'Uploading, Waiting to render, Rendering steps 1 to 5, Retrying, Needs recapture and Failed: what each means and whether you need to do anything.',
-    lead: 'Rendering and the quality check are automatic. A walkthrough is usually ready 1 to 2 hours after the upload finishes.',
+    lead: 'Rendering and the quality check are automatic. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.',
     body: [{ terms: [
       ['Uploading', 'The capture is still being sent; the percentage shows how much has arrived. Nothing to do. See [sending your capture](help:uploading).'],
       ['Waiting to render', 'Your capture is in line, with your place and the usual start time. Instead of a place, it may say why it is waiting:', [

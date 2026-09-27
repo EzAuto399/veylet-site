@@ -80,7 +80,7 @@ test('the canonical offer is 2026-09-26.3 and separates payment channels and una
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
     { name: 'Super fast render', webAud: 29, appStore: false, dailyCap: null });
   assert.deepEqual(record.processing, { automatic: true,
-    turnaround: 'usually within 1–2 hours of the upload finishing; no person checks it',
+    turnaround: 'Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. No person checks it.',
     // The 26 September gate policy (PRODUCT_SIMPLICITY-10): only an impossible render blocks; score findings are flags.
     qualityGate: 'an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving',
     approval: 'the account reviews and approves before sharing' });
