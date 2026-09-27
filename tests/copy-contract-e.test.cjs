@@ -55,7 +55,8 @@ const offerText = JSON.stringify({ ...offer, history: undefined });
 
 const UNIT = 'Each capture is one walkthrough, with one link and one QR code.';
 const ACCEPTED_UNIT = 'One new accepted capture uses one walkthrough, regardless of room count.';
-const UPDATED_COUNT_PAGES = ['offer/index.html', 'start/index.html', 'terms/index.html', 'app/terms/index.html'];
+const UPDATED_COUNT_PAGES = ['offer/index.html', 'start/index.html', 'terms/index.html', 'app/terms/index.html',
+  'help/your-plan/index.html', 'app/help/your-plan/index.html'];
 const ONE_LINK_PER_PROPERTY = [
   /one link (?:and (?:one )?QR code )?(?:per|for (?:each|every|the whole|a)) property/i,
   /every property gets (?:one|a single) link/i,

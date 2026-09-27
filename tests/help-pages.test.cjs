@@ -225,3 +225,20 @@ test('approve and share is one tick, quoted word for word from the desk and the 
   }
   for (const page of pages) assert.doesNotMatch(page.html, /seven checks|all seven/i, page.file);
 });
+
+
+test('semantic final: help bounds recapture waivers and states accepted-capture units in both editions', () => {
+  const allowance = "This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.";
+  for (const prefix of ['help', 'app/help']) {
+    for (const slug of ['render-status', 'fix/no_frames', 'fix/no_depth', 'fix/upload_limits', 'fix/phone_budget', 'fix/not_property']) {
+      const words = text(main(read(`${prefix}/${slug}/index.html`)));
+      assert.ok(words.includes(allowance), prefix + '/' + slug + ': complete allowance rule');
+      assert.doesNotMatch(words, /recaptur[^.]*won’t use a walkthrough/i);
+    }
+    const plan = text(main(read(`${prefix}/your-plan/index.html`)));
+    assert.match(plan, /One new accepted capture uses one walkthrough, regardless of room count\./);
+    assert.match(plan, /permitted whole recapture including every original room/);
+    assert.match(plan, /A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver\./);
+    assert.match(plan, /Exports are not open yet\./);
+  }
+});

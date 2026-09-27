@@ -145,13 +145,15 @@ const readyTour = (fields = {}) => ({ id: 't1', property_id: 'p1', status: 'read
 const toursFor = state => state === 'ready' ? [readyTour()] : state === 'live' ? [readyTour({ share_token: 'abcdefghijklmnop' })] : [];
 const withState = (state, options = {}) => load({ status: [JOBS[state]], tours: toursFor(state), approved: state === 'live', ...options });
 
+const RECAPTURE_ALLOWANCE = "This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.";
+
 const WORDS = {
   uploading: ['Uploading', 'Sending from your phone', ['Sending from Veylet Capture. Keep Veylet open or plugged in; it continues in the background.']],
   waiting: ['Waiting to render', 'Automatic', ['You’re 2nd in line. Usually starts within 40 minutes.']],
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
   ready: ['Ready for your review', 'Your turn', ['Open it, walk through, then approve to share.']],
   live: ['Live', null, ['Anyone with the link can open it.']],
-  recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos. Recapture this room; it won’t use a walkthrough.']],
+  recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
   failed: ['Failed', 'Veylet support', ['Something went wrong on our side. Veylet support has been told; nothing was used.']],
   stale: ['Still working — checking in', 'Automatic', ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.',
@@ -499,16 +501,16 @@ test('render status: Recapture {room} opens that room’s steps in the app, in p
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'true');
   assert.equal(panel.hidden, false);
-  assert.equal(panel.textContent, 'On your iPhone, open Veylet Capture and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it. It won’t use a walkthrough.');
+  assert.equal(panel.textContent, 'On your iPhone, open Veylet Capture and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it.');
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'false');
   // No room named: the reason stands alone, and the space is what is captured again.
   const whole = await load({ status: [job({ ...JOBS.recapture, recapture: { room: null, reason: 'Most of the photos were blurred' } })] });
-  assert.deepEqual(whole.lines(), ['Most of the photos were blurred. Recapture it; it won’t use a walkthrough.']);
+  assert.deepEqual(whole.lines(), ['Most of the photos were blurred.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(whole.filled(), ['Recapture Sample space']);
   // No reason at all: Veylet support is who can say what, so that is the reader's next move.
   const unnamed = await load({ status: [job({ ...JOBS.recapture, recapture: null })] });
-  assert.deepEqual(unnamed.lines(), ['Some of it needs capturing again; it won’t use a walkthrough. Ask Veylet support what to capture.']);
+  assert.deepEqual(unnamed.lines(), ['Some of it needs capturing again. Ask Veylet support what to capture.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(unnamed.filled(), ['Contact Veylet support']);
 });
 
@@ -523,9 +525,9 @@ test('render status: the member read’s recapture ARRAY (capture_recapture_reas
   ];
   const h = await load({ status: [job({ ...JOBS.recapture, recapture })] });
   assert.deepEqual(h.lines(), [
-    'Kitchen: Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot. Recapture this room; it won’t use a walkthrough.',
-    'Hallway: We could not find a clear floor to walk on here. Recapture this room; it won’t use a walkthrough.',
-    'Something else the gate saw. Recapture it; it won’t use a walkthrough.']);
+    'Kitchen: Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.',
+    'Hallway: We could not find a clear floor to walk on here.',
+    'Something else the gate saw.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(h.filled(), ['Recapture Kitchen'], 'the first room’s button is the filled one');
   const buttons = h.slot().shown().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
   assert.deepEqual(buttons, ['Recapture Kitchen', 'Recapture Hallway', 'Recapture Sample space']);
@@ -610,4 +612,15 @@ test('render status: a walkthrough under a space that already says its state sho
   current = [job({ ...JOBS.rendering, job_id: 'b2' })];
   await moving.hide(false);
   assert.equal(chip(moving).hidden, false);
+});
+
+
+test('semantic final: a recapture allowance note stays visible before and after opening room steps', async () => {
+  const h = await withState('recapture');
+  assert.equal(h.lines().filter(line => line === RECAPTURE_ALLOWANCE).length, 1);
+  const button = h.controls().find(el => el.textContent === 'Recapture Kitchen');
+  await button.fire('click');
+  assert.equal(button.attributes['aria-expanded'], 'true');
+  assert.equal(h.lines().filter(line => line === RECAPTURE_ALLOWANCE).length, 1);
+  assert.doesNotMatch(h.text(), /recaptur[^.]*won’t use a walkthrough|It won’t use a walkthrough\./i);
 });

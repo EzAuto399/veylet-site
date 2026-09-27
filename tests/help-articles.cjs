@@ -26,6 +26,7 @@ const DIST = path.join(__dirname, '../dist');
 const ORIGIN = 'https://veylet.com';
 // The support address every page on the site uses (dist/support, dist/app/support).
 const SUPPORT = 'yoda@yodalai.xyz';
+const RECAPTURE_ALLOWANCE = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
 
 // The rule ids the app and the desk know (cloud/quality_gate.py RULES; account.js REVIEW_FLAG_WORDS).
 const RECAPTURE_RULES = ['no_frames', 'no_depth', 'upload_limits', 'phone_budget', 'not_property'];
@@ -228,7 +229,7 @@ const ARTICLES = [
       ], 'None of these is a fault. It starts by itself.'],
       ['Rendering', 'Five steps: 1 Preparing photos, 2 Lining up camera positions, 3 Building your 3D walkthrough, 4 Packing it for phones, 5 Checking quality. Step 5 is an automatic check of the finished walkthrough.'],
       ['Retrying', 'Rendering hit a snag, so it is trying again automatically (attempt 2 of 2). Nothing to do.'],
-      ['Needs recapture', 'A room could not be used. Each room shows its reason and the fix, and recapturing it won’t use a walkthrough. See [fixing a capture](help#fixing).'],
+      ['Needs recapture', 'A room could not be used. Each room shows its reason and the fix. ' + RECAPTURE_ALLOWANCE + ' See [fixing a capture](help#fixing).'],
       ['Failed', 'Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.'],
     ] }, { paras: [
       'When it passes, the listing reads **Ready for your review**. See [approve and share](help:approve-and-share).',
@@ -253,7 +254,7 @@ const ARTICLES = [
     notWorking: [
       'If the phone check says **Not enough views yet**, fewer than three photos were saved. Hold the phone level on a clear corner or doorway until views start saving.',
       'If the camera view stays black or frozen, close the app fully, open it again and retry.',
-      'Recapturing won’t use a walkthrough.',
+      RECAPTURE_ALLOWANCE,
     ],
   },
   {
@@ -267,7 +268,7 @@ const ARTICLES = [
     ] }],
     notWorking: [
       'If Account says the device has no rear LiDAR camera, that device cannot record a capture. See [what you need](help:what-you-need).',
-      'Recapturing won’t use a walkthrough.',
+      RECAPTURE_ALLOWANCE,
     ],
   },
   {
@@ -281,7 +282,7 @@ const ARTICLES = [
     ] }],
     notWorking: [
       'Keep each room to what it needs: two standing spots and three circles are enough for an ordinary room. See [walk a room](help:walk-a-room).',
-      'Recapturing won’t use a walkthrough.',
+      RECAPTURE_ALLOWANCE,
     ],
   },
   {
@@ -295,7 +296,7 @@ const ARTICLES = [
     ] }],
     notWorking: [
       'Very large open-plan spaces count as big too. Keep to two standing spots and three circles in each.',
-      'Recapturing won’t use a walkthrough.',
+      RECAPTURE_ALLOWANCE,
     ],
   },
   {
@@ -309,7 +310,7 @@ const ARTICLES = [
     ] }],
     notWorking: [
       'If you did capture the inside of a home, email Veylet support with the listing’s name as it appears in the app.',
-      'Recapturing won’t use a walkthrough.',
+      RECAPTURE_ALLOWANCE,
     ],
   },
   {
@@ -485,8 +486,8 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
-      'Each capture is one walkthrough, with one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.',
-      'Listing videos and stills are included in your plan once video exports open. Files you already downloaded are yours to keep.',
+      'One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
+      'Listing videos and stills are included in your plan once video exports open. Exports are not open yet. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {
       // Offer 2026-09-26.2: the hosting extension is sold on request from the website only; the app's edition never

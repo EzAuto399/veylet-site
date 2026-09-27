@@ -6,7 +6,7 @@
 // pays one year, once, on the day the free months end, and that year runs past month twelve.
 // Nothing is charged during the free months; the first charge is on the day they end. A
 // walkthrough pack is optional and bought once, at its website (card or invoice) price on
-// a separate transaction: packs are not sold in the app.
+// a separate transaction. Pack in-app purchase is unavailable in this app version and arrives in a later version.
 function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 3, packPrice = 0 }) {
   const packCents = Math.round(Number(packPrice) * 100);
   if (channel !== 'apple' || !['monthly', 'annual'].includes(cadence)

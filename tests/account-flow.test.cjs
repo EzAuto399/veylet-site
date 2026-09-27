@@ -1599,7 +1599,7 @@ test('verified acceptance capacity distinguishes included units from pack and ex
     { accepted_in_free_months: 8 });
   assert.match(capacityText(h), /0 included walkthroughs remaining · 2 extra walkthroughs available/);
   assert.match(capacityText(h), /next new walkthrough uses one extra walkthrough, the one that expires first/);
-  assert.match(capacityText(h), /Each new accepted capture uses one walkthrough, regardless of room count\. A correction or reprocessing of the same walkthrough, a permitted whole recapture including every original room, saving a space or a failed capture uses none\. Previously accepted usage stays unchanged\./);
+  assert.match(capacityText(h), /Each new accepted capture uses one walkthrough, regardless of room count\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough\. Saving a space or a failed capture also uses none\. A partial named-room recapture is not a waiver\. Previously accepted usage stays unchanged\./);
   assert.ok(planValues(h).includes('6 of 6 used'));
   assert.ok(planValues(h).includes('2 available'), 'the Extra walkthroughs row states the ledger’s count');
   assert.match(planText(h), /6 of 6 included free walkthroughs used/);

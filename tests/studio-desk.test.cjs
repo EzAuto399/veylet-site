@@ -10,18 +10,18 @@ const styles = read('dist/studio.css');
 const accountScript = read('dist/account.js');
 const accountMarkup = read('dist/account/index.html');
 const homeMarkup = read('dist/index.html');
-// The canonical offer record (2026-09-25.1): every amount the desk records is
-// checked against it rather than typed into these tests.
+// Current public offer terms remain separate from preserved legacy invoice terms.
 const offer = JSON.parse(read('dist/offer/offer.json'));
 const cents = amount => Math.round(amount * 100);
 const soloPlan = offer.plans[0];
 const escapeMoney = text => text.replace(/[$.,]/g, '\\$&');
 const aud = amountCents => 'A$' + (amountCents / 100).toLocaleString('en-AU',
   { minimumFractionDigits: amountCents % 100 ? 2 : 0, maximumFractionDigits: 2 });
-// One public annual price: the invoice year is the plan's annualAud, never a tier.
+// Existing invoice obligations retain offer 2026-09-25.2: 9900 / 99000 cents
+// (20260925105000_offer_v9.sql, studio_activate_invoice_plan and
+// members_annual_year_cents). Current App Store prices are not invoice receipts.
+const LEGACY_INVOICE_PLAN = { month: 9900, year: 99000 };
 const OFFER = {
-  month: cents(soloPlan.webAud),
-  year: cents(soloPlan.annualAud),
   yearlyPool: soloPlan.annualIncluded,
   rolloverMax: soloPlan.rollover.maxBanked,
   earlyBonus: offer.earlyAnnualBonus.walkthroughs,
@@ -180,7 +180,7 @@ test('one price source: an App Store account is never shown the website price', 
   assert.doesNotMatch(script, /extra_walkthrough_aud_cents|planExtraPrice/);
 });
 
-test('the studio desk carries no retired price and no annual tier: one public annual amount, written once', () => {
+test('the studio desk preserves the legacy invoice amounts and carries no retired plan or annual tier', () => {
   // Offer 2026-09-25.1: Team, Office, One walkthrough, the founding rate and the
   // single extra are retired, so none of their amounts may be written in the desk;
   // nor the withdrawn one-month-free annual tier.
@@ -195,11 +195,12 @@ test('the studio desk carries no retired price and no annual tier: one public an
     const written = new RegExp(escapeMoney('A$' + amount.toLocaleString('en-AU')) + '(?!\\d|[,.]\\d)');
     assert.equal(written.test(code), false, `studio.js writes A$${amount}`);
   }
-  // Every current amount is written once, in cents, beside its name, and the
-  // annual amount is the one public price: no tier map and no tier read.
-  assert.match(script, new RegExp(`const PLAN_MONTH_CENTS = ${cents(soloPlan.webAud)};`));
-  assert.match(script, new RegExp(`const PLAN_YEAR_CENTS = ${cents(soloPlan.annualAud)};`));
-  assert.equal(offer.membersAnnual.tiers.standard.planAud, soloPlan.annualAud);
+  // Preserve signed invoice obligations; the current public offer is App Store only.
+  assert.match(script, new RegExp(`const PLAN_MONTH_CENTS = ${LEGACY_INVOICE_PLAN.month};`));
+  assert.match(script, new RegExp(`const PLAN_YEAR_CENTS = ${LEGACY_INVOICE_PLAN.year};`));
+  assert.equal(cents(offer.membersAnnual.tiers.standard.planAud), LEGACY_INVOICE_PLAN.year);
+  assert.equal(offer.membersAnnual.newSalesEnabled, false);
+  assert.deepEqual(soloPlan.newBuyerChannels, ['appStore']);
   assert.doesNotMatch(script, /MEMBERS_ANNUAL_CENTS|studio_members_annual_tier|twoMonthsFree|oneMonthFree|members' annual/);
   assert.match(script, new RegExp(`const ROLLOVER_MAX = ${soloPlan.rollover.maxBanked};`));
   assert.match(script, new RegExp(`const YEARLY_POOL = ${soloPlan.annualIncluded};`));
@@ -894,7 +895,7 @@ const longDate = value => new Date(value).toLocaleDateString('en-AU', { day: 'nu
 // One account on its own, so the form under test is always the first row's.
 const oneAccount = (extra = {}) => [{ ...studioAccounts()[2], workspace_id: 'ws-harbour', workspace_name: 'Harbour Realty', ...extra }];
 const runningFreeMonths = { status: 'trial', trial_started_at: soon(-30), trial_ends_at: soon(150), accepted_in_free_months: 1 };
-const activePlan = { status: 'active', plan_code: 'solo', price_aud_cents: OFFER.month, billing_interval: 'monthly',
+const activePlan = { status: 'active', plan_code: 'solo', price_aud_cents: LEGACY_INVOICE_PLAN.month, billing_interval: 'monthly',
   trial_started_at: soon(-220), trial_ends_at: soon(-40), current_period_ends_at: soon(20) };
 const fieldsOf = form => Object.fromEntries(form.all().filter(el => el.name).map(el => [el.name, el]));
 const labelOf = (form, input) => form.all().find(el => el.tagName === 'LABEL' && el.children.includes(input));
@@ -913,10 +914,10 @@ function prepareInvoice(h, { item = 'solo-monthly', index = 2 } = {}) {
   fields.period_start.events.change();
   return { form, fields };
 }
-// The billing row studio_activate_invoice_plan answers with: the one price for the cadence.
+// The billing row confirms the preserved invoice price for the cadence, not a new App Store price.
 const invoiceResponse = (args, extra = {}) => ({ data: [planFields({ ...studioAccounts()[2], status: 'active',
   plan_code: args.p_plan_code, source: 'studio', billing_interval: args.p_billing_interval,
-  renewal_price_aud_cents: args.p_billing_interval === 'annual' ? OFFER.year : OFFER.month,
+  renewal_price_aud_cents: args.p_billing_interval === 'annual' ? LEGACY_INVOICE_PLAN.year : LEGACY_INVOICE_PLAN.month,
   current_period_ends_at: args.p_period_end, auto_renews: false, ...extra })] });
 // The proposed studio_record_pack_invoice answer: exactly what was credited.
 const packResponse = (args, extra = {}) => ({ data: [{ credited: OFFER.packs[args.p_pack_code].walkthroughs,
@@ -925,19 +926,19 @@ const packResponse = (args, extra = {}) => ({ data: [{ credited: OFFER.packs[arg
 const EARLY_BONUS_WORDS = 'the server adds the early-annual bonus, once per workspace: ' + OFFER.earlyBonus +
   ' bonus walkthroughs and ' + OFFER.earlyExpress + ' Super fast renders in the first plan year (' + (OFFER.yearlyPool + OFFER.earlyBonus) + ' walkthroughs in total).';
 
-test('a settled invoice offers exactly four items, priced from the canonical offer, and no retired plan', async () => {
+test('a settled invoice offers the two preserved invoice amounts and two canonical packs, with no retired plan', async () => {
   assert.equal(soloPlan.code, 'solo');
   assert.equal(soloPlan.name, 'Veylet plan');
   assert.deepEqual(offer.packs.map(pack => pack.code), ['pack3', 'pack10']);
-  assert.deepEqual([OFFER.month, OFFER.year, OFFER.packs.pack3.cents, OFFER.packs.pack10.cents], [9900, 99000, 16900, 49900]);
+  assert.deepEqual([LEGACY_INVOICE_PLAN.month, LEGACY_INVOICE_PLAN.year, OFFER.packs.pack3.cents, OFFER.packs.pack10.cents], [9900, 99000, 16900, 49900]);
   assert.deepEqual([OFFER.monthlyIncluded, OFFER.rolloverMax, OFFER.yearlyPool, OFFER.earlyBonus, OFFER.earlyExpress], [2, 4, 24, 4, 4]);
   const h = await load({ accounts: studioAccounts() });
   const { fields } = prepareInvoice(h);
   assert.equal(fields.item.tagName, 'SELECT', 'one native select');
   // The plan items read exactly as the plan panel will then read the plan.
   assert.deepEqual(fields.item.children.map(option => [option.value, option.textContent]), [
-    ['solo-monthly', 'Veylet plan · ' + aud(OFFER.month) + ' a month'],
-    ['solo-annual', 'Veylet plan · ' + aud(OFFER.year) + ' a year'],
+    ['solo-monthly', 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.month) + ' a month'],
+    ['solo-annual', 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.year) + ' a year'],
     ['pack3', 'Walkthrough pack · 3 walkthroughs (' + aud(OFFER.packs.pack3.cents) + ')'],
     ['pack10', 'Walkthrough pack · 10 walkthroughs (' + aud(OFFER.packs.pack10.cents) + ')'],
   ]);
@@ -957,7 +958,7 @@ test('a settled invoice offers exactly four items, priced from the canonical off
 test('a Veylet plan month is recorded at 9900 cents with exact references and dates, 2 a month and rollover stated, and no auto-renewal', async () => {
   const h = await load({ accounts: studioAccounts(), rpc: { studio_activate_invoice_plan: async args => invoiceResponse(args) } });
   const { form, fields } = prepareInvoice(h);
-  assert.ok(form.text().includes(aud(OFFER.month) + ' for this invoice: one month of the Veylet plan. ' + OFFER.monthlyIncluded + ' walkthroughs a month; unused ones roll over, up to ' +
+  assert.ok(form.text().includes(aud(LEGACY_INVOICE_PLAN.month) + ' for this invoice: one month of the Veylet plan. ' + OFFER.monthlyIncluded + ' walkthroughs a month; unused ones roll over, up to ' +
     OFFER.rolloverMax + ' banked. No automatic renewal.'));
   assert.equal(labelOf(form, fields.period_start).hidden, false);
   assert.equal(fields.period_end.readOnly, true, 'the end is derived, not typed');
@@ -967,22 +968,22 @@ test('a Veylet plan month is recorded at 9900 cents with exact references and da
     p_period_start: fields.period_start.value + 'T00:00:00.000Z', p_period_end: fields.period_end.value + 'T00:00:00.000Z',
     p_agreement_id: 'agreement-001', p_settlement_id: 'settled-line-001', p_receipt_key: 'invoice-plan-001' });
   assert.equal(Object.hasOwn(args, 'p_auto_renews'), false);
-  assert.ok(h.confirms[0].startsWith('Record ' + aud(OFFER.month) + ' already settled for Kelvin Grove Dental, Veylet plan one month, '));
+  assert.ok(h.confirms[0].startsWith('Record ' + aud(LEGACY_INVOICE_PLAN.month) + ' already settled for Kelvin Grove Dental, Veylet plan one month, '));
   assert.doesNotMatch(h.confirms[0], /early-annual/);
-  assert.match(form.text(), new RegExp('Recorded: ' + escape(aud(OFFER.month)) + ' a month, ending '));
+  assert.match(form.text(), new RegExp('Recorded: ' + escape(aud(LEGACY_INVOICE_PLAN.month)) + ' a month, ending '));
   assert.equal(h.dataRows()[2].dataset.status, 'active');
-  assert.equal(h.dataRows()[2].children[COL.status].textContent, 'Veylet plan · ' + aud(OFFER.month) + ' a month');
+  assert.equal(h.dataRows()[2].children[COL.status].textContent, 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.month) + ' a month');
   assert.equal(submitOf(form).disabled, true, 'a current paid period blocks a second plan invoice');
 });
 
-test('a Veylet plan year is recorded at the one public price, 99000 cents, with no tier read', async () => {
+test('a Veylet plan year is recorded at the preserved invoice price, 99000 cents, with no tier read', async () => {
   const h = await load({ accounts: studioAccounts(), rpc: { studio_activate_invoice_plan: async args => invoiceResponse(args) } });
   const { form, fields } = prepareInvoice(h, { item: 'solo-annual' });
-  const amount = aud(OFFER.year);
-  const saving = aud(12 * OFFER.month - OFFER.year);
+  const amount = aud(LEGACY_INVOICE_PLAN.year);
+  const saving = aud(12 * LEGACY_INVOICE_PLAN.month - LEGACY_INVOICE_PLAN.year);
   assert.equal(saving, 'A$198', 'two months free is A$198 against 12 monthly invoices');
   assert.ok(form.text().includes(amount + ' for this invoice: one year of the Veylet plan, 2 months free (' + saving +
-    ' less than 12 monthly payments of ' + aud(OFFER.month) + '). ' + OFFER.yearlyPool +
+    ' less than 12 monthly payments of ' + aud(LEGACY_INVOICE_PLAN.month) + '). ' + OFFER.yearlyPool +
     ' walkthroughs a year to use any time: a yearly pool, no monthly limit, reset at each plan-year anniversary, no rollover between years. No automatic renewal.'));
   // Not in free months, so no early-annual bonus is mentioned anywhere.
   assert.doesNotMatch(form.text(), /early-annual|members' annual|one accepted walkthrough/);
@@ -1001,12 +1002,33 @@ test('a Veylet plan year is recorded at the one public price, 99000 cents, with 
 });
 
 test('an annual answer at any other price is not confirmed', async () => {
-  for (const other of [OFFER.year + OFFER.month, OFFER.month, String(OFFER.year), null]) {
+  for (const other of [LEGACY_INVOICE_PLAN.year + LEGACY_INVOICE_PLAN.month, LEGACY_INVOICE_PLAN.month, String(LEGACY_INVOICE_PLAN.year), null]) {
     const h = await load({ accounts: studioAccounts(), rpc: { studio_activate_invoice_plan: async args => invoiceResponse(args, { renewal_price_aud_cents: other }) } });
     const { form } = prepareInvoice(h, { item: 'solo-annual' });
     await form.fire('submit');
     assert.match(form.text(), /Paid service was not confirmed/, String(other));
     assert.equal(h.dataRows()[2].dataset.status, 'pending');
+  }
+});
+
+test('current App Store prices cannot confirm a legacy invoice or replace its uncertain intent', async () => {
+  for (const [item, appPrice] of [['solo-monthly', soloPlan.appAud], ['solo-annual', soloPlan.annualAppAud]]) {
+    let attempt = 0;
+    const h = await load({ accounts: studioAccounts(), rpc: { studio_activate_invoice_plan: async args => ++attempt === 1
+      ? invoiceResponse(args, { renewal_price_aud_cents: cents(appPrice) }) : invoiceResponse(args) } });
+    const { form, fields } = prepareInvoice(h, { item });
+    await form.fire('submit');
+    assert.match(resultOf(form), /^Paid service was not confirmed/, item);
+    assert.equal(h.dataRows()[2].dataset.status, 'pending', item);
+    fields.receipt_key.value = 'different-key';
+    await form.fire('submit');
+    assert.equal(attempt, 1, 'a wrong-price reply cannot create a new intent: ' + item);
+    fields.receipt_key.value = 'invoice-plan-001';
+    await form.fire('submit');
+    assert.equal(attempt, 2, item);
+    const writes = h.calls.filter(([name]) => name === 'studio_activate_invoice_plan');
+    assert.deepEqual(writes[0][1], writes[1][1], 'the retry keeps the exact receipt and dates');
+    assert.match(resultOf(form), /^Recorded:/, item);
   }
 });
 
@@ -1036,7 +1058,7 @@ test('once the free months end, the annual start is offered from that day, where
   const endDay = endsAt.slice(0, 10);
   const rows = oneAccount({ source: 'studio', status: 'ended', trial_started_at: soon(-95), trial_ends_at: endsAt, accepted_in_free_months: 6, current_period_ends_at: null });
   const h = await load({ accounts: rows, rpc: { studio_activate_invoice_plan: async args => ({ data: [planFields({ ...rows[0], status: 'active', plan_code: 'solo',
-    source: 'studio', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year, current_period_ends_at: args.p_period_end, auto_renews: false })] }) } });
+    source: 'studio', billing_interval: 'annual', renewal_price_aud_cents: LEGACY_INVOICE_PLAN.year, current_period_ends_at: args.p_period_end, auto_renews: false })] }) } });
   const form = h.invoiceFormFor(0);
   const fields = fieldsOf(form);
   fields.item.value = 'solo-annual'; fields.item.events.change();
@@ -1057,7 +1079,7 @@ test('once the free months end, the annual start is offered from that day, where
   assert.ok(h.confirms[0].includes(' UTC? It starts where the free months ended, so ' + bonus));
   // Informational only: the desk makes no grant of its own.
   assert.deepEqual(h.calls.filter(([name]) => !/^(?:studio_(?:is_member|list_|money_|capture_|express_queue|render_settings|render_alerts)|get_render_spend_guard$)/.test(name)).map(([name]) => name), ['studio_activate_invoice_plan']);
-  assert.equal(resultOf(form), 'Recorded: ' + aud(OFFER.year) + ' a year, ending ' + longDate(yearOn.toISOString()) + '. It started where the free months ended, so ' + bonus + ' No automatic renewal.');
+  assert.equal(resultOf(form), 'Recorded: ' + aud(LEGACY_INVOICE_PLAN.year) + ' a year, ending ' + longDate(yearOn.toISOString()) + '. It started where the free months ended, so ' + bonus + ' No automatic renewal.');
 });
 
 test('the annual start is not offered, and no bonus is said, when that day has passed its window, a paid period exists or the plan is billed elsewhere', async () => {
@@ -1094,7 +1116,7 @@ test('a refusal the database answers with is shown and frees the form; a lost an
   fields.item.value = 'solo-monthly'; fields.item.events.change();
   await form.fire('submit');
   assert.equal(attempt, 2);
-  assert.match(resultOf(form), new RegExp('^Recorded: ' + escape(aud(OFFER.month)) + ' a month'));
+  assert.match(resultOf(form), new RegExp('^Recorded: ' + escape(aud(LEGACY_INVOICE_PLAN.month)) + ' a month'));
   // An answer as the status still in free months is not paid service.
   const trial = await load({ accounts: studioAccounts(), rpc: { studio_activate_invoice_plan: async args => invoiceResponse(args, { status: 'trial' }) } });
   const other = prepareInvoice(trial, { item: 'solo-annual' });
@@ -1350,7 +1372,7 @@ test('existing Team, Office, founding and single-walkthrough rows still read as 
     ['Founding row', { plan_code: 'founding', renewal_price_aud_cents: 18900 }, 'Team, founding rate · A$189 a month'],
     ['Office row', { plan_code: 'office', price_aud_cents: 59900 }, 'Office · A$599 a month'],
     ['Single row', { plan_code: 'one', billing_interval: 'once', renewal_price_aud_cents: 19900 }, 'One walkthrough · A$199 once'],
-    ['Plan row', { plan_code: 'solo', price_aud_cents: OFFER.month }, 'Veylet plan · ' + aud(OFFER.month) + ' a month'],
+    ['Plan row', { plan_code: 'solo', price_aud_cents: LEGACY_INVOICE_PLAN.month }, 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.month) + ' a month'],
   ];
   const h = await load({ accounts: rows.map(([name, extra], index) => ({ ...oneAccount()[0], ...active, ...extra,
     workspace_id: 'ws-' + index, workspace_name: name, last_activity_at: soon(-index) })) });
@@ -1370,10 +1392,10 @@ test('the This month column never prints an allowance rule the row does not carr
   // A row that does carry its cadence (an invoice answer, or an App Store product)
   // and is annual shows the pool rule in place of a monthly figure.
   const rows = [
-    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', OFFER.yearlyPool + '-walkthrough yearly pool']],
+    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: LEGACY_INVOICE_PLAN.year }, 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.year) + ' a year', ['—', OFFER.yearlyPool + '-walkthrough yearly pool']],
     ['App Store annual', { source: 'apple', apple_verified: true, plan_code: 'solo', apple_product_id: 'dev.property3d.capture.solo.annual',
       billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', OFFER.yearlyPool + '-walkthrough yearly pool']],
-    ['Monthly invoice', { plan_code: 'solo', billing_interval: 'monthly', renewal_price_aud_cents: OFFER.month }, 'Veylet plan · ' + aud(OFFER.month) + ' a month', ['0 / 3', '']],
+    ['Monthly invoice', { plan_code: 'solo', billing_interval: 'monthly', renewal_price_aud_cents: LEGACY_INVOICE_PLAN.month }, 'Veylet plan · ' + aud(LEGACY_INVOICE_PLAN.month) + ' a month', ['0 / 3', '']],
     ['Team annual', { source: 'apple', apple_verified: true, plan_code: 'studio', apple_product_id: 'dev.property3d.capture.plan.annual',
       billing_interval: 'annual', renewal_price_aud_cents: 318999 }, 'Team · A$3,189.99 a year', ['0 / 3', '']],
   ];
@@ -1898,7 +1920,7 @@ const MONEY_LABELS = {
 };
 const moneyRows = () => [
   { exception_key: 'charge_refused:chk-1:1', kind: 'charge_refused', severity: 'high', workspace_id: 'ws-harbour',
-    workspace_name: 'Harbour Realty', amount_cents: OFFER.year, currency: 'AUD',
+    workspace_name: 'Harbour Realty', amount_cents: LEGACY_INVOICE_PLAN.year, currency: 'AUD',
     occurred_at: '2026-09-22T04:05:00Z', age_minutes: 12, runbook: 'R1', reference: 'chk-1',
     detail: 'The annual charge was not granted.', resolvable: true },
   { exception_key: 'duplicate_charge:sq-pay-7', kind: 'duplicate_charge', severity: 'high', workspace_id: 'ws-gone',
@@ -1910,7 +1932,7 @@ const moneyRows = () => [
     occurred_at: '2026-09-20T01:00:00Z', age_minutes: 2 * 1440 + 30, runbook: 'R8', reference: '0f0e0d0c',
     detail: 'An App Store notice is waiting to be applied.', resolvable: false },
   { exception_key: 'ledger_drift:x-1', kind: 'ledger_drift', severity: 'medium', workspace_id: 'ws-wren',
-    workspace_name: 'Wren & Fielding', amount_cents: OFFER.month, currency: 'AUD',
+    workspace_name: 'Wren & Fielding', amount_cents: LEGACY_INVOICE_PLAN.month, currency: 'AUD',
     occurred_at: '2026-09-19T01:00:00Z', age_minutes: 1440, runbook: 'R9', reference: 'x-1',
     detail: 'A kind this desk does not know yet.', resolvable: false },
 ];
@@ -1946,7 +1968,7 @@ test('money exceptions wait as a stated line, then list each one with its facts'
   assert.match(pill.className, /\bpill-busy\b/, 'high severity reuses the existing pill');
   assert.doesNotMatch(items[2].children[0].children[1].className, /pill-busy/);
   assert.deepEqual(moneyTerms(items[0]), [
-    ['Account', 'Harbour Realty'], ['Amount', aud(OFFER.year)], ['Since', '22 Sep 2026, 14:05'],
+    ['Account', 'Harbour Realty'], ['Amount', aud(LEGACY_INVOICE_PLAN.year)], ['Since', '22 Sep 2026, 14:05'],
     ['Age', '12 min'], ['Reference', 'chk-1'], ['Detail', 'The annual charge was not granted.'],
   ]);
   assert.deepEqual(moneyTerms(items[1]).slice(0, 4), [['Account', 'Deleted account'], ['Amount', aud(OFFER.packs.pack3.cents)],
@@ -2154,19 +2176,19 @@ test('the capture queue lists open jobs in claim order with priority, age since 
     ['Job 3f2e1d0c', 'Wren & Fielding'], ['Job 4a3b2c1d', 'Northgate Property Co'], ['Job 6c5d4e3f', 'Account ws-unkno'],
     ['Job 7d6e5f40', 'Wren & Fielding'], ['Job 8e7f6051', 'Kelvin Grove Dental']]);
   assert.deepEqual(rows.map(row => row.children.slice(1).map(el => el.dataset.label)).at(0),
-    ['In line', 'Priority', 'Status', 'Since upload', 'Due', 'Target'], 'each cell restates its column on a phone');
+    ['In line', 'Priority', 'Status', 'Since upload', 'Due', 'Escalation threshold'], 'each cell restates its column on a phone');
   assert.deepEqual(rows.map(row => row.children[1].textContent), ['1', '2', '—', '—', '—']);
-  assert.deepEqual(rows.map(row => row.children[2].text()), ['Founding', 'Waited over 6 h', 'Standard', 'Founding', 'Standard']);
+  assert.deepEqual(rows.map(row => row.children[2].text()), ['Founding', '6-hour queue promotion', 'Standard', 'Founding', 'Standard']);
   assert.match(rows[0].children[2].children[0].className, /\bpill\b/);
   assert.deepEqual(rows.map(row => row.children[3].textContent), ['Queued', 'Queued', 'Processing · reconstructing', 'Failed · lease expired', 'Uploading']);
   assert.deepEqual(rows.map(row => row.children[4].textContent), ['3.2 h', '7.5 h', '26.4 h', '30 min', '—']);
   assert.equal(rows[2].children[5].textContent.replace(/^\d+ \w{3}(?: \d{4})?, /, ''), '20:30', 'due at the Brisbane clock');
   assert.equal(rows[4].children[5].textContent, '—');
-  assert.deepEqual(rows.map(row => row.children[6].text()), ['On time (12 h)', 'On time (24 h)', 'Over target (24 h)', 'On time (12 h)', 'Not started (24 h)']);
+  assert.deepEqual(rows.map(row => row.children[6].text()), ['Before threshold (12 h)', 'Before threshold (24 h)', 'Past threshold (24 h)', 'Before threshold (12 h)', 'Not started (24 h)']);
   // Over target is a word in the existing pill, never colour alone.
   assert.match(rows[2].children[6].children[0].className, /\bpill\b.*\bpill-busy\b/);
   assert.equal(rows[2].dataset.breached, 'true');
-  assert.equal(h.ids['studio-queue-summary'].textContent, '5 open · 1 over target · longest in line 7.5 h · 2 finished in the last 30 days, 1 over target');
+  assert.equal(h.ids['studio-queue-summary'].textContent, '5 open · 1 past timing mark · longest in line 7.5 h · 2 finished in the last 30 days, 1 past timing mark');
   assert.equal(h.ids['studio-queue-table'].attributes['aria-busy'], 'false');
 });
 
@@ -2175,15 +2197,15 @@ test('the last 7 days are read with that window and shown per class; a failed re
   assert.deepEqual(h.calls.filter(([name]) => name === 'studio_capture_sla').map(([, args]) => ({ ...args })), [{ p_days: 7 }]);
   assert.deepEqual(h.calls.filter(([name]) => name === 'studio_capture_queue').map(([, args]) => args), [undefined]);
   const classes = h.ids['studio-sla-body'].all().filter(el => el.className === 'studio-sla-class');
-  assert.deepEqual(classes.map(item => item.children[0].textContent), ['Founding accounts · 12-hour target', 'Everyone else · 24-hour target']);
+  assert.deepEqual(classes.map(item => item.children[0].textContent), ['Founding accounts · 12-hour escalation threshold', 'Everyone else · 24-hour escalation threshold']);
   const terms = item => item.all().filter(el => el.tagName === 'DIV' && el.children[0]?.tagName === 'DT').map(group => group.children.map(el => el.textContent));
-  assert.deepEqual(terms(classes[0]), [['Finished', '4'], ['Within target', '3'], ['Over target', '1'], ['Median', '7.3 h'], ['90th percentile', '13.4 h']]);
+  assert.deepEqual(terms(classes[0]), [['Finished', '4'], ['Before threshold', '3'], ['Past threshold', '1'], ['Median', '7.3 h'], ['90th percentile', '13.4 h']]);
   assert.deepEqual(terms(classes[1]).slice(3), [['Median', '—'], ['90th percentile', '—']], 'no finished job has no median');
   assert.equal(classes[0].dataset.breached, 'true');
   assert.equal(markup.includes('<h3 class="studio-queue-subhead" id="studio-sla-title">Last 7 days</h3>'), true);
   let attempt = 0;
   const failing = await load({ queue: queueRows(), rpc: { studio_capture_sla: async () => ++attempt === 1 ? { error: { message: 'offline' } } : { data: slaRows() } } });
-  assert.match(slaText(failing), /^Target figures could not be loaded\. This is a failed request, not a quiet week\./);
+  assert.match(slaText(failing), /^Threshold figures could not be loaded\. This is a failed request, not a quiet week\./);
   assert.equal(queueBody(failing).children.length, 5, 'the queue does not wait for, or fail with, the figures');
   await failing.ids['studio-sla-body'].all().find(el => el.textContent === 'Retry').fire('click');
   await failing.settle();
@@ -2196,7 +2218,7 @@ test('an empty, failed or pending capture queue says which it is', async () => {
   assert.equal(queueBody(empty).children[0].text(), 'No capture is waiting. A job appears here once its upload has finished.');
   assert.equal(empty.ids['studio-queue-summary'].textContent, 'Nothing open · none finished in the last 30 days');
   const quiet = await load({ queue: queueRows().filter(row => row.status === 'awaiting_review') });
-  assert.equal(quiet.ids['studio-queue-summary'].textContent, 'Nothing open · 2 finished in the last 30 days, 1 over target');
+  assert.equal(quiet.ids['studio-queue-summary'].textContent, 'Nothing open · 2 finished in the last 30 days, 1 past timing mark');
   for (const reply of [async () => ({ error: { message: 'offline' } }), async () => { throw new Error('network'); }, async () => ({ data: null })]) {
     let attempt = 0;
     const h = await load({ rpc: { studio_capture_queue: async () => ++attempt === 1 ? reply() : { data: queueRows() } } });
@@ -2400,13 +2422,13 @@ test('the capture queue reads no whole-home fields; the rule sits with its own c
   assert.doesNotMatch(h.ids['studio-queue-rows'].text(), /Counts as/);
   const note = markup.slice(markup.indexOf('id="studio-home"'), markup.indexOf('id="studio-home-body"')).replace(/\s+/g, ' ');
   assert.match(markup, /<h2 class="dash-heading" id="studio-home-title">Declared large home \(older listings\)<\/h2>/);
-  assert.match(note, /A walkthrough is counted by the rooms captured: up to 8 rooms is 1, each further 8 is 1 more\. A listing declared before the rooms rule began \(an older listing\) keeps its retired whole-home count instead: 5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2\./);
-  assert.match(note, /correcting a listing already counted by rooms has no effect\./);
-  // Offer 2026-09-26.3 counts a property by its rooms (8 rooms a walkthrough). Until release 2 moves the
-  // database to rooms, listings are still counted by the whole-home rule, so the desk's correction form
-  // states that rule, which the record keeps under retiredTerms.
-  assert.equal(offer.walkthroughScope.roomsPerWalkthrough, 8);
-  assert.match(offer.walkthroughScope.status, /still count by the 2026-09-25\.1 whole-home rule until release 2/);
+  assert.match(note, /One new accepted capture uses one walkthrough, regardless of room count\./);
+  assert.match(note, /historical accepted usage is unchanged\./);
+  assert.doesNotMatch(note, /up to 8 rooms is 1|each further 8 is 1 more|counts as 2\./);
+  // The correction form preserves historical records; it does not define new capture units.
+  assert.equal(offer.walkthroughScope.unitsPerAcceptedCapture, 1);
+  assert.equal(offer.walkthroughScope.unit, 'one accepted capture');
+  assert.match(offer.retiredTerms.rule, /Historical usage and existing signed agreements remain unchanged\./);
   assert.match(offer.retiredTerms.items['walkthroughScope.countsAsTwo'], /5 or more bedrooms, a second dwelling, or more than 350 m²/);
   assert.ok(markup.indexOf('id="studio-corrections"') < markup.indexOf('id="studio-home"'));
 });
@@ -2619,10 +2641,11 @@ test('offer v9: the capture queue names a Super fast job first, as Super fast, a
   const cells = Object.fromEntries(first.children.slice(1).map(td => [td.dataset.label, td]));
   assert.equal(cells.Priority.children[0].textContent, 'Super fast');
   assert.equal(cells.Priority.children[0].className, 'pill');
-  assert.equal(cells.Target.text(), 'On time (30 min)');
+  assert.ok(cells['Super fast target'], 'Super fast retains its own target label, separate from escalation thresholds');
+  assert.equal(cells['Super fast target'].text(), 'On time (30 min)');
   const classes = h.ids['studio-sla-body'].all().filter(el => el.tagName === 'H4').map(el => el.textContent);
-  assert.deepEqual(classes, ['Super fast renders · 30-minute target', 'Founding accounts · 12-hour target', 'Everyone else · 24-hour target']);
-  assert.match(markup.replace(/\s+/g, ' '), /Super fast renders first, then founding accounts, then the longest waiting\. .*Processing is automatic\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\. Target from upload to ready: 30 minutes for a Super fast render, 12 hours for founding accounts, 24 hours for everyone else\./);
+  assert.deepEqual(classes, ['Super fast renders · 30-minute target', 'Founding accounts · 12-hour escalation threshold', 'Everyone else · 24-hour escalation threshold']);
+  assert.match(markup.replace(/\s+/g, ' '), /Super fast renders first, then founding accounts, then the longest waiting\. .*Processing is automatic\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\. The 6-hour mark is a queue-promotion threshold: a waiting job is no longer passed over\. The 12-hour founding and 24-hour standard marks are queue and escalation thresholds, not proven ready times\. Super fast keeps its separate 30-minute promise\./);
 });
 
 test('offer v9: the first-walkthrough redo is recorded as a correction, confirmed as the account’s one free redo, and a refusal keeps what was typed', async () => {
@@ -2663,4 +2686,12 @@ test('offer v9: the Super fast band names each job’s account once the accounts
   finish({ data: accounts().map(row => ({ ...row })) });
   await h.settle(); await h.settle();
   assert.equal(expressBody(h).children[0].children[0].children[1].textContent, 'Wren & Fielding');
+});
+
+
+test('semantic final: legacy listing guidance preserves history without reinstating room-based counting', () => {
+  const section = markup.match(/<section class="studio-home-count"[\s\S]*?<\/section>/)[0].replace(/\s+/g, ' ');
+  assert.match(section, /One new accepted capture uses one walkthrough, regardless of room count\./);
+  assert.match(section, /historical accepted usage is unchanged\./);
+  assert.doesNotMatch(section, /up to 8 rooms is 1|each further 8 is 1 more|counts as 2\./);
 });

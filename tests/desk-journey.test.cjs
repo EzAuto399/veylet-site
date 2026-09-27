@@ -1424,3 +1424,22 @@ test('the review says what to look for before sharing, above Approve and share, 
   await approve(h);
   assert.equal(h.count('enable_tour_share'), 1);
 });
+
+
+test('semantic final: both account editions distinguish failed attempts from accepted captures and bound the waiver', async () => {
+  const allowance = "This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.";
+  for (const page of ['dist/account/index.html', 'dist/app/account/index.html']) {
+    for (const recapture of [[{ room: 'Kitchen', reason: 'Too dark', rule: 'no_frames' }], [{ room: null, reason: 'No usable photos' }], null]) {
+      const h = await load({ markup: read(page), tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'needs_recapture', status: 'awaiting_review', recapture }) } });
+      const block = renderBlockOf(h);
+      assert.ok(textOf(block).includes(allowance), page + ': full allowance rule is visible');
+      assert.doesNotMatch(textOf(block), /(?:Recaptur[^.]*|send it\.)[^.]*won’t use a walkthrough/i);
+      const action = block.all().find(el => el.dataset.control === 'recapture-0');
+      if (action) {
+        await action.fire('click');
+        assert.equal(action.getAttribute('aria-expanded'), 'true');
+        assert.doesNotMatch(textOf(block), /It won’t use a walkthrough\./);
+      } else assert.ok(block.all().some(el => el.dataset.control === 'contact'));
+    }
+  }
+});

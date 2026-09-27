@@ -2344,11 +2344,13 @@
 
   /* ---- Capture queue ----------------------------------------------------
    * Open capture jobs in the order the worker claims them (founding accounts
-   * first, then the longest waiting; a job waiting past the 6-hour cap is passed
-   * over no more), each with its SLA clock from upload to ready, from
-   * studio_capture_queue(). Below it, the last 7 days against the 12- and
-   * 24-hour targets, from studio_capture_sla(7). Both are reads. A failed read is
-   * never shown as an empty queue or a quiet week.
+   * first, then the longest waiting; a job past the 6-hour queue-promotion
+   * threshold is passed over no more), with its operational queue clock from
+   * studio_capture_queue(). Below it, the last 7 days are grouped against the
+   * 12- and 24-hour escalation thresholds from studio_capture_sla(7). Those
+   * thresholds are not customer ready-time targets and do not establish pilot
+   * turnaround. Both calls are reads. A failed read is never shown as an empty
+   * queue or a quiet week.
    */
   const queueRowsEl = document.getElementById('studio-queue-rows');
   const queueTable = document.getElementById('studio-queue-table');
@@ -2359,8 +2361,9 @@
   const SLA_DAYS = 7;
   const QUEUE_STATUS = { uploading: 'Uploading', queued: 'Queued', processing: 'Processing', failed: 'Failed', awaiting_review: 'Ready for review' };
   // Super fast (code name express, A$29, website only) is claimed first and due 30 minutes after the upload finishes.
-  const QUEUE_PRIORITY = { express: 'Super fast', founding: 'Founding', promoted: 'Waited over 6 h', standard: 'Standard' };
-  const QUEUE_SLA = { breached: 'Over target', open: 'On time', met: 'Met', not_started: 'Not started' };
+  const QUEUE_PRIORITY = { express: 'Super fast', founding: 'Founding', promoted: '6-hour queue promotion', standard: 'Standard' };
+  const QUEUE_THRESHOLD = { breached: 'Past threshold', open: 'Before threshold', met: 'Before threshold', not_started: 'Not started' };
+  const EXPRESS_TARGET = { breached: 'Late', open: 'On time', met: 'Met', not_started: 'Not started' };
   const SLA_CLASSES = { express: 'Super fast renders', founding: 'Founding accounts', standard: 'Everyone else' };
   let queueVersion = 0;
   let slaVersion = 0;
@@ -2455,17 +2458,19 @@
     if (['express', 'founding', 'promoted'].includes(job.priority)) priority.append(element('span', 'pill', words));
     else priority.textContent = words;
     cell(row, 'Status').textContent = queueStatus(job);
-    // The SLA clock: from upload finished to ready, still running while the job is open.
+    // The operational clock starts when upload finishes; it is not a customer ready-time estimate.
     cell(row, 'Since upload', 'studio-figure').textContent = job.queued_at ? hoursText(job.elapsed_hours) : DASH;
     cell(row, 'Due', 'studio-figure').textContent = queueDue(job.sla_due_at) || DASH;
-    const target = cell(row, 'Target');
+    const isExpress = job.priority === 'express';
+    const timing = cell(row, isExpress ? 'Super fast target' : 'Escalation threshold');
     // A held job's clock waits on the hold, not on the queue: it is never "on time".
-    if (queueHold(job)) { target.append(element('span', 'pill', 'Held')); return row; }
-    const verdict = QUEUE_SLA[job.sla_state] || (job.sla_state ? String(job.sla_state) : DASH);
+    if (queueHold(job)) { timing.append(element('span', 'pill', 'Held')); return row; }
+    const timingWords = isExpress ? EXPRESS_TARGET : QUEUE_THRESHOLD;
+    const verdict = timingWords[job.sla_state] || (job.sla_state ? String(job.sla_state) : DASH);
     const hours = typeof job.sla_hours === 'number' && job.sla_hours > 0 ? ' (' + hoursText(job.sla_hours) + ')' : '';
-    // Over target is a word and a mark, never colour alone.
-    if (breached) target.append(element('span', 'pill pill-busy studio-over', verdict + hours));
-    else target.textContent = verdict + hours;
+    // A passed timing rule is stated in words and marked, never shown by colour alone.
+    if (breached) timing.append(element('span', 'pill pill-busy studio-over', verdict + hours));
+    else timing.textContent = verdict + hours;
     return row;
   }
   function paintQueue() {
@@ -2477,9 +2482,9 @@
     const longest = waiting.length ? Math.max(...waiting) : null;
     const finishedOver = finished.filter(job => job.sla_state === 'breached').length;
     if (queueSummaryEl) {
-      queueSummaryEl.textContent = (open.length ? open.length + ' open · ' + over + ' over target' +
+      queueSummaryEl.textContent = (open.length ? open.length + ' open · ' + over + ' past timing mark' +
         (longest === null ? '' : ' · longest in line ' + hoursText(longest)) : 'Nothing open') + ' · ' +
-        (finished.length ? finished.length + ' finished in the last 30 days, ' + finishedOver + ' over target' : 'none finished in the last 30 days');
+        (finished.length ? finished.length + ' finished in the last 30 days, ' + finishedOver + ' past timing mark' : 'none finished in the last 30 days');
     }
     if (!open.length) { queueShow(queueState('No capture is waiting. A job appears here once its upload has finished.', false)); return; }
     queueShow(...open.map(queueRow));
@@ -2517,14 +2522,16 @@
     const item = element('li', 'studio-sla-class');
     const label = SLA_CLASSES[row.priority_class] || (row.priority_class ? String(row.priority_class) : 'Unnamed class');
     const slaHours = Number(row.sla_hours);
-    const target = typeof row.sla_hours === 'number' && slaHours > 0
-      ? (slaHours < 1 ? Math.round(slaHours * 60) + '-minute target' : slaHours + '-hour target') : 'target unknown';
-    item.append(element('h4', 'studio-sla-name', label + ' · ' + target));
+    const isExpress = row.priority_class === 'express';
+    const timing = typeof row.sla_hours === 'number' && slaHours > 0
+      ? (isExpress ? Math.round(slaHours * 60) + '-minute target' : slaHours + '-hour escalation threshold')
+      : (isExpress ? 'target unknown' : 'threshold unknown');
+    item.append(element('h4', 'studio-sla-name', label + ' · ' + timing));
     const dl = element('dl', 'leaving-list plan-list');
     const finished = countText(row.completed);
     deletionTerm(dl, 'Finished', finished, true);
-    deletionTerm(dl, 'Within target', countText(row.met), true);
-    deletionTerm(dl, 'Over target', countText(row.breached), true);
+    deletionTerm(dl, isExpress ? 'Within promise' : 'Before threshold', countText(row.met), true);
+    deletionTerm(dl, isExpress ? 'Past promise' : 'Past threshold', countText(row.breached), true);
     deletionTerm(dl, 'Median', hoursText(row.p50_hours), true);
     deletionTerm(dl, '90th percentile', hoursText(row.p90_hours), true);
     item.append(dl);
@@ -2538,7 +2545,7 @@
     const reply = await settled(client.rpc('studio_capture_sla', { p_days: SLA_DAYS }));
     if (version !== slaVersion) return;
     if (failed(reply) || !Array.isArray(reply.value?.data)) {
-      const note = element('p', 'contact-note', 'Target figures could not be loaded. This is a failed request, not a quiet week. ');
+      const note = element('p', 'contact-note', 'Threshold figures could not be loaded. This is a failed request, not a quiet week. ');
       const retry = element('button', 'tour-action', 'Retry'); retry.type = 'button';
       retry.addEventListener('click', () => { void loadSla(); });
       note.append(retry);
@@ -2546,15 +2553,16 @@
       return;
     }
     const rows = reply.value.data.filter(row => row && typeof row === 'object');
-    if (!rows.length) { slaShow(false, element('p', 'contact-note', 'No target figures yet.')); return; }
+    if (!rows.length) { slaShow(false, element('p', 'contact-note', 'No threshold figures yet.')); return; }
     const list = element('ul', 'studio-sla-list');
     list.append(...rows.map(slaClass));
     slaShow(false, list);
   }
 
   /* ---- Super fast renders ----------------------------------------------
-   * Owner decision 25 September 2026: processing is automatic (usually 1–2
-   * hours) and no person checks a walkthrough. A Super fast render (code name
+   * Owner decision 25 September 2026: processing is automatic; standard
+   * rendering targets 1–2 hours after upload, but pilot turnaround is not yet
+   * established, and no person checks a walkthrough. A Super fast render (code name
    * express, A$29, website only) runs first on the fastest GPU in Australia and
    * is ready for review within 30 minutes of the upload finishing, any day, any
    * time, or it is refunded automatically (the A$29, or the bonus render

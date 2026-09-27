@@ -2559,7 +2559,7 @@
         // Release with the authoritative one-capture counting migration; old usage is immutable.
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new accepted capture uses one walkthrough, regardless of room count. A correction or reprocessing of the same walkthrough, a permitted whole recapture including every original room, saving a space or a failed capture uses none. Previously accepted usage stays unchanged.' + counting;
+          'Each new accepted capture uses one walkthrough, regardless of room count. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
@@ -5968,6 +5968,7 @@
   const RENDER_ACTIVE = ['uploading', 'waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_EXPRESS = ['waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_SUPPORT_CONTACT = 'mailto:yoda@yodalai.xyz';
+  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.
   const renderSlots = new Map(), renderEmpty = new Map();
@@ -6213,11 +6214,10 @@
   function renderRoom(row, room, index, spaceTitle) {
     const item = annualNode('li', 'render-room');
     // Without a room named, the reason stands alone and the space is what is captured again.
-    item.append(annualNode('p', 'render-line', room.room ? room.room + ': ' + room.reason + '. Recapture this room; it won’t use a walkthrough.'
-      : room.reason + '. Recapture it; it won’t use a walkthrough.'));
+    item.append(annualNode('p', 'render-line', (room.room ? room.room + ': ' : '') + room.reason + '.'));
     const key = row.job_id + '|' + index;
     const how = annualNode('p', 'render-how', 'On your iPhone, open Veylet Capture and choose ' + spaceTitle + '. It shows Needs recapture there too: ' +
-      (room.room ? 'choose Recapture ' + room.room + ', capture the room again' : 'capture it again') + ' and send it. It won’t use a walkthrough.');
+      (room.room ? 'choose Recapture ' + room.room + ', capture the room again' : 'capture it again') + ' and send it.');
     how.id = 'render-how-' + String(row.job_id).slice(0, 8) + '-' + index; how.hidden = !renderOpen.has(key);
     const open = button('Recapture ' + (room.room || spaceTitle), () => {
       const shown = how.hidden;
@@ -6317,9 +6317,10 @@
           view.rooms.forEach((room, index) => rooms.append(renderRoom(row, room, index, spaceTitle)));
           block.append(rooms);
         } else {
-          line('Some of it needs capturing again; it won’t use a walkthrough. Ask Veylet support what to capture.');
+          line('Some of it needs capturing again. Ask Veylet support what to capture.');
           const actions = annualNode('p', 'render-actions'); actions.append(renderContact(row, true)); block.append(actions);
         }
+        note(RECAPTURE_ALLOWANCE_WORDS);
         break;
       case 'failed': {
         line('Something went wrong on our side. Veylet support has been told; nothing was used.');
@@ -6382,7 +6383,7 @@
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
-      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. Recapturing it won’t use a walkthrough.', 'Show what to recapture', () => {
+      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.', 'Show what to recapture', () => {
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
