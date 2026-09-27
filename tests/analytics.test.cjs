@@ -10,7 +10,7 @@ const source = fs.readFileSync(path.join(__dirname, '../dist/analytics.js'), 'ut
 const CHOICE = 'veylet:measurement-choice:v1';
 const ACCEPTED = 'veylet:waitlist-accepted:v1';
 const NOW = 1790467200000;
-const consent = (analytics, ads, savedAt = NOW) => JSON.stringify({ version: 1, savedAt, analytics, ads });
+const consent = (analytics, ads, savedAt = NOW) => JSON.stringify({ version: 2, savedAt, analytics, ads });
 const plain = value => JSON.parse(JSON.stringify(value));
 const organicCampaigns = [
   { source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'faq' },
@@ -35,8 +35,10 @@ class Element {
   set innerHTML(value) {
     this.html = value;
     this.parts = { h2: new Element('h2'), '.analytics-options': new Element('div'),
-      'input[name="analytics"]': new Element('input'), 'input[name="ads"]': new Element('input'),
       '.analytics-actions': new Element('div'), '.analytics-status': new Element('p') };
+    for (const name of ['analytics', 'ads']) {
+      if (value.includes('name="' + name + '"')) this.parts['input[name="' + name + '"]'] = new Element('input');
+    }
     this.parts['.analytics-options'].hidden = true;
   }
 }
@@ -76,13 +78,11 @@ function harness(options = {}) {
   class Clock extends Date { constructor(...args) { super(...(args.length ? args : [clock])); } static now() { return clock; } }
   const context = vm.createContext({ window, document, URL, Date: Clock, console, Set, JSON, Object, Number });
   vm.runInContext(configSource, context);
-  // Existing positive-mode cases exercise consent/payload behavior independently of the
-  // release default. Shipped-config cases deliberately bypass this test-only opt-in.
-  if (!options.useShippedConfig) {
-    window.VEYLET_ANALYTICS_CONFIG = { ...window.VEYLET_ANALYTICS_CONFIG, deploymentEnabled: true, ...options.config };
-  } else {
-    assert.equal(options.config, undefined, 'shipped-config coverage must not override the release flags');
-  }
+  // Explicit full-feature fixtures preserve consent/payload regression coverage while
+  // the source release is globally off and its eventual activation is page-view-only.
+  if (!options.useShippedConfig) window.VEYLET_ANALYTICS_CONFIG = { ...window.VEYLET_ANALYTICS_CONFIG,
+    deploymentEnabled: true, gaEnabled: true, metaEnabled: true, pageViewsOnly: false, consentVersion: 2, ...options.config };
+  else assert.equal(options.config, undefined, 'shipped flags must not be overridden');
   vm.runInContext(source, context);
   docEvents.DOMContentLoaded?.();
   const panel = document.body.children.find(node => node.id === 'analytics-consent');
@@ -96,36 +96,133 @@ function harness(options = {}) {
     track: (...args) => window.VeyletAnalytics.track(...args),
     choose(analytics, ads) {
       window.VeyletAnalytics.openPreferences();
-      panel.querySelector('input[name="analytics"]').checked = analytics;
-      panel.querySelector('input[name="ads"]').checked = ads;
+      if (panel.querySelector('input[name="analytics"]')) panel.querySelector('input[name="analytics"]').checked = analytics;
+      if (panel.querySelector('input[name="ads"]')) panel.querySelector('input[name="ads"]').checked = ads;
       button('Save choices').click();
     },
     setBlocked: value => { blocked = value; }, advance: amount => { clock += amount; }, reloads: () => reloads,
   };
 }
 
-test('shipped deployment-off config blocks SDKs, queues and events with stored or newly granted consent', () => {
-  for (const pathname of ['/', '/start', '/see', '/offer', '/waitlist', '/request', '/apply', '/privacy']) {
-    for (const choice of [undefined, consent(true, true)]) {
-      const h = harness({ url: 'https://veylet.com' + pathname, choice, useShippedConfig: true });
-      const assertOff = () => {
-        assert.equal(h.scripts.length, 0, pathname + ' must not attempt vendor loading');
-        assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
-        assert.equal(h.window.gtag, undefined); assert.equal(h.window.fbq, undefined);
-        assert.equal(h.track('funnel_cta_click', { destination: 'waitlist', placement: 'hero' }), false);
-        assert.equal(h.session[ACCEPTED], undefined);
-      };
-      assertOff();
-      h.choose(true, true);
-      const saved = JSON.parse(h.local[CHOICE]);
-      assert.equal(saved.analytics, true); assert.equal(saved.ads, true);
-      assertOff();
-      h.events.storage({ key: CHOICE });
-      h.events.pageshow({ persisted: true });
-      assertOff();
-      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.deploymentEnabled, false);
-      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.metaFormTrackingEnabled, false);
+const gaOnly = { deploymentEnabled: true, gaEnabled: true, metaEnabled: false, pageViewsOnly: true, consentVersion: 2 };
+const pageViewPaths = ['/', '/start', '/offer', '/privacy'];
+
+test('GA-only release: shipped default stays off with stored and new consent', () => {
+  for (const choice of [undefined, consent(true, false), consent(true, true)]) {
+    const h = harness({ choice, useShippedConfig: true });
+    assert.equal(h.scripts.length, 0);
+    h.button('Accept optional').click();
+    const saved = JSON.parse(h.local[CHOICE]);
+    assert.equal(saved.version, 2); assert.equal(saved.analytics, true); assert.equal(saved.ads, false);
+    assert.equal(h.scripts.length, 0); assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+    assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.deploymentEnabled, false);
+    assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.metaFormTrackingEnabled, false);
+  }
+});
+
+test('GA-only release: four public page views require analytics consent and never load Meta', () => {
+  for (const pathname of pageViewPaths) {
+    const h = harness({ url: 'https://veylet.com' + pathname, config: gaOnly });
+    assert.equal(h.scripts.length, 0);
+    assert.equal(h.track('funnel_cta_click', { destination: 'offer', placement: 'hero' }), false);
+    h.button('Accept optional').click();
+    assert.equal(h.scripts.length, 1); assert.match(h.scripts[0].src, /googletagmanager/);
+    assert.equal(h.window.fbq, undefined); assert.deepEqual(h.meta(), []);
+    const events = h.ga().filter(args => args[0] === 'event');
+    assert.deepEqual(events.map(args => args[1]), ['page_view']);
+    assert.equal(events[0][2].page_location, 'https://veylet.com' + pathname);
+    assert.equal(events[0][2].page_referrer, '');
+    h.choose(true, true); h.events.pageshow({ persisted: true });
+    assert.equal(JSON.parse(h.local[CHOICE]).ads, false);
+    assert.equal(h.ga().filter(args => args[0] === 'event').length, 1);
+  }
+});
+
+test('GA-only release: data-entry, sample, thanks and private pages never load even if runtime is included', () => {
+  for (const pathname of ['/request', '/apply', '/waitlist', '/see', '/thanks', '/account', '/auth/callback', '/studio']) {
+    const h = harness({ url: 'https://veylet.com' + pathname, config: gaOnly, choice: consent(true, false) });
+    assert.equal(h.scripts.length, 0, pathname);
+    for (const [name, params] of [['funnel_cta_click', { destination: 'offer', placement: 'hero' }],
+      ['form_start', { form_id: pathname.slice(1) }], ['form_submit_attempt', { form_id: pathname.slice(1) }],
+      ['form_error', { form_id: pathname.slice(1), error_code: 'validation' }],
+      ['waitlist_submission_accepted', { form_id: 'waitlist' }], ['page_view', {}]]) {
+      assert.equal(h.track(name, params), false, name + ' on ' + pathname);
     }
+    assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+    assert.equal(h.session[ACCEPTED], undefined);
+  }
+  const h = harness({ config: gaOnly, choice: consent(true, false) });
+  for (const name of ['funnel_cta_click', 'form_start', 'form_submit_attempt', 'form_error', 'waitlist_submission_accepted'])
+    assert.equal(h.track(name, { destination: 'offer', placement: 'hero', form_id: 'waitlist', error_code: 'network' }), false);
+  assert.deepEqual(h.ga().filter(args => args[0] === 'event').map(args => args[1]), ['page_view']);
+});
+
+test('GA-only release: history transitions to excluded public routes stop and unload active measurement', () => {
+  for (const pathname of ['/request', '/apply', '/waitlist', '/see']) {
+    const h = harness({ config: gaOnly, choice: consent(true, false) });
+    assert.equal(h.scripts.length, 1);
+    assert.equal(h.ga().filter(args => args[0] === 'event').length, 1);
+    h.window.history.replaceState(null, '', pathname);
+    h.events.popstate();
+    assert.equal(h.window['ga-disable-' + h.window.VEYLET_ANALYTICS_CONFIG.gaMeasurementId], true, pathname);
+    assert.deepEqual(h.ga(), [], pathname + ' clears queued commands');
+    assert.ok(h.scripts.every(script => script.removed), pathname + ' removes SDK elements');
+    assert.equal(h.reloads(), 1, pathname + ' ends the loaded SDK document');
+    h.scripts[0].onload();
+    assert.equal(h.reloads(), 1, 'a late SDK load cannot restart measurement');
+    assert.equal(h.track('form_start', { form_id: pathname.slice(1) }), false);
+    assert.deepEqual(h.ga(), []);
+  }
+});
+
+test('GA-only release: missing or malformed vendor flags fail closed and the global kill switch wins', () => {
+  for (const flags of [undefined, null, false, 'true', 1, {}]) {
+    const h = harness({ config: { gaEnabled: flags, metaEnabled: flags }, choice: consent(true, true) });
+    assert.equal(h.scripts.length, 0); assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+  }
+  const h = harness({ config: { ...gaOnly, deploymentEnabled: false }, choice: consent(true, false) });
+  assert.equal(h.scripts.length, 0); h.choose(true, true); assert.equal(h.scripts.length, 0);
+});
+
+test('GA-only release: fresh v2 choice removes dormant ads grants and exposes no advertising choice', () => {
+  for (const choice of [JSON.stringify({ version: 1, savedAt: NOW, analytics: true, ads: true }), consent(true, true)]) {
+    const h = harness({ config: gaOnly, choice });
+    assert.equal(h.scripts.length, 0); assert.equal(h.panel.hidden, false);
+    assert.equal(h.local[CHOICE], undefined, 'old or disabled-category grants must not remain dormant');
+    assert.equal(h.panel.querySelector('input[name="ads"]'), null);
+    assert.doesNotMatch(h.panel.html, /Meta|Advertising measurement|advertising cookies/i);
+    h.button('Accept optional').click();
+    assert.equal(JSON.parse(h.local[CHOICE]).ads, false);
+    assert.equal(JSON.parse(h.local[CHOICE]).version, 2);
+    assert.equal(h.scripts.length, 1); assert.deepEqual(h.meta(), []);
+  }
+  const adsOnly = harness({ config: gaOnly, choice: consent(false, true) });
+  assert.equal(adsOnly.scripts.length, 0);
+});
+
+test('GA-only release: sanitized campaigns, failed storage and withdrawal retain their boundaries', () => {
+  const query = '?utm_source=instagram&utm_medium=organic_social&utm_campaign=pilot_202609&utm_content=link_in_bio&fbclid=PRIVATE';
+  const h = harness({ url: 'https://veylet.com/' + query, config: gaOnly });
+  assert.equal(h.scripts.length, 0); h.choose(true, true);
+  const event = h.ga().find(args => args[0] === 'event');
+  assert.equal(event[2].campaign_source, 'instagram'); assert.equal(event[2].page_location, 'https://veylet.com/');
+  assert.equal(event[2].page_referrer, '');
+  assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.local, h.session]), /PRIVATE|fbclid|utm_source/);
+  h.choose(false, false); assert.equal(h.reloads(), 1); assert.deepEqual(h.ga(), []);
+  for (const options of [{ blockStorage: true }, { referrer: 'https://veylet.com/account' },
+    { url: 'https://veylet.com/?email=PRIVATE' }, { url: 'https://veylet.com/#PRIVATE' }]) {
+    const denied = harness({ ...options, config: gaOnly, choice: consent(true, false) });
+    assert.equal(denied.scripts.length, 0); assert.deepEqual(denied.ga(), []);
+  }
+});
+
+test('GA-only release: localhost and loopback render consent without any SDK or queue', () => {
+  for (const url of ['http://localhost:8917/', 'http://127.0.0.1:8917/start', 'http://[::1]:8917/privacy']) {
+    const local = harness({ url, config: gaOnly });
+    assert.ok(local.panel, 'the real GA-only consent UI remains available for local rendered checks');
+    assert.equal(local.panel.querySelector('input[name="ads"]'), null);
+    local.button('Accept optional').click(); assert.equal(local.scripts.length, 0);
+    assert.deepEqual(local.ga(), []); assert.deepEqual(local.meta(), []);
   }
 });
 
@@ -433,4 +530,31 @@ test('click IDs alone are discarded; unknown/duplicate campaign fields and faile
     assert.equal(blocked.scripts.length, 0); assert.deepEqual(blocked.replaced, []);
   }
   assert.equal(harness({ url: 'https://veylet.com/' + known, choice: consent(true, true), failReplaceState: true }).scripts.length, 0);
+});
+
+test('candidate all-eight-route shipped deployment-off config blocks SDKs, queues and events with stored or newly granted consent', () => {
+  for (const pathname of ['/', '/start', '/see', '/offer', '/waitlist', '/request', '/apply', '/privacy']) {
+    for (const choice of [undefined, consent(true, false), consent(true, true)]) {
+      const h = harness({ url: 'https://veylet.com' + pathname, choice, useShippedConfig: true });
+      const assertOff = () => {
+        assert.equal(h.scripts.length, 0, pathname + ' must not attempt vendor loading');
+        assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []);
+        assert.equal(h.window.gtag, undefined); assert.equal(h.window.fbq, undefined);
+        assert.equal(h.track('funnel_cta_click', { destination: 'waitlist', placement: 'hero' }), false);
+        assert.equal(h.session[ACCEPTED], undefined);
+      };
+      assertOff();
+      if (h.panel) {
+        h.choose(true, true);
+        const saved = JSON.parse(h.local[CHOICE]);
+        assert.equal(saved.analytics, true); assert.equal(saved.ads, false);
+      }
+      assertOff();
+      h.events.storage({ key: CHOICE });
+      h.events.pageshow({ persisted: true });
+      assertOff();
+      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.deploymentEnabled, false);
+      assert.equal(h.window.VEYLET_ANALYTICS_CONFIG.metaFormTrackingEnabled, false);
+    }
+  }
 });

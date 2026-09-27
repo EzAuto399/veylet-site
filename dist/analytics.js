@@ -63,12 +63,25 @@
         !url.port && !url.username && !url.password && !url.search && !url.hash;
     } catch { return false; }
   }
+  function categoryEnabled(category) {
+    if (category === 'analytics') return config.gaEnabled === true;
+    return category === 'ads' && config.metaEnabled === true && config.pageViewsOnly !== true;
+  }
+  function measurementPageAllowed(localAllowed = false) {
+    return config.pageViewsOnly !== true || ['/', '/start', '/offer', '/privacy'].includes(publicUrl(window.location.href, localAllowed));
+  }
   function choiceFromStorage() {
     try {
       if (window.sessionStorage.getItem(DENY) === '1') return null;
       const parsed = JSON.parse(window.localStorage.getItem(CHOICE) || 'null');
       const age = Date.now() - (parsed && parsed.savedAt);
-      if (!parsed || parsed.version !== config.consentVersion || typeof parsed.analytics !== 'boolean' ||
+      // Changed scope requires a fresh choice. Remove old grants so a disabled vendor
+      // cannot inherit dormant consent if it is introduced in a later release.
+      if (parsed && (parsed.version !== config.consentVersion ||
+          (parsed.analytics === true && !categoryEnabled('analytics')) || (parsed.ads === true && !categoryEnabled('ads')))) {
+        invalidateGrant(); return null;
+      }
+      if (!parsed || typeof parsed.analytics !== 'boolean' ||
           typeof parsed.ads !== 'boolean' || !Number.isFinite(parsed.savedAt) || age < 0 ||
           age >= Math.min(Number(config.consentMaxAgeDays) || 180, 180) * DAY) return null;
       return parsed;
@@ -90,8 +103,8 @@
     return !!current && current.analytics === choice.analytics && current.ads === choice.ads;
   }
   function canMeasure(category) {
-    return !stopping && storageReady && config.deploymentEnabled === true && choice[category] === true &&
-      storedChoiceMatches() && safeContext();
+    return !stopping && storageReady && config.deploymentEnabled === true && categoryEnabled(category) &&
+      choice[category] === true && storedChoiceMatches() && safeContext() && measurementPageAllowed();
   }
   function canUseMeta() {
     const path = publicUrl(window.location.href, false);
@@ -211,7 +224,7 @@
     addScript('https://connect.facebook.net/en_US/fbevents.js', 'ads');
   }
   function googleEvent(name, params) {
-    if (!gaLoaded || !canMeasure('analytics')) return false;
+    if (!gaLoaded || !canMeasure('analytics') || (config.pageViewsOnly === true && name !== 'page_view')) return false;
     try {
       const path = publicUrl(window.location.href, false);
       window.gtag('event', name, Object.assign({ send_to: config.gaMeasurementId, page_location: 'https://veylet.com' + path,
@@ -243,6 +256,7 @@
   }
   function track(name, params) {
     try {
+      if (config.pageViewsOnly === true) return false;
       const safe = validatedParams(name, params);
       if (!safe || stopping || (!canMeasure('analytics') && !canUseMeta()) || !probeStorage()) return false;
       if (name === 'form_start' && startedForms.has(safe.form_id)) return false;
@@ -264,7 +278,8 @@
   }
   function showStatus(message) { if (status) status.textContent = message; }
   function saveChoice(analytics, ads) {
-    const next = { version: config.consentVersion, savedAt: Date.now(), analytics: analytics === true, ads: ads === true };
+    const next = { version: config.consentVersion, savedAt: Date.now(),
+      analytics: categoryEnabled('analytics') && analytics === true, ads: categoryEnabled('ads') && ads === true };
     if (!probeStorage()) {
       storageReady = false; choice = rejected(); stopAndReload(invalidateGrant());
       showStatus('Your browser cannot save this choice. Optional tracking stays off. You can still use every form.');
@@ -293,8 +308,8 @@
   }
   function openPreferences() {
     if (!panel) return;
-    analyticsInput.checked = choice.analytics;
-    adsInput.checked = choice.ads;
+    if (analyticsInput) analyticsInput.checked = choice.analytics;
+    if (adsInput) adsInput.checked = choice.ads;
     customize.hidden = false; panel.hidden = false;
     panel.querySelector('h2').focus();
   }
@@ -303,31 +318,37 @@
     node.addEventListener('click', handler); return node;
   }
   function mount() {
-    if (!surfaceAllowed() || !publicUrl(window.location.href, true)) return;
+    // Localhost may render consent; canMeasure retains the production-only gate.
+    if (!surfaceAllowed() || !publicUrl(window.location.href, true) || !measurementPageAllowed(true)) return;
     preferenceButton = button('Privacy choices', openPreferences);
     preferenceButton.className = 'analytics-preferences';
     preferenceButton.setAttribute('aria-controls', 'analytics-consent');
     document.body.appendChild(preferenceButton);
     panel = document.createElement('section'); panel.id = 'analytics-consent'; panel.className = 'analytics-consent';
     panel.setAttribute('role', 'region'); panel.setAttribute('aria-labelledby', 'analytics-consent-title');
+    const analyticsEnabled = categoryEnabled('analytics'), adsEnabled = categoryEnabled('ads');
     panel.innerHTML = '<h2 id="analytics-consent-title" tabindex="-1">Your privacy choices</h2>' +
-      '<p>Optional analytics helps us understand the public website. Optional advertising cookies help us measure ads. Both stay off until you choose. These choices are separate from email tips and offers.</p>' +
+      '<p>' + (analyticsEnabled ? 'Optional analytics helps us understand public website visits. ' : '') +
+      (adsEnabled ? 'Optional advertising cookies help us measure ads. ' : '') +
+      'Optional measurement stays off until you choose. These choices are separate from email tips and offers.</p>' +
       '<p><a href="/privacy">Read our privacy notice</a></p>' +
-      '<div class="analytics-options" hidden><label><input type="checkbox" name="analytics"> Website analytics (Google Analytics)</label>' +
-      '<label><input type="checkbox" name="ads"> Advertising measurement (Meta)</label>' +
+      '<div class="analytics-options" hidden>' +
+      (analyticsEnabled ? '<label><input type="checkbox" name="analytics"> Website analytics (Google Analytics)</label>' : '') +
+      (adsEnabled ? '<label><input type="checkbox" name="ads"> Advertising measurement (Meta)</label>' : '') +
       '<p class="analytics-reload-note">Turning off tracking that is already running reloads this page. Save any unfinished form answers first.</p></div>' +
       '<div class="analytics-actions"></div><p class="analytics-status" role="status"></p>';
     customize = panel.querySelector('.analytics-options');
     analyticsInput = panel.querySelector('input[name="analytics"]');
     adsInput = panel.querySelector('input[name="ads"]');
-    analyticsInput.checked = choice.analytics; adsInput.checked = choice.ads;
+    if (analyticsInput) analyticsInput.checked = choice.analytics;
+    if (adsInput) adsInput.checked = choice.ads;
     status = panel.querySelector('.analytics-status');
     const actions = panel.querySelector('.analytics-actions');
     // Equal visual weight and one click for accepting or rejecting all.
     actions.appendChild(button('Reject optional', () => saveChoice(false, false)));
-    actions.appendChild(button('Accept optional', () => saveChoice(true, true)));
-    actions.appendChild(button('Customize', () => { customize.hidden = false; analyticsInput.focus(); }));
-    customize.appendChild(button('Save choices', () => saveChoice(analyticsInput.checked, adsInput.checked)));
+    actions.appendChild(button('Accept optional', () => saveChoice(analyticsEnabled, adsEnabled)));
+    actions.appendChild(button('Customize', () => { customize.hidden = false; (analyticsInput || adsInput || panel.querySelector('h2')).focus(); }));
+    customize.appendChild(button('Save choices', () => saveChoice(!!analyticsInput && analyticsInput.checked, !!adsInput && adsInput.checked)));
     panel.addEventListener('keydown', event => {
       if (event.key === 'Escape') { panel.hidden = true; preferenceButton.focus(); }
     });
@@ -350,7 +371,7 @@
   function reconcile() {
     const next = choiceFromStorage();
     const ready = probeStorage();
-    if (!next || !ready || !safeContext()) {
+    if (!next || !ready || !safeContext() || !measurementPageAllowed()) {
       choice = rejected(); storageReady = false;
       stopAndReload((!next || !ready) ? invalidateGrant() : true);
       if (panel && !next) panel.hidden = false;

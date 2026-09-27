@@ -9,7 +9,8 @@ const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-
 
 const dist = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
-const pages = ['index.html', 'start/index.html', 'offer/index.html', 'see/index.html',
+const measurementPages = ['index.html', 'start/index.html', 'offer/index.html', 'privacy/index.html'];
+const hookPages = ['index.html', 'start/index.html', 'offer/index.html', 'see/index.html',
   'waitlist/index.html', 'request/index.html', 'apply/index.html', 'privacy/index.html'];
 const destinations = ['waitlist', 'request', 'apply', 'see', 'offer', 'start'];
 const placements = ['header', 'hero', 'body', 'footer', 'sticky', 'form'];
@@ -78,7 +79,7 @@ function validatorFixture(formID = 'waitlist', analytics) {
   return { ...f, form, control, calledPhases };
 }
 
-test('only the eight public acquisition pages load local analytics, in config-before-runtime order', () => {
+test('only the four accepted public measurement pages load local analytics, in config-before-runtime order', () => {
   const loaded = [];
   for (const file of publicHtml()) {
     const html = read(file);
@@ -87,8 +88,9 @@ test('only the eight public acquisition pages load local analytics, in config-be
     const configs = scripts.filter(script => source(script) === '/analytics-config.js');
     const runtimes = scripts.filter(script => source(script) === '/analytics.js');
     if (configs.length || runtimes.length) loaded.push(file);
-    if (!pages.includes(file)) {
+    if (!measurementPages.includes(file)) {
       assert.equal(configs.length + runtimes.length, 0, `${file} must not load acquisition trackers`);
+      assert.doesNotMatch(html, /<link\b[^>]*href="\/analytics\.css(?:\?[^"]*)?"/, `${file} must not load measurement CSS`);
       continue;
     }
     assert.equal(configs.length, 1, `${file} has one local config loader`);
@@ -99,11 +101,11 @@ test('only the eight public acquisition pages load local analytics, in config-be
     assert.doesNotMatch(html, /<script\b[^>]*src="(?:https?:)?\/\/(?:[^/]*\.)?(?:googletagmanager\.com|facebook\.net)/i,
       `${file} does not bypass consent with a vendor script tag`);
   }
-  assert.deepEqual(loaded.sort(), [...pages].sort());
+  assert.deepEqual(loaded.sort(), [...measurementPages].sort());
 });
 
 test('public CTA hooks use fixed destinations and placements and intake forms keep separate IDs', () => {
-  for (const file of pages) {
+  for (const file of hookPages) {
     const html = read(file);
     const hooks = [...html.matchAll(/<a\b[^>]*\bdata-analytics-cta="[^"]*"[^>]*>/g)].map(match => attrs(match[0]));
     assert.ok(hooks.length > 0, `${file} has explicit public CTA hooks`);
@@ -131,7 +133,7 @@ test('a real accepted waitlist response emits only the safe accepted-submission 
   assert.doesNotMatch(JSON.stringify(f.events), /Canary|canary@|Synthetic Region|sales_agent|iphone_pro|own_website|synthetic-public-key/);
 });
 
-test('real deployment-off analytics runtime preserves waitlist completion without vendor loads or queues', async () => {
+for (const deploymentEnabled of [false, true]) test(`real analytics runtime preserves waitlist completion with source-OFF or release-GA-ON (${deploymentEnabled})`, async () => {
   const f = fixture();
   const scripts = [], local = new Map(), session = new Map();
   const storage = values => ({ getItem: key => values.get(key) ?? null,
@@ -147,9 +149,13 @@ test('real deployment-off analytics runtime preserves waitlist completion withou
   delete f.window.VeyletAnalytics;
   const context = vm.createContext({ window: f.window, document, URL, Date, Set, JSON, Object, Number });
   vm.runInContext(read('analytics-config.js'), context);
-  local.set('veylet:measurement-choice:v1', JSON.stringify({
-    version: f.window.VEYLET_ANALYTICS_CONFIG.consentVersion, savedAt: Date.now(), analytics: true, ads: true,
-  }));
+  if (deploymentEnabled) f.window.VEYLET_ANALYTICS_CONFIG = { ...f.window.VEYLET_ANALYTICS_CONFIG,
+    deploymentEnabled: true, gaEnabled: true, metaEnabled: false, pageViewsOnly: true, consentVersion: 2, metaPixelId: '',
+  };
+  const granted = JSON.stringify({
+    version: f.window.VEYLET_ANALYTICS_CONFIG.consentVersion, savedAt: Date.now(), analytics: true, ads: false,
+  });
+  local.set('veylet:measurement-choice:v1', granted);
   vm.runInContext(read('analytics.js'), context);
   assert.equal(typeof f.window.VeyletAnalytics.track, 'function', 'exercise the actual runtime, not a stub');
   assert.equal(await f.send(), 'joined');
@@ -162,6 +168,8 @@ test('real deployment-off analytics runtime preserves waitlist completion withou
   assert.equal(f.window.dataLayer, undefined);
   assert.equal(session.has('veylet:waitlist-accepted:v1'), false, 'no measurement dedupe identifier is written');
   assert.deepEqual(f.events, [], 'the former analytics stub is not involved');
+  assert.equal(local.get('veylet:measurement-choice:v1'), granted, 'valid GA consent stays intact; exclusion is not accidental consent invalidation');
+  assert.equal(f.window.VeyletAnalytics.track('waitlist_submission_accepted', { form_id: 'waitlist' }), false);
 });
 
 test('the conversion waits for the RPC; duplicate in-flight submits do not create duplicate requests', async () => {
@@ -281,13 +289,16 @@ test('missing, rejecting or throwing analytics cannot prevent real waitlist comp
   }
 });
 
-test('the public privacy notice distinguishes optional analytics, advertising and email choices', () => {
+test('the public privacy notice describes only the accepted four-page GA measurement', () => {
   const privacy = read('privacy/index.html').replace(/\s+/g, ' ');
-  assert.match(privacy, /Google Analytics/);
-  assert.match(privacy, /Meta Pixel/);
-  assert.match(privacy, /Analytics and Advertising separately/);
-  assert.match(privacy, /Privacy choices/);
-  assert.match(privacy, /Email tips consent is separate/);
-  assert.doesNotMatch(privacy, /we run no advertising cookies and no third-party trackers/);
-  assert.match(privacy, /without accepting either/);
+  for (const statement of [
+    'Google Analytics 4 loads only after you allow Analytics in Privacy choices.',
+    'visits to our home, getting-started, offer and privacy pages',
+    'Advertising tracking, including Meta Pixel, is off.',
+    'Our site does not send custom click, form, waitlist or purchase events.',
+    'We may include approved campaign labels from public links.',
+    'Withdrawal cannot recall information already sent to Google.',
+  ]) assert.ok(privacy.includes(statement), statement);
+  assert.match(privacy, /href="https:\/\/policies\.google\.com\/privacy"/);
+  assert.doesNotMatch(privacy, /Analytics and Advertising separately|If you allow Advertising|we run no advertising cookies and no third-party trackers/);
 });

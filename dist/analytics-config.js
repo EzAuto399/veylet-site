@@ -1,11 +1,14 @@
 /* Public identifiers only. Adding a campaign requires an exact reviewed tuple. */
 window.VEYLET_ANALYTICS_CONFIG = Object.freeze({
   deploymentEnabled: false,
+  gaEnabled: true,
+  metaEnabled: false,
+  pageViewsOnly: true,
   gaMeasurementId: 'G-M4SLEMNVP6',
   metaPixelId: '1617470229766948',
   // Keep Meta off data-entry pages until actual vendor payloads are inspected.
   metaFormTrackingEnabled: false,
-  consentVersion: 1,
+  consentVersion: 2,
   consentMaxAgeDays: 180,
   // Exact reviewed links only; registry entries do not launch or fund campaigns.
   campaignRegistry: Object.freeze([
