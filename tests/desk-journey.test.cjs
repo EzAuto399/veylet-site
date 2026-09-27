@@ -103,6 +103,9 @@ function harness(options = {}) {
       if (options.rpc?.[name]) return options.rpc[name](args, { tours, approved, table });
       if (name === 'can_produce_tours') return { data: false };
       if (name === 'get_account_deletion') return { data: [] };
+      if (name === 'get_square_obligation_v1') return { data: { contract_version: 1, mode: 'existing_obligations_only',
+        workspace_id: args.p_workspace_id, kind: args.p_kind, checkout_id: null, business_state: 'none',
+        cancellation_status: 'not_requested', allowed_actions: [], expected_quote: null, observed_terms: null } };
       if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'get_members_annual_offer', 'get_referral_code', 'list_workspace_render_status', 'get_workspace_public_contact'].includes(name)) return missing;
       if (name === 'get_tour_hosting') return { data: options.hosting || [] };
       if (name === 'get_tour_review') return { data: [{ approved: approved.has(args.p_tour_id) }] };
@@ -1323,64 +1326,64 @@ test('the trial-limit words are the server’s own when it sends them', async ()
 
 const WEB_TRIAL = { workspace_id: 'w1', status: 'trial', plan_code: 'solo', source: 'web', billing_interval: 'monthly', trial_started_at: '2026-09-01T00:00:00Z',
   trial_ends_at: new Date(Date.now() + 60 * 86400000).toISOString(), trial_included_walkthroughs: 6, accepted_in_free_months: 1, auto_renews: true, renewal_price_aud_cents: 9900 };
-const cancelControl = h => h.all().find(el => el.dataset.control === 'cancel-web-plan');
+const webObligation = (overrides = {}) => ({ contract_version: 1, mode: 'existing_obligations_only',
+  workspace_id: 'w1', kind: 'web_trial', checkout_id: 'saved-trial-1', business_state: 'active',
+  cancellation_status: 'not_requested', allowed_actions: ['check_status', 'cancel'], expected_quote: null,
+  observed_terms: { source: 'stored_unverified', currency: null, consent_status: 'checkout_acceptance_unverified' }, ...overrides });
+const webObligationRPC = async args => ({ data: args.p_kind === 'web_trial' ? webObligation() : {
+  ...webObligation(), kind: args.p_kind, checkout_id: null, business_state: 'none', cancellation_status: 'not_requested',
+  allowed_actions: [], observed_terms: null } });
+const webControl = (h, action) => h.ids['account-trial'].all().find(el => el.dataset.control === 'obligation-' + action);
 
-test('a website card plan cancels here: confirmed, posted to /square/trial/cancel and read back', async () => {
-  for (const [started, said] of [[false, /Plan cancelled\. Nothing was charged and nothing will be\./], [true, /Plan cancelled\. It stops renewing at the end of the period you’ve paid for\./]]) {
-    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
-    await settle();
-    const posts = [];
-    // Only the cancel route is counted; the desk's other reads (the card lane) may call too.
-    h.window.fetch = async (url, init) => { if (String(url).endsWith('/square/trial/cancel')) posts.push({ url, init }); return { status: 200, ok: true, json: async () => ({ cancelled: true, started }) }; };
-    const cancel = cancelControl(h);
-    assert.ok(cancel, 'the web lane has its own Cancel plan');
-    assert.equal(cancel.textContent, 'Cancel plan');
-    await cancel.fire('click'); await settle();
-    assert.equal(posts.length, 0, 'the first press asks to confirm');
-    const confirm = h.all().find(el => el.dataset.control === 'confirm-cancel-web-plan');
-    assert.equal(confirm.textContent, 'Yes, cancel my plan');
-    await confirm.fire('click'); await settle();
+test('a saved website card subscription cancels by exact ID and requires the new confirmed projection', async () => {
+  for (const status of ['trial', 'active']) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [{ ...WEB_TRIAL, status }] }),
+      get_square_obligation_v1: webObligationRPC } });
+    await settle(); const posts = [];
+    h.window.fetch = async (url, init) => { posts.push({ url, init }); return { status: 200, ok: true,
+      json: async () => ({ obligation: webObligation({ cancellation_status: 'stopped', business_state: 'cancelled', allowed_actions: [] }) }) }; };
+    await webControl(h, 'cancel').fire('click'); await settle();
+    assert.equal(posts.length, 0, 'the first press only requests confirmation');
+    await webControl(h, 'confirm').fire('click'); await settle();
     assert.equal(posts.length, 1);
     assert.equal(posts[0].url, 'https://hooks.example.invalid/square/trial/cancel');
     assert.equal(posts[0].init.method, 'POST');
     assert.equal(posts[0].init.headers.Authorization, 'Bearer token-1');
-    assert.deepEqual(JSON.parse(posts[0].init.body), { workspace_id: 'w1' });
-    assert.match(h.status(), said);
+    assert.deepEqual(JSON.parse(posts[0].init.body), { workspace_id: 'w1', recovery_checkout_id: 'saved-trial-1' });
+    assert.match(h.status(), /Cancellation confirmed/);
+    assert.doesNotMatch(h.status(), /nothing.*charged|nothing will be/i);
+    assert.equal(webControl(h, 'cancel'), undefined);
   }
-  // Square did not confirm: the cancel is recorded and being confirmed.
-  const pending = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
-  await settle();
-  pending.window.fetch = async () => ({ status: 502, ok: false, json: async () => ({ error: 'checkout_failed' }) });
-  await cancelControl(pending).fire('click'); await settle();
-  await pending.all().find(el => el.dataset.control === 'confirm-cancel-web-plan').fire('click'); await settle();
-  assert.match(pending.status(), /Your cancellation is being confirmed\./);
-  // Keep plan sends nothing.
-  const kept = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
-  await settle();
-  let asked = 0; kept.window.fetch = async () => { asked += 1; return { status: 200, ok: true, json: async () => ({}) }; };
-  await cancelControl(kept).fire('click'); await settle();
-  await kept.all().find(el => el.dataset.control === 'keep-web-plan').fire('click'); await settle();
-  assert.equal(asked, 0);
-  assert.match(kept.status(), /Your plan is unchanged\./);
+  for (const [http, body] of [[503, { error: 'unavailable' }], [200, { cancelled: true, started: false }],
+    [200, { obligation: webObligation({ cancellation_status: 'cancellation_pending', allowed_actions: ['check_status'] }) }]]) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }), get_square_obligation_v1: webObligationRPC } });
+    h.window.fetch = async () => ({ status: http, ok: http === 200, json: async () => body });
+    await webControl(h, 'cancel').fire('click'); await settle();
+    await webControl(h, 'confirm').fire('click'); await settle();
+    assert.match(h.status(), /not (?:yet )?confirmed/i);
+    assert.doesNotMatch(h.status(), /Cancellation confirmed|nothing.*charged|nothing will be/i);
+  }
+  const kept = await load({ rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }), get_square_obligation_v1: webObligationRPC } });
+  let asked = 0; kept.window.fetch = async () => { asked++; throw new Error('Keep must send nothing'); };
+  await webControl(kept, 'cancel').fire('click'); await settle();
+  await webControl(kept, 'keep').fire('click'); await settle();
+  assert.equal(asked, 0); assert.ok(webControl(kept, 'cancel'));
 });
 
-test('Cancel plan is for the website card lane only: never an invoice or App Store plan, and never on the app’s pages', async () => {
-  for (const plan of [{ ...WEB_TRIAL, source: 'studio' }, { ...WEB_TRIAL, source: 'apple' }, { ...WEB_TRIAL, status: 'ended' }]) {
-    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [plan] }) } });
-    await settle();
-    assert.equal(cancelControl(h), undefined, JSON.stringify([plan.source, plan.status]));
+test('saved card obligations stay manageable across plan changes, while app pages and nonowners never expose them', async () => {
+  for (const plan of [{ ...WEB_TRIAL, source: 'studio' }, { ...WEB_TRIAL, source: 'apple' }, { ...WEB_TRIAL, status: 'ended' },
+    { ...WEB_TRIAL, status: 'active', billing_interval: 'annual' }]) {
+    const h = await load({ rpc: { get_workspace_plan: async () => ({ data: [plan] }), get_square_obligation_v1: webObligationRPC } });
+    await settle(); assert.ok(webControl(h, 'cancel'), 'saved obligation survives the current plan source/status/cadence');
+    const noRecord = await load({ rpc: { get_workspace_plan: async () => ({ data: [plan] }) } });
+    await settle(); assert.equal(webControl(noRecord, 'cancel'), undefined, 'plan alone does not invent a card obligation');
   }
-  const app = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
-  await settle();
-  assert.equal(cancelControl(app), undefined);
-  // A yearly card plan (possibly the members' annual, cancelled from its own card) stays with support.
-  const yearly = await load({ rpc: { get_workspace_plan: async () => ({ data: [{ ...WEB_TRIAL, status: 'active', billing_interval: 'annual' }] }) } });
-  await settle();
-  assert.equal(cancelControl(yearly), undefined);
-  // Someone who is not the owner cannot cancel, so is not offered it.
-  const reviewer = await load({ role: 'reviewer', rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }) } });
-  await settle();
-  assert.equal(cancelControl(reviewer), undefined);
+  for (const options of [{ markup: appMarkup }, { role: 'reviewer' }]) {
+    const h = await load({ ...options, rpc: { get_workspace_plan: async () => ({ data: [WEB_TRIAL] }), get_square_obligation_v1: webObligationRPC } });
+    await settle();
+    assert.equal(h.calls.some(([name]) => name === 'get_square_obligation_v1'), false);
+    assert.equal(h.all().some(el => el.dataset.control === 'obligation-cancel'), false);
+  }
 });
 
 test('views: a walk through the 3D is its own count once the server sends it, never an invented zero (VIEWER-22)', async () => {

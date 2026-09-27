@@ -90,9 +90,10 @@ test('the app pages have a minimal header, and their only navigation is to one a
 const words = html => html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const mainOf = html => html.match(/<main\b[\s\S]*?<\/main>/)[0];
 
-test('/app/privacy is the public notice word for word; only its account link stays in the app', () => {
+test('/app/privacy is the public notice word for word; account navigation stays in the app and the provider policy is plain text', () => {
   const app = mainOf(read('app/privacy/index.html'));
-  const site = mainOf(read('privacy/index.html'));
+  const site = mainOf(read('privacy/index.html'))
+    .replace('<a href="https://policies.google.com/privacy">Privacy Policy</a>', 'Privacy Policy');
   assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site);
 });
 
@@ -108,7 +109,7 @@ test('/app/terms is the public terms word for word, less the sentences that name
   assert.equal(app.split(REPLACED).length - 1, 5, 'five sentences stand in for amounts (listed for legal review)');
   assert.ok(app.includes(NOTE));
   // What was left out, by heading.
-  for (const heading of ['Walkthrough packs.', 'Super fast renders.', 'Other work.']) {
+  for (const heading of ['One-time walkthrough packs.', 'Super fast renders.', 'Other work.']) {
     assert.ok(site.includes(heading), heading);
     assert.ok(!app.includes(heading), heading + ' is not in the app copy');
   }

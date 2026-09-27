@@ -72,6 +72,9 @@ async function load(options = {}) {
       if (options.rpc?.[name]) return options.rpc[name](args);
       if (name === 'can_produce_tours') return { data: false };
       if (name === 'get_account_deletion') return { data: [] };
+      if (name === 'get_square_obligation_v1') return { data: { contract_version: 1, mode: 'existing_obligations_only',
+        workspace_id: args.p_workspace_id, kind: args.p_kind, checkout_id: null, business_state: 'none',
+        cancellation_status: 'not_requested', allowed_actions: [], expected_quote: null, observed_terms: null } };
       // Walkthrough packs, starting the free months, express renders and render status
       // have their own tests; elsewhere the function is absent, so no card.
       if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'list_workspace_render_status'].includes(name)) return { error: { code: 'PGRST202', message: 'Could not find the function' } };
@@ -121,7 +124,7 @@ test('a new account gets one setup action without changing access or creating a 
   assert.equal(h.ids['account-add-space'].open, true);
   // Reading the plan, hosting dates and the team's invites and members are the only calls
   // added here; nothing changes access or creates a space.
-  assert.deepEqual(h.calls.map(call => call[0]), ['get_tour_hosting', 'get_tour_hosting_states', 'get_primary_workspace', 'get_workspace_plan', 'get_account_deletion', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_members_annual_offer', 'get_referral_code']);
+  assert.deepEqual(h.calls.map(call => call[0]), ['get_tour_hosting', 'get_tour_hosting_states', 'get_primary_workspace', 'get_workspace_plan', 'get_account_deletion', 'get_square_obligation_v1', 'get_square_obligation_v1', 'get_email_preferences', 'list_workspace_invites', 'list_workspace_members', 'get_walkthrough_capacity', 'get_pack_offer', 'get_referral_code']);
 });
 test('an owner with a saved space gets self-capture preparation without an unavailable visit offer', async () => {
   const h = await load();
@@ -935,7 +938,7 @@ test('a pending workspace never establishes introductory eligibility or promises
     assert.doesNotMatch(planText(h), /Start your (?:six )?free months|Free until|Renews on|A\$0/);
     if (source === null) {
       assert.match(planScopes(h).join(' '), /Start in the app through the App Store, where Apple checks introductory-offer eligibility/);
-      assert.match(planScopes(h).join(' '), /the first charge is on the day the free months end\./);
+      assert.match(planScopes(h).join(' '), /If Apple confirms an eligible free trial, the first charge is when it ends; otherwise Apple shows the amount due before you subscribe\./);
     }
   }
 });
@@ -960,7 +963,7 @@ test('pending accounts have management routes without a card form', async () => 
       assert.ok(planLinks(h).includes('https://apps.apple.com/account/subscriptions'));
     } else {
       // A card plan on this website is still changed or cancelled through the studio.
-      assert.match(planScopes(h).join(' '), /Your card plan is managed by Veylet support: email to change or cancel it/);
+      assert.match(planScopes(h).join(' '), /Check or cancel an existing card subscription below/);
       assert.ok(planLinks(h).some(link => link.startsWith('mailto:')));
     }
     assert.equal(h.ids['account-plan-body'].all().some(el => el.type === 'submit'
@@ -1063,7 +1066,7 @@ test('the panel separates free months that lapsed from a plan that ended', async
   const afterPlan = await withPlan({ source: 'web', status: 'ended', accepted_in_free_months: 6,
     current_period_ends_at: paidUntil, auto_renews: false });
   assert.equal(planTitle(afterPlan), 'Plan ended ' + longDate(paidUntil));
-  assert.match(planScopes(afterPlan).join(' '), /Your card plan is managed by Veylet support/);
+  assert.match(planScopes(afterPlan).join(' '), /Check or cancel an existing card subscription below/);
 });
 
 test('an unanswered plan lookup is unavailable, not started and not approved', async () => {
@@ -2027,416 +2030,6 @@ const renewalOff = overrides => annualOffer({ apple_auto_renews: false, ...overr
 // Existing server-owned unfinished checkout; this is recovery, not an eligible new sale.
 const pendingAnnual = overrides => renewalOff({ checkout_pending: { plan_code: 'solo', created_at: '2026-09-24T02:10:00Z' }, ...overrides });
 
-test('the annual plan reads its own answer for the plan’s workspace, and the lane without a token', async () => {
-  const h = await withAnnual(pendingAnnual());
-  assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_members_annual_offer')[1] }, { p_workspace_id: 'w1' });
-  const lane = h.requests.find(request => request.path === '/square/lane');
-  assert.equal(lane.url, HOOKS_URL + '/square/lane');
-  assert.equal(lane.auth, undefined, 'the lane is public');
-  assert.equal(lane.credentials, 'omit');
-  assert.equal(annualCard(h).hidden, false);
-  assert.equal(annualCard(h).attributes['aria-busy'], 'false');
-  assert.equal(annualClass(h, 'annual-title').tagName, 'H3');
-  assert.equal(annualClass(h, 'annual-title').textContent, 'Annual plan');
-  // Plan, then walkthrough packs, then the annual plan, then Refer an office, then capture help.
-  assert.ok(markup.indexOf('id="account-plan-body"') < markup.indexOf('id="account-packs"'));
-  assert.ok(markup.indexOf('id="account-packs"') < markup.indexOf('id="account-annual"'));
-  assert.ok(markup.indexOf('id="account-annual"') < markup.indexOf('id="account-referral"'));
-  assert.ok(markup.indexOf('id="account-referral"') < markup.indexOf('id="account-capture-title"'));
-  assert.match(fs.readFileSync(path.join(__dirname, '../dist/supabase-public.js'), 'utf8'), /window\.VEYLET_HOOKS = \{ url: 'https:\/\/veylet-hooks\.vercel\.app' \}/);
-  assert.equal(h.scripts.length, 0, 'Square’s SDK is not loaded just to show the card');
-});
-
-test('while the answer is on its way the card shows its own rows, not prices', async () => {
-  const h = await withAnnual(() => new Promise(() => {}));
-  assert.equal(annualCard(h).attributes['aria-busy'], 'true');
-  assert.match(annualText(h), /Checking the annual plan…/);
-  // One plan: one price row, then the start, the charge line, the action and the note, as the loaded card has them.
-  assert.equal(annualAll(h, 'annual-skeleton-row').length, 1);
-  for (const name of ['annual-plans', 'annual-option-name', 'annual-amount', 'annual-qualifier', 'annual-pay', 'annual-step-text', 'annual-charge', 'annual-actions', 'annual-note']) assert.ok(annualClass(h, name), name);
-  assert.ok(annualClass(h, 'annual-skeleton-action'));
-  assert.doesNotMatch(annualText(h), /A\$/);
-  assert.equal(annualNodes(h).some(el => el.tagName === 'BUTTON'), false);
-});
-
-
-
-
-
-test('existing checkout recovery: Pay yearly by card loads Square’s SDK once, on demand, and moves focus into its labelled card field', async () => {
-  const h = await withAnnual(pendingAnnual());
-  await press(h, 'Pay yearly by card');
-  assert.equal(h.scripts.length, 1);
-  assert.equal(h.scripts[0].src, SQUARE_SDK);
-  assert.deepEqual(squareLog(h, 'payments'), [['payments', CARD_FORM.application_id, CARD_FORM.location_id]]);
-  assert.deepEqual(squareLog(h, 'attach'), [['attach', '#account-annual-card-field']]);
-  assert.deepEqual(squareLog(h, 'focus'), [['focus', 'cardNumber']]);
-  const field = annualClass(h, 'annual-card-field');
-  assert.equal(field.id, 'account-annual-card-field');
-  assert.equal(field.attributes.role, 'group');
-  assert.equal(annualNodes(h).find(el => el.id === field.attributes['aria-labelledby']).textContent, 'Card details');
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Confirm yearly plan']);
-  assert.equal(annualButton(h, 'Pay yearly by card'), undefined);
-  assert.equal(annualClass(h, 'annual-charge').textContent, 'Nothing is charged today. First charge A$990 on 24 March 2027, then it renews each year until you cancel.');
-  assert.equal(posts(h, '/square/members-annual/checkout').length, 0, 'opening the form sends nothing');
-  // Not now closes Square's field and puts focus back on Pay; opening again reuses the loaded SDK.
-  await press(h, 'Not now');
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  assert.equal(annualButton(h, 'Pay yearly by card').wasFocused, true);
-  await press(h, 'Pay yearly by card');
-  assert.equal(h.scripts.length, 1, 'the SDK is loaded once');
-  assert.equal(squareLog(h, 'attach').length, 2);
-});
-
-test('existing checkout recovery: Confirm yearly plan sends only Square’s token for the Veylet plan and shows the scheduled plan from the answer', async () => {
-  const h = await withAnnual(pendingAnnual());
-  await press(h, 'Pay yearly by card');
-  await press(h, 'Confirm yearly plan');
-  const [checkout] = posts(h, '/square/members-annual/checkout');
-  assert.equal(checkout.method, 'POST');
-  assert.equal(checkout.auth, 'Bearer token-1');
-  assert.deepEqual(checkout.body, { workspace_id: 'w1', plan_code: 'solo', start: 'scheduled', source_id: 'cnon:card-nonce-ok' });
-  assert.equal(h.reads(), 1, 'the scheduled state is the answer itself');
-  assert.equal(annualClass(h, 'annual-lead').textContent, 'Yearly plan starts 24 March 2027. Your App Store plan runs until then.');
-  assert.equal(annualClass(h, 'annual-charge').textContent, 'Nothing has been charged. First charge A$990 on 24 March 2027, then it renews each year until you cancel.');
-  assert.match(annualText(h), /Veylet plan[\s\S]*A\$990 a year/);
-  assert.equal(annualClass(h, 'annual-title').wasFocused, true);
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  assert.ok(annualButton(h, 'Cancel yearly plan'));
-  assert.match(h.ids['account-status'].textContent, /Yearly plan confirmed\. Nothing is charged today\./);
-});
-
-
-
-test('a checkout left open on the server is not a state of its own: the card form is offered again', async () => {
-  for (const plan_code of ['solo', 'studio']) {
-    const h = await withAnnual(renewalOff({ checkout_pending: { plan_code, created_at: '2026-09-24T02:10:00Z' } }));
-    assert.doesNotMatch(annualText(h), /Checkout not finished|Continue checkout/);
-    if (plan_code === 'studio') {
-      assert.equal(annualButton(h, 'Pay yearly by card'), undefined);
-      assert.ok(annualButton(h, 'Cancel yearly plan'));
-      assert.doesNotMatch(annualText(h), /A\$/);
-    } else {
-      assert.deepEqual(annualAll(h, 'annual-amount').map(el => el.textContent), ['A$990 a year']);
-      assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Pay yearly by card']);
-    }
-  }
-  assert.doesNotMatch(account, /Continue checkout|checkout_url|location\.assign/);
-});
-
-test('existing checkout recovery: Square’s script failing to load says so and offers Try again, which loads it afresh', async () => {
-  let mode = 'fail';
-  const h = await withAnnual(pendingAnnual(), { sdk: () => mode });
-  await press(h, 'Pay yearly by card');
-  assert.equal(annualProblemText(h), 'Card form couldn’t load. Try again.');
-  assert.equal(annualClass(h, 'annual-card-field'), undefined);
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try again']);
-  assert.equal(annualFilled(h)[0].wasFocused, true);
-  mode = 'ok';
-  await press(h, 'Try again');
-  assert.equal(h.scripts.length, 2, 'a failed load is not reused');
-  assert.ok(annualClass(h, 'annual-card-field'));
-  assert.equal(annualProblemText(h), null);
-  // A lane with no card form, or a script from anywhere but Square's CDN, is never loaded.
-  for (const card_form of [undefined, { ...CARD_FORM, sdk_url: 'https://cdn.example.com/square.js' }, { ...CARD_FORM, application_id: 'x' }]) {
-    const bad = await withAnnual(pendingAnnual(), { hooks: { '/square/lane': () => [200, { open: true, sandbox: false, card_form }] } });
-    await press(bad, 'Pay yearly by card');
-    assert.equal(bad.scripts.length, 0, JSON.stringify(card_form));
-    assert.equal(annualProblemText(bad), 'Card form couldn’t load. Try again.');
-  }
-  // Square loads but its card cannot attach: the same sentence, and the field is let go.
-  const attach = await withAnnual(pendingAnnual(), { squareOptions: { attach: true } });
-  await press(attach, 'Pay yearly by card');
-  assert.equal(annualProblemText(attach), 'Card form couldn’t load. Try again.');
-  assert.equal(squareLog(attach, 'destroy').length, 1);
-});
-
-test('existing checkout recovery: a card Square cannot tokenize keeps the form, says so, and sends nothing', async () => {
-  let tries = 0;
-  const h = await withAnnual(pendingAnnual(), { squareOptions: { tokenize: () => (++tries === 1
-    ? { status: 'Invalid', errors: [{ field: 'cardNumber', type: 'VALIDATION_ERROR' }] } : { status: 'OK', token: 'cnon:card-nonce-ok' }) } });
-  await press(h, 'Pay yearly by card');
-  await press(h, 'Confirm yearly plan');
-  assert.equal(annualProblemText(h), 'Square couldn’t use those card details. Check them and try again. Nothing was charged.');
-  assert.ok(annualClass(h, 'annual-card-field'), 'the card form stays');
-  assert.equal(squareLog(h, 'destroy').length, 0);
-  assert.equal(posts(h, '/square/members-annual/checkout').length, 0);
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try again']);
-  await press(h, 'Try again');
-  assert.equal(posts(h, '/square/members-annual/checkout').length, 1, 'a fresh token each time');
-  assert.equal(annualClass(h, 'annual-lead').textContent, 'Yearly plan starts 24 March 2027. Your App Store plan runs until then.');
-});
-
-test('existing checkout recovery: each refusal is a plain sentence under the button, with the card form kept and Try again', async () => {
-  const sentences = {
-    checkout_failed: [502, 'The yearly plan wasn’t confirmed. Nothing was charged. Try again.'],
-    not_eligible: [403, 'The annual plan isn’t available for this workspace right now, so nothing was set up. Nothing was charged.'],
-    apple_still_renews: [409, 'App Store renewal is still on, so nothing was set up. Turn it off in the App Store, then try again. Nothing was charged.'],
-    start_now_unavailable: [409, 'Starting today is no longer available, so nothing was set up. Choose the later start, then try again. Nothing was charged.'],
-    lane_closed: [503, 'Card payment for the annual price is closed right now, so nothing was set up. Nothing was charged.'],
-    invalid_request: [400, 'The yearly plan wasn’t confirmed. Nothing was charged. Try again.'],
-  };
-  for (const [code, [status, sentence]] of Object.entries(sentences)) {
-    const h = await withAnnual(pendingAnnual(), { hooks: { '/square/members-annual/checkout': () => [status, { error: code }] } });
-    await press(h, 'Pay yearly by card');
-    const charge = annualClass(h, 'annual-charge').textContent;
-    await press(h, 'Confirm yearly plan');
-    assert.equal(annualProblemText(h), sentence, code);
-    assert.ok(annualClass(h, 'annual-card-field'), `${code} keeps the card form`);
-    assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try again'], code);
-    assert.equal(annualFilled(h)[0].wasFocused, true, code);
-    assert.equal(annualClass(h, 'annual-charge').textContent, charge, `${code} keeps the price and date`);
-    assert.equal(h.reads(), 1, `${code} saves nothing as scheduled`);
-  }
-  // A network failure reads as checkout_failed; on a start today the retry is said not to charge twice.
-  const offline = await withAnnual(pendingAnnual({ source: 'web', plan_status: 'ended', apple_auto_renews: null, starts_on: brisbaneToday() }),
-    { hooks: { '/square/members-annual/checkout': 'reject' } });
-  await press(offline, 'Pay yearly by card');
-  await press(offline, 'Confirm yearly plan');
-  assert.equal(annualProblemText(offline), 'The yearly plan wasn’t confirmed. Try again: a retry finishes the same plan and never charges twice.');
-});
-
-test('existing checkout recovery: already scheduled, an unreadable answer and an expired session go to the server’s record or to sign-in', async () => {
-  const scheduled = { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' };
-  const h = await withAnnual([pendingAnnual(), pendingAnnual({ scheduled })], { hooks: { '/square/members-annual/checkout': () => [409, { error: 'already_scheduled' }] } });
-  await press(h, 'Pay yearly by card');
-  await press(h, 'Confirm yearly plan');
-  assert.equal(h.reads(), 2);
-  assert.equal(annualClass(h, 'annual-notice').textContent, 'A yearly plan is already scheduled for this workspace, so nothing more was set up.');
-  assert.match(annualText(h), /Yearly plan starts 24 March 2027/);
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  const odd = await withAnnual([pendingAnnual(), pendingAnnual({ scheduled })], { hooks: { '/square/members-annual/checkout': () => [200, { checkout_url: 'https://square.link/u/x' }] } });
-  await press(odd, 'Pay yearly by card');
-  await press(odd, 'Confirm yearly plan');
-  assert.equal(odd.reads(), 2);
-  assert.match(annualClass(odd, 'annual-notice').textContent, /The answer could not be read/);
-  assert.deepEqual(odd.redirects, [], 'no URL is ever followed');
-  const expired = await withAnnual(pendingAnnual(), { hooks: { '/square/members-annual/checkout': () => [401, { error: 'unauthorized' }] } });
-  await press(expired, 'Pay yearly by card');
-  await press(expired, 'Confirm yearly plan');
-  assert.equal(expired.ids['account-home'].hidden, true);
-  assert.match(expired.ids['account-status'].textContent, /sign-in has expired[\s\S]*Nothing was set up/);
-  assert.equal(annualCard(expired).hidden, true);
-  const tokenless = await withAnnual(pendingAnnual(), { accessToken: null });
-  await press(tokenless, 'Pay yearly by card');
-  await press(tokenless, 'Confirm yearly plan');
-  assert.equal(posts(tokenless, '/square/members-annual/checkout').length, 0, 'no request without a bearer token');
-});
-
-test('existing checkout recovery: coming back to the page never redraws over an open card form', async () => {
-  let now = Date.now();
-  class Clock extends Date { static now() { return now; } }
-  const h = await withAnnual(pendingAnnual({ source: 'studio', apple_auto_renews: null }), { Date: Clock });
-  await press(h, 'Pay yearly by card');
-  now += 60000;
-  h.windowEvents.focus(); h.windowEvents.pageshow?.({ persisted: true }); await settle();
-  assert.equal(h.reads(), 1);
-  assert.equal(squareLog(h, 'attach').length, 1);
-  assert.equal(squareLog(h, 'destroy').length, 0);
-});
-
-test('scheduled: the start date and what runs until then, with a secondary cancel that names the date', async () => {
-  const scheduled = { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' };
-  const h = await withAnnual([renewalOff({ scheduled }), renewalOff()]);
-  assert.equal(annualClass(h, 'annual-lead').textContent, 'Yearly plan starts 24 March 2027. Your App Store plan runs until then.');
-  assert.equal(annualClass(h, 'annual-charge').textContent, 'Nothing has been charged. First charge A$990 on 24 March 2027, then it renews each year until you cancel.');
-  assert.deepEqual([annualClass(h, 'annual-option-name').textContent, annualClass(h, 'annual-amount').textContent], ['Veylet plan', 'A$990 a year']);
-  assert.equal(annualFilled(h).length, 0, 'cancelling is secondary');
-  await press(h, 'Cancel yearly plan');
-  const confirm = annualClass(h, 'annual-confirm');
-  assert.equal(confirm.textContent, 'Cancel the yearly plan that starts 24 March 2027? Nothing has been charged. Your App Store plan still ends on 24 March 2027 unless you turn its renewal back on. A later yearly plan uses the annual price at that time.');
-  assert.equal(confirm.wasFocused, true);
-  assert.equal(posts(h, '/square/members-annual/cancel').length, 0, 'nothing is sent before the confirmation');
-  await press(h, 'Keep yearly plan');
-  assert.equal(annualButton(h, 'Cancel yearly plan').wasFocused, true);
-  await press(h, 'Cancel yearly plan');
-  const armed = annualNodes(h).find(el => el.tagName === 'BUTTON' && el.dataset.armed === 'true');
-  assert.equal(armed.className, 'tour-action tour-action-danger');
-  await armed.fire('click'); await settle();
-  const [request] = posts(h, '/square/members-annual/cancel');
-  assert.equal(request.auth, 'Bearer token-1');
-  assert.deepEqual(request.body, { workspace_id: 'w1' });
-  assert.equal(h.reads(), 2, 'the result is read back, not assumed');
-  assert.equal(annualClass(h, 'annual-notice').textContent, 'Yearly plan cancelled. Nothing was charged.');
-  assert.equal(annualClass(h, 'annual-notice').wasFocused, true);
-  assert.equal(annualButton(h, 'Pay yearly by card'), undefined, 'cancellation does not open a fresh card sale');
-});
-
-test('a year already scheduled on the retired Team plan still reads by its own name and price', async () => {
-  const scheduled = { plan_code: 'studio', year_cents: 189000, starts_on: '2027-03-24' };
-  const h = await withAnnual(renewalOff({ scheduled }), { plan: { plan_code: 'studio', included_per_month: 3, price_aud_cents: 18900 } });
-  assert.deepEqual([annualClass(h, 'annual-option-name').textContent, annualClass(h, 'annual-amount').textContent], ['Team', 'A$1,890 a year']);
-  assert.equal(annualClass(h, 'annual-charge').textContent, 'Nothing has been charged. First charge A$1,890 on 24 March 2027, then it renews each year until you cancel.');
-  assert.ok(annualButton(h, 'Cancel yearly plan'));
-  // Whatever the tier is now, a closed tier keeps what was bought.
-  const closed = await withAnnual(annualLocked({ tier: 'closed', apple_auto_renews: false, scheduled }));
-  assert.match(annualText(closed), /Yearly plan starts 24 March 2027[\s\S]*Team[\s\S]*A\$1,890 a year/);
-});
-
-test('conflict: a warning with an icon and words, and no payment', async () => {
-  const scheduled = { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' };
-  const h = await withAnnual(annualOffer({ apple_auto_renews: true, conflict: true, scheduled }));
-  const alert = annualClass(h, 'annual-alert');
-  assert.equal(alert.all().find(el => el.className === 'annual-alert-icon').attributes['aria-hidden'], 'true');
-  assert.equal(alert.all().find(el => el.className === 'annual-alert-text').textContent,
-    'App Store renewal is on again, so both would charge. We paused your yearly plan, due to start 24 March 2027. Nothing has been charged.');
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Turn off App Store renewal']);
-  assert.ok(annualButton(h, 'Cancel yearly plan'));
-  assert.equal(annualButton(h, 'Pay yearly by card'), undefined);
-  await press(h, 'Cancel yearly plan');
-  assert.match(annualClass(h, 'annual-confirm').textContent, /Nothing has been charged\. Your App Store plan keeps renewing\./);
-});
-
-test('an active annual plan hides the card; the plan panel states the yearly plan', async () => {
-  const h = await withAnnual(annualOffer({ source: 'web', plan_status: 'active', active_annual: true }), { plan: {
-    source: 'web', status: 'active', billing_interval: 'annual', renewal_price_aud_cents: 99000, current_period_ends_at: '2027-09-24T00:00:00Z' } });
-  assert.equal(annualCard(h).hidden, true);
-  assert.equal(annualCard(h).children.length, 0);
-  assert.equal(planTitle(h), 'Veylet plan · A$990 a year');
-  assert.match(planText(h), /Hosting included\. Billed annually\./);
-  assert.doesNotMatch(planText(h), /allowance resets monthly/);
-  assert.match(planScopes(h).join(' '), /Your card plan is managed by Veylet support: email to change or cancel it; nothing changes until Veylet confirms it in writing\./);
-  assert.doesNotMatch(planScopes(h).join(' '), /Invoiced plans|not paid by card/);
-});
-
-test('an unreadable answer is an error with Try again, never a price or a locked state', async () => {
-  const h = await withAnnual([() => ({ error: { message: 'offline' } }), pendingAnnual({ apple_auto_renews: true })]);
-  assert.equal(annualClass(h, 'annual-lead').textContent, 'Couldn’t check the annual plan.');
-  assert.doesNotMatch(annualText(h), /A\$|Locked|Unlocked/);
-  assert.equal(annualFilled(h).length, 0);
-  await press(h, 'Try again');
-  assert.equal(h.reads(), 2);
-  assert.ok(annualButton(h, 'Check again'), 'the second answer is shown');
-  assert.equal(annualClass(h, 'annual-title').wasFocused, true);
-  const broken = [
-    annualOffer({ plans: [{ ...annualPlan(), saving_cents: 15000 }] }),
-    annualOffer({ plans: [{ ...annualPlan(), months_free: 3 }] }),
-    // Unlocked, but without the Veylet plan's price.
-    annualOffer({ plans: [TEAM_YEAR] }),
-    annualOffer({ plans: [] }),
-    annualLocked({ missing: ['no_accepted_walkthrough'], plans: annualPlans() }),
-    annualOffer({ missing: ['something_else'], eligible: false, plans: [] }),
-    annualOffer({ starts_on: '24/03/2027' }),
-    annualOffer({ scheduled: { plan_code: 'solo', year_cents: 'lots', starts_on: '2027-03-24' } }),
-    'receipt',
-  ];
-  for (const offer of broken) {
-    const bad = await withAnnual(offer);
-    assert.match(annualText(bad), /Couldn’t check the annual plan\./, JSON.stringify(offer).slice(0, 80));
-  }
-  const noLane = await withAnnual(pendingAnnual(), { hooks: { '/square/lane': 'reject' } });
-  assert.match(annualText(noLane), /Couldn’t check the annual plan\./);
-  const lockedNoLane = await withAnnual(annualLocked({ missing: ['no_accepted_walkthrough'] }), { hooks: { '/square/lane': 'reject' } });
-  assert.match(annualText(lockedNoLane), /Start or manage your subscription in Veylet Capture/);
-});
-
-test('before the backend has the function, and without a workspace, there is no card', async () => {
-  const missing = await withAnnual(() => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }));
-  assert.equal(annualCard(missing).hidden, true);
-  const none = await load({ tables: { memberships: { data: [] } } });
-  await settle();
-  assert.equal(annualCard(none).hidden, true);
-  assert.equal(none.calls.some(call => call[0] === 'get_members_annual_offer'), false);
-});
-
-test('a member who is not the owner, and a closed tier, get a sentence and nothing to press', async () => {
-  const member = await withAnnual(annualLocked({ missing: ['not_owner'] }));
-  assert.match(annualText(member), /Only the workspace owner can choose the annual plan here\./);
-  const closed = await withAnnual(annualLocked({ tier: 'closed' }));
-  assert.match(annualText(closed), /Start or manage your subscription in Veylet Capture/);
-  for (const h of [member, closed]) {
-    assert.doesNotMatch(annualText(h), /A\$/);
-    assert.equal(annualNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
-    assert.ok(annualNodes(h).filter(el => el.tagName === 'A').every(el => el.href === '/start'));
-  }
-  const kept = await withAnnual(annualLocked({ tier: 'closed', apple_auto_renews: false, scheduled: { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' } }));
-  assert.match(annualText(kept), /Yearly plan starts 24 March 2027/);
-});
-
-test('existing checkout recovery: Square Sandbox labels every price and payment action Test, before and after confirming', async () => {
-  const sandbox = { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }],
-    '/square/members-annual/checkout': body => scheduledAnswer(body, { sandbox: true }) };
-  const h = await withAnnual(pendingAnnual(), { hooks: sandbox });
-  assert.deepEqual(annualAll(h, 'annual-amount').map(el => el.textContent), ['Test · A$990 a year']);
-  assert.match(annualClass(h, 'annual-charge').textContent, /^Test · Nothing is charged today\./);
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Test · Pay yearly by card']);
-  assert.match(annualText(h), /Square Sandbox: a test checkout, not a live payment\./);
-  await press(h, 'Test · Pay yearly by card');
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Test · Confirm yearly plan']);
-  await press(h, 'Test · Confirm yearly plan');
-  assert.match(annualClass(h, 'annual-lead').textContent, /^Test · Yearly plan starts/);
-  assert.ok(annualButton(h, 'Test · Cancel yearly plan'));
-  // The answer's own sandbox flag labels the result even if the lane said nothing.
-  const flagged = await withAnnual(pendingAnnual(), { hooks: { '/square/members-annual/checkout': body => scheduledAnswer(body, { sandbox: true }) } });
-  await press(flagged, 'Pay yearly by card');
-  await press(flagged, 'Confirm yearly plan');
-  assert.match(annualClass(flagged, 'annual-charge').textContent, /^Test · /);
-  const live = await withAnnual(pendingAnnual());
-  assert.doesNotMatch(annualText(live), /Test|Sandbox/);
-});
-
-test('every state has at most one filled action, and the App Store is never called dearer', async () => {
-  const scheduled = { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' };
-  const states = [
-    [annualLocked({ missing: ['free_months_not_started', 'no_accepted_walkthrough'] }), 0],
-    [annualLocked({ missing: ['no_accepted_walkthrough'] }), 0],
-    [annualOffer(), 0],
-    [renewalOff(), 0],
-    [annualOffer({ source: 'studio', apple_auto_renews: null }), 0],
-    [annualOffer({ source: 'studio', apple_auto_renews: null, can_start_now: true }), 0],
-    [pendingAnnual(), 1],
-    [failedStart(), 1],
-    [renewalOff({ scheduled }), 0],
-    [annualOffer({ conflict: true, scheduled }), 1],
-    [() => ({ error: { message: 'offline' } }), 0],
-  ];
-  const noComparison = /App Store[^.]*(?:more expensive|dearer|costs? more|cheaper)|save[sd]?[^.]*(?:vs\.?|versus|against|than)[^.]*(?:App Store|Apple)|(?:App Store|Apple)[^.]*save/i;
-  for (const [offer, filled] of states) {
-    const h = await withAnnual(offer);
-    assert.equal(annualFilled(h).length, filled, annualText(h).slice(0, 120));
-    assert.doesNotMatch(annualText(h), noComparison);
-  }
-  const open = await withAnnual(pendingAnnual());
-  await press(open, 'Pay yearly by card');
-  assert.equal(annualFilled(open).length, 1, 'the card form has one filled action');
-  assert.doesNotMatch(annualText(open), noComparison);
-});
-
-test('existing checkout recovery: truth check: the yearly price and start date read the same in the price, beside the button and in the scheduled answer', async () => {
-  const h = await withAnnual(pendingAnnual());
-  const amount = annualClass(h, 'annual-amount').textContent.match(/A\$[\d,]+/)[0];
-  const before = annualClass(h, 'annual-charge').textContent.match(/First charge (A\$[\d,]+) on (\d{1,2} \w+ \d{4})/);
-  await press(h, 'Pay yearly by card');
-  const beside = annualClass(h, 'annual-charge').textContent.match(/First charge (A\$[\d,]+) on (\d{1,2} \w+ \d{4})/);
-  await press(h, 'Confirm yearly plan');
-  const lead = annualClass(h, 'annual-lead').textContent.match(/Yearly plan starts (\d{1,2} \w+ \d{4})\./);
-  const after = annualClass(h, 'annual-charge').textContent.match(/First charge (A\$[\d,]+) on (\d{1,2} \w+ \d{4})/);
-  const row = annualClass(h, 'annual-amount').textContent.match(/A\$[\d,]+/)[0];
-  assert.deepEqual([amount, before[2]], ['A$990', '24 March 2027']);
-  assert.deepEqual([before[1], beside[1], after[1], row], [amount, amount, amount, amount]);
-  assert.deepEqual([beside[2], after[2], lead[1]], [before[2], before[2], before[2]]);
-  assert.equal(annualClass(h, 'annual-notice'), undefined, 'nothing differs, so nothing is flagged');
-  // When the server's terms differ from what the button stated, its terms are shown, and said to differ.
-  const moved = await withAnnual(pendingAnnual(), { hooks: { '/square/members-annual/checkout': body => [200, { scheduled: { plan_code: body.plan_code, year_cents: YEAR[body.plan_code], starts_on: '2027-04-01' }, charge_today: false, sandbox: false }] } });
-  await press(moved, 'Pay yearly by card');
-  await press(moved, 'Confirm yearly plan');
-  assert.match(annualClass(moved, 'annual-lead').textContent, /Yearly plan starts 1 April 2027/);
-  assert.match(annualClass(moved, 'annual-notice').textContent, /they differ from what was shown before you confirmed/);
-  // The plan panel above states the same App Store end date as the card's start.
-  const panel = await withAnnual(pendingAnnual({ starts_on: planRow.trial_ends_at.slice(0, 10) }), { plan: { source: 'apple', apple_verified: true } });
-  assert.equal(planTitle(panel), 'Free until ' + longDate(planRow.trial_ends_at));
-  assert.match(annualText(panel), new RegExp('runs until ' + longDate(planRow.trial_ends_at)));
-});
-
-test('existing checkout recovery: signing out hides the annual plan and lets go of Square’s card field', async () => {
-  const h = await withAnnual(pendingAnnual());
-  await press(h, 'Pay yearly by card');
-  h.supabase.auth.callback('SIGNED_OUT', null);
-  await settle();
-  assert.equal(annualCard(h).hidden, true);
-  assert.equal(annualCard(h).children.length, 0);
-  assert.equal(squareLog(h, 'destroy').length, 1);
-});
 
 test('the plan panel no longer points at a public annual comparison or says no card is ever taken', async () => {
   const h = await withPlan({});
@@ -2820,21 +2413,6 @@ test('truth check: the pack’s price and walkthrough count read the same in the
   assert.match(packClass(moved, 'annual-notice').textContent, /they differ from what was shown before you paid/);
 });
 
-test('existing checkout recovery: one card form on the desk at a time: opening packs closes the yearly form, and the other way round', async () => {
-  const h = await withAnnual(pendingAnnual(), { rpc: { get_pack_offer: async () => ({ data: packOffer() }) } });
-  await press(h, 'Pay yearly by card');
-  assert.ok(annualClass(h, 'annual-card-field'));
-  await pressPack(h, 'Buy 3 walkthroughs');
-  assert.equal(annualClass(h, 'annual-card-field'), undefined, 'the yearly form closed');
-  assert.ok(annualButton(h, 'Pay yearly by card'));
-  assert.ok(packClass(h, 'annual-card-field'));
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  await press(h, 'Pay yearly by card');
-  assert.equal(packClass(h, 'annual-card-field'), undefined, 'the pack form closed');
-  assert.ok(packButton(h, 'Buy 3 walkthroughs'));
-  assert.equal(squareLog(h, 'destroy').length, 2);
-  assert.equal([...annualFilled(h), ...packFilled(h)].filter(el => /^(?:Confirm yearly plan|Pay A\$)/.test(el.textContent)).length, 1);
-});
 
 test('signing out hides walkthrough packs and lets go of Square’s card field', async () => {
   const h = await withPacks(packOffer());
@@ -2870,23 +2448,6 @@ test('what is left follows the sentence, then how the plan is managed, then its 
   assert.ok(planLinks(used).includes('mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20capacity'));
 });
 
-test('existing checkout recovery: Sandbox reads “Test ·” on the plan and on both cards, said once under each heading', async () => {
-  const plan = await withPlan({ source: 'apple', apple_environment: 'Sandbox', apple_verified: true, status: 'active',
-    apple_product_id: 'dev.property3d.capture.solo.monthly', current_period_ends_at: '2026-10-01T00:00:00Z' });
-  assert.equal(planTitle(plan), 'Test · Veylet plan · A$119.99 a month');
-  assert.equal(plan.ids['account-plan-body'].children[1].textContent, 'Test · App Store Sandbox: a test subscription, not a live payment.');
-  const lane = { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }] };
-  const packs = await withPacks(packOffer(), { hooks: lane });
-  assert.equal(packsCard(packs).children[1].textContent, 'Test · Square Sandbox: a test payment, not a live charge.');
-  const annual = await withAnnual(pendingAnnual(), { hooks: lane });
-  assert.equal(annualCard(annual).children[1].textContent, 'Test · Square Sandbox: a test checkout, not a live payment.');
-  for (const [name, words] of [['plan', planText(plan)], ['packs', packText(packs)], ['annual', annualText(annual)]]) {
-    assert.doesNotMatch(words, /Sandbox purchase|Test purchase|Test subscription ·/, `${name} uses one Sandbox wording`);
-    assert.equal(words.split(/Sandbox:/).length - 1, 1, `${name} says Sandbox once`);
-    // Every "Test" label leads its line.
-    for (const line of words.split('\n').filter(entry => /\bTest\b/.test(entry) && !/Test subscription$/.test(entry))) assert.match(line, /^Test · /, `${name}: ${line}`);
-  }
-});
 
 /* ---- Corrections on one walkthrough (20260924140000) -------------------
  * A correction the studio recorded is a later version of the same walkthrough.
@@ -3050,104 +2611,6 @@ const failedStart = (overrides = {}) => annualOffer({ source: 'studio', plan_sta
 const startedToday = body => [200, { scheduled: { plan_code: body.plan_code, year_cents: 99000, starts_on: brisbaneToday() }, charge_today: true, sandbox: false }];
 const FAILED_ALERT = 'Your first yearly charge of A$990, due 1 September 2026, didn’t go through. Nothing was charged, and your yearly plan hasn’t started.';
 
-test('a failed first yearly charge says so with its price and day, and offers one filled Try another card', async () => {
-  const h = await withAnnual(failedStart());
-  assert.deepEqual(annualClass(h, 'annual-head').children.map(el => el.textContent), ['Annual plan', 'Charge failed']);
-  assert.equal(annualClass(h, 'annual-alert-text').textContent, FAILED_ALERT);
-  assert.equal(annualClass(h, 'annual-alert-icon').attributes['aria-hidden'], 'true', 'the mark is not the only signal');
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try another card']);
-  assert.ok(annualButton(h, 'Cancel yearly plan'), 'the way out sits beside it');
-  assert.equal(annualClass(h, 'annual-actions').children.map(el => el.textContent).join(' | '), 'Try another card | Cancel yearly plan');
-  assert.match(annualText(h), /Use another card to start your yearly plan at the same price, or cancel it\./);
-  assert.equal(annualClass(h, 'annual-charge').textContent, 'First charge A$990 today, then it renews each year until you cancel.');
-  // Same fact, same value: the price in the alert, the statement and the charge line.
-  assert.deepEqual([...annualText(h).matchAll(/A\$\d{1,3}(?:,\d{3})*/g)].map(match => match[0]), ['A$990', 'A$990', 'A$990']);
-  assert.equal(annualClass(h, 'annual-amount').textContent, 'A$990 a year');
-  assert.equal(annualNodes(h).some(el => el.className === 'annual-choice'), false, 'no start choice after a failed start');
-  assert.equal(h.scripts.length, 0);
-});
-
-test('Try another card takes a new card and restarts the year at the price it was bought at', async () => {
-  // The tier moved on to one month free (A$869); the failed start keeps A$990.
-  const h = await withAnnual({ ...failedStart(), tier: 'oneMonthFree', plans: annualPlans(1) },
-    { hooks: { '/square/members-annual/checkout': startedToday } });
-  assert.doesNotMatch(annualText(h), /A\$869/);
-  await press(h, 'Try another card');
-  assert.ok(annualClass(h, 'annual-card-field'));
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Confirm yearly plan']);
-  assert.equal(annualButton(h, 'Cancel yearly plan'), undefined, 'one path while the card is open');
-  await press(h, 'Confirm yearly plan');
-  const [post] = posts(h, '/square/members-annual/checkout');
-  assert.deepEqual(post.body, { workspace_id: 'w1', plan_code: 'solo', start: 'scheduled', source_id: 'cnon:card-nonce-ok' });
-  assert.equal(post.auth, 'Bearer token-1');
-  assert.equal(annualClass(h, 'annual-lead').textContent, 'Yearly plan starts today.');
-  assert.equal(annualClass(h, 'annual-notice'), undefined, 'the terms matched what was shown');
-  assert.match(annualText(h), /First charge A\$990 today/);
-  assert.doesNotMatch(annualText(h), /didn’t go through/);
-});
-
-test('cancelling after a failed charge is confirmed in its own words, then the plan is read again', async () => {
-  const h = await withAnnual([failedStart(), renewalOff()]);
-  await press(h, 'Cancel yearly plan');
-  assert.equal(annualClass(h, 'annual-confirm').textContent,
-    'Cancel the yearly plan? Its first charge didn’t go through, so nothing has been charged, and nothing will be. A later yearly plan uses the annual price at that time.');
-  const danger = annualButton(h, 'Cancel yearly plan');
-  assert.equal(danger.dataset.armed, 'true');
-  await press(h, 'Keep yearly plan');
-  assert.equal(posts(h, '/square/members-annual/cancel').length, 0);
-  assert.equal(annualClass(h, 'annual-alert-text').textContent, FAILED_ALERT);
-  await press(h, 'Cancel yearly plan');
-  await press(h, 'Cancel yearly plan');
-  assert.deepEqual(posts(h, '/square/members-annual/cancel').map(request => request.body), [{ workspace_id: 'w1' }]);
-  assert.equal(h.reads(), 2);
-  assert.equal(annualClass(h, 'annual-notice').textContent, 'Yearly plan cancelled. Nothing was charged.');
-});
-
-test('a retry still waiting on Square says so, and an unconfirmed retry says to wait, never that it charged twice', async () => {
-  const h = await withAnnual(failedStart({ retrying: true }), { hooks: { '/square/members-annual/checkout': () => [502, { error: 'checkout_failed' }] } });
-  assert.match(annualText(h), /The start that failed is still being stopped at Square\. A new card is used only once it has stopped, so nobody pays twice\./);
-  await press(h, 'Try another card');
-  await press(h, 'Confirm yearly plan');
-  assert.equal(annualProblemText(h), 'The yearly plan wasn’t confirmed. Square may still be stopping the start that failed. Try again in a few minutes: a retry never charges twice.');
-  assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try again']);
-  assert.ok(annualClass(h, 'annual-card-field'), 'the card field stays for the retry');
-});
-
-test('a declined card is said whole, before or after a failed start, with the card kept for another', async () => {
-  const declined = 'Your card was declined, so nothing was charged and the yearly plan hasn’t started. Check the details or use another card, then try again.';
-  for (const offer of [pendingAnnual(), failedStart()]) {
-    const h = await withAnnual(offer, { hooks: { '/square/members-annual/checkout': () => [402, { error: 'payment_declined' }] } });
-    await press(h, offer.start_failed ? 'Try another card' : 'Pay yearly by card');
-    await press(h, 'Confirm yearly plan');
-    assert.equal(annualProblemText(h), declined);
-    assert.ok(annualClass(h, 'annual-card-field'));
-    assert.deepEqual(annualFilled(h).map(el => el.textContent), ['Try again']);
-    assert.equal(h.reads(), 1, 'nothing is shown as scheduled');
-  }
-});
-
-test('a failed start that cannot take a new card here says where to go, and a malformed one is not a price', async () => {
-  const team = await withAnnual(failedStart({ plan_code: 'studio', year_cents: 189000 }));
-  assert.match(annualText(team), /This yearly plan was for Team, which is no longer sold, so it can’t be restarted with a new card\. Cancel it; nothing is charged\./);
-  assert.equal(annualFilled(team).length, 0);
-  assert.ok(annualButton(team, 'Cancel yearly plan'));
-  assert.equal(annualButton(team, 'Try another card'), undefined);
-  const closed = await withAnnual(failedStart(), { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } });
-  assert.equal(annualClass(closed, 'annual-alert-text').textContent, FAILED_ALERT);
-  assert.match(annualText(closed), /Card payment for the annual price is closed right now, so a new card can’t be added here\./);
-  assert.deepEqual(annualNodes(closed).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20yearly%20plan']);
-  assert.equal(annualNodes(closed).some(el => el.tagName === 'BUTTON'), false);
-  const unread = await withAnnual([failedStart(), failedStart()], { hooks: { '/square/lane': 'reject' } });
-  assert.equal(annualClass(unread, 'annual-alert-text').textContent, FAILED_ALERT, 'the failure is named even when the lane is unread');
-  assert.match(annualText(unread), /Card payment couldn’t be reached, so a new card can’t be added right now\./);
-  await press(unread, 'Check again');
-  assert.equal(unread.reads(), 2);
-  for (const broken of [failedStart({ retrying: undefined }), failedStart({ year_cents: 0 }), failedStart({ starts_on: '1 Sept' })]) {
-    const h = await withAnnual(broken);
-    assert.match(annualText(h), /Couldn’t check the annual plan\./);
-    assert.doesNotMatch(annualText(h), /A\$/);
-  }
-});
 
 /* ---- Offer v8 (2026-09-25.1) ---------------------------------------------
  * Three free months with six walkthroughs, the reminder sentence, and what the
@@ -3252,23 +2715,11 @@ test('offer v9: an annual plan states its yearly pool of 24, the bonus as extra 
 });
 
 
-
-test('offer v8: the annual plan is public — no “members” wording in any card state or in the desk’s strings', async () => {
-  const scheduled = { plan_code: 'solo', year_cents: 99000, starts_on: '2027-03-24' };
-  const states = [annualLocked({ missing: ['free_months_not_started'] }), annualLocked({ missing: ['no_accepted_walkthrough'] }),
-    annualLocked({ missing: ['not_owner'] }), annualLocked({ tier: 'closed' }), annualOffer(), renewalOff(), renewalOff({ scheduled }),
-    annualOffer({ conflict: true, scheduled }), failedStart(), () => ({ error: { message: 'offline' } }), () => new Promise(() => {})];
-  for (const offer of states) {
-    const h = await withAnnual(offer);
-    assert.doesNotMatch(annualText(h), /\bmembers?\b|members’/i, annualText(h).slice(0, 100));
-  }
-  const confirm = await withAnnual(renewalOff({ scheduled }));
-  await press(confirm, 'Cancel yearly plan');
-  assert.doesNotMatch(annualText(confirm), /member/i);
-  const refused = await withAnnual(pendingAnnual(), { hooks: { '/square/members-annual/checkout': () => [403, { error: 'not_eligible' }] } });
-  await press(refused, 'Pay yearly by card');
-  await press(refused, 'Confirm yearly plan');
-  assert.doesNotMatch(annualText(refused), /member/i);
+test('the existing annual subscription is not described as members-only', async () => {
+  const h = await withObligations();
+  assert.doesNotMatch(annualText(h), /\bmembers?\b|members’/i);
+  await obligationPress(h, 'members_annual', 'cancel');
+  assert.doesNotMatch(annualText(h), /member/i);
   // Every string the desk can show (comments aside; the RPC and hook names are addresses, not words).
   const code = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/get_members_annual_offer|list_workspace_members|\/square\/members-annual\//g, '');
   assert.doesNotMatch(code, /members’|members'|members only|for members/i);
@@ -3537,198 +2988,12 @@ const chooseTrial = async (h, value) => { const radio = trialNodes(h).find(el =>
 const ADD_CARD = 'Add a card and start free months';
 
 
-
-
-
-
-
 // Recovery fixtures retain the saved agreement's legacy prices; the public offer
 // is not the source of truth for an already-created checkout.
 const pendingTrial = (overrides = {}) => trialOffer({
   checkout_pending: { plan_interval: 'monthly', created_at: '2026-09-24T02:10:00Z' }, ...overrides
 });
 
-test('a waitlisted account shows its queue state without a card, prices or an App Store bypass', async () => {
-  const h = await withTrial(trialLocked(['waitlist']));
-  assert.match(trialText(h), /You’re on the waitlist/);
-  assert.doesNotMatch(trialText(h), /couldn’t check|App Store|A\$/i);
-  assert.equal(trialNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
-  assert.equal(h.scripts.length, 0);
-});
-
-test('a waitlist refusal after the card opens removes checkout controls and preserves the queue state', async () => {
-  const h = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [403, { error: 'waitlist' }] } });
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  assert.match(trialText(h), /You’re on the waitlist/);
-  assert.equal(trialNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
-  assert.equal(posts(h, '/square/trial/start').length, 1);
-});
-
-test('existing pending trial recovery: the ABN is checked beside its field before the card opens, and what was typed survives the redraw', async () => {
-  const h = await withTrial(pendingTrial());
-  const input = trialAbnInput(h);
-  assert.equal(input.attributes['aria-describedby'], 'account-trial-abn-hint');
-  assert.equal(trialClass(h, 'trial-abn-label').textContent, 'Your agency’s ABN');
-  await pressTrial(h, ADD_CARD);
-  assert.equal(h.scripts.length, 0, 'no card form without a valid ABN');
-  assert.equal(input.attributes['aria-invalid'], 'true');
-  assert.equal(trialClass(h, 'trial-abn-error').hidden, false);
-  assert.match(trialClass(h, 'trial-abn-error').textContent, /That isn’t a valid ABN\. Enter your agency’s 11-digit ABN, as shown on ABN Lookup\./);
-  assert.equal(input.wasFocused, true);
-  await typeAbn(h, '12 345 678 901');
-  assert.equal(trialAbnInput(h).attributes['aria-invalid'], 'true', 'eleven digits that fail the check');
-  await typeAbn(h, EXAMPLE_ABN);
-  assert.equal(trialAbnInput(h).attributes['aria-invalid'], undefined);
-  assert.equal(trialClass(h, 'trial-abn-error').hidden, true);
-  await pressTrial(h, ADD_CARD);
-  assert.deepEqual(squareLog(h, 'attach'), [['attach', '#account-trial-card-field']]);
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN, 'the ABN is kept when the card field opens');
-  assert.deepEqual(trialFilled(h).map(el => el.textContent), ['Start free months']);
-  assert.ok(trialButton(h, 'Not now'));
-  await pressTrial(h, 'Not now');
-  assert.deepEqual(squareLog(h, 'destroy'), [['destroy']]);
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN);
-});
-
-test('existing pending trial recovery: Start free months sends only Square’s token, the plan, the ABN and one attempt id; the plan panel then says the dates the answer carries', async () => {
-  const offer = pendingTrial();
-  const day = dayOf(offer.first_charge_on);
-  const ends = offer.first_charge_on + 'T00:00:00+10:00';
-  const h = await withTrial(offer, { after: { source: 'web', status: 'trial', auto_renews: true, accepted_in_free_months: 0,
-    trial_started_at: brisbaneToday() + 'T00:00:00+10:00', trial_ends_at: ends, billing_interval: 'monthly' } });
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  const [start] = posts(h, '/square/trial/start');
-  assert.equal(start.auth, 'Bearer token-1');
-  assert.equal(start.credentials, 'omit');
-  assert.deepEqual(Object.keys(start.body).sort(), ['abn', 'attempt_id', 'plan_interval', 'source_id', 'workspace_id']);
-  assert.deepEqual({ ...start.body, attempt_id: 'id' }, { workspace_id: 'w1', plan_interval: 'monthly', abn: '51824753556', source_id: 'cnon:card-nonce-ok', attempt_id: 'id' });
-  assert.match(start.body.attempt_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.doesNotMatch(JSON.stringify(start.body), /4111|cvc|expiry/i, 'no card data leaves Square’s field');
-  await settle();
-  // The desk reads the plan again: free months, and the same price and day as the card said.
-  assert.equal(h.planReads(), 2);
-  assert.equal(trialCard(h).hidden, true, 'the card has done its job');
-  const notice = h.ids['account-plan-body'].all().find(el => /plan-notice/.test(el.className || ''));
-  assert.equal(notice.textContent, 'Free months started. Nothing was charged today. First charge A$99 on ' + day + ' and A$99 a month after that until you cancel; cancel before then and nothing is charged.');
-  assert.equal(notice.wasFocused, true);
-  assert.equal(planTitle(h), 'Free until ' + day);
-  assert.match(planText(h), new RegExp('Free until ' + day + ', then A\\$99 a month unless you cancel\\.'));
-  assert.match(planScopes(h).join(' '), new RegExp('Your card is charged first on ' + day + ', the day your free months end\\. Cancel before then and nothing is charged\\.'));
-  // Said once: a later reload does not repeat the notice.
-  await h.ids['account-refresh'].fire('click'); await settle();
-  assert.equal(h.ids['account-plan-body'].all().some(el => /plan-notice/.test(el.className || '')), false);
-});
-
-test('existing pending trial recovery: a start that is refused or unconfirmed keeps what was typed, says nothing was charged, and a retry keeps its attempt id', async () => {
-  // Declined: Square's field stays, with the reason and Try again.
-  const declined = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [402, { error: 'payment_declined' }] } });
-  await typeAbn(declined, EXAMPLE_ABN);
-  await pressTrial(declined, ADD_CARD);
-  await pressTrial(declined, 'Start free months');
-  assert.equal(trialProblem(declined), 'Your card was declined, so nothing was set up and nothing was charged. Check the details or use another card, then try again.');
-  assert.deepEqual(trialFilled(declined).map(el => el.textContent), ['Try again']);
-  // Unconfirmed: nothing is charged today either way, and the retry is the same intent.
-  let replies = 0;
-  const lost = await withTrial(pendingTrial({ checkout_pending: { plan_interval: 'annual', created_at: '2026-09-24T02:10:00Z' } }), { hooks: { '/square/trial/start': body => (replies++ ? startedAnswer(body) : [502, { error: 'checkout_failed' }]) } });
-  await typeAbn(lost, EXAMPLE_ABN);
-  await chooseTrial(lost, 'annual');
-  await pressTrial(lost, ADD_CARD);
-  await pressTrial(lost, 'Start free months');
-  assert.equal(trialProblem(lost), 'Your free months weren’t confirmed. Nothing is charged today. Try again: a retry never starts a second trial or charges twice.');
-  assert.equal(trialAbnInput(lost).value, EXAMPLE_ABN);
-  await pressTrial(lost, 'Try again');
-  const tries = posts(lost, '/square/trial/start');
-  assert.equal(tries.length, 2);
-  assert.equal(tries[0].body.attempt_id, tries[1].body.attempt_id, 'one start intent, one attempt id');
-  assert.equal(tries[1].body.plan_interval, 'annual');
-  // Refusals the server is sure of: the ABN goes back to its field.
-  const abn = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [400, { error: 'abn_invalid' }] } });
-  await typeAbn(abn, EXAMPLE_ABN);
-  await pressTrial(abn, ADD_CARD);
-  await pressTrial(abn, 'Start free months');
-  assert.equal(trialProblem(abn), 'That ABN wasn’t accepted, so nothing was set up. Check the 11 digits, then try again.');
-  assert.equal(trialAbnInput(abn).attributes['aria-invalid'], 'true');
-  assert.equal(trialAbnInput(abn).wasFocused, true);
-  for (const [code, words] of [['trial_used', /already had its free months, so nothing was set up/], ['lane_closed', /Card sign-up is closed right now, so nothing was set up/],
-    ['not_eligible', /Free months aren’t available for this workspace right now/]]) {
-    const refused = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [409, { error: code }] } });
-    await typeAbn(refused, EXAMPLE_ABN);
-    await pressTrial(refused, ADD_CARD);
-    await pressTrial(refused, 'Start free months');
-    assert.match(trialProblem(refused), words, code);
-    assert.equal(refused.planReads(), 1, code + ': nothing started, so nothing is read again');
-  }
-  // Square could not tokenize the card: nothing was sent.
-  const bad = await withTrial(pendingTrial(), { squareOptions: { tokenize: () => ({ status: 'Invalid' }) } });
-  await typeAbn(bad, EXAMPLE_ABN);
-  await pressTrial(bad, ADD_CARD);
-  await pressTrial(bad, 'Start free months');
-  assert.equal(posts(bad, '/square/trial/start').length, 0);
-  assert.match(trialProblem(bad), /Square couldn’t use those card details\. Check them and try again\. Nothing was set up\./);
-});
-
-test('existing pending trial recovery: not the owner, a used trial, a closed or unreachable card lane, an error and a missing function: words, at most one action, never a card field', async () => {
-  const owner = await withTrial(trialLocked(['not_owner']));
-  assert.equal(trialClass(owner, 'annual-lead').textContent, 'Only the workspace owner can start the free months here.');
-  assert.equal(trialNodes(owner).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
-  const used = await withTrial(trialLocked(['trial_used']));
-  assert.match(trialText(used), /This agency or workspace has already had its free months\.[\s\S]*A second free trial is not available/);
-  assert.deepEqual(trialNodes(used).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
-  assert.equal(trialFilled(used).length, 0);
-  const closed = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } });
-  assert.deepEqual(trialAll(closed, 'annual-amount').map(el => el.textContent), ['A$99 a month']);
-  assert.match(trialText(closed), /Card sign-up on this website opens soon\.[\s\S]*Until then, start in the app through the App Store, or ask Veylet support for invoice terms\./);
-  assert.equal(trialFilled(closed).length, 0);
-  assert.equal(trialNodes(closed).some(el => el.tagName === 'INPUT'), false);
-  const down = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [503, { error: 'unavailable' }] } });
-  assert.match(trialText(down), /Card payment couldn’t be reached, so a card can’t be added right now\./);
-  assert.ok(trialButton(down, 'Check again'));
-  for (const answer of [null, { eligible: true, missing: [], plans: [] }, pendingTrial({ first_charge_on: brisbaneToday() }),
-    pendingTrial({ plans: [{ interval: 'monthly', cents: 9900, included: 2 }] }), pendingTrial({ plans: [{ interval: 'monthly', cents: '9900', included: 2 }, { interval: 'annual', cents: 99000, included: 24 }] }),
-    trialLocked(['something_else'])]) {
-    const broken = await withTrial(answer);
-    assert.equal(trialClass(broken, 'annual-lead').textContent, 'Couldn’t check how to start your free months here.', JSON.stringify(answer));
-    assert.deepEqual(trialNodes(broken).filter(el => el.tagName === 'BUTTON').map(el => el.textContent), ['Try again']);
-    assert.doesNotMatch(trialText(broken), /A\$/);
-  }
-  const missing = await withTrial(() => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }));
-  assert.equal(trialCard(missing).hidden, true);
-  const started = await withTrial(trialLocked(['already_started']));
-  assert.equal(trialCard(started).hidden, true);
-});
-
-test('existing pending trial recovery: the trial card shows only on a plan that has not started and is not an App Store plan; Sandbox labels it Test', async () => {
-  for (const plan of [{}, { status: 'trial', trial_started_at: '2026-09-01T00:00:00Z', trial_ends_at: '2026-12-01T00:00:00Z' },
-    { source: 'apple', apple_verified: false }, { status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z' }]) {
-    const h = await withTrial(pendingTrial(), { plan: { ...PENDING, status: 'trial', ...plan, ...(plan.status ? {} : { status: 'pending' }) } });
-    const shown = !plan.status && plan.source !== 'apple';
-    assert.equal(trialCard(h).hidden, !shown, JSON.stringify(plan));
-    assert.equal(h.calls.some(call => call[0] === 'get_trial_offer'), shown, JSON.stringify(plan));
-  }
-  const sandbox = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }] } });
-  assert.equal(trialClass(sandbox, 'plan-test').textContent, 'Test · Square Sandbox: a test card, not a live payment.');
-  assert.deepEqual(trialAll(sandbox, 'annual-amount').map(el => el.textContent), ['Test · A$99 a month']);
-  assert.match(trialClass(sandbox, 'annual-charge').textContent, /^Test · Nothing is charged today\./);
-  assert.deepEqual(trialFilled(sandbox).map(el => el.textContent), ['Test · ' + ADD_CARD]);
-});
-
-test('existing pending trial recovery: one card form on the desk at a time, across the trial card and a super fast render', async () => {
-  const h = await withTrial(pendingTrial(), { rpc: { get_express_offer: async () => ({ data: expressOffer() }) } });
-  await pressExpress(h, 'Super fast for A$29');
-  assert.equal(expressNodes(h).some(el => el.id === 'account-express-card-field'), true);
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  assert.equal(trialNodes(h).some(el => el.id === 'account-trial-card-field'), true);
-  assert.equal(expressNodes(h).some(el => el.id === 'account-express-card-field'), false, 'the express card form closed');
-  assert.ok(expressButton(h, 'Super fast for A$29'));
-  await pressExpress(h, 'Super fast for A$29');
-  assert.equal(trialNodes(h).some(el => el.id === 'account-trial-card-field'), false, 'and the other way round');
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN);
-});
 
 // New subscription policy runs against the actual production source. These
 // cases replace the retired card-signup/Apple-to-Square sales expectations above.
@@ -3736,9 +3001,8 @@ test('Apple-only new subscriptions: an open Square lane cannot offer a new annua
   for (const source of ['apple', 'web', 'studio']) {
     for (const apple_auto_renews of [true, false, null]) {
       const h = await withAnnual(annualOffer({ source, apple_auto_renews, can_start_now: true }));
-      assert.equal(annualCard(h).hidden, false, `${source}/${apple_auto_renews}`);
-      assert.match(annualText(h), /Start or manage your subscription in Veylet Capture on your iPhone or iPad/);
-      assert.equal(annualNodes(h).find(el => el.tagName === 'A').href, '/start');
+      assert.equal(annualCard(h).hidden, true, `${source}/${apple_auto_renews}: no saved obligation`);
+      assert.equal(annualNodes(h).length, 0);
       assert.equal(h.scripts.length, 0);
       assert.equal(posts(h, '/square/members-annual/checkout').length, 0);
       assert.doesNotMatch(annualText(h), /A\$|Pay yearly by card|Turn off App Store renewal/);
@@ -3784,45 +3048,6 @@ test('Apple-only new subscriptions: direct stale annual and trial handlers canno
   assert.equal(service.requests.some(request => request.method === 'POST'), false);
 });
 
-test('Apple-only new subscriptions: a server-owned pending card trial can recover without losing its attempt identity', async () => {
-  const pending = trialOffer({ checkout_pending: { plan_interval: 'monthly', created_at: '2026-09-24T02:10:00Z' } });
-  const h = await withTrial(pending, { hooks: { '/square/trial/start': () => [502, { error: 'checkout_failed' }] } });
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  const first = posts(h, '/square/trial/start')[0];
-  assert.ok(first.body.attempt_id);
-  assert.equal(first.auth, 'Bearer token-1');
-  await pressTrial(h, 'Try again');
-  assert.equal(posts(h, '/square/trial/start')[1].body.attempt_id, first.body.attempt_id);
-  assert.ok(trialClass(h, 'annual-card-field'));
-});
-
-test('Apple-only recovery: pending annual trial cannot be changed to a different subscription interval', async () => {
-  const offer = trialOffer({ checkout_pending: { plan_interval: 'annual', created_at: '2026-09-24T02:10:00Z' } });
-  const h = await withTrial(offer);
-  const radios = trialNodes(h).filter(el => el.tagName === 'INPUT' && el.type === 'radio');
-  assert.deepEqual(radios.map(el => el.value), ['annual']);
-  assert.equal(radios[0].checked, true);
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  assert.equal(posts(h, '/square/trial/start')[0].body.plan_interval, 'annual');
-});
-
-test('Apple-only recovery: a retired unfinished annual checkout can be cancelled without selling its replacement', async () => {
-  const h = await withAnnual([renewalOff({ checkout_pending: { plan_code: 'studio' } }), renewalOff()]);
-  assert.match(annualText(h), /unfinished checkout is for a retired plan/);
-  assert.equal(annualButton(h, 'Pay yearly by card'), undefined);
-  await press(h, 'Cancel yearly plan');
-  assert.match(annualClass(h, 'annual-confirm').textContent, /status will be checked before cancellation is confirmed/);
-  assert.equal(posts(h, '/square/members-annual/cancel').length, 0);
-  await press(h, 'Cancel yearly plan');
-  assert.deepEqual(posts(h, '/square/members-annual/cancel').map(request => request.body), [{ workspace_id: 'w1' }]);
-  assert.equal(posts(h, '/square/members-annual/checkout').length, 0);
-  assert.match(annualText(h), /Yearly plan cancelled/);
-  assert.match(annualText(h), /Start or manage your subscription in Veylet Capture/);
-});
 
 /* ---- Offer v9: Super fast render (code express) on a space ----------------------
  * A sent capture (queued or processing) shows a Super fast render block on its space:
@@ -4125,30 +3350,285 @@ test('start my plan today: the invoice lane waits for the invoice; not_owner say
 });
 
 
-test('existing website checkout recovery records assent only on its confirm press with an active workspace', async () => {
-  const workspace = '11111111-1111-4111-8111-111111111111';
-  const h = await withTrial(pendingTrial(), { tables: {
-    memberships: { data: [{ workspace_id: workspace, role: 'owner', status: 'active' }] },
-    properties: { data: [] },
-  }, rpc: {
-    get_primary_workspace: async () => ({ data: workspace }),
-    get_workspace_plan: async () => ({ data: [{ ...planRow, ...PENDING, workspace_id: workspace }] }),
-    record_terms_acceptance: async args => ({ data: { terms_version: args.p_terms_version, surface: args.p_surface,
-      accepted_at: new Date().toISOString(), recorded: true } }),
-  } });
-  assert.equal(h.calls.filter(([name]) => name === 'record_terms_acceptance').length, 0);
-  await typeAbn(h, EXAMPLE_ABN); await pressTrial(h, ADD_CARD);
-  assert.equal(h.calls.filter(([name]) => name === 'record_terms_acceptance').length, 0, 'opening card form is not assent');
-  await pressTrial(h, 'Start free months'); await settle();
-  const calls = h.calls.filter(([name]) => name === 'record_terms_acceptance');
-  assert.deepEqual(calls.map(([,args]) => ({ ...args })), [{ p_workspace_id: workspace, p_terms_version: '2026-09-25', p_surface: 'website_checkout' }]);
-});
-
-
 test('an already live capture handoff does not ask the owner to approve it again', async () => {
   const h=await load({tours:[{...tour,id:requestedID,share_token:TOKEN}],search:'?tour='+requestedID,approved:true});
   const selected=h.all().find(el=>el.id==='requested-tour');
   assert.ok(selected);
   assert.doesNotMatch(selected.all().map(el=>el.textContent).join(' '),/Review this walkthrough, then approve and share it/);
   assert.ok(selected.all().some(el=>el.textContent==='Copy link'));
+});
+
+// Existing subscriptions use an authenticated record, independent of any sale catalogue.
+const obligation = (kind, overrides = {}) => ({ contract_version: 1, mode: 'existing_obligations_only', kind,
+  workspace_id: 'w1', checkout_id: 'saved-' + kind, business_state: 'scheduled', cancellation_status: 'not_requested',
+  allowed_actions: ['check_status', 'cancel'], expected_quote: null,
+  observed_terms: { source: 'stored_unverified', amount_cents: 99000, billing_interval: 'annual', starts_on: '2027-03-24',
+    currency: null, consent_status: 'checkout_acceptance_unverified' }, ...overrides });
+const obligationPanel = (h, kind) => h.ids[kind === 'members_annual' ? 'account-annual' : 'account-trial'];
+const obligationText = (h, kind) => obligationPanel(h, kind).all().map(el => el.textContent).join('\n');
+const obligationControl = (h, kind, action) => obligationPanel(h, kind).all().find(el => el.dataset.control === 'obligation-' + action);
+async function obligationPress(h, kind, action) {
+  const control = obligationControl(h, kind, action);
+  assert.ok(control, kind + ' exposes ' + action);
+  await control.fire('click'); await settle();
+}
+async function withObligations(options = {}) {
+  const requests = [];
+  const h = await load({ ...options, square: fakeSquare(), fetch: async (url, init = {}) => {
+    const request = { path: String(url).replace(HOOKS_URL, ''), method: init.method,
+      body: init.body ? JSON.parse(init.body) : null, auth: init.headers?.Authorization, credentials: init.credentials };
+    if (request.path === '/square/lane' && request.method === 'GET') return {
+      status: 200, ok: true, json: async () => ({ open: true, sandbox: false, card_form: CARD_FORM }) };
+    requests.push(request);
+    const [status, body] = options.respond ? await options.respond(request) : [503, { error: 'unavailable' }];
+    return { status, ok: status >= 200 && status < 300, json: async () => body };
+  }, rpc: {
+    get_workspace_plan: async () => ({ data: [{ ...planRow, ...options.plan }] }),
+    // These deliberately closed catalogues must never determine obligation visibility.
+    get_trial_offer: async () => ({ data: { eligible: false, plans: [], missing: ['new_sales_closed'] } }),
+    get_members_annual_offer: async () => ({ data: { eligible: false, plans: [], missing: ['new_sales_closed'] } }),
+    get_square_obligation_v1: args => options.read ? options.read(args) : { data: obligation(args.p_kind) },
+    ...options.rpc,
+  } });
+  await settle();
+  return Object.assign(h, { requests });
+}
+
+for (const kind of ['members_annual', 'web_trial']) {
+  test('Square cutoff: two fresh loads discover and manage persisted ' + kind + ' with closed catalogues', async () => {
+    for (let reload = 0; reload < 2; reload++) {
+      const h = await withObligations({ respond: request => [200, { obligation: obligation(kind,
+        request.path.endsWith('/cancel') ? { cancellation_status: 'stopped', business_state: 'cancelled', allowed_actions: [] } : {}) }] });
+      const read = h.calls.find(([name, args]) => name === 'get_square_obligation_v1' && args.p_kind === kind);
+      assert.deepEqual({ ...read?.[1] }, { p_workspace_id: 'w1', p_kind: kind, p_recovery_checkout_id: null });
+      assert.equal(h.calls.some(([name]) => ['get_trial_offer', 'get_members_annual_offer'].includes(name)), false);
+      await obligationPress(h, kind, 'check');
+      await obligationPress(h, kind, 'cancel');
+      assert.equal(h.requests.length, 1, 'asking for cancellation does not cancel');
+      await obligationPress(h, kind, 'confirm');
+      assert.deepEqual(h.requests.map(r => [r.path, r.body]), [
+        ['/square/obligations/check', { workspace_id: 'w1', kind, recovery_checkout_id: 'saved-' + kind }],
+        [kind === 'members_annual' ? '/square/members-annual/cancel' : '/square/trial/cancel',
+          { workspace_id: 'w1', recovery_checkout_id: 'saved-' + kind }],
+      ]);
+      assert.ok(h.requests.every(r => r.auth === 'Bearer token-1' && r.credentials === 'omit'));
+      assert.match(obligationText(h, kind), /Cancellation confirmed/);
+      assert.doesNotMatch(obligationText(h, kind), /nothing (?:was |is )?charged|nothing will be|agreed terms|A\$/i);
+      assert.equal(obligationControl(h, kind, 'cancel'), undefined);
+      assert.equal(h.scripts.length, 0);
+      assert.equal(h.calls.some(([name]) => name === 'record_terms_acceptance'), false);
+    }
+  });
+
+  test('Square cutoff: unconfirmed ' + kind + ' cancellation never claims stopped or a financial outcome', async () => {
+    const replies = [[200, { cancelled: true, started: false }], [200, {}], [404, { error: 'not_found' }],
+      [503, { error: 'unavailable' }], [200, { obligation: obligation(kind, { cancellation_status: 'manual_attention' }) }],
+      [200, { obligation: obligation(kind, { checkout_id: 'different-id', cancellation_status: 'stopped' }) }],
+      [200, { obligation: obligation(kind, { workspace_id: 'different-workspace', cancellation_status: 'stopped' }) }],
+      [200, { obligation: obligation(kind === 'web_trial' ? 'members_annual' : 'web_trial', { cancellation_status: 'stopped' }) }]];
+    for (const response of replies) {
+      const h = await withObligations({ respond: () => response });
+      await obligationPress(h, kind, 'cancel'); await obligationPress(h, kind, 'confirm');
+      assert.match(obligationText(h, kind), /not confirmed|support/i);
+      assert.doesNotMatch(obligationText(h, kind), /Cancellation confirmed|nothing (?:was |is )?charged|nothing will be/i);
+      assert.equal(h.scripts.length, 0);
+    }
+  });
+
+  test('Square cutoff: pending ' + kind + ' cancellation stays pending; repeated confirm cannot duplicate the request', async () => {
+    let resolve;
+    const h = await withObligations({ respond: () => new Promise(r => { resolve = r; }) });
+    await obligationPress(h, kind, 'cancel');
+    const confirm = obligationControl(h, kind, 'confirm');
+    void confirm.fire('click'); await settle();
+    void confirm.fire('click'); await settle();
+    assert.equal(h.requests.length, 1);
+    resolve([200, { obligation: obligation(kind, { cancellation_status: 'cancellation_pending', allowed_actions: ['check_status'] }) }]);
+    await settle();
+    assert.match(obligationText(h, kind), /not yet confirmed/i);
+    assert.doesNotMatch(obligationText(h, kind), /Cancellation confirmed|nothing charged/i);
+    assert.ok(obligationControl(h, kind, 'check'));
+    assert.equal(obligationControl(h, kind, 'cancel'), undefined);
+  });
+}
+
+test('Square cutoff: discovery is independent of a slow or unavailable current plan', async () => {
+  let resolve;
+  const h = await withObligations({ rpc: { get_workspace_plan: () => new Promise(r => { resolve = r; }) } });
+  for (const kind of ['members_annual', 'web_trial']) assert.ok(obligationControl(h, kind, 'check'));
+  resolve({ error: { code: 'offline' } }); await settle();
+  for (const kind of ['members_annual', 'web_trial']) assert.ok(obligationControl(h, kind, 'cancel'));
+});
+
+test('Square cutoff: null or malformed saved references require attention and never enable a financial action', async () => {
+  for (const malformed of [null, {}, obligation('web_trial', { checkout_id: null }),
+    obligation('web_trial', { expected_quote: { amount_cents: 99000 } }),
+    obligation('web_trial', { allowed_actions: ['create'] }), obligation('web_trial', { contract_version: 2 })]) {
+    const h = await withObligations({ read: () => ({ data: malformed }) });
+    assert.match(obligationText(h, 'web_trial'), /support|not confirmed/i);
+    assert.equal(obligationControl(h, 'web_trial', 'cancel'), undefined);
+    assert.equal(obligationControl(h, 'web_trial', 'check'), undefined);
+    assert.equal(h.requests.length, 0);
+  }
+});
+
+test('Square cutoff: app pages and nonowners do not read or expose card obligations', async () => {
+  for (const options of [{ appMode: true }, { role: 'operator' }, { tables: { memberships: { data: [] } } }]) {
+    const h = await withObligations(options);
+    assert.equal(h.calls.some(([name]) => name === 'get_square_obligation_v1'), false);
+    assert.equal(obligationPanel(h, 'web_trial').hidden, true);
+    assert.equal(obligationPanel(h, 'members_annual').hidden, true);
+  }
+});
+
+test('Square cutoff: allowed actions remain authoritative and keeping the subscription sends nothing', async () => {
+  const h = await withObligations({ read: args => ({ data: obligation(args.p_kind, { allowed_actions: ['check_status'] }) }) });
+  assert.equal(obligationControl(h, 'members_annual', 'cancel'), undefined);
+  assert.ok(obligationControl(h, 'members_annual', 'check'));
+  const keep = await withObligations();
+  await obligationPress(keep, 'web_trial', 'cancel'); await obligationPress(keep, 'web_trial', 'keep');
+  assert.equal(keep.requests.length, 0);
+  assert.ok(obligationControl(keep, 'web_trial', 'cancel'));
+});
+
+test('Square cutoff: a late discovery after signout cannot restore the old account', async () => {
+  const resolvers = [];
+  const h = await withObligations({ read: args => new Promise(resolve => resolvers.push(() => resolve({ data: obligation(args.p_kind) }))) });
+  h.supabase.auth.callback('SIGNED_OUT', null); await settle();
+  resolvers.forEach(resolve => resolve()); await settle();
+  assert.equal(obligationPanel(h, 'web_trial').hidden, true);
+  assert.equal(obligationPanel(h, 'members_annual').hidden, true);
+  assert.equal(h.requests.length, 0);
+});
+
+test('Square cutoff: a late cancellation response cannot change a newly signed-in account', async () => {
+  let resolve;
+  const h = await withObligations({ respond: () => new Promise(r => { resolve = r; }) });
+  await obligationPress(h, 'web_trial', 'cancel');
+  void obligationControl(h, 'web_trial', 'confirm').fire('click'); await settle();
+  h.supabase.auth.callback('SIGNED_OUT', null); await settle();
+  h.supabase.auth.callback('SIGNED_IN', { user: { id: 'user-2', email: 'other@example.invalid' } });
+  await new Promise(resolve => setTimeout(resolve, 5)); await settle();
+  const before = h.ids['account-status'].textContent;
+  resolve([200, { obligation: obligation('web_trial', { cancellation_status: 'stopped', allowed_actions: [] }) }]); await settle();
+  assert.equal(h.ids['account-status'].textContent, before);
+  assert.doesNotMatch(obligationText(h, 'web_trial'), /Cancellation confirmed/);
+});
+
+test('Square cutoff: a newer desk read fences retained controls and late discovery results', async () => {
+  let resolveRead; const tableResolvers = [];
+  const accountScript = account.replace('})().catch(() => {', 'window.__billingTest = { loadDesk }; })().catch(() => {');
+  const h = await withObligations({ accountScript, read: args => args.p_kind === 'members_annual'
+    ? new Promise(r => { resolveRead = r; }) : { data: obligation(args.p_kind) } });
+  const oldCheck = obligationControl(h, 'web_trial', 'check');
+  h.supabase.from = () => { const q = { select: () => q, order: () => q, eq: () => q,
+    then: (resolve, reject) => new Promise(r => { tableResolvers.push(r); }).then(resolve, reject) }; return q; };
+  const refresh = h.billingHooks.loadDesk(h.supabase); await settle();
+  assert.equal(obligationControl(h, 'web_trial', 'check'), undefined, 'stale controls visibly disappear during the refresh');
+  resolveRead({ data: obligation('members_annual') }); await settle();
+  await oldCheck.fire('click'); await settle();
+  assert.equal(obligationControl(h, 'members_annual', 'cancel'), undefined);
+  assert.equal(h.requests.length, 0);
+  h.supabase.auth.callback('SIGNED_OUT', null);
+  tableResolvers.forEach(resolve => resolve({ data: [] })); await refresh; await settle();
+});
+
+test('Square cutoff: session identity is checked again before sending an exact-ID action', async () => {
+  const h = await withObligations();
+  h.supabase.auth.getSession = async () => ({ data: { session: { user: { id: 'user-2' }, access_token: 'different-token' } } });
+  await obligationPress(h, 'web_trial', 'check');
+  assert.equal(h.requests.length, 0);
+  assert.match(obligationText(h, 'web_trial'), /sign.in|account|refresh/i);
+});
+
+test('Square cutoff: stale pending and failed-start handlers cannot tokenize, load SDK or create replacements', async () => {
+  const accountScript = account.replace('})().catch(() => {', `window.__billingTest = {
+    setAnnual: value => { annual = value; }, setTrial: value => { trial = value; },
+    annualOpenCard, annualConfirmCard, trialOpenCard, trialConfirmCard, annualCancel
+  }; })().catch(() => {`);
+  const h = await withObligations({ accountScript }); let tokens = 0;
+  const card = { tokenize: async () => { tokens++; return { status: 'OK', token: 'test' }; } };
+  for (const [name, offer, kind, interval] of [
+    ['Annual', pendingAnnual(), 'unlocked'],
+    ['Annual', annualOffer({ start_failed: { plan_code: 'solo' } }), 'start-failed'],
+    ['Trial', pendingTrial(), 'choose', 'monthly'],
+    ['Trial', pendingTrial({ checkout_pending: { plan_interval: 'annual' } }), 'choose', 'annual']]) {
+    const state = { offer, kind, interval, supabase: h.supabase, workspaceID: 'w1', busy: false, lane: { open: true }, card: null };
+    h.billingHooks['set' + name](state);
+    await h.billingHooks[name.toLowerCase() + 'OpenCard'](new Element('button'));
+    state.card = card;
+    await h.billingHooks[name.toLowerCase() + 'ConfirmCard'](new Element('button'));
+    if (name === 'Annual') await h.billingHooks.annualCancel(new Element('button'));
+  }
+  assert.equal(tokens, 0); assert.equal(h.scripts.length, 0); assert.equal(h.requests.length, 0);
+  assert.equal(h.calls.some(([name]) => name === 'record_terms_acceptance'), false);
+});
+
+test('Square cutoff: only a complete authorized no-record projection hides the section', async () => {
+  const h = await withObligations({ read: args => ({ data: obligation(args.p_kind, { checkout_id: null, business_state: 'none',
+    cancellation_status: 'not_requested', allowed_actions: [], observed_terms: null }) }) });
+  for (const kind of ['members_annual', 'web_trial']) {
+    assert.equal(obligationPanel(h, kind).hidden, true);
+    assert.equal(obligationPanel(h, kind).children.length, 0);
+  }
+  for (const result of [{ error: { code: 'PGRST202' } }, { error: { code: 'offline' } }, { data: null }]) {
+    const failed = await withObligations({ read: () => result });
+    assert.equal(obligationPanel(failed, 'web_trial').hidden, false);
+    assert.match(obligationText(failed, 'web_trial'), /not confirmed.*support/i);
+  }
+});
+
+test('Square cutoff: lost, timed out, forbidden and deleting responses cannot confirm cancellation', async () => {
+  for (const response of ['network', 'timeout', [403, { error: 'not_eligible' }], [409, { error: 'account_deleting' }]]) {
+    const h = await withObligations({ manualTimeouts: true, respond: () => {
+      if (response === 'network') throw new Error('offline');
+      if (response === 'timeout') return new Promise(() => {});
+      return response;
+    } });
+    await obligationPress(h, 'web_trial', 'cancel');
+    void obligationControl(h, 'web_trial', 'confirm').fire('click'); await settle();
+    if (response === 'timeout') { h.expireRequests(); await settle(); }
+    assert.equal(h.requests.length, 1);
+    assert.doesNotMatch(obligationText(h, 'web_trial'), /Cancellation confirmed|nothing.*charged|nothing will be/i);
+    assert.match(obligationText(h, 'web_trial'), /support/i);
+    assert.equal(obligationControl(h, 'web_trial', 'cancel'), undefined);
+  }
+});
+
+test('Square cutoff: signout during the token read cannot post a cancellation with a stale session', async () => {
+  let resolve;
+  const h = await withObligations();
+  h.supabase.auth.getSession = () => new Promise(r => { resolve = r; });
+  await obligationPress(h, 'web_trial', 'cancel');
+  void obligationControl(h, 'web_trial', 'confirm').fire('click'); await settle();
+  h.supabase.auth.callback('SIGNED_OUT', null); await settle();
+  resolve({ data: { session: { user: { id: 'user-1' }, access_token: 'old-token' } } }); await settle();
+  assert.equal(h.requests.length, 0);
+  assert.equal(obligationPanel(h, 'web_trial').hidden, true);
+});
+
+test('Square obligation QA fixture uses exact IDs, closed catalogues and honest pending outcomes', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'account-browser-fixture.js'), 'utf8');
+  const context = { URLSearchParams, Response, location: { search: '?obligation=both&obligation-cancel=pending', pathname: '/__qa/account/' },
+    navigator: {}, localStorage: { getItem: () => null, setItem() {} }, document: { createElement: () => ({}), addEventListener() {} } };
+  context.window = context; vm.runInNewContext(source, context);
+  const client = context.supabase.createClient();
+  for (const kind of ['members_annual', 'web_trial']) {
+    const record = (await client.rpc('get_square_obligation_v1', { p_workspace_id: 'synthetic-workspace', p_kind: kind, p_recovery_checkout_id: null })).data;
+    assert.equal(record.checkout_id, 'synthetic-saved-' + kind);
+    const route = kind === 'web_trial' ? '/square/trial/cancel' : '/square/members-annual/cancel';
+    const post = body => context.fetch('https://hooks.fixture.invalid' + route, { method: 'POST', headers: { Authorization: 'Bearer fixture-token' }, body: JSON.stringify(body) });
+    assert.equal((await post({ workspace_id: 'synthetic-workspace' })).status, 400);
+    assert.equal((await post({ workspace_id: 'synthetic-workspace', recovery_checkout_id: 'wrong-id' })).status, 404);
+    const cancelled = await (await post({ workspace_id: 'synthetic-workspace', recovery_checkout_id: record.checkout_id })).json();
+    assert.equal(cancelled.obligation.checkout_id, record.checkout_id);
+    assert.equal(cancelled.obligation.cancellation_status, 'cancellation_pending');
+    assert.equal(cancelled.obligation.expected_quote, null);
+  }
+  for (const name of ['get_members_annual_offer', 'get_trial_offer']) {
+    const closed = await client.rpc(name, {}); assert.equal(closed.data.eligible, false); assert.equal(closed.data.plans.length, 0);
+  }
+  for (const route of ['/square/trial/start', '/square/members-annual/checkout']) {
+    assert.equal((await context.fetch('https://hooks.fixture.invalid' + route, { method: 'POST', headers: { Authorization: 'Bearer fixture-token' }, body: '{}' })).status, 503);
+  }
 });

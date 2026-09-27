@@ -425,7 +425,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
     + `and stay valid ${pack3.validMonths} months from purchase. Pack walkthroughs are added once payment has settled: by studio invoice today, `
     + 'or by card in your account once card payment opens.');
   assert.match(terms.Seats, /^Unlimited\. Everyone in your office can capture on the same account\./);
-  assert.equal(terms['A capture that is not good enough'], 'Never counted. The automatic quality check stops a render that cannot work and asks for a recapture of the rooms it names; the recapture uses no walkthrough.');
+  assert.equal(terms['A capture that is not good enough'], 'A failed capture is never counted. The automatic quality check names the rooms to recapture. Each new accepted capture uses one walkthrough; a permitted correction saved against the existing walkthrough keeps its link and uses no extra walkthrough.');
   assert.equal(terms.Hosting, 'Every released walkthrough stays live while your account has a running plan: the free months, monthly or annual. '
     + `When the plan ends, its links, embeds and QR codes keep working for ${graceDays} days, then go offline. Restart the plan and the same links come back at once. `
     + `To keep a single walkthrough online without a plan, ask us for a hosting extension: ${aud(hostingYear)} a year per walkthrough.`);
@@ -607,7 +607,7 @@ test('the straight answers match their structured data word for word, and answer
   assert.equal('When does a home count as 2 walkthroughs?' in byQuestion, false);
   assert.match(byQuestion['How do subscriptions renew?'], /never automatically pauses or cancels an Apple subscription/);
   assert.match(byQuestion['What if my capture is not good enough?'], /route checks, but these do not prove capture quality/);
-  assert.match(byQuestion['What if my capture is not good enough?'], /an automatic quality check stops a render that cannot work and names the rooms to recapture; anything else it finds is flagged for you to look at before you approve\. A recapture is not counted\./);
+  assert.match(byQuestion['What if my capture is not good enough?'], /an automatic quality check stops a render that cannot work and names the rooms to recapture; anything else it finds is flagged for you to look at before you approve\. A failed capture is never counted\. Each new accepted capture uses one walkthrough; a permitted correction saved against the existing walkthrough keeps its link and uses no extra walkthrough\./);
   // Privacy: nobody at Veylet looks during normal processing, and the AI visual check is only promised once the notice covers it.
   const privacy = byQuestion['Who checks for private details?'];
   assert.match(privacy, /^You do\. Before capture, clear people, documents, screens and personal photographs/);

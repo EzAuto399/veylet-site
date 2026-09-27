@@ -13,7 +13,7 @@
   // renders it and fails on any amount or purchase word.
   const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
   // New recurring subscriptions are Apple-only. Existing Square billing and
-  // recovery remain available; an open payment lane must not reopen new sales.
+  // status and cancellation remain available; unfinished checkouts cannot take a new card.
   // The hooks service must enforce the same policy at its authority boundary.
   const NEW_CARD_SUBSCRIPTIONS_ENABLED = false;
   const statusEl = document.getElementById('account-status');
@@ -2259,7 +2259,7 @@
     // Whether the free months can start here depends on the plan row, so that card waits for it.
     trialHide();
     packsSkeleton();
-    annualSkeleton();
+    annualHide();
     referralSkeleton();
   }
   function planWorkspaceName(id, props) {
@@ -2339,6 +2339,9 @@
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
+    const billingWorkspace = memberships[0]?.role === 'owner' ? workspaceID : null;
+    void renderTrial(supabase, ticket, billingWorkspace);
+    void renderAnnual(supabase, ticket, billingWorkspace);
     let row = null;
     let view;
     if (!workspaceID && !failed(members)) {
@@ -2472,7 +2475,7 @@
       manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Packs are not sold in the app.');
     } else if (['pending', 'ended'].includes(view.status) && source !== 'studio' && source !== 'web') {
       manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install Veylet Capture and sign in with this email. ' +
-        'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
+        'If Apple confirms an eligible free trial, the first charge is when it ends; otherwise Apple shows the amount due before you subscribe. The App Store confirms the price and billing period before you subscribe.');
     }
     if (view.status !== 'unavailable' && view.status !== 'ended') {
       const offer = document.createElement('a'); offer.className = 'text-link';
@@ -2484,30 +2487,16 @@
       ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan';
       ask.textContent = ['pending', 'ended'].includes(view.status) ? 'Ask Veylet support about a plan' : 'Request a plan change or cancellation';
       actions.append(ask);
-      // A plan paid by card is a website plan, not an invoice. During the free months
-      // the card on file is not charged until they end, and cancelling first charges nothing.
-      const firstCharge = view.status === 'trial' && row.auto_renews === true ? planDate(row.trial_ends_at) : '';
-      // SITE_DESK-04: a website card trial, or the monthly plan it became, cancels here through
-      // POST /square/trial/cancel; only its owner may, and only while it still renews. A yearly
-      // card plan may be the members' annual (its own card cancels it), so it stays with support.
-      const owner = memberships.length > 0 && memberships[0].role === 'owner';
-      const cancellable = source === 'web' && owner && Boolean(workspaceID) && row.auto_renews !== false && !row.cancelled_at
-        && (view.status === 'trial' || (view.status === 'active' && planInterval(row) !== 'annual'));
       manageNote(source === 'web'
-        ? (firstCharge ? 'Your card is charged first on ' + firstCharge + ', the day your free months end. Cancel before then and nothing is charged. ' : '') +
-          (cancellable ? 'Cancel your card plan here at any time, or email Veylet support to change it.'
-            : 'Your card plan is managed by Veylet support: email to change or cancel it; nothing changes until Veylet confirms it in writing.')
+        ? 'Check or cancel an existing card subscription below. Contact Veylet support if its status cannot be confirmed.'
         : 'Invoiced plans are managed by Veylet support; nothing changes until Veylet confirms it in writing.');
-      if (cancellable) actions.append(webCancelControls(supabase, workspaceID, view.status === 'trial'));
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
     notice?.focus?.();
     // Starting the free months, walkthrough packs, the annual plan and the share
     // link read their own answers; none of them ever holds up the plan.
-    void renderTrial(supabase, ticket, workspaceID, row);
     void renderPacks(supabase, ticket, workspaceID);
-    void renderAnnual(supabase, ticket, workspaceID, row);
     // Recording who referred this office is for its owner, before the plan is paid for.
     const owner = memberships.length > 0 && memberships[0].role === 'owner';
     void renderReferral(supabase, ticket, workspaceID, owner && ['pending', 'trial'].includes(row?.status));
@@ -2653,11 +2642,9 @@
     if (!lane) return 'lane-error';
     return lane.open ? 'choose' : 'lane-closed';
   }
-  function trialCardAllowed(state) {
-    return Boolean(state) && state.kind === 'choose' && trialValid(state.offer)
-      && state.offer.eligible && (NEW_CARD_SUBSCRIPTIONS_ENABLED ||
-      (TRIAL_INTERVALS.includes(state.offer.checkout_pending?.plan_interval)
-        && state.interval === state.offer.checkout_pending.plan_interval));
+  function trialCardAllowed() {
+    // Existing obligations are status/cancel only, including unfinished checkouts.
+    return false;
   }
   // Square Sandbox labels every price and payment action, as on the other two card forms.
   function trialTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
@@ -2841,6 +2828,7 @@
     if (focus && refs[focus]) refs[focus].focus();
   }
   function trialHide() {
+    squareObligations.delete('web_trial');
     trialDropCard(trial);
     trialVersion += 1; trial = null;
     if (!trialEl) return;
@@ -2865,28 +2853,8 @@
     trialEl.replaceChildren(trialHead(), annualNode('p', 'annual-lead', 'Checking how to start your free months…'), choice,
       skeletonLine('p', 'annual-charge', 120), annualRow(action));
   }
-  async function renderTrial(supabase, ticket, workspaceID, planRow, options = {}) {
-    if (!trialEl) return;
-    // Only a plan that has not started, and is not Apple's, starts here.
-    if (!workspaceID || !planRow || planRow.status !== 'pending' || planSource(planRow) === 'apple') { trialHide(); return; }
-    const previous = trial && trial.workspaceID === workspaceID ? trial : null;
-    trialSkeleton();
-    const version = ++trialVersion;
-    const [reply, lane] = await Promise.all([
-      settled(Promise.resolve().then(() => supabase.rpc('get_trial_offer', { p_workspace_id: workspaceID }))),
-      squareLane(options.freshLane === true),
-    ]);
-    if (ticket !== deskVersion || version !== trialVersion) return;
-    trialEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to start your free months.'); return; }
-    // Before the backend has the function there is nothing to start here; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') { trialHide(); return; }
-    const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane),
-      interval: (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer?.checkout_pending?.plan_interval) || previous?.interval || 'monthly',
-      abn: previous?.abn || '', abnError: false, abnRefused: previous?.abnRefused || null, busy: false, card: null, problem: null, sandbox: false, notice: options.notice || null,
-      attemptID: previous?.attemptID || null };
-    trialDraw(options.focus);
+  async function renderTrial(supabase, ticket, workspaceID) {
+    return renderSquareObligation(supabase, ticket, workspaceID, 'web_trial');
   }
   // "Add a card and start free months": the ABN first, then Square's card field in the card, with focus in it.
   async function trialOpenCard(control) {
@@ -3140,12 +3108,9 @@
     if (!offer.eligible || !lane) return 'error';
     return lane.open ? 'unlocked' : 'lane-closed';
   }
-  function annualCardAllowed(state) {
-    if (!state || !['unlocked', 'start-failed'].includes(state.kind) || !annualValid(state.offer)
-        || state.offer.missing.includes('not_owner')) return false;
-    return NEW_CARD_SUBSCRIPTIONS_ENABLED ||
-      (state.kind === 'start-failed' && state.offer.start_failed?.plan_code === ANNUAL_PLAN) ||
-      (state.kind === 'unlocked' && state.offer.checkout_pending?.plan_code === ANNUAL_PLAN);
+  function annualCardAllowed() {
+    // A failed first charge does not authorize a replacement checkout.
+    return false;
   }
   function annualAppleRunning(offer) { return offer.source === 'apple' && ['trial', 'active'].includes(offer.plan_status); }
   // Who acts next: Apple (renewal still on), Square (checkout left open) or the owner (a paused start).
@@ -3240,11 +3205,14 @@
   const SQUARE_CARD_STYLE = { '.input-container': { borderColor: '#7a877c', borderRadius: '2px' }, '.input-container.is-focus': { borderColor: '#10231d' },
     input: { color: '#10231d', fontSize: '16px' } };
   /** veylet-hooks, configured beside the Supabase endpoint. No cookies are sent. */
-  function annualHooks(path, init) {
+  function annualHooks(path, init, canSend) {
     const base = String(window.VEYLET_HOOKS?.url || '').replace(/\/+$/, '');
     if (!/^https:\/\/[^/]+$/.test(base) || typeof window.fetch !== 'function') return Promise.reject(new Error('The payment service is not configured.'));
     return Promise.resolve()
-      .then(() => window.fetch(base + path, { credentials: 'omit', cache: 'no-store', ...init }))
+      .then(() => {
+        if (canSend && !canSend()) throw new Error('The account changed before the request was sent.');
+        return window.fetch(base + path, { credentials: 'omit', cache: 'no-store', ...init });
+      })
       .then(response => response.json().catch(() => null).then(body => ({ status: response.status, ok: response.ok, body })));
   }
   // The card lane, read once per desk load for both cards that take a card; an
@@ -3605,6 +3573,7 @@
     if (focus && refs[focus]) refs[focus].focus();
   }
   function annualHide() {
+    squareObligations.delete('members_annual');
     annualDropCard(annual);
     annualVersion += 1; annual = null;
     if (!annualEl) return;
@@ -3628,30 +3597,8 @@
     pay.append(skeletonLine('p', 'annual-step-text', 71), skeletonLine('p', 'annual-charge', 106), annualRow(action), skeletonLine('p', 'annual-note', 77));
     annualEl.replaceChildren(annualHead(), annualNode('p', 'annual-lead', 'Checking the annual plan…'), plans, pay);
   }
-  async function renderAnnual(supabase, ticket, workspaceID, planRow, options = {}) {
-    if (!annualEl) return;
-    if (!workspaceID) { annualHide(); return; }
-    if (options.quiet && annual) annualEl.setAttribute('aria-busy', 'true');
-    else annualSkeleton();
-    const version = ++annualVersion;
-    annualCheckedAt = Date.now();
-    const [reply, lane] = await Promise.all([
-      settled(Promise.resolve().then(() => supabase.rpc('get_members_annual_offer', { p_workspace_id: workspaceID }))),
-      squareLane(),
-    ]);
-    if (ticket !== deskVersion || version !== annualVersion) return;
-    annualEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check the annual plan.'); return; }
-    // Before the backend has the function there is no offer to show; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') { annualHide(); return; }
-    const previous = annual && annual.workspaceID === workspaceID ? annual : null;
-    annualDropCard(annual);
-    const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    annual = { supabase, workspaceID, planRow, offer, lane, kind: annualKind(offer, lane),
-      start: previous?.start || null, busy: false, confirming: false,
-      problem: null, notice: options.notice || null, checkNote: null };
-    annualDraw(options.focus);
-    options.after?.(previous, annual);
+  async function renderAnnual(supabase, ticket, workspaceID) {
+    return renderSquareObligation(supabase, ticket, workspaceID, 'members_annual');
   }
   // Check again, and coming back to the page, re-read the server; the page never assumes Apple or Square acted.
   function annualAfterCheck(explicit) {
@@ -3800,82 +3747,9 @@
     annualDraw('title');
     setStatus(done.charge_today ? 'Yearly plan confirmed. The first charge is today.' : 'Yearly plan confirmed. Nothing is charged today.');
   }
-  async function annualCancel(control) {
-    const state = annual;
-    if (!state || state.busy) return;
-    state.busy = true; control.disabled = true; control.textContent = 'Cancelling…';
-    setStatus('Cancelling the yearly plan…');
-    const token = await annualToken(state.supabase);
-    if (annual !== state) return;
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to cancel the yearly plan. Nothing was changed.'); return; }
-    const reply = await settled(annualHooks('/square/members-annual/cancel', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ workspace_id: state.workspaceID }) }));
-    if (annual !== state) return;
-    state.busy = false; state.confirming = false;
-    const answer = reply.timedOut || reply.error ? null : reply.value;
-    if (answer?.ok && answer.body?.cancelled === true) {
-      const done = 'Yearly plan cancelled. Nothing was charged.';
-      setStatus(done);
-      void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, notice: done, focus: 'title' });
-      return;
-    }
-    annualRefused(state, answer);
-  }
-
-  /* ---- Cancel a website card plan (SITE_DESK-04) ---------------------------------
-   * The web lane only (never the app's pages, an invoice or an App Store plan): one quiet
-   * "Cancel plan", then "Yes, cancel my plan" or "Keep plan". POST /square/trial/cancel
-   * {workspace_id} records the cancellation first and then cancels at Square; it answers
-   * {cancelled, started} (web_trial_cancel in the hooks service). A reply that is not a
-   * confirmed cancellation never says it was cancelled.
-   */
-  const WEB_CANCEL_REFUSALS = {
-    not_eligible: 'Only the account owner can cancel the plan.',
-    invalid_request: 'There is no website card plan to cancel here. For a yearly plan use Cancel yearly plan; otherwise email Veylet support.',
-    lane_closed: 'Cancelling here isn’t open yet. Email Veylet support to cancel; your email is the record.',
-    checkout_failed: 'Your cancellation is being confirmed. Check your plan here again in a few minutes; pressing Cancel plan again is safe and never charges.',
-  };
-  function webCancelControls(supabase, workspaceID, trial) {
-    const wrap = document.createElement('span'); wrap.className = 'plan-cancel';
-    let busy = false;
-    const ask = () => {
-      const question = document.createElement('span'); question.className = 'plan-cancel-question';
-      question.textContent = trial ? 'Cancel your plan before it starts? Nothing is charged. ' : 'Cancel your plan? It stops renewing at the end of the period you’ve paid for. ';
-      const yes = button('Yes, cancel my plan', () => { void press(yes); }); yes.dataset.control = 'confirm-cancel-web-plan';
-      const keep = button('Keep plan', () => { if (busy) return; setStatus('Your plan is unchanged.'); idle(); }); keep.dataset.control = 'keep-web-plan';
-      wrap.replaceChildren(question, yes, keep);
-      yes.focus?.();
-    };
-    const idle = () => {
-      const cancel = button('Cancel plan', ask); cancel.dataset.control = 'cancel-web-plan';
-      wrap.replaceChildren(cancel);
-    };
-    async function press(control) {
-      if (busy) return;
-      busy = true; control.disabled = true; control.textContent = 'Cancelling…';
-      setStatus('Cancelling your plan…');
-      const token = await annualToken(supabase);
-      if (!token) { showSignedOut('Your sign-in has expired. Sign in again to cancel your plan. Nothing was changed.'); return; }
-      const reply = await settled(annualHooks('/square/trial/cancel', { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ workspace_id: workspaceID }) }));
-      busy = false;
-      const answer = reply.timedOut || reply.error ? null : reply.value;
-      if (answer?.status === 401) { showSignedOut('Your sign-in has expired. Sign in again and check whether your plan was cancelled.'); return; }
-      if (answer?.ok && answer.body?.cancelled === true && typeof answer.body.started === 'boolean') {
-        const done = answer.body.started ? 'Plan cancelled. It stops renewing at the end of the period you’ve paid for.' : 'Plan cancelled. Nothing was charged and nothing will be.';
-        setStatus(done);
-        await loadDesk(supabase);
-        setStatus(done);
-        return;
-      }
-      idle();
-      const code = typeof answer?.body?.error === 'string' ? answer.body.error : '';
-      setStatus(WEB_CANCEL_REFUSALS[code] || 'The cancellation was not confirmed. Check your plan below before trying again.');
-    }
-    idle();
-    return wrap;
+  async function annualCancel() {
+    // Retained callbacks from the retired checkout must never cancel by workspace alone.
+    return;
   }
 
   // Opening a card form elsewhere on the desk closes this one, quietly.
@@ -3883,6 +3757,134 @@
     const state = annual;
     if (!state || state.busy || !state.card) return;
     annualDropCard(state); state.problem = null; annualDraw();
+  }
+
+  /* Existing Square obligations: no catalogue, price quote, new card or replacement.
+   * get_square_obligation_v1 discovers a persisted checkout ID. Every action binds
+   * to that ID and the authenticated workspace; only its public projection is drawn.
+   */
+  const squareObligations = new Map();
+  const OBLIGATION_ATTENTION = 'The subscription status or cancellation is not confirmed. Contact Veylet support for help.';
+  function obligationCurrent(state) {
+    return !APP_MODE && squareObligations.get(state.kind) === state && state.ticket === deskVersion
+      && state.read === deskReadVersion && state.auth === authVersion && state.user === currentUserId && Boolean(currentUserId);
+  }
+  function obligationProjection(value, state, exactID = null) {
+    if (!value || typeof value !== 'object' || value.contract_version !== 1 || value.mode !== 'existing_obligations_only'
+      || value.workspace_id !== state.workspaceID || value.kind !== state.kind || value.expected_quote !== null
+      || typeof value.business_state !== 'string'
+      || !['not_requested', 'cancellation_pending', 'stopped', 'manual_attention'].includes(value.cancellation_status)
+      || !Array.isArray(value.allowed_actions) || value.allowed_actions.some(action => !['check_status', 'cancel'].includes(action))
+      || new Set(value.allowed_actions).size !== value.allowed_actions.length) return null;
+    if (value.checkout_id === null) {
+      return !exactID && value.business_state === 'none' && value.cancellation_status === 'not_requested'
+        && value.allowed_actions.length === 0 && value.observed_terms === null ? value : null;
+    }
+    if (typeof value.checkout_id !== 'string' || !value.checkout_id.trim() || value.checkout_id.length > 200
+      || value.checkout_id !== value.checkout_id.trim() || (exactID && value.checkout_id !== exactID)) return null;
+    return value;
+  }
+  function obligationWords(state) {
+    if (state.problem) return state.problem;
+    switch (state.record?.cancellation_status) {
+      case 'stopped': return 'Cancellation confirmed for this saved subscription. Contact Veylet support for any billing or refund questions.';
+      case 'cancellation_pending': return 'Cancellation requested, but not yet confirmed. Check status again or contact Veylet support.';
+      case 'manual_attention': return OBLIGATION_ATTENTION;
+      case 'not_requested': return 'A saved card subscription record was found. Check its status or request cancellation below.';
+      default: return OBLIGATION_ATTENTION;
+    }
+  }
+  function obligationDraw(state) {
+    if (!obligationCurrent(state)) return;
+    const { el, record } = state;
+    el.setAttribute('aria-busy', state.busy ? 'true' : 'false');
+    if (record?.checkout_id === null && !state.problem) { el.hidden = true; el.replaceChildren(); return; }
+    el.hidden = false;
+    const title = annualNode('h3', 'annual-title', state.kind === 'members_annual' ? 'Existing annual card subscription' : 'Existing card subscription');
+    title.id = state.kind === 'members_annual' ? 'account-annual-title' : 'account-trial-title';
+    const words = annualNode('p', 'annual-lead', state.loading ? 'Checking your saved subscription…' : obligationWords(state));
+    words.setAttribute('role', 'status');
+    const parts = [title, words];
+    if (!state.loading) {
+      const row = annualRow();
+      const action = (name, label, handler) => {
+        const control = button(label, () => { if (obligationCurrent(state) && !state.busy) return handler(); });
+        control.dataset.control = 'obligation-' + name; control.disabled = state.busy; row.append(control); return control;
+      };
+      if (state.confirming) {
+        parts.push(annualNode('p', 'annual-note', 'Request cancellation of this saved subscription? Its status will update when cancellation is confirmed.'));
+        action('confirm', state.busy ? 'Requesting cancellation…' : 'Confirm cancellation', () => obligationAct(state, 'cancel'));
+        action('keep', 'Keep subscription', () => { state.confirming = false; obligationDraw(state); });
+      } else {
+        if (record?.checkout_id && record.allowed_actions.includes('check_status')) {
+          action('check', state.busy ? 'Checking…' : 'Check status', () => obligationAct(state, 'check_status'));
+        }
+        if (record?.checkout_id && record.allowed_actions.includes('cancel') && record.cancellation_status !== 'stopped') {
+          action('cancel', 'Cancel subscription', () => { state.confirming = true; obligationDraw(state); });
+        }
+        if (!record) action('refresh', 'Check saved subscription again', () => renderSquareObligation(state.supabase, state.ticket, state.workspaceID, state.kind));
+      }
+      if (row.children.length) parts.push(row);
+      const support = annualNode('a', 'text-link', 'Contact Veylet support');
+      support.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20card%20subscription';
+      parts.push(annualRow(support));
+    }
+    el.replaceChildren(...parts);
+  }
+  async function renderSquareObligation(supabase, ticket, workspaceID, kind) {
+    const el = kind === 'members_annual' ? annualEl : trialEl;
+    squareObligations.delete(kind);
+    if (!el) return;
+    if (APP_MODE || !workspaceID || ticket !== deskVersion || !currentUserId) {
+      el.hidden = true; el.setAttribute('aria-busy', 'false'); el.replaceChildren(); return;
+    }
+    const state = { supabase, ticket, workspaceID, kind, el, read: deskReadVersion, auth: authVersion, user: currentUserId,
+      record: null, problem: null, busy: true, loading: true, confirming: false };
+    squareObligations.set(kind, state); obligationDraw(state);
+    const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_square_obligation_v1', {
+      p_workspace_id: workspaceID, p_kind: kind, p_recovery_checkout_id: null,
+    })));
+    if (!obligationCurrent(state)) return;
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your saved subscription.'); return; }
+    state.record = failed(reply) ? null : obligationProjection(firstRow(reply.value?.data), state);
+    state.problem = state.record ? null : OBLIGATION_ATTENTION;
+    state.busy = false; state.loading = false; obligationDraw(state);
+  }
+  async function obligationAct(state, action) {
+    if (!obligationCurrent(state) || state.busy || !state.record?.checkout_id || !state.record.allowed_actions.includes(action)
+      || !['check_status', 'cancel'].includes(action) || (action === 'cancel' && !state.confirming)) return;
+    const checkoutID = state.record.checkout_id;
+    state.busy = true; state.problem = null; obligationDraw(state);
+    const sessionReply = await settled(Promise.resolve().then(() => state.supabase.auth.getSession()));
+    if (!obligationCurrent(state)) return;
+    const session = failed(sessionReply) ? null : sessionReply.value?.data?.session;
+    if (!session?.access_token) { showSignedOut('Your sign-in has expired. Sign in again to check your saved subscription.'); return; }
+    if (session.user?.id !== state.user) {
+      state.busy = false; state.confirming = false;
+      state.problem = 'Your signed-in account changed. Refresh the page before managing this subscription.';
+      state.record = { ...state.record, allowed_actions: [] }; obligationDraw(state); return;
+    }
+    const path = action === 'check_status' ? '/square/obligations/check'
+      : state.kind === 'members_annual' ? '/square/members-annual/cancel' : '/square/trial/cancel';
+    const body = { workspace_id: state.workspaceID, recovery_checkout_id: checkoutID };
+    if (action === 'check_status') body.kind = state.kind;
+    const reply = await settled(annualHooks(path, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + session.access_token }, body: JSON.stringify(body) },
+      () => obligationCurrent(state)));
+    if (!obligationCurrent(state)) return;
+    const answer = !reply.timedOut && !reply.error ? reply.value : null;
+    if (answer?.status === 401) { showSignedOut('Your sign-in has expired. Sign in again to check whether cancellation was confirmed.'); return; }
+    const record = answer?.ok ? obligationProjection(answer.body?.obligation, state, checkoutID) : null;
+    state.busy = false; state.confirming = false;
+    if (record) { state.record = record; state.problem = null; }
+    else {
+      state.problem = answer?.status === 403 ? 'Only the account owner can manage this subscription. Contact Veylet support.'
+        : answer?.body?.error === 'account_deleting' ? 'Account deletion is in progress. Contact Veylet support to confirm this subscription’s status.' : OBLIGATION_ATTENTION;
+      // Keep the exact saved reference for a read retry; an unknown result cannot authorize cancellation.
+      state.record = { ...state.record, cancellation_status: 'manual_attention',
+        allowed_actions: ![403, 409, 404].includes(answer?.status) && state.record.allowed_actions.includes('check_status') ? ['check_status'] : [] };
+    }
+    obligationDraw(state); setStatus(obligationWords(state));
   }
 
   /* ---- Walkthrough packs ---------------------------------------------------
@@ -6766,6 +6768,10 @@
     // A drawn desk is read before it is cleared, so a lost connection never empties it.
     const shown = deskShownAt > 0;
     if (shown && offlineNow()) { deskOffline(); return; }
+    // Retained billing controls must visibly stop while workspace access is reread.
+    for (const state of squareObligations.values()) {
+      if (obligationCurrent(state)) { state.loading = true; state.busy = true; obligationDraw(state); }
+    }
     const read = ++deskReadVersion;
     const loadingUser = currentUserId;
     const loadingAuth = authVersion;
