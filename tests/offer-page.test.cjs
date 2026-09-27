@@ -31,7 +31,7 @@ const graceDays = record.freeMonths.hostingDaysAfterPlanEnds;
 // capture = one link; and Super fast's availability, in the offer page's words.
 const ROOMS_SENTENCE = 'Each capture is one walkthrough, with one link and one QR code. The app shows how many rooms fit in one capture; '
   + 'a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, '
-  + 'or a recapture of the rooms the quality check names, replaces it on the same link and uses none.';
+  + 'or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.';
 // The 26 September gate policy (PRODUCT_SIMPLICITY-10), in the site's words.
 const GATE = 'An automatic quality check stops a render that cannot work, such as one with no usable photos or depth, and asks for a recapture '
   + 'of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve.';

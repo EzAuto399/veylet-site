@@ -75,11 +75,43 @@ test('one walkthrough = one capture = one link: no page, summary or offer text p
   assert.ok(read('llms.txt').includes(UNIT), 'llms.txt states the unit');
   const scope = offer.walkthroughScope;
   assert.equal(scope.unit, 'one capture: one walkthrough with one link and one QR code, counted by the rooms captured');
-  assert.match(scope.link, /^one link and one QR code per capture; a correction or a recapture of named rooms keeps the same link$/);
-  assert.equal(offer.counting.roomsRule, 'counted automatically from the rooms in one capture; a correction of the same walkthrough and a recapture of named rooms use none');
+  assert.match(scope.link, /^one link and one QR code per capture; a correction or a permitted whole recapture including every original room keeps the same link$/);
+  assert.equal(offer.counting.roomsRule, 'counted automatically from the rooms in one capture; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough');
   // The record of the change that introduced the rooms rule stays as written, with the owner's restatement beside it.
   const restated = offer.history.find(entry => entry.version === '2026-09-26.2');
   assert.match(restated.restated, /^27 September 2026, owner decision, version unchanged: one walkthrough = one capture = one link/);
+});
+
+test('onboarding distinguishes TestFlight installation from the account invitation', () => {
+  for (const file of ['help/install-and-sign-in/index.html', 'app/help/install-and-sign-in/index.html']) {
+    const words = visible(read(file));
+    assert.match(words, /supported iPhone or iPad using the TestFlight invitation/, file);
+    assert.match(words, /Use the same email you use for your Veylet account on the website\./, file);
+    assert.doesNotMatch(words, /from the App Store or/, file);
+    assert.match(words, /You can read how it works before you sign in\. Sign in to start the practice room\./, file);
+    assert.doesNotMatch(words, /do the practice room before you sign in/, file);
+  }
+  const start = visible(read('start/index.html'));
+  assert.match(start, /the account invitation opens your Veylet account\./);
+  assert.match(start, /Install from the separate TestFlight invitation Veylet sends you\./);
+  assert.doesNotMatch(start, /invitation email has the install link/);
+});
+
+test('same-link replacement guidance requires every original room and fresh approval', () => {
+  for (const file of ['offer/index.html', 'start/index.html', 'terms/index.html', 'app/terms/index.html',
+    'help/your-plan/index.html', 'app/help/your-plan/index.html',
+    'help/approve-and-share/index.html', 'app/help/approve-and-share/index.html']) {
+    const words = visible(read(file));
+    assert.match(words, /permitted whole recapture (?:including|must include) every original room/, file);
+    assert.doesNotMatch(words, /recapture (?:of )?(?:the )?(?:named rooms|rooms the quality check names)[^.]{0,80}(?:same link|uses none)/, file);
+  }
+  for (const file of ['help/approve-and-share/index.html', 'app/help/approve-and-share/index.html']) {
+    assert.match(visible(read(file)), /Review and approve the replacement before the link updates\./, file);
+  }
+  for (const file of ['help/approve-and-share/index.html', 'app/help/approve-and-share/index.html', 'start/index.html']) {
+    assert.match(visible(read(file)).replace(/\s+([,.])/g, '$1'), /To replace it, choose Replace this walkthrough in your Veylet account, then confirm Use this capture as replacement\. Wait for Replacement saved before approving\./, file);
+  }
+  assert.match(read('llms.txt'), /permitted whole recapture including every original room; both keep the same link\./);
 });
 
 // ---- one-press approval: no "seven checks" ------------------------------------------------------

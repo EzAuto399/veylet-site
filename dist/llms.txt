@@ -90,7 +90,7 @@ How-to answers for the Veylet Capture app and the account desk. Index: https://v
 
 ## What counts
 - An accepted walkthrough is one the automatic quality check passed and the account approved for release; a failed capture never counts.
-- Each capture is one walkthrough, with one link and one QR code. Rooms are counted automatically from the capture; nothing is declared. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. Corrections to the same walkthrough do not use a second unit, and neither does a recapture of the rooms the quality check names; both keep the same link.
+- Each capture is one walkthrough, with one link and one QR code. Rooms are counted automatically from the capture; nothing is declared. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. Corrections to the same walkthrough do not use a second unit, and neither does a permitted whole recapture including every original room; both keep the same link.
 - Pack walkthroughs are added only once the pack's payment has settled; nothing is charged automatically. Packs are sold on the website and by studio invoice only, never in the app.
 - When the free months' 12 render attempts are used, the owner of a website card or invoice trial can start the plan early; an App Store free trial cannot be started early.
 - Route checks in the app do not prove quality; the automatic quality check after upload assesses the capture.

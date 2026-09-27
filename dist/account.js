@@ -2565,7 +2565,7 @@
       if (cap.can_accept) {
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new walkthrough you approve uses one per 8 rooms (counted automatically); a correction of the same walkthrough, a recapture of the rooms the check names, saving a space or a failed capture uses none.' + counting;
+          'Each new walkthrough you approve uses one per 8 rooms (counted automatically); a correction of the same walkthrough, a permitted whole recapture including every original room, saving a space or a failed capture uses none.' + counting;
         capacity.replaceChildren(balance, capacityNote);
         return;
       }

@@ -76,8 +76,8 @@ const ARTICLES = [
     description: 'Install Veylet Capture, then sign in with an email link. No password, and the first link creates your account.',
     lead: 'You sign in with a link sent to your email. There is no password, and the first link also creates your account.',
     body: [{ steps: [
-      'Install **Veylet Capture** on your Pro iPhone or iPad, from the App Store or the invitation link Veylet sent you.',
-      'Open it. You can read how it works and do the practice room before you sign in.',
+      'Install **Veylet Capture** on your supported iPhone or iPad using the TestFlight invitation Veylet sent you.',
+      'Open it. You can read how it works before you sign in. Sign in to start the practice room.',
       'When asked, enter your email address. Use the same email you use for your Veylet account on the website.',
       'Open the email on the same iPhone and tap the link. You come back to the app, signed in.',
     ] }],
@@ -374,7 +374,7 @@ const ARTICLES = [
     ] }],
     notWorking: [
       'The button stays off until that one box is ticked.',
-      'If something needs fixing, don’t approve. Recapture the rooms that need it: a recapture replaces the walkthrough on the same link and uses no walkthrough.',
+      'If something needs fixing, don’t approve. A permitted whole recapture must include every original room. To replace it, choose **Replace this walkthrough** in [your Veylet account](account), then confirm **Use this capture as replacement**. Wait for **Replacement saved** before approving. It replaces this walkthrough on the same link and uses no extra walkthrough. Review and approve the replacement before the link updates.',
       '**Approved. Sharing waits for** a reason: the card names the one fix, such as someone with sharing permission. Your approval is kept.',
       'You can also review in [your Veylet account](account) on a computer, with the same one box.',
     ],
@@ -485,7 +485,7 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
-      'Each capture is one walkthrough, with one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a recapture of the rooms the quality check names, replaces it on the same link and uses none.',
+      'Each capture is one walkthrough, with one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.',
       'Listing videos and stills are included in your plan once video exports open. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {

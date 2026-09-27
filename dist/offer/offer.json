@@ -174,7 +174,7 @@
     "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 6 in total",
     "annualAllowanceIsYearlyPool": true,
     "walkthroughsPerCapture": "max(1, ceil(rooms / 8)); see walkthroughScope",
-    "roomsRule": "counted automatically from the rooms in one capture; a correction of the same walkthrough and a recapture of named rooms use none"
+    "roomsRule": "counted automatically from the rooms in one capture; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough"
   },
   "devices": [
     "iPhone 12 Pro and later Pro or Pro Max models",
@@ -267,8 +267,8 @@
     "walkthroughs": "max(1, ceil(rooms / 8))",
     "countedBy": "the app counts the rooms captured; nothing is declared",
     "severalCaptures": "a home with more rooms than fit in one capture takes more captures; each is its own walkthrough with its own link",
-    "usesNone": "a correction of the same walkthrough, and a recapture of rooms the quality check names",
-    "link": "one link and one QR code per capture; a correction or a recapture of named rooms keeps the same link",
+    "usesNone": "a correction of the same walkthrough, and a permitted whole recapture including every original room",
+    "link": "one link and one QR code per capture; a correction or a permitted whole recapture including every original room keeps the same link",
     "status": "offer terms from 2026-09-26.3; the database and app still count by the 2026-09-25.1 whole-home rule until release 2; the terms still need legal review"
   },
   "expressRender": {
