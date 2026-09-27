@@ -164,6 +164,16 @@ test('home and /start describe sending from the app, and no export or private-tr
   assert.ok(uploading.includes(SEND), 'help: sending your capture');
 });
 
+for (const page of ['help/uploading/index.html', 'guides/iphone-lidar-vs-matterport/index.html']) {
+  test(`${page}: sending instructions do not claim usual or proven pilot turnaround`, () => {
+    const words = flatText(read(page));
+    assert.doesNotMatch(words, /\b(?:usually|typically|normally|proven|guaranteed)\b[^.!?]*\b1(?:–|-| to )2 hours?\b/i,
+      'the Standard target is not an observed usual or proven delivery result');
+    assert.doesNotMatch(words, /\bpilot turnaround (?:is|has been) (?:already )?(?:established|proven|verified)\b/i,
+      'pilot turnaround is not yet established');
+  });
+}
+
 test('home and /start have one main path, the waitlist, and do not send visitors to the enquiry form', () => {
   for (const page of ['index.html', 'start/index.html']) {
     const html = read(page);

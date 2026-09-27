@@ -155,7 +155,7 @@
       "annual": "studio"
     },
     "annualSoldInApp": true,
-    "annualNote": "The App Store sells the Veylet plan monthly (dev.property3d.capture.solo.monthly, A$119.99) and annual (dev.property3d.capture.solo.annual, A$1,099.99), with a 3-calendar-month introductory offer for eligible subscribers. Express renders and packs are not sold in the app. Legacy Team products retain their original allowances; they are not the new capacity products.",
+    "annualNote": "The App Store sells the Veylet plan monthly (dev.property3d.capture.solo.monthly, A$119.99) and annual (dev.property3d.capture.solo.annual, A$1,099.99), with a 3-calendar-month introductory offer for eligible subscribers. Express renders are not sold in the app. Pack in-app purchase arrives in a later app version. Legacy Team products retain their original allowances; they are not the new capacity products.",
     "sold": [
       "soloMonthly",
       "soloAnnual"

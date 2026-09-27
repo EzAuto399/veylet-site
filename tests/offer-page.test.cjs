@@ -991,7 +991,7 @@ test('no retired or superseded amount remains in the published HTML, scripts or 
 test('the App Store sells the Veylet plan monthly and annual, and both desks still map the four App Store products', () => {
   assert.equal(record.appStore.annualSoldInApp, true);
   assert.match(record.appStore.annualNote, /The App Store sells the Veylet plan monthly \(dev\.property3d\.capture\.solo\.monthly, A\$119\.99\) and annual \(dev\.property3d\.capture\.solo\.annual, A\$1,099\.99\)/);
-  assert.match(record.appStore.annualNote, /Express renders and packs are not sold in the app\./);
+  assert.match(record.appStore.annualNote, /Express renders are not sold in the app\. Pack in-app purchase arrives in a later app version\./);
   // Public pages name the App Store annual only at its canonical price.
   for (const page of ['offer/index.html', 'index.html', 'terms/index.html', 'llms.txt']) {
     assert.match(visible(page), priceRe(aud(plan.annualAppAud)), `${page} states the approved annual price`);
