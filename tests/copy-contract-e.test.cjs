@@ -3,7 +3,8 @@
  *
  * Owner decisions of 26-27 September 2026: processing is fully automatic (no studio, no person checking);
  * DIY iPhone only; "Approve and share" is one press; ONE WALKTHROUGH = ONE CAPTURE = ONE LINK (never one
- * link per property). Contracts: dist/offer/offer.json 2026-09-26.3 (descriptive text only),
+ * link per property). Offer 2026-09-27.1 supersedes room multipliers for new accepted captures;
+ * historical usage and whole-capture replacement safeguards remain. Contracts: dist/offer/offer.json,
  * docs/render-status-contract-20260925.md and docs/ux/capture-to-client-journey-20260925.md §5.2 in the
  * product repository. Legal wording on /terms, /privacy and their /app copies is a draft for the owner's
  * legal pass (OWNERSHIP item 7), marked with LEGAL REVIEW comments.
@@ -53,6 +54,8 @@ const offerText = JSON.stringify({ ...offer, history: undefined });
 // ---- one walkthrough = one capture = one link ------------------------------------------------------
 
 const UNIT = 'Each capture is one walkthrough, with one link and one QR code.';
+const ACCEPTED_UNIT = 'One new accepted capture uses one walkthrough, regardless of room count.';
+const UPDATED_COUNT_PAGES = ['offer/index.html', 'start/index.html', 'terms/index.html'];
 const ONE_LINK_PER_PROPERTY = [
   /one link (?:and (?:one )?QR code )?(?:per|for (?:each|every|the whole|a)) property/i,
   /every property gets (?:one|a single) link/i,
@@ -70,13 +73,25 @@ test('one walkthrough = one capture = one link: no page, summary or offer text p
   }
   for (const file of ['offer/index.html', 'start/index.html', 'terms/index.html', 'app/terms/index.html', 'help/your-plan/index.html',
     'app/help/your-plan/index.html']) {
-    assert.ok(visible(read(file)).includes(UNIT), `${file} states the unit: ${UNIT}`);
+    const words = visible(read(file));
+    if (UPDATED_COUNT_PAGES.includes(file)) {
+      assert.ok(words.includes(ACCEPTED_UNIT), `${file} states the accepted-capture unit`);
+      assert.match(words, /Each capture has one link and one QR code\./, file);
+      assert.doesNotMatch(words, /up to 8 rooms|each further 8 rooms/, file);
+    } else {
+      assert.ok(words.includes(UNIT), `${file} states the unit: ${UNIT}`);
+    }
   }
-  assert.ok(read('llms.txt').includes(UNIT), 'llms.txt states the unit');
+  assert.ok(read('llms.txt').includes(ACCEPTED_UNIT), 'llms.txt states the accepted-capture unit');
+  assert.match(read('llms.txt'), /Each capture has one link and one QR code\./);
   const scope = offer.walkthroughScope;
-  assert.equal(scope.unit, 'one capture: one walkthrough with one link and one QR code, counted by the rooms captured');
+  assert.equal(scope.unit, 'one accepted capture');
+  assert.equal(scope.unitsPerAcceptedCapture, 1);
+  assert.equal(scope.roomsPerWalkthrough, undefined);
+  assert.equal(scope.walkthroughs, undefined);
+  assert.equal(offer.counting.walkthroughsPerCapture, 'one per new accepted capture');
   assert.match(scope.link, /^one link and one QR code per capture; a correction or a permitted whole recapture including every original room keeps the same link$/);
-  assert.equal(offer.counting.roomsRule, 'counted automatically from the rooms in one capture; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough');
+  assert.equal(offer.counting.roomsRule, 'room count does not change the allowance unit; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough');
   // The record of the change that introduced the rooms rule stays as written, with the owner's restatement beside it.
   const restated = offer.history.find(entry => entry.version === '2026-09-26.2');
   assert.match(restated.restated, /^27 September 2026, owner decision, version unchanged: one walkthrough = one capture = one link/);
@@ -299,7 +314,13 @@ test('llms.txt states the early paid switch and the pack channels as offer.json 
   const llms = read('llms.txt');
   assert.deepEqual(offer.freeMonths.earlyPaidSwitchAvailable, { websiteCard: true, studioInvoice: true, appStore: false });
   assert.doesNotMatch(llms, /no automatic debt or early paid trial switch|in a later app version|later app version/i);
-  assert.match(llms, /When the free months' 12 render attempts are used, the owner of a website card or invoice trial can start the plan early; an App Store free trial cannot be started early\./);
+  assert.equal(offer.subscriptionCheckout.websiteCardEnabled, false);
+  assert.equal(offer.freeMonths.renderAttemptCap, 12);
+  assert.match(offer.freeMonths.fairUse.text, /attempts that fail because of Veylet do not count/);
+  assert.match(llms, /New subscriptions use Apple and have no early paid trial switch\./);
+  assert.match(llms, /Existing card or invoice trials may start paid service early only with separate consent under their agreed terms/);
+  assert.match(llms, /using the allowance never starts billing automatically\./);
+  assert.match(llms, /Existing website card subscriptions retain their agreed automatic renewal/);
   assert.match(offer.packRules.channels.app, /^never sold in the app$/);
   assert.match(llms, /Packs are sold on the website and by studio invoice only, never in the app\./);
   for (const file of ['offer/index.html', 'terms/index.html']) assert.doesNotMatch(visible(read(file)), /later (?:app )?version/i, file);

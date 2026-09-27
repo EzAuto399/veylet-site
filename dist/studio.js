@@ -166,7 +166,7 @@
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
   }
-  /** Integer cents, written the way the invoice would: A$99, or A$119.99. */
+  /** Integer cents, written the way the invoice would. Legacy invoices retain their agreed price. */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';

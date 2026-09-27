@@ -12,6 +12,10 @@
   // offer), and the plan said in state words only. tests/app-pages.test.cjs
   // renders it and fails on any amount or purchase word.
   const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
+  // New recurring subscriptions are Apple-only. Existing Square billing and
+  // recovery remain available; an open payment lane must not reopen new sales.
+  // The hooks service must enforce the same policy at its authority boundary.
+  const NEW_CARD_SUBSCRIPTIONS_ENABLED = false;
   const statusEl = document.getElementById('account-status');
   const signInForm = document.getElementById('account-sign-in');
   const verifyForm = document.getElementById('account-verify');
@@ -2074,7 +2078,7 @@
     const count = Number(value);
     return Number.isFinite(count) ? String(count) : PLAN_DASH;
   }
-  /** Integer cents, written the way the invoice would: A$99, or A$119.99. */
+  /** Format integer cents, including a legacy A$99 invoice from offer 2026-09-25.2 or a current A$119.99 price. */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';
@@ -2563,9 +2567,10 @@
       resolve.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20capacity';
       resolve.textContent = 'Resolve walkthrough capacity with Veylet support';
       if (cap.can_accept) {
+        // Release with the authoritative one-capture counting migration; old usage is immutable.
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new walkthrough you approve uses one per 8 rooms (counted automatically); a correction of the same walkthrough, a permitted whole recapture including every original room, saving a space or a failed capture uses none.' + counting;
+          'Each new accepted capture uses one walkthrough, regardless of room count. A correction or reprocessing of the same walkthrough, a permitted whole recapture including every original room, saving a space or a failed capture uses none. Previously accepted usage stays unchanged.' + counting;
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
@@ -2644,12 +2649,22 @@
     if (offer.missing.includes('not_owner')) return 'not-owner';
     if (offer.missing.includes('waitlist')) return 'waitlist';
     if (offer.missing.includes('trial_used')) return 'used';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !TRIAL_INTERVALS.includes(offer.checkout_pending?.plan_interval)) return 'hidden';
     if (!lane) return 'lane-error';
     return lane.open ? 'choose' : 'lane-closed';
   }
+  function trialCardAllowed(state) {
+    return Boolean(state) && state.kind === 'choose' && trialValid(state.offer)
+      && state.offer.eligible && (NEW_CARD_SUBSCRIPTIONS_ENABLED ||
+      (TRIAL_INTERVALS.includes(state.offer.checkout_pending?.plan_interval)
+        && state.interval === state.offer.checkout_pending.plan_interval));
+  }
   // Square Sandbox labels every price and payment action, as on the other two card forms.
   function trialTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
-  function trialPlans(state) { return TRIAL_INTERVALS.map(interval => state.offer.plans.find(plan => plan.interval === interval)); }
+  function trialPlans(state) {
+    const intervals = NEW_CARD_SUBSCRIPTIONS_ENABLED ? TRIAL_INTERVALS : [state.offer.checkout_pending?.plan_interval];
+    return intervals.map(interval => state.offer.plans.find(plan => plan.interval === interval)).filter(Boolean);
+  }
   function trialChosen(state) { return trialPlans(state).find(plan => plan.interval === state.interval) || trialPlans(state)[0]; }
   function trialBilling(cents, interval) { return planMoney(cents) + (interval === 'annual' ? ' a year' : ' a month'); }
   function trialCharge(state) {
@@ -2867,7 +2882,8 @@
     // Before the backend has the function there is nothing to start here; that is not an outage.
     if (reply.value?.error?.code === 'PGRST202') { trialHide(); return; }
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane), interval: previous?.interval || 'monthly',
+    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane),
+      interval: (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer?.checkout_pending?.plan_interval) || previous?.interval || 'monthly',
       abn: previous?.abn || '', abnError: false, abnRefused: previous?.abnRefused || null, busy: false, card: null, problem: null, sandbox: false, notice: options.notice || null,
       attemptID: previous?.attemptID || null };
     trialDraw(options.focus);
@@ -2875,7 +2891,7 @@
   // "Add a card and start free months": the ABN first, then Square's card field in the card, with focus in it.
   async function trialOpenCard(control) {
     const state = trial;
-    if (!state || state.busy || state.card || state.kind !== 'choose') return;
+    if (!trialCardAllowed(state) || state.busy || state.card || state.kind !== 'choose') return;
     if (!trialAbnCheck(state, state.refs || {})) { state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
     state.abn = state.refs?.abn?.value ?? state.abn;
     // One card form on the desk at a time.
@@ -2923,7 +2939,7 @@
   // the first charge; the page states the dates the answer carries.
   async function trialConfirmCard(control) {
     const state = trial;
-    if (!state || state.busy || !state.card) return;
+    if (!trialCardAllowed(state) || state.busy || !state.card) return;
     const plan = trialChosen(state);
     const abn = trialAbn(state.abn);
     if (!abn) { state.abnError = true; trialDraw(); state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
@@ -3115,11 +3131,21 @@
     if (offer.start_failed) return 'start-failed';
     if (offer.conflict === true) return lane ? 'conflict' : 'error';
     if (offer.scheduled) return lane ? 'scheduled' : 'error';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer.checkout_pending?.plan_code !== undefined
+        && offer.checkout_pending.plan_code !== ANNUAL_PLAN) return 'retired-pending';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !offer.checkout_pending) return 'new-sales-closed';
     if (offer.tier === 'closed') return 'closed';
     if (offer.missing.includes('free_months_not_started')) return 'locked-start';
     if (offer.missing.includes('no_accepted_walkthrough')) return 'locked-accept';
     if (!offer.eligible || !lane) return 'error';
     return lane.open ? 'unlocked' : 'lane-closed';
+  }
+  function annualCardAllowed(state) {
+    if (!state || !['unlocked', 'start-failed'].includes(state.kind) || !annualValid(state.offer)
+        || state.offer.missing.includes('not_owner')) return false;
+    return NEW_CARD_SUBSCRIPTIONS_ENABLED ||
+      (state.kind === 'start-failed' && state.offer.start_failed?.plan_code === ANNUAL_PLAN) ||
+      (state.kind === 'unlocked' && state.offer.checkout_pending?.plan_code === ANNUAL_PLAN);
   }
   function annualAppleRunning(offer) { return offer.source === 'apple' && ['trial', 'active'].includes(offer.plan_status); }
   // Who acts next: Apple (renewal still on), Square (checkout left open) or the owner (a paused start).
@@ -3388,7 +3414,9 @@
     const after = !annualAppleRunning(offer) ? 'Your current plan is unchanged.'
       : offer.apple_auto_renews === false ? 'Your App Store plan still ends on ' + day + ' unless you turn its renewal back on.'
         : 'Your App Store plan keeps renewing.';
-    const text = annualNode('p', 'annual-confirm', state.kind === 'start-failed'
+    const text = annualNode('p', 'annual-confirm', state.kind === 'retired-pending'
+      ? 'Cancel the unfinished yearly checkout? Its status will be checked before cancellation is confirmed.'
+      : state.kind === 'start-failed'
       ? 'Cancel the yearly plan? Its first charge didn’t go through, so nothing has been charged, and nothing will be. A later yearly plan uses the annual price at that time.'
       : (day ? 'Cancel the yearly plan that starts ' + day + '?' : 'Cancel the paused yearly plan?') +
         ' Nothing has been charged. ' + after + ' A later yearly plan uses the annual price at that time.');
@@ -3402,6 +3430,17 @@
   function annualParts(state, refs) {
     const { kind, offer } = state;
     if (kind === 'active') return null;
+    if (kind === 'new-sales-closed') {
+      const parts = [annualHead('App Store', 'quiet', refs),
+        annualNode('p', 'annual-lead', 'Start or manage your subscription in Veylet Capture on your iPhone or iPad.')];
+      const setup = annualNode('a', 'text-link', 'Open the app setup steps'); setup.href = '/start';
+      parts.push(annualRow(setup));
+      if (state.notice) {
+        const notice = annualNode('p', 'annual-notice', state.notice);
+        notice.tabIndex = -1; refs.title = notice; parts.push(notice);
+      }
+      return parts;
+    }
     const parts = [];
     const begin = (label, tone) => {
       parts.push(annualHead(label, tone, refs));
@@ -3410,6 +3449,16 @@
     const say = (className, text) => parts.push(annualNode('p', className, text));
     // Sandbox is said once, under the heading, before any "Test ·" price or button.
     const testLine = () => { if (annualTest(state)) say('plan-scope plan-test', ANNUAL_TEST_LINE); };
+    if (kind === 'retired-pending') {
+      begin('Unfinished', 'quiet');
+      say('annual-lead', 'This unfinished checkout is for a retired plan. It cannot start a new subscription.');
+      if (state.confirming) parts.push(...annualConfirm(state, refs, ''));
+      else {
+        const cancel = button('Cancel yearly plan', () => { state.confirming = true; annualDraw('confirm'); });
+        refs.cancel = cancel; parts.push(annualRow(cancel));
+      }
+      return parts;
+    }
     if (kind === 'error') {
       begin();
       say('annual-lead', 'Couldn’t check the annual plan.');
@@ -3650,7 +3699,7 @@
   // "Pay yearly by card": load Square's SDK once, open its card field in the card, and move focus into it.
   async function annualOpenCard(control) {
     const state = annual;
-    if (!state || state.busy || state.card || !['unlocked', 'start-failed'].includes(state.kind)) return;
+    if (!annualCardAllowed(state) || state.busy || state.card || !['unlocked', 'start-failed'].includes(state.kind)) return;
     // One card form on the desk at a time: any other open card form is closed first.
     closeCardForms('annual');
     state.busy = true; state.problem = null;
@@ -3694,7 +3743,7 @@
   // "Confirm yearly plan": Square tokenizes the card in its iframe; only that single-use token is sent.
   async function annualConfirmCard(control) {
     const state = annual;
-    if (!state || state.busy || !state.card) return;
+    if (!annualCardAllowed(state) || state.busy || !state.card) return;
     const plan = annualPlan(state);
     const start = annualCanStartNow(state) && state.start !== 'scheduled' ? 'now' : 'scheduled';
     const expected = { plan_code: plan.code, year_cents: plan.year_cents, starts_on: annualStartsToday(state) ? annualToday() : state.offer.starts_on };
