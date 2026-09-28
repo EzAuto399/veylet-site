@@ -4,7 +4,9 @@
   "trailingSlash": false,
   "outputDirectory": "dist",
   "redirects": [
-    { "source": "/apply", "destination": "/offer", "permanent": true }
+    { "source": "/apply", "destination": "/offer", "permanent": true },
+    { "source": "/pricing", "destination": "/offer", "permanent": true },
+    { "source": "/prices", "destination": "/offer", "permanent": true }
   ],
   "headers": [
     {
