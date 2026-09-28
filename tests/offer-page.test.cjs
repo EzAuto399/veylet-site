@@ -1174,3 +1174,15 @@ test('all owned pricing surfaces state current base prices and remove superseded
   assert.match(llms, /no rollover between plan years/);
   assert.match(llms, /Existing signed agreements retain their terms/);
 });
+
+test('the approval promise is the counting rule itself: only a walkthrough you approve uses the allowance', () => {
+  // 2026-09-29: the offer's strongest risk reversal already exists in the record (a walkthrough counts
+  // only when the quality check passed and the workspace approved it). The pages headline it; if the
+  // record ever counts a walkthrough without approval, or counts one that fails the check, this fails.
+  assert.equal(record.counting.acceptedMeans, 'the automatic quality check passed and the workspace approved the exact revision for release');
+  assert.equal(record.counting.notGoodEnoughCounts, false);
+  assert.equal(record.freeMonths.renderAttemptCap, undefined, 'a render-attempt cap would need this promise reworded');
+  assert.ok(body.includes('<p class="offer-promise" data-offer-approval><strong>You only use a walkthrough when you approve it.</strong>'), '/offer');
+  assert.ok(read('index.html').includes('<dt>Only what you approve counts</dt><dd>Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.</dd>'), 'home');
+  assert.ok(read('see/index.html').includes('<dt>Only what you approve counts</dt><dd>A walkthrough uses your allowance only when you approve it for release.'), '/see');
+});
