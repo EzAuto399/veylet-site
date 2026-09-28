@@ -263,7 +263,9 @@ test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and th
   assert.match(after, /data-billing-explanation>Illustration for the Veylet plan with an eligible 1-month App Store introductory offer/);
   assert.match(after, /<noscript>[^]*paid monthly through the App Store, with no pack/);
   assert.doesNotMatch(body, /data-members-annual/, 'no members’ line');
-  assert.match(body, /no client-accepted tour to show yet/);
+  // Launch copy (merge only after G1): the status line points at a home we filmed, and no longer says no tour exists.
+  assert.match(body, /as many as our processing budget allows\. <a href="\/see">See a home we filmed on an iPhone<\/a>\./);
+  assert.doesNotMatch(body, /no client-accepted tour|still under quality review/);
   assert.match(body, /Prices are totals in Australian dollars/);
 });
 
