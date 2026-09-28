@@ -39,13 +39,13 @@ test('dist/help and dist/app/help are exactly what tests/help-articles.cjs rende
   assert.deepEqual(extra, []);
 });
 
-test('sending help uses status checks and describes standard timing only as an unproved pilot target', () => {
+test('sending help uses status checks and makes no timing promise', () => {
   for (const base of ['help', 'app/help']) {
     const uploading = text(read(`${base}/uploading/index.html`));
     const status = text(read(`${base}/render-status/index.html`));
     assert.match(uploading, /Send from the app: it uploads in the background\. Check your account for rendering status\./, base);
-    assert.match(status, /Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./, base);
-    assert.doesNotMatch(uploading + status, /usually (?:ready(?: in| within)?|within) 1(?:–|-| to )2 hours/i, base);
+    assert.match(status, /Rendering and the quality check are automatic\. We’ll email you when it’s ready\./, base);
+    assert.doesNotMatch(uploading + status, /usually (?:ready(?: in| within)?|within)|targets? 1(?:–|-| to )2 hours|1(?:–|-| to )2 hours after upload/i, base);
   }
 });
 

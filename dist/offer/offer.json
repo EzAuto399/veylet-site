@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-27.1",
+  "version": "2026-09-28.1",
   "status": "accepted prices; source preparation only, with recurring capacity unavailable until billing and release verification",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
@@ -9,8 +9,8 @@
     "rule": "open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget"
   },
   "freeMonths": {
-    "months": 3,
-    "includedWalkthroughs": 6,
+    "months": 1,
+    "includedWalkthroughs": 3,
     "startsOn": "activation",
     "activationMeans": "the App Store subscription is activated; existing signed or invoiced agreements keep their terms",
     "websiteCardPayment": "not offered for new subscriptions",
@@ -37,7 +37,7 @@
     "reminderStatus": "planned: reminder email 7 days before the first charge (not yet operational)",
     "cardOnFile": {
       "required": true,
-      "appStore": "Apple's 3-month free introductory offer (a payment method on the Apple Account is required)",
+      "appStore": "Apple's 1-month free introductory offer (a payment method on the Apple Account is required)",
       "web": "not offered for new subscriptions",
       "invoice": "existing agreed terms only"
     },
@@ -49,15 +49,15 @@
       "name": "Veylet plan",
       "kind": "monthly",
       "webAud": 119.99,
-      "appAud": 119.99,
+      "appAud": 139.99,
       "includedPerMonth": 2,
       "seats": "unlimited",
       "hostingIncluded": true,
       "hostingWhileSubscribed": true,
       "whiteLabel": true,
       "freeMonthsEligible": true,
-      "annualRule": "24 walkthroughs to use any time in the paid plan year; A$1,099.99 upfront through the App Store; no annual rollover; 23.6% less than 12 monthly payments",
-      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
+      "annualRule": "20 walkthroughs to use any time in the paid plan year; A$1,399.99 upfront through the App Store; no annual rollover; 16.7% less than 12 monthly payments",
+      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 20-walkthrough yearly pool",
       "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; after that, only a paid hosting extension keeps a single walkthrough online: A$49 a year per walkthrough, on request, until the extension ends",
       "hosting": {
         "liveWhile": "an active plan: free months (trial), monthly or annual",
@@ -101,9 +101,9 @@
         "maxBanked": 4,
         "rule": "unused monthly walkthroughs carry over, up to 4 banked at any time"
       },
-      "annualAud": 1099.99,
-      "annualAppAud": 1099.99,
-      "annualIncluded": 24,
+      "annualAud": 1399.99,
+      "annualAppAud": 1399.99,
+      "annualIncluded": 20,
       "intervals": [
         "monthly",
         "annual"
@@ -111,8 +111,8 @@
       "newBuyerChannels": [
         "appStore"
       ],
-      "annualSavingsPercent": 23.6,
-      "annualSavingsAud": 339.89
+      "annualSavingsPercent": 16.7,
+      "annualSavingsAud": 279.89
     }
   ],
   "programmes": {
@@ -137,7 +137,7 @@
     "pricingRule": "New subscriptions use the published App Store monthly or annual total; commission and net proceeds are not verified.",
     "introductoryOffer": {
       "type": "free_trial",
-      "months": 3,
+      "months": 1,
       "oncePerAppleId": true
     },
     "productIds": {
@@ -155,7 +155,7 @@
       "annual": "studio"
     },
     "annualSoldInApp": true,
-    "annualNote": "The App Store sells the Veylet plan monthly (dev.property3d.capture.solo.monthly, A$119.99) and annual (dev.property3d.capture.solo.annual, A$1,099.99), with a 3-calendar-month introductory offer for eligible subscribers. Express renders are not sold in the app. Pack in-app purchase arrives in a later app version. Legacy Team products retain their original allowances; they are not the new capacity products.",
+    "annualNote": "The App Store sells the Veylet plan monthly (dev.property3d.capture.solo.monthly, A$139.99) and annual (dev.property3d.capture.solo.annual, A$1,399.99), with a 1-month free introductory offer for eligible subscribers. Express renders are not sold in the app. Pack in-app purchase arrives in a later app version. Legacy Team products retain their original allowances; they are not the new capacity products.",
     "sold": [
       "soloMonthly",
       "soloAnnual"
@@ -173,7 +173,7 @@
     "planAllowanceIsMonthly": true,
     "unit": "accepted_walkthrough",
     "unitsPerAcceptedWalkthrough": 1,
-    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 6 in total",
+    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 20-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
     "annualAllowanceIsYearlyPool": true,
     "walkthroughsPerCapture": "one per new accepted capture",
     "roomsRule": "room count does not change the allowance unit; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough"
@@ -257,7 +257,8 @@
       "web",
       "invoice",
       "appStore"
-    ]
+    ],
+    "status": "removed from offer 2026-09-28.1: not offered with new agreements; a bonus already granted stays valid under its own terms (owner decision record marketing/acquisition-launch-20260927/operations/offer-2026-09-28-1-decision.md)"
   },
   "referral": {
     "referrerWalkthroughs": 1,
@@ -278,18 +279,18 @@
     "code": "express",
     "webAud": 29,
     "appStore": false,
-    "promise": "rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically",
+    "promise": "rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically — sold only while its availability gate is green",
     "dailyCap": null,
     "refund": "if it isn't ready for review within 30 minutes of the upload finishing or the purchase, whichever is later, the A$29 is refunded automatically (a used credit is returned)",
     "channels": [
       "web"
     ],
     "name": "Super fast render",
-    "availability": "only while fast GPUs start quickly",
-    "availabilityRule": "sold only while fast GPUs in Sydney are starting quickly; otherwise the account says \"Super fast isn't available right now\" and nothing is charged",
+    "availability": "only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold",
+    "availabilityRule": "sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data the account says \"Super fast isn't available right now\" and nothing is charged",
     "unavailableText": "Super fast isn't available right now",
     "refundPromise": "unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically",
-    "operationalStatus": "availability is gated; live purchase, delivery and refund proof is required before advertising availability"
+    "operationalStatus": "availability is gated by the 7-day Sydney GPU-start probe (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability"
   },
   "anchor": {
     "text": "A photographer's 3D tour costs A$215–400 each",
@@ -305,7 +306,7 @@
   },
   "processing": {
     "automatic": true,
-    "turnaround": "Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. No person checks it.",
+    "turnaround": "Standard rendering: we'll email you when it's ready; no time promise until pilot turnaround is measured. No person checks it.",
     "qualityGate": "an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving",
     "approval": "the account reviews and approves before sharing"
   },
@@ -342,6 +343,12 @@
       "replacedBy": "2026-09-27.1",
       "on": "2026-09-27",
       "change": "Accepted Apple monthly A$119.99 / annual A$1,099.99, one accepted capture per walkthrough, 3 calendar months with 6 total; supersedes the rooms-per-eight and trial render-attempt cap proposals. New recurring monthly capacity targets remain unavailable. Existing signed agreements and bonuses are preserved."
+    },
+    {
+      "version": "2026-09-27.1",
+      "replacedBy": "2026-09-28.1",
+      "on": "2026-09-28",
+      "change": "Owner decision record marketing/acquisition-launch-20260927/operations/offer-2026-09-28-1-decision.md (28 September 2026), applied as offer 2026-09-28.1: the free trial is 1 month with 3 accepted walkthroughs total (App Store introductory offer: 1 month free), was 3 calendar months with 6; monthly A$139.99, was A$119.99; yearly A$1,399.99 for a 20-walkthrough pool, was A$1,099.99 for 24; no rollover between paid years; the early-Yearly bonus (+4 walkthroughs and 4 Super fast renders) is removed for new agreements; Super fast stays A$29, website only, sold only while its availability gate is green (7-day Sydney GPU-start probe, p90 start of 5 minutes or less), with the automatic refund kept for orders taken; the standard turnaround time promise (\"targets 1–2 hours after upload\") is withdrawn for \"We'll email you when it's ready.\"; listing videos (16:9, 9:16, stills) stay included, made on request per tour one format at a time, not public until exports open; the customer pays A$70.00 per accepted walkthrough on either plan; yearly is A$279.89 less than 12 monthly payments (16.7%), never \"2 months free\""
     }
   ],
   "subscriptionCheckout": {

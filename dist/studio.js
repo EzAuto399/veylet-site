@@ -68,9 +68,9 @@
   // the provider, price, allowance and dates already stored for their agreement.
   const PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // Annual rows use a yearly pool of 24. Existing rows continue to display the
+  // Annual rows use a yearly pool of 20. Existing rows continue to display the
   // exact cadence, price and allowance already recorded for them.
-  const YEARLY_POOL = 24;
+  const YEARLY_POOL = 20;
   const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free 3-pack for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.
@@ -80,8 +80,8 @@
   // office that referred it each get 1 bonus walkthrough, once per referred office.
   // The server grants them when its plan first turns active; the desk is the fallback.
   const REFERRAL_WALKTHROUGHS = 1;
-  const FREE_MONTHS_DEFAULT = 3;
-  const FREE_WALKTHROUGHS_DEFAULT = 6;
+  const FREE_MONTHS_DEFAULT = 1;
+  const FREE_WALKTHROUGHS_DEFAULT = 3;
   // Retired whole-home rule (offer.json retiredTerms): 5 or more bedrooms, a
   // second dwelling or more than 350 m² of floor area counted as 2. Offer
   // 2026-09-27.1 supersedes both this and the later rooms rule for new captures;
@@ -147,7 +147,7 @@
     const number = Number(value);
     return Number.isFinite(number) ? String(number) : DASH;
   }
-  // Offer counts are digits, as on the account desk: "3 free months and 6 walkthroughs".
+  // Offer counts are digits, as on the account desk: "1 free month and 3 walkthroughs".
   function planMonths(value) {
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
@@ -271,7 +271,7 @@
     return Number.isInteger(used) && used >= 0 && used <= FOUNDING_GRANTS_MAX ? used : null;
   }
   function plural(number, word) { return number + ' ' + word + (number === 1 ? '' : 's'); }
-  // The row's own free-months terms, in digits: "3 free months with 6
+  // The row's own free-months terms, in digits: "1 free month with 3
   // walkthroughs" (a total, not a monthly figure). A running row may keep longer
   // terms it started with; a row that cannot say shows nothing.
   function freeMonthsTerms(row) {
@@ -298,7 +298,7 @@
       const months = planMonths(row.trial_months);
       const included = planMonths(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free months and ' + included + ' walkthroughs in total.' } : unavailable;
+        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' walkthroughs in total.' } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -1712,8 +1712,8 @@
 
   /* ---- Super fast renders ----------------------------------------------
    * Owner decision 25 September 2026: processing is automatic; standard
-   * rendering targets 1–2 hours after upload, but pilot turnaround is not yet
-   * established, and no person checks a walkthrough. A Super fast render (code name
+   * rendering has no time promise until pilot turnaround is measured,
+   * and no person checks a walkthrough. A Super fast render (code name
    * express, A$29, website only) runs first on the fastest GPU in Australia and
    * is ready for review within 30 minutes of the upload finishing, any day, any
    * time, or it is refunded automatically (the A$29, or the bonus render

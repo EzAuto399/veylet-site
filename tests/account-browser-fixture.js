@@ -418,15 +418,15 @@
   if (scenario === 'new') { properties.length = 0; tours.length = 0; }
   if (['managed', 'qualified'].includes(scenario)) tours.length = 0;
   if (['draft', 'processing', 'revoked'].includes(scenario)) tours[0].status = scenario;
-  // Plan fixtures (offer 2026-09-25.2). Three free months with six walkthroughs
+  // Plan fixtures (offer 2026-09-28.1). One free month with three walkthroughs
   // in total, started by activating the plan and renewing afterwards; the one
   // Veylet plan (code solo), monthly or annual; a source that decides which price
   // is true; retired Team rows that must still read by their own name; and a
   // failed lookup that must read as unavailable. `?case=plan-monthly-banked` is an
   // active monthly plan (2 a month) with 2 walkthroughs banked (at most 4);
-  // `?case=plan-annual-pool` an active annual plan with 5 of its 24 yearly walkthroughs
-  // used, and `?case=plan-annual-bonus` the same with the early-annual bonus's 4
-  // walkthroughs as bonus credits (28 in total). `?case=plan-pending` has not started
+  // `?case=plan-annual-pool` an active annual plan with 5 of its 20 yearly walkthroughs
+  // used; the early-annual bonus is retired from 2026-09-28.1, so
+  // `?case=plan-annual-bonus` now reads the same as the pool. `?case=plan-pending` has not started
   // and shows the Start your free months card (see the trial fixtures below).
   // `?annual=` forces an annual plan card state and, unless `?case=plan-…`
   // says otherwise, the plan row that goes with it (see the annual fixtures below).
@@ -438,13 +438,13 @@
     'start-failed': 'ended', 'start-failed-retrying': 'ended' };
   const planCase = scenario.startsWith('plan-') ? scenario.slice(5) : ANNUAL_PLAN_ROW[annualCase] || 'trial';
   const planBase = {
-    workspace_id: 'synthetic-workspace', plan_code: 'solo', source: 'studio', trial_months: 3,
-    trial_included_walkthroughs: 6, accepted_in_free_months: 2, extras_in_free_months: 0,
+    workspace_id: 'synthetic-workspace', plan_code: 'solo', source: 'studio', trial_months: 1,
+    trial_included_walkthroughs: 3, accepted_in_free_months: 2, extras_in_free_months: 0,
     included_per_month: 2, accepted_this_period: 0, accepted_total: 4,
     price_aud_cents: 9900, extra_walkthrough_aud_cents: null, hosting_included: true, billing_interval: 'monthly',
-    app_price_aud_cents: 11999, app_extra_walkthrough_aud_cents: null,
+    app_price_aud_cents: 13999, app_extra_walkthrough_aud_cents: null,
     apple_verified: null, apple_product_id: null, auto_renews: true, cancelled_at: null,
-    trial_started_at: '2026-09-01T00:00:00Z', trial_ends_at: '2026-12-01T00:00:00Z',
+    trial_started_at: '2026-09-01T00:00:00Z', trial_ends_at: '2026-10-01T00:00:00Z',
     period_started_at: '2026-09-01T00:00:00Z', period_ends_at: '2026-10-01T00:00:00Z',
     current_period_ends_at: null, updated_at: '2026-09-22T00:00:00Z',
   };
@@ -456,45 +456,45 @@
       accepted_in_free_months: 0, trial_started_at: null, trial_ends_at: null,
       period_started_at: null, period_ends_at: null },
     trial: { ...planBase, status: 'trial' },
-    'trial-ending': { ...planBase, status: 'trial', trial_started_at: '2026-07-20T00:00:00Z', trial_ends_at: '2026-10-20T00:00:00Z' },
+    'trial-ending': { ...planBase, status: 'trial', trial_started_at: '2026-09-20T00:00:00Z', trial_ends_at: '2026-10-20T00:00:00Z' },
     // Started in the app, and not yet confirmed by Apple's server notification.
-    'apple-trial': { ...planBase, ...apple, status: 'trial', apple_verified: false, accepted_in_free_months: 3 },
+    'apple-trial': { ...planBase, ...apple, status: 'trial', apple_verified: false, accepted_in_free_months: 2 },
     active: { ...planBase, ...pastTrial, status: 'active', accepted_this_period: 1, accepted_total: 11,
       current_period_ends_at: '2026-10-01T00:00:00Z' },
     'apple-active': { ...planBase, ...apple, ...pastTrial, status: 'active', apple_verified: true,
-      accepted_this_period: 1, accepted_total: 11, accepted_in_free_months: 6, extras_in_free_months: 1,
+      accepted_this_period: 1, accepted_total: 11, accepted_in_free_months: 3, extras_in_free_months: 0,
       current_period_ends_at: '2026-10-01T00:00:00Z' },
     'web-active': { ...planBase, ...pastTrial, source: 'web', status: 'active', accepted_this_period: 1, accepted_total: 14,
-      accepted_in_free_months: 6, current_period_ends_at: '2026-10-05T00:00:00Z' },
+      accepted_in_free_months: 3, current_period_ends_at: '2026-10-05T00:00:00Z' },
     // Offer 2026-09-25.1: a monthly plan whose unused walkthroughs rolled over (the
-    // capacity answer below banks 2 of at most 3), and an annual plan whose 12 (or 14,
-    // with the early-annual bonus) walkthroughs are one yearly pool.
+    // capacity answer below banks 2 of at most 3), and an annual plan whose
+    // 20 walkthroughs are one yearly pool (the early bonus is retired).
     'monthly-banked': { ...planBase, ...pastTrial, status: 'active', accepted_this_period: 0, accepted_total: 7,
-      accepted_in_free_months: 6, current_period_ends_at: '2026-10-01T00:00:00Z' },
+      accepted_in_free_months: 3, current_period_ends_at: '2026-10-01T00:00:00Z' },
     'annual-pool': { ...planBase, ...pastTrial, source: 'web', status: 'active', billing_interval: 'annual',
-      renewal_price_aud_cents: 99000, included_per_month: 24, accepted_this_period: 5, accepted_total: 11,
-      accepted_in_free_months: 6, current_period_ends_at: '2027-07-15T00:00:00Z' },
+      renewal_price_aud_cents: 139999, included_per_month: 20, accepted_this_period: 5, accepted_total: 11,
+      accepted_in_free_months: 3, current_period_ends_at: '2027-07-15T00:00:00Z' },
     // Retired for new buyers (offer 2026-09-24.2), still read by their own names: an
     // invoiced Team month, and a verified row for the Team annual product (off sale).
     'team-active': { ...planBase, ...pastTrial, plan_code: 'studio', status: 'active', included_per_month: 3, accepted_this_period: 2,
       accepted_total: 12, accepted_in_free_months: 4, trial_included_walkthroughs: 4, price_aud_cents: 18900,
       current_period_ends_at: '2026-10-01T00:00:00Z' },
     'apple-annual': { ...planBase, ...apple, plan_code: 'studio', included_per_month: 3, status: 'active', apple_product_id: 'dev.property3d.capture.plan.annual', billing_interval: 'annual', renewal_price_aud_cents: 318999, apple_environment: 'Sandbox', apple_verified: true, current_period_ends_at: '2027-09-23T00:00:00Z' },
-    'trial-credits': { ...planBase, status: 'trial', accepted_in_free_months: 6 },
+    'trial-credits': { ...planBase, status: 'trial', accepted_in_free_months: 3 },
     // Free months running, nothing accepted yet (an older server kept the annual plan locked here).
     'trial-none': { ...planBase, status: 'trial', accepted_in_free_months: 0, accepted_this_period: 0, accepted_total: 0 },
     // An annual plan running by card (source web): the annual plan card is hidden.
     'web-annual': { ...planBase, ...pastTrial, source: 'web', status: 'active', plan_code: 'solo', billing_interval: 'annual',
-      renewal_price_aud_cents: 99000, accepted_this_period: 1, accepted_total: 8, accepted_in_free_months: 6,
+      renewal_price_aud_cents: 139999, accepted_this_period: 1, accepted_total: 8, accepted_in_free_months: 3,
       current_period_ends_at: '2027-07-15T00:00:00Z' },
-    'trial-exhausted': { ...planBase, status: 'trial', accepted_in_free_months: 6 },
+    'trial-exhausted': { ...planBase, status: 'trial', accepted_in_free_months: 3 },
     'invoice-unknown': { ...planBase, status: 'trial', billing_interval: null },
     ended: { ...planBase, status: 'ended', accepted_this_period: 0, accepted_total: 7,
       trial_started_at: '2026-06-01T00:00:00Z', trial_ends_at: '2026-09-01T00:00:00Z',
       period_started_at: null, period_ends_at: null, auto_renews: false, cancelled_at: '2026-08-25T00:00:00Z' },
     // Cancelled after paying for a while: the plan ended, not the free months.
     'ended-after-active': { ...planBase, source: 'web', status: 'ended', accepted_this_period: 0,
-      accepted_total: 22, accepted_in_free_months: 6,
+      accepted_total: 22, accepted_in_free_months: 3,
       trial_started_at: '2025-12-01T00:00:00Z', trial_ends_at: '2026-03-01T00:00:00Z',
       period_started_at: null, period_ends_at: null, current_period_ends_at: '2026-09-01T00:00:00Z',
       auto_renews: false, cancelled_at: '2026-08-12T00:00:00Z' },
@@ -502,10 +502,10 @@
   planRows['annual-bonus'] = planRows['annual-pool'];
   // What get_walkthrough_capacity appends in migration 20260925100000_offer_v8 (not yet
   // released): allowance_kind, banked_units (inside a monthly plan's included_limit)
-  // and bonus_credits_available (inside extra_credits_available). Offer 2026-09-25.2:
-  // 2 a month plus up to 4 banked, a 24-walkthrough yearly pool, and the early-annual
-  // bonus's 4 walkthroughs as bonus credits. Every other case answers as today's
-  // server does, without these fields.
+  // and bonus_credits_available (inside extra_credits_available). Offer 2026-09-28.1:
+  // 2 a month plus up to 4 banked, a 20-walkthrough yearly pool, and no early-annual
+  // bonus (retired for new agreements; a granted one keeps its terms). Every other
+  // case answers as today's server does, without these fields.
   const CAPACITY_V8 = {
     'monthly-banked': { allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 },
     'annual-pool': { allowance_kind: 'annual_pool', banked_units: 0, bonus_credits_available: 0,
@@ -560,8 +560,8 @@
   ];
 
   if (studioCase === 'invoice') studioAccounts[2].source = 'studio';
-  // Offer 2026-09-25.1 on the studio desk. Three free months with six walkthroughs
-  // for running and never-started free months; the proposed studio_list_accounts
+  // Offer 2026-09-28.1 on the studio desk. One free month with three walkthroughs
+  // for new rows (longer terms keep their own recorded terms); the proposed studio_list_accounts
   // founding fields, with Wren & Fielding the founding workspace (`?studio=founding-spent`
   // has used all four grants, `?studio=founding-unknown` sends no count); `?tier=` sets
   // the annual tier the studio reads (standard, closed or error). `?studio=trial-ended`
@@ -579,7 +579,7 @@
       trial_ends_at: yesterday.toISOString(), accepted_in_free_months: 4, auto_renews: false });
   }
   const studioTier = params.get('tier') || 'standard';
-  // offer.json 2026-09-25.2: A$99 a month and A$990 a year on invoice (the year only while the tier is open).
+  // Legacy agreed invoice rates: A$99 a month and A$990 a year (earlier agreements; new subscriptions use the App Store).
   const STUDIO_INVOICE_CENTS = { monthly: 9900, annual: 99000 };
   const STUDIO_PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
   const studioPackReceipts = new Map(), studioGrantReceipts = new Map(), studioInvoiceReceipts = new Map();
@@ -733,11 +733,12 @@
    * it opens once the free months have started (`locked-start` before them). Every
    * answer carries early_annual_bonus { walkthroughs: 4, express_renders: 4, granted,
    * available }: available while the free months run (dated by starts_on, their
-   * end); `no-bonus` is `renewal-off` with the bonus already granted. Legacy
+   * end), kept for agreements that were granted it before the offer 2026-09-28.1
+   * retirement; `no-bonus` is `renewal-off` with the bonus already granted. Legacy
    * answers an older server may still send: `locked-accept` (an accepted walkthrough
    * still required) and `one-month` (a second tier); `scheduled-team` is a
    * year bought on the retired Team plan, which must still read by its own name.
-   * Dates match the fixture plan rows, whose free months end on 1 December 2026.
+   * Dates match the fixture plan rows, whose free months end on 1 October 2026.
    * No request leaves the page: the hooks origin below is answered here. */
   const brisbaneToday = (() => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -747,8 +748,8 @@
   const annualPlans = months => [
     { code: 'solo', year_cents: 9900 * (12 - months), monthly_cents: 9900, months_free: months, saving_cents: 9900 * months },
   ];
-  const FREE_MONTHS_END = '2026-12-01';
-  // Offer 2026-09-25.2: 4 bonus walkthroughs and 4 express renders for choosing annual early.
+  const FREE_MONTHS_END = '2026-10-01';
+  // Retired bonus figures: only an agreement that was already granted it can still answer available.
   const annualBonusNow = { walkthroughs: 4, express_renders: 4, granted: false, available: true };
   const annualBase = { eligible: true, missing: [], tier: 'standard', plans: annualPlans(2), source: 'apple', plan_status: 'trial',
     apple_auto_renews: true, apple_in_free_trial: true, starts_on: FREE_MONTHS_END, can_start_now: false, free_walkthroughs_remaining: 1,
@@ -820,8 +821,8 @@
   /* Start the free months (offer 2026-09-25.2; get_trial_offer and POST
    * /square/trial/start are proposed names, not yet in the backend). Shown on a
    * pending plan (`?case=plan-pending`). `?trial=` picks the answer: choose (the
-   * default; A$99 a month or A$990 a year, first charge 3 months from today,
-   * Brisbane), used (this agency already had its free months), not-owner (the
+   * default; the legacy card lane's A$99 a month or A$990 a year, first charge
+   * 1 month from today, Brisbane), used (this agency already had its free months), not-owner (the
    * default for `case=operator`), error, loading or missing (the function does not
    * exist yet, so no card). `&trial-start=<error code>|fail` refuses the next start;
    * `&trial-card=open` types the ATO's example ABN and presses the card button once.
@@ -839,9 +840,8 @@
     if (trialStarted) return { eligible: false, missing: ['already_started'], plans: [] };
     if (trialCase === 'used') return { eligible: false, missing: ['trial_used'], plans: [] };
     if (trialCase === 'not-owner') return { eligible: false, missing: ['not_owner'], plans: [] };
-    return { eligible: true, missing: [], months: 3, walkthroughs: 6, first_charge_on: addMonthsDay(brisbaneToday, 3),
-      plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
-      early_annual_bonus: { walkthroughs: 4, express_renders: 4 } };
+    return { eligible: true, missing: [], months: 1, walkthroughs: 3, first_charge_on: addMonthsDay(brisbaneToday, 1),
+      plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 20 }] };
   };
   // Super fast: about 30 minutes, any day, any time.
   const minutesFromNow = minutes => new Date(Date.now() + minutes * 60000).toISOString();

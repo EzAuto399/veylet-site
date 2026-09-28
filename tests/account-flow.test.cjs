@@ -138,11 +138,11 @@ test('an approved operator sees capture preparation only from confirmed producti
   assert.match(unavailable.ids['account-next-step'].all().map(el => el.textContent).join(' '), /approval could not be checked/);
   assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#capture-partners'), false);
 });
-test('processing guidance states a target without promising pilot turnaround', async () => {
+test('processing guidance gives no turnaround time and promises no pilot target', async () => {
   const h = await load({ tours: [{ ...tour, status: 'processing' }] });
   const guidance = h.ids['account-next-step'].all().map(el => el.textContent).join(' ');
-  assert.match(guidance, /Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
-  assert.doesNotMatch(guidance, /usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
+  assert.match(guidance, /We’ll email you when it’s ready\./);
+  assert.doesNotMatch(guidance, /targets 1.?2 hours|usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
 });
 test('tour guidance follows the requested visible tour and never publishes or approves', async () => {
   const target = { ...tour, id: requestedID, status: 'draft' };
@@ -1319,12 +1319,12 @@ test('the terms state the subscription the App Store listing points at', () => {
   for (const phrase of [
     'Last updated 25 September 2026',
     'New subscriptions start in the app through Apple.',
-    '3 calendar months free with 6 accepted walkthroughs in total',
+    '1 month free with 3 accepted walkthroughs in total',
     'Existing signed App Store, card and invoice agreements retain their agreed dates, prices and allowances.',
     'No new website subscription or automatic transfer from Apple is offered.',
-    'A$119.99 a month or A$1,099.99 upfront a year through the App Store',
-    '3 free months with 6 accepted walkthroughs included',
-    'The first charge is on the day they end, at the price of the plan you chose; if you cancel before then, nothing is charged.',
+    'A$139.99 a month or A$1,399.99 upfront a year through the App Store',
+    '1 free month with 3 accepted walkthroughs included',
+    'The first charge is on the day it ends, at the price of the plan you chose; if you cancel before then, nothing is charged.',
     'A reminder email 7 days before the first charge is planned but not running yet',
     'Cancel any time.',
     'Settings › Subscriptions',
@@ -3071,9 +3071,9 @@ test('offer v8: the free months say “Free until {date}, then {price} unless yo
     assert.ok(body.endsWith('Free until ' + until + ', then ' + price + ' unless you cancel.'), body);
     assert.doesNotMatch(planText(h), /remind/i, 'no reminder email is running yet, so none is promised');
   }
-  // With no workspace yet, the offer's own default: 3 free months with 6 walkthroughs.
+  // With no workspace yet, the offer's own default: 1 free month with 3 walkthroughs.
   const none = await load({ tables: { memberships: { data: [] } } });
-  assert.match(planText(none), /Eligible subscribers can start with 3 free months and 6 walkthroughs in total\./);
+  assert.match(planText(none), /Eligible subscribers can start with 1 free month and 3 walkthroughs in total\./);
   // No string the desk can show mentions a reminder (comments aside).
   assert.doesNotMatch(account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''), /remind/i);
 });
@@ -3738,7 +3738,7 @@ const expressFilled = h => expressNodes(h).filter(el => /\btour-action-primary\b
 const expressClass = (h, name) => expressNodes(h).find(el => (el.className || '').split(' ').includes(name));
 const expressProblem = h => { const box = expressClass(h, 'annual-problem'); return box && !box.hidden ? box.all().find(el => el.className === 'annual-alert-text').textContent : null; };
 const pressExpress = async (h, text) => { await expressButton(h, text).fire('click'); await settle(); };
-const PROMISE = 'First in the queue: ready in about 30 minutes, any day, any time, instead of the usual 1–2 hours. If it isn’t, the A$29 is refunded automatically.';
+const PROMISE = 'First in the queue: ready in about 30 minutes, any day, any time. If it isn’t, the A$29 is refunded automatically.';
 
 test('offer v9: a sent capture’s space offers a super fast render: A$29, when it would be ready, the 30-minute and refund promises, and a quiet action', async () => {
   const h = await withExpress(expressOffer({ captures: [sentCapture({ status: 'processing' })] }));
@@ -3794,7 +3794,7 @@ test('offer v9: an older answer that is full offers nothing to press, keeps the 
   const h = await withExpress(cappedOffer({ taken_today: 5, full_today: true }));
   assert.equal(expressClass(h, 'express-title').textContent, 'Super fast render');
   assert.equal(expressClass(h, 'pill').textContent, 'Not available right now');
-  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
+  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. We’ll email you when it’s ready\./);
   assert.doesNotMatch(expressText(h), /5 a day|full today|taken|business/i);
   assert.equal(expressNodes(h).some(el => el.tagName === 'BUTTON'), false);
   // Refused as full meanwhile: before any charge, and the space offers nothing more.
@@ -3822,7 +3822,7 @@ test('offer 2026-09-26.3: while fast GPUs are not starting quickly (reason capac
   assert.equal(h.ids['account-express-status'].hidden, true, 'a readable answer, not an outage');
   assert.equal(expressClass(h, 'express-title').textContent, 'Super fast render');
   assert.equal(expressClass(h, 'pill').textContent, 'Not available right now');
-  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
+  assert.match(expressText(h), /Super fast isn’t available right now\. Your capture keeps its place\. We’ll email you when it’s ready\./);
   assert.equal(expressNodes(h).some(el => el.tagName === 'BUTTON'), false);
   assert.equal(posts(h, '/square/express/checkout').length, 0);
   // Even with bonus renders left, none is offered while it is unavailable.

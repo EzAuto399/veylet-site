@@ -18,23 +18,26 @@ const PACK_PAID_FIRST = /Pack walkthroughs are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
-test('the canonical offer is 2026-09-27.1 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-28.1 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
   // never in the app. 2026-09-26.3 (owner, offer v9.1) counts walkthroughs by rooms, sells Super fast only
   // while fast GPUs start quickly, opens sign-up to anyone and adds a fair-use cap of 12 render attempts
-  // to the free months. 2026-09-25.2's prices and allowances stand; every earlier version is history.
-  assert.equal(record.version, '2026-09-27.1');
+  // to the free months. 2026-09-28.1 (owner decision record): 1-month free trial with 3 accepted
+  // walkthroughs, A$139.99 monthly, A$1,399.99 yearly for a 20-walkthrough pool, the early-annual
+  // bonus retired for new agreements, no turnaround time promise, and Super fast sold only while
+  // its Sydney GPU-start availability gate is green. Every earlier version is history.
+  assert.equal(record.version, '2026-09-28.1');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1']]);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
   assert.equal(record.freeMonths.fairUse, undefined);
-  assert.equal(record.expressRender.availability, 'only while fast GPUs start quickly');
+  assert.equal(record.expressRender.availability, 'only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
   assert.equal(record.expressRender.unavailableText, "Super fast isn't available right now");
-  assert.match(record.expressRender.availabilityRule, /fast GPUs in Sydney are starting quickly.*nothing is charged/);
+  assert.match(record.expressRender.availabilityRule, /its availability gate is green: the 7-day Sydney GPU-start probe.*nothing is charged/);
   assert.match(record.expressRender.refundPromise, /^unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically$/);
   assert.equal(record.freeMonths.hostingDaysAfterPlanEnds, 14);
   assert.equal(record.services.hostingPerWalkthroughPerFurtherYearAud, 49, 'the hosting extension is on sale again');
@@ -51,13 +54,13 @@ test('the canonical offer is 2026-09-27.1 and separates payment channels and una
   assert.deepEqual(record.retiredPlans.codes, ['studio', 'office', 'one', 'founding']);
   assert.deepEqual(record.appStore.sold, ['soloMonthly', 'soloAnnual']);
   assert.equal(record.appStore.annualSoldInApp, true);
-  assert.deepEqual(record.appStore.introductoryOffer, { type: 'free_trial', months: 3, oncePerAppleId: true });
-  assert.equal(record.freeMonths.months, 3);
-  assert.equal(record.freeMonths.includedWalkthroughs, 6);
+  assert.deepEqual(record.appStore.introductoryOffer, { type: 'free_trial', months: 1, oncePerAppleId: true });
+  assert.equal(record.freeMonths.months, 1);
+  assert.equal(record.freeMonths.includedWalkthroughs, 3);
   // Offer 2026-09-25.2: every channel starts with a payment method on file; renewal stays per channel.
   assert.equal(record.freeMonths.cardRequired, true);
   assert.deepEqual(record.freeMonths.cardOnFile, { required: true,
-    appStore: "Apple's 3-month free introductory offer (a payment method on the Apple Account is required)",
+    appStore: "Apple's 1-month free introductory offer (a payment method on the Apple Account is required)",
     web: "not offered for new subscriptions",
     invoice: 'existing agreed terms only' });
   assert.equal(record.freeMonths.autoRenews, null);
@@ -78,12 +81,13 @@ test('the canonical offer is 2026-09-27.1 and separates payment channels and una
   assert.match(record.freeMonths.morePacks, /walkthrough packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
     annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 119.99, appAud: 119.99, includedPerMonth: 2, annualAud: 1099.99, annualAppAud: 1099.99, annualIncluded: 24, maxBanked: 4 });
-  assert.deepEqual([bonus, bonusExpress], [4, 4]);
+  { webAud: 119.99, appAud: 139.99, includedPerMonth: 2, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 20, maxBanked: 4 });
+  assert.deepEqual([bonus, bonusExpress], [4, 4], 'a bonus already granted keeps its terms');
+  assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
     { name: 'Super fast render', webAud: 29, appStore: false, dailyCap: null });
   assert.deepEqual(record.processing, { automatic: true,
-    turnaround: 'Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. No person checks it.',
+    turnaround: "Standard rendering: we'll email you when it's ready; no time promise until pilot turnaround is measured. No person checks it.",
     qualityGate: 'an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving',
     approval: 'the account reviews and approves before sharing' });
   assert.match(record.anchor.sourceDoc, /^property-3d-studio\/docs\/pricing-and-unit-economics\.md$/);
@@ -123,7 +127,7 @@ test('current sales and onboarding copy cannot restore universal trial, a member
       `${file} leaves capture-quality assessment with the automatic check`);
     assert.doesNotMatch(current[file], /studio assess(?:es)? capture quality|(?<!no )person checks|checked by a person/i, `${file} puts a person back in the loop`);
   }
-  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers receive 3 free months/);
+  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers receive 1 free month with 3 accepted walkthroughs/);
   // Only the website annual is stated as months free, and only with the annual named beside it.
   for (const file of ['dist/offer/index.html', 'dist/index.html', 'dist/llms.txt']) {
     for (const match of current[file].matchAll(/[^.]*\b2 months free\b[^.]*/g)) {
@@ -161,7 +165,7 @@ test('service units: one accepted capture is one unit; correction and recapture 
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
   assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
   assert.doesNotMatch(current['dist/offer/index.html'], /12 render attempts|fair.use cap/i);
-  assert.match(current['dist/offer/index.html'], /Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren’t, your account says “Super fast isn’t available right now” and nothing is charged\./);
+  assert.match(current['dist/offer/index.html'], /Super fast is sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data, your account says “Super fast isn’t available right now” and nothing is charged\./);
   assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
 });
 

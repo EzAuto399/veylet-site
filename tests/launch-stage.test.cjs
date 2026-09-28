@@ -203,8 +203,8 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
   }
   const lidarGuide = flatText(read('guides/iphone-lidar-vs-matterport/index.html'));
   assert.ok(lidarGuide.includes(SEND), `iPhone LiDAR guide says: ${SEND}`);
-  assert.ok(lidarGuide.includes('Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.'),
-    'iPhone LiDAR guide describes the target without promising pilot turnaround');
+  assert.ok(lidarGuide.includes('We’ll email you when it’s ready.'),
+    'iPhone LiDAR guide describes the wait without promising a turnaround');
   assert.match(lidarGuide, /automatic quality check stops a render that cannot work/i,
     'iPhone LiDAR guide identifies a hard quality failure');
   assert.match(lidarGuide, /Other findings .* do not block the render: they are flagged for you to check before approval\./,

@@ -118,13 +118,13 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-27.1, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-27.1');
+test('every price on the page is offer.json 2026-09-28.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-09-28.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
-    'see-hero-month': aud(plan.webAud),
+    'see-hero-month': aud(plan.appAud),
     'see-free': 'A$0',
-    'see-plan-month': aud(plan.webAud),
+    'see-plan-month': aud(plan.appAud),
     'see-plan-year': aud(plan.annualAud),
     'see-plan-month-app': aud(plan.appAud),
   });
@@ -134,7 +134,7 @@ test('every price on the page is offer.json 2026-09-27.1, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  assert.equal(heroLine, `${offer.freeMonths.months} free months · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.appAud)} a month through the App Store`);
+  assert.equal(heroLine, `${offer.freeMonths.months} free month${offer.freeMonths.months === 1 ? '' : 's'} · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.appAud)} a month through the App Store`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
@@ -143,7 +143,7 @@ test('every price on the page is offer.json 2026-09-27.1, set on data-price elem
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
   assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
-  assert.ok(terms.includes(`${offer.freeMonths.months} free months`));
+  assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
   assert.ok(terms.includes('included in the plan when video exports open'), 'listing videos are qualified');
   assert.ok(terms.includes('New accounts are admitted weekly. You need an iPhone Pro or iPad Pro with LiDAR.'));
@@ -157,7 +157,7 @@ test('every price on the page is offer.json 2026-09-27.1, set on data-price elem
 test('the main action is Join the waitlist, to /waitlist, everywhere it appears', () => {
   const actions = element('data-hero-actions', 'div');
   assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist">Join the waitlist <span class="icon-arrow"/);
-  assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the 3 free months<\/a>/);
+  assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the free month<\/a>/);
   const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)">([^<]+)</g)].map(match => [match[1], match[2].trim()]);
   assert.ok(buttons.length >= 3);
   for (const [href, words] of buttons) assert.deepEqual([href, words], ['/waitlist', 'Join the waitlist']);

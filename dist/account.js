@@ -578,7 +578,7 @@
       }
       const actions = {
         draft: ['Your walkthrough is at its quality check.', 'Rendering, step 5 of 5: Checking quality. The check is automatic; the walkthrough opens for your review once it passes. You can open its preview below.', 'Open walkthrough details'],
-        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. Refresh to check for an update.', 'Refresh progress'],
+        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. We’ll email you when it’s ready. Refresh to check for an update.', 'Refresh progress'],
         revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
       };
       const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
@@ -1930,11 +1930,11 @@
   }
 
   /* ---- Your plan -------------------------------------------------------
-   * Three free months with six walkthroughs in total, started by activating the
+   * One free month with three walkthroughs in total, started by activating the
    * plan with a payment method on file, then the Veylet plan unless cancelled
-   * before the first charge on the day they end (offer 2026-09-25.2): monthly,
+   * before the first charge on the day it ends (offer 2026-09-25.2): monthly,
    * two walkthroughs a month where unused ones roll over (at most four banked),
-   * or annual, a yearly pool of 24 walkthroughs. This panel only reports what get_workspace_plan
+   * or annual, a yearly pool of 20 walkthroughs. This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
@@ -1961,9 +1961,9 @@
   // The App Store sells the Veylet plan monthly and annual (appStore.sold); the
   // two Team IDs stay mapped so an existing verified row still reads correctly.
   const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
-  // offer.json freeMonths: 3 months, 6 walkthroughs in total.
-  const PLAN_DEFAULT_TRIAL_MONTHS = 3;
-  const PLAN_DEFAULT_TRIAL_WALKTHROUGHS = 6;
+  // offer.json freeMonths: 1 month, 3 walkthroughs in total.
+  const PLAN_DEFAULT_TRIAL_MONTHS = 1;
+  const PLAN_DEFAULT_TRIAL_WALKTHROUGHS = 3;
   const PLAN_DASH = '—';
   const PLAN_TEST_ALLOWANCE = 'Production walkthroughs are not included in a sandbox subscription.';
   // Sandbox reads the same way on the plan and on both cards: "Test ·", then what is not live.
@@ -1983,7 +1983,7 @@
     const count = Number(value);
     return Number.isFinite(count) ? String(count) : PLAN_DASH;
   }
-  /** Format integer cents, including a legacy A$99 invoice from offer 2026-09-25.2 or a current A$119.99 price. */
+  /** Format integer cents, including a legacy A$99 invoice from offer 2026-09-25.2 or a current A$139.99 price. */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';
@@ -2072,7 +2072,7 @@
       const months = planMonths(row.trial_months);
       const included = planMonths(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free months and ' + included + ' walkthroughs in total.' } : unavailable;
+        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' walkthroughs in total.' } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -4081,7 +4081,7 @@
   /* ---- Super fast render (code: express) ----------------------------------
    * Offer 2026-09-25.2, owner decision 25 September: a capture that has been sent
    * (queued or processing) can go first in the queue on the fastest GPU available,
-   * ready in about 30 minutes any day, any time, instead of the usual 1–2 hours, for
+   * ready in about 30 minutes any day, any time, for
    * A$29 by card on this website or with a render from the early-annual bonus. If it
    * is late the A$29 is refunded automatically, or the bonus render is returned.
    * There is no daily cap and no business hours. Which captures are open, when a
@@ -4104,7 +4104,7 @@
   const EXPRESS_REFUSALS = {
     full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     express_full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
-    // Offer 2026-09-26.3: sold only while fast GPUs start quickly (20260926140000, reason 'capacity').
+    // Availability gate: sold only while the Sydney GPU-start probe is green (20260926140000, reason 'capacity').
     capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     express_capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     already_express: 'This capture is already super fast, so nothing more was charged.',
@@ -4139,7 +4139,7 @@
       && (order.refund === null || order.refund === undefined || EXPRESS_REFUNDS.includes(order.refund))
       && (order.state !== 'met' || Boolean(expressMoment(order.completed_at)));
   }
-  // Offer 2026-09-26.3 (20260926140000): while fast GPUs are not starting quickly the answer says
+  // Availability gate (20260926140000): while the Sydney GPU-start probe is not green the answer says
   // available false, reason 'capacity', can_order false and no ready_by; nothing is offered to press.
   function expressUnavailable(offer) { return offer.full_today === true || offer.available === false; }
   function expressCaptureValid(capture, unavailable = false) {
@@ -4164,7 +4164,7 @@
   }
   function expressTest() { return express && (express.lane?.sandbox === true || express.sandbox === true) ? 'Test · ' : ''; }
   function expressPromise(offer) {
-    return 'First in the queue: ready in about 30 minutes, any day, any time, instead of the usual 1–2 hours. If it isn’t, the ' +
+    return 'First in the queue: ready in about 30 minutes, any day, any time. If it isn’t, the ' +
       planMoney(offer.price_cents) + ' is refunded automatically.';
   }
   function expressCharge(offer, capture) {
@@ -4207,7 +4207,7 @@
     if (expressUnavailable(offer)) {
       head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
       parts.push(head);
-      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.');
+      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place. We’ll email you when it’s ready.');
       // Refused as full after pressing: the reason stays beside it until the next read.
       if (problemText) parts.push(annualAlert(problemText, 'annual-alert annual-problem'));
       return parts;

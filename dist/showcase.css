@@ -942,7 +942,7 @@
   max-width: none;
 }
 @media (min-width: 1001px) {
-  /* The 3 free months read as one short column, earliest first, set smaller than the paid line. */
+  /* The free month reads as one short column, earliest first, set smaller than the paid line. */
   .offer-page .statement-lines > [data-free-month] {
     padding-block: 10px;
   }

@@ -149,7 +149,7 @@ test('the studio desk and the account desk use one vocabulary, written once each
     "{ 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] }",
     "'Free months ended '", "'Plan ended '",
     "'Review the available plan. Eligible subscribers can start with '",
-    "' free months and '", "' walkthroughs in total.'",
+    "' free month' + (months === '1' ? '' : 's') + ' and '", "' walkthroughs in total.'",
     // Offer 2026-09-26.1: hosting follows the plan; offline 14 days after it ends, links restored on restart.
     "'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.'",
     "' free walkthroughs used. '",
@@ -401,9 +401,9 @@ test('the desk says where each account is billed, how far into its free walkthro
   assert.deepEqual(source(0), ['App Store', 'unverified'], 'an unconfirmed Apple purchase says so');
   assert.deepEqual(source(1), ['Studio', '']);
   assert.deepEqual(source(2), ['Website', '']);
-  // The allowance is the row's own: six for running and new free months, and the
+  // The allowance is the row's own: three for running and new free months, and the
   // four an account kept when its free months ended before the offer changed.
-  assert.equal(offer.freeMonths.includedWalkthroughs, 6);
+  assert.equal(offer.freeMonths.includedWalkthroughs, 3);
   const free = index => rows[index].children[COL.freeWalkthroughs].children.map(el => el.textContent);
   assert.deepEqual(free(0), ['3 / 6', '']);
   assert.deepEqual(free(1), ['4 / 4', '2 beyond included; check agreed billing']);
@@ -1076,13 +1076,13 @@ test('a forged plan migration is refused before any write', async () => {
   assert.match(resultOf(form), /Keep this account's existing plan\. New subscriptions and plan choices start in the App Store\./);
 });
 
-test('Set plan falls back to 3 free months and 6 free walkthroughs when the row cannot say', async () => {
-  assert.deepEqual([offer.freeMonths.months, offer.freeMonths.includedWalkthroughs], [3, 6]);
+test('Set plan falls back to 1 free month and 3 free walkthroughs when the row cannot say', async () => {
+  assert.deepEqual([offer.freeMonths.months, offer.freeMonths.includedWalkthroughs], [1, 3]);
   assert.match(script, new RegExp(`const FREE_MONTHS_DEFAULT = ${offer.freeMonths.months};`));
   assert.match(script, new RegExp(`const FREE_WALKTHROUGHS_DEFAULT = ${offer.freeMonths.includedWalkthroughs};`));
   const h = await load({ accounts: oneAccount({ source: 'studio', trial_months: null, trial_included_walkthroughs: null }) });
   const [months, included] = h.formFor(0).all().filter(el => el.type === 'number');
-  assert.deepEqual([months.value, included.value], ['3', '6']);
+  assert.deepEqual([months.value, included.value], ['1', '3']);
   // A row that cannot state its terms states none, rather than the defaults.
   assert.equal(h.dataRows()[0].children[COL.freeMonths].children[1].textContent, '');
 });
@@ -2312,8 +2312,9 @@ test('offer v9: the Super fast band lists open renders soonest due first, then a
   // The offer record agrees: A$29, no daily cap, refunded if not ready 30 minutes after the upload finishes.
   assert.deepEqual([OFFER.express, OFFER.expressCap], [2900, null]);
   assert.match(offer.expressRender.refund, /isn't ready for review within 30 minutes of the upload finishing/);
-  // Offer 2026-09-26.3: sold only while fast GPUs start quickly; an order already taken keeps its refund promise.
-  assert.equal(offer.expressRender.availability, 'only while fast GPUs start quickly');
+  // Offer 2026-09-28.1: sold only while its availability gate is green (the 7-day Sydney GPU-start probe);
+  // an order already taken keeps its refund promise.
+  assert.equal(offer.expressRender.availability, 'only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
   assert.match(offer.expressRender.refundPromise, /^unchanged for orders taken/);
   const h = await load({ express: expressOrders() });
   assert.deepEqual(h.calls.filter(([name]) => name === 'studio_express_queue').map(([, args]) => args), [undefined]);
@@ -2381,7 +2382,7 @@ test('offer v9: the capture queue names a Super fast job first, as Super fast, a
   const classes = h.ids['studio-sla-body'].all().filter(el => el.tagName === 'H4').map(el => el.textContent);
   assert.deepEqual(classes, ['Super fast renders · 30-minute target', 'Founding accounts · 12-hour escalation threshold', 'Everyone else · 24-hour escalation threshold']);
   const queueCopy = markup.replace(/\s+/g, ' ');
-  assert.match(queueCopy, /Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./);
+  assert.match(queueCopy, /Processing is automatic\. We’ll email you when it’s ready\./);
   assert.match(queueCopy, /The 6-hour mark is a queue-promotion threshold: a waiting job is no longer passed over\./);
   assert.match(queueCopy, /The 12-hour founding and 24-hour standard marks are queue and escalation thresholds, not proven ready times\./);
   assert.match(queueCopy, /Super fast keeps its separate 30-minute promise\./);

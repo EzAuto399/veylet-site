@@ -126,7 +126,7 @@
 .statement-lines > .line-total .line-when { font-weight: 500; }
 .statement-until { min-height: 22px; margin: 12px 0 0; font-size: 15px; font-weight: 500; }
 .statement-until:empty { display: none; }
-/* The allowance is the one fact the dated rows cannot show: 6 in total across the 3 free months. */
+/* The allowance is the one fact the dated rows cannot show: 3 in total across the free month. */
 .statement-allowance { font-size: 15px; line-height: 1.6; color: var(--ink); margin: 14px 0 0; }
 .statement-includes, .statement-note { font-size: 14px; line-height: 1.6; color: var(--muted); margin: 14px 0 0; }
 .statement-includes strong, .statement-note strong { color: var(--ink); font-weight: 500; }

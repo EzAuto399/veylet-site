@@ -3,11 +3,11 @@
 // Without JavaScript the page keeps an explicitly labelled example: the Veylet plan by
 // monthly billing through the App Store, with no pack. The plan is billed monthly or
 // annually: monthly pays each paid month after the free months; annual
-// pays one year, once, on the day the free months end, and that year runs past month twelve.
+// pays one year, once, on the day the free month ends, and that year runs past month twelve.
 // Nothing is charged during the free months; the first charge is on the day they end. A
 // walkthrough pack is optional and bought once, at its website (card or invoice) price on
 // a separate transaction. Pack in-app purchase is unavailable in this app version and arrives in a later version.
-function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 3, packPrice = 0 }) {
+function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 1, packPrice = 0 }) {
   const packCents = Math.round(Number(packPrice) * 100);
   if (channel !== 'apple' || !['monthly', 'annual'].includes(cadence)
       || !Number.isFinite(packCents) || packCents < 0
@@ -41,13 +41,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const count = code ? Number(data[code + 'Walkthroughs']) : 0;
     const valid = Number(data.packValidMonths);
     const sizes = PACKS.every(key => Number(data[key + 'Walkthroughs']) > 0);
-    const [free, included, banked, pool, bonus, bonusExpress] = [data.freeIncluded, data.planIncluded, data.planBankedMax,
-      data.planYearIncluded, data.earlyAnnualBonus, data.earlyAnnualExpress].map(Number);
+    const [free, included, banked, pool] = [data.freeIncluded, data.planIncluded, data.planBankedMax,
+      data.planYearIncluded].map(Number);
     const cost = offerTotal({ channel: channel.value, cadence: annual ? 'annual' : 'monthly',
       monthly: data.planAppMonth, annual: data.planAppYear,
       freeMonths: months, packPrice: code ? data[code + 'Web'] : 0 });
     if (!cost || !sizes || !(valid > 0) || (code && !(count > 0 && cost.packCents > 0))
-        || ![free, included, banked, pool, bonus, bonusExpress].every(n => Number.isInteger(n) && n > 0)) return;
+        || ![free, included, banked, pool].every(n => Number.isInteger(n) && n > 0)) return;
     // Annual savings are separate from introductory eligibility; do not round them into free months.
     const monthCents = Math.round(Number(data.planAppMonth) * 100);
     const yearCents = Math.round(Number(data.planAppYear) * 100);
@@ -66,10 +66,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
       ? `1 yearly App Store payment for months ${months + 1} to ${months + 12}`
       : `${paid} monthly App Store payments`;
     put('[data-year-total]', money(cost.firstTwelveMonthsCents));
-    put('[data-total-caption]', code ? `${months} free months, ${payments} and the pack` : `${months} free months, then ${payments}`);
-    const freePart = `${free} accepted walkthroughs in total during the ${months} free months.`;
+    const freeLabel = `${months} free month${months === 1 ? '' : 's'}`;
+    put('[data-total-caption]', code ? `${freeLabel}, ${payments} and the pack` : `${freeLabel}, then ${payments}`);
+    const freePart = `${free} accepted walkthroughs in total during the ${months} free month${months === 1 ? '' : 's'}.`;
     const planPart = annual
-      ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years. Choose annual before your free months end and get ${bonus} bonus walkthroughs and ${bonusExpress} Super fast renders in your first plan year, ${pool + bonus} walkthroughs in total.`
+      ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years.`
       : `Then ${included} a month on the plan; unused ones roll over, up to ${banked} banked.`;
     const packPart = code
       ? `The pack adds ${count}, used after the included ones and valid ${valid} months from purchase. You can buy it during the free months; the free-months end date stays the same.`
@@ -80,7 +81,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     put('[data-billing-explanation]', `Illustration for the Veylet plan with an eligible ${months}-month App Store introductory offer, then ${money(cost.billCents)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase.${saving}${code ? ' The one-time pack is a separate website or invoice purchase; it does not recur or change the Apple subscription.' : ''} Nothing is charged by this calculator.`);
   };
   if (!form || !lines || !input) return;
-  const months = Number(lines.dataset.trialMonths) || 3;
+  const months = Number(lines.dataset.trialMonths) || 1;
   const long = new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   const short = new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short' });
   const withYear = new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -122,7 +123,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     }
     lines.dataset.dated = start ? 'true' : 'false';
     // The rule (nothing until the free months end, nothing if cancelled first) is the line above; this one dates it.
-    if (until) until.textContent = start ? `Illustrated first charge: ${long.format(addMonths(start, months))}, the day your free months end.` : '';
+    if (until) until.textContent = start ? `Illustrated first charge: ${long.format(addMonths(start, months))}, the day your free month${months === 1 ? ' ends' : 's end'}.` : '';
     renderCost();
   };
   const today = new Date();

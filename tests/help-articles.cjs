@@ -216,7 +216,7 @@ const ARTICLES = [
   {
     slug: 'render-status', group: 'sending', title: 'What each status means', short: 'Statuses',
     description: 'Uploading, Waiting to render, Rendering steps 1 to 5, Retrying, Needs recapture and Failed: what each means and whether you need to do anything.',
-    lead: 'Rendering and the quality check are automatic. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.',
+    lead: 'Rendering and the quality check are automatic. We’ll email you when it’s ready.',
     body: [{ terms: [
       ['Uploading', 'The capture is still being sent; the percentage shows how much has arrived. Nothing to do. See [sending your capture](help:uploading).'],
       ['Waiting to render', 'Your capture is in line, with your place and the usual start time. Instead of a place, it may say why it is waiting:', [
