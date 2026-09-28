@@ -892,9 +892,10 @@
   /* Why a queued capture waits, and the quality check's advice (migration
    * 20260926110000_admission_and_gate_policy.sql, not released). `?hold=admission|paused|
    * weekly_limit` holds every waiting capture (`?render=waiting`, `all` or `walk`) with that
-   * reason; weekly_limit's until is 3 days from now; trial_limit (20260926140000, offer
-   * 2026-09-26.3: a trial's 12 render attempts are used) has none. `?rooms=1|8|9|17` gives
-   * every capture that many rooms and walkthroughs_used max(1, ceil(rooms / 8)) (1, 1, 2, 3);
+   * reason; weekly_limit's until is 3 days from now. `trial_limit` simulates an older backend:
+   * it includes the retired plan-start fields so the current account UI proves it ignores them,
+   * keeps the capture waiting and offers only a safe status check or support. `?rooms=1|8|9|17` gives
+   * every capture that many rooms and walkthroughs_used 1; room count never changes the unit;
    * without it rooms is null and walkthroughs_used 1. `?flags=all` gives the ready capture
    * (`?render=ready` or `all`) one review flag per advice rule, as the member read names
    * them ({room, reason}: the gate's own reason sentence, no rule), on five named rooms and
@@ -911,17 +912,10 @@
     { room: '', reason: 'We could not find a clear path on the floor from here to the other rooms. Recapture the doorway and the floor between rooms.' },
   ];
   const roomsCase = /^\d+$/.test(params.get('rooms') || '') ? Number(params.get('rooms')) : null;
-  /* "Start my plan today" (draft 20260926141000): with `?hold=trial_limit`, the hold names the plan's
-   * start day and, with `&start-now=web|invoice|declined|pending|refused|closed|not-owner|missing`,
-   * offers the start (start_plan_now true): web charges the saved card (200), invoice waits for the
-   * invoice, declined answers 402, pending 202 every time, refused 409, closed 503, not-owner
-   * refuses the press, missing answers PGRST202 for get_start_plan_now. Without it, start_plan_now
-   * is false (an App Store trial, or before the draft). */
-  const startNowCase = params.get('start-now');
-  const startNowDay = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
+  const legacyPlanStartDay = new Date(Date.now() + 40 * 86400000).toISOString().slice(0, 10);
   const renderHoldOf = status => (status !== 'queued' || !['admission', 'paused', 'weekly_limit', 'trial_limit'].includes(holdCase) ? null
-    : holdCase === 'trial_limit' ? { reason: 'trial_limit', until: startNowDay + 'T00:00:00+10:00', plan_starts_on: startNowDay,
-      message: 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts on ' + startNowDay + '.', start_plan_now: Boolean(startNowCase) }
+    : holdCase === 'trial_limit' ? { reason: 'trial_limit', until: null, plan_starts_on: legacyPlanStartDay,
+      message: 'Legacy trial-limit hold from an older backend.', start_plan_now: true }
       : { reason: holdCase, until: holdCase === 'weekly_limit' ? new Date(Date.now() + 3 * 86400000).toISOString() : null });
   const renderFlagsOf = state => (!['ready_for_review', 'approved', 'live'].includes(state) ? null
     : flagsCase === 'all' ? REVIEW_FLAGS.map(flag => ({ ...flag }))
@@ -952,7 +946,7 @@
     out.hold = renderHoldOf(out.status);
     out.review_flags = renderFlagsOf(out.state);
     out.rooms = roomsCase;
-    out.walkthroughs_used = roomsCase === null ? 1 : Math.max(1, Math.ceil(roomsCase / 8));
+    out.walkthroughs_used = 1;
     if (out.eta_seconds !== null && out.heartbeat_at) out.eta_at = new Date(Date.parse(out.heartbeat_at) + out.eta_seconds * 1000).toISOString();
     if (tour) out.tour_id = renderTourOf(state === 'walk' ? 'ready' : state);
     if (params.get('render-fields') === 'none') Object.assign(out, { step: null, step_label: null, stage: null, progress_pct: null,
@@ -1007,11 +1001,6 @@
     const bearer = /^Bearer \S+$/.test((init.headers && init.headers.Authorization) || '');
     window.VEYLET_QA_CALLS.push({ name: method + ' ' + path, args: body, bearer });
     const reply = (status, value) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
-    if (method === 'POST' && path === '/square/trial/start-now') {
-      if (!bearer) return reply(401, { error: 'unauthorized' });
-      const status = { declined: 402, pending: 202, refused: 409, closed: 503 }[startNowCase] || 200;
-      return reply(status, status === 200 ? { started: true, attempt_id: body?.attempt_id } : status === 202 ? { pending: true } : { error: 'start_now_unavailable' });
-    }
     if (method === 'GET' && path === '/square/lane') {
       if (laneCase === 'error') return reply(503, { error: 'unavailable' });
       const open = laneCase !== 'closed';
@@ -1208,17 +1197,6 @@
     },
     async rpc(name, args) {
       window.VEYLET_QA_CALLS.push({ name, args });
-      if (name === 'get_start_plan_now') {
-        if (startNowCase === 'missing') return { error: { code: 'PGRST202', message: 'Could not find the function public.get_start_plan_now(p_workspace)' } };
-        const lane = startNowCase === 'invoice' ? 'invoice' : 'web';
-        return { data: { available: Boolean(startNowCase), lane, missing: [], plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
-          plan_interval: 'monthly', charge_today: lane === 'web', invoice_today: lane === 'invoice', starts_on: new Date().toISOString().slice(0, 10),
-          free_months_end_on: startNowDay, free_walkthroughs_left: 3, free_walkthroughs_usable_until: startNowDay + 'T00:00:00+10:00', request: null } };
-      }
-      if (name === 'start_plan_now') {
-        if (startNowCase === 'not-owner') return { data: { error: 'not_owner' } };
-        return { data: { attempt_id: 'synthetic-start-now-attempt', lane: startNowCase === 'invoice' ? 'invoice' : 'web', state: 'open' } };
-      }
       if (name === 'get_primary_workspace') return primaryCase === 'office' ? { data: primaryNow } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_primary_workspace' } };
       if (name === 'set_primary_workspace') {
         if (primaryCase !== 'office') return { error: { code: 'PGRST202', message: 'Could not find the function public.set_primary_workspace(p_workspace_id)' } };

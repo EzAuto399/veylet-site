@@ -12,6 +12,10 @@
   // offer), and the plan said in state words only. tests/app-pages.test.cjs
   // renders it and fails on any amount or purchase word.
   const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
+  // New recurring subscriptions are Apple-only. Existing Square billing and
+  // recovery remain available; an open payment lane must not reopen new sales.
+  // The hooks service must enforce the same policy at its authority boundary.
+  const NEW_CARD_SUBSCRIPTIONS_ENABLED = false;
   const statusEl = document.getElementById('account-status');
   const signInForm = document.getElementById('account-sign-in');
   const verifyForm = document.getElementById('account-verify');
@@ -574,7 +578,7 @@
       }
       const actions = {
         draft: ['Your walkthrough is at its quality check.', 'Rendering, step 5 of 5: Checking quality. The check is automatic; the walkthrough opens for your review once it passes. You can open its preview below.', 'Open walkthrough details'],
-        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. It is usually ready for your review within 1–2 hours of the upload finishing; refresh to check for an update.', 'Refresh progress'],
+        processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. Refresh to check for an update.', 'Refresh progress'],
         revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
       };
       const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
@@ -582,9 +586,9 @@
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
-      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See capture preparation', '/start#capture-partners');
+      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#capture-partners');
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background and is usually ready in 1–2 hours.', 'See your first-tour steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-tour steps', '/start');
     }
   }
   function button(label, fn) {
@@ -1979,7 +1983,7 @@
     const count = Number(value);
     return Number.isFinite(count) ? String(count) : PLAN_DASH;
   }
-  /** Integer cents, written the way the invoice would: A$99, or A$119.99. */
+  /** Format integer cents, including a legacy A$99 invoice from offer 2026-09-25.2 or a current A$119.99 price. */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';
@@ -2218,7 +2222,6 @@
       if (ticket !== deskVersion) return;
       row = !failed(reply) ? firstRow(reply.value?.data) : null;
       planEndedKnown(row);
-      planKnown(workspaceID, row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : !workspaceID && !failed(members) ? 'pending' : null;
@@ -2256,7 +2259,6 @@
       row = reply && !failed(reply) ? firstRow(reply.value?.data) : null;
       view = planVocabulary(row);
       planEndedKnown(row);
-      planKnown(workspaceID, row);
     }
     planPanel.setAttribute('aria-busy', 'false');
     // The app leads with the vocabulary title, then the rows, then the sentence.
@@ -2370,7 +2372,7 @@
       const manage = document.createElement('a'); manage.className = 'text-link';
       manage.href = 'https://apps.apple.com/account/subscriptions';
       manage.textContent = 'Manage or cancel in the App Store'; actions.append(manage);
-      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Packs are not sold in the app.');
+      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Walkthrough packs are unavailable in this app version. In-app purchase arrives in a later app version.');
     } else if (['pending', 'ended'].includes(view.status) && source !== 'studio' && source !== 'web') {
       manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install Veylet Capture and sign in with this email. ' +
         'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
@@ -2460,9 +2462,10 @@
       resolve.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20capacity';
       resolve.textContent = 'Resolve walkthrough capacity with Veylet support';
       if (cap.can_accept) {
+        // Release with the authoritative one-capture counting migration; old usage is immutable.
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new walkthrough you approve uses one per 8 rooms (counted automatically); a correction of the same walkthrough, a recapture of the rooms the check names, saving a space or a failed capture uses none.' + counting;
+          'Each new accepted capture uses one walkthrough, regardless of room count. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
@@ -2538,12 +2541,22 @@
     if (offer.missing.includes('already_started')) return 'hidden';
     if (offer.missing.includes('not_owner')) return 'not-owner';
     if (offer.missing.includes('trial_used')) return 'used';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !TRIAL_INTERVALS.includes(offer.checkout_pending?.plan_interval)) return 'hidden';
     if (!lane) return 'lane-error';
     return lane.open ? 'choose' : 'lane-closed';
   }
+  function trialCardAllowed(state) {
+    return Boolean(state) && state.kind === 'choose' && trialValid(state.offer)
+      && state.offer.eligible && (NEW_CARD_SUBSCRIPTIONS_ENABLED ||
+      (TRIAL_INTERVALS.includes(state.offer.checkout_pending?.plan_interval)
+        && state.interval === state.offer.checkout_pending.plan_interval));
+  }
   // Square Sandbox labels every price and payment action, as on the other two card forms.
   function trialTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
-  function trialPlans(state) { return TRIAL_INTERVALS.map(interval => state.offer.plans.find(plan => plan.interval === interval)); }
+  function trialPlans(state) {
+    const intervals = NEW_CARD_SUBSCRIPTIONS_ENABLED ? TRIAL_INTERVALS : [state.offer.checkout_pending?.plan_interval];
+    return intervals.map(interval => state.offer.plans.find(plan => plan.interval === interval)).filter(Boolean);
+  }
   function trialChosen(state) { return trialPlans(state).find(plan => plan.interval === state.interval) || trialPlans(state)[0]; }
   function trialBilling(cents, interval) { return planMoney(cents) + (interval === 'annual' ? ' a year' : ' a month'); }
   function trialCharge(state) {
@@ -2751,7 +2764,8 @@
     // Before the backend has the function there is nothing to start here; that is not an outage.
     if (reply.value?.error?.code === 'PGRST202') { trialHide(); return; }
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane), interval: previous?.interval || 'monthly',
+    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane),
+      interval: (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer?.checkout_pending?.plan_interval) || previous?.interval || 'monthly',
       abn: previous?.abn || '', abnError: false, abnRefused: previous?.abnRefused || null, busy: false, card: null, problem: null, sandbox: false, notice: options.notice || null,
       attemptID: previous?.attemptID || null };
     trialDraw(options.focus);
@@ -2759,7 +2773,7 @@
   // "Add a card and start free months": the ABN first, then Square's card field in the card, with focus in it.
   async function trialOpenCard(control) {
     const state = trial;
-    if (!state || state.busy || state.card || state.kind !== 'choose') return;
+    if (!trialCardAllowed(state) || state.busy || state.card || state.kind !== 'choose') return;
     if (!trialAbnCheck(state, state.refs || {})) { state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
     state.abn = state.refs?.abn?.value ?? state.abn;
     // One card form on the desk at a time.
@@ -2807,7 +2821,7 @@
   // the first charge; the page states the dates the answer carries.
   async function trialConfirmCard(control) {
     const state = trial;
-    if (!state || state.busy || !state.card) return;
+    if (!trialCardAllowed(state) || state.busy || !state.card) return;
     const plan = trialChosen(state);
     const abn = trialAbn(state.abn);
     if (!abn) { state.abnError = true; trialDraw(); state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
@@ -2990,11 +3004,21 @@
     if (offer.start_failed) return 'start-failed';
     if (offer.conflict === true) return lane ? 'conflict' : 'error';
     if (offer.scheduled) return lane ? 'scheduled' : 'error';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer.checkout_pending?.plan_code !== undefined
+        && offer.checkout_pending.plan_code !== ANNUAL_PLAN) return 'retired-pending';
+    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !offer.checkout_pending) return 'new-sales-closed';
     if (offer.tier === 'closed') return 'closed';
     if (offer.missing.includes('free_months_not_started')) return 'locked-start';
     if (offer.missing.includes('no_accepted_walkthrough')) return 'locked-accept';
     if (!offer.eligible || !lane) return 'error';
     return lane.open ? 'unlocked' : 'lane-closed';
+  }
+  function annualCardAllowed(state) {
+    if (!state || !['unlocked', 'start-failed'].includes(state.kind) || !annualValid(state.offer)
+        || state.offer.missing.includes('not_owner')) return false;
+    return NEW_CARD_SUBSCRIPTIONS_ENABLED ||
+      (state.kind === 'start-failed' && state.offer.start_failed?.plan_code === ANNUAL_PLAN) ||
+      (state.kind === 'unlocked' && state.offer.checkout_pending?.plan_code === ANNUAL_PLAN);
   }
   function annualAppleRunning(offer) { return offer.source === 'apple' && ['trial', 'active'].includes(offer.plan_status); }
   // Who acts next: Apple (renewal still on), Square (checkout left open) or the owner (a paused start).
@@ -3263,7 +3287,9 @@
     const after = !annualAppleRunning(offer) ? 'Your current plan is unchanged.'
       : offer.apple_auto_renews === false ? 'Your App Store plan still ends on ' + day + ' unless you turn its renewal back on.'
         : 'Your App Store plan keeps renewing.';
-    const text = annualNode('p', 'annual-confirm', state.kind === 'start-failed'
+    const text = annualNode('p', 'annual-confirm', state.kind === 'retired-pending'
+      ? 'Cancel the unfinished yearly checkout? Its status will be checked before cancellation is confirmed.'
+      : state.kind === 'start-failed'
       ? 'Cancel the yearly plan? Its first charge didn’t go through, so nothing has been charged, and nothing will be. A later yearly plan uses the annual price at that time.'
       : (day ? 'Cancel the yearly plan that starts ' + day + '?' : 'Cancel the paused yearly plan?') +
         ' Nothing has been charged. ' + after + ' A later yearly plan uses the annual price at that time.');
@@ -3277,6 +3303,17 @@
   function annualParts(state, refs) {
     const { kind, offer } = state;
     if (kind === 'active') return null;
+    if (kind === 'new-sales-closed') {
+      const parts = [annualHead('App Store', 'quiet', refs),
+        annualNode('p', 'annual-lead', 'Start or manage your subscription in Veylet Capture on your iPhone or iPad.')];
+      const setup = annualNode('a', 'text-link', 'Open the app setup steps'); setup.href = '/start';
+      parts.push(annualRow(setup));
+      if (state.notice) {
+        const notice = annualNode('p', 'annual-notice', state.notice);
+        notice.tabIndex = -1; refs.title = notice; parts.push(notice);
+      }
+      return parts;
+    }
     const parts = [];
     const begin = (label, tone) => {
       parts.push(annualHead(label, tone, refs));
@@ -3285,6 +3322,16 @@
     const say = (className, text) => parts.push(annualNode('p', className, text));
     // Sandbox is said once, under the heading, before any "Test ·" price or button.
     const testLine = () => { if (annualTest(state)) say('plan-scope plan-test', ANNUAL_TEST_LINE); };
+    if (kind === 'retired-pending') {
+      begin('Unfinished', 'quiet');
+      say('annual-lead', 'This unfinished checkout is for a retired plan. It cannot start a new subscription.');
+      if (state.confirming) parts.push(...annualConfirm(state, refs, ''));
+      else {
+        const cancel = button('Cancel yearly plan', () => { state.confirming = true; annualDraw('confirm'); });
+        refs.cancel = cancel; parts.push(annualRow(cancel));
+      }
+      return parts;
+    }
     if (kind === 'error') {
       begin();
       say('annual-lead', 'Couldn’t check the annual plan.');
@@ -3525,7 +3572,7 @@
   // "Pay yearly by card": load Square's SDK once, open its card field in the card, and move focus into it.
   async function annualOpenCard(control) {
     const state = annual;
-    if (!state || state.busy || state.card || !['unlocked', 'start-failed'].includes(state.kind)) return;
+    if (!annualCardAllowed(state) || state.busy || state.card || !['unlocked', 'start-failed'].includes(state.kind)) return;
     // One card form on the desk at a time: any other open card form is closed first.
     closeCardForms('annual');
     state.busy = true; state.problem = null;
@@ -3569,7 +3616,7 @@
   // "Confirm yearly plan": Square tokenizes the card in its iframe; only that single-use token is sent.
   async function annualConfirmCard(control) {
     const state = annual;
-    if (!state || state.busy || !state.card) return;
+    if (!annualCardAllowed(state) || state.busy || !state.card) return;
     const plan = annualPlan(state);
     const start = annualCanStartNow(state) && state.start !== 'scheduled' ? 'now' : 'scheduled';
     const expected = { plan_code: plan.code, year_cents: plan.year_cents, starts_on: annualStartsToday(state) ? annualToday() : state.offer.starts_on };
@@ -4160,7 +4207,7 @@
     if (expressUnavailable(offer)) {
       head.append(annualNode('p', 'express-title', 'Super fast render'), pill('Not available right now', 'quiet'));
       parts.push(head);
-      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place and is usually ready within 1–2 hours.');
+      say('express-note', 'Super fast isn’t available right now. Your capture keeps its place. Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.');
       // Refused as full after pressing: the reason stays beside it until the next read.
       if (problemText) parts.push(annualAlert(problemText, 'annual-alert annual-problem'));
       return parts;
@@ -5632,6 +5679,7 @@
   const RENDER_ACTIVE = ['uploading', 'waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_EXPRESS = ['waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_SUPPORT_CONTACT = 'mailto:yoda@yodalai.xyz';
+  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.
   const renderSlots = new Map(), renderEmpty = new Map();
@@ -5683,120 +5731,17 @@
    * Why a queued capture waits (migration 20260926110000, hold): admission (the account
    * waits for a rendering place), paused (new renders are paused for everyone) or
    * weekly_limit (this week's renders are used; the next starts at until). The job stays
-   * Waiting to render, with no failure and nothing to press. The contract's words.
+   * Waiting to render, with no failure. An older backend may still answer trial_limit;
+   * the current offer has no render-attempt cap, so that stale hold stays waiting and
+   * offers only a status refresh or support contact. Legacy plan-start fields are ignored.
    */
-  // trial_limit (20260926140000, offer 2026-09-26.3): a trial reached its 12 render attempts
-  // (freeMonths.renderAttemptCap). Still waiting, never Failed: rendering goes on when the plan
-  // starts, on the day the free months end (owner decision 5, 26 September 2026): the hold's
-  // plan_starts_on (draft 20260926141000), else the date this desk read from that workspace's
-  // plan. start_plan_now marks the website card and invoice lanes, which may start it today.
   const RENDER_HOLDS = ['admission', 'paused', 'weekly_limit', 'trial_limit'];
-  // Per workspace: when its free months end, and how its plan is paid (web, studio, apple).
-  const planTrialEnds = new Map(), planLanes = new Map();
-  function planKnown(workspaceID, row) {
-    if (!workspaceID) return;
-    const ends = row && row.status === 'trial' && typeof row.trial_ends_at === 'string' && !Number.isNaN(Date.parse(row.trial_ends_at)) ? row.trial_ends_at : null;
-    const lane = row && PLAN_SOURCES.includes(row.source) ? row.source : null;
-    const changed = planTrialEnds.get(workspaceID) !== ends || planLanes.get(workspaceID) !== lane;
-    planTrialEnds.set(workspaceID, ends); planLanes.set(workspaceID, lane);
-    if (changed && render?.answers) renderDraw();
+  function renderTrialLimitWords() {
+    return 'Your current offer has no render-attempt cap. Check again now; if this capture still waits, contact Veylet support.';
   }
-  function renderTrialLimitWords(hold) {
-    const day = hold.planStarts ? window.VeyletSharing?.hostingDate?.(hold.planStarts) || '' : '';
-    return 'You’ve used this trial’s 12 render attempts. Rendering continues when your plan starts' + (day ? ' on ' + day : '') + '.';
-  }
-  /*
-   * "Start my plan today" (draft 20260926141000_trial_start_now.sql). The hold says whether it is
-   * offered (start_plan_now: website card and invoice lanes only); get_start_plan_now(p_workspace)
-   * reads the server's offer (prices in cents, walkthroughs left and until when). The press records
-   * one attempt (start_plan_now; a repeat press answers the same attempt); the website card lane
-   * then asks the hooks service (POST /square/trial/start-now) to charge the saved card now, and
-   * the invoice lane waits for the studio's invoice. Never on the app's pages; a backend without
-   * the functions (PGRST202) or an offer not available shows the words only.
-   */
-  const startNowOffers = new Map();   // workspace -> { state: 'loading' | 'ready' | 'none', offer }
-  const startNowSaid = new Map();     // workspace -> the last result sentence
-  const START_NOW_RETRIES = 5, START_NOW_RETRY_MS = 3000;
-  function startNowOfferValid(offer) {
-    return Boolean(offer) && typeof offer === 'object' && offer.available === true && ['web', 'invoice'].includes(offer.lane)
-      && Array.isArray(offer.plans) && offer.plans.every(plan => plan && ['monthly', 'annual'].includes(plan.interval) && Number.isInteger(plan.cents) && plan.cents > 0);
-  }
-  function startNowRead(workspaceID, supabase) {
-    if (!workspaceID || !supabase || startNowOffers.has(workspaceID)) return;
-    startNowOffers.set(workspaceID, { state: 'loading', offer: null });
-    void settled(Promise.resolve().then(() => supabase.rpc('get_start_plan_now', { p_workspace: workspaceID }))).then(reply => {
-      const offer = failed(reply) || missingFunction(reply) ? null : firstRow(reply.value?.data);
-      startNowOffers.set(workspaceID, startNowOfferValid(offer) ? { state: 'ready', offer } : { state: 'none', offer: null });
-      if (render?.answers) renderDraw();
-    });
-  }
-  const startNowWait = ms => new Promise(resolve => setTimeout(resolve, ms));
-  async function startNowPress(workspaceID, supabase, control) {
-    const entry = startNowOffers.get(workspaceID);
-    if (!entry || entry.state !== 'ready' || control.disabled) return;
-    const { offer } = entry;
-    control.disabled = true;
-    const say = text => { startNowSaid.set(workspaceID, text); setStatus(text); if (render?.answers) renderDraw(); };
-    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
-    const result = await settled(Promise.resolve().then(() => supabase.rpc('start_plan_now', { p_workspace: workspaceID, p_plan_interval: plan.interval })));
-    if (sessionGone(result)) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
-    if (missingFunction(result)) { startNowOffers.set(workspaceID, { state: 'none', offer: null }); if (render?.answers) renderDraw(); return; }
-    const answer = failed(result) ? null : firstRow(result.value?.data);
-    if (answer?.error === 'not_available') { startNowOffers.set(workspaceID, { state: 'none', offer: null }); startNowSaid.delete(workspaceID); if (render?.answers) renderDraw(); return; }
-    if (answer?.error === 'not_owner') { control.disabled = false; say('Only the account owner can start the plan.'); return; }
-    if (!answer || typeof answer.attempt_id !== 'string' || !answer.attempt_id) { control.disabled = false; say('Your plan didn’t start. Try again or contact support.'); return; }
-    if (answer.state === 'started') { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
-    if ((answer.lane || offer.lane) === 'invoice') { say('We’ll send your invoice; rendering continues once it’s paid.'); return; }
-    // The website card lane: the hooks service charges the saved card now.
-    const token = await annualToken(supabase);
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to start your plan. Nothing was charged.'); return; }
-    for (let attempt = 0; attempt <= START_NOW_RETRIES; attempt++) {
-      const reply = await settled(annualHooks('/square/trial/start-now', { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify({ workspace_id: workspaceID, attempt_id: answer.attempt_id }) }), 30000);
-      const status = reply.timedOut || reply.error ? 0 : reply.value?.status;
-      if (status === 401) { showSignedOut('Your sign-in has expired. Sign in again to start your plan.'); return; }
-      if (status === 200) { say('Your plan has started. Rendering continues.'); await loadDesk(supabase); return; }
-      if (status === 202 && attempt < START_NOW_RETRIES) { await startNowWait(START_NOW_RETRY_MS); continue; }
-      control.disabled = false;
-      if (status === 202) { say('Your plan is still starting. Check again in a minute; nothing is charged twice.'); return; }
-      if (status === 402) { say('Your card was declined. Update it and try again.'); return; }
-      if (status === 409) { say('Your plan didn’t start. Try again or contact support.'); return; }
-      say('Starting your plan isn’t open yet.'); return;
-    }
-  }
-  // The button and its detail, beside the hold: web and invoice lanes only, never on the app's pages.
-  function startPlanTodayParts(hold, supabase) {
-    if (APP_MODE || !hold.startNow || !hold.workspace) return [];
-    const entry = startNowOffers.get(hold.workspace);
-    if (!entry) { startNowRead(hold.workspace, supabase); return []; }
-    const said = startNowSaid.get(hold.workspace);
-    if (entry.state !== 'ready') return [];
-    const { offer } = entry;
-    const plan = offer.plans.find(item => item.interval === offer.plan_interval) || offer.plans[0];
-    const until = window.VeyletSharing?.hostingDate?.(offer.free_walkthroughs_usable_until || offer.free_months_end_on) || '';
-    const detail = annualNode('p', 'render-note', 'Your free months end today and your plan starts now. Walkthroughs left from your free months stay usable until '
-      + (until || 'the day your free months were due to end') + '. The plan is ' + planMoney(plan.cents) + (plan.interval === 'annual' ? ' a year' : ' a month')
-      + (offer.lane === 'invoice' ? ', invoiced today.' : ', charged today to the card on your account.'));
-    const start = button('Start my plan today', () => startNowPress(hold.workspace, supabase, start));
-    start.className = 'tour-action tour-action-primary'; start.dataset.control = 'start-plan-today';
-    const actions = annualNode('p', 'render-actions'); actions.append(start);
-    const parts = [actions, detail];
-    if (said) parts.push(annualNode('p', 'render-note render-start-said', said));
-    return parts;
-  }
-  function renderHold(value, workspaceID = null) {
+  function renderHold(value) {
     if (!value || typeof value !== 'object' || !RENDER_HOLDS.includes(value.reason)) return null;
-    const hold = { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
-    if (value.reason === 'trial_limit') {
-      hold.workspace = workspaceID;
-      const starts = typeof value.plan_starts_on === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.plan_starts_on) ? value.plan_starts_on + 'T00:00:00+10:00' : null;
-      hold.planStarts = starts || (workspaceID ? planTrialEnds.get(workspaceID) || null : null);
-      hold.startNow = value.start_plan_now === true;
-      // What the offer read and the last press said: part of the view, so a change redraws the card.
-      if (hold.startNow && !APP_MODE && workspaceID) { hold.offer = startNowOffers.get(workspaceID)?.state || null; hold.said = startNowSaid.get(workspaceID) || ''; }
-    }
-    return hold;
+    return { reason: value.reason, until: value.reason === 'weekly_limit' && renderTime(value.until) !== null ? value.until : null };
   }
   function renderHoldWords(hold) {
     if (hold.reason === 'admission') return 'We’ll start your render as soon as a rendering place opens for your account.';
@@ -5971,11 +5916,10 @@
   function renderRoom(row, room, index, spaceTitle) {
     const item = annualNode('li', 'render-room');
     // Without a room named, the reason stands alone and the space is what is captured again.
-    item.append(annualNode('p', 'render-line', room.room ? room.room + ': ' + room.reason + '. Recapture this room; it won’t use a walkthrough.'
-      : room.reason + '. Recapture it; it won’t use a walkthrough.'));
+    item.append(annualNode('p', 'render-line', (room.room ? room.room + ': ' : '') + room.reason + '.'));
     const key = row.job_id + '|' + index;
     const how = annualNode('p', 'render-how', 'On your iPhone, open Veylet Capture and choose ' + spaceTitle + '. It shows Needs recapture there too: ' +
-      (room.room ? 'choose Recapture ' + room.room + ', capture the room again' : 'capture it again') + ' and send it. It won’t use a walkthrough.');
+      (room.room ? 'choose Recapture ' + room.room + ', capture the room again' : 'capture it again') + ' and send it.');
     how.id = 'render-how-' + String(row.job_id).slice(0, 8) + '-' + index; how.hidden = !renderOpen.has(key);
     const open = button('Recapture ' + (room.room || spaceTitle), () => {
       const shown = how.hidden;
@@ -6001,7 +5945,7 @@
     // "Ready for your review" is said to whoever reviews; anyone else reads whose it is.
     const others = view.key === 'ready' && !canReview;
     head.append(annualNode('p', 'render-title', others ? 'Ready for review' : RENDER_TITLES[view.key]));
-    const turn = others ? 'With the workspace owner' : view.hold?.reason === 'trial_limit' ? 'Your turn' : RENDER_TURNS[view.key];
+    const turn = others ? 'With the workspace owner' : RENDER_TURNS[view.key];
     if (turn) head.append(pill(turn, turn === 'Your turn' ? 'good' : 'busy'));
     block.append(head);
     const line = text => { const node = annualNode('p', 'render-line', text); block.append(node); return node; };
@@ -6023,7 +5967,11 @@
       case 'waiting': {
         if (view.hold) {
           line(renderHoldWords(view.hold)).classList.add('render-hold');
-          if (view.hold.reason === 'trial_limit') block.append(...startPlanTodayParts(view.hold, render?.supabase));
+          if (view.hold.reason === 'trial_limit') {
+            const check = button('Check again', () => { if (render?.supabase) void loadDesk(render.supabase); });
+            check.className = 'tour-action tour-action-primary'; check.dataset.control = 'render-check-again';
+            const actions = annualNode('p', 'render-actions'); actions.append(check, renderContact(row, false)); block.append(actions);
+          }
           break;
         }
         const words = [view.position ? 'You’re ' + renderOrdinal(view.position) + ' in line.' : '',
@@ -6077,9 +6025,10 @@
           view.rooms.forEach((room, index) => rooms.append(renderRoom(row, room, index, spaceTitle)));
           block.append(rooms);
         } else {
-          line('Some of it needs capturing again; it won’t use a walkthrough. Ask Veylet support what to capture.');
+          line('Some of it needs capturing again. Ask Veylet support what to capture.');
           const actions = annualNode('p', 'render-actions'); actions.append(renderContact(row, true)); block.append(actions);
         }
+        note(RECAPTURE_ALLOWANCE_WORDS);
         break;
       case 'failed': {
         line('Something went wrong on our side. Veylet support has been told; nothing was used.');
@@ -6137,12 +6086,12 @@
     if (!said || said === renderGuideSaid) return;
     renderGuideSaid = said;
     if (said === 'held-trial_limit') {
-      guide('Your capture is waiting to start.', renderTrialLimitWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.');
+      guide('Your capture is waiting to start.', renderTrialLimitWords() + ' Use Check again or Contact Veylet support on ' + moving.title + ' below.');
       return;
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
-      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. Recapturing it won’t use a walkthrough.', 'Show what to recapture', () => {
+      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.', 'Show what to recapture', () => {
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });

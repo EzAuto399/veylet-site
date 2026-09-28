@@ -39,6 +39,42 @@ test('dist/help and dist/app/help are exactly what tests/help-articles.cjs rende
   assert.deepEqual(extra, []);
 });
 
+test('sending help uses status checks and describes standard timing only as an unproved pilot target', () => {
+  for (const base of ['help', 'app/help']) {
+    const uploading = text(read(`${base}/uploading/index.html`));
+    const status = text(read(`${base}/render-status/index.html`));
+    assert.match(uploading, /Send from the app: it uploads in the background\. Check your account for rendering status\./, base);
+    assert.match(status, /Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established\./, base);
+    assert.doesNotMatch(uploading + status, /usually (?:ready(?: in| within)?|within) 1(?:–|-| to )2 hours/i, base);
+  }
+});
+
+test('your-plan mirrors the accepted capture allowance and says exports are not open yet', () => {
+  for (const file of ['help/your-plan/index.html', 'app/help/your-plan/index.html']) {
+    const words = text(main(read(file)));
+    assert.match(words, /One accepted capture uses one walkthrough, regardless of room count\./, file);
+    assert.match(words, /if all rooms do not fit, make more captures\. Each additional capture is another walkthrough with its own link and QR code\./, file);
+    assert.match(words, /permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough\./, file);
+    assert.match(words, /A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver\./, file);
+    assert.doesNotMatch(words, /up to 8 rooms|each further 8 rooms|recapture of the rooms the quality check names, uses none/i, file);
+    assert.match(words, /Listing videos and stills are included in your plan once exports open\. Exports are not open yet\./, file);
+    assert.doesNotMatch(words, /Listing videos and stills are included in your plan\. Files you already downloaded/, file);
+  }
+});
+
+test('render-status and every blocking-fix page state the bounded recapture allowance', () => {
+  const allowance = /This failed attempt uses no walkthrough\. A later accepted new capture uses one\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough\. A partial named-room recapture is not a waiver\./;
+  const slugs = ['render-status', ...help.RECAPTURE_RULES.map(rule => `fix/${rule}`)];
+  for (const base of ['help', 'app/help']) {
+    for (const slug of slugs) {
+      const file = `${base}/${slug}/index.html`;
+      const words = text(main(read(file)));
+      assert.match(words, allowance, file);
+      assert.doesNotMatch(words, /recaptur(?:e this room|e it|ing)[^.]{0,100}(?:won’t|won't|will not) use a walkthrough/i, file);
+    }
+  }
+});
+
 test('each page loads the current bytes of its stylesheets', () => {
   for (const page of pages) {
     const links = [...read(page.file).matchAll(/<link rel="stylesheet" href="\/([\w./-]+)\?v=([a-f\d]{16})">/g)];

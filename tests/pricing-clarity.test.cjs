@@ -18,22 +18,20 @@ const PACK_PAID_FIRST = /Pack walkthroughs are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
-test('the canonical offer is 2026-09-26.3 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-27.1 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
   // never in the app. 2026-09-26.3 (owner, offer v9.1) counts walkthroughs by rooms, sells Super fast only
   // while fast GPUs start quickly, opens sign-up to anyone and adds a fair-use cap of 12 render attempts
   // to the free months. 2026-09-25.2's prices and allowances stand; every earlier version is history.
-  assert.equal(record.version, '2026-09-26.3');
+  assert.equal(record.version, '2026-09-27.1');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1']]);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
-  assert.equal(record.freeMonths.renderAttemptCap, 12);
-  assert.equal(record.freeMonths.fairUse.text, 'up to 12 render attempts during the free months, including retries');
-  assert.equal(record.freeMonths.fairUse.cap, 'freeMonths.renderAttemptCap');
-  assert.match(record.freeMonths.fairUse.kind, /^fair-use line in the terms; an internal cap, not a sold allowance$/);
+  assert.equal(record.freeMonths.renderAttemptCap, undefined);
+  assert.equal(record.freeMonths.fairUse, undefined);
   assert.equal(record.expressRender.availability, 'only while fast GPUs start quickly');
   assert.equal(record.expressRender.unavailableText, "Super fast isn't available right now");
   assert.match(record.expressRender.availabilityRule, /fast GPUs in Sydney are starting quickly.*nothing is charged/);
@@ -60,11 +58,16 @@ test('the canonical offer is 2026-09-26.3 and separates payment channels and una
   assert.equal(record.freeMonths.cardRequired, true);
   assert.deepEqual(record.freeMonths.cardOnFile, { required: true,
     appStore: "Apple's 3-month free introductory offer (a payment method on the Apple Account is required)",
-    web: "Square card on file at trial start; the first charge is scheduled for the day the free months end (Square Sandbox until the card lane opens)",
-    invoice: 'an agreed paid start date in writing' });
+    web: "not offered for new subscriptions",
+    invoice: 'existing agreed terms only' });
   assert.equal(record.freeMonths.autoRenews, null);
   assert.deepEqual(record.freeMonths.autoRenewalByChannel, { appStore: true, websiteCard: true, studioInvoice: false });
   assert.deepEqual(record.freeMonths.earlyPaidSwitchAvailable, { websiteCard: true, studioInvoice: true, appStore: false });
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /capabilities apply only to existing agreements/);
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /with separate consent/);
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /never shortens the free months or starts billing automatically/);
+  assert.deepEqual(record.subscriptionCheckout.newBuyerChannels, ['appStore']);
+  assert.equal(record.subscriptionCheckout.websiteCardEnabled, false);
   // The reminder has a day count but is not running: every surface says planned.
   assert.equal(record.freeMonths.reminderDaysBeforeFirstCharge, 7);
   assert.match(record.freeMonths.reminderStatus, /^planned: reminder email 7 days before the first charge \(not yet operational\)$/);
@@ -75,13 +78,13 @@ test('the canonical offer is 2026-09-26.3 and separates payment channels and una
   assert.match(record.freeMonths.morePacks, /walkthrough packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
     annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 99, appAud: 119.99, includedPerMonth: 2, annualAud: 990, annualAppAud: 1199.99, annualIncluded: 24, maxBanked: 4 });
+  { webAud: 119.99, appAud: 119.99, includedPerMonth: 2, annualAud: 1099.99, annualAppAud: 1099.99, annualIncluded: 24, maxBanked: 4 });
   assert.deepEqual([bonus, bonusExpress], [4, 4]);
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
     { name: 'Super fast render', webAud: 29, appStore: false, dailyCap: null });
   assert.deepEqual(record.processing, { automatic: true,
-    turnaround: 'usually within 1–2 hours of the upload finishing; no person checks it',
-    qualityGate: 'an automatic quality check (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) must pass before the walkthrough appears; otherwise it retries once, then asks for a recapture of the named rooms',
+    turnaround: 'Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established. No person checks it.',
+    qualityGate: 'an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving',
     approval: 'the account reviews and approves before sharing' });
   assert.match(record.anchor.sourceDoc, /^property-3d-studio\/docs\/pricing-and-unit-economics\.md$/);
   assert.equal(record.anchor.checked, '2026-09-13');
@@ -120,7 +123,7 @@ test('current sales and onboarding copy cannot restore universal trial, a member
       `${file} leaves capture-quality assessment with the automatic check`);
     assert.doesNotMatch(current[file], /studio assess(?:es)? capture quality|(?<!no )person checks|checked by a person/i, `${file} puts a person back in the loop`);
   }
-  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers.*agreed invoiced start/);
+  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers receive 3 free months/);
   // Only the website annual is stated as months free, and only with the annual named beside it.
   for (const file of ['dist/offer/index.html', 'dist/index.html', 'dist/llms.txt']) {
     for (const match of current[file].matchAll(/[^.]*\b2 months free\b[^.]*/g)) {
@@ -130,40 +133,43 @@ test('current sales and onboarding copy cannot restore universal trial, a member
   }
 });
 
-// Offer 2026-09-26.3: a property is counted by its rooms: up to 8 rooms is 1 walkthrough, each further 8 rooms 1 more.
-const ROOMS_RULE = /One walkthrough covers up to 8 rooms of one property, counted automatically from your capture; each further 8 rooms uses one more\./;
+// Offer 2026-09-27.1 supersedes the former room multiplier for new accepted captures.
+const CAPTURE_RULE = /One new accepted capture uses one walkthrough, regardless of room count(?:\.|, and)/;
 const RETIRED_HOME_RULE = /5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2/;
 
-test('service units: one accepted walkthrough; a property is counted by its rooms, 8 rooms a walkthrough', () => {
+test('service units: one accepted capture is one unit; correction and recapture use none', () => {
   assert.equal(record.counting.unit, 'accepted_walkthrough');
   assert.equal(record.counting.notGoodEnoughCounts, false);
   const scope = record.walkthroughScope;
-  assert.equal(scope.roomsPerWalkthrough, 8);
-  assert.equal(scope.walkthroughs, 'max(1, ceil(rooms / 8))');
-  assert.equal(scope.rule, 'up to 8 rooms uses 1 walkthrough; each further 8 rooms uses 1 more');
-  assert.match(scope.unit, /^one property: one link and one QR code, counted by the rooms captured$/);
-  assert.match(scope.countedBy, /^the app counts the rooms captured; nothing is declared$/);
-  assert.match(scope.usesNone, /a correction of the same walkthrough, and a recapture of rooms the quality check names/);
+  assert.equal(scope.roomsPerWalkthrough, undefined);
+  assert.equal(scope.unitsPerAcceptedCapture, 1);
+  assert.match(scope.rule, CAPTURE_RULE);
+  assert.equal(scope.unit, 'one accepted capture');
+  assert.match(scope.countedBy, /authoritative acceptance ledger.*quality check and workspace approval/);
+  assert.equal(scope.usesNone, 'a correction of the same walkthrough, and a permitted whole recapture including every original room');
+  assert.match(scope.link, /one link and one QR code per capture/);
+  assert.match(scope.link, /permitted whole recapture including every original room keeps the same link/);
   for (const key of ['countsAsTwo', 'declaredAt']) assert.equal(key in scope, false, `walkthroughScope.${key} is retired`);
   for (const key of ['largeOrMultiLevelMayCountAsTwo', 'largeHomeUnits', 'largeHomeRule']) assert.equal(key in record.counting, false, key);
   assert.equal(record.retiredTerms.items['walkthroughScope.countsAsTwo'], '5 or more bedrooms, a second dwelling, or more than 350 m² of floor area');
-  // The rule, as the offer states it: 1 to 8 rooms is 1 walkthrough, 9 to 16 is 2, 17 is 3.
-  const walkthroughs = (rooms) => Math.max(1, Math.ceil(rooms / scope.roomsPerWalkthrough));
-  assert.deepEqual([0, 1, 8, 9, 16, 17].map(walkthroughs), [1, 1, 1, 2, 2, 3]);
+  assert.match(scope.status, /historical usage is unchanged/);
+  assert.match(record.retiredTerms.rule, /room-count rules are superseded for new captures/);
+  assert.match(record.retiredTerms.rule, /one accepted capture uses one walkthrough/);
+  assert.match(record.retiredTerms.rule, /Historical usage and existing signed agreements remain unchanged/);
   assert.match(record.packRules.unit, /one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none/);
-  assert.match(current['dist/offer/index.html'], ROOMS_RULE, 'the offer page states the rooms rule');
+  assert.match(current['dist/offer/index.html'], CAPTURE_RULE, 'the offer page states the accepted capture rule');
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
-  assert.doesNotMatch(current['dist/offer/index.html'], /One accepted walkthrough uses one allowance unit|scope of larger spaces/i);
-  assert.match(current['dist/offer/index.html'], /Fair use: up to 12 render attempts during the free months, including retries\./);
+  assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
+  assert.doesNotMatch(current['dist/offer/index.html'], /12 render attempts|fair.use cap/i);
   assert.match(current['dist/offer/index.html'], /Super fast is sold only while fast GPUs in Sydney are starting quickly; when they aren’t, your account says “Super fast isn’t available right now” and nothing is charged\./);
   assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
 });
 
-test('the rooms rule reaches /start, /terms and llms.txt, and the bedroom rule it replaces is gone', () => {
+test('the accepted-capture rule reaches /start, /terms and llms.txt without room or bedroom multipliers', () => {
   for (const file of ['dist/start/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
-    assert.match(current[file], /up to 8 rooms/i, `${file} states the rooms rule`);
+    assert.match(current[file], CAPTURE_RULE, `${file} states the accepted-capture rule`);
     assert.doesNotMatch(current[file], RETIRED_HOME_RULE, `${file} still states the retired bedroom rule`);
-    assert.doesNotMatch(current[file], /One accepted walkthrough uses one allowance unit|scope of larger spaces/i, `${file} keeps the retired one-unit wording`);
+    assert.doesNotMatch(current[file], /up to 8 rooms|each further 8 rooms/i, `${file} keeps the superseded room rule`);
   }
 });
 
@@ -173,9 +179,12 @@ test('human and machine summaries keep renewal and exhausted-trial recovery trut
       `${file} must distinguish explicit invoices from Apple renewal`);
   }
   assert.match(current['dist/offer/index.html'], PACK_PAID_FIRST);
-  assert.match(current['dist/llms.txt'], /no automatic debt or early paid trial switch/i);
+  assert.match(current['dist/llms.txt'], /there is no automatic debt/i);
+  assert.match(current['dist/llms.txt'], /New subscriptions use Apple and have no early paid trial switch/);
+  assert.match(current['dist/llms.txt'], /Existing card or invoice trials may start paid service early only with separate consent/);
+  assert.match(current['dist/llms.txt'], /Existing website card subscriptions retain their agreed automatic renewal/);
   assert.match(current['dist/offer/index.html'], /A reminder email 7 days before the first charge is planned but not running yet/);
-  assert.match(current['dist/llms.txt'], /in the app in a later app version/);
+  assert.match(current['dist/llms.txt'], /In-app purchase arrives in a later app version/);
   assert.doesNotMatch(current['dist/llms.txt'], /plan renews afterwards unless cancelled/);
   // No page or summary offers the retired single extra.
   for (const [file, text] of Object.entries(current)) {
@@ -183,12 +192,14 @@ test('human and machine summaries keep renewal and exhausted-trial recovery trut
   }
 });
 
-test('the annual move keeps one public price and requires a server eligibility check', () => {
+test('legacy website annual agreements remain intact but new subscription switches are disabled', () => {
   const members = record.membersAnnual;
-  assert.match(members.status, /^the public annual price \(offer 2026-09-25\.2\); the website card switch flow \(Apple renewal off, scheduled start\) is kept for App Store members moving to the website annual$/);
+  assert.equal(members.newSalesEnabled, false);
+  assert.match(members.status, /legacy website annual agreements only; new subscriptions use the App Store/);
   assert.equal(members.currentTier, 'standard');
-  assert.deepEqual(members.tiers, { standard: { planAud: plan.annualAud, monthsCharged: plan.annualAud / plan.webAud } });
-  assert.match(members.tierRule, /^one public annual price; scheduled or active annual plans keep the price they were bought at$/);
+  assert.deepEqual(members.tiers, { standard: { planAud: 990, monthsCharged: 10 } });
+  assert.match(members.tierRule, /scheduled or active annual plans keep the price they were bought at/);
   assert.deepEqual(members.unlock, { freeMonthsStarted: true, acceptedWalkthroughsAtLeast: 0, checkedBy: 'server, before any checkout or invoice' });
-  assert.match(members.switchFromAppStore, /turns off App Store renewal themselves/);
+  assert.match(members.switchFromAppStore, /cannot be cancelled or paused automatically/);
+  assert.equal(members.startNow, 'not offered for new subscriptions');
 });

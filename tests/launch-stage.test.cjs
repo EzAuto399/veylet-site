@@ -139,7 +139,7 @@ test('sign-in stays at every stage: the email-link form is markup the stage scri
 
 // Owner decisions, 26 September 2026: captures are sent from the app; the public pages have one main
 // path, the waitlist, with the weekly-groups line beside it; /request stays only for existing agreements.
-const SEND = 'Send from the app: it uploads in the background and is usually ready in 1–2 hours.';
+const SEND = 'Send from the app: it uploads in the background. Check your account for rendering status.';
 const flatText = html => html.replace(/<!--[\s\S]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 
 test('home and /start describe sending from the app, and no export or private-transfer route survives', () => {
@@ -150,8 +150,17 @@ test('home and /start describe sending from the app, and no export or private-tr
     assert.match(words, /automatic quality check/, `${page} keeps the automatic quality check`);
   }
   assert.match(flatText(read('start/index.html')), /Review before sharing\./);
-  const uploading = flatText(read('help/uploading/index.html'));
-  assert.ok(uploading.includes(SEND), 'help: sending your capture');
+  for (const page of [
+    'help/uploading/index.html',
+    'app/help/uploading/index.html',
+    'account/index.html',
+    'guides/iphone-lidar-vs-matterport/index.html',
+  ]) {
+    const words = flatText(read(page));
+    assert.ok(words.includes(SEND), `${page} says the complete current sending status`);
+    assert.doesNotMatch(words, /\busually (?:ready(?: in| within)?|within) 1(?:–|-|&ndash;|&#8211;)2 hours\b/i,
+      `${page} does not promise the retired usual turnaround`);
+  }
 });
 
 test('home and /start have one main path, the waitlist, and do not send visitors to the enquiry form', () => {
@@ -192,7 +201,14 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
     assert.ok(words.includes(hosting), `${page}: ${hosting}`);
     assert.doesNotMatch(words, /twelve months after release|agreed private route|send it to the studio|the studio (?:reconstructs|processes)/i, page);
   }
-  assert.ok(flatText(read('guides/iphone-lidar-vs-matterport/index.html')).includes(SEND));
+  const lidarGuide = flatText(read('guides/iphone-lidar-vs-matterport/index.html'));
+  assert.ok(lidarGuide.includes(SEND), `iPhone LiDAR guide says: ${SEND}`);
+  assert.ok(lidarGuide.includes('Standard rendering targets 1–2 hours after upload; pilot turnaround is not yet established.'),
+    'iPhone LiDAR guide describes the target without promising pilot turnaround');
+  assert.match(lidarGuide, /automatic quality check stops a render that cannot work/i,
+    'iPhone LiDAR guide identifies a hard quality failure');
+  assert.match(lidarGuide, /Other findings .* do not block the render: they are flagged for you to check before approval\./,
+    'iPhone LiDAR guide distinguishes advisory review flags');
   for (const page of ['guides/index.html', 'guides/what-is-a-3d-walkthrough/index.html', 'guides/iphone-lidar-vs-matterport/index.html']) {
     assert.doesNotMatch(read(page), /href="\/request/, `${page} does not link /request`);
   }

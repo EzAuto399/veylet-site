@@ -3,7 +3,7 @@
  * Veylet studio desk: the accounts we look after, their free months, and the
  * walkthroughs waiting on us. Everything here is a read except a few deliberate
  * writes, each recording a decision the account has already agreed to: Set
- * plan, a settled invoice (the Veylet plan or a walkthrough pack), a referral
+ * plan, a settled walkthrough-pack invoice, a referral
  * grant, a founding referral grant, a paid hosting extension and a correction
  * recorded against the walkthrough it corrects. Marking a money exception resolved
  * records the reference of what a person already did; it moves no money. This
@@ -63,28 +63,15 @@
   // The App Store sells the Veylet plan monthly and annual; the two Team IDs stay
   // mapped so an existing verified row still reads correctly.
   const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
-  // Offer 2026-09-25.2 invoice amounts in integer cents (offer.json): the Veylet
-  // plan for one month, or for one year at the one public annual price; and the
-  // two walkthrough packs, each valid twelve months after purchase. Every amount
-  // on this desk is formatted from these, and the database re-checks each one
-  // before it records anything.
-  const PLAN_MONTH_CENTS = 9900;
-  const PLAN_YEAR_CENTS = 99000;
+  // Offer 2026-09-27.1 closes new invoice subscriptions. The studio desk records
+  // only the two one-time walkthrough packs; existing subscription rows retain
+  // the provider, price, allowance and dates already stored for their agreement.
   const PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // What the plan includes (offer.json): 2 walkthroughs a month with up to 4
-  // banked, or a yearly pool of 24. A Veylet plan year that starts where the free
-  // months end earns 4 bonus walkthroughs and 4 express renders in its first plan
-  // year, once per workspace: the server grants them when the year starts no later
-  // than one day after the free months' end (studio_activate_invoice_plan).
-  const MONTHLY_INCLUDED = 2;
-  const ROLLOVER_MAX = 4;
+  // Annual rows use a yearly pool of 24. Existing rows continue to display the
+  // exact cadence, price and allowance already recorded for them.
   const YEARLY_POOL = 24;
-  const EARLY_ANNUAL_BONUS = 4;
-  const EARLY_ANNUAL_EXPRESS = 4;
-  // The four things a settled invoice can record. No retired plan is among them:
-  // an existing Team or Office row keeps its terms, but no new invoice is written.
-  const INVOICE_ITEMS = ['solo-monthly', 'solo-annual', 'pack3', 'pack10'];
+  const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free 3-pack for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.
   const FOUNDING_GRANT_PACK = PACKS.pack3;
@@ -93,13 +80,12 @@
   // office that referred it each get 1 bonus walkthrough, once per referred office.
   // The server grants them when its plan first turns active; the desk is the fallback.
   const REFERRAL_WALKTHROUGHS = 1;
-  const EARLY_BONUS_GRACE_MS = 86400000;
   const FREE_MONTHS_DEFAULT = 3;
   const FREE_WALKTHROUGHS_DEFAULT = 6;
   // Retired whole-home rule (offer.json retiredTerms): 5 or more bedrooms, a
-  // second dwelling or more than 350 m² of floor area counts as 2. Offer
-  // 2026-09-26.3 counts new listings by rooms instead; this still governs a
-  // listing declared before the rooms rule began (an older listing).
+  // second dwelling or more than 350 m² of floor area counted as 2. Offer
+  // 2026-09-27.1 supersedes both this and the later rooms rule for new captures;
+  // this remains only to correct historical declarations for older listings.
   const HOME_BEDROOMS_FOR_TWO = 5;
   const HOME_AREA_OVER_M2 = 350;
   const TRIAL_INCLUDED_MAX = 24;
@@ -166,7 +152,7 @@
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
   }
-  /** Integer cents, written the way the invoice would: A$99, or A$119.99. */
+  /** Integer cents, written the way the invoice would. Legacy invoices retain their agreed price. */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';
@@ -256,80 +242,19 @@
     return when.getUTCDate() + ' ' + MONTH_NAMES[when.getUTCMonth()] + ' ' + when.getUTCFullYear();
   }
 
-  /*
-   * One invoiced item: what it is called in the select, what it costs and what
-   * it adds. The plan items carry the plan panel's own words, so the option a
-   * studio member picks reads exactly as the account will then read its plan.
-   */
+  /* One invoiced pack: what it is called, what it costs and what it adds. */
   function invoiceItem(value) {
-    if (value === 'solo-monthly') {
-      return { value, kind: 'plan', interval: 'monthly', cents: PLAN_MONTH_CENTS,
-        label: PLAN_NAMES[PLAN_ON_SALE] + ' · ' + planMoney(PLAN_MONTH_CENTS) + ' a month' };
-    }
-    if (value === 'solo-annual') {
-      return { value, kind: 'plan', interval: 'annual', cents: PLAN_YEAR_CENTS,
-        label: PLAN_NAMES[PLAN_ON_SALE] + ' · ' + planMoney(PLAN_YEAR_CENTS) + ' a year' };
-    }
     if (Object.prototype.hasOwnProperty.call(PACKS, value)) {
       const pack = PACKS[value];
-      return { value, kind: 'pack', code: value, cents: pack.cents, walkthroughs: pack.walkthroughs,
+      return { value, code: value, cents: pack.cents, walkthroughs: pack.walkthroughs,
         label: 'Walkthrough pack · ' + pack.walkthroughs + ' walkthroughs (' + planMoney(pack.cents) + ')' };
     }
     return null;
   }
-  // The free months are running now: started, and ending after this moment.
-  function freeMonthsRunning(row) {
-    return Boolean(row) && moment(row.trial_ends_at) > Date.now();
-  }
-  // The early-annual bonus as the server grants it with a settled annual invoice:
-  // a Veylet plan year starting no later than one day after the free months end.
-  // Informational: the desk never grants it, and the server grants it once per
-  // workspace, so it never claims this workspace has not had it before.
-  const EARLY_ANNUAL_WORDS = 'the server adds the early-annual bonus, once per workspace: ' + EARLY_ANNUAL_BONUS +
-    ' bonus walkthroughs and ' + EARLY_ANNUAL_EXPRESS + ' Super fast renders in the first plan year (' + (YEARLY_POOL + EARLY_ANNUAL_BONUS) + ' walkthroughs in total).';
-  function earlyBonusApplies(row, start) {
-    const ended = moment(row && row.trial_ends_at);
-    return Boolean(row) && Boolean(row.trial_started_at) && ended !== null && ended <= Date.now() &&
-      start instanceof Date && !Number.isNaN(start.getTime()) && start.getTime() <= ended + EARLY_BONUS_GRACE_MS;
-  }
-  // The free months' end as a UTC day an annual invoice may start on: ended, within
-  // the server's 366-day window for a start, and no paid period on record yet.
-  function annualStartDay(row) {
-    const ended = moment(row && row.trial_ends_at);
-    if (!row || !row.trial_started_at || ended === null || ended > Date.now() || ended < Date.now() - 366 * 86400000) return '';
-    if (row.current_period_ends_at !== null && row.current_period_ends_at !== undefined) return '';
-    return new Date(ended).toISOString().slice(0, 10);
-  }
-  function invoiceTerms(item, row, start) {
+  function invoiceTerms(item) {
     if (!item) return 'Choose the item invoiced.';
-    if (item.kind === 'pack') {
-      return planMoney(item.cents) + ' for this invoice: adds ' + item.walkthroughs + ' walkthroughs, valid ' + PACK_VALID_MONTHS +
-        ' months after purchase, used after the free-months or monthly included walkthroughs. A pack is separate from the subscription: no service dates and no renewal.';
-    }
-    if (item.interval === 'annual') {
-      // The months free and the saving, derived from the two invoice prices they are true of.
-      const saving = 12 * PLAN_MONTH_CENTS - item.cents;
-      const monthsFree = saving / PLAN_MONTH_CENTS;
-      // Said only while a start on that day is still possible for this account.
-      const ended = annualStartDay(row) ? planDate(row.trial_ends_at) : '';
-      const early = !ended ? ''
-        : earlyBonusApplies(row, start) ? ' This year starts where the free months ended (' + ended + '), so ' + EARLY_ANNUAL_WORDS
-          : ' Started on the day the free months ended (' + ended + '), ' + EARLY_ANNUAL_WORDS;
-      return planMoney(item.cents) + ' for this invoice: one year of the ' + PLAN_NAMES[PLAN_ON_SALE] + ', ' + monthsFree + ' months free (' +
-        planMoney(saving) + ' less than 12 monthly payments of ' + planMoney(PLAN_MONTH_CENTS) + '). ' + YEARLY_POOL +
-        ' walkthroughs a year to use any time: a yearly pool, no monthly limit, reset at each plan-year anniversary, no rollover between years.' +
-        early + ' No automatic renewal.';
-    }
-    return planMoney(item.cents) + ' for this invoice: one month of the ' + PLAN_NAMES[PLAN_ON_SALE] + '. ' + MONTHLY_INCLUDED +
-      ' walkthroughs a month; unused ones roll over, up to ' + ROLLOVER_MAX + ' banked. No automatic renewal.';
-  }
-  // The end of a service period, one month or one UTC year on, clamped to the
-  // month's last day the way the server adds an interval.
-  function addMonthsUTC(when, months) {
-    const month = when.getUTCMonth() + months;
-    const last = new Date(Date.UTC(when.getUTCFullYear(), month + 1, 0)).getUTCDate();
-    return new Date(Date.UTC(when.getUTCFullYear(), month, Math.min(when.getUTCDate(), last),
-      when.getUTCHours(), when.getUTCMinutes(), when.getUTCSeconds(), when.getUTCMilliseconds()));
+    return planMoney(item.cents) + ' for this invoice: adds ' + item.walkthroughs + ' walkthroughs, valid ' + PACK_VALID_MONTHS +
+      ' months after purchase, used after free-months, monthly (including banked) or annual-pool included walkthroughs. A pack is separate from the subscription: no service dates and no renewal.';
   }
   // A pack counts as recorded only when the server credited exactly this pack.
   function packConfirmed(answer, item) {
@@ -600,8 +525,8 @@
     const sourceNote = element('span', 'studio-field-note', 'An App Store subscription is changed in the App Store.');
     sourceNote.hidden = true;
     sourceLabel.append(sourceNote);
-    // The choices are written by paint(): the one plan on sale, plus this row's
-    // own retired plan when it has one.
+    // The stored plan is shown for identification only. New subscriptions are
+    // chosen in the App Store, never in this generic studio status form.
     const planLabel = element('label', 'studio-inline-field', 'Plan');
     const planSelect = document.createElement('select');
     planLabel.append(planSelect);
@@ -642,20 +567,20 @@
     result.setAttribute('role', 'status');
     const saveRow = element('p', 'studio-save-row');
     saveRow.append(save, result);
-    const warning = element('p', 'studio-warning', 'This form sets or ends studio free months. Paid service requires the settled invoice form below. App Store and card subscriptions remain with their billing provider. Studio invoices do not renew automatically.');
+    const warning = element('p', 'studio-warning', 'This form may maintain or end existing studio free months; it cannot start or replace a subscription. New subscriptions start in the App Store. Existing App Store, card and invoice agreements keep their recorded provider and terms. The invoice form below records walkthrough packs only.');
     form.append(fieldset, sourceLabel, planLabel, monthsLabel, includedLabel, startLabel, renewLabel, noteLabel, warning, saveRow);
     // The row as last painted; the invoice and grant forms read their guards from it.
     let shown = account;
 
     /*
-     * Record a settled invoice: one select of the item invoiced, then the three
-     * opaque references. A plan item carries UTC service dates with the end
-     * derived; a pack carries none. Each write is confirmed by account and
-     * amount, and after an answer that never arrived only the identical request
-     * may be sent again.
+     * Record a settled walkthrough-pack invoice. New subscriptions use the App
+     * Store, so this generic desk has no plan item or service-period control.
+     * Existing plan rows remain visible on their stored provider terms. Each
+     * pack write is confirmed by account and amount; after an answer that never
+     * arrived, only the identical request may be sent again.
      */
     const invoice = element('form', 'veylet-form studio-plan-form studio-invoice-form');
-    const invoiceHeading = element('h3', undefined, 'Record a settled invoice');
+    const invoiceHeading = element('h3', undefined, 'Record a settled walkthrough pack');
     const invoiceNotice = element('p', 'studio-warning');
     const itemLabel = element('label', 'studio-inline-field', 'Item invoiced');
     const itemSelect = document.createElement('select');
@@ -673,21 +598,17 @@
     itemRow.append(itemLabel, invoiceTermsLine);
     invoice.append(invoiceHeading, invoiceNotice, itemRow);
     const invoiceFields = {};
-    const invoiceLabels = {};
-    function invoiceField(key, title, type) {
+    function invoiceField(key, title) {
       const label = element('label', 'studio-inline-field', title);
       const input = document.createElement('input');
-      input.name = key; input.required = true; input.type = type;
-      if (type === 'text') referenceInput(input);
-      label.append(input); invoiceFields[key] = input; invoiceLabels[key] = label; invoice.append(label); return input;
+      input.name = key; input.required = true;
+      referenceInput(input);
+      label.append(input); invoiceFields[key] = input; invoice.append(label); return input;
     }
-    const invoiceStart = invoiceField('period_start', 'Service starts (UTC date)', 'date');
-    const invoiceEnd = invoiceField('period_end', 'Service ends (UTC date)', 'date');
-    invoiceEnd.readOnly = true;
     const REFERENCE_KEYS = ['agreement_id', 'settlement_id', 'receipt_key'];
-    invoiceField('agreement_id', 'Written agreement reference', 'text');
-    invoiceField('settlement_id', 'Settled invoice line reference', 'text');
-    invoiceField('receipt_key', 'Unique receipt reference (keep the same when retrying)', 'text');
+    invoiceField('agreement_id', 'Written agreement reference');
+    invoiceField('settlement_id', 'Settled invoice line reference');
+    invoiceField('receipt_key', 'Unique receipt reference (keep the same when retrying)');
     invoice.append(element('p', 'studio-field-note', 'Use opaque references only, not names, emails, addresses or payment details. Verify the agreement and settled invoice outside this desk. No payment is collected here.'));
     const invoiceSave = element('button', 'button', 'Record settled invoice'); invoiceSave.type = 'submit';
     const invoiceResult = element('span', 'studio-result'); invoiceResult.setAttribute('role', 'status');
@@ -697,75 +618,32 @@
     // Why this account cannot have this item recorded, or '' when it can.
     function invoiceBlocked(current, item) {
       if (!item) return 'Choose the item invoiced.';
-      if (item.kind === 'pack') {
-        // A pack is separate from the subscription, so any activated account may
-        // have one recorded, whoever bills its plan.
-        if (current.status === 'trial' || current.status === 'active') return '';
-        if (current.status === 'pending') return 'This account has not started its free months. A walkthrough pack can be recorded once the account is activated.';
-        if (current.status === 'ended') return 'This account has no running plan or free months. A walkthrough pack can be recorded only for an activated account; restart its plan first.';
-        return "This account's plan status could not be read. Refresh the accounts before recording a pack.";
-      }
-      if (planSource(current) !== 'studio') return 'This account is managed by its billing provider. This desk cannot replace that subscription; a walkthrough pack can still be recorded.';
-      // The server refuses any plan invoice while the free months run, and any
-      // start in the future: the plan is recorded once they end, starting that day.
-      if (freeMonthsRunning(current)) {
-        const ends = planDate(current.trial_ends_at);
-        return item.interval === 'annual'
-          ? 'The free months are still running. Record the annual once they end on ' + ends + ', starting that day: the server then adds the ' +
-            EARLY_ANNUAL_BONUS + ' bonus walkthroughs (' + (YEARLY_POOL + EARLY_ANNUAL_BONUS) + ' in the first plan year) and ' + EARLY_ANNUAL_EXPRESS +
-            ' Super fast renders, once per workspace. A walkthrough pack can be recorded now.'
-          : 'The free months are still running. An early paid switch is not available: record the plan once they end on ' + ends + ', or a walkthrough pack now.';
-      }
-      if (moment(current.current_period_ends_at) > Date.now()) return 'This account already has a current paid service period. A new invoice must start after that period and cannot be recorded in advance.';
-      return '';
-    }
-    // The service period the plan item records: the typed UTC start day, with the
-    // end one month or one year on.
-    function invoicePeriod(item) {
-      const start = new Date(String(invoiceStart.value || '') + 'T00:00:00Z');
-      if (Number.isNaN(start.getTime())) return { start, end: new Date(NaN) };
-      return { start, end: addMonthsUTC(start, item.interval === 'annual' ? 12 : 1) };
+      // A pack is separate from the subscription, so any activated account may
+      // have one recorded, whoever bills its plan.
+      if (current.status === 'trial' || current.status === 'active') return '';
+      if (current.status === 'pending') return 'This account has not started its free months. A walkthrough pack can be recorded once the account is activated.';
+      if (current.status === 'ended') return 'This account has no running plan or free months. A walkthrough pack can be recorded only for an activated account.';
+      return "This account's plan status could not be read. Refresh the accounts before recording a pack.";
     }
     function paintInvoice() {
       for (const option of itemSelect.children) option.textContent = invoiceItem(option.value).label;
       const item = invoiceItem(itemSelect.value);
-      const plan = Boolean(item) && item.kind === 'plan';
-      // A pack has no service dates, so they leave the form rather than sit empty.
-      invoiceLabels.period_start.hidden = !plan;
-      invoiceLabels.period_end.hidden = !plan;
-      // An annual year is offered from the day the free months ended, where the
-      // early-annual bonus applies; the day stays editable.
-      if (plan && item.interval === 'annual' && !invoiceStart.value) invoiceStart.value = annualStartDay(shown);
-      const period = plan ? invoicePeriod(item) : null;
-      invoiceEnd.value = period && !Number.isNaN(period.end.getTime()) ? period.end.toISOString().slice(0, 10) : '';
-      invoiceTermsLine.textContent = invoiceTerms(item, shown, period && period.start);
+      invoiceTermsLine.textContent = invoiceTerms(item);
       const blocked = invoiceBlocked(shown, item);
-      invoiceNotice.textContent = blocked || 'Record only an item the customer has agreed to in writing and already paid. The server checks the amount, the references and, for the plan, the service dates.';
+      invoiceNotice.textContent = blocked || 'Record only a walkthrough pack the customer agreed to in writing and already paid. New subscriptions start in the App Store; existing subscription terms stay with their recorded provider.';
       const closed = Boolean(blocked || !item) || invoiceBusy;
       for (const input of [...Object.values(invoiceFields), invoiceSave]) input.disabled = closed;
-      if (!plan) { invoiceStart.disabled = true; invoiceEnd.disabled = true; }
       itemSelect.disabled = invoiceBusy;
     }
-    for (const field of [itemSelect, invoiceStart]) field.addEventListener('change', paintInvoice);
+    itemSelect.addEventListener('change', paintInvoice);
     invoice.addEventListener('submit', async event => {
       event.preventDefault(); if (invoiceSave.disabled) return;
       const current = accounts.find(entry => entry.workspace_id === workspaceID) || shown;
       const item = invoiceItem(itemSelect.value);
       const blocked = invoiceBlocked(current, item);
       if (blocked) { invoiceResult.textContent = blocked; return; }
-      const args = { p_workspace_id: workspaceID };
-      let rpc = 'studio_record_pack_invoice';
-      let early = false;
-      if (item.kind === 'plan') {
-        const { start, end } = invoicePeriod(item);
-        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start.getTime() > Date.now() || end.getTime() <= Date.now() || end <= start) {
-          invoiceResult.textContent = 'Enter the current agreed service dates in UTC. The start cannot be in the future and the end must be in the future.'; return;
-        }
-        early = item.interval === 'annual' && earlyBonusApplies(current, start);
-        rpc = 'studio_activate_invoice_plan';
-        Object.assign(args, { p_plan_code: PLAN_ON_SALE, p_billing_interval: item.interval,
-          p_period_start: start.toISOString(), p_period_end: end.toISOString() });
-      } else args.p_pack_code = item.code;
+      const rpc = 'studio_record_pack_invoice';
+      const args = { p_workspace_id: workspaceID, p_pack_code: item.code };
       for (const key of REFERENCE_KEYS) {
         const value = String(invoiceFields[key].value || '').trim();
         if (!REFERENCE.test(value)) {
@@ -778,17 +656,12 @@
         invoiceResult.textContent = 'The previous result is unconfirmed. Restore the same item, terms and receipt reference to retry, or refresh and reconcile the recorded invoice before changing them.'; return;
       }
       const named = current.workspace_name || 'this account';
-      const question = item.kind === 'plan'
-        ? 'Record ' + planMoney(item.cents) + ' already settled for ' + named + ', ' + PLAN_NAMES[PLAN_ON_SALE] +
-          (item.interval === 'annual' ? ' annual' : ' one month') + ', ' + invoiceStart.value + ' to ' + invoiceEnd.value + ' UTC?' +
-          (early ? ' It starts where the free months ended, so ' + EARLY_ANNUAL_WORDS : '') +
-          ' Confirm the written agreement and invoice payment match. No card is charged and no automatic renewal is started.'
-        : 'Record ' + planMoney(item.cents) + ' already settled for ' + named + ': a walkthrough pack of ' + item.walkthroughs +
-          ' walkthroughs, valid ' + PACK_VALID_MONTHS + ' months? Confirm the written agreement and invoice payment match. No card is charged.';
+      const question = 'Record ' + planMoney(item.cents) + ' already settled for ' + named + ': a walkthrough pack of ' + item.walkthroughs +
+        ' walkthroughs, valid ' + PACK_VALID_MONTHS + ' months? Confirm the written agreement and invoice payment match. No card is charged.';
       if (typeof confirm !== 'function' || !confirm(question)) { invoiceResult.textContent = 'Left unchanged.'; return; }
       const version = listVersion;
       invoiceBusy = true; paintInvoice();
-      invoiceResult.textContent = item.kind === 'plan' ? 'Recording agreed and settled service…' : 'Recording the settled pack…';
+      invoiceResult.textContent = 'Recording the settled pack…';
       uncertainIntents.set(invoiceKey, { rpc, args });
       const reply = await settled(client.rpc(rpc, args));
       if (version !== listVersion) return;
@@ -801,23 +674,6 @@
         uncertainIntents.delete(invoiceKey);
         paintInvoice();
         invoiceResult.textContent = 'Not recorded: ' + refused; return;
-      }
-      if (item.kind === 'plan') {
-        if (!answer || answer.workspace_id !== workspaceID || answer.source !== 'studio' || answer.status !== 'active' ||
-          answer.plan_code !== PLAN_ON_SALE || answer.billing_interval !== item.interval || answer.renewal_price_aud_cents !== item.cents) {
-          paintInvoice();
-          invoiceResult.textContent = 'Paid service was not confirmed. Keep these terms and receipt reference unchanged. Refresh and check the account before retrying; no second invoice should be collected.'; return;
-        }
-        uncertainIntents.delete(invoiceKey);
-        const merged = { ...current, ...answer };
-        const index = accounts.findIndex(entry => entry.workspace_id === workspaceID);
-        if (index >= 0) accounts[index] = merged;
-        paint(merged); setSummary(summaryText());
-        const ending = planDate(merged.current_period_ends_at);
-        invoiceResult.textContent = 'Recorded: ' + (planBilling(merged) || planMoney(item.cents)) +
-          (ending ? ', ending ' + ending : '') + '.' +
-          (early ? ' It started where the free months ended, so ' + EARLY_ANNUAL_WORDS : '') + ' No automatic renewal.';
-        return;
       }
       if (!packConfirmed(answer, item)) {
         paintInvoice();
@@ -1074,7 +930,10 @@
       const named = next.workspace_name || 'this account';
       summary.textContent = 'Set plan · ' + named;
       legend.textContent = 'Status for ' + named;
-      for (const input of radios) { input.checked = next.status === input.value; input.disabled = source !== 'studio' || input.value === 'active'; }
+      for (const input of radios) {
+        input.checked = next.status === input.value;
+        input.disabled = source !== 'studio' || input.value === 'active' || ![next.status, 'ended'].includes(input.value);
+      }
       const months = Number(next.trial_months);
       monthsInput.value = String(Number.isInteger(months) && months >= 1 && months <= 12 ? months : FREE_MONTHS_DEFAULT);
       const included = Number(next.trial_included_walkthroughs);
@@ -1082,19 +941,21 @@
       sourceSelect.value = source || 'studio';
       sourceSelect.disabled = true;
       sourceNote.hidden = source !== 'apple';
-      // The one plan on sale, plus this row's own retired plan when it has one,
-      // so saving never quietly moves an existing account off its agreed terms.
-      const ownRetired = RETIRED_PLANS.includes(next.plan_code) ? next.plan_code : null;
-      const planChoices = [[PLAN_ON_SALE, PLAN_NAMES[PLAN_ON_SALE]]];
-      if (ownRetired) planChoices.push([ownRetired, PLAN_NAMES[ownRetired] + ' (retired, existing terms)']);
+      // Show only the row's stored plan. Retired rows keep their exact name and
+      // terms; a studio edit cannot migrate them into today's App Store offer.
+      const storedPlan = Object.prototype.hasOwnProperty.call(PLAN_NAMES, next.plan_code) ? next.plan_code : PLAN_ON_SALE;
+      const planChoices = [[storedPlan, PLAN_NAMES[storedPlan] + (RETIRED_PLANS.includes(storedPlan) ? ' (retired, existing terms)' : ' (existing terms)')]];
       planSelect.replaceChildren(...planChoices.map(([value, text]) => {
         const option = element('option', undefined, text);
         option.value = value;
         return option;
       }));
-      planSelect.value = ownRetired || PLAN_ON_SALE;
+      planSelect.value = storedPlan;
       renewInput.checked = false; renewInput.disabled = true;
-      for (const input of [planSelect, monthsInput, includedInput, startInput, noteInput, save]) input.disabled = source !== 'studio';
+      planSelect.disabled = true;
+      const trialEditable = source === 'studio' && next.status === 'trial';
+      for (const input of [monthsInput, includedInput, startInput]) input.disabled = !trialEditable;
+      for (const input of [noteInput, save]) input.disabled = source !== 'studio';
       paintInvoice();
       paintGrant();
       paintReferral();
@@ -1106,37 +967,40 @@
       const current = accounts.find(item => item.workspace_id === workspaceID) || account;
       if (planSource(current) !== 'studio') { result.textContent = 'This subscription is managed by its billing provider.'; return; }
       const chosen = radios.find(input => input.checked)?.value;
-      if (chosen === 'active') { result.textContent = 'Use Record a settled invoice below. A status change cannot activate paid service.'; return; }
+      if (chosen === 'active') { result.textContent = 'Paid subscriptions are not started here. New subscriptions start in the App Store; existing obligations stay with their recorded provider.'; return; }
       if (!chosen || !PLAN_STATUSES.includes(chosen)) {
         result.textContent = 'Choose a status before saving.';
         return;
       }
       const name = current.workspace_name || 'this account';
-      // The plan on sale, or this account's own retired plan kept as it is.
-      const ownRetired = RETIRED_PLANS.includes(current.plan_code) ? current.plan_code : null;
+      const allowedStatuses = current.status === 'trial' ? ['trial', 'ended']
+        : current.status === 'active' ? ['ended']
+          : current.status === 'pending' ? ['pending', 'ended'] : ['ended'];
+      if (!allowedStatuses.includes(chosen)) {
+        result.textContent = 'New subscriptions start in the App Store. This desk can maintain or end an existing studio agreement, but it cannot start or restart one.'; return;
+      }
+      // A stored plan is historical customer data, not a migration choice.
       const planChoice = planSelect.value;
-      if (planChoice !== PLAN_ON_SALE && planChoice !== ownRetired) {
-        result.textContent = 'Choose the ' + PLAN_NAMES[PLAN_ON_SALE] + ", or keep this account's existing plan."; return;
+      if (planChoice !== current.plan_code || !Object.prototype.hasOwnProperty.call(PLAN_NAMES, planChoice)) {
+        result.textContent = "Keep this account's existing plan. New subscriptions and plan choices start in the App Store."; return;
       }
       const questions = [];
       if (chosen === 'ended') questions.push('End studio service for ' + name + '? New walkthrough acceptance will pause. Released walkthroughs stay online for 14 days, then go offline until the plan restarts. This does not issue a refund.');
-      // Leaving a retired plan cannot be undone here: the desk never offers it again.
-      if (ownRetired && planChoice !== ownRetired) {
-        questions.push('Move ' + name + ' to the ' + PLAN_NAMES[PLAN_ON_SALE] + '? Its retired plan, ' + PLAN_NAMES[ownRetired] + ', cannot be chosen again for this account.');
-      }
       if (questions.length && (typeof confirm !== 'function' || !confirm(questions.join(' ')))) { result.textContent = 'Left unchanged.'; return; }
       const args = { p_workspace_id: workspaceID, p_status: chosen };
-      const months = Number(monthsInput.value);
-      if (Number.isInteger(months) && months >= 1 && months <= 12) args.p_trial_months = months;
-      const included = Number(includedInput.value);
-      if (Number.isInteger(included) && included >= 1 && included <= TRIAL_INCLUDED_MAX) args.p_trial_included = included;
+      if (current.status === 'trial' && chosen === 'trial') {
+        const months = Number(monthsInput.value);
+        if (Number.isInteger(months) && months >= 1 && months <= 12) args.p_trial_months = months;
+        const included = Number(includedInput.value);
+        if (Number.isInteger(included) && included >= 1 && included <= TRIAL_INCLUDED_MAX) args.p_trial_included = included;
+        const started = String(startInput.value || '').trim();
+        if (started) args.p_trial_started_at = started;
+      }
       // The App Store owns an Apple subscription's source; the desk never
       // rewrites it, and never claims a plan it did not sell.
       if (!sourceSelect.disabled && PLAN_SOURCES.includes(sourceSelect.value)) args.p_source = sourceSelect.value;
       args.p_plan_code = planChoice;
       args.p_auto_renews = false;
-      const started = String(startInput.value || '').trim();
-      if (started) args.p_trial_started_at = started;
       const note = String(noteInput.value || '').trim();
       if (note) args.p_note = note;
       const version = listVersion;
@@ -1651,11 +1515,13 @@
 
   /* ---- Capture queue ----------------------------------------------------
    * Open capture jobs in the order the worker claims them (founding accounts
-   * first, then the longest waiting; a job waiting past the 6-hour cap is passed
-   * over no more), each with its SLA clock from upload to ready, from
-   * studio_capture_queue(). Below it, the last 7 days against the 12- and
-   * 24-hour targets, from studio_capture_sla(7). Both are reads. A failed read is
-   * never shown as an empty queue or a quiet week.
+   * first, then the longest waiting; a job past the 6-hour queue-promotion
+   * threshold is passed over no more), with its operational queue clock from
+   * studio_capture_queue(). Below it, the last 7 days are grouped against the
+   * 12- and 24-hour escalation thresholds from studio_capture_sla(7). Those
+   * thresholds are not customer ready-time targets and do not establish pilot
+   * turnaround. Both calls are reads. A failed read is never shown as an empty
+   * queue or a quiet week.
    */
   const queueRowsEl = document.getElementById('studio-queue-rows');
   const queueTable = document.getElementById('studio-queue-table');
@@ -1666,8 +1532,9 @@
   const SLA_DAYS = 7;
   const QUEUE_STATUS = { uploading: 'Uploading', queued: 'Queued', processing: 'Processing', failed: 'Failed', awaiting_review: 'Ready for review' };
   // Super fast (code name express, A$29, website only) is claimed first and due 30 minutes after the upload finishes.
-  const QUEUE_PRIORITY = { express: 'Super fast', founding: 'Founding', promoted: 'Waited over 6 h', standard: 'Standard' };
-  const QUEUE_SLA = { breached: 'Over target', open: 'On time', met: 'Met', not_started: 'Not started' };
+  const QUEUE_PRIORITY = { express: 'Super fast', founding: 'Founding', promoted: '6-hour queue promotion', standard: 'Standard' };
+  const QUEUE_THRESHOLD = { breached: 'Past threshold', open: 'Before threshold', met: 'Before threshold', not_started: 'Not started' };
+  const EXPRESS_TARGET = { breached: 'Late', open: 'On time', met: 'Met', not_started: 'Not started' };
   const SLA_CLASSES = { express: 'Super fast renders', founding: 'Founding accounts', standard: 'Everyone else' };
   let queueVersion = 0;
   let slaVersion = 0;
@@ -1751,15 +1618,17 @@
     if (['express', 'founding', 'promoted'].includes(job.priority)) priority.append(element('span', 'pill', words));
     else priority.textContent = words;
     cell(row, 'Status').textContent = queueStatus(job);
-    // The SLA clock: from upload finished to ready, still running while the job is open.
+    // The operational clock starts when upload finishes; it is not a customer ready-time estimate.
     cell(row, 'Since upload', 'studio-figure').textContent = job.queued_at ? hoursText(job.elapsed_hours) : DASH;
     cell(row, 'Due', 'studio-figure').textContent = queueDue(job.sla_due_at) || DASH;
-    const target = cell(row, 'Target');
-    const verdict = QUEUE_SLA[job.sla_state] || (job.sla_state ? String(job.sla_state) : DASH);
+    const isExpress = job.priority === 'express';
+    const timing = cell(row, isExpress ? 'Super fast target' : 'Escalation threshold');
+    const timingWords = isExpress ? EXPRESS_TARGET : QUEUE_THRESHOLD;
+    const verdict = timingWords[job.sla_state] || (job.sla_state ? String(job.sla_state) : DASH);
     const hours = typeof job.sla_hours === 'number' && job.sla_hours > 0 ? ' (' + hoursText(job.sla_hours) + ')' : '';
-    // Over target is a word and a mark, never colour alone.
-    if (breached) target.append(element('span', 'pill pill-busy studio-over', verdict + hours));
-    else target.textContent = verdict + hours;
+    // A passed timing rule is stated in words and marked, never shown by colour alone.
+    if (breached) timing.append(element('span', 'pill pill-busy studio-over', verdict + hours));
+    else timing.textContent = verdict + hours;
     return row;
   }
   function paintQueue() {
@@ -1771,9 +1640,9 @@
     const longest = waiting.length ? Math.max(...waiting) : null;
     const finishedOver = finished.filter(job => job.sla_state === 'breached').length;
     if (queueSummaryEl) {
-      queueSummaryEl.textContent = (open.length ? open.length + ' open · ' + over + ' over target' +
+      queueSummaryEl.textContent = (open.length ? open.length + ' open · ' + over + ' past timing mark' +
         (longest === null ? '' : ' · longest in line ' + hoursText(longest)) : 'Nothing open') + ' · ' +
-        (finished.length ? finished.length + ' finished in the last 30 days, ' + finishedOver + ' over target' : 'none finished in the last 30 days');
+        (finished.length ? finished.length + ' finished in the last 30 days, ' + finishedOver + ' past timing mark' : 'none finished in the last 30 days');
     }
     if (!open.length) { queueShow(queueState('No capture is waiting. A job appears here once its upload has finished.', false)); return; }
     queueShow(...open.map(queueRow));
@@ -1804,14 +1673,16 @@
     const item = element('li', 'studio-sla-class');
     const label = SLA_CLASSES[row.priority_class] || (row.priority_class ? String(row.priority_class) : 'Unnamed class');
     const slaHours = Number(row.sla_hours);
-    const target = typeof row.sla_hours === 'number' && slaHours > 0
-      ? (slaHours < 1 ? Math.round(slaHours * 60) + '-minute target' : slaHours + '-hour target') : 'target unknown';
-    item.append(element('h4', 'studio-sla-name', label + ' · ' + target));
+    const isExpress = row.priority_class === 'express';
+    const timing = typeof row.sla_hours === 'number' && slaHours > 0
+      ? (isExpress ? Math.round(slaHours * 60) + '-minute target' : slaHours + '-hour escalation threshold')
+      : (isExpress ? 'target unknown' : 'threshold unknown');
+    item.append(element('h4', 'studio-sla-name', label + ' · ' + timing));
     const dl = element('dl', 'leaving-list plan-list');
     const finished = countText(row.completed);
     deletionTerm(dl, 'Finished', finished, true);
-    deletionTerm(dl, 'Within target', countText(row.met), true);
-    deletionTerm(dl, 'Over target', countText(row.breached), true);
+    deletionTerm(dl, isExpress ? 'Within promise' : 'Before threshold', countText(row.met), true);
+    deletionTerm(dl, isExpress ? 'Past promise' : 'Past threshold', countText(row.breached), true);
     deletionTerm(dl, 'Median', hoursText(row.p50_hours), true);
     deletionTerm(dl, '90th percentile', hoursText(row.p90_hours), true);
     item.append(dl);
@@ -1825,7 +1696,7 @@
     const reply = await settled(client.rpc('studio_capture_sla', { p_days: SLA_DAYS }));
     if (version !== slaVersion) return;
     if (failed(reply) || !Array.isArray(reply.value?.data)) {
-      const note = element('p', 'contact-note', 'Target figures could not be loaded. This is a failed request, not a quiet week. ');
+      const note = element('p', 'contact-note', 'Threshold figures could not be loaded. This is a failed request, not a quiet week. ');
       const retry = element('button', 'tour-action', 'Retry'); retry.type = 'button';
       retry.addEventListener('click', () => { void loadSla(); });
       note.append(retry);
@@ -1833,15 +1704,16 @@
       return;
     }
     const rows = reply.value.data.filter(row => row && typeof row === 'object');
-    if (!rows.length) { slaShow(false, element('p', 'contact-note', 'No target figures yet.')); return; }
+    if (!rows.length) { slaShow(false, element('p', 'contact-note', 'No threshold figures yet.')); return; }
     const list = element('ul', 'studio-sla-list');
     list.append(...rows.map(slaClass));
     slaShow(false, list);
   }
 
   /* ---- Super fast renders ----------------------------------------------
-   * Owner decision 25 September 2026: processing is automatic (usually 1–2
-   * hours) and no person checks a walkthrough. A Super fast render (code name
+   * Owner decision 25 September 2026: processing is automatic; standard
+   * rendering targets 1–2 hours after upload, but pilot turnaround is not yet
+   * established, and no person checks a walkthrough. A Super fast render (code name
    * express, A$29, website only) runs first on the fastest GPU in Australia and
    * is ready for review within 30 minutes of the upload finishing, any day, any
    * time, or it is refunded automatically (the A$29, or the bonus render
@@ -2137,26 +2009,24 @@
   }
 
   /* ---- Declared large home (older listings) -------------------------------
-   * Offer 2026-09-26.3 counts a new listing by the rooms captured (up to 8
-   * rooms a walkthrough); see offer.json walkthroughScope. A listing declared
-   * before the rooms rule began (an older listing) keeps its retired
-   * whole-home count instead: 5 or more bedrooms, a second dwelling or more
-   * than 350 m² counts as 2. studio_set_listing_home corrects that older
-   * declaration, also after capture started, with an opaque reference and an
-   * audit row; an accepted walkthrough keeps the units it used, and correcting
-   * a listing already counted by rooms has no effect. The answer is the
-   * listing's state, and the desk shows only it, read-only.
+   * Offer 2026-09-27.1 makes one new accepted capture one walkthrough,
+   * regardless of rooms. studio_set_listing_home remains only to correct an
+   * older listing's retired whole-home declaration: 5 or more bedrooms, a
+   * second dwelling or more than 350 m² counted as 2. It records an opaque
+   * reference and audit row without rewriting historical accepted usage. The
+   * answer is the listing's historical state, and the desk shows only it,
+   * read-only.
    */
   const homeBody = document.getElementById('studio-home-body');
   let homeVersion = 0;
-  // The job/listing state the server answered with: the rooms rule
-  // (`rooms` and `walkthroughs_used`) once it carries them, otherwise the
-  // older listing's declared whole-home count, read-only.
+  // The historical state the server answered with: a rooms-era record when it
+  // carries `rooms` and `walkthroughs_used`, otherwise the older listing's
+  // retired whole-home declaration, read-only.
   function homeCount(state) {
     const locked = state.locked === true
       ? ' · locked since capture started' + (hostedDate(state.locked_at) ? ' (' + hostedDate(state.locked_at) + ')' : '') : '';
     if (Number.isInteger(state.rooms) && Number.isInteger(state.walkthroughs_used)) {
-      return plural(state.rooms, 'room') + ' · ' + plural(state.walkthroughs_used, 'walkthrough') + locked;
+      return 'Historical accepted usage: ' + plural(state.rooms, 'room') + ' · ' + plural(state.walkthroughs_used, 'walkthrough') + locked;
     }
     if (state.walkthrough_units === 2) return 'Declared large home (older listing): ' + plural(2, 'walkthrough') + locked;
     return 'Older listing: ' + plural(state.walkthrough_units, 'walkthrough') + locked;
@@ -2192,7 +2062,7 @@
     const refLabel = element('label', 'studio-inline-field', 'Ticket or estimate reference');
     const refInput = document.createElement('input'); referenceInput(refInput); refInput.required = true; refInput.name = 'reference';
     refLabel.append(refInput);
-    const note = element('p', 'studio-field-note', 'For a listing declared before the rooms rule began (an older listing) only: correcting a listing already counted by rooms has no effect. The server keeps the declared facts, the previous ones and an audit row. A walkthrough already accepted keeps the units it used. Use an opaque reference, not a name, email or address. Nothing is charged.');
+    const note = element('p', 'studio-field-note', 'For an older listing declared under the retired large-home rule only. One new accepted capture now uses one walkthrough regardless of room count. Correcting this historical declaration does not rewrite accepted usage. The server keeps the declared facts, the previous ones and an audit row. Use an opaque reference, not a name, email or address. Nothing is charged.');
     const noteRow = element('div', 'studio-form-row'); noteRow.append(note);
     const HOME_ACTION = 'Correct the declared large home (older listing)';
     const save = element('button', 'button', HOME_ACTION); save.type = 'submit';

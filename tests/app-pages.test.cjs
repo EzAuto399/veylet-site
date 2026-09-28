@@ -105,7 +105,7 @@ test('/app/terms is the public terms word for word, less the sentences that name
   assert.equal(app.split(REPLACED).length - 1, 5, 'five sentences stand in for amounts (listed for legal review)');
   assert.ok(app.includes(NOTE));
   // What was left out, by heading.
-  for (const heading of ['Walkthrough packs.', 'Super fast renders.', 'Other work.']) {
+  for (const heading of ['One-time walkthrough packs.', 'Super fast renders.', 'Other work.']) {
     assert.ok(site.includes(heading), heading);
     assert.ok(!app.includes(heading), heading + ' is not in the app copy');
   }
@@ -141,12 +141,12 @@ test('the QA fixture holds waiting captures and flags the ready one, for each do
   const [limited] = await jobs('?render=waiting&hold=trial_limit');
   assert.equal(limited.hold.reason, 'trial_limit');
   assert.match(limited.hold.plan_starts_on, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(limited.hold.start_plan_now, false, 'offered only with ?start-now=');
-  assert.equal((await jobs('?render=waiting&hold=trial_limit&start-now=web'))[0].hold.start_plan_now, true);
+  assert.equal(limited.hold.start_plan_now, true, 'legacy field remains so the account UI can prove it ignores the retired billing trigger');
+  assert.equal(limited.hold.message, 'Legacy trial-limit hold from an older backend.');
   const [paused] = await jobs('?render=paused');
   assert.deepEqual([paused.state, paused.share_paused], ['paused', true]);
-  // Offer 2026-09-26.3: ?rooms= gives each capture its rooms and walkthroughs_used = max(1, ceil(rooms / 8)).
-  for (const [rooms, used] of [[1, 1], [8, 1], [9, 2], [17, 3]]) {
+  // Offer 2026-09-27.1: ?rooms= keeps the observed rooms but every capture uses exactly one walkthrough.
+  for (const [rooms, used] of [[1, 1], [8, 1], [9, 1], [17, 1]]) {
     const [job] = await jobs('?render=ready&rooms=' + rooms);
     assert.deepEqual([job.rooms, job.walkthroughs_used], [rooms, used], String(rooms));
   }

@@ -1,0 +1,438 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-22T00:00:00Z",
+  "title": "Design System: Veylet",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Veylet Ink",
+        "canonical": "#10231d",
+        "source": "dist/style.css :root --ink",
+        "tonalRamp": [
+          "oklch(15% 0.03 165)",
+          "oklch(24% 0.035 165)",
+          "oklch(33% 0.04 165)",
+          "oklch(45% 0.04 165)",
+          "oklch(57% 0.035 165)",
+          "oklch(69% 0.03 165)",
+          "oklch(82% 0.02 165)",
+          "oklch(95% 0.01 165)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Studio Paper",
+        "canonical": "#f4f1e9",
+        "source": "dist/style.css :root --paper",
+        "tonalRamp": [
+          "oklch(15% 0.012 95)",
+          "oklch(25% 0.014 95)",
+          "oklch(35% 0.016 95)",
+          "oklch(47% 0.018 95)",
+          "oklch(59% 0.02 95)",
+          "oklch(72% 0.018 95)",
+          "oklch(85% 0.016 95)",
+          "oklch(96% 0.014 95)"
+        ]
+      },
+      "sage": {
+        "role": "secondary",
+        "displayName": "Pale Sage",
+        "canonical": "#c6dcc9",
+        "source": "dist/style.css :root --sage",
+        "tonalRamp": [
+          "oklch(15% 0.03 155)",
+          "oklch(25% 0.035 155)",
+          "oklch(36% 0.04 155)",
+          "oklch(48% 0.045 155)",
+          "oklch(60% 0.045 155)",
+          "oklch(72% 0.04 155)",
+          "oklch(86% 0.035 155)",
+          "oklch(95% 0.02 155)"
+        ]
+      },
+      "sage-deep": {
+        "role": "primary",
+        "displayName": "Deep Sage",
+        "canonical": "#526b55",
+        "source": "dist/style.css .hero h1 em",
+        "tonalRamp": [
+          "oklch(15% 0.025 150)",
+          "oklch(25% 0.03 150)",
+          "oklch(35% 0.035 150)",
+          "oklch(47% 0.04 150)",
+          "oklch(59% 0.04 150)",
+          "oklch(71% 0.035 150)",
+          "oklch(84% 0.025 150)",
+          "oklch(95% 0.012 150)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Green",
+        "canonical": "#536557",
+        "source": "dist/style.css :root --muted (second, effective declaration; the first is #627166)",
+        "tonalRamp": [
+          "oklch(15% 0.02 155)",
+          "oklch(25% 0.022 155)",
+          "oklch(35% 0.025 155)",
+          "oklch(46% 0.025 155)",
+          "oklch(58% 0.025 155)",
+          "oklch(70% 0.022 155)",
+          "oklch(83% 0.018 155)",
+          "oklch(95% 0.01 155)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#ccd2c5",
+        "source": "dist/style.css :root --line",
+        "tonalRamp": [
+          "oklch(15% 0.012 140)",
+          "oklch(25% 0.014 140)",
+          "oklch(35% 0.016 140)",
+          "oklch(47% 0.018 140)",
+          "oklch(60% 0.018 140)",
+          "oklch(73% 0.016 140)",
+          "oklch(85% 0.014 140)",
+          "oklch(95% 0.01 140)"
+        ]
+      },
+      "field-line": {
+        "role": "neutral",
+        "displayName": "Field Line",
+        "canonical": "#7a877c",
+        "source": "dist/style.css --field-line (documented 3.3:1 on paper)",
+        "tonalRamp": [
+          "oklch(15% 0.014 150)",
+          "oklch(25% 0.016 150)",
+          "oklch(36% 0.018 150)",
+          "oklch(48% 0.02 150)",
+          "oklch(60% 0.02 150)",
+          "oklch(72% 0.018 150)",
+          "oklch(85% 0.014 150)",
+          "oklch(95% 0.008 150)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Tint",
+        "canonical": "#eaece3",
+        "source": "dist/conversion.css .journey-note, dist/account-guide.css .account-next",
+        "tonalRamp": [
+          "oklch(15% 0.008 120)",
+          "oklch(25% 0.01 120)",
+          "oklch(35% 0.012 120)",
+          "oklch(47% 0.014 120)",
+          "oklch(60% 0.014 120)",
+          "oklch(73% 0.012 120)",
+          "oklch(85% 0.01 120)",
+          "oklch(95% 0.008 120)"
+        ]
+      },
+      "focus-gold": {
+        "role": "tertiary",
+        "displayName": "Focus Gold",
+        "canonical": "#897033",
+        "source": "dist/style.css a:focus-visible",
+        "tonalRamp": [
+          "oklch(15% 0.04 90)",
+          "oklch(25% 0.05 90)",
+          "oklch(35% 0.06 90)",
+          "oklch(47% 0.07 90)",
+          "oklch(58% 0.075 90)",
+          "oklch(70% 0.07 90)",
+          "oklch(83% 0.05 90)",
+          "oklch(95% 0.025 90)"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Armed Red",
+        "canonical": "#8a3324",
+        "source": "dist/style.css .tour-action-danger[data-armed]",
+        "tonalRamp": [
+          "oklch(15% 0.05 35)",
+          "oklch(25% 0.07 35)",
+          "oklch(35% 0.09 35)",
+          "oklch(46% 0.11 35)",
+          "oklch(58% 0.115 35)",
+          "oklch(70% 0.09 35)",
+          "oklch(83% 0.06 35)",
+          "oklch(95% 0.025 35)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "One two-tone page headline per surface; ink first line, second voice on the second line."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section openers and the inverted closing invitation."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Ledger terms, step names, desk headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose capped at 48-65ch; muted for support, ink for the load-bearing sentence."
+      },
+      "amount": {
+        "displayName": "Amount",
+        "purpose": "Every figure the reader is asked to accept: statement lines, service prices, plan figures. Always tabular."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, desk table column headers, stacked-row data labels. Never above a heading."
+      },
+      "fine": {
+        "displayName": "Fine",
+        "purpose": "Line descriptions, notes, footer."
+      }
+    },
+    "shadows": [
+      {
+        "name": "modal-lift",
+        "value": "0 25px 100px #0005",
+        "purpose": "The study dialog only, over a blurred #06130dbc backdrop. The only shadow in the system; surfaces otherwise separate by ground change or rule."
+      }
+    ],
+    "motion": [
+      {
+        "name": "amount-settle",
+        "value": "amount-settle 240ms ease-out both (color: var(--muted) -> var(--ink))",
+        "purpose": "The one authored motion: offer statement amounts settle on first paint and on redate. Off under reduced motion."
+      },
+      {
+        "name": "state-feedback",
+        "value": "background 0.2s, color 0.2s, transform 0.2s",
+        "purpose": "Button and text-link hover/active; active nudges translateY(1px)."
+      },
+      {
+        "name": "control-feedback",
+        "value": "border-color 0.17s, background 0.17s",
+        "purpose": "Choice rows and field state changes."
+      },
+      {
+        "name": "sheet-slide",
+        "value": "transform 0.24s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The phone sticky action bar and rail movement."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important } html { scroll-behavior: auto } }",
+        "purpose": "Global off switch; every surface inherits it."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1100px"
+      },
+      {
+        "name": "laptop",
+        "value": "1000px"
+      },
+      {
+        "name": "offer-stack",
+        "value": "900px"
+      },
+      {
+        "name": "main",
+        "value": "800px"
+      },
+      {
+        "name": "desk-stack",
+        "value": "720px"
+      },
+      {
+        "name": "small",
+        "value": "640px"
+      },
+      {
+        "name": "phone",
+        "value": "480px"
+      },
+      {
+        "name": "narrow",
+        "value": "400px"
+      }
+    ],
+    "planStates": [
+      {
+        "status": "pending",
+        "title": "Free months not started",
+        "body": "Start your six free months: four walkthroughs included, cancel any time."
+      },
+      {
+        "status": "trial",
+        "title": "Free until {date}",
+        "body": "{n} of 4 free walkthroughs used. Renews on {date} at {price} a month unless you cancel; we remind you seven days before."
+      },
+      {
+        "status": "active",
+        "title": "Veylet plan · {price} a month",
+        "body": "{n} of {m} walkthroughs this month; extra accepted walkthroughs {extra}. Renews {date}. Hosting included."
+      },
+      {
+        "status": "ended",
+        "title": "Free months ended {date}, or Plan ended {date} once it was active",
+        "body": "Your released walkthroughs stay hosted for twelve months after their release. Start the plan again any time."
+      },
+      {
+        "status": "unavailable",
+        "title": "Plan status unavailable",
+        "body": "Refresh to check your free months and allowance."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per surface; square, ink on paper.",
+      "html": "<a class=\"ds-btn\" href=\"#\">Start with one space <span aria-hidden=\"true\">&#8594;</span></a>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; background: var(--ink, #10231d); color: var(--paper, #f4f1e9); border: 1px solid var(--ink, #10231d); border-radius: 0; padding: 15px 22px; min-height: 52px; min-width: 140px; font: 500 13px/1.4 Outfit, Arial, sans-serif; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.2s; } .ds-btn:hover { background: #2c4939; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 3px solid #897033; outline-offset: 6px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The secondary action; a hairline outline that fills with ink on hover.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\">Apply as a capture partner</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 12px; background: transparent; color: var(--ink, #10231d); border: 1px solid var(--ink, #10231d); border-radius: 0; padding: 15px 22px; min-height: 52px; min-width: 140px; font: 400 13px/1.4 Outfit, Arial, sans-serif; cursor: pointer; transition: background 0.2s, color 0.2s, transform 0.2s; } .ds-btn-ghost:hover { background: var(--ink, #10231d); color: var(--paper, #f4f1e9); } .ds-btn-ghost:active { transform: translateY(1px); } .ds-btn-ghost:focus-visible { outline: 3px solid #897033; outline-offset: 6px; }"
+    },
+    {
+      "name": "Text Link",
+      "kind": "nav",
+      "refersTo": "text-link",
+      "description": "The quiet action beside a button; a hairline-ruled link, never a third button.",
+      "html": "<a class=\"ds-text-link\" href=\"#\">See how a first walkthrough runs</a>",
+      "css": ".ds-text-link { display: inline-flex; align-items: center; gap: 27px; color: var(--ink, #10231d); font: 400 13px/1.4 Outfit, Arial, sans-serif; text-decoration: none; border-bottom: 1px solid #a6b3a2; padding-block: 12px; min-height: 44px; transition: color 0.2s, transform 0.2s; } .ds-text-link:hover { text-decoration: underline; text-underline-offset: 5px; } .ds-text-link:active { transform: translateY(1px); } .ds-text-link:focus-visible { outline: 3px solid #897033; outline-offset: 6px; }"
+    },
+    {
+      "name": "Statement Lines",
+      "kind": "custom",
+      "refersTo": "statement-line",
+      "description": "The signature: how money is shown. Dated rows, right-aligned tabular amounts, a sage stripe on the first paid line, 2px ink rules to open and total.",
+      "html": "<section class=\"ds-statement\"><h2>Your first year, itemised.</h2><dl class=\"ds-statement-lines\"><div><dt><span class=\"ds-when\">22 Sep &#8211; 21 Oct 2026</span><span class=\"ds-what\">Free</span></dt><dd class=\"ds-amount\">A$0</dd></div><div class=\"ds-line-paid\"><dt><span class=\"ds-when\">From 22 Mar 2027</span><span class=\"ds-what\">Veylet plan, only if you say yes</span></dt><dd class=\"ds-amount\">A$119<span class=\"ds-amount-note\">a month</span></dd></div><div class=\"ds-line-total\"><dt><span class=\"ds-when\">First twelve months</span><span class=\"ds-what\">six free, six on the plan</span></dt><dd class=\"ds-amount\">A$714</dd></div></dl></section>",
+      "css": ".ds-statement { border-top: 2px solid var(--ink, #10231d); padding-top: 22px; color: var(--ink, #10231d); font-family: Outfit, Arial, sans-serif; } .ds-statement h2 { font-size: 27px; font-weight: 400; letter-spacing: -0.02em; margin: 0 0 18px; } .ds-statement-lines { margin: 0; display: grid; } .ds-statement-lines > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line, #ccd2c5); } .ds-statement-lines dt { display: grid; gap: 2px; } .ds-when { font-size: 15px; font-variant-numeric: tabular-nums; } .ds-what { font-size: 13px; color: var(--muted, #536557); line-height: 1.45; } .ds-statement-lines dd { margin: 0; } .ds-amount { font-size: 22px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; text-align: right; line-height: 1.1; white-space: nowrap; } .ds-amount-note { display: block; font-size: 12px; font-weight: 400; color: var(--muted, #536557); margin-top: 3px; } .ds-line-paid { border-top: 1px solid var(--ink, #10231d); background: linear-gradient(90deg, var(--sage, #c6dcc9) 0, var(--sage, #c6dcc9) 4px, transparent 4px); padding-left: 14px; margin-top: 6px; } .ds-line-paid .ds-amount { font-size: 30px; } .ds-line-total { border-bottom: 2px solid var(--ink, #10231d); } .ds-line-total .ds-when { font-weight: 500; }"
+    },
+    {
+      "name": "Ledger List",
+      "kind": "card",
+      "refersTo": "statement-line",
+      "description": "The structural primitive that replaces cards: a hairline definition list of term and explanation.",
+      "html": "<dl class=\"ds-ledger\"><div><dt>An accepted walkthrough</dt><dd>One space, captured with the app, that passed the studio check and that you approved for release.</dd></div><div><dt>Three a month</dt><dd>Included every month, free or paid. Unused ones do not carry over.</dd></div></dl>",
+      "css": ".ds-ledger { margin: 0; display: grid; font-family: Outfit, Arial, sans-serif; color: var(--ink, #10231d); } .ds-ledger > div { padding: 18px 0; border-top: 1px solid var(--line, #ccd2c5); display: grid; gap: 6px; } .ds-ledger > div:last-child { border-bottom: 1px solid var(--line, #ccd2c5); } .ds-ledger dt { font-size: 17px; font-weight: 500; line-height: 1.3; } .ds-ledger dd { margin: 0; color: var(--muted, #536557); line-height: 1.6; max-width: 48ch; font-size: 15px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Native controls only; a white field with a field-weight border and a 44px target.",
+      "html": "<label class=\"ds-field\">What should we call the space?<input type=\"text\" placeholder=\"Two-bedroom apartment, Teneriffe\"></label>",
+      "css": ".ds-field { display: grid; gap: 6px; font: 400 14px/1.5 Outfit, Arial, sans-serif; color: var(--ink, #10231d); } .ds-field input { font: inherit; font-size: 16px; color: var(--ink, #10231d); background: #fff; border: 1px solid var(--field-line, #7a877c); border-radius: 2px; padding: 12px 14px; min-height: 44px; width: 100%; box-sizing: border-box; transition: border-color 0.17s, background 0.17s; } .ds-field input:hover { border-color: var(--ink, #10231d); } .ds-field input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Desk-only state chip; the good state is the one place sage fills a shape.",
+      "html": "<span class=\"ds-pill\">In review</span> <span class=\"ds-pill ds-pill-good\">Released</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 11px; font: 400 12px/1.4 Outfit, Arial, sans-serif; letter-spacing: 0.3px; border: 1px solid var(--line, #ccd2c5); color: var(--muted, #536557); background: rgba(255,255,255,0.5); } .ds-pill-good { border-color: rgba(16,35,29,0.28); color: var(--ink, #10231d); background: rgba(198,220,201,0.5); }"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "desk-table-header",
+      "description": "The doorway mark and wordmark left, a hairline-underlined link row right.",
+      "html": "<header class=\"ds-header\"><a class=\"ds-brand\" href=\"#\"><span class=\"ds-portal\" aria-hidden=\"true\"></span>VEYLET STUDIO</a><nav class=\"ds-nav\" aria-label=\"Main\"><a href=\"#\">How it works</a><a href=\"#\" aria-current=\"page\">Offer</a><a href=\"#\">Capture partners</a><a href=\"#\">Sign in</a></nav></header>",
+      "css": ".ds-header { display: flex; justify-content: space-between; align-items: center; gap: 24px; min-height: 104px; padding-block: 24px; font-family: Outfit, Arial, sans-serif; color: var(--ink, #10231d); } .ds-brand { display: inline-flex; align-items: center; gap: 13px; font-size: 13px; font-weight: 500; letter-spacing: 1.8px; color: inherit; text-decoration: none; min-height: 44px; } .ds-portal { width: 16px; height: 21px; display: inline-block; flex-shrink: 0; background: currentColor; clip-path: polygon(0 0, 100% 0, 100% 100%, 67% 88%, 67% 25%, 24% 17%, 24% 100%, 0 100%); } .ds-nav { display: flex; gap: 30px; font-size: 14px; } .ds-nav a { color: inherit; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; } .ds-nav a:hover { text-decoration: underline; text-underline-offset: 5px; } .ds-nav a:last-child { border-bottom: 1px solid #a6b3a2; padding-bottom: 5px; } .ds-nav a:focus-visible { outline: 3px solid #897033; outline-offset: 6px; }"
+    },
+    {
+      "name": "Plan Panel",
+      "kind": "custom",
+      "refersTo": "statement-line",
+      "description": "The shared plan-state vocabulary: the same five facts, in the same order, on both desks, with fixed state headings.",
+      "html": "<section class=\"ds-plan\"><h2 class=\"ds-plan-heading\">Veylet plan &#183; A$119 a month</h2><p class=\"ds-plan-body\">Three accepted walkthroughs and hosting are included each month.</p><dl class=\"ds-plan-list\"><div><dt>Status</dt><dd>Active</dd></div><div><dt>Walkthroughs this month</dt><dd class=\"ds-plan-figure\">1 of 3</dd></div><div><dt>Next invoice</dt><dd class=\"ds-plan-figure\">22 Oct 2026</dd></div></dl></section>",
+      "css": ".ds-plan { font-family: Outfit, Arial, sans-serif; color: var(--ink, #10231d); margin: 28px 0 8px; } .ds-plan-heading { font-size: 22px; font-weight: 400; letter-spacing: -0.4px; margin: 0 0 4px; } .ds-plan-body { margin: 0 0 12px; max-width: 62ch; font-size: 14px; line-height: 1.6; color: var(--muted, #536557); } .ds-plan-list { margin: 4px 0 14px; display: grid; } .ds-plan-list > div { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.6fr); gap: 6px 24px; padding: 14px 0; border-top: 1px solid var(--line, #ccd2c5); } .ds-plan-list > div:last-child { border-bottom: 1px solid var(--line, #ccd2c5); } .ds-plan-list dt { font-size: 15px; font-weight: 500; } .ds-plan-list dd { margin: 0; color: var(--muted, #536557); font-size: 14px; line-height: 1.6; } .ds-plan-figure { font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Closing Invitation",
+      "kind": "custom",
+      "refersTo": "button-paper",
+      "description": "The one inverted surface: depth by ground change, with the paper button that turns sage.",
+      "html": "<section class=\"ds-close\"><div class=\"ds-close-inner\"><h2>Start with one space.</h2><p>Tell us the space, your phone model and what your viewers need to understand.</p><a class=\"ds-btn-paper\" href=\"#\">Start with one space <span aria-hidden=\"true\">&#8594;</span></a></div></section>",
+      "css": ".ds-close { background: var(--ink, #10231d); color: var(--paper, #f4f1e9); padding: 64px 56px; font-family: Outfit, Arial, sans-serif; } .ds-close-inner { max-width: 62ch; } .ds-close h2 { font-size: 44px; font-weight: 400; letter-spacing: -0.03em; margin: 0 0 18px; } .ds-close p { color: #d4dccf; line-height: 1.65; margin: 0 0 24px; } .ds-btn-paper { display: inline-flex; align-items: center; gap: 12px; background: var(--paper, #f4f1e9); color: var(--ink, #10231d); border: 1px solid var(--paper, #f4f1e9); border-radius: 0; padding: 15px 22px; min-height: 52px; font: 500 13px/1.4 Outfit, Arial, sans-serif; text-decoration: none; transition: background 0.2s, color 0.2s, transform 0.2s; } .ds-btn-paper:hover { background: var(--sage, #c6dcc9); border-color: var(--sage, #c6dcc9); } .ds-btn-paper:focus-visible { outline: 3px solid var(--sage, #c6dcc9); outline-offset: 6px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Studio Ledger",
+    "overview": "Veylet's surfaces read like a well-kept ledger left on good paper: a warm off-white ground, near-black green ink, hairline rules that divide without enclosing, and numbers set so a changed figure shifts nothing on the line. Nothing is boxed to look important; importance is carried by position, rule weight and the size of the number. The system has one accent and spends it rarely.\n\nDensity is editorial rather than dashboard. Marketing surfaces run wide (1456px container, 20-64px fluid gutter) with generous chapter breaks, while the signed-in desk and studio use the same materials at a tighter rhythm: the same hairlines, the same tabular figures, a real table instead of a card grid. A visitor moving from /offer to the desk should feel they walked into the back office of the same firm, not a different product.\n\nThe system's one authored motion is the offer statement's amounts settling from muted to ink over 240ms; everything else is state feedback measured in fifths of a second. Reduced motion switches all of it off globally.",
+    "keyCharacteristics": [
+      "Ink #10231d on paper #f4f1e9; one sage accent and no second accent colour.",
+      "Hairline rules and ground changes carry structure; the build ships no card shadows.",
+      "Square corners on marketing surfaces; a 2px radius only where a control must read as a control.",
+      "Money and counts are always tabular numerals, right-aligned, in a statement.",
+      "44px minimum target on every stand-alone action; visible focus everywhere."
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Sage marks the moment something changes: money first changes hands, a sort becomes active, a plan is good. If a surface uses sage more than once or twice, it is decorating, not marking.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-and-Paper Rule",
+        "body": "There are two grounds, paper and ink, and nothing in between. Tint (#eaece3) is a note, not a third ground.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Tone Headline Rule",
+        "body": "A page headline is two lines and two voices: the statement in ink, the promise in the second voice (deep sage Outfit on the homepage, Georgia italic on /offer). Never three tones, never a third line.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Every amount, count and allowance is font-variant-numeric: tabular-nums, 500 weight, right-aligned in its ledger, with its qualifier set beneath in muted fine type. A changed number must not move the layout.",
+        "section": "typography"
+      },
+      {
+        "name": "The 44px Rule",
+        "body": "Every stand-alone action, summary, field and desk control carries min-height: 44px (52px for refined marketing buttons). Inline text links inside a paragraph are exempt; nothing else is.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ground-Change Rule",
+        "body": "To separate a thing from the page, flip its ground or rule it off. Do not lift it.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build structure from hairlines and definition lists (1px #ccd2c5, 2px ink to open or total). A new section is rules and spacing, not a container.",
+      "Do set every amount, count and allowance in tabular numerals at 500 weight, right-aligned, with its qualifier beneath in muted fine type.",
+      "Do keep page headlines two-tone and two-line, and keep the second voice to the one the surface already uses.",
+      "Do give every stand-alone action a 44px target, a visible focus ring, and a label that says what happens.",
+      "Do use the fixed plan-state strings verbatim on every surface that shows plan state.",
+      "Do honour prefers-reduced-motion: the global reset kills animation and transitions, and the statement's settle must stay off.",
+      "Do keep marketing corners square; reserve 2px for controls and rounding above 8px for device-like or status chrome."
+    ],
+    "donts": [
+      "Don't put an eyebrow, kicker or tracked-caps line above a heading. /offer ships without one, and the plain-case .for-line is what replaced it; 11px uppercase is for field labels and table columns only.",
+      "Don't make cards the structure. No three-up pricing cards, no bordered feature tiles; the ledger is the structure.",
+      "Don't add shadows to lift a surface. Change the ground or add a rule.",
+      "Don't introduce a second accent colour, a second sans face, or a weight outside 400/500.",
+      "Don't invent proof: no testimonials, counters, logos, statistics or customer examples exist, and the studies are labelled studies.",
+      "Don't add motion theatre. One authored motion (the 240ms amount settle) plus 0.2s state feedback is the whole budget.",
+      "Don't load a third-party script, font or icon set at runtime. Outfit is self-hosted, the mark and markers are CSS.",
+      "Don't add a custom widget where a native control exists (date, select, details)."
+    ]
+  }
+}

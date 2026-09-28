@@ -141,6 +141,7 @@ const JOBS = {
   failed: job({ state: 'failed', status: 'failed' }),
   stale: job({ state: 'rendering', status: 'processing', step: 3, stage: 'train', progress_pct: 64, eta_seconds: 420, heartbeat_at: ago(300), stale: true, attempt: 1 }),
 };
+const RECAPTURE_ALLOWANCE = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
 const readyTour = (fields = {}) => ({ id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: null, ...fields });
 const toursFor = state => state === 'ready' ? [readyTour()] : state === 'live' ? [readyTour({ share_token: 'abcdefghijklmnop' })] : [];
 const withState = (state, options = {}) => load({ status: [JOBS[state]], tours: toursFor(state), approved: state === 'live', ...options });
@@ -151,7 +152,7 @@ const WORDS = {
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
   ready: ['Ready for your review', 'Your turn', ['Open it, walk through, then approve to share.']],
   live: ['Live', null, ['Anyone with the link can open it.']],
-  recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos. Recapture this room; it won’t use a walkthrough.']],
+  recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
   failed: ['Failed', 'Veylet support', ['Something went wrong on our side. Veylet support has been told; nothing was used.']],
   stale: ['Still working — checking in', 'Automatic', ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.',
@@ -499,16 +500,16 @@ test('render status: Recapture {room} opens that room’s steps in the app, in p
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'true');
   assert.equal(panel.hidden, false);
-  assert.equal(panel.textContent, 'On your iPhone, open Veylet Capture and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it. It won’t use a walkthrough.');
+  assert.equal(panel.textContent, 'On your iPhone, open Veylet Capture and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it.');
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'false');
   // No room named: the reason stands alone, and the space is what is captured again.
   const whole = await load({ status: [job({ ...JOBS.recapture, recapture: { room: null, reason: 'Most of the photos were blurred' } })] });
-  assert.deepEqual(whole.lines(), ['Most of the photos were blurred. Recapture it; it won’t use a walkthrough.']);
+  assert.deepEqual(whole.lines(), ['Most of the photos were blurred.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(whole.filled(), ['Recapture Sample space']);
   // No reason at all: Veylet support is who can say what, so that is the reader's next move.
   const unnamed = await load({ status: [job({ ...JOBS.recapture, recapture: null })] });
-  assert.deepEqual(unnamed.lines(), ['Some of it needs capturing again; it won’t use a walkthrough. Ask Veylet support what to capture.']);
+  assert.deepEqual(unnamed.lines(), ['Some of it needs capturing again. Ask Veylet support what to capture.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(unnamed.filled(), ['Contact Veylet support']);
 });
 
@@ -523,15 +524,16 @@ test('render status: the member read’s recapture ARRAY (capture_recapture_reas
   ];
   const h = await load({ status: [job({ ...JOBS.recapture, recapture })] });
   assert.deepEqual(h.lines(), [
-    'Kitchen: Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot. Recapture this room; it won’t use a walkthrough.',
-    'Hallway: We could not find a clear floor to walk on here. Recapture this room; it won’t use a walkthrough.',
-    'Something else the gate saw. Recapture it; it won’t use a walkthrough.']);
+    'Kitchen: Too few photos were saved here. Recapture it, walking slowly and turning a full circle at each spot.',
+    'Hallway: We could not find a clear floor to walk on here.',
+    'Something else the gate saw.', RECAPTURE_ALLOWANCE]);
   assert.deepEqual(h.filled(), ['Recapture Kitchen'], 'the first room’s button is the filled one');
   const buttons = h.slot().shown().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
   assert.deepEqual(buttons, ['Recapture Kitchen', 'Recapture Hallway', 'Recapture Sample space']);
   const help = h.slot().shown().filter(el => el.tagName === 'A' && /render-fix/.test(el.className)).map(el => [el.textContent, el.href]);
   assert.deepEqual(help, [['How to fix this', '/help/fix/few_views'], ['How to fix this', '/help/fix/no_floor']], 'only a rule this page knows links out');
   assert.doesNotMatch(h.slot().shown().map(el => el.textContent).join(' '), /Ask Veylet support what to capture/);
+  assert.doesNotMatch(h.text(), /Recapture this room; it won’t use a walkthrough|Recapture it; it won’t use a walkthrough|Recapturing it won’t use a walkthrough/i);
   // The server sends up to 20 rooms: all 20 show; anything past that is dropped.
   const many = Array.from({ length: 21 }, (_, index) => ({ room: 'Room ' + (index + 1), reason: 'Too dark here', rule: 'photo_match' }));
   const twenty = await load({ status: [job({ ...JOBS.recapture, recapture: many })] });
@@ -568,6 +570,7 @@ test('render status: the next step says whose turn it is while no walkthrough is
   const rooms = await withState('recapture');
   const next = rooms.ids['account-next-step'];
   assert.equal(next.children[0].textContent, 'Recapture what the quality check found.');
+  assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.');
   assert.equal(next.children[2].textContent, 'Show what to recapture');
   const broken = await withState('failed');
   assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Something went wrong on our side.');

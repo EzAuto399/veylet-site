@@ -17,7 +17,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/studio.js?v=e98fb7febd839d7b" defer></script>
+    <script src="/studio.js?v=a7fe7dc14c09e4c5" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -94,10 +94,13 @@
           <p class="contact-note">
             Uploads waiting for processing, in the order they are claimed:
             Super fast renders first, then founding accounts, then the longest
-            waiting. A job waiting 6 hours is no longer passed over. Processing
-            is automatic and usually takes 1–2 hours. Target from upload to
-            ready: 30 minutes for a Super fast render, 12 hours for founding
-            accounts, 24 hours for everyone else. Dates are Brisbane time.
+            waiting. Processing is automatic. Standard rendering targets 1–2
+            hours after upload; pilot turnaround is not yet established. The
+            6-hour mark is a queue-promotion threshold: a waiting job is no
+            longer passed over. The 12-hour founding and
+            24-hour standard marks are queue and escalation thresholds, not
+            proven ready times. Super fast keeps its separate 30-minute
+            promise. Dates are Brisbane time.
           </p>
           <p class="studio-queue-summary" id="studio-queue-summary" role="status"></p>
           <table class="studio-table studio-queue-table" id="studio-queue-table">
@@ -110,7 +113,7 @@
                 <th scope="col">Status</th>
                 <th scope="col">Since upload</th>
                 <th scope="col">Due</th>
-                <th scope="col">Target</th>
+                <th scope="col">Timing rule</th>
               </tr>
             </thead>
             <tbody id="studio-queue-rows"></tbody>
@@ -218,15 +221,12 @@
         <section class="studio-home-count" id="studio-home" aria-labelledby="studio-home-title">
           <h2 class="dash-heading" id="studio-home-title">Declared large home (older listings)</h2>
           <p class="contact-note">
-            A walkthrough is counted by the rooms captured: up to 8 rooms is 1,
-            each further 8 is 1 more. A listing declared before the rooms rule
-            began (an older listing) keeps its retired whole-home count
-            instead: 5 or more bedrooms, a second dwelling or more than 350 m²
-            of floor area counts as 2. A correction here sets that older
-            listing's declared facts with a reference and an audit row, also
-            after capture started; a walkthrough already accepted keeps the
-            units it used, and correcting a listing already counted by rooms
-            has no effect.
+            One new accepted capture uses one walkthrough, regardless of room
+            count. A listing declared under an earlier rule keeps its historical
+            accepted usage: 5 or more bedrooms, a second dwelling or more than
+            350 m² of floor area counted as 2. A correction here updates that
+            older listing's declared facts with a reference and an audit row;
+            historical accepted usage is unchanged.
           </p>
           <div class="studio-home-body" id="studio-home-body"></div>
         </section>

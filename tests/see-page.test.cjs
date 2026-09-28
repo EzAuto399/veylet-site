@@ -118,8 +118,8 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-26.3, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-26.3');
+test('every price on the page is offer.json 2026-09-27.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-09-27.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.webAud),
@@ -134,10 +134,10 @@ test('every price on the page is offer.json 2026-09-26.3, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  assert.equal(heroLine, `${offer.freeMonths.months} free months · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.webAud)} a month`);
+  assert.equal(heroLine, `${offer.freeMonths.months} free months · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.appAud)} a month through the App Store`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
-  assert.ok(statement.includes(`${aud(plan.webAud)} a month by card or invoice`));
-  assert.ok(statement.includes(`${aud(plan.annualAud)} a year by card or invoice`));
+  assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
+  assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
   assert.ok(statement.includes(`${plan.includedPerMonth} walkthroughs a month; unused ones roll over, up to ${plan.rollover.maxBanked} banked`));
   assert.ok(statement.includes(`${plan.annualIncluded} walkthroughs to use any time in the plan year`));
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
@@ -147,6 +147,9 @@ test('every price on the page is offer.json 2026-09-26.3, set on data-price elem
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
   assert.ok(terms.includes('included in the plan when video exports open'), 'listing videos are qualified');
   assert.ok(terms.includes('New accounts are admitted weekly. You need an iPhone Pro or iPad Pro with LiDAR.'));
+  assert.match(terms, /New trials start through Apple’s free introductory offer in the app, if eligible/);
+  assert.match(terms, /Existing card and invoice agreements retain their terms/);
+  assert.doesNotMatch(terms, /by card or invoice|card payment on this website is coming later/);
   assert.equal(offer.freeMonths.cardRequired, true);
   assert.equal(offer.freeMonths.cancelAnytime, true);
 });

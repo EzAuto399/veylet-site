@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "dist/**/*.html"
+        ],
+        "createdAt": "2026-09-21T23:47:32.225Z",
+        "reason": "Brand paper #f4f1e9: the Veylet identity is ink on paper, chosen deliberately (see product docs/brand-identity.md)"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "dist/index.html"
+        ],
+        "createdAt": "2026-09-21T23:47:32.244Z",
+        "reason": "The study dialog image is hidden and populated by app.js when a study opens"
+      }
+    ]
+  }
+}
