@@ -131,12 +131,12 @@ test('an owner with a saved space gets self-capture preparation without an unava
 test('an approved operator sees capture preparation only from confirmed production access', async () => {
   const h = await load({ rpc: { can_produce_tours: () => ({ data: true }) } });
   const guidance = h.ids['account-next-step'].all().map(el => el.textContent).join(' ');
-  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#capture-partners');
+  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#first-session');
   assert.match(guidance, /Send from the app: it uploads in the background\. Check your account for rendering status\./);
   assert.doesNotMatch(guidance, /usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
   const unavailable = await load({ rpc: { can_produce_tours: () => ({ error: { message: 'offline' } }) } });
   assert.match(unavailable.ids['account-next-step'].all().map(el => el.textContent).join(' '), /approval could not be checked/);
-  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#capture-partners'), false);
+  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#first-session'), false);
 });
 test('processing guidance gives no turnaround time and promises no pilot target', async () => {
   const h = await load({ tours: [{ ...tour, status: 'processing' }] });
@@ -287,7 +287,7 @@ test('existing email session restores the desk on a fresh page load', async () =
   // The page is the account; "Your walkthroughs" heads its work section, once.
   assert.equal(h.ids['account-title'].textContent, 'Your account.');
   assert.equal(h.ids['account-who'].textContent, 'Signed in as person@example.invalid');
-  assert.equal(h.ids['account-setup-note'].hidden, true);
+  assert.equal(h.ids['account-setup-note'], undefined, 'no partner assessment note: the capture-partner programme is gone');
   assert.equal(h.ids['account-access-note'].hidden, true);
   assert.equal(h.ids['account-sign-in'].hidden, true);
   assert.ok(h.queries.includes('properties'));

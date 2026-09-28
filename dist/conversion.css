@@ -18,11 +18,6 @@
 .conversion-home .route-lead { position: sticky; top: 40px; display: grid; justify-items: start; gap: 22px; }
 .conversion-home .route-lead .contact-note { margin: 0; max-width: 44ch; }
 .conversion-home .route-steps { margin-top: 8px; }
-.conversion-home .partner-path { grid-column: 1 / -1; }
-.partner-path { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 36px; border-top: 1px solid var(--line); margin-top: 44px; padding-top: 32px; }
-.partner-path h3 { font-size: 26px; line-height: 1.2; margin: 12px 0; }
-.partner-path p:not(.eyebrow) { color: var(--muted); max-width: 65ch; line-height: 1.6; }
-.partner-path > a { max-width: 24ch; line-height: 1.5; }
 .form-summary { padding: 16px 0; margin: -16px 0 26px; border-block: 1px solid var(--line); font-size: 14px; line-height: 1.6; }
 .form-page { padding-top: 44px; }
 .veylet-form small { color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -57,12 +52,9 @@
   .conversion-home .route-steps { order: 1; margin-top: 30px; }
   .conversion-home .route-lead .contact-note { order: 2; margin-top: 26px; }
   .conversion-home .route-lead .button { order: 3; margin-top: 20px; justify-self: start; }
-  .conversion-home .partner-path { order: 4; }
   .conversion-benefits > div { grid-template-columns: 1fr; gap: 6px; padding-block: 18px; }
   .conversion-benefits dd { max-width: 60ch; }
   .conversion-summary { padding-block: 32px 40px; }
-  .partner-path { grid-template-columns: 1fr; gap: 16px; }
-  .partner-path > a { max-width: none; padding-block: 10px; }
 }
 
 .enquiry-copy { margin-top: 20px; }

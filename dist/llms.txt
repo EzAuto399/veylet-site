@@ -18,7 +18,6 @@ Short answers:
 - Site: https://veylet.com/
 - Offer and prices: https://veylet.com/offer
 - Join the waitlist, the way to start (new accounts are admitted in weekly groups; joining is free and creates no account): https://veylet.com/waitlist
-- Apply as a capture partner (capturing for your own clients): https://veylet.com/apply
 - First-tour guide: https://veylet.com/start
 - Website sharing and embed guide: https://veylet.com/website-guide
 - Support: https://veylet.com/support (email support; what to include; the quick answers)
@@ -94,11 +93,10 @@ How-to answers for the Veylet Capture app and the account desk. Index: https://v
 - Pack walkthroughs are added only once the pack's payment has settled; there is no automatic debt. New subscriptions use Apple and have no early paid trial switch. Existing card or invoice trials may start paid service early only with separate consent under their agreed terms; using the allowance never starts billing automatically.
 - Route checks in the app do not prove quality; the automatic quality check after upload assesses the capture.
 
-## Waitlist, applications and accounts
-- Joining the waitlist and applying as a partner are free.
-- Applying is free assessment. It does not create an account, grant app access, take payment, or promise jobs, leads or earnings.
+## Waitlist and accounts
+- Joining the waitlist is free.
 - Scope, capture authority, exclusions, quote, hosting dates and sharing approval are confirmed separately before the corresponding work.
-- Enquiries and applications use FormSubmit; a return page is not proof of inbox delivery.
+- Enquiries use FormSubmit; a return page is not proof of inbox delivery.
 - New subscriptions start in the app through the App Store. No new Square recurring subscription or automatic transfer from Apple is offered. Existing card or invoice agreements keep their terms. Buying a separate service cannot automatically pause or cancel an Apple subscription.
 - Email accounts are free. New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz.
 - Production capture needs assessment; capture, processing, hosting and invited pilot allowances require agreed scope. Phone recording does not automatically reconstruct a tour.

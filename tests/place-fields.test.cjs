@@ -325,14 +325,14 @@ test('a brief survives a refresh, says where it is kept, and can be thrown away'
 test('a submitted brief is kept, and says it was submitted rather than claiming delivery', () => {
   const store = fakeStore();
   const page = formPage(intakeFields);
-  placeIn(page.document, store).keepDraft(page.form, new FakeNode('p'), 'partner');
+  placeIn(page.document, store).keepDraft(page.form, new FakeNode('p'), 'managed');
   page.controls[0].value = 'Harbourline Property';
   page.dispatch(page.form, 'input');
   page.dispatch(page.form, 'submit');
-  assert.equal(JSON.parse(store.map.get('veylet-draft-partner')).sent > 0, true);
+  assert.equal(JSON.parse(store.map.get('veylet-draft-managed')).sent > 0, true);
 
   const back = formPage(intakeFields);
-  placeIn(back.document, store).keepDraft(back.form, new FakeNode('p'), 'partner');
+  placeIn(back.document, store).keepDraft(back.form, new FakeNode('p'), 'managed');
   assert.equal(back.controls[0].value, 'Harbourline Property');
   assert.match(back.notice().textContent, /answers you submitted on/);
   assert.match(back.notice().textContent, /cannot confirm they arrived/);
@@ -355,8 +355,10 @@ test('a stopped submission is not recorded as sent, and a blocked store is not a
   assert.doesNotThrow(() => placeIn(none.document, undefined).keepDraft(none.form, new FakeNode('p'), 'managed'));
 });
 
-test('both intake pages check their answers and keep their brief', () => {
-  for (const [page, key] of [['dist/request/index.html', 'managed'], ['dist/apply/index.html', 'partner']]) {
+test('the intake page checks its answers and keeps its brief, and the partner intake page is gone', () => {
+  // Owner decision, 29 September 2026: no capture-partner programme, so /request is the only intake form.
+  assert.equal(fs.existsSync(path.join(__dirname, '..', 'dist/apply/index.html')), false, 'the partner assessment page is removed');
+  for (const [page, key] of [['dist/request/index.html', 'managed']]) {
     const source = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
     assert.match(source, /place\.inlineValidation\(form, status\);/);
     assert.match(source, new RegExp("place\\.keepDraft\\(form, status, '" + key + "'\\);"));

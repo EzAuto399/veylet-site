@@ -529,7 +529,8 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   const promise = text(body.match(/<p class="offer-promise" data-offer-redo>([\s\S]*?)<\/p>/)[1]);
   assert.equal(plain(promise), `${record.guarantee.text}. The redo corrects your account's first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.`);
   assert.ok(body.indexOf('offer-actions') < body.indexOf('data-offer-redo') && body.indexOf('data-offer-redo') < body.indexOf('offer-contents'));
-  assert.match(body, /Same app, same plan, your client\./);
+  // Owner decision, 29 September 2026: no capture-partner section; customers capture with their own iPhone.
+  assert.doesNotMatch(body, /Same app, same plan, your client|Capturing for your own clients|href="\/apply/);
   assert.equal(record.appStore.annualSoldInApp, true);
   assert.deepEqual(record.appStore.sold, ['soloMonthly', 'soloAnnual']);
 });
@@ -685,7 +686,7 @@ test('the offer page makes no claim the product cannot back', () => {
 });
 
 test('every marketing page links to the offer in its header and footer, and the offer is in the sitemap', () => {
-  for (const page of ['index.html', 'request/index.html', 'apply/index.html', 'start/index.html', 'thanks/index.html', 'account/index.html', 'website-guide/index.html', 'privacy/index.html', 'terms/index.html', 'support/index.html', '404.html', 'offer/index.html']) {
+  for (const page of ['index.html', 'request/index.html', 'start/index.html', 'thanks/index.html', 'account/index.html', 'website-guide/index.html', 'privacy/index.html', 'terms/index.html', 'support/index.html', '404.html', 'offer/index.html']) {
     const html = read(page);
     assert.match(html, /<nav aria-label="Main">[\s\S]*?href="\/offer"/, `${page} header links to the offer`);
     assert.match(html, /<nav aria-label="Footer">[\s\S]*?href="\/offer"/, `${page} footer links to the offer`);

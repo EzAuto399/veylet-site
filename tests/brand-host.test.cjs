@@ -15,7 +15,7 @@ const inSeconds = seconds => Math.floor(Date.now() / 1000) + seconds;
  * 'throw-read' for one that lists keys but refuses to read them.
  */
 function run({ storage = {}, config = true, hostname = 'veylet.com', readyState = 'loading', links } = {}) {
-  const nav = (links || [['/#process', 'How it works'], ['/offer', 'Offer'], ['/apply', 'Capture partners'], ['/account', 'Sign in']])
+  const nav = (links || [['/#process', 'How it works'], ['/offer', 'Offer'], ['/account', 'Sign in']])
     .map(([href, text]) => ({ textContent: text, getAttribute: name => (name === 'href' ? href : null) }));
   const events = {}, replaced = [], reads = [];
   const keys = storage === 'throw' || storage === 'throw-read' ? [KEY] : Object.keys(storage);
@@ -43,7 +43,7 @@ const session = expiresAt => JSON.stringify({ access_token: 'x', token_type: 'be
 test('a stored, unexpired session makes the header say Account after the page loads', () => {
   const h = run({ storage: { [KEY]: session(inSeconds(3600)) } });
   assert.equal(h.label, 'Account');
-  assert.deepEqual(h.nav.slice(0, 3).map(link => link.textContent), ['How it works', 'Offer', 'Capture partners']);
+  assert.deepEqual(h.nav.slice(0, 2).map(link => link.textContent), ['How it works', 'Offer']);
   assert.deepEqual(h.network, [], 'presence only: no request is made');
   // Already loaded (a late script) behaves the same.
   assert.equal(run({ storage: { [KEY]: session(inSeconds(3600)) }, readyState: 'complete' }).label, 'Account');

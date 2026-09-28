@@ -12,16 +12,16 @@
     <link rel="canonical" href="https://veylet.com/account" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css?v=a8e48561929d7ca9" />
+    <link rel="stylesheet" href="/style.css?v=3412b25235ba11a4" />
     <link rel="stylesheet" href="/account-guide.css?v=ba883367bd9a7f1a" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/place-fields.js?v=158ceaaaa7841cf4"></script>
+    <script src="/place-fields.js?v=a45d24dc7dc82f36"></script>
     <script src="/tour-sharing.js?v=be796c17f4972ab7" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <script src="/account.js?v=34c888126ec3ad0c" defer></script>
+    <script src="/account.js?v=5c4a14b860320136" defer></script>
     <script src="/stage.js?v=bdc521b740f4b892" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -34,7 +34,7 @@
       <a class="brand" href="/" aria-label="Veylet Studio home"
         ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
       >
-      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/offer">Offer</a><a href="/apply">Capture partners</a><a href="/account" aria-current="page">Sign in</a></nav>
+      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/offer">Offer</a><a href="/account" aria-current="page">Sign in</a></nav>
     </header>
     <main id="main" class="form-page wrap">
       <h1 id="account-title">Sign in to your account.</h1>
@@ -45,9 +45,6 @@
       <p class="contact-note" id="account-referred" hidden></p>
       <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
       <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
-      <p class="contact-note" id="account-setup-note">
-        Planning to capture for clients? <a href="/apply">Start with device and practice assessment</a>.
-      </p>
       <p id="account-status" class="contact-note" role="status"></p>
       <noscript><p class="contact-note">Signing in needs JavaScript, so the sign-in form is not shown here. Turn JavaScript on for this site and reload, or read the <a href="/start">first-tour guide</a> or <a href="/waitlist">join the waitlist</a> — neither needs an account.</p></noscript>
       <form id="account-sign-in" class="veylet-form">
@@ -65,7 +62,7 @@
             <input type="radio" name="role_intent" value="operator" />
             <span><strong>I capture spaces for clients</strong><small>Photographers and capture professionals.</small></span>
           </label>
-          <p class="choice-help">This only tailors your desk. It does not send a walkthrough request or a partner application.</p>
+          <p class="choice-help">This only tailors your desk. It does not send a walkthrough request.</p>
         </fieldset>
         <!-- Tips and offers (Spam Act): never ticked here, separate from everything else on the form,
              and shown only when the backend can record it. The label is the first wording, tips-v1, which is
@@ -198,7 +195,7 @@
                 practice capture first.
               </p>
               <p class="gate-note-actions">
-                <a class="button" href="/apply">Apply to use Veylet</a>
+                <a class="button" href="/start#first-session">See your first session</a>
               </p>
             </details>
             <p class="desk-links"><a class="text-link" href="/start">First-tour guide</a></p>
