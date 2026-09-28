@@ -226,21 +226,35 @@
   // Where each of the five steps starts along the pinned scroll. Step 4 holds two screens
   // (rendering, then ready) and step 5 three (approve, share, the walkthrough in a browser).
   const EDGES = [0, 0.15, 0.3, 0.45, 0.7, 1];
+  // Resolve once: the render panel is written to on every scroll frame while the scene is pinned.
+  const renderUiBits = renderUi ? {
+    title: renderUi.querySelector('[data-ui-title]'),
+    turn: renderUi.querySelector('[data-ui-turn]'),
+    line: renderUi.querySelector('[data-ui-line]'),
+    steps: [...renderUi.querySelectorAll('[data-ui-step]')],
+  } : null;
   const setRender = (state, now) => {
-    if (!renderUi) return;
-    renderUi.dataset.state = state;
+    if (!renderUi || !renderUiBits) return;
     const ready = state === 'ready';
-    renderUi.querySelector('[data-ui-title]').textContent = ready ? 'Ready for your review' : 'Rendering';
-    renderUi.querySelector('[data-ui-turn]').textContent = ready ? 'Your turn' : 'Automatic';
-    renderUi.querySelector('[data-ui-line]').textContent = ready
+    const title = ready ? 'Ready for your review' : 'Rendering';
+    const turn = ready ? 'Your turn' : 'Automatic';
+    const line = ready
       ? 'It passed the automatic quality check.'
       : `Step ${now} of 5: ${RENDER_STEPS[now - 1]}.`;
-    renderUi.querySelectorAll('[data-ui-step]').forEach((item, index) => {
-      item.classList.toggle('is-done', ready || index < now - 1);
-      item.classList.toggle('is-now', !ready && index === now - 1);
+    // An unconditional write here forces a style recalculation on every scroll frame, which is the
+    // difference between a scrub that tracks the finger and one that stutters. Write only on change.
+    if (renderUi.dataset.state !== state) renderUi.dataset.state = state;
+    if (renderUiBits.title.textContent !== title) renderUiBits.title.textContent = title;
+    if (renderUiBits.turn.textContent !== turn) renderUiBits.turn.textContent = turn;
+    if (renderUiBits.line.textContent !== line) renderUiBits.line.textContent = line;
+    renderUiBits.steps.forEach((item, index) => {
+      const done = ready || index < now - 1;
+      const active = !ready && index === now - 1;
+      if (item.classList.contains('is-done') !== done) item.classList.toggle('is-done', done);
+      if (item.classList.contains('is-now') !== active) item.classList.toggle('is-now', active);
     });
   };
-  const setShare = state => { if (shareUi) shareUi.dataset.state = state; };
+  const setShare = state => { if (shareUi && shareUi.dataset.state !== state) shareUi.dataset.state = state; };
   // The complete still state: what the plain list shows.
   const still = () => {
     steps.forEach(step => { step.style.removeProperty('--p'); step.removeAttribute('aria-current'); });
@@ -254,12 +268,22 @@
     while (index < 4 && at >= EDGES[index + 1]) index += 1;
     const local = (at - EDGES[index]) / (EDGES[index + 1] - EDGES[index]);
     steps.forEach((step, i) => {
-      step.style.setProperty('--p', i < index ? '1' : i === index ? local.toFixed(3) : '0');
-      if (i === index) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current');
+      const value = i < index ? '1' : i === index ? local.toFixed(3) : '0';
+      if (step.dataset.p !== value) {
+        step.dataset.p = value;
+        step.style.setProperty('--p', value);
+      }
+      const current = i === index;
+      if (step.hasAttribute('aria-current') !== current) {
+        if (current) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current');
+      }
     });
     const number = index + 1;
     const shown = screens.filter(screen => Number(screen.dataset.screen) <= number).pop();
-    screens.forEach(screen => screen.toggleAttribute('data-shown', screen === shown));
+    screens.forEach(screen => {
+      const on = screen === shown;
+      if (screen.hasAttribute('data-shown') !== on) screen.toggleAttribute('data-shown', on);
+    });
     if (number < 4) setRender('rendering', 3);
     else if (number === 4) setRender(local < 0.62 ? 'rendering' : 'ready', Math.min(5, 3 + Math.floor((local / 0.62) * 3)));
     else setRender('ready', 5);
@@ -270,6 +294,10 @@
   const { gsap, ScrollTrigger } = window;
   if (!gsap || !ScrollTrigger) return;
   gsap.registerPlugin(ScrollTrigger);
+  // Phone browsers resize the viewport as the URL bar slides in and out. ScrollTrigger reads each of
+  // those as a resize: it recalculates every trigger and re-places the pinned scene mid-scroll, which
+  // is felt as a stutter exactly while the reader is moving. Ignore those, and refresh deliberately.
+  ScrollTrigger.config({ ignoreMobileResize: true, autoRefreshEvents: 'visibilitychange,DOMContentLoaded,load' });
   const media = gsap.matchMedia();
   media.add('(min-width: 801px) and (prefers-reduced-motion: no-preference)', () => {
     // The hairline draws itself with the scroll. At rest it has already landed on the 3D frame
@@ -278,7 +306,7 @@
     const parts = svg ? ['run-explore', 'explore', 'run-watch', 'watch'].map(name => svg.querySelector(`[data-thread-part="${name}"]`)) : [];
     if (parts.length && parts.every(Boolean)) {
       const [toExplore, dropExplore, toWatch, dropWatch] = parts;
-      gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { start: -300, end: 300, scrub: 0.5 } })
+      gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { start: -300, end: 300, scrub: 0.3 } })
         .fromTo(toExplore, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.28 }, 0)
         .fromTo(dropExplore, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.2 }, 0.28)
         .fromTo(toWatch, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.24 }, 0.52)
@@ -292,6 +320,11 @@
         start: 'center center',
         end: () => '+=' + Math.round(window.innerHeight * 3.2),
         pin: true,
+        // Start the pin a frame early so the scene is already placed when the scroll reaches it
+        // (without this the first pinned frame can show a one-frame jump), and settle the scene
+        // instead of chasing the scroll when the reader flicks past it.
+        anticipatePin: 1,
+        fastScrollEnd: true,
         invalidateOnRefresh: true,
         onUpdate: self => update(self.progress),
         onRefresh: self => update(self.progress),
@@ -305,6 +338,26 @@
     };
   });
   const refresh = () => { layoutThread(); ScrollTrigger.refresh(); };
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(refresh);
-  window.addEventListener('load', refresh, { once: true });
+  // One refresh per frame at most: resize fires in bursts, and each refresh re-measures the page and
+  // re-places the pinned scene, so a burst of them is visible as a stutter.
+  let refreshQueued = false;
+  const queueRefresh = () => {
+    if (refreshQueued) return;
+    refreshQueued = true;
+    requestAnimationFrame(() => { refreshQueued = false; refresh(); });
+  };
+  // A phone's URL bar changes the viewport height as the reader scrolls. The pinned scene's distance
+  // is proportional to the viewport, so re-measuring mid-scroll re-times it: the same scroll position
+  // lands on a different step and the scene snaps under the finger. Refresh when the width changes
+  // (a real layout change) or on orientation change, never on height alone.
+  let lastWidth = window.innerWidth;
+  const onResize = () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    queueRefresh();
+  };
+  window.addEventListener('resize', onResize, { passive: true });
+  window.addEventListener('orientationchange', queueRefresh, { passive: true });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(queueRefresh);
+  window.addEventListener('load', queueRefresh, { once: true });
 })();

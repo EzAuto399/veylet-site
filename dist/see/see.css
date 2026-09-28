@@ -2,6 +2,14 @@
    footer, buttons, ledgers, statement, answers, closing invitation and device chrome come from
    style.css, conversion.css, refinement.css and showcase.css. */
 
+/* The five steps are scrubbed from the scroll itself. style.css makes the document scroll smoothly,
+   which animates every programmatic scroll (hash links, restores, scrollIntoView) while the scene
+   scrubs, so the scene lands behind the reader and the pinned state reads as a stutter. This page
+   wants the scroll direct. Loaded after style.css, so this wins. */
+html {
+  scroll-behavior: auto;
+}
+
 .see-sr {
   position: absolute;
   width: 1px;
@@ -680,6 +688,10 @@
   display: flex;
   align-items: center;
   min-height: calc(var(--flow-device) * 2.17 + 64px);
+  /* The pinned element is re-placed on every scroll frame. Keep it on its own compositor layer so
+     that is a move rather than a repaint of the whole section. */
+  backface-visibility: hidden;
+  will-change: transform;
 }
 .see-flow[data-mode="pinned"] .see-steps {
   width: var(--flow-list);
@@ -719,7 +731,10 @@
   width: var(--flow-device);
   translate: 0 -50%;
   opacity: 0;
-  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  /* A cross-fade that outlasts the scroll reads as lag; keep it short and composite-only. */
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+  backface-visibility: hidden;
 }
 .see-flow[data-mode="pinned"] .see-step-screen[data-shown] {
   opacity: 1;
