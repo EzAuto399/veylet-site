@@ -19,6 +19,17 @@ html {
   white-space: nowrap;
 }
 
+/* The flow's device frames hold dark-mode app screenshots on a dark ground (#07100c from showcase.css).
+   Before one decodes, and in a browser that cannot show the file, that ground plus the image's alt text
+   read as a broken black panel. Give these frames a paper ground while the screen arrives, and keep the
+   fallback wording for assistive technology only: the caption under each frame names the screen. */
+.see-flow .device-screen {
+  background: var(--paper);
+}
+.see-flow .device-screen > img {
+  color: transparent;
+}
+
 /* ---------- First viewport: the viewing room ---------- */
 /* Wide screens: the headline across the top, then a narrow column (intro, actions) beside a
    diptych: the 3D walkthrough (16:10) and the phone (9:16), top-aligned, 24 px apart, equal in
