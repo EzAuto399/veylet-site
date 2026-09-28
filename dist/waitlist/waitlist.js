@@ -2,7 +2,10 @@
  * /waitlist: one form, one call. The answers go to rpc/join_waitlist (the product repository's
  * supabase/drafts/release-2/20260926102000_waitlist.sql, not yet released) with the public key and
  * nothing else: no third-party script, no cookie, no analytics. A backend without the function
- * (PostgREST PGRST202 / 404) says the waitlist opens soon and gives the email route instead.
+ * (PostgREST PGRST202 / 404), or a page without its configuration, sends the same answers once to the
+ * owner's inbox through FormSubmit's JSON endpoint instead (owner decision, 29 September 2026, until the
+ * release-2 waitlist is applied): no script, cookie or frame is loaded for it, and a sign-up that cannot
+ * be delivered either way still gets the email route.
  * The server answers joined (new or already listed: the same words, so the page never says whether
  * an address was on the list), busy (its hourly limit), or invalid. The "tips and offers" box is a
  * separate, unticked choice (Spam Act): joining never depends on it. Its label is the consent wording
@@ -14,6 +17,8 @@
   'use strict';
 
   var SUPPORT = 'yoda@yodalai.xyz';
+  // Used only while the database has no join_waitlist (see above); the same inbox the /request form uses.
+  var INBOX_ENDPOINT = 'https://formsubmit.co/ajax/' + SUPPORT;
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
   var CHANNELS = ['own_website', 'realestate_com_au', 'domain', 'social', 'client_deliverables', 'other'];
@@ -85,6 +90,36 @@
     }
   }
 
+  /** The answers as one plain message to the owner's inbox; 'joined' only when FormSubmit says it sent. */
+  async function joinByInbox(fetchImpl, answers) {
+    try {
+      var response = await fetchImpl(INBOX_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          _subject: 'Veylet waitlist',
+          _template: 'table',
+          _captcha: 'false',
+          name: answers.p_name,
+          email: answers.p_email,
+          business: answers.p_business_type,
+          device: answers.p_device,
+          region: answers.p_region,
+          channels: answers.p_channels.join(', '),
+          tips_and_offers: answers.p_consent_tips ? 'yes' : 'no',
+          consent_wording: answers.p_consent_wording,
+        }),
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+      });
+      var body = null;
+      try { body = await response.json(); } catch (unreadable) { body = null; }
+      return response.ok && body && String(body.success) === 'true' ? 'joined' : 'missing';
+    } catch (failure) {
+      return 'missing';
+    }
+  }
+
   function mailLink(doc) {
     var link = doc.createElement('a');
     link.setAttribute('href', 'mailto:' + SUPPORT + '?subject=' + encodeURIComponent('Veylet waitlist'));
@@ -127,9 +162,10 @@
     var answers = answersFrom(data);
     if (problem(answers)) return show(doc, 'invalid');
     var config = win.VEYLET_SUPABASE;
-    if (!config || !config.url || !config.anonKey) return show(doc, 'error');
     show(doc, 'sending');
-    return show(doc, await join(win.fetch.bind(win), config, answers));
+    var state = config && config.url && config.anonKey ? await join(win.fetch.bind(win), config, answers) : 'missing';
+    if (state === 'missing') state = await joinByInbox(win.fetch.bind(win), answers);
+    return show(doc, state);
   }
 
   function run(win) {
@@ -154,7 +190,8 @@
   }
 
   var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, COPY: COPY, TIPS: TIPS,
-    answersFrom: answersFrom, problem: problem, join: join, show: show, send: send, run: run };
+    INBOX_ENDPOINT: INBOX_ENDPOINT, answersFrom: answersFrom, problem: problem, join: join, joinByInbox: joinByInbox,
+    show: show, send: send, run: run };
   if (typeof window !== 'undefined') {
     window.VeyletWaitlist = api;
     if (!window.VEYLET_WAITLIST_MANUAL) {

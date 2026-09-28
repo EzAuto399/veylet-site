@@ -8,12 +8,19 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../dist');
 const base = process.argv[2];
 const fetched = new Map();
 let references = 0;
+// At most 8 requests in flight: the local QA server (ThreadingHTTPServer, a backlog of 5) refused
+// connections when ~100 pages were requested at once, which read as asset failures that were not there.
+const slots = { free: 8, waiting: [] };
+async function limited(task) {
+  if (slots.free > 0) slots.free--; else await new Promise(resolve => slots.waiting.push(resolve));
+  try { return await task(); } finally { const next = slots.waiting.shift(); if (next) next(); else slots.free++; }
+}
 async function fetchBytes(path) {
-  if (!fetched.has(path)) fetched.set(path, (async () => {
+  if (!fetched.has(path)) fetched.set(path, limited(async () => {
     const response = await fetch(new URL(path, base), { signal: AbortSignal.timeout(25000) });
     if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
     return { bytes: Buffer.from(await response.arrayBuffer()), headers: response.headers };
-  })());
+  }));
   return fetched.get(path);
 }
 const assets = new Map();

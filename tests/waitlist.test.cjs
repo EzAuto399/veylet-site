@@ -77,8 +77,13 @@ test('no third-party script, font or form service: every script and stylesheet i
     .map(m => m[1] || m[2]);
   assert.ok(sources.length >= 4);
   for (const src of sources) assert.match(src, /^\/(?!\/)/, src);
-  assert.doesNotMatch(markup, /formsubmit|googleapis|gtag|recaptcha|hcaptcha/i);
-  assert.doesNotMatch(script, /https?:\/\//);
+  assert.doesNotMatch(markup, /googleapis|gtag|recaptcha|hcaptcha/i);
+  // 29 Sep 2026 (owner): until the release-2 waitlist is applied, a sign-up the database cannot take goes
+  // to the owner's inbox through FormSubmit's JSON endpoint. No form action, script or frame points there,
+  // the page says so, and it is the script's only external address.
+  assert.doesNotMatch(markup, /action="https?:|<script[^>]+formsubmit|<iframe/i);
+  assert.match(markup, /Until our waitlist database is live, they reach us by email through FormSubmit\./);
+  assert.deepEqual([...new Set(script.match(/https?:\/\/[^'"\s)]+/g) || [])], ['https://formsubmit.co/ajax/']);
 });
 
 test('answers are trimmed and allowlisted; consent is true only when ticked', () => {
@@ -161,4 +166,38 @@ test('the fallback address is the one the support page gives', () => {
   const address = /mailto:([^?"]+)\?subject=Veylet%20support/.exec(support)[1];
   assert.equal(load().SUPPORT, address);
   assert.match(markup, new RegExp(`mailto:${address.replace('.', '\\.')}`));
+});
+
+
+test('while the database has no waitlist, a sign-up reaches the owner\'s inbox once; if that fails too, the email route', async () => {
+  const api = load();
+  assert.equal(api.INBOX_ENDPOINT, 'https://formsubmit.co/ajax/' + api.SUPPORT);
+  // The database answers "no such function"; FormSubmit accepts: the visitor is on the list.
+  const ok = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true', message: 'The form was submitted successfully.' } }]);
+  ok.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, consent_tips: 'yes' });
+  assert.equal(await api.send(ok.window, ok.ids['waitlist-form']), 'joined');
+  assert.equal(ok.requests.length, 2);
+  const inbox = ok.requests[1];
+  assert.equal(inbox.url, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
+  assert.equal(inbox.init.credentials, 'omit');
+  assert.deepEqual(inbox.body, { _subject: 'Veylet waitlist', _template: 'table', _captcha: 'false', name: 'Sam Agent',
+    email: 'Sam@Agency.com.au', business: 'sales_agent', device: 'iphone_pro_lidar', region: 'Brisbane',
+    channels: 'own_website, domain', tips_and_offers: 'yes', consent_wording: 'tips-v1' });
+  assert.equal(ok.ids['waitlist-form'].hidden, true);
+  // Both fail: nothing is claimed, the email route shows, and nothing typed is lost.
+  const down = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 500, body: { success: 'false' } }]);
+  down.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
+  assert.equal(await api.send(down.window, down.ids['waitlist-form']), 'missing');
+  assert.equal(down.ids['waitlist-fallback'].hidden, false);
+  assert.equal(down.ids['waitlist-form'].hidden, false);
+  // A page without its database configuration goes straight to the inbox.
+  const noConfig = page([{ status: 200, body: { success: 'true' } }], null);
+  noConfig.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
+  assert.equal(await api.send(noConfig.window, noConfig.ids['waitlist-form']), 'joined');
+  assert.equal(noConfig.requests.length, 1);
+  // A working database never touches the inbox.
+  const live = page([{ status: 200, body: { state: 'joined' } }]);
+  live.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
+  assert.equal(await api.send(live.window, live.ids['waitlist-form']), 'joined');
+  assert.equal(live.requests.length, 1);
 });
