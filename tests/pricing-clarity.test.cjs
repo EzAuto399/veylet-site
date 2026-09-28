@@ -92,7 +92,7 @@ test('the canonical offer is 2026-09-29.1 and separates payment channels and una
     qualityGate: 'an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving',
     approval: 'the account reviews and approves before sharing' });
   assert.match(record.anchor.sourceDoc, /^property-3d-studio\/docs\/pricing-and-unit-economics\.md$/);
-  assert.equal(record.anchor.checked, '2026-09-13');
+  assert.equal(record.anchor.checked, '2026-09-29');
   assert.match(record.guarantee.scope, /the account's first accepted walkthrough; the redo is a correction revision \(no unit, same link\); a recapture visit is not included/);
   assert.deepEqual(record.earlyAnnualBonus.channels.sort(), ['appStore', 'invoice', 'web']);
   assert.deepEqual([record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [1, 1]);

@@ -295,9 +295,9 @@
     "operationalStatus": "availability is gated by the 7-day Sydney GPU-start probe (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability"
   },
   "anchor": {
-    "text": "A photographer's 3D tour costs A$215–400 each",
+    "text": "A photographer's 3D tour costs A$195–400 each",
     "sourceDoc": "property-3d-studio/docs/pricing-and-unit-economics.md",
-    "checked": "2026-09-13",
+    "checked": "2026-09-29",
     "surfaces": [
       "website"
     ]

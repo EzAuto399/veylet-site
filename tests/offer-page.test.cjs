@@ -104,7 +104,7 @@ test('the canonical record is offer 2026-09-29.1: 1 free month with 3 and a card
   assert.equal(record.counting.acceptedMeans, 'the automatic quality check passed and the workspace approved the exact revision for release');
   assert.equal(record.programmes.founding.perks[0], 'priority rendering');
   assert.deepEqual({ text: record.anchor.text, checked: record.anchor.checked, surfaces: record.anchor.surfaces },
-    { text: "A photographer's 3D tour costs A$215–400 each", checked: '2026-09-13', surfaces: ['website'] });
+    { text: "A photographer's 3D tour costs A$195–400 each", checked: '2026-09-29', surfaces: ['website'] });
   assert.equal(record.guarantee.text, "If your first walkthrough isn't listing-ready, we redo it free");
   assert.equal(free.cardRequired, true);
   assert.equal(free.cardOnFile.web, 'not offered for new subscriptions');
@@ -188,7 +188,7 @@ test('every amount on the offer page sits on its own data-price element and equa
     assert.match(body, new RegExp(`<span[^>]*\\bdata-price="${key}"[^>]*>${escape(price)}</span>`), key);
   }
   assert.equal(prices['first-year'], 'A$1,539.89', 'the no-script first year: 11 monthly payments');
-  assert.deepEqual([prices['anchor-monthly'], prices['anchor-annual'], prices.anchor], ['A$70.00', 'A$58.33', 'A$215–400']);
+  assert.deepEqual([prices['anchor-monthly'], prices['anchor-annual'], prices.anchor], ['A$70.00', 'A$58.33', 'A$195–400']);
   // Nothing else in the markup states an amount; the free rows carry A$0 on data-amount.
   const rest = body.replace(/<span[^>]*\bdata-price="[^"]+"[^>]*>A\$[\d,.]+(?:–\d+)?<\/span>/g, '')
     .replace(/<dd class="amount" data-amount="0">A\$0<\/dd>/g, '');
@@ -490,8 +490,8 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   const anchor = ways.slice(ways.indexOf('data-offer-anchor'), ways.indexOf('data-offer-express'));
   assert.match(anchor, /<h3 id="anchor-title">What one walkthrough costs\.<\/h3>/);
   const anchorScope = text(anchor.match(/<div data-anchor="photographer">[\s\S]*?<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]);
-  assert.ok(plain(anchorScope).startsWith(record.anchor.text + ', from published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026.'), anchorScope);
-  assert.equal(new Date(record.anchor.checked + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }), '13 September 2026');
+  assert.ok(plain(anchorScope).startsWith(record.anchor.text + ', from published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026.'), anchorScope);
+  assert.equal(new Date(record.anchor.checked + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }), '29 September 2026');
   assert.match(anchor, /<a href="\/guides\/3d-tour-cost-australia">What does a 3D tour cost in Australia\?<\/a>/);
   assert.ok(fs.existsSync(path.join(distDir, 'guides/3d-tour-cost-australia/index.html')), 'the source guide exists');
   assert.equal(text(anchor.match(/<div data-anchor="monthly">[\s\S]*?<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]), `${aud(plan.appAud)} a month for ${plan.includedPerMonth}, when you use both.`);
@@ -902,7 +902,7 @@ test('no page promises an App Store product or a website card payment that does 
 // first-year totals.
 const canonicalAmounts = () => {
   // Offer 2026-09-25.2 adds express, one walkthrough's cost on each plan when every one is used, and the
-  // photographer anchor's own low end (the page writes it as a range, A$215–400).
+  // photographer anchor's own low end (the page writes it as a range, A$195–400).
   const amounts = [0, plan.webAud, plan.appAud, plan.annualAud, plan.annualAppAud, saving, hostingYear,
     record.services.editingPerHourAud, ...record.packs.map((entry) => entry.webAud), express.webAud, perMonthly, perAnnual,
     Number(anchorRange.match(/\d+/)[0]), ...record.recurringCapacity.monthly.map(entry => entry.totalAud)];
@@ -914,7 +914,7 @@ const canonicalAmounts = () => {
 
 test('every amount on the offer page, home page, /start, /terms and llms.txt is a canonical offer amount', () => {
   const allowed = canonicalAmounts();
-  for (const amount of ['A$1,319.89', 'A$1,539.89', 'A$1,708.89', 'A$2,038.89', 'A$1,399.99', 'A$1,568.99', 'A$1,898.99', 'A$279.89', 'A$29', 'A$70.00', 'A$215', 'A$219.99', 'A$319.99']) {
+  for (const amount of ['A$1,319.89', 'A$1,539.89', 'A$1,708.89', 'A$2,038.89', 'A$1,399.99', 'A$1,568.99', 'A$1,898.99', 'A$279.89', 'A$29', 'A$70.00', 'A$195', 'A$219.99', 'A$319.99']) {
     assert.ok(allowed.has(amount), `derived amount ${amount}`);
   }
   for (const page of SURFACES) {
@@ -1044,7 +1044,7 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.equal(lineStarting('- Early annual bonus:'), '', 'the early-annual bonus line is retired from llms.txt');
   assert.equal(lineStarting('- Per walkthrough,'), `- Per walkthrough, when every included walkthrough is used: ${perWalkText} on monthly (${aud(plan.appAud)} for ${plan.includedPerMonth} a month), `
     + `${aud(perAnnual)} on annual (${aud(plan.annualAud)} for ${plan.annualIncluded} a year). `
-    + `For comparison, ${record.anchor.text.replace(/^A /, 'a ')} (published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026; see the 3D tour cost guide below).`);
+    + `For comparison, ${record.anchor.text.replace(/^A /, 'a ')} (published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026; see the 3D tour cost guide below).`);
   const expressLine = lineStarting('- Super fast render:');
   assert.match(expressLine, new RegExp(`^\\- Super fast render: ${escape(aud(express.webAud))} a capture, on the website only:`));
   assert.match(expressLine, /ready in about 30 minutes, any day, any time/);
