@@ -211,13 +211,15 @@ test('the calculator reads every amount and count from the record, with a native
   assert.equal(pack3.validMonths, pack10.validMonths, 'one validity for both packs');
   assert.deepEqual(formData, {
     freeIncluded: String(free.includedWalkthroughs),
-    planWebMonth: String(plan.webAud), planAppMonth: String(plan.appAud), planIncluded: String(plan.includedPerMonth),
+    planAppMonth: String(plan.appAud), planIncluded: String(plan.includedPerMonth),
     planBankedMax: String(banked),
-    planWebYear: String(plan.annualAud), planAppYear: String(plan.annualAppAud), planYearIncluded: String(plan.annualIncluded),
+    planAppYear: String(plan.annualAppAud), planYearIncluded: String(plan.annualIncluded),
     pack3Web: String(pack3.webAud), pack3Walkthroughs: String(pack3.walkthroughs),
     pack10Web: String(pack10.webAud), pack10Walkthroughs: String(pack10.walkthroughs),
     packValidMonths: String(pack3.validMonths),
   });
+  // 29 Sep 2026: the plan is sold through the App Store only; no website plan price sits in the markup.
+  assert.doesNotMatch(formTag, /data-plan-web-/);
   const form = body.slice(body.indexOf(formTag), body.indexOf('</form>', body.indexOf(formTag)));
   // Native selects with visible labels and no amount in their options.
   assert.ok(form.includes('<label for="billing-cadence">Plan</label><select id="billing-cadence" name="billing-cadence">'
@@ -1186,4 +1188,17 @@ test('the approval promise is the counting rule itself: only a walkthrough you a
   assert.ok(body.includes('<p class="offer-promise" data-offer-approval><strong>You only use a walkthrough when you approve it.</strong>'), '/offer');
   assert.ok(read('index.html').includes('<dt>Only what you approve counts</dt><dd>Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.</dd>'), 'home');
   assert.ok(read('see/index.html').includes('<dt>Only what you approve counts</dt><dd>A walkthrough uses your allowance only when you approve it for release.'), '/see');
+});
+
+test('the offer page puts the buyable plan before unavailable capacity, says who it is for and where the app is, and marks up both plans', () => {
+  // Pricing-page review, 29 September 2026.
+  assert.ok(body.indexOf('id="ways-title"') < body.indexOf('id="capacity-title"'), 'the real plans come before the unavailable capacity');
+  assert.match(body, /<p class="intro">For real-estate agents and property managers across Australia\./);
+  assert.match(body, /The app is in invitation-only testing through TestFlight and is not listed on the App Store yet/);
+  const docs = [...offer.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  const product = docs.flatMap((doc) => doc['@graph'] || [doc]).find((node) => node['@type'] === 'Product');
+  assert.ok(product, 'a Product node');
+  assert.deepEqual(product.offers.map((o) => [o.price, o.priceCurrency, o.priceSpecification.billingDuration]),
+    [[plan.appAud.toFixed(2), 'AUD', 'P1M'], [plan.annualAppAud.toFixed(2), 'AUD', 'P1Y']]);
+  assert.ok(product.offers.every((o) => o.availability === 'https://schema.org/LimitedAvailability'), 'invitation-only today');
 });
