@@ -118,14 +118,15 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-28.1, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-28.1');
+test('every price on the page is offer.json 2026-09-29.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-09-29.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.appAud),
     'see-free': 'A$0',
     'see-plan-month': aud(plan.appAud),
     'see-plan-year': aud(plan.annualAud),
+    'see-plan-year-saving': aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100),
     'see-plan-month-app': aud(plan.appAud),
   });
   const allowed = new Set(Object.values(prices));
@@ -139,7 +140,9 @@ test('every price on the page is offer.json 2026-09-28.1, set on data-price elem
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
   assert.ok(statement.includes(`${plan.includedPerMonth} walkthroughs a month; unused ones roll over, up to ${plan.rollover.maxBanked} banked`));
-  assert.ok(statement.includes(`${plan.annualIncluded} walkthroughs to use any time in the plan year`));
+  assert.ok(statement.includes(`The same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year`));
+  assert.ok(statement.includes(`save ${aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100)} on 12 monthly payments`));
+  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of walkthroughs');
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
   assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included`));

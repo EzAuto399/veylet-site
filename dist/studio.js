@@ -68,9 +68,9 @@
   // the provider, price, allowance and dates already stored for their agreement.
   const PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // Annual rows use a yearly pool of 20. Existing rows continue to display the
+  // Annual rows use a yearly pool of 24 (offer 2026-09-29.1). Existing rows continue to display the
   // exact cadence, price and allowance already recorded for them.
-  const YEARLY_POOL = 20;
+  const YEARLY_POOL = 24;
   const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free 3-pack for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.

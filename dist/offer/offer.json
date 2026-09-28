@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-28.1",
+  "version": "2026-09-29.1",
   "status": "accepted prices; source preparation only, with recurring capacity unavailable until billing and release verification",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
@@ -56,8 +56,8 @@
       "hostingWhileSubscribed": true,
       "whiteLabel": true,
       "freeMonthsEligible": true,
-      "annualRule": "20 walkthroughs to use any time in the paid plan year; A$1,399.99 upfront through the App Store; no annual rollover; 16.7% less than 12 monthly payments",
-      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 20-walkthrough yearly pool",
+      "annualRule": "24 walkthroughs to use any time in the paid plan year, the same 2 a month as monthly; A$1,399.99 upfront through the App Store (A$58.33 a walkthrough, against A$70.00 on monthly); no annual rollover; A$279.89 (16.7%) less than 12 monthly payments; never \"2 months free\"",
+      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
       "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; after that, only a paid hosting extension keeps a single walkthrough online: A$49 a year per walkthrough, on request, until the extension ends",
       "hosting": {
         "liveWhile": "an active plan: free months (trial), monthly or annual",
@@ -103,7 +103,7 @@
       },
       "annualAud": 1399.99,
       "annualAppAud": 1399.99,
-      "annualIncluded": 20,
+      "annualIncluded": 24,
       "intervals": [
         "monthly",
         "annual"
@@ -112,7 +112,9 @@
         "appStore"
       ],
       "annualSavingsPercent": 16.7,
-      "annualSavingsAud": 279.89
+      "annualSavingsAud": 279.89,
+      "annualPerWalkthroughAud": 58.33,
+      "monthlyPerWalkthroughAud": 70
     }
   ],
   "programmes": {
@@ -173,7 +175,7 @@
     "planAllowanceIsMonthly": true,
     "unit": "accepted_walkthrough",
     "unitsPerAcceptedWalkthrough": 1,
-    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 20-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
+    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
     "annualAllowanceIsYearlyPool": true,
     "walkthroughsPerCapture": "one per new accepted capture",
     "roomsRule": "room count does not change the allowance unit; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough"
@@ -349,6 +351,12 @@
       "replacedBy": "2026-09-28.1",
       "on": "2026-09-28",
       "change": "Owner decision record marketing/acquisition-launch-20260927/operations/offer-2026-09-28-1-decision.md (28 September 2026), applied as offer 2026-09-28.1: the free trial is 1 month with 3 accepted walkthroughs total (App Store introductory offer: 1 month free), was 3 calendar months with 6; monthly A$139.99, was A$119.99; yearly A$1,399.99 for a 20-walkthrough pool, was A$1,099.99 for 24; no rollover between paid years; the early-Yearly bonus (+4 walkthroughs and 4 Super fast renders) is removed for new agreements; Super fast stays A$29, website only, sold only while its availability gate is green (7-day Sydney GPU-start probe, p90 start of 5 minutes or less), with the automatic refund kept for orders taken; the standard turnaround time promise (\"targets 1–2 hours after upload\") is withdrawn for \"We'll email you when it's ready.\"; listing videos (16:9, 9:16, stills) stay included, made on request per tour one format at a time, not public until exports open; the customer pays A$70.00 per accepted walkthrough on either plan; yearly is A$279.89 less than 12 monthly payments (16.7%), never \"2 months free\""
+    },
+    {
+      "version": "2026-09-28.1",
+      "replacedBy": "2026-09-29.1",
+      "on": "2026-09-29",
+      "change": "Owner decision, 29 September 2026 (property-3d-studio marketing/acquisition-launch-20260927/operations/offer-2026-09-29-1-decision.md), applied as offer 2026-09-29.1: the yearly pool is 24 walkthroughs, was 20, at the same A$1,399.99, so yearly carries the same 2 a month as monthly and costs A$58.33 a walkthrough against A$70.00; yearly is A$279.89 (16.7%) less than 12 monthly payments for the same 24 walkthroughs, never \"2 months free\" (ten monthly payments are A$1,399.90). Trial, monthly price and banking, Super fast, packs, hosting, editing and counting are unchanged from 2026-09-28.1. A pool of 20 already granted under 2026-09-28.1 is raised to 24 for its current plan year; no App Store price changes."
     }
   ],
   "subscriptionCheckout": {

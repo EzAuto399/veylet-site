@@ -1934,7 +1934,7 @@
    * plan with a payment method on file, then the Veylet plan unless cancelled
    * before the first charge on the day it ends (offer 2026-09-25.2): monthly,
    * two walkthroughs a month where unused ones roll over (at most four banked),
-   * or annual, a yearly pool of 20 walkthroughs. This panel only reports what get_workspace_plan
+   * or annual, a yearly pool of 24 walkthroughs. This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
