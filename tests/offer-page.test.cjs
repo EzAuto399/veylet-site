@@ -841,7 +841,7 @@ test('no public page gates the annual behind membership', () => {
 test('the terms state the free months, the plan’s walkthroughs, referrals, the whole home, packs, renewal and hosting', () => {
   const terms = read('terms/index.html').replace(/\s+/g, ' ');
   for (const phrase of [
-    'Last updated 25 September 2026',
+    'Last updated 29 September 2026',
     `An eligible new account gets ${free.months} free month with ${free.includedWalkthroughs} accepted walkthroughs included, on the Veylet plan monthly or annual.`,
     'There is one trial per agency (ABN) and workspace, and real captures unlock in the app once your practice room passes.',
     'Starting it needs a payment method on file.',
