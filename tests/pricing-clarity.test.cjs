@@ -242,3 +242,24 @@ test('every public page states the free-month walkthrough count from the record'
   }
   assert.ok(seen >= 5, `the count is stated on several pages (${seen})`);
 });
+
+test('no page says a partial recapture is free: only a correction or a whole recapture of every original room keeps the link', () => {
+  // 29 September 2026: /app/support said "Recapturing a room never uses a walkthrough", the inverse of
+  // offer.json counting.roomsRule (a new accepted capture of only some rooms is its own walkthrough).
+  assert.match(record.counting.roomsRule, /a permitted whole recapture including every original room use no extra walkthrough/);
+  const files = [];
+  const walkDir = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (!['vendor', 'samples', 'media'].includes(entry.name)) walkDir(full); }
+      else if (/\.(html|txt|js)$/.test(entry.name)) files.push(full);
+    }
+  };
+  walkDir(path.join(__dirname, '../dist'));
+  for (const file of files) {
+    const text = flat(fs.readFileSync(file, 'utf8'));
+    assert.doesNotMatch(text, /recaptur\w* (?:a|the|these|those|named) rooms? (?:never|does not|doesn’t|doesn't) use|recaptur\w* (?:a|the|these|those|named) rooms? (?:keeps|is free)/i,
+      path.relative(path.join(__dirname, '../dist'), file));
+  }
+  assert.match(read('dist/app/support/index.html'), /a capture of only some of the rooms is new, and it uses a walkthrough when accepted\./);
+});
