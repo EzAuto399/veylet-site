@@ -27,7 +27,7 @@ body_of() { curl -sL -m 25 --compressed "$1"; }
 echo "health check → $BASE"
 
 # 1. Every public route answers 200.
-for route in / /offer /start /website-guide /apply /request /account /studio /privacy /terms /support /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
+for route in / /offer /start /website-guide /request /account /studio /privacy /terms /support /thanks /play /handoff /embed /robots.txt /sitemap.xml /llms.txt; do
   c=$(code_of "$BASE$route")
   [ "$c" = "200" ] && ok "route $route" || bad "route $route → $c"
 done

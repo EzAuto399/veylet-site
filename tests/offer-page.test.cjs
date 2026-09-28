@@ -10,7 +10,7 @@ const body = offer.slice(offer.indexOf('<body'));
 const record = JSON.parse(read('offer/offer.json'));
 // Offer 2026-09-28.1: 1 free month with 3 walkthroughs and a card on file, then one plan
 // (code solo, named "Veylet plan") at 2 a month with rollover up to 4, or annual with a
-// yearly pool of 20; the early-annual bonus retired from this offer for new agreements;
+// yearly pool of 24 (2026-09-29.1, was 20 in 2026-09-28.1); the early-annual bonus retired from this offer for new agreements;
 // the A$29 express render; the photographer anchor; the first-walkthrough redo; and packs.
 // Team, Office, One walkthrough, the single extra and the founding rate stay retired.
 const plan = record.plans.find((entry) => entry.code === 'solo');
@@ -75,17 +75,18 @@ const visible = (page) => {
   return page.endsWith('.txt') ? content.replace(/\s+/g, ' ') : text(content.slice(Math.max(0, content.indexOf('<body'))));
 };
 
-test('the canonical record is offer 2026-09-28.1: 1 free month with 3 and a card on file, 2 a month or a pool of 20, express, the anchor, the redo, and packs', () => {
-  assert.equal(record.version, '2026-09-28.1');
+test('the canonical record is offer 2026-09-29.1: 1 free month with 3 and a card on file, 2 a month or a pool of 24, express, the anchor, the redo, and packs', () => {
+  assert.equal(record.version, '2026-09-29.1');
   assert.equal(record.plans.length, 1, 'one plan for new buyers');
   // The pages spell these facts out, so a change here must change the copy too.
   assert.deepEqual({ code: plan.code, name: plan.name, kind: plan.kind, includedPerMonth: plan.includedPerMonth,
     seats: plan.seats, hostingWhileSubscribed: plan.hostingWhileSubscribed, rollover: plan.rollover.enabled, banked,
     annualAud: plan.annualAud, annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded },
   { code: 'solo', name: 'Veylet plan', kind: 'monthly', includedPerMonth: 2, seats: 'unlimited', hostingWhileSubscribed: true,
-    rollover: true, banked: 4, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 20 });
+    rollover: true, banked: 4, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 24 });
   assert.deepEqual([plan.webAud, plan.appAud], [119.99, 139.99]);
-  assert.deepEqual([perMonthly, perAnnual], [70, 70], 'A$70.00 a walkthrough on either plan, when every one is used');
+  assert.deepEqual([perMonthly, perAnnual], [70, 58.33], 'A$70.00 a walkthrough monthly and A$58.33 annual, when every one is used');
+  assert.deepEqual([plan.monthlyPerWalkthroughAud, plan.annualPerWalkthroughAud], [perMonthly, perAnnual], 'the record states both');
   assert.equal(savingsPercent, 16.7, 'annual savings are separate from the trial');
   assert.deepEqual([free.months, free.includedWalkthroughs, record.counting.freeMonthsAllowanceIsTotal], [1, 3, true]);
   assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
@@ -103,7 +104,7 @@ test('the canonical record is offer 2026-09-28.1: 1 free month with 3 and a card
   assert.equal(record.counting.acceptedMeans, 'the automatic quality check passed and the workspace approved the exact revision for release');
   assert.equal(record.programmes.founding.perks[0], 'priority rendering');
   assert.deepEqual({ text: record.anchor.text, checked: record.anchor.checked, surfaces: record.anchor.surfaces },
-    { text: "A photographer's 3D tour costs A$215–400 each", checked: '2026-09-13', surfaces: ['website'] });
+    { text: "A photographer's 3D tour costs A$195–400 each", checked: '2026-09-29', surfaces: ['website'] });
   assert.equal(record.guarantee.text, "If your first walkthrough isn't listing-ready, we redo it free");
   assert.equal(free.cardRequired, true);
   assert.equal(free.cardOnFile.web, 'not offered for new subscriptions');
@@ -148,7 +149,7 @@ const prices = {
   'anchor-text': anchorRange,
   'anchor-monthly': perWalkText,
   'anchor-monthly-plan': aud(plan.appAud),
-  'anchor-annual': perWalkText,
+  'anchor-annual': aud(perAnnual),
   'anchor-annual-plan': aud(plan.annualAud),
   express: aud(express.webAud),
   'express-refund': aud(express.webAud),
@@ -162,11 +163,14 @@ const prices = {
   'pay-plan': aud(plan.appAud),
   'pay-plan-year': aud(plan.annualAud),
   'pay-plan-year-saving': aud(saving),
+  'pay-plan-year-each': aud(perAnnual),
+  'pay-plan-month-each': perWalkText,
   pack3: aud(pack3.webAud),
   pack10: aud(pack10.webAud),
   editing: aud(record.services.editingPerHourAud),
   'answer-plan-month': aud(plan.appAud),
   'answer-plan-year': aud(plan.annualAud),
+  'answer-plan-year-saving': aud(saving),
   'answer-pack3': aud(pack3.webAud),
   'answer-pack10': aud(pack10.webAud),
   // The worked example states only the plan and the 10-pack, never a derived total.
@@ -184,7 +188,7 @@ test('every amount on the offer page sits on its own data-price element and equa
     assert.match(body, new RegExp(`<span[^>]*\\bdata-price="${key}"[^>]*>${escape(price)}</span>`), key);
   }
   assert.equal(prices['first-year'], 'A$1,539.89', 'the no-script first year: 11 monthly payments');
-  assert.deepEqual([prices['anchor-monthly'], prices['anchor-annual'], prices.anchor], ['A$70.00', 'A$70.00', 'A$215–400']);
+  assert.deepEqual([prices['anchor-monthly'], prices['anchor-annual'], prices.anchor], ['A$70.00', 'A$58.33', 'A$195–400']);
   // Nothing else in the markup states an amount; the free rows carry A$0 on data-amount.
   const rest = body.replace(/<span[^>]*\bdata-price="[^"]+"[^>]*>A\$[\d,.]+(?:–\d+)?<\/span>/g, '')
     .replace(/<dd class="amount" data-amount="0">A\$0<\/dd>/g, '');
@@ -404,7 +408,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   const ledgers = [...counts.matchAll(/<dl class="offer-terms[^"]*">([\s\S]*?)<\/dl>/g)].map((match) =>
     Object.fromEntries([...match[1].matchAll(/<div><dt>([\s\S]*?)<\/dt><dd>([\s\S]*?)<\/dd><\/div>/g)].map(([, dt, dd]) => [text(dt), text(dd)])));
   assert.deepEqual(ledgers.map(Object.keys), [
-    ['An accepted walkthrough', 'A whole home', '3 in your free month', '2 a month', '20 a year', 'Packs'],
+    ['An accepted walkthrough', 'A whole home', '3 in your free month', '2 a month', `${plan.annualIncluded} a year`, 'Packs'],
     ['Your first walkthrough', 'A capture that is not good enough', 'Seats', 'Hosting', 'Listing videos and photos', 'Starting', 'Before the first charge', 'Stopping'],
   ]);
   const terms = Object.assign({}, ...ledgers);
@@ -412,7 +416,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.equal(terms['A whole home'], ROOMS_SENTENCE);
   assert.match(terms['3 in your free month'], new RegExp(`^${free.includedWalkthroughs} accepted walkthroughs across the ${free.months} free month in total, not ${free.includedWalkthroughs} a month\\.`));
   assert.equal(terms['2 a month'], `On the monthly plan, ${plan.includedPerMonth} accepted walkthroughs a month, however you are billed. Unused ones roll over, up to ${banked} banked at any time.`);
-  assert.equal(terms['20 a year'], `On the annual plan, ${plan.annualIncluded} walkthroughs to use any time in the plan year: a yearly pool with no monthly limit. `
+  assert.equal(terms[`${plan.annualIncluded} a year`], `On the annual plan, ${plan.annualIncluded} walkthroughs to use any time in the plan year: a yearly pool with no monthly limit. `
     + 'It resets on each plan-year anniversary, and unused ones do not carry into the next year.');
   assert.equal('4 more, and 4 Super fast renders, for choosing early' in terms, false, 'the early-annual bonus row is retired');
   // Accepted means the automatic check passed and the account approved it; nobody checks by hand.
@@ -451,9 +455,9 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
 test('the plan is one ledger with a monthly and an annual row, then the anchor, express, the packs, the referral line, founding and the fine print', () => {
   const ways = section('ways-title', 'id="services-title"');
   assert.match(body, /<h2 id="ways-title">One plan, monthly or annual\. Super fast renders and packs when you need more\.<\/h2>/);
-  assert.ok(ways.includes(`<p class="for-line">The Veylet plan includes ${plan.includedPerMonth} accepted walkthroughs a month, or ${plan.annualIncluded} a year to use any time. `
+  assert.ok(ways.includes(`<p class="for-line">The Veylet plan includes ${plan.includedPerMonth} accepted walkthroughs a month, or the same ${plan.annualIncluded} a year to use any time for less. `
     + `When you need one fast, add a Super fast render; when you need more, add a pack. Eligible accounts start with ${free.months} free month and ${free.includedWalkthroughs} walkthroughs.</p>`));
-  const names = [...ways.slice(0, ways.indexOf('data-offer-example')).matchAll(/<dt>([^<]+)<\/dt>/g)].map((match) => match[1].trim());
+  const names = [...ways.slice(0, ways.indexOf('data-offer-example')).matchAll(/<dt>([^<]+?)\s*(?:<span class="pill offer-save">[\s\S]*?<\/span><\/span>)?<\/dt>/g)].map((match) => match[1].trim());
   assert.deepEqual(names, ['Veylet plan, monthly', 'Veylet plan, annual', 'A photographer’s 3D tour', 'A Veylet walkthrough, monthly', 'A Veylet walkthrough, annual',
     'Super fast render', `One-time pack of ${pack3.walkthroughs} walkthroughs`, `One-time pack of ${pack10.walkthroughs} walkthroughs`]);
   // The plan leads with its two rows; the anchor, express and the packs follow it, so the plan never shares a row with an add-on.
@@ -468,22 +472,26 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   const monthly = ways.slice(ways.indexOf('data-plan-cadence="monthly"'), ways.indexOf('data-plan-cadence="annual"'));
   const annual = ways.slice(ways.indexOf('data-plan-cadence="annual"'), ways.indexOf('data-offer-packs'));
   assert.match(monthly, /<span class="offer-price" data-price="pay-plan">[^<]+<\/span><span class="offer-price-note">a month in the App Store<\/span>/);
+  // 2026-09-29.1: the annual carries the same pool as 12 monthly payments for less, so its saving is
+  // tagged in dollars beside the name; the billed amount stays the largest figure.
+  assert.ok(annual.includes(`<dt>Veylet plan, annual <span class="pill offer-save">Save <span data-price="pay-plan-year-saving">${aud(saving)}</span></span></dt>`), 'the saving tag');
   assert.ok(annual.includes(`<span class="offer-price" data-price="pay-plan-year">${aud(plan.annualAud)}</span><span class="offer-price-note">upfront a year in the App Store</span>`
-    + `<span class="offer-price-note">16.7% less than 12 monthly payments</span>`), 'the annual row');
+    + `<span class="offer-price-note">against 12 monthly payments, for the same ${plan.annualIncluded} walkthroughs</span>`), 'the annual row');
+  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'a saving claim needs the same walkthroughs as 12 monthly payments');
   const scope = (row) => text(row.match(/<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]);
   for (const phrase of [`${plan.includedPerMonth} accepted walkthroughs a month; unused ones roll over, up to ${banked} banked.`,
     'Unlimited seats: everyone in your office captures on one account.', 'every released walkthrough stays live while you subscribe',
     'New subscriptions start in the app through Apple. Existing agreements keep their terms.']) {
     assert.ok(scope(monthly).includes(phrase), phrase);
   }
-  assert.equal(scope(annual), `${plan.annualIncluded} walkthroughs to use any time in the plan year: a yearly pool with no monthly limit, reset on each plan-year anniversary, `
-    + `with no rollover between years. The annual costs ${aud(saving)} less than 12 monthly App Store payments (16.7%). Everything else is the same as monthly.`);
+  assert.equal(scope(annual), `The same ${plan.annualIncluded} walkthroughs a year as monthly, ${plan.includedPerMonth} a month, in one yearly pool with no monthly limit: a busy month can use several. `
+    + `It resets on each plan-year anniversary, with no rollover between years. When you use all ${plan.annualIncluded}, each costs ${aud(perAnnual)}, against ${perWalkText} on monthly (${savingsPercent}% less). Everything else is the same as monthly.`);
   // The anchor: the record's sentence with its source and date, beside what one Veylet walkthrough costs.
   const anchor = ways.slice(ways.indexOf('data-offer-anchor'), ways.indexOf('data-offer-express'));
   assert.match(anchor, /<h3 id="anchor-title">What one walkthrough costs\.<\/h3>/);
   const anchorScope = text(anchor.match(/<div data-anchor="photographer">[\s\S]*?<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]);
-  assert.ok(plain(anchorScope).startsWith(record.anchor.text + ', from published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026.'), anchorScope);
-  assert.equal(new Date(record.anchor.checked + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }), '13 September 2026');
+  assert.ok(plain(anchorScope).startsWith(record.anchor.text + ', from published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026.'), anchorScope);
+  assert.equal(new Date(record.anchor.checked + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }), '29 September 2026');
   assert.match(anchor, /<a href="\/guides\/3d-tour-cost-australia">What does a 3D tour cost in Australia\?<\/a>/);
   assert.ok(fs.existsSync(path.join(distDir, 'guides/3d-tour-cost-australia/index.html')), 'the source guide exists');
   assert.equal(text(anchor.match(/<div data-anchor="monthly">[\s\S]*?<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]), `${aud(plan.appAud)} a month for ${plan.includedPerMonth}, when you use both.`);
@@ -521,7 +529,8 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   const promise = text(body.match(/<p class="offer-promise" data-offer-redo>([\s\S]*?)<\/p>/)[1]);
   assert.equal(plain(promise), `${record.guarantee.text}. The redo corrects your account's first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.`);
   assert.ok(body.indexOf('offer-actions') < body.indexOf('data-offer-redo') && body.indexOf('data-offer-redo') < body.indexOf('offer-contents'));
-  assert.match(body, /Same app, same plan, your client\./);
+  // Owner decision, 29 September 2026: no capture-partner section; customers capture with their own iPhone.
+  assert.doesNotMatch(body, /Same app, same plan, your client|Capturing for your own clients|href="\/apply/);
   assert.equal(record.appStore.annualSoldInApp, true);
   assert.deepEqual(record.appStore.sold, ['soloMonthly', 'soloAnnual']);
 });
@@ -591,8 +600,8 @@ test('the straight answers match their structured data word for word, and answer
   assert.ok(ends.includes(`A reminder email ${free.reminderDaysBeforeFirstCharge} days before the first charge is planned but not running yet.`));
   assert.ok(ends.includes(`If you stop, they stay live for ${graceDays} days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.`), ends);
   assert.equal(byQuestion['Monthly or annual: which should we choose?'],
-    `Monthly suits uneven use: ${aud(plan.appAud)} a month for ${plan.includedPerMonth} walkthroughs, and unused ones roll over, up to ${banked} banked. `
-    + `Annual suits a steady year: ${aud(plan.annualAud)} upfront a year is 16.7% less than 12 monthly payments, and its ${plan.annualIncluded} walkthroughs can be used any time in the plan year, so a busy month can use several.`);
+    `Annual, if you list steadily: ${aud(plan.annualAud)} upfront a year gives the same ${plan.annualIncluded} walkthroughs as 12 months of monthly for ${aud(saving)} less (${savingsPercent}%), and they can be used any time in the plan year, so a busy month can use several. `
+    + `Monthly, if you want to be able to stop in any month: ${aud(plan.appAud)} a month for ${plan.includedPerMonth} walkthroughs, and unused ones roll over, up to ${banked} banked.`);
   assert.equal(byQuestion['What is a Super fast render?'],
     'Your capture goes first in the queue and is rendered on the fastest GPU available in Australia, so it is ready for your review in about 30 minutes, any day, any time, '
     + `for ${aud(express.webAud)}. If it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the ${aud(express.webAud)} is refunded automatically. `
@@ -632,7 +641,7 @@ test('the offer page head and structured description state this offer', () => {
     'The first charge is on the day the free month ends, and cancelling before then charges nothing.',
     `${aud(plan.appAud)} a month in the App Store`, `up to ${banked} banked`,
     `${aud(plan.annualAppAud)} upfront a year in the App Store`,
-    `${plan.annualIncluded} walkthroughs to use any time in the plan year`, `A Super fast render, sold only while its availability gate is green, is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
+    `the same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year, for ${aud(saving)} (${savingsPercent}%) less than 12 monthly payments`, `A Super fast render, sold only while its availability gate is green, is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
     'We’ll email you when it’s ready.',
     'If your first walkthrough isn’t listing-ready, we redo it free.']) {
     assert.ok(page.description.includes(phrase), `WebPage description: ${phrase}`);
@@ -677,7 +686,7 @@ test('the offer page makes no claim the product cannot back', () => {
 });
 
 test('every marketing page links to the offer in its header and footer, and the offer is in the sitemap', () => {
-  for (const page of ['index.html', 'request/index.html', 'apply/index.html', 'start/index.html', 'thanks/index.html', 'account/index.html', 'website-guide/index.html', 'privacy/index.html', 'terms/index.html', 'support/index.html', '404.html', 'offer/index.html']) {
+  for (const page of ['index.html', 'request/index.html', 'start/index.html', 'thanks/index.html', 'account/index.html', 'website-guide/index.html', 'privacy/index.html', 'terms/index.html', 'support/index.html', '404.html', 'offer/index.html']) {
     const html = read(page);
     assert.match(html, /<nav aria-label="Main">[\s\S]*?href="\/offer"/, `${page} header links to the offer`);
     assert.match(html, /<nav aria-label="Footer">[\s\S]*?href="\/offer"/, `${page} footer links to the offer`);
@@ -735,9 +744,10 @@ const priceClaims = (flat) => {
   add(/(A\$[\d,.]*\d) a year by card or (?:studio )?invoice/g, [PRICE.year], 'a year by card or invoice');
   add(/(?:express|Super fast) render (?:is |at |for )?(A\$[\d,.]*\d)|(A\$[\d,.]*\d) a capture/gi, [EXPRESS], 'a Super fast render');
   add(/the (A\$[\d,.]*\d) is refunded/g, [EXPRESS], 'the express refund');
-  add(/(A\$[\d,.]*\d) on either plan/g, [perWalkText], 'one walkthrough, on either plan');
+  add(/(A\$[\d,.]*\d) on monthly/g, [perWalkText], 'one walkthrough, monthly');
+  add(/(A\$[\d,.]*\d) on annual/g, [aud(perAnnual)], 'one walkthrough, annual');
   add(/(A\$[\d,.]*\d) for 2 a month/g, [PRICE.monthApp], 'two a month in the App Store');
-  add(/(A\$[\d,.]*\d) for 20 a year/g, [PRICE.yearApp], 'the annual pool');
+  add(/(A\$[\d,.]*\d) for 24 a year/g, [PRICE.yearApp], 'the annual pool');
   add(/(A\$[\d,.]*\d) a year per walkthrough/g, [aud(hostingYear)], 'hosting extension, a year');
   add(/photographer's 3D tour costs (A\$\d+–\d+)|photographer’s 3D tour costs (A\$\d+–\d+)/g, [anchorRange], 'the anchor');
   for (const entry of record.packs) {
@@ -831,7 +841,7 @@ test('no public page gates the annual behind membership', () => {
 test('the terms state the free months, the plan’s walkthroughs, referrals, the whole home, packs, renewal and hosting', () => {
   const terms = read('terms/index.html').replace(/\s+/g, ' ');
   for (const phrase of [
-    'Last updated 25 September 2026',
+    'Last updated 29 September 2026',
     `An eligible new account gets ${free.months} free month with ${free.includedWalkthroughs} accepted walkthroughs included, on the Veylet plan monthly or annual.`,
     'There is one trial per agency (ABN) and workspace, and real captures unlock in the app once your practice room passes.',
     'Starting it needs a payment method on file.',
@@ -893,7 +903,7 @@ test('no page promises an App Store product or a website card payment that does 
 // first-year totals.
 const canonicalAmounts = () => {
   // Offer 2026-09-25.2 adds express, one walkthrough's cost on each plan when every one is used, and the
-  // photographer anchor's own low end (the page writes it as a range, A$215–400).
+  // photographer anchor's own low end (the page writes it as a range, A$195–400).
   const amounts = [0, plan.webAud, plan.appAud, plan.annualAud, plan.annualAppAud, saving, hostingYear,
     record.services.editingPerHourAud, ...record.packs.map((entry) => entry.webAud), express.webAud, perMonthly, perAnnual,
     Number(anchorRange.match(/\d+/)[0]), ...record.recurringCapacity.monthly.map(entry => entry.totalAud)];
@@ -905,7 +915,7 @@ const canonicalAmounts = () => {
 
 test('every amount on the offer page, home page, /start, /terms and llms.txt is a canonical offer amount', () => {
   const allowed = canonicalAmounts();
-  for (const amount of ['A$1,319.89', 'A$1,539.89', 'A$1,708.89', 'A$2,038.89', 'A$1,399.99', 'A$1,568.99', 'A$1,898.99', 'A$279.89', 'A$29', 'A$70.00', 'A$215', 'A$219.99', 'A$319.99']) {
+  for (const amount of ['A$1,319.89', 'A$1,539.89', 'A$1,708.89', 'A$2,038.89', 'A$1,399.99', 'A$1,568.99', 'A$1,898.99', 'A$279.89', 'A$29', 'A$70.00', 'A$195', 'A$219.99', 'A$319.99']) {
     assert.ok(allowed.has(amount), `derived amount ${amount}`);
   }
   for (const page of SURFACES) {
@@ -915,7 +925,7 @@ test('every amount on the offer page, home page, /start, /terms and llms.txt is 
   }
   const home = read('index.html');
   assert.ok(home.includes(`Monthly is ${aud(plan.appAud)} a month in the App Store, with ${plan.includedPerMonth} accepted walkthroughs a month; unused ones roll over, up to ${banked} banked`));
-  assert.ok(home.includes(`Annual is ${aud(plan.annualAppAud)} upfront a year in the App Store (16.7% less than 12 monthly payments), with ${plan.annualIncluded} walkthroughs`));
+  assert.ok(home.includes(`Annual is ${aud(plan.annualAppAud)} upfront a year in the App Store: the same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year, for ${aud(saving)} (${savingsPercent}%) less than 12 monthly payments.`));
   assert.ok(home.includes(`a Super fast render is ${aud(express.webAud)}, ready in about 30 minutes, any day, any time, or refunded`));
   assert.ok(home.includes('the first charge is on the day it ends, and cancelling before then charges nothing'));
   assert.ok(home.includes(`add a pack of ${pack3.walkthroughs} walkthroughs for ${aud(pack3.webAud)} or ${pack10.walkthroughs} for ${aud(pack10.webAud)}`));
@@ -1033,8 +1043,9 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.ok(planLine.includes(`Annual: ${aud(plan.annualAppAud)} upfront a year with a pool of ${plan.annualIncluded} to use any time in the paid plan year`), 'annual');
   assert.match(planLine, /Unlimited seats/);
   assert.equal(lineStarting('- Early annual bonus:'), '', 'the early-annual bonus line is retired from llms.txt');
-  assert.equal(lineStarting('- Per walkthrough:'), `- Per walkthrough: ${perWalkText} on either plan, when every included walkthrough is used: ${aud(plan.appAud)} for ${plan.includedPerMonth} a month, ${aud(plan.annualAud)} for ${plan.annualIncluded} a year. `
-    + `For comparison, ${record.anchor.text.replace(/^A /, 'a ')} (published prices of Brisbane and Gold Coast 3D tour photographers, checked 13 September 2026; see the 3D tour cost guide below).`);
+  assert.equal(lineStarting('- Per walkthrough,'), `- Per walkthrough, when every included walkthrough is used: ${perWalkText} on monthly (${aud(plan.appAud)} for ${plan.includedPerMonth} a month), `
+    + `${aud(perAnnual)} on annual (${aud(plan.annualAud)} for ${plan.annualIncluded} a year). `
+    + `For comparison, ${record.anchor.text.replace(/^A /, 'a ')} (published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026; see the 3D tour cost guide below).`);
   const expressLine = lineStarting('- Super fast render:');
   assert.match(expressLine, new RegExp(`^\\- Super fast render: ${escape(aud(express.webAud))} a capture, on the website only:`));
   assert.match(expressLine, /ready in about 30 minutes, any day, any time/);
@@ -1163,4 +1174,16 @@ test('all owned pricing surfaces state current base prices and remove superseded
   assert.match(llms, /Recurring monthly capacity is not available yet/);
   assert.match(llms, /no rollover between plan years/);
   assert.match(llms, /Existing signed agreements retain their terms/);
+});
+
+test('the approval promise is the counting rule itself: only a walkthrough you approve uses the allowance', () => {
+  // 2026-09-29: the offer's strongest risk reversal already exists in the record (a walkthrough counts
+  // only when the quality check passed and the workspace approved it). The pages headline it; if the
+  // record ever counts a walkthrough without approval, or counts one that fails the check, this fails.
+  assert.equal(record.counting.acceptedMeans, 'the automatic quality check passed and the workspace approved the exact revision for release');
+  assert.equal(record.counting.notGoodEnoughCounts, false);
+  assert.equal(record.freeMonths.renderAttemptCap, undefined, 'a render-attempt cap would need this promise reworded');
+  assert.ok(body.includes('<p class="offer-promise" data-offer-approval><strong>You only use a walkthrough when you approve it.</strong>'), '/offer');
+  assert.ok(read('index.html').includes('<dt>Only what you approve counts</dt><dd>Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.</dd>'), 'home');
+  assert.ok(read('see/index.html').includes('<dt>Only what you approve counts</dt><dd>A walkthrough uses your allowance only when you approve it for release.'), '/see');
 });

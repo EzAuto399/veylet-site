@@ -118,14 +118,15 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-28.1, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-28.1');
+test('every price on the page is offer.json 2026-09-29.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-09-29.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.appAud),
     'see-free': 'A$0',
     'see-plan-month': aud(plan.appAud),
     'see-plan-year': aud(plan.annualAud),
+    'see-plan-year-saving': aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100),
     'see-plan-month-app': aud(plan.appAud),
   });
   const allowed = new Set(Object.values(prices));
@@ -139,7 +140,9 @@ test('every price on the page is offer.json 2026-09-28.1, set on data-price elem
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
   assert.ok(statement.includes(`${plan.includedPerMonth} walkthroughs a month; unused ones roll over, up to ${plan.rollover.maxBanked} banked`));
-  assert.ok(statement.includes(`${plan.annualIncluded} walkthroughs to use any time in the plan year`));
+  assert.ok(statement.includes(`The same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year`));
+  assert.ok(statement.includes(`save ${aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100)} on 12 monthly payments`));
+  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of walkthroughs');
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
   assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
@@ -233,4 +236,23 @@ test('the sample package location is one switch: data-sample-base on the stage, 
   // see.js reads the attribute and names no package path of its own.
   assert.match(js, /stage\.dataset\.sampleBase/);
   assert.doesNotMatch(js, /\/samples\//);
+});
+
+test('the pinned phone is one frame: screens slide over each other on the scroll, and the page rests complete', () => {
+  // The stacked frames are centred on the phone, not the figure, so captions of different length
+  // cannot stack the phones at different heights; only the first frame draws the bezel and lift.
+  assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen \{[^}]*translate: 0 calc\(var\(--flow-device\) \* -1\.0864\)/);
+  assert.match(css, /\.see-step-screen:not\(\[data-screen="1"\]\) \.device-screen \{[^}]*border-color: transparent;[^}]*box-shadow: none;/);
+  // The screen changes are scrubbed by the pin itself, not faded on a timer.
+  assert.match(js, /animation: sheets,\s*scrub: true,/);
+  assert.doesNotMatch(css, /\.see-step-screen\[data-shown\] \{\s*opacity: 1;/, 'no whole-frame cross-fade');
+  // The render bar lives in the drawn (aria-hidden) screen and ends full in the still state.
+  assert.match(element('data-ui="render"', 'div'), /<span class="see-ui-bar"><span data-ui-bar><\/span><\/span>/);
+  assert.match(js, /setRender\('ready', 5\);\s*setBar\(1\);/);
+  // Reveals never start hidden, are skipped under reduced motion, and a frame switch animates
+  // only after a press, so the first paint never waits on an animation.
+  assert.match(js, /media\.add\('\(prefers-reduced-motion: no-preference\)'/);
+  for (const match of js.matchAll(/fromTo\([^,]+, \{ y: 36, opacity: ([\d.]+) \}/g)) assert.ok(Number(match[1]) >= 0.35, 'reveals start visible');
+  assert.match(css, /\.see-stage\[data-switched\] \.see-frame/);
+  assert.match(js, /stage\.dataset\.switched = '';\s*show\(button\.dataset\.show\);/);
 });

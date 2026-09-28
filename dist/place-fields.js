@@ -345,8 +345,7 @@ window.VeyletPlace = (() => {
       document.getElementById('account-status') ||
       document.getElementById('play-status') ||
       document.getElementById('handoff-status') ||
-      document.getElementById('request-status') ||
-      document.getElementById('apply-status');
+      document.getElementById('request-status');
     const message =
       'This page did not finish loading. Reload it — if it still will not start, email yoda@yodalai.xyz and say what you were doing.';
     if (status) {

@@ -39,7 +39,7 @@ test('each enquiry gets an opaque correlation reference without claiming deliver
   assert.equal(h.elements['enquiry-copy-button'].disabled, false);
 });
 test('clipboard denial leaves an accessible manual copy and no lost brief', async () => {
-  const h = setup({ copyError: true, route: 'partner', values: { device_model: 'Example device' } });
+  const h = setup({ copyError: true, values: { device_model: 'Example device' } });
   await h.copy();
   assert.equal(h.elements['enquiry-copy-text'].hidden, false);
   assert.equal(h.elements['enquiry-copy-text'].selected, true);
@@ -59,7 +59,8 @@ test('the return page accepts a well-formed reference as context, never a receip
   assert.match(decodeURIComponent(h.elements['enquiry-followup'].href), new RegExp(ref));
 });
 test('injected, ambiguous and unknown return parameters are not reflected', () => {
-  for (const search of ['?route=managed&ref=<script>', '?route=managed&ref=' + ref + '&ref=' + ref, '?route=__proto__&ref=' + ref, '?route=partner&route=managed&ref=' + ref]) {
+  // '?route=partner' is unknown since the capture-partner programme was removed (29 September 2026).
+  for (const search of ['?route=managed&ref=<script>', '?route=managed&ref=' + ref + '&ref=' + ref, '?route=__proto__&ref=' + ref, '?route=partner&route=managed&ref=' + ref, '?route=partner&ref=' + ref]) {
     const h = setup({ thanks: true, search });
     assert.equal(h.elements['enquiry-reference'].hidden, true);
     assert.equal(h.elements['enquiry-followup'].href, undefined);
@@ -104,4 +105,13 @@ test('unknown or duplicate capture intent never becomes a personalised return me
   }
   const partner = setup({ thanks: true, search: '?route=partner&ref=' + ref + '&capture=self' });
   assert.equal(partner.elements['enquiry-route-next'].hidden, true);
+  assert.equal(partner.elements['enquiry-reference'].hidden, true, 'the retired partner route is not a known route');
+});
+
+test('a form still marked as a partner enquiry is not wired up: the capture-partner route is retired', async () => {
+  const h = setup({ route: 'partner' });
+  assert.equal(h.fields.enquiry_ref.value, '');
+  assert.equal(h.fields._next.value, 'https://veylet.com/thanks');
+  assert.equal(h.elements['enquiry-copy'].hidden, true);
+  assert.doesNotMatch(script, /Capture partner|partner:/);
 });

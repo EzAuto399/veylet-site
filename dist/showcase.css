@@ -907,14 +907,6 @@
   }
 }
 
-/* The partner lane now stands alone between the app and the answers. */
-.refined-home .partner-band {
-  padding-bottom: var(--chapter-space);
-}
-.refined-home .partner-band .partner-path {
-  margin-top: 0;
-}
-
 /* ---------- /offer: the same facts in less height, with the picture beside them ---------- */
 .offer-page .offer-stage {
   max-width: 520px;
@@ -979,7 +971,7 @@
   }
 }
 
-/* ---------- /start and /apply ---------- */
+/* ---------- /start and /request ---------- */
 .start-app {
   padding-bottom: 0;
 }

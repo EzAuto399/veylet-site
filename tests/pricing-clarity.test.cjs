@@ -18,7 +18,7 @@ const PACK_PAID_FIRST = /Pack walkthroughs are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
-test('the canonical offer is 2026-09-28.1 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-29.1 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
@@ -27,10 +27,11 @@ test('the canonical offer is 2026-09-28.1 and separates payment channels and una
   // to the free months. 2026-09-28.1 (owner decision record): 1-month free trial with 3 accepted
   // walkthroughs, A$139.99 monthly, A$1,399.99 yearly for a 20-walkthrough pool, the early-annual
   // bonus retired for new agreements, no turnaround time promise, and Super fast sold only while
-  // its Sydney GPU-start availability gate is green. Every earlier version is history.
-  assert.equal(record.version, '2026-09-28.1');
+  // its Sydney GPU-start availability gate is green. 2026-09-29.1 (owner, 29 September 2026): the
+  // yearly pool is 24, the same 2 a month as monthly, at the same A$1,399.99. Every earlier version is history.
+  assert.equal(record.version, '2026-09-29.1');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1']]);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
@@ -81,7 +82,7 @@ test('the canonical offer is 2026-09-28.1 and separates payment channels and una
   assert.match(record.freeMonths.morePacks, /walkthrough packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
     annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 119.99, appAud: 139.99, includedPerMonth: 2, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 20, maxBanked: 4 });
+  { webAud: 119.99, appAud: 139.99, includedPerMonth: 2, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 24, maxBanked: 4 });
   assert.deepEqual([bonus, bonusExpress], [4, 4], 'a bonus already granted keeps its terms');
   assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
@@ -91,7 +92,7 @@ test('the canonical offer is 2026-09-28.1 and separates payment channels and una
     qualityGate: 'an automatic quality check stops a render that cannot work (no usable photos or depth, too large for a phone, over the upload limits): it retries once when a retry can help, then asks for a recapture of the named rooms; other findings (held-out photo match, coverage, floaters, walkable paths, plus an AI visual check once the privacy notice covers it) do not block: they are shown as flagged areas for the account to look at before approving',
     approval: 'the account reviews and approves before sharing' });
   assert.match(record.anchor.sourceDoc, /^property-3d-studio\/docs\/pricing-and-unit-economics\.md$/);
-  assert.equal(record.anchor.checked, '2026-09-13');
+  assert.equal(record.anchor.checked, '2026-09-29');
   assert.match(record.guarantee.scope, /the account's first accepted walkthrough; the redo is a correction revision \(no unit, same link\); a recapture visit is not included/);
   assert.deepEqual(record.earlyAnnualBonus.channels.sort(), ['appStore', 'invoice', 'web']);
   assert.deepEqual([record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [1, 1]);
@@ -206,4 +207,36 @@ test('legacy website annual agreements remain intact but new subscription switch
   assert.deepEqual(members.unlock, { freeMonthsStarted: true, acceptedWalkthroughsAtLeast: 0, checkedBy: 'server, before any checkout or invoice' });
   assert.match(members.switchFromAppStore, /cannot be cancelled or paused automatically/);
   assert.equal(members.startNow, 'not offered for new subscriptions');
+});
+
+test('every public page states the free-month walkthrough count from the record', () => {
+  // 29 September 2026: /start still said "the 6 included in your free months" (offer 2026-09-27.1)
+  // while every other page said 3, and neither the price checker nor these tests read that phrasing.
+  const n = record.freeMonths.includedWalkthroughs;
+  const files = [];
+  const walkDir = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (!['vendor', 'samples', 'media'].includes(entry.name)) walkDir(full); }
+      else if (/\.(html|txt)$/.test(entry.name)) files.push(full);
+    }
+  };
+  walkDir(path.join(__dirname, '../dist'));
+  const patterns = [
+    /\b(\d+) included in your free months?\b/g,
+    /\bfree months? with (\d+) (?:accepted )?walkthroughs\b/gi,
+    /\b(\d+) accepted walkthroughs (?:in )?total\b/g,
+    /\b(\d+) in your free months?\b/g,
+  ];
+  let seen = 0;
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const pattern of patterns) {
+      for (const match of text.matchAll(pattern)) {
+        seen += 1;
+        assert.equal(Number(match[1]), n, `${path.relative(path.join(__dirname, '../dist'), file)}: "${match[0]}"`);
+      }
+    }
+  }
+  assert.ok(seen >= 5, `the count is stated on several pages (${seen})`);
 });

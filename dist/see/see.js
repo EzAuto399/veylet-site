@@ -89,6 +89,7 @@
       for (const [name, clip] of Object.entries(cuts)) clip.hidden = name !== cut;
       for (const choice of switcher.querySelectorAll('[data-cut-choice]')) choice.setAttribute('aria-pressed', String(choice === button));
       figure.dataset.cut = cut;
+      figure.dataset.switched = '';
       sync();
       layoutThread();
     });
@@ -113,7 +114,10 @@
     };
     group.addEventListener('click', event => {
       const button = event.target.closest('[data-show]');
-      if (button) show(button.dataset.show);
+      if (!button) return;
+      // Only a choice the visitor makes animates the frame in; the first paint never waits on it.
+      stage.dataset.switched = '';
+      show(button.dataset.show);
     });
     if (narrow.addEventListener) narrow.addEventListener('change', () => { if (video) video.sync(); });
     show('explore');
@@ -231,8 +235,17 @@
     title: renderUi.querySelector('[data-ui-title]'),
     turn: renderUi.querySelector('[data-ui-turn]'),
     line: renderUi.querySelector('[data-ui-line]'),
+    bar: renderUi.querySelector('[data-ui-bar]'),
     steps: [...renderUi.querySelectorAll('[data-ui-step]')],
   } : null;
+  // The render bar fills with the scroll: from 2 of 5 steps done to all 5 across step 4.
+  const setBar = fraction => {
+    if (!renderUiBits || !renderUiBits.bar) return;
+    const value = Math.min(1, Math.max(0, fraction)).toFixed(3);
+    if (renderUiBits.bar.dataset.p === value) return;
+    renderUiBits.bar.dataset.p = value;
+    renderUiBits.bar.style.setProperty('--bar', value);
+  };
   const setRender = (state, now) => {
     if (!renderUi || !renderUiBits) return;
     const ready = state === 'ready';
@@ -260,6 +273,7 @@
     steps.forEach(step => { step.style.removeProperty('--p'); step.removeAttribute('aria-current'); });
     screens.forEach(screen => screen.removeAttribute('data-shown'));
     setRender('ready', 5);
+    setBar(1);
     setShare('shared');
   };
   const update = progress => {
@@ -287,6 +301,7 @@
     if (number < 4) setRender('rendering', 3);
     else if (number === 4) setRender(local < 0.62 ? 'rendering' : 'ready', Math.min(5, 3 + Math.floor((local / 0.62) * 3)));
     else setRender('ready', 5);
+    setBar(number < 4 ? 0.4 : number === 4 ? 0.4 + 0.6 * Math.min(1, local / 0.62) : 1);
     setShare(number < 5 ? 'review' : local < 0.3 ? 'review' : local < 0.66 ? 'shared' : 'browser');
   };
 
@@ -312,14 +327,42 @@
         .fromTo(toWatch, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.24 }, 0.52)
         .fromTo(dropWatch, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.24 }, 0.76);
     }
+    // Depth inside the two frames as the hero leaves: the pictures drift while the frames (and so
+    // the hairline's landing points) stay exactly where they are. Scale covers the drift, so no
+    // edge of a picture ever shows.
+    if (hero) {
+      const leave = { trigger: hero, start: 'top top', end: 'bottom top', scrub: 0.4 };
+      const poster = hero.querySelector('.see-player-poster');
+      if (poster) gsap.to(poster, { scale: 1.08, yPercent: 3, ease: 'none', scrollTrigger: leave });
+      const clips = hero.querySelectorAll('.see-phone video');
+      if (clips.length) gsap.to(clips, { scale: 1.08, yPercent: -3, ease: 'none', scrollTrigger: leave });
+    }
     // The five steps: pinned, and scrubbed by the scroll.
     if (flow && flowBody && steps.length === 5) {
       flow.dataset.mode = 'pinned';
+      // One phone. Each new screen slides up over the last like an app sheet while the one beneath
+      // dims, over a short stretch of scroll either side of the step it belongs to, so it tracks the
+      // finger both ways instead of fading on a timer.
+      const contents = screens.map(screen => screen.querySelector('.device-screen > *'));
+      const sheets = gsap.timeline({ paused: true, defaults: { ease: 'none' } });
+      const HANDOFF = 0.035;
+      if (contents.every(Boolean)) {
+        gsap.set(contents.slice(1), { yPercent: 100 });
+        for (let i = 1; i < screens.length; i += 1) {
+          const at = EDGES[Number(screens[i].dataset.screen) - 1] - HANDOFF;
+          sheets
+            .fromTo(contents[i], { yPercent: 100 }, { yPercent: 0, duration: HANDOFF * 2, ease: 'power2.inOut', immediateRender: false }, at)
+            .fromTo(contents[i - 1], { filter: 'brightness(1)' }, { filter: 'brightness(0.45)', duration: HANDOFF * 2, immediateRender: false }, at);
+        }
+      }
+      sheets.set({}, {}, 1); // the timeline spans the whole pin, so its progress is the pin's
       const pin = ScrollTrigger.create({
         trigger: flowBody,
         start: 'center center',
         end: () => '+=' + Math.round(window.innerHeight * 3.2),
         pin: true,
+        animation: sheets,
+        scrub: true,
         // Start the pin a frame early so the scene is already placed when the scroll reaches it
         // (without this the first pinned frame can show a one-frame jump), and settle the scene
         // instead of chasing the scroll when the reader flicks past it.
@@ -336,6 +379,41 @@
       still();
       if (parts.length) gsap.set(parts, { clearProps: 'strokeDashoffset' });
     };
+  });
+  // Everything below the hero rises into place as it arrives, at every width. The resting state is
+  // the finished page: nothing starts hidden (opacity never below 0.35), so a page whose script
+  // never runs, or a reader who asks for less motion, sees it complete. Refreshed after the pin so
+  // the sections under it are measured with its scroll distance included.
+  media.add('(prefers-reduced-motion: no-preference)', () => {
+    const rise = (targets, trigger, stagger = 0.08) => {
+      const list = gsap.utils.toArray(targets);
+      if (!list.length) return;
+      gsap.fromTo(list, { y: 36, opacity: 0.35 }, {
+        y: 0,
+        opacity: 1,
+        duration: 1.1,
+        ease: 'expo.out',
+        stagger,
+        scrollTrigger: { trigger: trigger || list[0], start: 'top 88%', once: true, refreshPriority: -1 },
+      });
+    };
+    for (const head of document.querySelectorAll('.see-section-head')) rise(head.children, head, 0.1);
+    rise('.see-ledger > div', '.see-ledger');
+    rise('.see-rooms li', '.see-rooms', 0.1);
+    rise('.see-table thead tr, .see-table tbody tr', '.see-table', 0.06);
+    rise('.see-offer-copy > *', '.see-offer');
+    rise('.see-statement > *', '.see-statement', 0.06);
+    rise('.see-answers h2, .see-answers details', '.see-answers', 0.06);
+    rise('.closing-inner > *', '.closing-invitation', 0.12);
+  });
+  // Without the pin (phones), each step arrives on its own.
+  media.add('(max-width: 800px) and (prefers-reduced-motion: no-preference)', () => {
+    for (const step of steps) {
+      gsap.fromTo(step, { y: 36, opacity: 0.35 }, {
+        y: 0, opacity: 1, duration: 1.1, ease: 'expo.out',
+        scrollTrigger: { trigger: step, start: 'top 88%', once: true, refreshPriority: -1 },
+      });
+    }
   });
   const refresh = () => { layoutThread(); ScrollTrigger.refresh(); };
   // One refresh per frame at most: resize fires in bursts, and each refresh re-measures the page and

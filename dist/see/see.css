@@ -734,20 +734,41 @@ html {
 .see-flow[data-mode="pinned"] .see-step[aria-current] h3 {
   color: var(--ink);
 }
-/* One phone, centred in the space beside the list. */
+/* One phone, centred in the space beside the list. The frames are stacked exactly: the first
+   carries the bezel, ground and lift; the others are glass (transparent ground and bezel, no
+   shadow), so only their screens show, and see.js slides each screen up over the last. */
 .see-flow[data-mode="pinned"] .see-step-screen {
   position: absolute;
   top: 50%;
   left: calc(var(--flow-list) + (100% - var(--flow-list) - var(--flow-device)) / 2);
   width: var(--flow-device);
-  translate: 0 -50%;
-  opacity: 0;
-  /* A cross-fade that outlasts the scroll reads as lag; keep it short and composite-only. */
-  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: opacity;
+  /* Centre the phone itself, not the figure: the captions differ in length, and centring the
+     figures would stack the phones at different heights. 2868 / 1320 / 2 = 1.0864. */
+  translate: 0 calc(var(--flow-device) * -1.0864);
+}
+.see-flow[data-mode="pinned"] .see-step-screen:not([data-screen="1"]) .device-screen {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.see-flow[data-mode="pinned"] .device-screen > * {
+  will-change: transform, filter;
   backface-visibility: hidden;
 }
-.see-flow[data-mode="pinned"] .see-step-screen[data-shown] {
+/* Only the shown screen's caption, so the stacked captions never overprint. */
+.see-flow[data-mode="pinned"] .see-step-screen figcaption {
+  opacity: 0;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.see-flow[data-mode="pinned"] .see-step-screen[data-shown] figcaption {
+  opacity: 1;
+}
+/* The step being read is at full strength; the others step back. */
+.see-flow[data-mode="pinned"] .see-step-text > p {
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+.see-flow[data-mode="pinned"] .see-step[aria-current] .see-step-text > p {
   opacity: 1;
 }
 
@@ -846,6 +867,29 @@ html {
 }
 .see-ui-steps li.is-now::before {
   border: 2px solid var(--sage);
+  border-right-color: transparent;
+  animation: see-spin 0.9s linear infinite;
+}
+@keyframes see-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+/* How far the render has come; see.js fills it with the scroll. */
+.see-ui-bar {
+  display: block;
+  height: 1.2cqw;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(198, 220, 201, 0.16);
+}
+.see-ui-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--sage);
+  transform: scaleX(var(--bar, 1));
+  transform-origin: left center;
 }
 .see-ui-btn {
   display: block;
@@ -871,12 +915,20 @@ html {
   gap: 3.6cqw;
   padding: 17cqw 6cqw 8cqw;
   opacity: 0;
-  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(8cqw);
+  transition:
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* The link opens: the browser comes in from the side, as a new page does. */
+.see-ui-layer[data-ui-layer="browser"] {
+  transform: translateX(40%);
 }
 [data-state="review"] [data-ui-layer="review"],
 [data-state="shared"] [data-ui-layer="shared"],
 [data-state="browser"] [data-ui-layer="browser"] {
   opacity: 1;
+  transform: none;
 }
 .see-ui-thumb {
   overflow: hidden;
@@ -1117,11 +1169,28 @@ html {
     font-size: 11.5px;
   }
 }
+/* A frame or cut the visitor switches to settles in, rather than cutting hard. Only after a
+   press (see.js marks it), so the first paint never waits on an animation. */
+@media (prefers-reduced-motion: no-preference) {
+  .see-stage[data-switched] .see-frame,
+  .see-video[data-switched] .see-cut:not([hidden]) {
+    animation: see-settle 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+}
+@keyframes see-settle {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .see-pause,
   .see-cuts button,
   .see-ui-layer,
   .see-step h3 {
     transition: none;
+  }
+  .see-ui-steps li.is-now::before {
+    animation: none;
   }
 }

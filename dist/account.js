@@ -329,7 +329,6 @@
   function sessionHeading(signedIn) {
     const title = document.getElementById('account-title');
     const intro = document.getElementById('account-intro');
-    const setup = document.getElementById('account-setup-note');
     const access = document.getElementById('account-access-note');
     // "Sign in" is where a signed-in person already is. Say where they are.
     const navLink = document.querySelector?.('header nav a[aria-current="page"]');
@@ -339,7 +338,6 @@
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
     if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
       : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same email on the website and capture app.';
-    if (setup) setup.hidden = signedIn;
     if (access) access.hidden = signedIn;
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
     const referred = document.getElementById('account-referred');
@@ -586,7 +584,7 @@
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
-      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#capture-partners');
+      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#first-session');
     } else {
       guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-tour steps', '/start');
     }
@@ -1934,7 +1932,7 @@
    * plan with a payment method on file, then the Veylet plan unless cancelled
    * before the first charge on the day it ends (offer 2026-09-25.2): monthly,
    * two walkthroughs a month where unused ones roll over (at most four banked),
-   * or annual, a yearly pool of 20 walkthroughs. This panel only reports what get_workspace_plan
+   * or annual, a yearly pool of 24 walkthroughs. This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
