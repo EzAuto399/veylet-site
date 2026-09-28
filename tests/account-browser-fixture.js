@@ -440,7 +440,7 @@
   const planBase = {
     workspace_id: 'synthetic-workspace', plan_code: 'solo', source: 'studio', trial_months: 1,
     trial_included_walkthroughs: 3, accepted_in_free_months: 2, extras_in_free_months: 0,
-    included_per_month: 2, accepted_this_period: 0, accepted_total: 4,
+    included_per_month: 3, accepted_this_period: 0, accepted_total: 4,
     price_aud_cents: 9900, extra_walkthrough_aud_cents: null, hosting_included: true, billing_interval: 'monthly',
     app_price_aud_cents: 13999, app_extra_walkthrough_aud_cents: null,
     apple_verified: null, apple_product_id: null, auto_renews: true, cancelled_at: null,
@@ -467,12 +467,12 @@
     'web-active': { ...planBase, ...pastTrial, source: 'web', status: 'active', accepted_this_period: 1, accepted_total: 14,
       accepted_in_free_months: 3, current_period_ends_at: '2026-10-05T00:00:00Z' },
     // Offer 2026-09-25.1: a monthly plan whose unused walkthroughs rolled over (the
-    // capacity answer below banks 2 of at most 3), and an annual plan whose
-    // 20 walkthroughs are one yearly pool (the early bonus is retired).
+    // capacity answer below banks 2 of at most 6), and an annual plan whose
+    // 36 walkthroughs are one yearly pool (offer 2026-09-29.2; the early bonus is retired).
     'monthly-banked': { ...planBase, ...pastTrial, status: 'active', accepted_this_period: 0, accepted_total: 7,
       accepted_in_free_months: 3, current_period_ends_at: '2026-10-01T00:00:00Z' },
     'annual-pool': { ...planBase, ...pastTrial, source: 'web', status: 'active', billing_interval: 'annual',
-      renewal_price_aud_cents: 139999, included_per_month: 20, accepted_this_period: 5, accepted_total: 11,
+      renewal_price_aud_cents: 139999, included_per_month: 36, accepted_this_period: 5, accepted_total: 11,
       accepted_in_free_months: 3, current_period_ends_at: '2027-07-15T00:00:00Z' },
     // Retired for new buyers (offer 2026-09-24.2), still read by their own names: an
     // invoiced Team month, and a verified row for the Team annual product (off sale).
@@ -502,16 +502,16 @@
   planRows['annual-bonus'] = planRows['annual-pool'];
   // What get_walkthrough_capacity appends in migration 20260925100000_offer_v8 (not yet
   // released): allowance_kind, banked_units (inside a monthly plan's included_limit)
-  // and bonus_credits_available (inside extra_credits_available). Offer 2026-09-28.1:
-  // 2 a month plus up to 4 banked, a 20-walkthrough yearly pool, and no early-annual
+  // and bonus_credits_available (inside extra_credits_available). Offer 2026-09-29.2:
+  // 3 a month plus up to 6 banked, a 36-walkthrough yearly pool, and no early-annual
   // bonus (retired for new agreements; a granted one keeps its terms). Every other
   // case answers as today's server does, without these fields.
   const CAPACITY_V8 = {
     'monthly-banked': { allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 },
     'annual-pool': { allowance_kind: 'annual_pool', banked_units: 0, bonus_credits_available: 0,
-      included_limit: 24, included_used: 5, allowance_ends_at: '2027-07-15T00:00:00Z' },
+      included_limit: 36, included_used: 5, allowance_ends_at: '2027-07-15T00:00:00Z' },
     'annual-bonus': { allowance_kind: 'annual_pool', banked_units: 0, bonus_credits_available: 4,
-      included_limit: 24, included_used: 5, allowance_ends_at: '2027-07-15T00:00:00Z' },
+      included_limit: 36, included_used: 5, allowance_ends_at: '2027-07-15T00:00:00Z' },
   };
 
   // Studio desk fixtures. Fictional accounts; no real property or person.
