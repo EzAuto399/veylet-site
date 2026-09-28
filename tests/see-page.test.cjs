@@ -234,3 +234,22 @@ test('the sample package location is one switch: data-sample-base on the stage, 
   assert.match(js, /stage\.dataset\.sampleBase/);
   assert.doesNotMatch(js, /\/samples\//);
 });
+
+test('the pinned phone is one frame: screens slide over each other on the scroll, and the page rests complete', () => {
+  // The stacked frames are centred on the phone, not the figure, so captions of different length
+  // cannot stack the phones at different heights; only the first frame draws the bezel and lift.
+  assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen \{[^}]*translate: 0 calc\(var\(--flow-device\) \* -1\.0864\)/);
+  assert.match(css, /\.see-step-screen:not\(\[data-screen="1"\]\) \.device-screen \{[^}]*border-color: transparent;[^}]*box-shadow: none;/);
+  // The screen changes are scrubbed by the pin itself, not faded on a timer.
+  assert.match(js, /animation: sheets,\s*scrub: true,/);
+  assert.doesNotMatch(css, /\.see-step-screen\[data-shown\] \{\s*opacity: 1;/, 'no whole-frame cross-fade');
+  // The render bar lives in the drawn (aria-hidden) screen and ends full in the still state.
+  assert.match(element('data-ui="render"', 'div'), /<span class="see-ui-bar"><span data-ui-bar><\/span><\/span>/);
+  assert.match(js, /setRender\('ready', 5\);\s*setBar\(1\);/);
+  // Reveals never start hidden, are skipped under reduced motion, and a frame switch animates
+  // only after a press, so the first paint never waits on an animation.
+  assert.match(js, /media\.add\('\(prefers-reduced-motion: no-preference\)'/);
+  for (const match of js.matchAll(/fromTo\([^,]+, \{ y: 36, opacity: ([\d.]+) \}/g)) assert.ok(Number(match[1]) >= 0.35, 'reveals start visible');
+  assert.match(css, /\.see-stage\[data-switched\] \.see-frame/);
+  assert.match(js, /stage\.dataset\.switched = '';\s*show\(button\.dataset\.show\);/);
+});
