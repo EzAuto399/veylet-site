@@ -118,8 +118,8 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-29.1, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-29.1');
+test('every price on the page is offer.json 2026-09-29.2, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-09-29.2');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.appAud),
@@ -135,7 +135,10 @@ test('every price on the page is offer.json 2026-09-29.1, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  assert.equal(heroLine, `${offer.freeMonths.months} free month${offer.freeMonths.months === 1 ? '' : 's'} · ${offer.freeMonths.includedWalkthroughs} walkthroughs · then ${aud(plan.appAud)} a month through the App Store`);
+  // Offer 2026-09-29.2: the free month carries the plan's own 3, so the line leads with the allowance.
+  assert.equal(offer.freeMonths.includedWalkthroughs, plan.includedPerMonth, 'the line states one allowance for both');
+  assert.equal(offer.freeMonths.months, 1, 'the line says the first month');
+  assert.equal(heroLine, `${plan.includedPerMonth} walkthroughs a month · the first month free · then ${aud(plan.appAud)} a month through the App Store`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
@@ -145,7 +148,8 @@ test('every price on the page is offer.json 2026-09-29.1, set on data-price elem
   assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of walkthroughs');
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
-  assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
+  assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included The same ${plan.includedPerMonth} as each month of the plan.`), 'the free month’s allowance is the plan’s');
+  assert.doesNotMatch(terms, /in total, not \d+ a month/, 'the free month is no longer set against the monthly allowance');
   assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
   assert.ok(terms.includes('included in the plan when video exports open'), 'listing videos are qualified');

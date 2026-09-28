@@ -247,7 +247,7 @@
 
 @media (max-width: 400px) { .statement-lines > .line-total { grid-template-columns: minmax(0, 1fr); } .statement-lines > .line-total dd { padding-top: 4px; } }
 
-/* Offer 2026-09-29.1: the annual plan carries the same 24 walkthroughs as monthly for less, so its
+/* Offer 2026-09-29.2: the annual plan carries the same 36 walkthroughs as monthly for less, so its
    saving is tagged in dollars (over A$100, a dollar saving reads larger than a percentage). The billed
    yearly amount stays the largest figure. */
 .offer-plan .pill.offer-save { gap: 0.3em; margin-left: 8px; vertical-align: 3px; border-color: rgba(16, 35, 29, 0.28); background: var(--sage); color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }

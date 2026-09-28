@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-29.1",
+  "version": "2026-09-29.2",
   "status": "accepted prices; source preparation only, with recurring capacity unavailable until billing and release verification",
   "currency": "AUD",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
@@ -50,14 +50,14 @@
       "kind": "monthly",
       "webAud": 119.99,
       "appAud": 139.99,
-      "includedPerMonth": 2,
+      "includedPerMonth": 3,
       "seats": "unlimited",
       "hostingIncluded": true,
       "hostingWhileSubscribed": true,
       "whiteLabel": true,
       "freeMonthsEligible": true,
-      "annualRule": "24 walkthroughs to use any time in the paid plan year, the same 2 a month as monthly; A$1,399.99 upfront through the App Store (A$58.33 a walkthrough, against A$70.00 on monthly); no annual rollover; A$279.89 (16.7%) less than 12 monthly payments; never \"2 months free\"",
-      "role": "the one plan: 2 walkthroughs a month with rollover, or annual with a 24-walkthrough yearly pool",
+      "annualRule": "36 walkthroughs to use any time in the paid plan year, the same 3 a month as monthly; A$1,399.99 upfront through the App Store (A$38.89 a walkthrough, against A$46.66 on monthly); no annual rollover; A$279.89 (16.7%) less than 12 monthly payments; never \"2 months free\"",
+      "role": "the one plan: 3 walkthroughs a month with rollover, or annual with a 36-walkthrough yearly pool; the free month carries the same 3",
       "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; after that, only a paid hosting extension keeps a single walkthrough online: A$49 a year per walkthrough, on request, until the extension ends",
       "hosting": {
         "liveWhile": "an active plan: free months (trial), monthly or annual",
@@ -98,12 +98,12 @@
       },
       "rollover": {
         "enabled": true,
-        "maxBanked": 4,
-        "rule": "unused monthly walkthroughs carry over, up to 4 banked at any time"
+        "maxBanked": 6,
+        "rule": "unused monthly walkthroughs carry over, up to 6 banked at any time"
       },
       "annualAud": 1399.99,
       "annualAppAud": 1399.99,
-      "annualIncluded": 24,
+      "annualIncluded": 36,
       "intervals": [
         "monthly",
         "annual"
@@ -113,8 +113,8 @@
       ],
       "annualSavingsPercent": 16.7,
       "annualSavingsAud": 279.89,
-      "annualPerWalkthroughAud": 58.33,
-      "monthlyPerWalkthroughAud": 70
+      "annualPerWalkthroughAud": 38.89,
+      "monthlyPerWalkthroughAud": 46.66
     }
   ],
   "programmes": {
@@ -175,7 +175,7 @@
     "planAllowanceIsMonthly": true,
     "unit": "accepted_walkthrough",
     "unitsPerAcceptedWalkthrough": 1,
-    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 4; annual plan: a 24-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
+    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 6; annual plan: a 36-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
     "annualAllowanceIsYearlyPool": true,
     "walkthroughsPerCapture": "one per new accepted capture",
     "roomsRule": "room count does not change the allowance unit; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough"
@@ -357,6 +357,12 @@
       "replacedBy": "2026-09-29.1",
       "on": "2026-09-29",
       "change": "Owner decision, 29 September 2026 (property-3d-studio marketing/acquisition-launch-20260927/operations/offer-2026-09-29-1-decision.md), applied as offer 2026-09-29.1: the yearly pool is 24 walkthroughs, was 20, at the same A$1,399.99, so yearly carries the same 2 a month as monthly and costs A$58.33 a walkthrough against A$70.00; yearly is A$279.89 (16.7%) less than 12 monthly payments for the same 24 walkthroughs, never \"2 months free\" (ten monthly payments are A$1,399.90). Trial, monthly price and banking, Super fast, packs, hosting, editing and counting are unchanged from 2026-09-28.1. A pool of 20 already granted under 2026-09-28.1 is raised to 24 for its current plan year; no App Store price changes."
+    },
+    {
+      "version": "2026-09-29.1",
+      "replacedBy": "2026-09-29.2",
+      "on": "2026-09-29",
+      "change": "Owner decision, 29 September 2026: the free month and the paid month carry the same allowance. The Veylet plan includes 3 accepted walkthroughs a month, was 2, with up to 6 banked, was 4; the yearly pool is 36, was 24, at the same A$1,399.99, so yearly is still the same allowance as 12 monthly payments for A$279.89 (16.7%) less. Per walkthrough when every included one is used: A$46.66 monthly, A$38.89 yearly (were A$70.00 and A$58.33). The free month stays 1 month with 3. Prices, packs, Super fast, hosting, editing and counting are unchanged. The unavailable recurring-capacity totals (A$219.99 for 4, A$319.99 for 6) now cost more per walkthrough than the plan; they stay unavailable and are no longer shown on the public offer page until repriced."
     }
   ],
   "subscriptionCheckout": {

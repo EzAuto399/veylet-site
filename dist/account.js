@@ -1930,9 +1930,9 @@
   /* ---- Your plan -------------------------------------------------------
    * One free month with three walkthroughs in total, started by activating the
    * plan with a payment method on file, then the Veylet plan unless cancelled
-   * before the first charge on the day it ends (offer 2026-09-25.2): monthly,
-   * two walkthroughs a month where unused ones roll over (at most four banked),
-   * or annual, a yearly pool of 24 walkthroughs. This panel only reports what get_workspace_plan
+   * before the first charge on the day it ends (offer 2026-09-29.2): monthly,
+   * the same three walkthroughs a month where unused ones roll over (at most six
+   * banked), or annual, a yearly pool of 36 walkthroughs. This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
@@ -2032,8 +2032,8 @@
     const when = new Date(value);
     return Number.isNaN(when.getTime()) ? '' : when.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   }
-  // offer.json plans[0].rollover.maxBanked: unused monthly walkthroughs bank up to 4.
-  const PLAN_MAX_BANKED = 4;
+  // offer.json plans[0].rollover.maxBanked: unused monthly walkthroughs bank up to 6 (offer 2026-09-29.2).
+  const PLAN_MAX_BANKED = 6;
   /*
    * How the running plan's allowance counts, from what get_walkthrough_capacity
    * appends (offers 2026-09-25.1 and .2): allowance_kind, banked_units (already inside a
@@ -2911,8 +2911,8 @@
   // scheduled or running on the retired Team plan (studio) still reads by its name.
   const ANNUAL_CODES = ['solo', 'studio'];
   const ANNUAL_PLAN = 'solo';
-  // offer.json plans[0].annualIncluded: the Veylet plan's yearly pool.
-  const ANNUAL_INCLUDED = 24;
+  // offer.json plans[0].annualIncluded: the Veylet plan's yearly pool (36 from offer 2026-09-29.2).
+  const ANNUAL_INCLUDED = 36;
   const ANNUAL_APPLE = 'https://apps.apple.com/account/subscriptions';
   // Card entry is Square's own Web Payments iframe. Its script comes only from
   // Square's CDN, loads only after "Pay yearly by card", and only once.

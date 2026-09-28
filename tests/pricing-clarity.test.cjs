@@ -18,7 +18,7 @@ const PACK_PAID_FIRST = /Pack walkthroughs are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
-test('the canonical offer is 2026-09-29.1 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-09-29.2 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
@@ -28,10 +28,12 @@ test('the canonical offer is 2026-09-29.1 and separates payment channels and una
   // walkthroughs, A$139.99 monthly, A$1,399.99 yearly for a 20-walkthrough pool, the early-annual
   // bonus retired for new agreements, no turnaround time promise, and Super fast sold only while
   // its Sydney GPU-start availability gate is green. 2026-09-29.1 (owner, 29 September 2026): the
-  // yearly pool is 24, the same 2 a month as monthly, at the same A$1,399.99. Every earlier version is history.
-  assert.equal(record.version, '2026-09-29.1');
+  // yearly pool is 24, the same 2 a month as monthly, at the same A$1,399.99. 2026-09-29.2 (owner,
+  // 29 September 2026): the free month and the paid month carry the same 3, up to 6 banked, and the
+  // yearly pool is 36 at the same A$1,399.99. Every earlier version is history.
+  assert.equal(record.version, '2026-09-29.2');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2']]);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
@@ -82,7 +84,7 @@ test('the canonical offer is 2026-09-29.1 and separates payment channels and una
   assert.match(record.freeMonths.morePacks, /walkthrough packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
     annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 119.99, appAud: 139.99, includedPerMonth: 2, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 24, maxBanked: 4 });
+  { webAud: 119.99, appAud: 139.99, includedPerMonth: 3, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 36, maxBanked: 6 });
   assert.deepEqual([bonus, bonusExpress], [4, 4], 'a bonus already granted keeps its terms');
   assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },

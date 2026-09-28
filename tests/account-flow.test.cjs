@@ -3051,13 +3051,18 @@ test('a failed start that cannot take a new card here says where to go, and a ma
 const dayOf = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const isoIn = days => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 const allowanceLine = h => (h.ids['account-plan-body'].all().find(el => el.className === 'plan-allowance') || {}).textContent;
-const ACTIVE_MONTHLY = { status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z' };
-// Offer 2026-09-25.2: 2 a month, and up to 4 banked inside this month's limit.
-const MONTH_CAP = { ...capacityRow, plan_status: 'active', included_limit: 2, included_used: 0, included_remaining: 2 };
-const BANKED_CAP = { ...MONTH_CAP, included_limit: 4, included_remaining: 4, allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 };
+// The Veylet plan's allowance from offer.json (2026-09-29.2: 3 a month, up to 6 banked, a yearly pool of 36).
+const PLAN_RECORD = JSON.parse(fs.readFileSync(path.join(__dirname, '../dist/offer/offer.json'), 'utf8')).plans.find(entry => entry.code === 'solo');
+const PER_MONTH = PLAN_RECORD.includedPerMonth;
+const MAX_BANKED = PLAN_RECORD.rollover.maxBanked;
+const YEAR_POOL = PLAN_RECORD.annualIncluded;
+const ACTIVE_MONTHLY = { status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z', included_per_month: PER_MONTH };
+// This month's allowance, and up to MAX_BANKED banked inside this month's limit.
+const MONTH_CAP = { ...capacityRow, plan_status: 'active', included_limit: PER_MONTH, included_used: 0, included_remaining: PER_MONTH };
+const BANKED_CAP = { ...MONTH_CAP, included_limit: PER_MONTH + 2, included_remaining: PER_MONTH + 2, allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 };
 const ACTIVE_ANNUAL = { source: 'web', status: 'active', billing_interval: 'annual', renewal_price_aud_cents: 99000,
   accepted_this_period: 0, current_period_ends_at: '2027-07-15T00:00:00Z' };
-const POOL_CAP = { ...capacityRow, plan_status: 'active', included_limit: 24, included_used: 5, included_remaining: 19,
+const POOL_CAP = { ...capacityRow, plan_status: 'active', included_limit: YEAR_POOL, included_used: 5, included_remaining: YEAR_POOL - 5,
   allowance_kind: 'annual_pool', banked_units: 0, bonus_credits_available: 0, allowance_ends_at: '2027-07-15T00:00:00Z' };
 const bonusOffer = (overrides = {}) => ({ walkthroughs: 4, express_renders: 4, granted: false, available: true, ...overrides });
 
@@ -3078,33 +3083,36 @@ test('offer v8: the free months say “Free until {date}, then {price} unless yo
   assert.doesNotMatch(account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''), /remind/i);
 });
 
-test('offer v9: a monthly plan of 2 a month states its banked rollover, up to 4, only when the capacity answer carries it', async () => {
+test('offer v9: a monthly plan states its banked rollover, up to the record’s bank, only when the capacity answer carries it', async () => {
+  assert.deepEqual([PER_MONTH, MAX_BANKED], [3, 6], 'offer 2026-09-29.2: 3 a month, up to 6 banked');
   const h = await withCapacity(BANKED_CAP, ACTIVE_MONTHLY);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
   assert.deepEqual(planTerms(h), ACTIVE_TERMS, 'the ledger keeps its rows');
-  assert.equal(planValues(h)[1], '0 of 4 used', 'the bank is part of this month’s limit');
-  // Launch review #1: one count on the panel; the sentence says the same numbers, never "0 of 2 this month".
-  assert.match(planText(h), /0 of 4 walkthroughs used this month \(2 a month \+ 2 banked\)\./);
-  assert.doesNotMatch(planText(h), /0 of 2 walkthroughs this month|included accepted/);
-  assert.equal(allowanceLine(h), '4 included walkthroughs remaining · 0 extra walkthroughs available.');
-  assert.match(capacityText(h), /This month’s 4 include 2 banked from earlier months\. Unused monthly walkthroughs roll over, up to 4 banked\./);
+  const limit = PER_MONTH + 2;
+  assert.equal(planValues(h)[1], `0 of ${limit} used`, 'the bank is part of this month’s limit');
+  // Launch review #1: one count on the panel; the sentence says the same numbers, never "0 of 3 this month".
+  assert.ok(planText(h).includes(`0 of ${limit} walkthroughs used this month (${PER_MONTH} a month + 2 banked).`), planText(h));
+  assert.doesNotMatch(planText(h), new RegExp(`0 of ${PER_MONTH} walkthroughs this month|included accepted`));
+  assert.equal(allowanceLine(h), `${limit} included walkthroughs remaining · 0 extra walkthroughs available.`);
+  assert.ok(capacityText(h).includes(`This month’s ${limit} include 2 banked from earlier months. Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(h));
   assert.doesNotMatch(planText(h), /resets monthly|do not carry over/);
   // Nothing banked yet: the rule, and no count.
-  const empty = await withCapacity({ ...BANKED_CAP, included_limit: 2, included_remaining: 2, banked_units: 0 }, ACTIVE_MONTHLY);
-  assert.match(capacityText(empty), /Unused monthly walkthroughs roll over, up to 4 banked\./);
+  const empty = await withCapacity({ ...BANKED_CAP, included_limit: PER_MONTH, included_remaining: PER_MONTH, banked_units: 0 }, ACTIVE_MONTHLY);
+  assert.ok(capacityText(empty).includes(`Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(empty));
   assert.doesNotMatch(capacityText(empty), /banked from earlier/);
-  // A full bank of 4 beside this month's 2.
-  const full = await withCapacity({ ...BANKED_CAP, banked_units: 4, included_limit: 6, included_remaining: 6 }, ACTIVE_MONTHLY);
-  assert.match(capacityText(full), /This month’s 6 include 4 banked from earlier months\. Unused monthly walkthroughs roll over, up to 4 banked\./);
-  // Absent or unreadable: today's reading, and no rollover line at all.
-  for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: 5, included_limit: 7, included_remaining: 7 },
-    { ...BANKED_CAP, banked_units: '2' }, { ...BANKED_CAP, banked_units: 4, included_limit: 4 }, { ...BANKED_CAP, allowance_kind: 'weekly' }]) {
+  // A full bank beside this month's allowance.
+  const fullLimit = PER_MONTH + MAX_BANKED;
+  const full = await withCapacity({ ...BANKED_CAP, banked_units: MAX_BANKED, included_limit: fullLimit, included_remaining: fullLimit }, ACTIVE_MONTHLY);
+  assert.ok(capacityText(full).includes(`This month’s ${fullLimit} include ${MAX_BANKED} banked from earlier months. Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(full));
+  // Absent or unreadable: today's reading, and no rollover line at all (a bank over the record's maximum is unreadable).
+  for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: MAX_BANKED + 1, included_limit: fullLimit + 1, included_remaining: fullLimit + 1 },
+    { ...BANKED_CAP, banked_units: '2' }, { ...BANKED_CAP, banked_units: MAX_BANKED, included_limit: MAX_BANKED }, { ...BANKED_CAP, allowance_kind: 'weekly' }]) {
     const today = await withCapacity(cap, ACTIVE_MONTHLY);
     assert.doesNotMatch(planText(today), /banked|roll over|carry/, JSON.stringify(cap).slice(-90));
     assert.match(capacityText(today), /The allowance resets monthly\./);
   }
   // A retired plan's row keeps its own terms: a bank the server reports, but no rollover rule.
-  const team = await withCapacity({ ...BANKED_CAP, banked_units: 1, included_limit: 4, included_remaining: 4 }, { ...TEAM, ...ACTIVE_MONTHLY });
+  const team = await withCapacity({ ...BANKED_CAP, banked_units: 1, included_limit: 4, included_remaining: 4 }, { ...ACTIVE_MONTHLY, ...TEAM });
   assert.match(capacityText(team), /This month’s 4 include 1 banked from earlier months\./);
   assert.doesNotMatch(capacityText(team), /roll over/);
   // An annual row never reads a monthly rollover, whatever the answer says.
@@ -3112,27 +3120,29 @@ test('offer v9: a monthly plan of 2 a month states its banked rollover, up to 4,
   assert.doesNotMatch(planText(annual), /banked|roll over/);
 });
 
-test('offer v9: an annual plan states its yearly pool of 24, the bonus as extra walkthroughs, and the day it resets', async () => {
+test('offer v9: an annual plan states its yearly pool from the record, the bonus as extra walkthroughs, and the day it resets', async () => {
+  assert.equal(YEAR_POOL, 36, 'offer 2026-09-29.2: a yearly pool of 36');
+  const left = YEAR_POOL - 5;
   const resets = longDate('2027-07-15T00:00:00Z');
   const h = await withCapacity(POOL_CAP, ACTIVE_ANNUAL);
   assert.equal(planTitle(h), 'Veylet plan · A$990 a year');
   assert.deepEqual(planTerms(h), ['State', 'Plan year', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in']);
-  assert.equal(planValues(h)[1], '5 of 24 used');
-  assert.equal(allowanceLine(h), '19 of 24 walkthroughs left this plan year · 0 extra walkthroughs available.');
-  assert.ok(capacityText(h).includes('Your 24 walkthroughs are a yearly pool to use any time, with no monthly limit; it resets on ' + resets +
+  assert.equal(planValues(h)[1], `5 of ${YEAR_POOL} used`);
+  assert.equal(allowanceLine(h), `${left} of ${YEAR_POOL} walkthroughs left this plan year · 0 extra walkthroughs available.`);
+  assert.ok(capacityText(h).includes(`Your ${YEAR_POOL} walkthroughs are a yearly pool to use any time, with no monthly limit; it resets on ` + resets +
     '. Unused ones do not carry into the next plan year.'), capacityText(h));
-  assert.match(planText(h), new RegExp('5 of 24 walkthroughs used this plan year\\. Next billing date: ' + resets + '\\. Hosting included\\. Billed annually\\.'));
+  assert.ok(planText(h).includes(`5 of ${YEAR_POOL} walkthroughs used this plan year. Next billing date: ${resets}. Hosting included. Billed annually.`), planText(h));
   assert.doesNotMatch(planText(h), /this month|resets monthly|banked/);
-  // The early-annual bonus: 4 bonus credits beside the pool, 28 walkthroughs this first year in all.
+  // A bonus already granted (the early-annual bonus is retired for new agreements): 4 bonus credits beside the pool.
   const bonus = await withCapacity({ ...POOL_CAP, extra_credits_available: 4, bonus_credits_available: 4 }, ACTIVE_ANNUAL);
-  assert.equal(allowanceLine(bonus), '19 of 24 walkthroughs left this plan year · 4 extra walkthroughs available, including 4 bonus.');
+  assert.equal(allowanceLine(bonus), `${left} of ${YEAR_POOL} walkthroughs left this plan year · 4 extra walkthroughs available, including 4 bonus.`);
   assert.equal(planValues(bonus)[4], '4 available');
   // A bonus count the extras cannot hold is not stated.
   const odd = await withCapacity({ ...POOL_CAP, extra_credits_available: 1, bonus_credits_available: 2 }, ACTIVE_ANNUAL);
   assert.doesNotMatch(allowanceLine(odd), /bonus/);
   // No reset day in the answer: the pool without an invented date.
   const undated = await withCapacity({ ...POOL_CAP, allowance_ends_at: null }, ACTIVE_ANNUAL);
-  assert.match(capacityText(undated), /Your 24 walkthroughs are a yearly pool to use any time, with no monthly limit\. Unused ones/);
+  assert.ok(capacityText(undated).includes(`Your ${YEAR_POOL} walkthroughs are a yearly pool to use any time, with no monthly limit. Unused ones`), capacityText(undated));
   // Today's server (no kind): the row's own counts, and no pool, reset or monthly reset claimed.
   const today = await withCapacity({ ...capacityRow, plan_status: 'active', included_limit: 1, included_used: 0, included_remaining: 1 }, ACTIVE_ANNUAL);
   assert.deepEqual(planTerms(today), ACTIVE_TERMS);
