@@ -208,3 +208,35 @@ test('legacy website annual agreements remain intact but new subscription switch
   assert.match(members.switchFromAppStore, /cannot be cancelled or paused automatically/);
   assert.equal(members.startNow, 'not offered for new subscriptions');
 });
+
+test('every public page states the free-month walkthrough count from the record', () => {
+  // 29 September 2026: /start still said "the 6 included in your free months" (offer 2026-09-27.1)
+  // while every other page said 3, and neither the price checker nor these tests read that phrasing.
+  const n = record.freeMonths.includedWalkthroughs;
+  const files = [];
+  const walkDir = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { if (!['vendor', 'samples', 'media'].includes(entry.name)) walkDir(full); }
+      else if (/\.(html|txt)$/.test(entry.name)) files.push(full);
+    }
+  };
+  walkDir(path.join(__dirname, '../dist'));
+  const patterns = [
+    /\b(\d+) included in your free months?\b/g,
+    /\bfree months? with (\d+) (?:accepted )?walkthroughs\b/gi,
+    /\b(\d+) accepted walkthroughs (?:in )?total\b/g,
+    /\b(\d+) in your free months?\b/g,
+  ];
+  let seen = 0;
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const pattern of patterns) {
+      for (const match of text.matchAll(pattern)) {
+        seen += 1;
+        assert.equal(Number(match[1]), n, `${path.relative(path.join(__dirname, '../dist'), file)}: "${match[0]}"`);
+      }
+    }
+  }
+  assert.ok(seen >= 5, `the count is stated on several pages (${seen})`);
+});
