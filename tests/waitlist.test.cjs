@@ -123,9 +123,11 @@ test('joining is one POST to rpc/join_waitlist with the public key and the answe
 
 test('a backend without the function, the hourly limit, a refusal and a failure each have their own answer', async () => {
   const api = load();
+  // "No such function" is asked again with the eight released parameters; only a second "no" is missing.
+  const MISSING = { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.join_waitlist' } };
   const cases = [
-    [{ status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.join_waitlist' } }, 'missing'],
-    [{ status: 400, body: { code: 'PGRST202' } }, 'missing'],
+    [[MISSING, MISSING], 'missing'],
+    [[{ status: 400, body: { code: 'PGRST202' } }, { status: 400, body: { code: 'PGRST202' } }], 'missing'],
     [{ status: 200, body: { state: 'busy' } }, 'busy'],
     [{ status: 200, body: { state: 'invalid', field: 'email' } }, 'invalid'],
     [{ status: 500, body: { message: 'boom' } }, 'error'],
@@ -133,7 +135,7 @@ test('a backend without the function, the hourly limit, a refusal and a failure 
     [new TypeError('Failed to fetch'), 'error'],
   ];
   for (const [answer, expected] of cases) {
-    const { fetch } = recordingFetch([answer]);
+    const { fetch } = recordingFetch(Array.isArray(answer) ? answer : [answer]);
     assert.equal(await api.join(fetch, CONFIG, {}), expected, JSON.stringify(answer));
   }
 });
@@ -148,7 +150,7 @@ test('success hides the form and moves focus to "You’re on the list."; a missi
   assert.match(markup, /<h2 id="waitlist-done-title" tabindex="-1">You’re on the list\.<\/h2>/);
   assert.equal(joined.ids['waitlist-done-title'].focused, 1);
 
-  const missing = page([{ status: 404, body: { code: 'PGRST202' } }]);
+  const missing = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }]);
   missing.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(missing.window, missing.ids['waitlist-form']), 'missing');
   const fallback = missing.ids['waitlist-fallback'];
@@ -179,11 +181,12 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   assert.equal(api.SUPPORT, 'support@veylet.com');
   assert.equal(api.INBOX_ENDPOINT, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
   // The database answers "no such function"; FormSubmit accepts: the visitor is on the list.
-  const ok = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true', message: 'The form was submitted successfully.' } }]);
+  const ok = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } },
+    { status: 200, body: { success: 'true', message: 'The form was submitted successfully.' } }]);
   ok.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, consent_tips: 'yes' });
   assert.equal(await api.send(ok.window, ok.ids['waitlist-form']), 'joined');
-  assert.equal(ok.requests.length, 2);
-  const inbox = ok.requests[1];
+  assert.equal(ok.requests.length, 3, 'all answers, the eight released ones, then the inbox once');
+  const inbox = ok.requests[2];
   assert.equal(inbox.url, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
   assert.equal(inbox.init.credentials, 'omit');
   // FormSubmit rejects a request without a Referer; only the origin is sent (live failure, 29 Sep).
@@ -196,7 +199,7 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
     _autoresponse: api.AUTORESPONSE });
   assert.equal(ok.ids['waitlist-form'].hidden, true);
   // Both fail: nothing is claimed, the email route shows, and nothing typed is lost.
-  const down = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 500, body: { success: 'false' } }]);
+  const down = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }, { status: 500, body: { success: 'false' } }]);
   down.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(down.window, down.ids['waitlist-form']), 'missing');
   assert.equal(down.ids['waitlist-fallback'].hidden, false);
@@ -206,11 +209,11 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   noConfig.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(noConfig.window, noConfig.ids['waitlist-form']), 'joined');
   assert.equal(noConfig.requests.length, 1);
-  // A working database never touches the inbox.
-  const live = page([{ status: 200, body: { state: 'joined' } }]);
+  // A working database takes it, and the inbox gets one copy (owner, 30 September 2026; tested below).
+  const live = page([{ status: 200, body: { state: 'joined' } }, { status: 200, body: { success: 'true' } }]);
   live.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(live.window, live.ids['waitlist-form']), 'joined');
-  assert.equal(live.requests.length, 1);
+  assert.deepEqual(live.requests.map(request => request.url), ['https://project.supabase.invalid/rest/v1/rpc/join_waitlist', api.INBOX_ENDPOINT]);
 });
 
 // 29 Sep 2026 (owner): lead quality and attribution. An optional volume answer matching the Meta lead form,
@@ -401,3 +404,76 @@ test('the share live region stays rendered and a repeated message is cleared, th
   assert.deepEqual(timers, [50, 50]);
 });
 
+
+// 30 Sep 2026 (owner): Release 2's join_waitlist takes 8 parameters. The page sends all 15 first (a later
+// migration adds the rest), asks once more with the 8 when the function does not take them, and emails the
+// inbox a copy of every sign-up the database took, with every answer, so attribution is not lost.
+const RPC = 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist';
+const NO_FUNCTION = { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.join_waitlist(p_business_type, p_channels, p_click, ...)' } };
+const SENT = { status: 200, body: { success: 'true' } };
+const withTouch = extra => {
+  const p = page(extra);
+  p.window.sessionStorage = storage({ 'veylet.firstTouch': JSON.stringify(TOUCH) });
+  p.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: '3_5' });
+  return p;
+};
+const settled = () => new Promise(resolve => setImmediate(resolve));
+
+test('a database that takes every answer: one call, then one inbox copy with every answer', async () => {
+  const api = load();
+  const p = withTouch([{ status: 200, body: { state: 'joined' } }, SENT]);
+  assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
+  await settled();
+  assert.deepEqual(p.requests.map(request => request.url), [RPC, api.INBOX_ENDPOINT]);
+  assert.equal(Object.keys(p.requests[0].body).length, 15);
+  const copy = p.requests[1].body;
+  assert.deepEqual([copy.volume, copy.utm_source, copy.utm_medium, copy.utm_campaign, copy.utm_content, copy.click, copy.landing, copy.saved_in_database],
+    ['3_5', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see', 'yes']);
+  assert.equal(p.requests[1].init.referrerPolicy, 'origin', 'the FormSubmit Referer fix holds for the copy');
+  assert.equal(p.ids['waitlist-form'].hidden, true);
+});
+
+test('Release 2’s function: all answers, then exactly the eight it takes, then the inbox copy with the rest', async () => {
+  const api = load();
+  const p = withTouch([NO_FUNCTION, { status: 200, body: { state: 'joined' } }, SENT]);
+  assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
+  await settled();
+  assert.deepEqual(p.requests.map(request => request.url), [RPC, RPC, api.INBOX_ENDPOINT]);
+  assert.deepEqual(Object.keys(p.requests[1].body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_consent_wording', 'p_device', 'p_email', 'p_name', 'p_region']);
+  assert.deepEqual(p.requests[1].body, Object.fromEntries(api.BASE_PARAMS.map(name => [name, p.requests[0].body[name]])));
+  assert.equal(p.requests[1].init.referrerPolicy, 'no-referrer');
+  const copy = p.requests[2].body;
+  assert.deepEqual([copy.volume, copy.utm_source, copy.utm_campaign, copy.landing], ['3_5', 'instagram', 'waitlist-sep', '/see']);
+  assert.equal(p.ids['waitlist-done'].hidden, false);
+});
+
+test('no function either way: the inbox takes it once (no second copy); busy and invalid send no copy', async () => {
+  const api = load();
+  const p = withTouch([NO_FUNCTION, NO_FUNCTION, SENT, SENT]);
+  assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
+  await settled();
+  assert.deepEqual(p.requests.map(request => request.url), [RPC, RPC, api.INBOX_ENDPOINT]);
+  assert.equal(p.requests[2].body.saved_in_database, undefined, 'the inbox is the record here, and says nothing else');
+  for (const state of ['busy', 'invalid']) {
+    const q = withTouch([{ status: 200, body: { state } }, SENT]);
+    assert.equal(await api.send(q.window, q.ids['waitlist-form']), state);
+    await settled();
+    assert.deepEqual(q.requests.map(request => request.url), [RPC], state);
+  }
+});
+
+test('a failed inbox copy changes nothing on the page after the database took the sign-up', async () => {
+  const api = load();
+  const tracked = [];
+  for (const failure of [{ status: 500, body: { success: 'false' } }, new TypeError('Failed to fetch')]) {
+    const p = withTouch([{ status: 200, body: { state: 'joined' } }, failure]);
+    p.window.VeyletAnalytics = { track: (name, props) => tracked.push([name, props.error_code || null]) };
+    assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
+    await settled(); await settled();
+    assert.equal(p.ids['waitlist-form'].hidden, true);
+    assert.equal(p.ids['waitlist-done'].hidden, false);
+    assert.equal(p.ids['waitlist-fallback'].hidden, true);
+    assert.equal(p.ids['waitlist-status'].textContent, '');
+  }
+  assert.deepEqual(tracked, [['waitlist_submission_accepted', null], ['waitlist_submission_accepted', null]], 'measured once each, as the database answered');
+});

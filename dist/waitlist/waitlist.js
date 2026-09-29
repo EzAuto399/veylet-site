@@ -1,7 +1,9 @@
 /*
- * /waitlist: one form, one call. The answers go to rpc/join_waitlist (the product repository's
- * supabase/drafts/release-2/20260926102000_waitlist.sql, not yet released) with the public key and
- * the form answers only: no third-party script, no cookie. Optional website measurement is separate and
+ * /waitlist: one form. The answers go to rpc/join_waitlist (the product repository's release-2
+ * 20260926102000_waitlist.sql, applied on the hosted database: eight parameters) with the public key and
+ * the form answers only: no third-party script, no cookie. Every answer is sent first; a function that
+ * does not take them all is asked once more with its eight (see join). A sign-up the database took is
+ * also emailed to the owner's inbox as a copy with every answer (owner decision, 30 September 2026). Optional website measurement is separate and
  * consent-controlled; it receives fixed outcome codes from the join_waitlist response only. A backend without the function
  * (PostgREST PGRST202 / 404), or a page without its configuration, sends the same answers once to the
  * owner's inbox through FormSubmit's JSON endpoint instead (owner decision, 29 September 2026, until the
@@ -135,7 +137,27 @@
     return '';
   }
 
+  // The eight answers the released join_waitlist takes (Release 2). The volume, campaign labels,
+  // click source and landing path join them when a later migration adds those parameters.
+  var BASE_PARAMS = ['p_name', 'p_email', 'p_business_type', 'p_device', 'p_region', 'p_channels', 'p_consent_tips', 'p_consent_wording'];
+
+  function baseAnswers(answers) {
+    var base = {};
+    BASE_PARAMS.forEach(function (name) { base[name] = answers[name]; });
+    return base;
+  }
+
+  /**
+   * Every answer first, so a database that takes them all records them. A function that does not take
+   * that many (PostgREST PGRST202 / 404) is asked once more with the eight it does; only when that is
+   * missing too is the waitlist 'missing'.
+   */
   async function join(fetchImpl, config, answers) {
+    var full = await joinOnce(fetchImpl, config, answers);
+    return full === 'missing' ? joinOnce(fetchImpl, config, baseAnswers(answers)) : full;
+  }
+
+  async function joinOnce(fetchImpl, config, answers) {
     try {
       var response = await fetchImpl(config.url + '/rest/v1/rpc/join_waitlist', {
         method: 'POST',
@@ -189,7 +211,7 @@
   }
 
   /** The answers as one plain message to the owner's inbox; 'joined' only when FormSubmit says it sent. */
-  async function joinByInbox(fetchImpl, answers, win) {
+  async function joinByInbox(fetchImpl, answers, win, saved) {
     var reply = mayAutoReply(win, answers.p_email);
     try {
       var message = {
@@ -213,6 +235,8 @@
           landing: answers.p_landing || '',
           _replyto: answers.p_email,
       };
+      // A copy of a sign-up the database took says so, so the inbox never reads as the only record.
+      if (saved) message.saved_in_database = 'yes';
       // The owner's copy always goes; only the auto-reply to the typed address is capped.
       if (reply) message._autoresponse = AUTORESPONSE;
       var response = await fetchImpl(INBOX_ENDPOINT, {
@@ -301,7 +325,13 @@
     // route are not; an unavailable RPC is reported only when the inbox route could not take it either.
     // The measurement module enforces consent.
     if (rpc !== null && (rpc !== 'missing' || state === 'missing')) measureResult(win, state);
-    return show(doc, state, answers);
+    var shown = show(doc, state, answers);
+    // Owner decision (30 September 2026): a sign-up the database took is also emailed to the inbox, with
+    // every answer (volume and campaign labels included, which the released function does not keep yet).
+    // Best effort, after the page has said "You're on the list": its failure changes nothing on the page.
+    // A sign-up that went by the inbox already is not sent twice; busy and invalid send nothing.
+    if (rpc === 'joined') joinByInbox(win.fetch.bind(win), answers, win, true).catch(function () { /* best effort */ });
+    return shown;
   }
 
   /** Clears the live region, then writes in a later task, so a repeated identical message is announced again. */
@@ -357,7 +387,7 @@
 
   var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, VOLUMES: VOLUMES, COPY: COPY, TIPS: TIPS,
     INBOX_ENDPOINT: INBOX_ENDPOINT, AUTORESPONSE: AUTORESPONSE, REPLIES_KEY: REPLIES_KEY, SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY,
-    answersFrom: answersFrom, attribution: attribution, problem: problem, join: join, joinByInbox: joinByInbox,
+    BASE_PARAMS: BASE_PARAMS, answersFrom: answersFrom, attribution: attribution, problem: problem, join: join, joinByInbox: joinByInbox,
     show: show, send: send, share: share, run: run };
   if (typeof window !== 'undefined') {
     window.VeyletWaitlist = api;

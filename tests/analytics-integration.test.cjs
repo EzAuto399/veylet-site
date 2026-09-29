@@ -128,7 +128,9 @@ test('public CTA hooks use fixed destinations and placements and intake forms ke
 test('a real accepted waitlist response emits only the safe accepted-submission event', async () => {
   const f = fixture();
   assert.equal(await f.send(), 'joined');
-  assert.equal(f.requests.length, 1);
+  // The join, then the inbox copy of the sign-up (owner, 30 September 2026), which is not measured.
+  assert.equal(f.requests.length, 2);
+  assert.match(f.requests[0].url, /\/rest\/v1\/rpc\/join_waitlist$/);
   assert.deepEqual(f.events, [{ name: 'waitlist_submission_accepted', props: { form_id: 'waitlist' } }]);
   assert.equal(f.ids['waitlist-form'].hidden, true);
   assert.equal(f.ids['waitlist-done'].hidden, false);
@@ -154,7 +156,7 @@ test('the conversion waits for the RPC; duplicate in-flight submits do not creat
 test('validation and RPC failures emit fixed error codes without false conversions or personal fields', async () => {
   const cases = [
     [fixture([], { email: 'invalid' }), 'validation'],
-    [fixture([{ status: 404, body: { code: 'PGRST202' } }]), 'unavailable'],
+    [fixture([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }]), 'unavailable'],
     [fixture([{ status: 200, body: { state: 'busy' } }]), 'busy'],
     [fixture([{ status: 200, body: { state: 'invalid', field: 'email' } }]), 'validation'],
     [fixture([{ status: 500, body: { message: 'raw-error-canary@example.invalid' } }]), 'network'],
@@ -196,7 +198,7 @@ for (const deploymentEnabled of [false, true]) test(`real analytics runtime pres
   vm.runInContext(read('analytics.js'), context);
   assert.equal(typeof f.window.VeyletAnalytics.track, 'function', 'exercise the actual runtime, not a stub');
   assert.equal(await f.send(), 'joined');
-  assert.equal(f.requests.length, 1, 'the existing first-party join still runs once');
+  assert.equal(f.requests.filter(request => /\/rest\/v1\/rpc\/join_waitlist$/.test(request.url)).length, 1, 'the existing first-party join still runs once');
   assert.match(f.requests[0].url, /\/rest\/v1\/rpc\/join_waitlist$/);
   assert.equal(f.ids['waitlist-form'].hidden, true);
   assert.equal(f.ids['waitlist-done'].hidden, false);
@@ -211,9 +213,9 @@ for (const deploymentEnabled of [false, true]) test(`real analytics runtime pres
 
 test('the FormSubmit inbox route is never measured as an accepted waitlist submission', async () => {
   // The join_waitlist RPC is missing, so the answers go once to the owner's inbox instead.
-  const inbox = fixture([{ status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true' } }]);
+  const inbox = fixture([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true' } }]);
   assert.equal(await inbox.send(), 'joined');
-  assert.equal(inbox.requests.length, 2);
+  assert.equal(inbox.requests.length, 3, 'every answer, the eight released ones, then the inbox');
   assert.equal(inbox.ids['waitlist-done'].hidden, false, 'the visitor still sees the joined state');
   assert.deepEqual(inbox.events, [], 'an inbox delivery is not an RPC receipt');
   const unconfigured = fixture([{ status: 200, body: { success: 'true' } }]);
@@ -295,7 +297,7 @@ test('missing, rejecting or throwing analytics cannot prevent real waitlist comp
   for (const analytics of [undefined, {}, { track: () => false }, { track() { throw new Error('blocked'); } }]) {
     const f = fixture(); f.window.VeyletAnalytics = analytics;
     assert.equal(await f.send(), 'joined');
-    assert.equal(f.requests.length, 1);
+    assert.equal(f.requests.filter(request => /\/rest\/v1\/rpc\/join_waitlist$/.test(request.url)).length, 1);
     assert.equal(f.ids['waitlist-form'].hidden, true);
     assert.equal(f.ids['waitlist-done'].hidden, false);
     const busy = fixture([{ status: 200, body: { state: 'busy' } }]); busy.window.VeyletAnalytics = analytics;
