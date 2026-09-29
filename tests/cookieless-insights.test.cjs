@@ -123,7 +123,7 @@ test('no cookie, no localStorage, no network or custom events of its own', async
 });
 
 test('both privacy notices name the cookieless counts next to the consent-gated Google Analytics', () => {
-  const sentence = 'veylet.com counts page views with Vercel Web Analytics, which uses no cookies and stores no personal identifiers: it counts the page address (without query strings or fragments), the referrer, the country and the device type in aggregate, and Google Analytics still runs only after you allow it.';
+  const sentence = 'veylet.com counts page views with Vercel Web Analytics, which uses no cookies and stores no personal identifiers: it counts the page address (without query strings or fragments), the referrer, the country and the device type in aggregate. Vercel may process this outside Australia. Google Analytics still runs only after you allow it.';
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const text = read(file).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
     assert.ok(text.includes(sentence), file);
