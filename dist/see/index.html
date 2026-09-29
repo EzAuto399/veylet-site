@@ -41,7 +41,7 @@
     <link rel="stylesheet" href="/conversion.css?v=3c82fa9f8cd5a55c" />
     <link rel="stylesheet" href="/refinement.css?v=3396f9c21e422ea8" />
     <link rel="stylesheet" href="/showcase.css?v=68947999070d9121" />
-    <link rel="stylesheet" href="/see/see.css?v=35e3d6701c867c25" />
+    <link rel="stylesheet" href="/see/see.css?v=ade0c7dbfeb298f5" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -102,7 +102,7 @@
                 "name": "Was this example made with an iPhone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "No. It is the apartment scene from Meta’s Eyeful Tower research dataset, photographed with a research camera rig and published under the MIT licence. We processed it with the same pipeline your captures go through, from camera positions to the video export. An iPhone capture of your space will look different, and every walkthrough is checked before you can share it."
+                  "text": "Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet pipeline your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 3 walkthroughs included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it."
                 }
               },
               {
@@ -182,15 +182,21 @@
                     decoding="async"
                   />
                 </picture>
+                <!-- The whole poster is the press (see.js): a tap or a drag starts the walkthrough.
+                     The button stays the one keyboard and screen reader control. -->
                 <div class="see-player-start" data-player-start hidden>
-                  <button class="button button-paper" type="button" data-explore>Explore the apartment</button>
+                  <button class="button button-paper see-player-chip" type="button" aria-describedby="see-player-weight" data-explore
+                    ><svg class="see-drag-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"
+                      ><circle cx="12" cy="12" r="2" fill="currentColor" /><path d="M3.54 9.61a9 7 0 0 1 16.92 0M21.5 6.8l-1.04 2.81-2.82-1.05M20.46 14.39a9 7 0 0 1-16.92 0M2.5 17.2l1.04-2.81 2.82 1.05" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+                    /></svg><span data-explore-label>Drag to look around</span></button>
+                  <p class="see-player-weight" id="see-player-weight" data-player-weight>Opens the 3D walkthrough · about 35&nbsp;MB</p>
                   <p class="see-player-status" role="status" data-player-status></p>
                 </div>
                 <noscript><p class="see-player-note">The 3D walkthrough needs JavaScript. The walkthrough video plays without it.</p></noscript>
               </div>
               <figcaption>
                 <span class="see-caption-head"><strong>3D walkthrough</strong> <span class="pill see-tag">Research sample</span></span>
-                <span class="see-caption-line">Drag to look, tap the floor to walk. <span class="see-player-weight" data-player-weight>Explore loads about 35 MB.</span></span>
+                <span class="see-caption-line">Drag to look around, tap the floor to walk.</span>
               </figcaption>
             </figure>
 
@@ -462,7 +468,7 @@
         <div class="faq-list">
           <details>
             <summary>Was this example made with an iPhone?</summary>
-            <p>No. It is the apartment scene from Meta’s Eyeful Tower research dataset, photographed with a research camera rig and published under the MIT licence. We processed it with the same pipeline your captures go through, from camera positions to the video export. An iPhone capture of your space will look different, and every walkthrough is checked before you can share it.</p>
+            <p>Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet pipeline your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 3 walkthroughs included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it.</p>
           </details>
           <details>
             <summary>Do my clients need an app?</summary>
@@ -496,7 +502,7 @@
     </nav>
     <script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer></script>
     <script src="/vendor/ScrollTrigger-3.15.0.min.js?v=b0b14d67b55b0c43" defer></script>
-    <script src="/see/see.js?v=eeeecae070298768" defer></script>
+    <script src="/see/see.js?v=81b7fdce9b0a9df5" defer></script>
     <script src="/first-touch.js?v=2a2b56b660ab0f8f" defer></script>
   </body>
 </html>

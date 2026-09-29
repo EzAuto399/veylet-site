@@ -187,12 +187,14 @@ test('without JavaScript the page is complete; with it, nothing heavy loads befo
   }
   // The player engine is not on the page; see.js fetches it only after the Explore press.
   assert.doesNotMatch(html, /tour-player|playcanvas/);
-  assert.match(body, /<button class="button button-paper" type="button" data-explore>Explore the apartment<\/button>/);
-  assert.ok(flat(element('data-see-frame="explore"', 'figure')).includes('Explore loads about 35 MB.'), 'the download size is under the frame');
+  assert.match(body, /<button class="button button-paper see-player-chip" type="button" aria-describedby="see-player-weight" data-explore\s*><svg class="see-drag-icon"[^>]*aria-hidden="true"[\s\S]*?<\/svg><span data-explore-label>Drag to look around<\/span><\/button>/);
+  assert.equal(flat(element('data-player-weight', 'p')), 'Opens the 3D walkthrough · about 35 MB', 'the download size sits under the chip');
+  assert.ok(element('data-player-start', 'div').includes('data-player-weight'), 'the weight line is in the start block, under the chip');
   const mb = manifest.bytes.total / 1e6;
   assert.ok(mb > 30 && mb < 40, `the package is about 35 MB (${mb.toFixed(1)} MB)`);
-  const press = js.indexOf("press.addEventListener('click'");
-  assert.ok(press > 0 && js.indexOf('load()', press) > press && js.indexOf('waitForTap: false', press) > press, 'the engine loads inside the press');
+  const begin = js.indexOf('const begin = async () =>');
+  assert.ok(begin > 0 && js.indexOf('await load()', begin) > begin && js.indexOf('waitForTap: false', begin) > begin, 'the engine loads inside the one start');
+  assert.match(js, /press\.addEventListener\('click', begin\)/);
   // Plain structure: five steps, the comparison table and the answers are HTML.
   assert.equal([...element('class="see-steps"', 'ol').matchAll(/<li class="see-step"/g)].length, 5);
   assert.equal([...body.matchAll(/<th scope="row">/g)].length, 5);
@@ -264,4 +266,155 @@ test('the pinned phone is one frame: screens slide over each other on the scroll
   for (const match of js.matchAll(/fromTo\([^,]+, \{ y: 36, opacity: ([\d.]+) \}/g)) assert.ok(Number(match[1]) >= 0.35, 'reveals start visible');
   assert.match(css, /\.see-stage\[data-switched\] \.see-frame/);
   assert.match(js, /stage\.dataset\.switched = '';\s*show\(button\.dataset\.show\);/);
+});
+
+/* ---------- The poster is the press (owner request 29 Sep): see.js run against a small fake DOM ---------- */
+const vm = require('node:vm');
+const { createDocument } = require('./fake-dom.cjs');
+
+function mountPlayer({ reduced = false } = {}) {
+  const scripts = [];
+  const document = createDocument({ onHeadAppend: node => { if (node.tagName === 'SCRIPT') scripts.push(node); } });
+  const make = (tag, attributes = {}, parent) => {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    if (parent) parent.append(node);
+    return node;
+  };
+  const stage = make('div', { 'data-see-stage': '', 'data-sample-base': '/samples/eyeful-apartment/' }, document.body);
+  const box = make('div', { 'data-see-player': '' }, stage);
+  const poster = make('img', { class: 'see-player-poster' }, box);
+  const start = make('div', { 'data-player-start': '' }, box);
+  start.hidden = true;
+  const press = make('button', { 'data-explore': '' }, start);
+  const label = make('span', { 'data-explore-label': '' }, press);
+  label.textContent = 'Drag to look around';
+  const weight = make('p', { 'data-player-weight': '' }, start);
+  const status = make('p', { 'data-player-status': '' }, start);
+  const starts = [];
+  const window = {
+    document,
+    location: { reload() {} },
+    matchMedia: query => ({ matches: reduced && /reduce/.test(query), addEventListener() {} }),
+    addEventListener() {},
+  };
+  window.window = window;
+  vm.runInNewContext(js, window);
+  const player = () => { window.VeyletPlayerV2 = { start: (target, options) => { starts.push({ target, options }); return Promise.resolve(); } }; };
+  const pointer = (type, target, fields) => target.dispatch(type, { pointerId: 1, isPrimary: true, button: 0, pointerType: 'mouse', clientX: 100, clientY: 100, ...fields });
+  const settle = () => new Promise(resolve => setImmediate(resolve));
+  return { document, window, box, poster, start, press, label, weight, status, scripts, starts, player, pointer, settle };
+}
+
+test('the poster is the press: a tap on it starts the walkthrough exactly once', async () => {
+  const page = mountPlayer();
+  assert.equal(page.start.hidden, false, 'the cue shows once the script runs');
+  assert.ok('poster' in page.box.dataset, 'the stage is marked as a draggable poster');
+  assert.equal(page.scripts.length, 0, 'nothing heavy loads before the visitor acts');
+  page.pointer('pointerdown', page.poster, {});
+  assert.ok('pressed' in page.box.dataset, 'the grab turns to grabbing while pressed');
+  page.pointer('pointerup', page.poster, { clientX: 102, clientY: 101 });
+  assert.equal(page.scripts.length, 1, 'the tap loads the player script');
+  assert.equal(page.label.textContent, 'Loading the 3D walkthrough…');
+  assert.equal(page.press.disabled, true);
+  assert.equal(page.weight.hidden, true);
+  assert.ok(!('poster' in page.box.dataset) && !('pressed' in page.box.dataset), 'no grab cursor while it loads');
+  // Further presses, on the poster or the button, do not start it again.
+  page.pointer('pointerdown', page.poster, {});
+  page.pointer('pointerup', page.poster, {});
+  page.press.disabled = false; page.press.click(); page.press.disabled = true;
+  page.player();
+  page.scripts[0].onload();
+  await page.settle();
+  assert.equal(page.scripts.length, 1, 'one script');
+  assert.equal(page.starts.length, 1, 'one start');
+  assert.equal(page.starts[0].target, page.box);
+  assert.equal(page.starts[0].options.base, '/samples/eyeful-apartment/');
+  assert.equal(page.starts[0].options.waitForTap, false);
+});
+
+test('a mouse drag past a few pixels starts it; a jitter within them does not', () => {
+  const page = mountPlayer();
+  page.pointer('pointerdown', page.poster, {});
+  page.pointer('pointermove', page.box, { clientX: 104, clientY: 103 });
+  assert.equal(page.scripts.length, 0, 'within 6 px is still a press');
+  page.pointer('pointermove', page.box, { clientX: 90, clientY: 100 });
+  assert.equal(page.scripts.length, 1, 'a 10 px drag starts the walkthrough');
+  page.pointer('pointerup', page.box, { clientX: 60, clientY: 100 });
+  assert.equal(page.scripts.length, 1, 'and only once');
+});
+
+test('on touch, a vertical scroll over the poster does not start it; a tap or a sideways drag does', () => {
+  const page = mountPlayer();
+  const touch = { pointerType: 'touch' };
+  page.pointer('pointerdown', page.poster, touch);
+  page.pointer('pointermove', page.poster, { ...touch, clientX: 103, clientY: 130 });
+  page.pointer('pointerup', page.poster, { ...touch, clientX: 103, clientY: 160 });
+  assert.equal(page.scripts.length, 0, 'a mostly vertical move is the page scrolling');
+  page.pointer('pointerdown', page.poster, touch);
+  page.pointer('pointercancel', page.poster, touch);
+  page.pointer('pointerup', page.poster, touch);
+  assert.equal(page.scripts.length, 0, 'the browser taking the pan cancels the press');
+  assert.ok(!('pressed' in page.box.dataset));
+  // A fresh tap starts it.
+  page.pointer('pointerdown', page.poster, touch);
+  page.pointer('pointerup', page.poster, { ...touch, clientX: 101, clientY: 102 });
+  assert.equal(page.scripts.length, 1, 'a tap starts it');
+  const sideways = mountPlayer();
+  sideways.pointer('pointerdown', sideways.poster, touch);
+  sideways.pointer('pointermove', sideways.poster, { ...touch, clientX: 130, clientY: 108 });
+  assert.equal(sideways.scripts.length, 1, 'a mostly sideways drag starts it');
+  // The stage lets phones scroll the page vertically, and keeps the browser's own image drag off.
+  assert.match(css, /\.see-player-stage\[data-poster\] \{[^}]*cursor: grab;[^}]*touch-action: pan-y;/);
+  assert.match(css, /\.see-player-stage\[data-poster\]\[data-pressed\] \{\s*cursor: grabbing;/);
+  assert.equal(sideways.box.dispatch('dragstart').defaultPrevented, true);
+});
+
+test('the button is still the keyboard and screen reader path, and a failed load offers Try again', async () => {
+  const page = mountPlayer();
+  page.press.click(); // Enter and Space on a <button> arrive as a click
+  assert.equal(page.scripts.length, 1);
+  assert.equal(page.label.textContent, 'Loading the 3D walkthrough…');
+  assert.equal(page.press.disabled, true);
+  page.scripts[0].onerror();
+  await page.settle();
+  assert.equal(page.label.textContent, 'Try again');
+  assert.equal(page.press.disabled, false);
+  assert.equal(page.status.textContent, 'The 3D player didn’t load. Check the connection and try again.');
+  assert.ok('poster' in page.box.dataset, 'the poster is a press again');
+  page.pointer('pointerdown', page.poster, {});
+  page.pointer('pointerup', page.poster, {});
+  assert.equal(page.scripts.length, 2, 'a press after a failure tries once more');
+  page.player();
+  page.scripts[1].onload();
+  await page.settle();
+  assert.equal(page.starts.length, 1);
+  assert.equal(page.document.activeElement, page.box, 'focus stays in the frame');
+});
+
+test('the cue: a centred chip whose icon nudges only when motion is welcome; the weight is said once', () => {
+  assert.match(css, /\.see-player-start \{[^}]*inset: 0;[^}]*place-content: center;/);
+  assert.match(css, /\.see-player-start \.button \{[^}]*min-height: 44px;/);
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.see-player-start:not\(\[data-state\]\) \.see-drag-icon \{\s*animation: see-nudge 2\.4s/);
+  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
+  assert.match(reduced, /\.see-drag-icon \{\s*animation: none;/, 'reduced motion removes the nudge');
+  assert.equal(visible.split('35 MB').length - 1, 1, 'the download size appears once');
+  assert.equal(flat(element('data-see-frame="explore"', 'figure').match(/<span class="see-caption-line">[\s\S]*?<\/span>/)[0]), 'Drag to look around, tap the floor to walk.');
+  const icon = element('class="see-drag-icon"', 'svg');
+  assert.doesNotMatch(icon, /fill="#|stroke="#/, 'the icon draws in currentColor');
+});
+
+test('the iPhone answer is the same in the visible FAQ and the structured data, and its allowance is offer.json’s', () => {
+  const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
+  const graph = [ld, ...(ld['@graph'] || [])];
+  const faq = graph.find(node => node['@type'] === 'FAQPage');
+  const question = faq.mainEntity.find(entry => entry.name === 'Was this example made with an iPhone?');
+  const answers = element('aria-labelledby="answers-title"', 'section');
+  const shown = answers.match(/<summary>Was this example made with an iPhone\?<\/summary>\s*<p>([\s\S]*?)<\/p>/);
+  assert.ok(question && shown);
+  assert.equal(flat(shown[1]), question.acceptedAnswer.text, 'visible and JSON-LD answers match');
+  assert.ok(question.acceptedAnswer.text.startsWith('Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence)'));
+  assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
+  assert.equal(offer.freeMonths.months, 1);
+  assert.ok(question.acceptedAnswer.text.endsWith('Every walkthrough is checked, and nothing is shared until you approve it.'));
 });

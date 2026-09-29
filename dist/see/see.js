@@ -123,10 +123,11 @@
     show('explore');
   })();
 
-  /* ---------- The 3D walkthrough: nothing heavy until the visitor presses Explore ---------- */
+  /* ---------- The 3D walkthrough: nothing heavy until the visitor presses the poster ---------- */
   (() => {
     const start = playerBox && playerBox.querySelector('[data-player-start]');
     const press = start && start.querySelector('[data-explore]');
+    const label = press && (press.querySelector('[data-explore-label]') || press);
     const status = start && start.querySelector('[data-player-status]');
     const weight = document.querySelector('[data-player-weight]');
     // The package location is one attribute on the stage (same origin now, the tour host at release).
@@ -141,17 +142,32 @@
       script.onerror = () => { script.remove(); reject(new Error('player-unavailable')); };
       document.head.append(script);
     }));
+    // Idle until a press; one start in flight at a time; a failed load returns to idle for Try again.
+    let state = 'idle';
+    const poster = on => {
+      if (on) playerBox.dataset.poster = ''; else delete playerBox.dataset.poster;
+      delete playerBox.dataset.pressed;
+    };
     const failed = () => {
+      state = 'idle';
+      poster(true);
+      delete start.dataset.state;
       press.disabled = false;
-      press.textContent = 'Try again';
+      label.textContent = 'Try again';
       status.textContent = 'The 3D player didn’t load. Check the connection and try again.';
     };
-    press.addEventListener('click', async () => {
+    // The one start, shared by the button (keyboard, screen readers) and the poster (tap or drag).
+    const begin = async () => {
+      if (state !== 'idle') return;
+      state = 'loading';
+      poster(false);
+      start.dataset.state = 'loading';
       press.disabled = true;
-      press.textContent = 'Loading the player…';
+      label.textContent = 'Loading the 3D walkthrough…';
       status.textContent = '';
       if (weight) weight.hidden = true;
       try { await load(); } catch { failed(); return; }
+      state = 'started';
       // Focus stays in the frame while the player replaces the poster with its own interface.
       playerBox.focus({ preventScroll: true });
       window.VeyletPlayerV2.start(playerBox, { base, waitForTap: false, onRetry: () => location.reload() })
@@ -166,7 +182,39 @@
           note.textContent = 'The walkthrough didn’t load here. Reload the page to try again; the video beside it still plays.';
           playerBox.replaceChildren(note);
         });
+    };
+    press.addEventListener('click', begin);
+
+    // The poster itself: a tap, or a drag past a few pixels, starts it. On touch the stage keeps
+    // vertical panning (touch-action: pan-y in see.css), so a scroll cancels the press and only a
+    // tap or a mostly sideways drag starts the walkthrough.
+    const SLOP = 6;
+    let down = null;
+    const release = () => { down = null; delete playerBox.dataset.pressed; };
+    poster(true);
+    playerBox.addEventListener('pointerdown', event => {
+      if (state !== 'idle' || down || event.isPrimary === false) return;
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      down = { id: event.pointerId, x: event.clientX, y: event.clientY, touch: event.pointerType === 'touch' };
+      playerBox.dataset.pressed = '';
+      if (!down.touch && playerBox.setPointerCapture) try { playerBox.setPointerCapture(event.pointerId); } catch {}
     });
+    playerBox.addEventListener('pointermove', event => {
+      if (!down || event.pointerId !== down.id) return;
+      const dx = Math.abs(event.clientX - down.x), dy = Math.abs(event.clientY - down.y);
+      if (Math.max(dx, dy) <= SLOP) return;
+      if (down.touch && dy >= dx) { release(); return; } // a scroll, not a look
+      release();
+      begin();
+    });
+    playerBox.addEventListener('pointerup', event => {
+      if (!down || event.pointerId !== down.id) return;
+      release();
+      begin();
+    });
+    playerBox.addEventListener('pointercancel', release);
+    // The poster image must not start the browser's own image drag.
+    playerBox.addEventListener('dragstart', event => { if (state !== 'started') event.preventDefault(); });
   })();
 
   /* ---------- The hairline: from "One capture." along, then down onto each frame ---------- */

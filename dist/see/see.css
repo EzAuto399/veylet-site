@@ -148,26 +148,49 @@ html {
 .see-player-poster {
   object-fit: cover;
 }
-/* The press that loads the engine: one square paper button, inset from the corner. */
+/* The poster is the press (see.js marks it data-poster until the walkthrough starts): it looks
+   and feels draggable, and on touch it still lets the page scroll vertically. */
+.see-player-stage[data-poster] {
+  cursor: grab;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.see-player-stage[data-poster][data-pressed] {
+  cursor: grabbing;
+}
+.see-player-stage[data-poster] .see-player-poster {
+  -webkit-user-drag: none;
+}
+/* The cue: one square paper chip centred on the poster, the download line under it. */
 .see-player-start {
   position: absolute;
-  left: 16px;
-  bottom: 16px;
+  inset: 0;
   z-index: 1;
   display: grid;
-  justify-items: start;
+  place-content: center;
+  justify-items: center;
   gap: 8px;
-  max-width: calc(100% - 32px);
+  padding: 16px;
+  text-align: center;
 }
 .see-player-start[hidden] {
   display: none;
 }
 .see-player-start .button {
-  min-height: 52px;
+  min-height: 44px;
   min-width: 0;
-  padding: 14px 20px;
+  padding: 11px 18px 11px 14px;
+  gap: 10px;
   border-color: rgba(16, 35, 29, 0.28);
   font-size: 14px;
+  cursor: inherit;
+}
+.see-drag-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
 }
 .refined-marketing .see-player-start .button:focus-visible {
   outline-color: var(--paper);
@@ -176,6 +199,19 @@ html {
 .see-player-start .button:disabled {
   opacity: 0.8;
   cursor: progress;
+}
+.see-player-start[data-state="loading"] {
+  cursor: progress;
+}
+/* The scrim sits only behind the small line, where paper text meets the poster. */
+.see-player-start .see-player-weight {
+  margin: 0;
+  padding: 3px 8px;
+  background: rgba(16, 35, 29, 0.72);
+  color: var(--paper);
+}
+.see-player-weight[hidden] {
+  display: none;
 }
 .see-player-status,
 .see-player-note {
@@ -1177,6 +1213,23 @@ html {
     animation: see-settle 0.45s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
 }
+@media (prefers-reduced-motion: no-preference) {
+  .see-player-start:not([data-state]) .see-drag-icon {
+    animation: see-nudge 2.4s ease-in-out infinite;
+  }
+}
+@keyframes see-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(-2px);
+  }
+  70% {
+    transform: translateX(2px);
+  }
+}
 @keyframes see-settle {
   from {
     opacity: 0;
@@ -1190,7 +1243,8 @@ html {
   .see-step h3 {
     transition: none;
   }
-  .see-ui-steps li.is-now::before {
+  .see-ui-steps li.is-now::before,
+  .see-drag-icon {
     animation: none;
   }
 }
