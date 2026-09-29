@@ -36,8 +36,8 @@
   var LANDING = /^\/(?!\/)[A-Za-z0-9\/_.-]{0,199}$/;
   var SHARE_URL = 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks';
   // FormSubmit emails this to the address typed in the form (inbox route only). Transactional: no offer.
-  // At most once per address and 3 times per browser session (see autoReply), so the form cannot be
-  // used to mail strangers repeatedly.
+  // This page asks for it at most once per address and 3 times per browser tab session (see autoReply),
+  // which stops accidental repeats; deliberate abuse of the public endpoint is left to FormSubmit's limits.
   var AUTORESPONSE = 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email ' +
     'you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. ' +
     'If that wasn\'t you, or to leave the list, email ' + SUPPORT + '. Veylet Studio (Yo-Da Lai)';
