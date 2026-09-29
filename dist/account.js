@@ -5864,7 +5864,9 @@
     let outcome = 'unavailable', result = null;
     try {
       const apple = await appleToken();
-      if (apple.token) {
+      // Another account signed in (or this one out) while Apple's window was open: link nothing.
+      if (currentUserId !== userId) outcome = 'stale';
+      else if (apple.token) {
         result = await settled(supabase.auth.linkIdentity({ provider: 'apple', token: apple.token, nonce: apple.nonce }));
         outcome = result.timedOut || result.error || result.value?.error ? 'refused' : 'linked';
       } else outcome = apple.outcome;

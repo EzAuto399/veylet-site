@@ -35,6 +35,11 @@ class Element {
 }
 
 const tick = async (count = 3) => { for (let i = 0; i < count; i++) await new Promise(resolve => setImmediate(resolve)); };
+// Apple's window opens after the nonce's digest, which node runs off the main thread: wait
+// for the stand-in's init, never for a count of ticks.
+async function opened(apple, count = 1) {
+  for (let waited = 0; apple.inits.length < count && waited < 400; waited++) await new Promise(resolve => setTimeout(resolve, 5));
+}
 const APPLE_JS = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
 const sha256hex = value => crypto.createHash('sha256').update(value).digest('hex');
 const SESSION = { user: { id: 'user-1', email: 'person@example.invalid' }, access_token: 'token-1' };
@@ -93,7 +98,7 @@ async function load({ page = 'web', pathname, search = '', hash = '', session = 
     FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
   await vm.runInNewContext(account, context);
   await tick();
-  return { ids, calls, redirects, windowEvents, scripts, apple, status: () => ids['account-status'].textContent,
+  return { ids, calls, redirects, windowEvents, scripts, apple, supabase, status: () => ids['account-status'].textContent,
     idle: () => { for (const fn of idle.splice(0)) fn(); },
     idTokens: () => calls.filter(([name]) => name === 'idToken').map(([, input]) => input),
     links: () => calls.filter(([name]) => name === 'link').map(([, input]) => input),
@@ -170,7 +175,7 @@ test('the Apple button is busy while Apple’s window is open and refuses a seco
   const apple = appleStub(config => new Promise(resolve => { answer = () => resolve({ authorization: { id_token: 'synthetic.id.token', state: config.state } }); }));
   const h = await load({ apple });
   const button = h.ids['account-apple'];
-  const pressed = button.fire('click'); await tick();
+  const pressed = button.fire('click'); await opened(apple);
   assert.equal(button.disabled, true);
   assert.equal(button.getAttribute('aria-busy'), 'true');
   assert.equal(h.status(), 'Opening Apple sign-in…');
@@ -367,5 +372,21 @@ test('the sign-in form says how an email account gets Apple, under "or use email
     const form = html.match(/<form id="account-sign-in"[\s\S]*?<\/form>/)[0];
     assert.match(form, /<p class="sign-in-or">or use email<\/p>\s*<p class="sign-in-link-hint">Signed up with email before\? Sign in with email, then link your Apple ID in your account\.<\/p>/);
     assert.match(html, /<details class="account-details" id="account-methods" hidden><summary>Sign-in methods<\/summary>/);
+  }
+});
+
+test('an account switch while Apple’s window is open links nothing to the new session', async () => {
+  for (const next of [{ user: { id: 'user-2', email: 'other@example.invalid' }, access_token: 'token-2' }, null]) {
+    let answer;
+    const apple = appleStub(config => new Promise(resolve => { answer = () => resolve({ authorization: { id_token: 'synthetic.id.token', state: config.state } }); }));
+    const h = await load({ session: SESSION, identities: EMAIL_ONLY, apple, link: () => ({ data: { user: { id: 'user-2', identities: BOTH }, session: null }, error: null }) });
+    await settle();
+    const pressed = h.linkButton().fire('click');
+    await opened(apple);
+    assert.equal(apple.inits.length, 1);
+    h.supabase.auth.callback(next ? 'SIGNED_IN' : 'SIGNED_OUT', next); await settle();
+    answer(); await pressed; await settle();
+    assert.equal(h.links().length, 0, next ? 'another account signed in' : 'signed out');
+    assert.doesNotMatch(h.ids['account-methods-status'].textContent, /linked\./);
   }
 });
