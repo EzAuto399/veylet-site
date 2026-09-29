@@ -1,14 +1,14 @@
 {
   "name": "veylet-site",
   "version": "0.0.0",
-  "commit": "dd7a230a083397fa3f7d03d5ce8657ed86243005",
-  "shortCommit": "dd7a230",
+  "commit": "041da044afb510bf6787a0ef0d28c60660fa5754",
+  "shortCommit": "041da04",
   "dirty": false,
-  "builtAt": "2026-09-29T04:53:45.729Z",
+  "builtAt": "2026-09-29T06:03:20.021Z",
   "environment": "local",
-  "publicContentSha256": "47cf8cfad0064e05ade96b2cc836bbfbf6ab5197a0eda944aacd02ca7a97a9f9",
-  "publicFileCount": 347,
-  "publicBytes": 56156351,
+  "publicContentSha256": "298882db36cda199a4f811386dde71435e1f3336122544acb46111db0daecfff",
+  "publicFileCount": 348,
+  "publicBytes": 56170732,
   "assetVersions": {
     "account-guide.css": "756c0dfad25496b8",
     "account.js": "5259d1e9f015190b",
@@ -21,6 +21,7 @@
     "client-page.js": "d210ebdd6f0af45a",
     "conversion.css": "3c82fa9f8cd5a55c",
     "enquiry.js": "8d4a00f044362114",
+    "first-touch.js": "2a2b56b660ab0f8f",
     "guides.css": "ceeecc110ad9b6b4",
     "help/help.css": "4491086eed76473e",
     "home-refinement.js": "075fabb50280faf2",
@@ -52,7 +53,7 @@
     "vendor/playcanvas-2.22.2.min.js": "5c9bf4a346ca2e3d",
     "vendor/qrcode-1.5.4.min.js": "5084f09dc9b6baba",
     "vendor/supabase-js-2.116.0.min.js": "84ee9bf45695c1dd",
-    "waitlist/waitlist.js": "bbdd0045570db541",
+    "waitlist/waitlist.js": "148e2385a5ab8e70",
     "website-guide.js": "3559123101a8c2ce"
   }
 }
