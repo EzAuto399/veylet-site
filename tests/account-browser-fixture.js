@@ -453,7 +453,8 @@
     'apple-trial': { ...planBase, ...apple, status: 'trial', apple_verified: false, accepted_in_free_months: 2 },
     active: { ...planBase, ...pastTrial, status: 'active', accepted_this_period: 1, accepted_total: 11,
       current_period_ends_at: '2026-10-01T00:00:00Z' },
-    'apple-active': { ...planBase, ...apple, ...pastTrial, status: 'active', apple_verified: true,
+    // The live backend's own figure for an App Store row (11999) lags the offer; the desk shows the offer's.
+    'apple-active': { ...planBase, ...apple, ...pastTrial, status: 'active', apple_verified: true, renewal_price_aud_cents: 11999,
       accepted_this_period: 1, accepted_total: 11, accepted_in_free_months: 3, extras_in_free_months: 0,
       current_period_ends_at: '2026-10-01T00:00:00Z' },
     'web-active': { ...planBase, ...pastTrial, source: 'web', status: 'active', accepted_this_period: 1, accepted_total: 14,
@@ -461,7 +462,8 @@
     // Offer 2026-09-25.1: a monthly plan whose unused walkthroughs rolled over (the
     // capacity answer below banks 2 of at most 6), and an annual plan whose
     // 36 walkthroughs are one yearly pool (offer 2026-09-29.2; the early bonus is retired).
-    'monthly-banked': { ...planBase, ...pastTrial, status: 'active', accepted_this_period: 0, accepted_total: 7,
+    // max_banked is the account's own cap (the live backend says 4), the number the app shows too.
+    'monthly-banked': { ...planBase, ...pastTrial, status: 'active', max_banked: 4, accepted_this_period: 0, accepted_total: 7,
       accepted_in_free_months: 3, current_period_ends_at: '2026-10-01T00:00:00Z' },
     'annual-pool': { ...planBase, ...pastTrial, source: 'web', status: 'active', billing_interval: 'annual',
       renewal_price_aud_cents: 139999, included_per_month: 36, accepted_this_period: 5, accepted_total: 11,

@@ -2047,13 +2047,53 @@
     const product = APPLE_PRODUCTS[row.apple_product_id][0];
     return code && code !== product ? null : product;
   }
+  /*
+   * What the App Store charges for each product, read from the published offer itself
+   * (offer.json appStore.productIds and productPlans, with that plan's appAud or annualAppAud).
+   * An App Store row's own renewal or app price is the backend's record, which can lag the
+   * published price, so it is never the price shown. Until the offer answers, or for a product
+   * the offer does not price (a legacy Team product), an App Store row names no price.
+   */
+  let appStorePrices = null;
+  let appStoreRead = null;
+  function appStorePricesFrom(offer) {
+    const ids = offer?.appStore?.productIds, plans = offer?.appStore?.productPlans;
+    if (!ids || typeof ids !== 'object' || !plans || typeof plans !== 'object' || !Array.isArray(offer.plans)) return null;
+    const table = {};
+    for (const [key, id] of Object.entries(ids)) {
+      if (typeof id !== 'string' || !Object.prototype.hasOwnProperty.call(APPLE_PRODUCTS, id)) continue;
+      const plan = offer.plans.find(entry => entry && entry.code === plans[key]);
+      const aud = plan && (APPLE_PRODUCTS[id][1] === 'annual' ? plan.annualAppAud : plan.appAud);
+      if (typeof aud === 'number' && Number.isFinite(aud) && aud > 0) table[id] = Math.round(aud * 100);
+    }
+    return table;
+  }
+  function appStorePricesLoad() {
+    if (appStorePrices) return Promise.resolve(appStorePrices);
+    if (!appStoreRead) {
+      appStoreRead = settled(Promise.resolve()
+        .then(() => window.fetch('/offer/offer.json', { credentials: 'omit', cache: 'no-cache' }))
+        .then(response => (response && response.ok ? response.json() : null)), 10000)
+        .then(result => {
+          appStorePrices = appStorePricesFrom(result.value);
+          // A failed read is tried again on the next plan read.
+          appStoreRead = null;
+          return appStorePrices;
+        });
+    }
+    return appStoreRead;
+  }
   function planPrice(row) {
     if (!row || !planSource(row) || !planInterval(row)) return '';
+    if (planSource(row) === 'apple') {
+      const cents = appStorePrices && Object.prototype.hasOwnProperty.call(appStorePrices, row.apple_product_id) ? appStorePrices[row.apple_product_id] : null;
+      return cents ? planMoney(cents) : '';
+    }
     if (row.renewal_price_aud_cents !== null && row.renewal_price_aud_cents !== undefined) {
       return planMoney(row.renewal_price_aud_cents);
     }
     if (planInterval(row) !== 'monthly') return '';
-    return planMoney(planSource(row) === 'apple' ? row.app_price_aud_cents : row.price_aud_cents);
+    return planMoney(row.price_aud_cents);
   }
   function planBilling(row) {
     const price = planPrice(row);
@@ -2064,8 +2104,12 @@
     const when = new Date(value);
     return Number.isNaN(when.getTime()) ? '' : when.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   }
-  // offer.json plans[0].rollover.maxBanked: unused monthly walkthroughs bank up to 6 (offer 2026-09-29.2).
-  const PLAN_MAX_BANKED = 6;
+  // How many unused monthly walkthroughs this account may bank: the plan row's own max_banked
+  // (get_workspace_plan), the number the app shows for the same account. Absent, no cap is said.
+  function planMaxBanked(row) {
+    const value = row && row.max_banked;
+    return Number.isInteger(value) && value >= 0 ? value : null;
+  }
   /*
    * How the running plan's allowance counts, from what get_walkthrough_capacity
    * appends (offers 2026-09-25.1 and .2): allowance_kind, banked_units (already inside a
@@ -2077,15 +2121,15 @@
   function planAllowance(row, cap) {
     const bonus = cap && Number.isInteger(cap.bonus_credits_available) && cap.bonus_credits_available > 0
       && cap.bonus_credits_available <= cap.extra_credits_available ? cap.bonus_credits_available : null;
-    const none = { banked: null, rollover: false, pool: false, poolEnds: '', bonus };
+    const none = { banked: null, rollover: false, maxBanked: null, pool: false, poolEnds: '', bonus };
     if (!cap || cap.plan_status !== 'active' || planIsSandbox(row, cap)) return none;
     if (cap.allowance_kind === 'annual_pool' && planInterval(row) === 'annual') {
       return { ...none, pool: true, poolEnds: planDate(cap.allowance_ends_at) };
     }
     if (cap.allowance_kind === 'monthly' && planInterval(row) === 'monthly' && Number.isInteger(cap.banked_units)
-      && cap.banked_units >= 0 && cap.banked_units <= PLAN_MAX_BANKED && cap.banked_units < cap.included_limit) {
+      && cap.banked_units >= 0 && (planMaxBanked(row) === null || cap.banked_units <= planMaxBanked(row)) && cap.banked_units < cap.included_limit) {
       // Only the Veylet plan rolls over; a retired plan's row keeps its own terms.
-      return { ...none, banked: cap.banked_units, rollover: planCode(row) === 'solo' };
+      return { ...none, banked: cap.banked_units, rollover: planCode(row) === 'solo', maxBanked: planMaxBanked(row) };
     }
     return none;
   }
@@ -2286,6 +2330,11 @@
         : null;
       if (ticket !== deskVersion) return;
       row = reply && !failed(reply) ? firstRow(reply.value?.data) : null;
+      // An App Store row's price is the published offer's; read it before the words are drawn.
+      if (planSource(row) === 'apple' && !appStorePrices) {
+        await appStorePricesLoad();
+        if (ticket !== deskVersion) return;
+      }
       view = planVocabulary(row);
       planEndedKnown(row);
     }
@@ -2454,7 +2503,7 @@
       }
       // Offer 2026-09-25.1, only where the answer carries it (older servers do not):
       // a monthly plan's banked rollover, and an annual plan's yearly pool.
-      const { banked, rollover, pool, poolEnds, bonus } = planAllowance(row, cap);
+      const { banked, rollover, maxBanked, pool, poolEnds, bonus } = planAllowance(row, cap);
       // One count per panel, from the capacity answer (the plan row's per-month figure leaves out
       // banked walkthroughs): the cell and the sentence say the same numbers.
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
@@ -2477,7 +2526,7 @@
           (poolEnds ? '; it resets on ' + poolEnds : '') + '. Unused ones do not carry into the next plan year.'
         : banked !== null && (banked > 0 || rollover)
           ? (banked > 0 ? ' This month’s ' + cap.included_limit + ' include ' + banked + ' banked from earlier months.' : '') +
-            (rollover ? ' Unused monthly walkthroughs roll over, up to ' + PLAN_MAX_BANKED + ' banked.' : '')
+            (rollover ? ' Unused monthly walkthroughs roll over' + (maxBanked !== null ? ', up to ' + maxBanked + ' banked.' : '.') : '')
           : cadence;
       const resolve = document.createElement('a'); resolve.className = 'text-link';
       resolve.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity';

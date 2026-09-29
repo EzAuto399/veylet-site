@@ -18,6 +18,19 @@ class Element {
   click() { this.wasClicked = true; } focus() { this.wasFocused = true; } scrollIntoView(options) { this.wasScrolled = true; this.scrollOptions = options; this.expandedAtScroll = this.all().some(el => el.tagName === 'DETAILS' && el.open); } select() {} reset() { this.wasReset = true; }
   async fire(name) { return this.events[name]?.({ preventDefault() {} }); }
 }
+// The published offer, as the desk reads it for an App Store row's price (/offer/offer.json).
+// `offer` stands in for its answer (a function of nothing, or false for no answer); every
+// other request goes to the test's own fetch, or is refused when the test has none.
+const OFFER_JSON = fs.readFileSync(path.join(__dirname, '../dist/offer/offer.json'), 'utf8');
+function offerAware(fetch, offer) {
+  const answer = async () => {
+    if (offer === false) throw new TypeError('Failed to fetch');
+    const body = typeof offer === 'function' ? offer() : JSON.parse(OFFER_JSON);
+    return { ok: true, status: 200, json: async () => body };
+  };
+  if (!fetch) { const only = url => (url === '/offer/offer.json' ? answer() : Promise.reject(new TypeError('Failed to fetch'))); only.offerOnly = true; return only; }
+  return (url, init) => (url === '/offer/offer.json' ? answer() : fetch(url, init));
+}
 function controlledTimer(fn, ms) { const timer = setTimeout(fn, ms); timer.unref(); return timer; }
 async function load(options = {}) {
   const ids = {};
@@ -83,7 +96,7 @@ async function load(options = {}) {
   };
   const windowEvents = {};
   const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' }, supabase: { createClient: () => supabase }, VeyletPlace: { generalLocationProblem: () => '' },
-    VEYLET_HOOKS: { url: 'https://hooks.example.invalid' }, fetch: options.fetch, addEventListener: (name, handler) => { windowEvents[name] = handler; } };
+    VEYLET_HOOKS: { url: 'https://hooks.example.invalid' }, fetch: offerAware(options.fetch, options.offer), addEventListener: (name, handler) => { windowEvents[name] = handler; } };
   // Per-browser storage: absent unless a test supplies one, or 'throw' for a
   // browser that refuses it outright.
   if ('localStorage' in options) Object.defineProperty(window, 'localStorage', { get() { if (options.localStorage === 'throw') throw new Error('SecurityError'); return options.localStorage; } });
@@ -765,6 +778,14 @@ test('the records file is unavailable while tour status could not load', async (
  * as started, empty or approved. Nothing in this panel may take a payment.
  */
 // Offer 2026-09-25.2: the Veylet plan (code solo), 3 free months with 6 walkthroughs, 2 a month, no extra price.
+// What the App Store charges, as the published offer states it (offer.json plans[solo].appAud and
+// annualAppAud; offer 2026-09-29.2: A$139.99 a month, A$1,399.99 a year). The backend's own record of an
+// App Store row's price (renewal_price_aud_cents, app_price_aud_cents) can lag it and is never shown.
+const OFFER_SOLO = JSON.parse(OFFER_JSON).plans.find(entry => entry.code === 'solo');
+const audText = aud => 'A$' + aud.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(aud) ? 0 : 2, maximumFractionDigits: 2 });
+const APP_MONTHLY = audText(OFFER_SOLO.appAud);
+const APP_ANNUAL = audText(OFFER_SOLO.annualAppAud);
+const SOLO_MONTHLY = 'dev.property3d.capture.solo.monthly';
 const planRow = {
   workspace_id: 'w1', plan_code: 'solo', source: 'studio', status: 'trial', trial_months: 3, billing_interval: 'monthly',
   trial_included_walkthroughs: 6, accepted_in_free_months: 2, extras_in_free_months: 0,
@@ -873,9 +894,11 @@ test('the plan panel counts the six free walkthroughs and states the renewal whi
 });
 
 test('an App Store account is shown the App Store price, and where to cancel it', async () => {
-  const h = await withPlan({ source: 'apple', apple_verified: true });
+  // The backend stores 11999 for this row (renewal and app price); the offer's price is what Apple charges.
+  const h = await withPlan({ source: 'apple', apple_verified: true, apple_product_id: SOLO_MONTHLY, renewal_price_aud_cents: 11999 });
   const until = longDate(planRow.trial_ends_at);
-  assert.match(planText(h), new RegExp('Free until ' + until + ', then A\\$119\\.99 a month unless you cancel\\.'));
+  assert.ok(planText(h).includes('Free until ' + until + ', then ' + APP_MONTHLY + ' a month unless you cancel.'), planText(h));
+  assert.doesNotMatch(planText(h), /A\$119\.99/, 'the backend’s stale price is never shown');
   assert.deepEqual(planValues(h), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'App Store']);
   assert.doesNotMatch(planText(h), /A\$99(?![\d.])/, 'the website price is not shown to an App Store account');
   assert.match(planScopes(h).join(' '), /Manage in Settings › Subscriptions/);
@@ -885,6 +908,24 @@ test('an App Store account is shown the App Store price, and where to cancel it'
   const web = await withPlan({ source: 'web' });
   assert.deepEqual(planValues(web), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'Website']);
   assert.match(planText(web), new RegExp(', then A\\$99 a month unless you cancel'));
+});
+
+test('an App Store price is read from the published offer each time, and is not named when the offer cannot be read', async () => {
+  const active = { status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z', source: 'apple', apple_verified: true,
+    apple_product_id: SOLO_MONTHLY, renewal_price_aud_cents: 11999, app_price_aud_cents: 11999 };
+  // A later offer's price shows without a desk change.
+  const later = JSON.parse(OFFER_JSON); later.plans.find(entry => entry.code === 'solo').appAud = 149.99;
+  assert.equal(planTitle(await withPlan(active, { offer: () => later })), 'Veylet plan · A$149.99 a month');
+  for (const offer of [false, () => ({})]) {
+    const h = await withPlan(active, { offer });
+    assert.equal(planTitle(h), 'Veylet plan · confirm billing details');
+    assert.doesNotMatch(planText(h), /A\$\d/, 'no price rather than the backend’s own figure');
+  }
+  // A website row keeps its own price and never reads the offer.
+  let asked = 0;
+  const web = await withPlan({ status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z' }, { offer: () => { asked += 1; return JSON.parse(OFFER_JSON); } });
+  assert.equal(planTitle(web), 'Veylet plan · A$99 a month');
+  assert.equal(asked, 0);
 });
 
 test('a cancelled trial says it ends, and never that it renews', async () => {
@@ -917,20 +958,21 @@ test('the plan panel names the Veylet plan from its code, and each retired plan 
   assert.match(planText(plan), /0 of 2 walkthroughs this month/);
   assert.match(planText(plan), /2 included walkthroughs remaining this month/);
   const apple = await withPlan({ status: 'active', current_period_ends_at: renews, source: 'apple', apple_verified: true,
-    apple_product_id: 'dev.property3d.capture.solo.monthly' });
-  assert.equal(planTitle(apple), 'Veylet plan · A$119.99 a month');
+    apple_product_id: SOLO_MONTHLY, renewal_price_aud_cents: 11999 });
+  assert.equal(planTitle(apple), 'Veylet plan · ' + APP_MONTHLY + ' a month');
   // Existing rows on plans retired for new buyers (offer 2026-09-24.2) keep their terms and names.
   const active = { status: 'active', current_period_ends_at: renews };
   for (const [overrides, title] of [
     [{ ...TEAM }, 'Team · A$189 a month'],
     [{ ...TEAM, plan_code: 'founding', price_aud_cents: null, billing_interval: 'monthly', renewal_price_aud_cents: 18900 }, 'Team, founding rate · A$189 a month'],
     [{ plan_code: 'office', included_per_month: 10, price_aud_cents: 59900 }, 'Office · A$599 a month'],
-    [{ ...TEAM, source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.plan.monthly' }, 'Team · A$219.99 a month'],
+    // A legacy Team App Store product the offer does not price names no price (its row's own figure is not shown).
+    [{ ...TEAM, source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.plan.monthly' }, 'Team · confirm billing details'],
     [{ source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.annual',
-      billing_interval: 'annual', renewal_price_aud_cents: 131999 }, 'Veylet plan · A$1,319.99 a year'],
+      billing_interval: 'annual', renewal_price_aud_cents: 119999 }, 'Veylet plan · ' + APP_ANNUAL + ' a year'],
     // A code that disagrees with the purchased App Store product is not given either name.
     [{ plan_code: 'studio', source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.monthly',
-      renewal_price_aud_cents: 11999 }, 'Plan · A$119.99 a month'],
+      renewal_price_aud_cents: 11999 }, 'Plan · ' + APP_MONTHLY + ' a month'],
     [{ plan_code: 'unknown' }, 'Plan · A$99 a month'],
   ]) {
     const h = await withPlan({ ...active, ...overrides });
@@ -1406,16 +1448,16 @@ test('llms.txt points at the subscription terms and at account deletion', () => 
 // A row for either App Store annual product keeps the verified price Apple recorded for it;
 // plan.annual is the retired Team plan. Without the capacity answer's allowance_kind the
 // panel states the row's own counts and claims no monthly reset for a yearly plan.
-test('annual Apple renewal uses the verified yearly total and claims no monthly reset', async () => {
+test('a legacy annual Team App Store row names no price the offer does not publish, and claims no monthly reset', async () => {
   const annual = { ...TEAM, source: 'apple', apple_product_id: 'dev.property3d.capture.plan.annual',
     billing_interval: 'annual', renewal_price_aud_cents: 318999, apple_verified: true };
   const trial = await withPlan(annual);
-  assert.match(planText(trial), /, then A\$3,189\.99 a year unless you cancel/);
-  assert.doesNotMatch(planText(trial), /A\$219\.99 a month|A\$3,189\.99 a month/);
+  assert.match(planText(trial), /Confirm the renewal amount and billing period with your billing provider/);
+  assert.doesNotMatch(planText(trial), /A\$[\d,.]+ a (?:month|year)/);
   assert.ok(planLinks(trial).includes('https://apps.apple.com/account/subscriptions'));
   const active = await withPlan({ ...annual, status: 'active', accepted_this_period: 2,
     current_period_ends_at: '2027-09-23T00:00:00Z' });
-  assert.equal(planTitle(active), 'Team · A$3,189.99 a year');
+  assert.equal(planTitle(active), 'Team · confirm billing details');
   assert.match(planText(active), /2 of 3 walkthroughs this month/);
   assert.match(planText(active), /1 included walkthrough remaining this month/);
   assert.match(planText(active), /Hosting included\. Billed annually\./);
@@ -1470,13 +1512,13 @@ test('exhausted trial keeps its end date and points at a walkthrough pack withou
 });
 
 test('a sandbox plan is labelled as test billing without granting new access', async () => {
-  const h = await withPlan({ source: 'apple', apple_environment: 'Sandbox' });
+  const h = await withPlan({ source: 'apple', apple_environment: 'Sandbox', apple_product_id: SOLO_MONTHLY });
   // Sandbox says so first, under the title, in the cards' own "Test ·" words.
   assert.equal(h.ids['account-plan-body'].children[1].textContent, 'Test · App Store Sandbox: a test subscription, not a live payment.');
   assert.doesNotMatch(planText(h), /Sandbox purchase|Test purchase/);
   assert.ok(planValues(h).includes('Test subscription'));
   assert.match(planText(h), /Production walkthroughs are not included in a sandbox subscription\./);
-  assert.match(planText(h), /Free until .*, then A\$119\.99 a month unless you cancel/);
+  assert.ok(planText(h).includes(', then ' + APP_MONTHLY + ' a month unless you cancel'), planText(h));
   assert.doesNotMatch(planText(h), /\d+ of \d+|included walkthroughs remaining|included walkthroughs are used/);
   assert.equal(h.calls.some(([name]) => /grant|activate/.test(name)), false);
 });
@@ -1571,14 +1613,14 @@ test('sandbox capacity cannot promise real production even with settled credits'
   assert.doesNotMatch(capacityText(h), /Capacity is available for acceptance/);
 });
 
-test('an annual sandbox keeps its verified price and end date without a monthly production allowance', async () => {
+test('an annual sandbox keeps its end date, names no unpublished price, and has no monthly production allowance', async () => {
   const ends = inDays(1);
   const h = await withCapacity({ ...capacityRow, plan_status: 'active', included_limit: 0, included_used: 0,
     included_remaining: 0, can_accept: false, reason_code: 'sandbox_test_only' },
     { ...TEAM, source: 'apple', apple_environment: 'Sandbox', apple_verified: true, status: 'active',
       billing_interval: 'annual', apple_product_id: 'dev.property3d.capture.plan.annual',
       renewal_price_aud_cents: 318999, current_period_ends_at: ends, auto_renews: false });
-  assert.equal(planTitle(h), 'Test · Team · A$3,189.99 a year');
+  assert.equal(planTitle(h), 'Test · Team · confirm billing details');
   assert.match(planText(h), new RegExp('Ends ' + longDate(ends) + '; will not renew'));
   assert.doesNotMatch(planText(h), /\d+ of \d+|walkthroughs this month|allowance resets monthly|extra walkthroughs? available/);
   assert.equal(h.calls.some(([name]) => /grant|activate|purchase|charge/.test(name)), false);
@@ -2343,7 +2385,7 @@ test('what is left follows the sentence, then how the plan is managed, then its 
 test('existing checkout recovery: Sandbox reads “Test ·” on the plan and on the packs card, said once under each heading', async () => {
   const plan = await withPlan({ source: 'apple', apple_environment: 'Sandbox', apple_verified: true, status: 'active',
     apple_product_id: 'dev.property3d.capture.solo.monthly', current_period_ends_at: '2026-10-01T00:00:00Z' });
-  assert.equal(planTitle(plan), 'Test · Veylet plan · A$119.99 a month');
+  assert.equal(planTitle(plan), 'Test · Veylet plan · ' + APP_MONTHLY + ' a month');
   assert.equal(plan.ids['account-plan-body'].children[1].textContent, 'Test · App Store Sandbox: a test subscription, not a live payment.');
   const lane = { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }] };
   const packs = await withPacks(packOffer(), { hooks: lane });
@@ -2527,7 +2569,10 @@ const PLAN_RECORD = JSON.parse(fs.readFileSync(path.join(__dirname, '../dist/off
 const PER_MONTH = PLAN_RECORD.includedPerMonth;
 const MAX_BANKED = PLAN_RECORD.rollover.maxBanked;
 const YEAR_POOL = PLAN_RECORD.annualIncluded;
-const ACTIVE_MONTHLY = { status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z', included_per_month: PER_MONTH };
+// The account's own bank cap is the plan row's max_banked (get_workspace_plan), the number the app shows;
+// the live backend says 4 while the offer says 6, so the row's number is the one tested.
+const ROW_MAX_BANKED = 4;
+const ACTIVE_MONTHLY = { status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z', included_per_month: PER_MONTH, max_banked: ROW_MAX_BANKED };
 // This month's allowance, and up to MAX_BANKED banked inside this month's limit.
 const MONTH_CAP = { ...capacityRow, plan_status: 'active', included_limit: PER_MONTH, included_used: 0, included_remaining: PER_MONTH };
 const BANKED_CAP = { ...MONTH_CAP, included_limit: PER_MONTH + 2, included_remaining: PER_MONTH + 2, allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 };
@@ -2541,8 +2586,8 @@ const bonusOffer = (overrides = {}) => ({ walkthroughs: 4, express_renders: 4, g
 
 test('offer v8: the free months say “Free until {date}, then {price} unless you cancel.” and promise no reminder email', async () => {
   const until = longDate(planRow.trial_ends_at);
-  for (const [overrides, price] of [[{}, 'A$99 a month'], [{ source: 'apple', apple_verified: true }, 'A$119.99 a month'],
-    [{ source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.annual', billing_interval: 'annual', renewal_price_aud_cents: 139999 }, 'A$1,399.99 a year']]) {
+  for (const [overrides, price] of [[{}, 'A$99 a month'], [{ source: 'apple', apple_verified: true, apple_product_id: SOLO_MONTHLY }, APP_MONTHLY + ' a month'],
+    [{ source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.annual', billing_interval: 'annual', renewal_price_aud_cents: 119999 }, APP_ANNUAL + ' a year']]) {
     const h = await withPlan(overrides);
     assert.equal(planTitle(h), 'Free until ' + until, 'the heading stays the state');
     const body = h.ids['account-plan-body'].children[2].textContent;
@@ -2556,7 +2601,7 @@ test('offer v8: the free months say “Free until {date}, then {price} unless yo
   assert.doesNotMatch(account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''), /remind/i);
 });
 
-test('offer v9: a monthly plan states its banked rollover, up to the record’s bank, only when the capacity answer carries it', async () => {
+test('offer v9: a monthly plan states its banked rollover, up to the plan row’s own bank cap, only when the capacity answer carries it', async () => {
   assert.deepEqual([PER_MONTH, MAX_BANKED], [3, 6], 'offer 2026-09-29.2: 3 a month, up to 6 banked');
   const h = await withCapacity(BANKED_CAP, ACTIVE_MONTHLY);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
@@ -2567,19 +2612,24 @@ test('offer v9: a monthly plan states its banked rollover, up to the record’s 
   assert.ok(planText(h).includes(`0 of ${limit} walkthroughs used this month (${PER_MONTH} a month + 2 banked).`), planText(h));
   assert.doesNotMatch(planText(h), new RegExp(`0 of ${PER_MONTH} walkthroughs this month|included accepted`));
   assert.equal(allowanceLine(h), `${limit} included walkthroughs remaining · 0 extra walkthroughs available.`);
-  assert.ok(capacityText(h).includes(`This month’s ${limit} include 2 banked from earlier months. Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(h));
+  assert.ok(capacityText(h).includes(`This month’s ${limit} include 2 banked from earlier months. Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(h));
   assert.doesNotMatch(planText(h), /resets monthly|do not carry over/);
   // Nothing banked yet: the rule, and no count.
   const empty = await withCapacity({ ...BANKED_CAP, included_limit: PER_MONTH, included_remaining: PER_MONTH, banked_units: 0 }, ACTIVE_MONTHLY);
-  assert.ok(capacityText(empty).includes(`Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(empty));
+  assert.ok(capacityText(empty).includes(`Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(empty));
   assert.doesNotMatch(capacityText(empty), /banked from earlier/);
   // A full bank beside this month's allowance.
-  const fullLimit = PER_MONTH + MAX_BANKED;
-  const full = await withCapacity({ ...BANKED_CAP, banked_units: MAX_BANKED, included_limit: fullLimit, included_remaining: fullLimit }, ACTIVE_MONTHLY);
-  assert.ok(capacityText(full).includes(`This month’s ${fullLimit} include ${MAX_BANKED} banked from earlier months. Unused monthly walkthroughs roll over, up to ${MAX_BANKED} banked.`), capacityText(full));
+  const fullLimit = PER_MONTH + ROW_MAX_BANKED;
+  const full = await withCapacity({ ...BANKED_CAP, banked_units: ROW_MAX_BANKED, included_limit: fullLimit, included_remaining: fullLimit }, ACTIVE_MONTHLY);
+  assert.ok(capacityText(full).includes(`This month’s ${fullLimit} include ${ROW_MAX_BANKED} banked from earlier months. Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(full));
+  assert.doesNotMatch(capacityText(full), new RegExp('up to ' + MAX_BANKED + ' banked'), 'never the offer’s number over the account’s own');
+  // A row without max_banked: the bank is still read, and the rollover says no cap.
+  const noCap = await withCapacity(BANKED_CAP, { ...ACTIVE_MONTHLY, max_banked: null });
+  assert.ok(capacityText(noCap).includes('This month’s ' + (PER_MONTH + 2) + ' include 2 banked from earlier months. Unused monthly walkthroughs roll over.'), capacityText(noCap));
+  assert.doesNotMatch(capacityText(noCap), /up to \d+ banked/);
   // Absent or unreadable: today's reading, and no rollover line at all (a bank over the record's maximum is unreadable).
-  for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: MAX_BANKED + 1, included_limit: fullLimit + 1, included_remaining: fullLimit + 1 },
-    { ...BANKED_CAP, banked_units: '2' }, { ...BANKED_CAP, banked_units: MAX_BANKED, included_limit: MAX_BANKED }, { ...BANKED_CAP, allowance_kind: 'weekly' }]) {
+  for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: ROW_MAX_BANKED + 1, included_limit: fullLimit + 1, included_remaining: fullLimit + 1 },
+    { ...BANKED_CAP, banked_units: '2' }, { ...BANKED_CAP, banked_units: ROW_MAX_BANKED, included_limit: ROW_MAX_BANKED }, { ...BANKED_CAP, allowance_kind: 'weekly' }]) {
     const today = await withCapacity(cap, ACTIVE_MONTHLY);
     assert.doesNotMatch(planText(today), /banked|roll over|carry/, JSON.stringify(cap).slice(-90));
     assert.match(capacityText(today), /The allowance resets monthly\./);

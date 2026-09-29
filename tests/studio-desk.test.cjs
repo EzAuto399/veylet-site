@@ -172,10 +172,13 @@ test('the studio desk and the account desk use one vocabulary, written once each
 });
 
 test('one price source: an App Store account is never shown the website price', () => {
-  for (const source of [script, accountScript]) {
-    // Both files choose the price from the same field, by the same rule.
-    assert.match(source, /planSource\(row\) === 'apple' \? row\.app_price_aud_cents : row\.price_aud_cents/);
-  }
+  // The studio desk chooses the price field by source.
+  assert.match(script, /planSource\(row\) === 'apple' \? row\.app_price_aud_cents : row\.price_aud_cents/);
+  // The account desk shows an App Store account the published offer's App Store price
+  // (offer.json), never a row's website, renewal or app price field.
+  const applePrice = accountScript.slice(accountScript.indexOf('function planPrice(row)'), accountScript.indexOf('function planBilling(row)'));
+  assert.match(applePrice, /if \(planSource\(row\) === 'apple'\) \{[^}]*appStorePrices\[row\.apple_product_id\][^}]*\}/);
+  assert.match(accountScript, /window\.fetch\('\/offer\/offer\.json'/);
   // The single extra walkthrough is retired for new purchases (packs replace it),
   // so the studio desk no longer prices one.
   assert.doesNotMatch(script, /extra_walkthrough_aud_cents|planExtraPrice/);
