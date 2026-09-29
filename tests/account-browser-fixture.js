@@ -1032,6 +1032,8 @@
       onAuthStateChange: fn => { callback = fn; },
       signOut: async () => { callback?.('SIGNED_OUT', null); return {}; },
       signInWithOtp: async () => ({ error: { message: 'No emails are sent from this fixture.' } }),
+      // Nothing leaves the fixture for Apple either: the page says Apple is unavailable.
+      signInWithOAuth: async () => ({ data: { provider: 'apple', url: null }, error: { message: 'No sign-in leaves this fixture.' } }),
     },
     from(table) {
       const role = scenario === 'operator' || teamCase === 'member-refused' ? 'operator' : teamCase === 'member' || !teamOwnerNow ? 'reviewer' : 'owner';

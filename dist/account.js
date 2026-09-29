@@ -22,6 +22,8 @@
   const verifyRestart = document.getElementById('account-verify-restart');
   const verifyResend = document.getElementById('account-verify-resend');
   const signInSubmit = document.getElementById('account-sign-in-submit');
+  // Sign in with Apple, above the email form and hidden with it.
+  const appleButton = document.getElementById('account-apple');
   const verifySubmit = verifyForm?.querySelector('button[type="submit"]');
   const gateTitle = document.getElementById('account-gate-title');
   const gateBody = document.getElementById('account-gate-body');
@@ -91,6 +93,26 @@
     if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
     if (authParams.get('join') === '1') parts.push('join=1');
     return '/app/account' + (parts.length ? '?' + parts.join('&') : '');
+  }
+  // Back to where this sign-in began, signed out: the page and query that build the same
+  // authCallbackQuery(), so a second try returns to the same tour, invite and edition.
+  function authRetryPath() {
+    const parts = [];
+    if (authParams.get('join') === '1') parts.push('join=1');
+    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    return (authReturnsToApp() ? '/app/account' : '/account') + (parts.length ? '?' + parts.join('&') : '');
+  }
+  const APPLE_UNAVAILABLE = 'Apple sign-in isn’t available right now. Use email instead.';
+  // What Apple or Supabase said on the way back (?error= or #error=), in fixed words. The
+  // description itself is never shown: anyone can put words in a link.
+  function authReturnProblem() {
+    const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
+    const said = ['error', 'error_code', 'error_description'].map(key => authParams.get(key) || hash.get(key) || '').join(' ').trim().toLowerCase();
+    if (!said) return null;
+    if (/otp_expired|expired/.test(said)) return 'That sign-in link has expired or was already used. Sign in again for a new one.';
+    if (/cancel/.test(said)) return 'Sign-in was cancelled. Nothing changed. Sign in again when you’re ready.';
+    if (/provider_disabled|provider is not enabled|unsupported provider|oauth_provider_not_supported/.test(said)) return APPLE_UNAVAILABLE;
+    return 'Sign-in did not complete. Sign in again, or use email instead.';
   }
   function referredForget() {
     referredBy = null;
@@ -336,7 +358,7 @@
     // section, so the page heading does not repeat it.
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
     if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
-      : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same email on the website and capture app.';
+      : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same sign-in on the website and capture app: Apple, or the same email.';
     if (access) access.hidden = signedIn;
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
     const referred = document.getElementById('account-referred');
@@ -5590,11 +5612,14 @@
       if (signInForm) signInForm.hidden = signInForm.dataset.awaitingCode === 'yes';
       if (verifyForm) verifyForm.hidden = signInForm?.dataset.awaitingCode !== 'yes';
       if (home) home.hidden = true;
+      const onReturn = location.pathname.startsWith('/auth/');
+      const retry = onReturn ? document.getElementById('auth-retry') : null;
+      if (retry) retry.href = authRetryPath();
       setStatus(
-        location.pathname.startsWith('/auth/')
-          ? 'Sign-in did not complete. Request a new email link.'
+        onReturn
+          ? authReturnProblem() || 'Sign-in did not complete. Sign in again.'
           : requestedTour ? 'Sign in with the capture account to open the requested walkthrough.'
-            : 'Not signed in yet. Your email link signs in this website and the iPhone app.'
+            : 'Not signed in yet. One account works on this website and the iPhone app.'
       );
       return;
     }
@@ -5655,6 +5680,36 @@
     }
     // Do not await Supabase requests inside its auth callback lock.
     setTimeout(() => { if (version === authVersion) void showSession(session); }, 0);
+  });
+
+  // Sign in with Apple. Supabase sends the browser to Apple and back to /auth/callback,
+  // built exactly as the email link's return (authCallbackQuery), where the PKCE code is
+  // exchanged the same way (detectSessionInUrl). No trackers: this page loads none.
+  let appleBusy = false;
+  function appleIdle() {
+    appleBusy = false;
+    if (!appleButton) return;
+    appleButton.disabled = false;
+    appleButton.removeAttribute('aria-busy');
+  }
+  appleButton?.addEventListener('click', async () => {
+    if (appleBusy || currentUserId || signInForm?.hidden) return;
+    appleBusy = true;
+    appleButton.disabled = true;
+    appleButton.setAttribute('aria-busy', 'true');
+    setStatus('Opening Apple sign-in…');
+    authEditionKeep();
+    const result = await settled(
+      supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: { redirectTo: 'https://veylet.com/auth/callback' + authCallbackQuery() },
+      })
+    );
+    const error = result.error || (result.value && result.value.error) || (result.timedOut ? new Error('timeout') : null);
+    // On its way to Apple: the button stays busy until the page goes (or comes back, below).
+    if (!error) return;
+    appleIdle();
+    if (!currentUserId) setStatus(APPLE_UNAVAILABLE);
   });
 
   signInForm?.addEventListener('submit', async (event) => {
@@ -5862,6 +5917,8 @@
     if (!deskDirty) { void loadDesk(supabase); return; }
     if (render && render.ticket === deskVersion) { renderStop(); render.failures = 0; void renderRead(); } else renderSay('');
   });
+  // Back from Apple's page with the browser's back button: the Apple button works again.
+  window.addEventListener?.('pageshow', event => { if (event?.persisted) appleIdle(); });
   // Your own records, as a file. Metadata only: no link secrets, storage paths,
   // imagery or scene files. It is a convenience copy, not a backup of a tour.
   exportButton?.addEventListener('click', () => {

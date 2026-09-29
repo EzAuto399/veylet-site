@@ -548,3 +548,35 @@
   gap: 8px 12px;
   overflow-wrap: anywhere;
 }
+
+/* ---- Sign in with Apple ---------------------------------------------------
+   Apple's web button guidelines: the Apple logo and "Sign in with Apple" in
+   white on black (these pages are always light), at least 44px tall, and no
+   other colour. Square corners, like the site's .button. The email form
+   follows as the other way in. */
+.apple-sign-in { display: grid; gap: 10px; }
+.apple-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 400px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 1px solid #000;
+  border-radius: 0;
+  background: #000;
+  color: #fff;
+  font: 500 17px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+}
+.apple-button:active { transform: scale(0.98); }
+.apple-button[aria-busy="true"],
+.apple-button:disabled { opacity: 0.6; cursor: progress; }
+.apple-logo { flex: none; width: 15px; height: 18px; margin-top: -3px; fill: currentColor; }
+.apple-note { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+.sign-in-or { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.sign-in-or::before,
+.sign-in-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
