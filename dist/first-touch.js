@@ -19,7 +19,7 @@
     touch.landing = keep(LANDING, raw.landing);
     return touch;
   }
-  /** The campaign labels of a query string, or null when the link carries none. */
+  /** The clean campaign labels of a query string, or null when none survive. */
   function fromSearch(search, landing) {
     var query = {};
     String(search || '').replace(/^\?/, '').split('&').forEach(function (pair) {
@@ -30,11 +30,11 @@
         if (!Object.prototype.hasOwnProperty.call(query, name)) query[name] = value;
       } catch (malformed) { /* an undecodable pair is ignored */ }
     });
-    var tagged = LABELS.concat(['fbclid', 'gclid']).some(function (name) { return Boolean(query[name]); });
-    if (!tagged) return null;
     var raw = { click: query.fbclid ? 'meta' : query.gclid ? 'google' : '', landing: landing };
     LABELS.forEach(function (name) { raw[name] = query[name]; });
-    return clean(raw);
+    var touch = clean(raw);
+    // Only a surviving label or click source makes a touch; a landing path alone never does.
+    return touch.click || LABELS.some(function (name) { return touch[name]; }) ? touch : null;
   }
   /** The stored first touch of this visit, or null. */
   function read(win) {

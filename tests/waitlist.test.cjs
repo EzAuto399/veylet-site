@@ -264,7 +264,9 @@ test('attribution is the stored first touch, else this page\'s own link, else no
 
 test('the inbox route sends volume, labels, a reply-to and the auto-reply the owner approved', async () => {
   const api = load();
-  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email your invitation to the Veylet Capture app when your group opens. Your first month is free, with 3 walkthroughs included. To leave the list, email yoda@yodalai.xyz. Yo-Da Lai, Veylet Studio');
+  // Transactional only: no offer, price or plan line.
+  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. If that wasn\'t you, or to leave the list, email yoda@yodalai.xyz. Veylet Studio (Yo-Da Lai)');
+  assert.doesNotMatch(api.AUTORESPONSE, /free|month|walkthroughs included|\$/);
   const sent = page([{ status: 200, body: { success: 'true' } }], null);
   sent.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });
   sent.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: '6_plus' });
@@ -322,8 +324,73 @@ test('sharing uses the share sheet, else copies the link, else shows it; a dismi
   assert.deepEqual(await run(undefined), ['shown', URL_]);
 });
 
-test('the privacy page says campaign labels travel with a sign-up and click identifiers are not kept', () => {
-  const privacy = fs.readFileSync(path.join(dist, 'privacy/index.html'), 'utf8');
-  const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1];
-  assert.match(enquiries, /<!-- LEGAL REVIEW 2026-09-29: campaign labels on waitlist sign-ups -->When you arrive from a campaign link, this browser keeps that link’s campaign labels \(such as utm_source=instagram\) for the visit, and a waitlist sign-up includes them so we know which link brought you; the click identifiers added by Meta or Google are not kept\./);
+test('both privacy notices say campaign labels, ad source and landing page travel with a sign-up, and click identifiers are not kept', () => {
+  for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
+    const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
+    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1];
+    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-29: campaign labels on waitlist sign-ups -->When you arrive from a campaign link, this browser keeps that link’s campaign labels (such as utm_source=instagram), whether it came from a Meta or Google ad, and the Veylet page you arrived on, for the visit; a waitlist sign-up includes them so we know which link brought you. The click identifiers Meta and Google add to links are not kept.'), file);
+  }
 });
+
+test('the auto-reply goes once per address and at most 3 times a session; the owner copy always goes', async () => {
+  const api = load();
+  const store = storage();
+  const sendAs = async (email, win = { sessionStorage: store }) => {
+    const { fetch, requests } = recordingFetch([{ status: 200, body: { success: 'true' } }]);
+    const answers = api.answersFrom(new FakeFormData({ ...ANSWERS, email }));
+    assert.equal(await api.joinByInbox(fetch, answers, win), 'joined');
+    assert.equal(requests.length, 1, 'the owner copy is sent');
+    assert.equal(requests[0].body.email, email);
+    return '_autoresponse' in requests[0].body;
+  };
+  assert.equal(await sendAs('a@agency.com.au'), true);
+  assert.equal(await sendAs('A@Agency.com.au'), false, 'the same address in other case');
+  assert.equal(await sendAs('b@agency.com.au'), true);
+  assert.equal(await sendAs('c@agency.com.au'), true);
+  assert.equal(await sendAs('d@agency.com.au'), false, 'a fourth address in the session');
+  assert.doesNotMatch(store.getItem(api.REPLIES_KEY), /agency|@/, 'the addresses themselves are not stored');
+  // A failed send does not use up the address.
+  const fresh = storage();
+  const failing = recordingFetch([{ status: 500, body: { success: 'false' } }, { status: 200, body: { success: 'true' } }]);
+  const answers = api.answersFrom(new FakeFormData(ANSWERS));
+  assert.equal(await api.joinByInbox(failing.fetch, answers, { sessionStorage: fresh }), 'missing');
+  assert.equal(await api.joinByInbox(failing.fetch, answers, { sessionStorage: fresh }), 'joined');
+  assert.ok('_autoresponse' in failing.requests[1].body);
+  // Storage that throws: still sent, the auto-reply once per page load.
+  const blocked = { get sessionStorage() { throw new Error('SecurityError'); } };
+  const again = load();
+  const twice = recordingFetch([{ status: 200, body: { success: 'true' } }, { status: 200, body: { success: 'true' } }]);
+  assert.equal(await again.joinByInbox(twice.fetch, answers, blocked), 'joined');
+  assert.equal(await again.joinByInbox(twice.fetch, { ...answers, p_email: 'other@agency.com.au' }, blocked), 'joined');
+  assert.deepEqual(twice.requests.map(r => '_autoresponse' in r.body), [true, false]);
+});
+
+test('a landing path alone is not a touch: the page\'s own link counts only when a label or click survives', () => {
+  const api = load();
+  const empty = { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' };
+  const bad = { sessionStorage: storage(), location: { search: '?utm_source=Instagram%20Post' }, URLSearchParams };
+  assert.deepEqual(JSON.parse(JSON.stringify(api.attribution(bad))), empty);
+  // A stored touch with nothing left but its landing gives way to this page's own clean link.
+  const staleStore = storage({ [api.TOUCH_KEY]: JSON.stringify({ utm_source: 'bad value', landing: '/see' }) });
+  const own = { sessionStorage: staleStore, location: { search: '?utm_source=instagram' }, URLSearchParams };
+  assert.deepEqual(JSON.parse(JSON.stringify(api.attribution(own))), { ...empty, utm_source: 'instagram', landing: '/waitlist' });
+});
+
+test('the share live region stays rendered and a repeated message is cleared, then written in a later task', async () => {
+  assert.doesNotMatch(markup, /waitlist-share-status:empty|waitlist-share-status[^{]*\{[^}]*display:\s*none/);
+  assert.match(markup, /\.waitlist-done \.waitlist-share-status \{[^}]*min-height: 24px/);
+  const api = load();
+  const p = page([]);
+  const timers = [];
+  p.window.setTimeout = (fn, ms) => { timers.push(ms); fn(); };
+  const note = p.ids['waitlist-share-status'];
+  const seen = [];
+  Object.defineProperty(note, 'textContent', { get() { return this._text; }, set(value) { seen.push(String(value)); this._text = String(value); } });
+  p.window.navigator = { clipboard: { writeText: async () => {} } };
+  assert.equal(await api.share(p.window), 'copied');
+  assert.equal(await api.share(p.window), 'copied');
+  assert.deepEqual(seen.filter(Boolean), ['Link copied.', 'Link copied.']);
+  assert.equal(seen[seen.length - 2], '', 'cleared before the repeat');
+  assert.deepEqual(timers, [50, 50]);
+});
+

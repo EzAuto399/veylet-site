@@ -45,8 +45,8 @@
       .waitlist-done .next-steps li { line-height: 1.55; }
       .waitlist-done .waitlist-device { margin: 0 0 20px; }
       .waitlist-done .waitlist-done-actions { gap: 12px 20px; margin: 0; max-width: none; }
-      .waitlist-done .waitlist-share-status { margin: 12px 0 0; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
-      .waitlist-share-status:empty { display: none; }
+      /* The live region stays rendered, empty or not, so screen readers keep listening to it. */
+      .waitlist-done .waitlist-share-status { margin: 12px 0 0; min-height: 24px; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
     </style>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
   </head>
@@ -153,7 +153,7 @@
     <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/place-fields.js?v=fd7d2ab7357d2019"></script>
-    <script src="/first-touch.js?v=57a1a7e27ce7ad81" defer></script>
-    <script src="/waitlist/waitlist.js?v=7925d73925193cab" defer></script>
+    <script src="/first-touch.js?v=2a2b56b660ab0f8f" defer></script>
+    <script src="/waitlist/waitlist.js?v=009b2e1eb23d5951" defer></script>
   </body>
 </html>

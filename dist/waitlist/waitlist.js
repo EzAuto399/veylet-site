@@ -35,10 +35,15 @@
   var LABEL = /^[A-Za-z0-9._~+:-]{1,100}$/;
   var LANDING = /^\/(?!\/)[A-Za-z0-9\/_.-]{0,199}$/;
   var SHARE_URL = 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks';
-  // FormSubmit emails this to the address typed in the form (inbox route only).
+  // FormSubmit emails this to the address typed in the form (inbox route only). Transactional: no offer.
+  // At most once per address and 3 times per browser session (see autoReply), so the form cannot be
+  // used to mail strangers repeatedly.
   var AUTORESPONSE = 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email ' +
-    'your invitation to the Veylet Capture app when your group opens. Your first month is free, with 3 walkthroughs ' +
-    'included. To leave the list, email ' + SUPPORT + '. Yo-Da Lai, Veylet Studio';
+    'you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. ' +
+    'If that wasn\'t you, or to leave the list, email ' + SUPPORT + '. Veylet Studio (Yo-Da Lai)';
+  var REPLIES_KEY = 'veylet.waitlistReplies';
+  var REPLIES_MAX = 3;
+  var repliedThisPage = false; // used only when session storage is unavailable
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   var TIPS = { version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' };
 
@@ -69,20 +74,24 @@
     return touch;
   }
 
+  /** A touch counts only when a label or the click source survived cleaning; a landing path alone does not. */
+  function tagged(touch) {
+    return Boolean(touch.click) || LABELS.some(function (name) { return Boolean(touch[name]); });
+  }
+
   /** The visit's first touch from /first-touch.js, else this page's own campaign labels, else all ''. */
   function attribution(win) {
     try {
       var stored = JSON.parse(win.sessionStorage.getItem(TOUCH_KEY) || 'null');
-      if (stored && typeof stored === 'object') return cleanTouch(stored);
+      var kept = stored && typeof stored === 'object' ? cleanTouch(stored) : null;
+      if (kept && tagged(kept)) return kept;
     } catch (unavailable) { /* no storage: this page's own link below */ }
     try {
       var query = new win.URLSearchParams(win.location.search);
-      var tagged = LABELS.concat(['fbclid', 'gclid']).some(function (name) { return Boolean(query.get(name)); });
-      if (tagged) {
-        var raw = { click: query.get('fbclid') ? 'meta' : query.get('gclid') ? 'google' : '', landing: '/waitlist' };
-        LABELS.forEach(function (name) { raw[name] = query.get(name); });
-        return cleanTouch(raw);
-      }
+      var raw = { click: query.get('fbclid') ? 'meta' : query.get('gclid') ? 'google' : '', landing: '/waitlist' };
+      LABELS.forEach(function (name) { raw[name] = query.get(name); });
+      var own = cleanTouch(raw);
+      if (tagged(own)) return own;
     } catch (unreadable) { /* no labels */ }
     return cleanTouch({});
   }
@@ -148,13 +157,40 @@
     }
   }
 
-  /** The answers as one plain message to the owner's inbox; 'joined' only when FormSubmit says it sent. */
-  async function joinByInbox(fetchImpl, answers) {
+  // A short non-reversible tag of the address (FNV-1a), so session storage never holds the address itself.
+  function addressTag(email) {
+    var address = String(email || '').toLowerCase();
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < address.length; i++) { hash ^= address.charCodeAt(i); hash = Math.imul(hash, 0x01000193) >>> 0; }
+    return ('0000000' + hash.toString(16)).slice(-8);
+  }
+
+  function repliesSent(win) {
+    var list = JSON.parse(win.sessionStorage.getItem(REPLIES_KEY) || '[]');
+    return Array.isArray(list) ? list : [];
+  }
+
+  /** Whether this inbox send may ask FormSubmit for the auto-reply: once per address, 3 per session. */
+  function mayAutoReply(win, email) {
     try {
-      var response = await fetchImpl(INBOX_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
+      var sent = repliesSent(win);
+      return sent.indexOf(addressTag(email)) === -1 && sent.length < REPLIES_MAX;
+    } catch (unavailable) { return !repliedThisPage; }
+  }
+
+  function noteAutoReply(win, email) {
+    try {
+      var sent = repliesSent(win);
+      sent.push(addressTag(email));
+      win.sessionStorage.setItem(REPLIES_KEY, JSON.stringify(sent));
+    } catch (unavailable) { repliedThisPage = true; }
+  }
+
+  /** The answers as one plain message to the owner's inbox; 'joined' only when FormSubmit says it sent. */
+  async function joinByInbox(fetchImpl, answers, win) {
+    var reply = mayAutoReply(win, answers.p_email);
+    try {
+      var message = {
           _subject: 'Veylet waitlist',
           _template: 'table',
           _captcha: 'false',
@@ -174,14 +210,21 @@
           click: answers.p_click || '',
           landing: answers.p_landing || '',
           _replyto: answers.p_email,
-          _autoresponse: AUTORESPONSE,
-        }),
+      };
+      // The owner's copy always goes; only the auto-reply to the typed address is capped.
+      if (reply) message._autoresponse = AUTORESPONSE;
+      var response = await fetchImpl(INBOX_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(message),
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
       });
       var body = null;
       try { body = await response.json(); } catch (unreadable) { body = null; }
-      return response.ok && body && String(body.success) === 'true' ? 'joined' : 'missing';
+      var delivered = response.ok && body && String(body.success) === 'true';
+      if (delivered && reply) noteAutoReply(win, answers.p_email);
+      return delivered ? 'joined' : 'missing';
     } catch (failure) {
       return 'missing';
     }
@@ -249,12 +292,20 @@
     var config = win.VEYLET_SUPABASE;
     show(doc, 'sending');
     var rpc = config && config.url && config.anonKey ? await join(win.fetch.bind(win), config, answers) : null;
-    var state = rpc === null || rpc === 'missing' ? await joinByInbox(win.fetch.bind(win), answers) : rpc;
+    var state = rpc === null || rpc === 'missing' ? await joinByInbox(win.fetch.bind(win), answers, win) : rpc;
     // Only the join_waitlist response is a receipt. The honeypot, DOM success and the FormSubmit inbox
     // route are not; an unavailable RPC is reported only when the inbox route could not take it either.
     // The measurement module enforces consent.
     if (rpc !== null && (rpc !== 'missing' || state === 'missing')) measureResult(win, state);
     return show(doc, state, answers);
+  }
+
+  /** Clears the live region, then writes in a later task, so a repeated identical message is announced again. */
+  function say(win, note, words) {
+    if (!note) return Promise.resolve();
+    note.textContent = '';
+    if (typeof win.setTimeout !== 'function') { note.textContent = words; return Promise.resolve(); }
+    return new Promise(function (resolve) { win.setTimeout(function () { note.textContent = words; resolve(); }, 50); });
   }
 
   /** Share sheet, else copy the link, else show it to copy by hand. A dismissed share sheet does nothing. */
@@ -269,9 +320,11 @@
       }
     }
     if (nav.clipboard && typeof nav.clipboard.writeText === 'function') {
-      try { await nav.clipboard.writeText(SHARE_URL); if (note) note.textContent = COPY.copied; return 'copied'; } catch (blocked) { /* shown below */ }
+      var copied = true;
+      try { await nav.clipboard.writeText(SHARE_URL); } catch (blocked) { copied = false; }
+      if (copied) { await say(win, note, COPY.copied); return 'copied'; }
     }
-    if (note) note.textContent = SHARE_URL;
+    await say(win, note, SHARE_URL);
     return 'shown';
   }
 
@@ -299,7 +352,7 @@
   }
 
   var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, VOLUMES: VOLUMES, COPY: COPY, TIPS: TIPS,
-    INBOX_ENDPOINT: INBOX_ENDPOINT, AUTORESPONSE: AUTORESPONSE, SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY,
+    INBOX_ENDPOINT: INBOX_ENDPOINT, AUTORESPONSE: AUTORESPONSE, REPLIES_KEY: REPLIES_KEY, SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY,
     answersFrom: answersFrom, attribution: attribution, problem: problem, join: join, joinByInbox: joinByInbox,
     show: show, send: send, share: share, run: run };
   if (typeof window !== 'undefined') {

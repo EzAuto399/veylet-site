@@ -42,6 +42,14 @@ test('a link without campaign labels or click ids stores nothing', () => {
   for (const search of ['', '?', '?ref=newsletter', '?utm_source=', '?utm_term=roof']) assert.equal(visit(search).stored, null, search);
 });
 
+test('a link whose labels are all refused stores nothing, and a later clean link then stores', () => {
+  const store = storage();
+  assert.equal(visit('?utm_source=Instagram%20Post', '/see', store).stored, null);
+  assert.equal(visit('?utm_medium=%3Cb%3E', '/', store).stored, null);
+  assert.deepEqual(visit('?utm_source=instagram', '/offer', store).stored,
+    { utm_source: 'instagram', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '/offer' });
+});
+
 test('the first campaign link of the visit wins; later links do not overwrite it', () => {
   const store = storage();
   visit('?utm_source=instagram', '/', store);
