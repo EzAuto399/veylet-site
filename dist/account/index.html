@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
     <link rel="stylesheet" href="/style.css?v=3412b25235ba11a4" />
-    <link rel="stylesheet" href="/account-guide.css?v=ba883367bd9a7f1a" />
+    <link rel="stylesheet" href="/account-guide.css?v=756c0dfad25496b8" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
@@ -21,7 +21,7 @@
     <script src="/tour-sharing.js?v=be796c17f4972ab7" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <script src="/account.js?v=1eeca23656adc058" defer></script>
+    <script src="/account.js?v=5259d1e9f015190b" defer></script>
     <script src="/stage.js?v=bdc521b740f4b892" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -150,9 +150,9 @@
           <section id="account-plan" class="plan-panel desk-section" aria-labelledby="account-plan-title">
             <h2 class="dash-heading" id="account-plan-title">Your plan</h2>
             <div id="account-plan-body" aria-live="polite"></div>
-            <!-- Start the free months with a card on file: filled from the server's
-                 answer (get_trial_offer), never from this markup. Shown only while the
-                 plan has not started and is not an App Store plan. -->
+            <!-- Why the free months can't start here (not the owner, already used, or a
+                 retired card sign-up): from the server's answer (get_trial_offer), never
+                 this markup. Free months start in the app; nothing is sold here. -->
             <section id="account-trial" class="trial-offer" aria-labelledby="account-trial-title" hidden></section>
             <!-- Walkthrough packs: filled from the server's answer (get_pack_offer),
                  never from this markup. Hidden until there is a workspace to ask about. -->

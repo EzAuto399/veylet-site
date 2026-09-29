@@ -2847,192 +2847,74 @@ test('referred: only the owner, and only before the office pays, is offered the 
   assert.equal(referralButton(noCode, RECORD), undefined, 'no code, nothing to record');
 });
 
-/* ---- Existing card-trial checkout recovery ------------------------------
- * Only a server-owned pending checkout may resume; its interval and saved
- * prices from get_trial_offer determine the choice and the first charge day,
- * "Nothing is charged today", the ABN beside its field, and Square's card field
- * from the same loader as the annual plan and packs. POST /square/trial/start
- * (proposed) gets only Square's token, the plan, the ABN and one attempt id; the
- * plan panel then says, once, what the answer said.
+/* ---- Free months: why they can't start here -------------------------------
+ * Website card sign-up, and finishing an unfinished one, are retired (owner
+ * decision, 29 September 2026; the backend refuses them). On a plan that has not
+ * started and is not Apple's, get_trial_offer says only why the free months can't
+ * start for this workspace; an unfinished card sign-up an older server still
+ * reports gets one neutral line and a support link. Never a price, a plan choice,
+ * a card field or a start action.
  */
 const OFFER_RECORD = JSON.parse(fs.readFileSync(path.join(__dirname, '../dist/offer/offer.json'), 'utf8'));
-const OFFER_SOLO = OFFER_RECORD.plans.find(entry => entry.code === 'solo');
-const EXAMPLE_ABN = '51 824 753 556';
 const PENDING = { source: null, status: 'pending', trial_started_at: null, trial_ends_at: null, accepted_this_period: 0, accepted_in_free_months: 0, accepted_total: 0 };
-const trialOffer = (overrides = {}) => ({ eligible: true, missing: [], months: 3, walkthroughs: 6, first_charge_on: isoIn(91),
+// What an older server may still answer: both legacy card plans at their old website prices.
+const trialOffer = (overrides = {}) => ({ eligible: true, missing: [], months: 1, walkthroughs: 3, first_charge_on: isoIn(31),
   plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 24 }],
   early_annual_bonus: { walkthroughs: 4, express_renders: 4 }, ...overrides });
 const trialLocked = missing => ({ eligible: false, missing, plans: [] });
-const startedAnswer = (body, offer = trialOffer()) => [200, { trial: { plan_interval: body.plan_interval,
-  amount_cents: offer.plans.find(plan => plan.interval === body.plan_interval).cents, first_charge_on: offer.first_charge_on, starts_on: brisbaneToday() },
-charged_today: false, sandbox: false }];
+const pendingTrial = (interval = 'monthly', overrides = {}) => trialOffer({
+  checkout_pending: { plan_interval: interval, created_at: '2026-09-24T02:10:00Z' }, ...overrides });
 async function withTrial(offer, options = {}) {
-  const service = hooksService({ '/square/trial/start': body => startedAnswer(body, offer), ...options.hooks });
-  const square = options.square === undefined ? fakeSquare(options.squareOptions) : options.square;
-  let planReads = 0;
-  const started = () => service.requests.some(request => request.path === '/square/trial/start' && request.method === 'POST');
+  const service = hooksService(options.hooks);
+  const square = options.square === undefined ? fakeSquare() : options.square;
   const h = await load({ ...options, square, fetch: service.fetch, rpc: {
-    get_workspace_plan: async () => { planReads += 1;
-      return { data: [started() && options.after ? { ...planRow, ...options.after } : { ...planRow, ...PENDING, ...options.plan }] }; },
+    get_workspace_plan: async () => ({ data: [{ ...planRow, ...PENDING, ...options.plan }] }),
     get_trial_offer: async () => (typeof offer === 'function' ? offer() : { data: offer }),
     ...options.rpc,
   } });
   await settle();
-  return Object.assign(h, { requests: service.requests, square, planReads: () => planReads });
+  return Object.assign(h, { requests: service.requests, square });
 }
 const trialCard = h => h.ids['account-trial'];
 const trialNodes = h => trialCard(h).all();
 const trialText = h => trialNodes(h).filter(el => !el.hidden).map(el => el.textContent).join('\n');
-const trialFilled = h => trialNodes(h).filter(el => /\btour-action-primary\b/.test(el.className || ''));
-const trialButton = (h, text) => trialNodes(h).find(el => el.tagName === 'BUTTON' && el.textContent === text);
 const trialClass = (h, name) => trialNodes(h).find(el => (el.className || '').split(' ').includes(name));
-const trialAll = (h, name) => trialNodes(h).filter(el => (el.className || '').split(' ').includes(name));
-const trialAbnInput = h => trialNodes(h).find(el => el.tagName === 'INPUT' && el.name === 'abn');
-const trialProblem = h => { const box = trialClass(h, 'annual-problem'); return box && !box.hidden ? box.all().find(el => el.className === 'annual-alert-text').textContent : null; };
-const pressTrial = async (h, text) => { await trialButton(h, text).fire('click'); await settle(); };
-const typeAbn = async (h, value) => { const input = trialAbnInput(h); input.value = value; await input.fire('input'); await input.fire('blur'); };
-const chooseTrial = async (h, value) => { const radio = trialNodes(h).find(el => el.tagName === 'INPUT' && el.value === value); radio.checked = true; await radio.fire('change'); };
-const ADD_CARD = 'Add a card and start free months';
+const trialControls = h => trialNodes(h).filter(el => ['BUTTON', 'INPUT', 'SELECT'].includes(el.tagName) || /\btour-action-primary\b/.test(el.className || ''));
 
-
-
-
-
-
-
-// Recovery fixtures retain the saved agreement's legacy prices; the public offer
-// is not the source of truth for an already-created checkout.
-const pendingTrial = (overrides = {}) => trialOffer({
-  checkout_pending: { plan_interval: 'monthly', created_at: '2026-09-24T02:10:00Z' }, ...overrides
-});
-
-test('existing pending trial recovery: the ABN is checked beside its field before the card opens, and what was typed survives the redraw', async () => {
-  const h = await withTrial(pendingTrial());
-  const input = trialAbnInput(h);
-  assert.equal(input.attributes['aria-describedby'], 'account-trial-abn-hint');
-  assert.equal(trialClass(h, 'trial-abn-label').textContent, 'Your agency’s ABN');
-  await pressTrial(h, ADD_CARD);
-  assert.equal(h.scripts.length, 0, 'no card form without a valid ABN');
-  assert.equal(input.attributes['aria-invalid'], 'true');
-  assert.equal(trialClass(h, 'trial-abn-error').hidden, false);
-  assert.match(trialClass(h, 'trial-abn-error').textContent, /That isn’t a valid ABN\. Enter your agency’s 11-digit ABN, as shown on ABN Lookup\./);
-  assert.equal(input.wasFocused, true);
-  await typeAbn(h, '12 345 678 901');
-  assert.equal(trialAbnInput(h).attributes['aria-invalid'], 'true', 'eleven digits that fail the check');
-  await typeAbn(h, EXAMPLE_ABN);
-  assert.equal(trialAbnInput(h).attributes['aria-invalid'], undefined);
-  assert.equal(trialClass(h, 'trial-abn-error').hidden, true);
-  await pressTrial(h, ADD_CARD);
-  assert.deepEqual(squareLog(h, 'attach'), [['attach', '#account-trial-card-field']]);
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN, 'the ABN is kept when the card field opens');
-  assert.deepEqual(trialFilled(h).map(el => el.textContent), ['Start free months']);
-  assert.ok(trialButton(h, 'Not now'));
-  await pressTrial(h, 'Not now');
-  assert.deepEqual(squareLog(h, 'destroy'), [['destroy']]);
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN);
-});
-
-test('existing pending trial recovery: Start free months sends only Square’s token, the plan, the ABN and one attempt id; the plan panel then says the dates the answer carries', async () => {
-  const offer = pendingTrial();
-  const day = dayOf(offer.first_charge_on);
-  const ends = offer.first_charge_on + 'T00:00:00+10:00';
-  const h = await withTrial(offer, { after: { source: 'web', status: 'trial', auto_renews: true, accepted_in_free_months: 0,
-    trial_started_at: brisbaneToday() + 'T00:00:00+10:00', trial_ends_at: ends, billing_interval: 'monthly' } });
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  const [start] = posts(h, '/square/trial/start');
-  assert.equal(start.auth, 'Bearer token-1');
-  assert.equal(start.credentials, 'omit');
-  assert.deepEqual(Object.keys(start.body).sort(), ['abn', 'attempt_id', 'plan_interval', 'source_id', 'workspace_id']);
-  assert.deepEqual({ ...start.body, attempt_id: 'id' }, { workspace_id: 'w1', plan_interval: 'monthly', abn: '51824753556', source_id: 'cnon:card-nonce-ok', attempt_id: 'id' });
-  assert.match(start.body.attempt_id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.doesNotMatch(JSON.stringify(start.body), /4111|cvc|expiry/i, 'no card data leaves Square’s field');
-  await settle();
-  // The desk reads the plan again: free months, and the same price and day as the card said.
-  assert.equal(h.planReads(), 2);
-  assert.equal(trialCard(h).hidden, true, 'the card has done its job');
-  const notice = h.ids['account-plan-body'].all().find(el => /plan-notice/.test(el.className || ''));
-  assert.equal(notice.textContent, 'Free months started. Nothing was charged today. First charge A$99 on ' + day + ' and A$99 a month after that until you cancel; cancel before then and nothing is charged.');
-  assert.equal(notice.wasFocused, true);
-  assert.equal(planTitle(h), 'Free until ' + day);
-  assert.match(planText(h), new RegExp('Free until ' + day + ', then A\\$99 a month unless you cancel\\.'));
-  assert.match(planScopes(h).join(' '), new RegExp('Your card is charged first on ' + day + ', the day your free months end\\. Cancel before then and nothing is charged\\.'));
-  // Said once: a later reload does not repeat the notice.
-  await h.ids['account-refresh'].fire('click'); await settle();
-  assert.equal(h.ids['account-plan-body'].all().some(el => /plan-notice/.test(el.className || '')), false);
-});
-
-test('existing pending trial recovery: a start that is refused or unconfirmed keeps what was typed, says nothing was charged, and a retry keeps its attempt id', async () => {
-  // Declined: Square's field stays, with the reason and Try again.
-  const declined = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [402, { error: 'payment_declined' }] } });
-  await typeAbn(declined, EXAMPLE_ABN);
-  await pressTrial(declined, ADD_CARD);
-  await pressTrial(declined, 'Start free months');
-  assert.equal(trialProblem(declined), 'Your card was declined, so nothing was set up and nothing was charged. Check the details or use another card, then try again.');
-  assert.deepEqual(trialFilled(declined).map(el => el.textContent), ['Try again']);
-  // Unconfirmed: nothing is charged today either way, and the retry is the same intent.
-  let replies = 0;
-  const lost = await withTrial(pendingTrial({ checkout_pending: { plan_interval: 'annual', created_at: '2026-09-24T02:10:00Z' } }), { hooks: { '/square/trial/start': body => (replies++ ? startedAnswer(body) : [502, { error: 'checkout_failed' }]) } });
-  await typeAbn(lost, EXAMPLE_ABN);
-  await chooseTrial(lost, 'annual');
-  await pressTrial(lost, ADD_CARD);
-  await pressTrial(lost, 'Start free months');
-  assert.equal(trialProblem(lost), 'Your free months weren’t confirmed. Nothing is charged today. Try again: a retry never starts a second trial or charges twice.');
-  assert.equal(trialAbnInput(lost).value, EXAMPLE_ABN);
-  await pressTrial(lost, 'Try again');
-  const tries = posts(lost, '/square/trial/start');
-  assert.equal(tries.length, 2);
-  assert.equal(tries[0].body.attempt_id, tries[1].body.attempt_id, 'one start intent, one attempt id');
-  assert.equal(tries[1].body.plan_interval, 'annual');
-  // Refusals the server is sure of: the ABN goes back to its field.
-  const abn = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [400, { error: 'abn_invalid' }] } });
-  await typeAbn(abn, EXAMPLE_ABN);
-  await pressTrial(abn, ADD_CARD);
-  await pressTrial(abn, 'Start free months');
-  assert.equal(trialProblem(abn), 'That ABN wasn’t accepted, so nothing was set up. Check the 11 digits, then try again.');
-  assert.equal(trialAbnInput(abn).attributes['aria-invalid'], 'true');
-  assert.equal(trialAbnInput(abn).wasFocused, true);
-  for (const [code, words] of [['trial_used', /already had its free months, so nothing was set up/], ['lane_closed', /Card sign-up is closed right now, so nothing was set up/],
-    ['not_eligible', /Free months aren’t available for this workspace right now/]]) {
-    const refused = await withTrial(pendingTrial(), { hooks: { '/square/trial/start': () => [409, { error: code }] } });
-    await typeAbn(refused, EXAMPLE_ABN);
-    await pressTrial(refused, ADD_CARD);
-    await pressTrial(refused, 'Start free months');
-    assert.match(trialProblem(refused), words, code);
-    assert.equal(refused.planReads(), 1, code + ': nothing started, so nothing is read again');
+test('a pending card sign-up answer never renders an amount or a start or resume control', async () => {
+  const lanes = [[200, { open: true, sandbox: false, card_form: CARD_FORM }], [200, { open: true, sandbox: true, card_form: CARD_FORM }], [200, { open: false, sandbox: false }]];
+  for (const interval of ['monthly', 'annual']) {
+    for (const lane of lanes) {
+      const h = await withTrial(pendingTrial(interval), { hooks: { '/square/lane': () => lane } });
+      const label = interval + ' ' + JSON.stringify(lane[1]);
+      assert.deepEqual(trialControls(h).map(el => el.textContent), [], label + ': nothing to start, resume or pay');
+      assert.doesNotMatch(trialText(h), /A\$|\$\d|\d+ a (?:month|year)|Test ·|Start free months|Add a card|card details|ABN/i, label);
+      assert.equal(trialCard(h).hidden, false, label);
+      assert.equal(trialClass(h, 'annual-lead').textContent,
+        'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.', label);
+      assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20card%20sign-up'], label);
+      assert.equal(trialNodes(h).some(el => /annual-amount|annual-card|annual-choice/.test(el.className || '')), false, label);
+      assert.equal(h.scripts.length, 0, label + ': Square’s SDK is not loaded');
+      assert.equal(h.requests.some(request => request.method === 'POST' || /\/square\/trial\//.test(request.path)), false, label + ': nothing is started');
+    }
   }
-  // Square could not tokenize the card: nothing was sent.
-  const bad = await withTrial(pendingTrial(), { squareOptions: { tokenize: () => ({ status: 'Invalid' }) } });
-  await typeAbn(bad, EXAMPLE_ABN);
-  await pressTrial(bad, ADD_CARD);
-  await pressTrial(bad, 'Start free months');
-  assert.equal(posts(bad, '/square/trial/start').length, 0);
-  assert.match(trialProblem(bad), /Square couldn’t use those card details\. Check them and try again\. Nothing was set up\./);
+  // Nothing in the page can start one: the card handlers and the start hook are gone.
+  const code = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /\/square\/trial\/start|trialOpenCard|trialConfirmCard|account-trial-card-field|Add a card and start free months/);
 });
 
-test('existing pending trial recovery: not the owner, a used trial, a closed or unreachable card lane, an error and a missing function: words, at most one action, never a card field', async () => {
+test('free months: not the owner, a used trial, an error and a missing function get words and at most one link, never a price or a control to start', async () => {
   const owner = await withTrial(trialLocked(['not_owner']));
   assert.equal(trialClass(owner, 'annual-lead').textContent, 'Only the workspace owner can start the free months here.');
-  assert.equal(trialNodes(owner).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
+  assert.deepEqual(trialControls(owner), []);
   const used = await withTrial(trialLocked(['trial_used']));
   assert.match(trialText(used), /This agency or workspace has already had its free months\.[\s\S]*A second free trial is not available/);
   assert.deepEqual(trialNodes(used).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
-  assert.equal(trialFilled(used).length, 0);
-  const closed = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } });
-  assert.deepEqual(trialAll(closed, 'annual-amount').map(el => el.textContent), ['A$99 a month']);
-  assert.match(trialText(closed), /Card sign-up on this website opens soon\.[\s\S]*Until then, start in the app through the App Store, or ask Veylet support for invoice terms\./);
-  assert.equal(trialFilled(closed).length, 0);
-  assert.equal(trialNodes(closed).some(el => el.tagName === 'INPUT'), false);
-  const down = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [503, { error: 'unavailable' }] } });
-  assert.match(trialText(down), /Card payment couldn’t be reached, so a card can’t be added right now\./);
-  assert.ok(trialButton(down, 'Check again'));
-  for (const answer of [null, { eligible: true, missing: [], plans: [] }, pendingTrial({ first_charge_on: brisbaneToday() }),
-    pendingTrial({ plans: [{ interval: 'monthly', cents: 9900, included: 2 }] }), pendingTrial({ plans: [{ interval: 'monthly', cents: '9900', included: 2 }, { interval: 'annual', cents: 99000, included: 24 }] }),
-    trialLocked(['something_else'])]) {
+  assert.deepEqual(trialControls(used), []);
+  for (const answer of [null, trialLocked([]), { eligible: true, missing: ['not_owner'] }, trialLocked(['something_else']), { eligible: 'yes', missing: [] }]) {
     const broken = await withTrial(answer);
     assert.equal(trialClass(broken, 'annual-lead').textContent, 'Couldn’t check how to start your free months here.', JSON.stringify(answer));
-    assert.deepEqual(trialNodes(broken).filter(el => el.tagName === 'BUTTON').map(el => el.textContent), ['Try again']);
+    assert.deepEqual(trialControls(broken).map(el => el.textContent), ['Try again']);
     assert.doesNotMatch(trialText(broken), /A\$/);
   }
   const missing = await withTrial(() => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }));
@@ -3041,98 +2923,22 @@ test('existing pending trial recovery: not the owner, a used trial, a closed or 
   assert.equal(trialCard(started).hidden, true);
 });
 
-test('existing pending trial recovery: the trial card shows only on a plan that has not started and is not an App Store plan; Sandbox labels it Test', async () => {
+test('free months: asked only on a plan that has not started and is not an App Store plan; an eligible answer shows nothing here', async () => {
   for (const plan of [{}, { status: 'trial', trial_started_at: '2026-09-01T00:00:00Z', trial_ends_at: '2026-12-01T00:00:00Z' },
     { source: 'apple', apple_verified: false }, { status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z' }]) {
     const h = await withTrial(pendingTrial(), { plan: { ...PENDING, status: 'trial', ...plan, ...(plan.status ? {} : { status: 'pending' }) } });
-    const shown = !plan.status && plan.source !== 'apple';
-    assert.equal(trialCard(h).hidden, !shown, JSON.stringify(plan));
-    assert.equal(h.calls.some(call => call[0] === 'get_trial_offer'), shown, JSON.stringify(plan));
+    const asked = !plan.status && plan.source !== 'apple';
+    assert.equal(trialCard(h).hidden, !asked, JSON.stringify(plan));
+    assert.equal(h.calls.some(call => call[0] === 'get_trial_offer'), asked, JSON.stringify(plan));
   }
-  const sandbox = await withTrial(pendingTrial(), { hooks: { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }] } });
-  assert.equal(trialClass(sandbox, 'plan-test').textContent, 'Test · Square Sandbox: a test card, not a live payment.');
-  assert.deepEqual(trialAll(sandbox, 'annual-amount').map(el => el.textContent), ['Test · A$99 a month']);
-  assert.match(trialClass(sandbox, 'annual-charge').textContent, /^Test · Nothing is charged today\./);
-  assert.deepEqual(trialFilled(sandbox).map(el => el.textContent), ['Test · ' + ADD_CARD]);
-});
-
-test('existing pending trial recovery: one card form on the desk at a time, across the trial card and a super fast render', async () => {
-  const h = await withTrial(pendingTrial(), { rpc: { get_express_offer: async () => ({ data: expressOffer() }) } });
-  await pressExpress(h, 'Super fast for A$29');
-  assert.equal(expressNodes(h).some(el => el.id === 'account-express-card-field'), true);
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  assert.equal(trialNodes(h).some(el => el.id === 'account-trial-card-field'), true);
-  assert.equal(expressNodes(h).some(el => el.id === 'account-express-card-field'), false, 'the express card form closed');
-  assert.ok(expressButton(h, 'Super fast for A$29'));
-  await pressExpress(h, 'Super fast for A$29');
-  assert.equal(trialNodes(h).some(el => el.id === 'account-trial-card-field'), false, 'and the other way round');
-  assert.equal(trialAbnInput(h).value, EXAMPLE_ABN);
-});
-
-// New subscription policy runs against the actual production source. These
-// cases replace the retired card-signup/Apple-to-Square sales expectations above.
-test('Apple-only new subscriptions: pending accounts have no new card trial even when server eligibility and lane are open', async () => {
-  for (const sandbox of [true, false]) {
-    const h = await withTrial(trialOffer(), { hooks: { '/square/lane': () => [200, { open: true, sandbox, card_form: CARD_FORM }] } });
+  // Eligible, whatever plans and lane an older server sends: new free months start in the app.
+  for (const offer of [trialOffer(), trialOffer({ plans: [] })]) {
+    const h = await withTrial(offer, { hooks: { '/square/lane': () => [200, { open: true, sandbox: false, card_form: CARD_FORM }] } });
     assert.equal(trialCard(h).hidden, true);
     assert.equal(h.scripts.length, 0);
-    assert.equal(posts(h, '/square/trial/start').length, 0);
+    assert.equal(h.requests.some(request => request.method === 'POST'), false, 'nothing is started');
     assert.match(planText(h), /App Store/);
   }
-});
-
-test('Apple-only new subscriptions: direct stale trial handlers cannot tokenize a card or send a checkout', async () => {
-  const service = hooksService();
-  // Expose closures only; do not change the production policy or any guard.
-  const accountScript = account.replace('})().catch(() => {', `
-    window.__billingTest = {
-      setTrial: value => { trial = value; }, trialOpenCard, trialConfirmCard
-    };
-  })().catch(() => {`);
-  const h = await load({ accountScript, fetch: service.fetch });
-  await settle();
-  let tokens = 0;
-  const card = { tokenize: async () => { tokens += 1; return { status: 'OK', token: 'cnon:test-card' }; } };
-  for (const [name, offer, kind] of [['Trial', trialOffer(), 'choose']]) {
-    const state = { offer, kind, interval: 'monthly', supabase: h.supabase, workspaceID: 'w1', busy: false, lane: { open: true }, card: null };
-    h.billingHooks['set' + name](state);
-    await h.billingHooks[name.toLowerCase() + 'OpenCard'](new Element('button'));
-    state.card = card;
-    await h.billingHooks[name.toLowerCase() + 'ConfirmCard'](new Element('button'));
-  }
-  h.billingHooks.setTrial({ offer: trialOffer({ checkout_pending: { plan_interval: 'annual' } }),
-    kind: 'choose', interval: 'monthly', supabase: h.supabase, workspaceID: 'w1', busy: false, card });
-  await h.billingHooks.trialConfirmCard(new Element('button'));
-  assert.equal(tokens, 0);
-  assert.equal(h.scripts.length, 0);
-  assert.equal(service.requests.some(request => request.method === 'POST'), false);
-});
-
-test('Apple-only new subscriptions: a server-owned pending card trial can recover without losing its attempt identity', async () => {
-  const pending = trialOffer({ checkout_pending: { plan_interval: 'monthly', created_at: '2026-09-24T02:10:00Z' } });
-  const h = await withTrial(pending, { hooks: { '/square/trial/start': () => [502, { error: 'checkout_failed' }] } });
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  const first = posts(h, '/square/trial/start')[0];
-  assert.ok(first.body.attempt_id);
-  assert.equal(first.auth, 'Bearer token-1');
-  await pressTrial(h, 'Try again');
-  assert.equal(posts(h, '/square/trial/start')[1].body.attempt_id, first.body.attempt_id);
-  assert.ok(trialClass(h, 'annual-card-field'));
-});
-
-test('Apple-only recovery: pending annual trial cannot be changed to a different subscription interval', async () => {
-  const offer = trialOffer({ checkout_pending: { plan_interval: 'annual', created_at: '2026-09-24T02:10:00Z' } });
-  const h = await withTrial(offer);
-  const radios = trialNodes(h).filter(el => el.tagName === 'INPUT' && el.type === 'radio');
-  assert.deepEqual(radios.map(el => el.value), ['annual']);
-  assert.equal(radios[0].checked, true);
-  await typeAbn(h, EXAMPLE_ABN);
-  await pressTrial(h, ADD_CARD);
-  await pressTrial(h, 'Start free months');
-  assert.equal(posts(h, '/square/trial/start')[0].body.plan_interval, 'annual');
 });
 
 /* ---- Offer v9: Super fast render (code express) on a space ----------------------

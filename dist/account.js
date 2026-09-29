@@ -12,10 +12,9 @@
   // offer), and the plan said in state words only. tests/app-pages.test.cjs
   // renders it and fails on any amount or purchase word.
   const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
-  // New recurring subscriptions are Apple-only. Existing Square billing and
-  // recovery remain available; an open payment lane must not reopen new sales.
-  // The hooks service must enforce the same policy at its authority boundary.
-  const NEW_CARD_SUBSCRIPTIONS_ENABLED = false;
+  // Subscriptions are Apple-only: this page never starts, resumes or shows a website
+  // card plan (owner decision, 29 September 2026). Square takes only one-off pack and
+  // Super fast payments; the hooks service enforces the same at its boundary.
   const statusEl = document.getElementById('account-status');
   const signInForm = document.getElementById('account-sign-in');
   const verifyForm = document.getElementById('account-verify');
@@ -366,7 +365,6 @@
     planBody?.replaceChildren();
     planPanel?.setAttribute('aria-busy', 'false');
     planCapacityRefresh = null;
-    planNotice = null;
     trialHide();
     expressHide();
     renderForget();
@@ -2261,12 +2259,6 @@
     // This is where an active account's price is stated.
     const lead = document.createElement('p'); lead.className = 'plan-title'; lead.textContent = view.title;
     const parts = [lead];
-    // Said once, after the free months started on this page: what the answer said.
-    let notice = null;
-    if (planNotice) {
-      notice = document.createElement('p'); notice.className = 'annual-notice plan-notice'; notice.textContent = planNotice; notice.tabIndex = -1;
-      parts.push(notice); planNotice = null;
-    }
     // A Sandbox purchase says so first, in the same "Test ·" words as the two cards below.
     if (row?.apple_environment === 'Sandbox') {
       const sandbox = document.createElement('p'); sandbox.className = 'plan-scope plan-test';
@@ -2393,8 +2385,7 @@
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
-    notice?.focus?.();
-    // Starting the free months, walkthrough packs and the share link read their
+    // The free-months card, walkthrough packs and the share link read their
     // own answers; none of them ever holds up the plan.
     void renderTrial(supabase, ticket, workspaceID, row);
     void renderPacks(supabase, ticket, workspaceID);
@@ -2473,117 +2464,34 @@
     await readCapacity();
   }
 
-  /* ---- Start the free months ---------------------------------------------
-   * Offer 2026-09-25.2: the free months start with a payment method on file. On
-   * this website that is a card in Square's own field, loaded by the same loader
-   * as packs and Super fast; POST /square/trial/start saves it and schedules
-   * the first charge for the day the free months end, so nothing is charged today
-   * and cancelling before then charges nothing. What is offered (the months, the
-   * walkthroughs, both plans' prices and the first charge day) is the server's
-   * answer (get_trial_offer); whether card payment is open, and whether it is
-   * Square Sandbox, is the hooks lane's. The card shows only while the plan has
-   * not started and is not an App Store plan, and it has one filled action.
+  /* ---- Free months: why they can't start here ------------------------------
+   * New free months start in the Veylet Capture app through Apple's introductory
+   * offer; the plan panel says so. Website card sign-up, and finishing an
+   * unfinished one, were removed by owner decision on 29 September 2026 (the
+   * backend refuses them). On a plan that has not started and is not Apple's, this
+   * card reads get_trial_offer only to say why the free months can't start for this
+   * workspace (not the owner, already used) and, when an older server still reports
+   * an unfinished card sign-up, to point to support. It never reads the card lane,
+   * and never shows a price, a plan choice, a card field or a start action.
    */
   const trialEl = document.getElementById('account-trial');
   const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started'];
-  const TRIAL_INTERVALS = ['monthly', 'annual'];
-  const TRIAL_CARD_FIELD = 'account-trial-card-field';
-  const TRIAL_TEST_LINE = 'Test · Square Sandbox: a test card, not a live payment.';
-  // Each of these is refused before a card is saved or a trial is started.
-  const TRIAL_REFUSALS = {
-    payment_declined: 'Your card was declined, so nothing was set up and nothing was charged. Check the details or use another card, then try again.',
-    trial_used: 'This agency or workspace has already had its free months, so nothing was set up. Ask Veylet support about starting the plan.',
-    abn_invalid: 'That ABN wasn’t accepted, so nothing was set up. Check the 11 digits, then try again.',
-    not_eligible: 'Free months aren’t available for this workspace right now, so nothing was set up.',
-    lane_closed: 'Card sign-up is closed right now, so nothing was set up.',
-    invalid_request: 'The start wasn’t accepted, so nothing was set up. Try again.',
-  };
-  // No answer, or checkout_failed: nothing is charged today either way, and the same
-  // attempt id makes a retry finish the same start rather than begin a second one.
-  const TRIAL_UNCONFIRMED = 'Your free months weren’t confirmed. Nothing is charged today. Try again: a retry never starts a second trial or charges twice.';
-  const TRIAL_ABN_ERROR = 'That isn’t a valid ABN. Enter your agency’s 11-digit ABN, as shown on ABN Lookup.';
   let trial = null;
   let trialVersion = 0;
-  // One line the plan panel says once, after the free months start here.
-  let planNotice = null;
 
-  // An Australian Business Number: 11 digits whose weighted sum, after taking 1
-  // from the first digit, divides by 89 (the ATO's published check).
-  function trialAbn(value) {
-    const digits = String(value || '').replace(/\s+/g, '');
-    if (!/^\d{11}$/.test(digits)) return '';
-    const weights = [10, 1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
-    const sum = digits.split('').reduce((total, digit, index) => total + (Number(digit) - (index === 0 ? 1 : 0)) * weights[index], 0);
-    return sum % 89 === 0 ? digits : '';
-  }
-  function trialPlanValid(plan) {
-    return Boolean(plan) && typeof plan === 'object' && TRIAL_INTERVALS.includes(plan.interval)
-      && Number.isInteger(plan.cents) && plan.cents > 0 && Number.isInteger(plan.included) && plan.included > 0;
-  }
   function trialValid(offer) {
-    if (!offer || typeof offer !== 'object' || typeof offer.eligible !== 'boolean' || !Array.isArray(offer.missing)
-      || !Array.isArray(offer.plans) || offer.missing.some(code => !TRIAL_MISSING.includes(code))) return false;
-    // Closed, it says why and names no price; open, it names both plans once, the
-    // months, the walkthroughs and a first charge day that is still to come.
-    if (!offer.eligible) return offer.missing.length > 0 && offer.plans.length === 0;
-    return !offer.missing.length && Number.isInteger(offer.months) && offer.months >= 1 && offer.months <= 12
-      && Number.isInteger(offer.walkthroughs) && offer.walkthroughs > 0 && annualFuture(offer.first_charge_on)
-      && offer.plans.every(trialPlanValid) && TRIAL_INTERVALS.every(interval => offer.plans.filter(plan => plan.interval === interval).length === 1);
+    return Boolean(offer) && typeof offer === 'object' && typeof offer.eligible === 'boolean' && Array.isArray(offer.missing)
+      && offer.missing.every(code => TRIAL_MISSING.includes(code)) && (offer.eligible ? !offer.missing.length : offer.missing.length > 0);
   }
-  function trialKind(offer, lane) {
+  function trialKind(offer) {
     if (!trialValid(offer)) return 'error';
     // Started meanwhile (another tab, or the app): the plan above says so.
     if (offer.missing.includes('already_started')) return 'hidden';
     if (offer.missing.includes('not_owner')) return 'not-owner';
     if (offer.missing.includes('trial_used')) return 'used';
-    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !TRIAL_INTERVALS.includes(offer.checkout_pending?.plan_interval)) return 'hidden';
-    if (!lane) return 'lane-error';
-    return lane.open ? 'choose' : 'lane-closed';
-  }
-  function trialCardAllowed(state) {
-    return Boolean(state) && state.kind === 'choose' && trialValid(state.offer)
-      && state.offer.eligible && (NEW_CARD_SUBSCRIPTIONS_ENABLED ||
-      (TRIAL_INTERVALS.includes(state.offer.checkout_pending?.plan_interval)
-        && state.interval === state.offer.checkout_pending.plan_interval));
-  }
-  // Square Sandbox labels every price and payment action, as on the other two card forms.
-  function trialTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
-  function trialPlans(state) {
-    const intervals = NEW_CARD_SUBSCRIPTIONS_ENABLED ? TRIAL_INTERVALS : [state.offer.checkout_pending?.plan_interval];
-    return intervals.map(interval => state.offer.plans.find(plan => plan.interval === interval)).filter(Boolean);
-  }
-  function trialChosen(state) { return trialPlans(state).find(plan => plan.interval === state.interval) || trialPlans(state)[0]; }
-  function trialBilling(cents, interval) { return planMoney(cents) + (interval === 'annual' ? ' a year' : ' a month'); }
-  function trialCharge(state) {
-    const plan = trialChosen(state);
-    return trialTest(state) + 'Nothing is charged today. First charge ' + planMoney(plan.cents) + ' on ' + annualDay(state.offer.first_charge_on) +
-      ', the day your free months end. Cancel before then and nothing is charged.';
-  }
-  function trialPrimaryLabel(state) {
-    return trialTest(state) + (state.problem ? 'Try again' : state.card ? 'Start free months' : 'Add a card and start free months');
-  }
-  function trialBonusWords(offer) {
-    const bonus = offer && offer.early_annual_bonus;
-    if (!bonus || typeof bonus !== 'object' || !Number.isInteger(bonus.walkthroughs) || bonus.walkthroughs <= 0) return '';
-    const express = annualBonusExpress(bonus);
-    return '+' + bonus.walkthroughs + ' walkthroughs' + (express ? ' and ' + express + ' super fast renders' : '') + ' in your first plan year for choosing it now';
-  }
-  // Money is a statement: the plan, the price, what it includes, then the early bonus.
-  function trialOption(state, plan) {
-    const body = annualNode('span', 'annual-option-body');
-    body.append(annualNode('span', 'annual-option-name', plan.interval === 'annual' ? 'Annual' : 'Monthly'),
-      annualNode('span', 'annual-amount', trialTest(state) + trialBilling(plan.cents, plan.interval)),
-      annualNode('span', 'annual-qualifier', plan.interval === 'annual'
-        ? plan.included + ' walkthroughs to use any time in the plan year'
-        : plan.included + ' walkthroughs a month; unused ones roll over, up to ' + PLAN_MAX_BANKED + ' banked'));
-    const bonus = plan.interval === 'annual' ? trialBonusWords(state.offer) : '';
-    if (bonus) body.append(annualNode('span', 'annual-qualifier trial-bonus', bonus));
-    return body;
-  }
-  function trialPlanList(state) {
-    const list = annualNode('ul', 'annual-plans');
-    for (const plan of trialPlans(state)) { const item = annualNode('li'); item.append(trialOption(state, plan)); list.append(item); }
-    return list;
+    // An unfinished website card sign-up an older server still reports: retired, never finished here.
+    if (offer.checkout_pending !== null && offer.checkout_pending !== undefined) return 'card-retired';
+    return 'hidden';
   }
   function trialHead(refs) {
     const head = annualNode('div', 'annual-head');
@@ -2593,69 +2501,11 @@
     head.append(title);
     return head;
   }
-  // The ABN is said beside its field, on blur and again before the card opens,
-  // and what was typed is kept across every redraw.
-  function trialAbnCheck(state, refs) {
-    const digits = trialAbn(refs.abn ? refs.abn.value : state.abn);
-    // An ABN the server refused stays refused until something else is typed.
-    const refused = Boolean(digits) && digits === state.abnRefused;
-    const ok = Boolean(digits) && !refused;
-    state.abnError = !ok;
-    if (refs.abnError) { refs.abnError.textContent = ok ? '' : refused ? TRIAL_REFUSALS.abn_invalid : TRIAL_ABN_ERROR; refs.abnError.hidden = ok; }
-    if (refs.abn) {
-      if (ok) refs.abn.removeAttribute('aria-invalid'); else refs.abn.setAttribute('aria-invalid', 'true');
-      refs.abn.setAttribute('aria-describedby', ok ? 'account-trial-abn-hint' : 'account-trial-abn-hint account-trial-abn-error');
-    }
-    return ok;
-  }
-  function trialAbnField(state, refs) {
-    const wrap = annualNode('div', 'trial-abn');
-    const label = annualNode('label', 'trial-abn-label', 'Your agency’s ABN'); label.htmlFor = 'account-trial-abn';
-    const input = annualNode('input', 'trial-abn-input');
-    input.id = 'account-trial-abn'; input.name = 'abn'; input.type = 'text'; input.inputMode = 'numeric';
-    input.autocomplete = 'off'; input.maxLength = 14; input.required = true; input.spellcheck = false; input.value = state.abn || '';
-    input.setAttribute('aria-describedby', 'account-trial-abn-hint');
-    const hint = annualNode('p', 'trial-abn-hint', 'One trial per agency (ABN) and workspace. 11 digits, spaces are fine.'); hint.id = 'account-trial-abn-hint';
-    const error = annualNode('p', 'trial-abn-error', ''); error.id = 'account-trial-abn-error'; error.hidden = true;
-    input.addEventListener('input', () => { state.abn = input.value; if (state.abnError) trialAbnCheck(state, refs); });
-    input.addEventListener('blur', () => { state.abn = input.value; if (String(input.value || '').trim()) trialAbnCheck(state, refs); });
-    refs.abn = input; refs.abnError = error;
-    wrap.append(label, input, hint, error);
-    if (state.abnError) trialAbnCheck(state, refs);
-    return wrap;
-  }
-  // Choosing changes only the words beside the button, so focus stays on the choice.
-  function trialSync(state, refs) {
-    if (refs.charge) refs.charge.textContent = trialCharge(state);
-    if (refs.pay) refs.pay.textContent = trialPrimaryLabel(state);
-    if (refs.problem) refs.problem.hidden = true;
-  }
-  function trialProblem(state, text) {
-    state.problem = text || null;
-    const refs = state.refs || {};
-    if (refs.problemText) refs.problemText.textContent = text || '';
-    if (refs.problem) refs.problem.hidden = !text;
-    if (refs.pay) { refs.pay.textContent = trialPrimaryLabel(state); refs.pay.disabled = false; }
-    if (text) setStatus(text);
-  }
-  function trialDropCard(state) {
-    const card = state?.card;
-    if (!card) return;
-    state.card = null;
-    Promise.resolve().then(() => card.destroy?.()).catch(() => {});
-  }
-  function trialCloseOther() {
-    const state = trial;
-    if (!state || state.busy || !state.card) return;
-    trialDropCard(state); state.problem = null; trialDraw();
-  }
   function trialParts(state, refs) {
-    const { kind, offer } = state;
+    const { kind } = state;
     if (kind === 'hidden') return null;
     const parts = [trialHead(refs)];
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
-    // Sandbox is said once, under the heading, before any "Test ·" price or button.
-    if (trialTest(state) && kind === 'choose') say('plan-scope plan-test', TRIAL_TEST_LINE);
     if (state.notice) say('annual-notice', state.notice);
     if (kind === 'error') {
       say('annual-lead', 'Couldn’t check how to start your free months here.');
@@ -2672,38 +2522,10 @@
       refs.primary = ask; parts.push(annualRow(ask));
       return parts;
     }
-    say('annual-lead', offer.months + ' free months with ' + offer.walkthroughs + ' walkthroughs. A card on file starts them, and nothing is charged today.');
-    if (kind === 'lane-error' || kind === 'lane-closed') {
-      parts.push(trialPlanList(state));
-      say('annual-lead annual-soon', kind === 'lane-closed' ? 'Card sign-up on this website opens soon.' : 'Card payment couldn’t be reached, so a card can’t be added right now.');
-      say('annual-note', 'Until then, start in the app through the App Store, or ask Veylet support for invoice terms.');
-      const ask = annualNode('a', 'text-link', 'Ask Veylet support about invoice terms'); ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20free%20months';
-      refs.primary = ask;
-      if (kind === 'lane-error') {
-        const retry = button('Check again', () => { void renderTrial(state.supabase, deskVersion, state.workspaceID, state.planRow, { focus: 'title', freshLane: true }); });
-        refs.retry = retry; parts.push(annualRow(retry, ask));
-      } else parts.push(annualRow(ask));
-      return parts;
-    }
-    parts.push(annualChoice(state, refs, 'After the free months', 'account-trial-plan', trialPlans(state).map(plan => [plan.interval, trialOption(state, plan)]),
-      trialChosen(state).interval, value => { state.interval = value; }, trialSync));
-    parts.push(trialAbnField(state, refs));
-    const charge = say('annual-charge', trialCharge(state)); charge.id = 'account-trial-charge';
-    if (state.card) {
-      const label = annualNode('p', 'annual-card-label', 'Card details'); label.id = TRIAL_CARD_FIELD + '-label';
-      const field = annualNode('div', 'annual-card-field'); field.id = TRIAL_CARD_FIELD;
-      field.setAttribute('role', 'group'); field.setAttribute('aria-labelledby', label.id); field.tabIndex = -1;
-      refs.field = field;
-      const block = annualNode('div', 'annual-card'); block.append(label, field); parts.push(block);
-    }
-    const primary = button(trialPrimaryLabel(state), () => { void (state.card ? trialConfirmCard(primary) : trialOpenCard(primary)); });
-    primary.className = 'tour-action tour-action-primary';
-    primary.setAttribute('aria-describedby', 'account-trial-charge');
-    refs.charge = charge; refs.primary = primary; refs.pay = primary;
-    parts.push(state.card ? annualRow(primary, button('Not now', () => trialCloseCard())) : annualRow(primary));
-    const problem = annualAlert(state.problem || '', 'annual-alert annual-problem', refs);
-    problem.hidden = !state.problem; refs.problem = problem; parts.push(problem);
-    say('annual-note', 'Your card goes into Square’s secure form on this page; Veylet never sees it.');
+    // card-retired: one neutral line and the way to support; nothing to finish or pay.
+    say('annual-lead', 'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.');
+    const ask = annualNode('a', 'text-link', 'Ask Veylet support about this sign-up'); ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20card%20sign-up';
+    refs.primary = ask; parts.push(annualRow(ask));
     return parts;
   }
   function trialDraw(focus) {
@@ -2718,183 +2540,35 @@
     if (focus && refs[focus]) refs[focus].focus();
   }
   function trialHide() {
-    trialDropCard(trial);
     trialVersion += 1; trial = null;
     if (!trialEl) return;
     trialEl.hidden = true; trialEl.setAttribute('aria-busy', 'false'); trialEl.replaceChildren();
   }
-  // Waiting keeps the card's own shape: the lead, the two plan rows, the charge line and the action.
-  function trialSkeleton() {
-    if (!trialEl) return;
-    trialDropCard(trial);
-    trialVersion += 1; trial = null;
-    trialEl.hidden = false; trialEl.setAttribute('aria-busy', 'true');
-    const choice = annualNode('div', 'annual-choice');
-    choice.append(skeletonLine('p', 'annual-skeleton-legend', 21));
-    for (const name of [7, 6]) {
-      const row = annualNode('div', 'annual-option annual-skeleton-row');
-      const body = annualNode('span', 'annual-option-body');
-      body.append(skeletonLine('span', 'annual-option-name', name), skeletonLine('span', 'annual-amount', 12), skeletonLine('span', 'annual-qualifier', 48));
-      row.append(annualNode('span', 'annual-skeleton-radio'), body);
-      choice.append(row);
-    }
-    const action = annualNode('span', 'plan-skeleton annual-skeleton-action'); action.setAttribute('aria-hidden', 'true');
-    trialEl.replaceChildren(trialHead(), annualNode('p', 'annual-lead', 'Checking how to start your free months…'), choice,
-      skeletonLine('p', 'annual-charge', 120), annualRow(action));
-  }
   async function renderTrial(supabase, ticket, workspaceID, planRow, options = {}) {
     if (!trialEl) return;
-    // Only a plan that has not started, and is not Apple's, starts here.
-    if (!workspaceID || !planRow || planRow.status !== 'pending' || planSource(planRow) === 'apple') { trialHide(); return; }
-    const previous = trial && trial.workspaceID === workspaceID ? trial : null;
-    trialSkeleton();
+    // Only a plan that has not started, and is not Apple's, is asked about; the card
+    // stays hidden while it asks, since most answers show nothing.
+    trialHide();
+    if (!workspaceID || !planRow || planRow.status !== 'pending' || planSource(planRow) === 'apple') return;
     const version = ++trialVersion;
-    const [reply, lane] = await Promise.all([
-      settled(Promise.resolve().then(() => supabase.rpc('get_trial_offer', { p_workspace_id: workspaceID }))),
-      squareLane(options.freshLane === true),
-    ]);
+    const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_trial_offer', { p_workspace_id: workspaceID })));
     if (ticket !== deskVersion || version !== trialVersion) return;
-    trialEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to start your free months.'); return; }
-    // Before the backend has the function there is nothing to start here; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') { trialHide(); return; }
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your free months.'); return; }
+    // Before the backend has the function there is nothing to say here; that is not an outage.
+    if (reply.value?.error?.code === 'PGRST202') return;
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    trial = { supabase, workspaceID, planRow, offer, lane, kind: trialKind(offer, lane),
-      interval: (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer?.checkout_pending?.plan_interval) || previous?.interval || 'monthly',
-      abn: previous?.abn || '', abnError: false, abnRefused: previous?.abnRefused || null, busy: false, card: null, problem: null, sandbox: false, notice: options.notice || null,
-      attemptID: previous?.attemptID || null };
+    trial = { supabase, workspaceID, planRow, kind: trialKind(offer), notice: options.notice || null };
     trialDraw(options.focus);
-  }
-  // "Add a card and start free months": the ABN first, then Square's card field in the card, with focus in it.
-  async function trialOpenCard(control) {
-    const state = trial;
-    if (!trialCardAllowed(state) || state.busy || state.card || state.kind !== 'choose') return;
-    if (!trialAbnCheck(state, state.refs || {})) { state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
-    state.abn = state.refs?.abn?.value ?? state.abn;
-    // One card form on the desk at a time.
-    closeCardForms('trial');
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Loading card form…';
-    setStatus('Loading Square’s card form…');
-    let form = annualCardForm(state.lane);
-    if (!form) {
-      const lane = await squareLane(true);
-      if (trial !== state) return;
-      if (lane) state.lane = lane;
-      form = annualCardForm(lane);
-    }
-    const made = form ? await settled(annualSdk(form.sdk_url).then(Square => Square.payments(form.application_id, form.location_id).card({ style: SQUARE_CARD_STYLE })))
-      : { error: new Error('No card form') };
-    if (made.timedOut) annualSdkLoad = null;
-    const card = made.timedOut || made.error ? null : made.value;
-    if (trial !== state) { Promise.resolve().then(() => card?.destroy?.()).catch(() => {}); return; }
-    if (!card || typeof card.attach !== 'function' || typeof card.tokenize !== 'function') {
-      state.busy = false; trialProblem(state, ANNUAL_SDK_FAILED); control.focus?.(); return;
-    }
-    state.card = card;
-    trialDraw();
-    const attached = await settled(Promise.resolve().then(() => card.attach('#' + TRIAL_CARD_FIELD)));
-    if (trial !== state) return;
-    state.busy = false;
-    if (attached.timedOut || attached.error) {
-      trialDropCard(state); state.problem = ANNUAL_SDK_FAILED; trialDraw('pay'); setStatus(ANNUAL_SDK_FAILED); return;
-    }
-    setStatus('Enter your card in Square’s card form, then start your free months. Nothing is charged today.');
-    if (typeof card.focus === 'function') { try { await card.focus('cardNumber'); return; } catch { /* the field itself, below */ } }
-    state.refs?.field?.focus();
-  }
-  function trialCloseCard() {
-    const state = trial;
-    if (!state || state.busy) return;
-    trialDropCard(state); state.problem = null;
-    trialDraw('pay');
-    setStatus('Card form closed. Nothing was set up.');
-  }
-  // "Start free months": Square tokenizes the card in its iframe; only that single-use
-  // token, the chosen plan and the ABN are sent. The server saves the card and dates
-  // the first charge; the page states the dates the answer carries.
-  async function trialConfirmCard(control) {
-    const state = trial;
-    if (!trialCardAllowed(state) || state.busy || !state.card) return;
-    const plan = trialChosen(state);
-    const abn = trialAbn(state.abn);
-    if (!abn) { state.abnError = true; trialDraw(); state.refs?.abn?.focus(); setStatus(TRIAL_ABN_ERROR); return; }
-    const expected = { interval: plan.interval, cents: plan.cents, first_charge_on: state.offer.first_charge_on };
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Starting…';
-    setStatus('Starting your free months…');
-    const tokenized = await settled(Promise.resolve().then(() => state.card.tokenize()));
-    if (trial !== state) return;
-    const result = tokenized.timedOut || tokenized.error ? null : tokenized.value;
-    const sourceID = result?.status === 'OK' ? result.token : null;
-    if (typeof sourceID !== 'string' || !/^[A-Za-z0-9:_-]{8,512}$/.test(sourceID)) {
-      state.busy = false;
-      trialProblem(state, 'Square couldn’t use those card details. Check them and try again. Nothing was set up.');
-      control.focus?.();
-      return;
-    }
-    const token = await annualToken(state.supabase);
-    if (trial !== state) return;
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to start your free months. Nothing was set up.'); return; }
-    // One start intent keeps one attempt id across every Try again, even with a fresh card token.
-    const attemptID = state.attemptID || (state.attemptID = packAttemptID());
-    const reply = await settled(annualHooks('/square/trial/start', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ workspace_id: state.workspaceID, plan_interval: plan.interval, abn, source_id: sourceID, attempt_id: attemptID }) }), 30000);
-    if (trial !== state) return;
-    state.busy = false;
-    const answer = reply.timedOut || reply.error ? null : reply.value;
-    const done = answer?.ok ? answer.body : null;
-    const started = done && typeof done === 'object' ? done.trial : null;
-    if (started && typeof started === 'object' && TRIAL_INTERVALS.includes(started.plan_interval) && Number.isInteger(started.amount_cents)
-      && started.amount_cents > 0 && annualDay(started.first_charge_on) && done.charged_today === false) {
-      trialStarted(state, done, expected);
-      return;
-    }
-    const code = answer?.body?.error || (answer?.status === 401 ? 'unauthorized' : null);
-    if (code === 'unauthorized') { showSignedOut('Your sign-in has expired. Sign in again to start your free months. Nothing was set up.'); return; }
-    if (code === 'already_started' || (answer?.ok && done)) {
-      // Started already, or an answer this page cannot read: the server's record is shown.
-      trialDropCard(state);
-      planNotice = code === 'already_started' ? 'Your free months have already started. This is your plan as it stands now.'
-        : 'The answer could not be read. This is your plan as it stands now.';
-      setStatus(planNotice);
-      void loadDesk(state.supabase);
-      return;
-    }
-    // A refusal is final for this attempt, so the next try is a new intent.
-    if (TRIAL_REFUSALS[code]) state.attemptID = null;
-    if (code === 'abn_invalid') { state.abnRefused = abn; trialProblem(state, TRIAL_REFUSALS.abn_invalid); trialAbnCheck(state, state.refs || {}); state.refs?.abn?.focus(); return; }
-    trialProblem(state, TRIAL_REFUSALS[code] || TRIAL_UNCONFIRMED);
-    control.focus?.();
-  }
-  // Started: the plan panel reads its row again and says, once, what the answer said:
-  // the plan, its price and the first charge day. Nothing was charged.
-  function trialStarted(state, done, expected) {
-    trialDropCard(state);
-    const started = done.trial;
-    const sandbox = done.sandbox === true || state.lane?.sandbox === true ? 'Test · ' : '';
-    const differs = started.plan_interval !== expected.interval || started.amount_cents !== expected.cents || started.first_charge_on !== expected.first_charge_on;
-    planNotice = sandbox + 'Free months started. Nothing was charged today. First charge ' + planMoney(started.amount_cents) +
-      ' on ' + annualDay(started.first_charge_on) + ' and ' + trialBilling(started.amount_cents, started.plan_interval) + ' after that until you cancel; cancel before then and nothing is charged.' +
-      (differs ? ' These are the terms your free months started with; they differ from what was shown before you confirmed.' : '');
-    state.attemptID = null;
-    setStatus(planNotice);
-    void loadDesk(state.supabase);
   }
 
   /* ---- Shared card helpers ------------------------------------------------
-   * Dates, nodes, the Square card lane and its SDK loader, used by the free-months,
+   * Dates, nodes, the Square card lane and its SDK loader, used by the
    * walkthrough-pack and Super fast cards. (The names keep their historical
-   * "annual" prefix.) The website annual card and its server read were removed by
-   * owner decision on 29 September 2026: annual plans are sold only through the
-   * App Store, so this page never reads, shows or starts a website annual plan,
-   * whatever an older server still answers.
+   * "annual" prefix.) The website annual card, website card sign-up and their
+   * server reads were removed by owner decision on 29 September 2026: plans are
+   * sold only through the App Store, so this page never reads, shows or starts a
+   * website plan, whatever an older server still answers.
    */
-  // offer.json plans[0].annualIncluded: the Veylet plan's yearly pool (36 from offer 2026-09-29.2).
-  const ANNUAL_INCLUDED = 36;
   // Card entry is Square's own Web Payments iframe. Its script comes only from
   // Square's CDN, loads only when a card form opens, and only once.
   const ANNUAL_SDK_URLS = ['https://sandbox.web.squarecdn.com/v1/square.js', 'https://web.squarecdn.com/v1/square.js'];
@@ -2922,12 +2596,6 @@
         .formatToParts(new Date())) parts[part.type] = part.value;
     } catch { return new Date().toISOString().slice(0, 10); }
     return parts.year + '-' + parts.month + '-' + parts.day;
-  }
-  function annualFuture(day) { return Boolean(annualDay(day)) && day > annualToday(); }
-  // A super fast render count in an early-annual bonus answer (the free-months card).
-  function annualBonusExpress(bonus) {
-    const count = bonus && bonus.express_renders;
-    return Number.isInteger(count) && count > 0 && count <= ANNUAL_INCLUDED ? count : 0;
   }
   // The lane's public Web Payments identifiers, accepted only in Square's own shapes.
   function annualCardForm(lane) {
@@ -3058,7 +2726,7 @@
     return lane.open ? 'choose' : 'lane-closed';
   }
   function packWords(count) { return count + (count === 1 ? ' walkthrough' : ' walkthroughs'); }
-  // Square Sandbox labels every price and payment action, as the free-months card does.
+  // Square Sandbox labels every price and payment action, as the Super fast card does.
   function packTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
   function packChosen(state) {
     return state.offer.packs.find(pack => pack.code === state.selected) || state.offer.packs[0];
@@ -3760,7 +3428,6 @@
 
   // One card form on the desk at a time: opening one closes the others, quietly.
   function closeCardForms(except) {
-    if (except !== 'trial') trialCloseOther();
     if (except !== 'packs') packsCloseOther();
     if (except !== 'express') expressCloseOther();
   }

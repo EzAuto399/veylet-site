@@ -742,30 +742,20 @@
       credits_available: extraCredits + ((CAPACITY_V8[planCase] || {}).bonus_credits_available || 0), next_expiry: packExpiry };
   };
   const laneCase = params.get('lane') || 'open';
-  /* Start the free months (offer 2026-09-25.2; get_trial_offer and POST
-   * /square/trial/start are proposed names, not yet in the backend). Shown on a
-   * pending plan (`?case=plan-pending`). `?trial=` picks the answer: choose (the
-   * default; the legacy card lane's A$99 a month or A$990 a year, first charge
-   * 1 month from today, Brisbane), used (this agency already had its free months), not-owner (the
-   * default for `case=operator`), error, loading or missing (the function does not
-   * exist yet, so no card). `&trial-start=<error code>|fail` refuses the next start;
-   * `&trial-card=open` types the ATO's example ABN and presses the card button once.
-   * A start saves no card data: the fake Square token is all that is sent, and the
-   * plan row becomes free months ending on the first charge day. */
-  const trialCase = params.get('trial') || (scenario === 'operator' ? 'not-owner' : 'choose');
-  const addMonthsDay = (day, count) => {
-    const [y, m, d] = day.split('-').map(Number);
-    const total = m - 1 + count, year = y + Math.floor(total / 12), month = total % 12 + 1;
-    const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
-    return year + '-' + String(month).padStart(2, '0') + '-' + String(Math.min(d, last)).padStart(2, '0');
-  };
-  let trialStarted = null;
+  /* Free months (get_trial_offer). Website card sign-up is retired (owner decision,
+   * 29 September 2026), so the answer carries eligibility only, never a card plan or
+   * price. Shown on a pending plan (`?case=plan-pending`). `?trial=` picks the answer:
+   * eligible (the default: nothing shows, free months start in the app), used (this
+   * agency already had its free months), not-owner (the default for `case=operator`),
+   * card-pending (an unfinished card sign-up an older server still reports: a neutral
+   * line and a support link), error, loading or missing (the function does not exist
+   * yet, so no card). */
+  const trialCase = params.get('trial') || (scenario === 'operator' ? 'not-owner' : 'eligible');
   const trialOffer = () => {
-    if (trialStarted) return { eligible: false, missing: ['already_started'], plans: [] };
     if (trialCase === 'used') return { eligible: false, missing: ['trial_used'], plans: [] };
     if (trialCase === 'not-owner') return { eligible: false, missing: ['not_owner'], plans: [] };
-    return { eligible: true, missing: [], months: 1, walkthroughs: 3, first_charge_on: addMonthsDay(brisbaneToday, 1),
-      plans: [{ interval: 'monthly', cents: 9900, included: 2 }, { interval: 'annual', cents: 99000, included: 20 }] };
+    if (trialCase === 'card-pending') return { eligible: true, missing: [], plans: [], checkout_pending: { plan_interval: 'monthly', created_at: '2026-09-24T02:10:00Z' } };
+    return { eligible: true, missing: [], plans: [] };
   };
   // Super fast: about 30 minutes, any day, any time.
   const minutesFromNow = minutes => new Date(Date.now() + minutes * 60000).toISOString();
@@ -965,21 +955,6 @@
       }
       return reply(200, { credited: pack.walkthroughs, credits_available: extraCredits, amount_cents: pack.price_cents, sandbox: laneCase === 'sandbox' });
     }
-    if (method === 'POST' && path === '/square/trial/start') {
-      const refusal = params.get('trial-start');
-      if (refusal === 'fail') return reply(500, { error: 'server_error' });
-      const statuses = { unauthorized: 401, not_eligible: 403, trial_used: 409, already_started: 409, abn_invalid: 400, lane_closed: 503, checkout_failed: 502, invalid_request: 400, payment_declined: 402 };
-      if (refusal) return reply(statuses[refusal] || 409, { error: refusal });
-      const offer = trialOffer();
-      if (!body || body.workspace_id !== 'synthetic-workspace' || !['monthly', 'annual'].includes(body.plan_interval)
-        || !/^\d{11}$/.test(body.abn || '') || !/^[A-Za-z0-9:_-]{8,512}$/.test(body.source_id || '')
-        || !/^[0-9a-f-]{36}$/.test(body.attempt_id || '')) return reply(400, { error: 'invalid_request' });
-      if (!offer.eligible) return reply(409, { error: offer.missing[0] === 'trial_used' ? 'trial_used' : offer.missing[0] === 'already_started' ? 'already_started' : 'not_eligible' });
-      // The server fixes the terms: the plan's own price and the first charge day it computes.
-      const plan = offer.plans.find(entry => entry.interval === body.plan_interval);
-      trialStarted = { plan_interval: plan.interval, amount_cents: plan.cents, first_charge_on: offer.first_charge_on, starts_on: brisbaneToday };
-      return reply(200, { trial: { ...trialStarted }, charged_today: false, sandbox: laneCase === 'sandbox' });
-    }
     if (method === 'POST' && path === '/square/express/checkout') {
       const refusal = params.get('express-checkout');
       if (refusal === 'fail') return reply(500, { error: 'server_error' });
@@ -1107,12 +1082,6 @@
       if (name === 'can_produce_tours') return { data: scenario === 'qualified' };
       if (name === 'get_workspace_plan') {
         if (planCase === 'unavailable') return { error: { message: 'Synthetic plan service failure' } };
-        // Free months started on the page: a card plan whose first charge is on the day they end.
-        if (trialStarted) {
-          return { data: [{ ...planBase, source: 'web', status: 'trial', billing_interval: trialStarted.plan_interval, accepted_in_free_months: 0,
-            accepted_total: 0, trial_started_at: trialStarted.starts_on + 'T00:00:00+10:00', trial_ends_at: trialStarted.first_charge_on + 'T00:00:00+10:00',
-            renewal_price_aud_cents: trialStarted.amount_cents, workspace_id: args.p_workspace_id || planBase.workspace_id }] };
-        }
         // `?case=plan-loading`: the plan answer never arrives, so the panel's skeleton stays.
         if (planCase === 'loading') return new Promise(() => {});
         const row = planRows[planCase] || planRows.trial;
@@ -1803,17 +1772,6 @@
         const buy = [...document.querySelectorAll('#account-packs .tour-action-primary')].find(el => /^(?:Test · )?Buy \d+ walkthroughs?$/.test(el.textContent));
         if (buy) buy.click();
         if (buy || ++tries > 40) clearInterval(press);
-      }, 100);
-    }
-    // Review affordance only: `?trial-card=open` types the ATO's example ABN and
-    // presses "Add a card and start free months" once. It never starts anything.
-    if (location.pathname === '/__qa/account/' && params.get('trial-card') === 'open') {
-      let tries = 0;
-      const press = setInterval(() => {
-        const abn = document.getElementById('account-trial-abn');
-        const add = [...document.querySelectorAll('#account-trial .tour-action-primary')].find(el => /Add a card and start free months/.test(el.textContent));
-        if (abn && add) { abn.value = '51 824 753 556'; abn.dispatchEvent(new Event('input', { bubbles: true })); add.click(); }
-        if ((abn && add) || ++tries > 40) clearInterval(press);
       }, 100);
     }
     // Review affordance only: `?express-card=open` presses Super fast for A$29 once.

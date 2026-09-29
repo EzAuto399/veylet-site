@@ -237,22 +237,18 @@
 .plan-allowance { margin: 16px 0 12px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); max-width: 62ch; font-size: 15px; line-height: 1.6; font-variant-numeric: tabular-nums; }
 .plan-actions .text-link { min-height: 44px; white-space: normal; }
 
-/* Walkthrough packs, the annual plan and Refer an office: all part of Your plan,
+/* Free months, walkthrough packs and Refer an office: all part of Your plan,
    each opened by a 1px ink rule like a space on the desk. Hairlines, the desk's
    type sizes and 44px controls; the choice rows are the builder choice rows; the
    one tint is the panel note. The packs card and the referral block are built
    from the same annual-* pieces (title, choice rows, charge statement, alert,
    Square's field); the share link is the desk's own copy field. */
 .trial-offer,
-.annual-offer,
 .packs-offer,
 .referral-offer { margin: 28px 0 0; padding-top: 18px; border-top: 1px solid var(--ink); }
 .trial-offer[hidden],
-.annual-offer[hidden],
 .packs-offer[hidden],
 .referral-offer[hidden] { display: none; }
-/* The early-annual bonus: a count and a date, in ink under the price it adds to. */
-.annual-bonus { margin: 12px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--ink); font-variant-numeric: tabular-nums; }
 /* The share link and its Copy link: one row where there is room, the desk's 44px field. */
 .referral-offer .tour-link-row { margin-top: 14px; }
 .referral-offer .tour-link-row .annual-actions { margin: 0; }
@@ -272,7 +268,6 @@
 .annual-lead { margin: 10px 0 0; max-width: 62ch; font-size: 15px; line-height: 1.55; color: var(--ink); }
 .annual-note { margin: 10px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.55; color: var(--muted); }
 .trial-offer .plan-scope,
-.annual-offer .plan-scope,
 .packs-offer .plan-scope { margin: 10px 0 0; }
 /* What is available now: a count and a date, tabular so a changed balance shifts nothing. */
 .packs-balance { margin: 10px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -347,22 +342,7 @@
 .annual-skeleton-row.annual-option:hover { border-color: var(--line); }
 .annual-skeleton-radio { width: 18px; height: 18px; margin-top: 2px; border: 1px solid var(--line); border-radius: 999px; }
 .annual-skeleton-legend { margin: 0 0 8px; font-size: 11px; }
-:is(.trial-offer, .annual-offer, .packs-offer, .referral-offer) .annual-skeleton-action { display: block; width: min(22ch, 100%); height: 44px; }
-
-/* Starting the free months: the ABN is a field like every other on the site,
-   label above, hint beside it, the error in words under it. */
-.trial-bonus { color: var(--ink); }
-.trial-abn { margin: 16px 0 0; display: grid; gap: 6px; max-width: 34ch; }
-.trial-abn-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.trial-abn-input { font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1px solid var(--field-line); border-radius: 2px; padding: 12px 14px; min-height: 44px; font-variant-numeric: tabular-nums; }
-.trial-abn-input:hover { border-color: var(--ink); }
-.trial-abn-input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
-.trial-abn-input[aria-invalid='true'] { border-color: var(--ink); border-width: 2px; padding: 11px 13px; }
-.trial-abn-hint { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
-.trial-abn-error { margin: 0; font-size: 13px; line-height: 1.5; font-weight: 500; color: var(--ink); }
-.trial-abn-error::before { content: '! '; }
-.trial-abn-error[hidden] { display: none; }
-.plan-notice:focus:not(:focus-visible) { outline: none; }
+:is(.trial-offer, .packs-offer, .referral-offer) .annual-skeleton-action { display: block; width: min(22ch, 100%); height: 44px; }
 
 /* Express render on a space: a hairline block under the space's name, the price
    as a figure, the promise in words, and a quiet action until the card opens. */

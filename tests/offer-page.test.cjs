@@ -149,9 +149,9 @@ test('the free month carries the monthly allowance, the year is twelve monthly a
   assert.ok(record.history.some((entry) => entry.version === '2026-09-29.1' && entry.replacedBy === '2026-09-29.2'), 'the history records 2026-09-29.1 → .2');
   // The per-walkthrough figures the record states are the plan prices over the allowances.
   assert.deepEqual([record.plans[0].monthlyPerWalkthroughAud, record.plans[0].annualPerWalkthroughAud], [perMonthly, perAnnual]);
-  // The account desk and the studio desk carry the same bank and pool as constants.
+  // The account desk carries the bank, and the studio desk the pool, as constants
+  // (the account desk states the yearly pool from the server's capacity answer).
   assert.match(read('account.js'), new RegExp(`const PLAN_MAX_BANKED = ${plan.rollover.maxBanked};`));
-  assert.match(read('account.js'), new RegExp(`const ANNUAL_INCLUDED = ${plan.annualIncluded};`));
   assert.match(read('studio.js'), new RegExp(`const YEARLY_POOL = ${plan.annualIncluded};`));
 });
 
