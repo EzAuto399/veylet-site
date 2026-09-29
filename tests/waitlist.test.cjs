@@ -49,12 +49,15 @@ test('the form asks the plan\'s questions, and only the waitlist answers are req
   assert.deepEqual(fields.filter(f => f.name === 'channels').map(f => (/value="([^"]+)"/.exec(f.attrs) || [])[1]), [...api.CHANNELS]);
   assert.match(markup, /Buyer’s agent/);
   assert.match(markup, /Photographer or freelancer/);
-  assert.match(markup, /iPhone 12 Pro or later/);
-  assert.match(markup, /iPad Pro with LiDAR/);
+  assert.match(markup, /<option value="iphone_pro_lidar">iPhone 12 Pro or newer \(Pro or Pro Max\)</);
+  assert.match(markup, /<option value="ipad_pro_lidar">iPad Pro, 2020 or newer</);
+  assert.match(markup, /<option value="iphone_other">Another iPhone \(standard, Plus or older\)</);
+  // Plain words on the page: no sensor jargon (owner, 29 Sep).
+  assert.doesNotMatch(markup, /LiDAR/);
   assert.match(markup, /Where will you show walkthroughs\?/);
-  // The LiDAR line explains the device question and is read with it.
+  // The device line explains the question and is read with it.
   assert.match(markup, /aria-describedby="waitlist-lidar"/);
-  assert.match(markup, /id="waitlist-lidar"[^>]*>Capture needs the LiDAR scanner/);
+  assert.match(markup, /id="waitlist-lidar"[^>]*>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Standard and Plus iPhones, older models and Android phones can’t capture yet\. Any phone can view a walkthrough\.</);
 });
 
 test('the tips box is unticked, optional and separate from joining, labelled with wording tips-v1; there is a honeypot and a privacy line', () => {
@@ -295,7 +298,7 @@ test('the success state lists what happens next, offers /see and sharing, and na
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
   assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
   assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);
-  assert.match(markup, /id="waitlist-done-device" hidden>Capturing needs an iPhone 12 Pro or later Pro model, or an iPad Pro with LiDAR\. Any phone can view a walkthrough\.</);
+  assert.match(markup, /id="waitlist-done-device" hidden>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Any phone can view a walkthrough\.</);
   const api = load();
   for (const [device, hidden] of [['android', false], ['iphone_other', false], ['not_sure', false], ['iphone_pro_lidar', true], ['ipad_pro_lidar', true]]) {
     const joined = page([{ status: 200, body: { state: 'joined' } }]);
