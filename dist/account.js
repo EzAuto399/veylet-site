@@ -24,6 +24,12 @@
   const signInSubmit = document.getElementById('account-sign-in-submit');
   // Sign in with Apple, above the email form and hidden with it.
   const appleButton = document.getElementById('account-apple');
+  // Apple's JS, loaded only on the sign-in pages (appleWarm, below), and the web Services ID.
+  const APPLE_JS = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+  const APPLE_CLIENT_ID = 'com.veylet.web';
+  let appleBusy = false;
+  let appleSdk = null;
+  let appleWarmed = false;
   const verifySubmit = verifyForm?.querySelector('button[type="submit"]');
   const gateTitle = document.getElementById('account-gate-title');
   const gateBody = document.getElementById('account-gate-body');
@@ -5612,6 +5618,7 @@
       if (signInForm) signInForm.hidden = signInForm.dataset.awaitingCode === 'yes';
       if (verifyForm) verifyForm.hidden = signInForm?.dataset.awaitingCode !== 'yes';
       if (home) home.hidden = true;
+      appleWarm();
       const onReturn = location.pathname.startsWith('/auth/');
       const retry = onReturn ? document.getElementById('auth-retry') : null;
       if (retry) retry.href = authRetryPath();
@@ -5682,34 +5689,88 @@
     setTimeout(() => { if (version === authVersion) void showSession(session); }, 0);
   });
 
-  // Sign in with Apple. Supabase sends the browser to Apple and back to /auth/callback,
-  // built exactly as the email link's return (authCallbackQuery), where the PKCE code is
-  // exchanged the same way (detectSessionInUrl). No trackers: this page loads none.
-  let appleBusy = false;
+  // Sign in with Apple, as the capture app does it: Apple's own JS opens Apple's popup and
+  // hands back an identity token, and Supabase signs in with that token (signInWithIdToken),
+  // so no OAuth secret is involved. Services ID com.veylet.web is grouped under the app's
+  // App ID, so Apple gives the same person the same account as in the app. Once the session
+  // exists, onAuthStateChange runs showSession, exactly as after an email code: ?tour=,
+  // ?join= and the app's edition route the same way. Apple's script loads only here, and
+  // only while the sign-in form is shown (when the browser is idle, or on the first press).
   function appleIdle() {
     appleBusy = false;
     if (!appleButton) return;
     appleButton.disabled = false;
     appleButton.removeAttribute('aria-busy');
   }
+  function appleSdkLoad() {
+    if (window.AppleID?.auth) return Promise.resolve(window.AppleID);
+    if (appleSdk) return appleSdk;
+    appleSdk = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = APPLE_JS;
+      script.async = true;
+      script.onload = () => (window.AppleID?.auth ? resolve(window.AppleID) : reject(new Error('apple sdk')));
+      script.onerror = () => reject(new Error('apple sdk'));
+      document.head.append(script);
+    });
+    // A failed load is tried again on the next press.
+    appleSdk.catch(() => { appleSdk = null; });
+    return appleSdk;
+  }
+  function appleWarm() {
+    if (!appleButton || appleWarmed || location.pathname.startsWith('/auth/')) return;
+    appleWarmed = true;
+    const load = () => { if (!currentUserId) appleSdkLoad().catch(() => { /* the press says so */ }); };
+    try {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(load, { timeout: 3000 });
+      else setTimeout(load, 1500);
+    } catch { /* the first press loads it */ }
+  }
+  // A fresh nonce and state for each press. Apple signs the nonce's SHA-256 (lowercase hex)
+  // into the token; Supabase is given the raw nonce and checks the two match.
+  async function appleNonce() {
+    const random = count => { const bytes = new Uint8Array(count); crypto.getRandomValues(bytes); return bytes; };
+    const base64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const raw = base64url(random(32));
+    const state = base64url(random(16));
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)));
+    return { raw, state, hashed: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('') };
+  }
+  // 'signed-in', 'cancelled' (the person closed Apple's window) or 'unavailable'.
+  async function appleSignIn() {
+    const loaded = await settled(appleSdkLoad(), 15000);
+    const AppleID = loaded.value;
+    if (!AppleID?.auth) return 'unavailable';
+    const { raw, state, hashed } = await appleNonce();
+    AppleID.auth.init({ clientId: APPLE_CLIENT_ID, scope: 'name email', redirectURI: 'https://veylet.com/auth/callback', state, nonce: hashed, usePopup: true });
+    let answer;
+    try {
+      answer = await AppleID.auth.signIn();
+    } catch (error) {
+      return /popup_closed_by_user|user_cancelled_authorize|user_trigger(?:r)?ed_auth_cancel/.test(String(error?.error || '')) ? 'cancelled' : 'unavailable';
+    }
+    const authorization = answer?.authorization;
+    // An answer for another request is refused.
+    if (!authorization?.id_token || authorization.state !== state) return 'unavailable';
+    const result = await settled(supabase.auth.signInWithIdToken({ provider: 'apple', token: authorization.id_token, nonce: raw }));
+    return result.timedOut || result.error || result.value?.error ? 'unavailable' : 'signed-in';
+  }
   appleButton?.addEventListener('click', async () => {
     if (appleBusy || currentUserId || signInForm?.hidden) return;
     appleBusy = true;
     appleButton.disabled = true;
     appleButton.setAttribute('aria-busy', 'true');
+    const before = statusEl?.textContent || '';
     setStatus('Opening Apple sign-in…');
-    authEditionKeep();
-    const result = await settled(
-      supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: { redirectTo: 'https://veylet.com/auth/callback' + authCallbackQuery() },
-      })
-    );
-    const error = result.error || (result.value && result.value.error) || (result.timedOut ? new Error('timeout') : null);
-    // On its way to Apple: the button stays busy until the page goes (or comes back, below).
-    if (!error) return;
+    let outcome;
+    try { outcome = await appleSignIn(); } catch { outcome = 'unavailable'; }
     appleIdle();
-    if (!currentUserId) setStatus(APPLE_UNAVAILABLE);
+    if (currentUserId) return;
+    // Closing Apple's window changes nothing, so the page says what it said before.
+    if (outcome === 'cancelled') setStatus(before);
+    // The session's own event (onAuthStateChange → showSession) routes from here.
+    else if (outcome === 'signed-in') setStatus('Signed in.');
+    else setStatus(APPLE_UNAVAILABLE);
   });
 
   signInForm?.addEventListener('submit', async (event) => {
@@ -5917,8 +5978,6 @@
     if (!deskDirty) { void loadDesk(supabase); return; }
     if (render && render.ticket === deskVersion) { renderStop(); render.failures = 0; void renderRead(); } else renderSay('');
   });
-  // Back from Apple's page with the browser's back button: the Apple button works again.
-  window.addEventListener?.('pageshow', event => { if (event?.persisted) appleIdle(); });
   // Your own records, as a file. Metadata only: no link secrets, storage paths,
   // imagery or scene files. It is a convenience copy, not a backup of a tour.
   exportButton?.addEventListener('click', () => {

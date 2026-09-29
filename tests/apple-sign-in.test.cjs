@@ -1,16 +1,18 @@
 /*
  * Sign in with Apple on the account pages (/account, /app/account): the capture app's
  * first choice, landing in the same Supabase account. The button sits above the email
- * form and hides with it; a click asks Supabase for Apple with the same /auth/callback
- * return the email link uses, so ?tour=, ?join= and the app's edition come back where
- * they began. /auth/callback turns an error in its address into fixed words and a
- * retry link. Synthetic stubs only: nothing here reaches Apple or Supabase.
+ * form and hides with it; a press opens Apple's popup through Apple's JS (Services ID
+ * com.veylet.web) and signs in to Supabase with the identity token and raw nonce, and the
+ * new session routes as after an email code. /auth/callback, still the email link's
+ * return, turns an error in its address into fixed words and a retry link. Synthetic
+ * stubs only: nothing here reaches Apple or Supabase.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const crypto = require('node:crypto');
 
 const DIST = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(DIST, file), 'utf8');
@@ -32,41 +34,64 @@ class Element {
   async fire(name) { return this.events[name]?.({ preventDefault() {} }); }
 }
 
-const tick = () => new Promise(resolve => setImmediate(resolve));
+const tick = async (count = 3) => { for (let i = 0; i < count; i++) await new Promise(resolve => setImmediate(resolve)); };
+const APPLE_JS = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+const sha256hex = value => crypto.createHash('sha256').update(value).digest('hex');
+const SESSION = { user: { id: 'user-1', email: 'person@example.invalid' }, access_token: 'token-1' };
 
-async function load({ page = 'web', pathname, search = '', hash = '', session = null, appMode = page === 'app', oauth, sessionStorage } = {}) {
+// Apple's JS as a stand-in: init is recorded, signIn answers as `answer` says (default: a token
+// for the state it was given).
+function appleStub(answer) {
+  const inits = [];
+  return { inits, AppleID: { auth: {
+    init: config => { inits.push({ ...config }); },
+    signIn: async () => (answer ? answer(inits[inits.length - 1]) : { authorization: { id_token: 'synthetic.id.token', code: 'c', state: inits[inits.length - 1].state } }),
+  } } };
+}
+
+async function load({ page = 'web', pathname, search = '', hash = '', session = null, appMode = page === 'app', apple = appleStub(), idToken, sdk } = {}) {
   const ids = {};
-  for (const match of PAGES[page === 'callback' ? 'callback' : page].matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
+  for (const match of PAGES[page].matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
     ids[match[2]] = new Element(match[1]);
     ids[match[2]].hidden = /\shidden[\s>]/.test(match[0]);
   }
-  const calls = [], redirects = [], windowEvents = {};
+  const calls = [], redirects = [], windowEvents = {}, scripts = [], idle = [];
   const supabase = {
     auth: {
       getSession: async () => ({ data: { session } }),
       onAuthStateChange: callback => { supabase.auth.callback = callback; },
       signInWithOtp: async input => { calls.push(['otp', input]); return {}; },
-      signInWithOAuth: async input => { calls.push(['oauth', input]); return oauth ? oauth(input) : { data: { provider: input.provider, url: 'https://example.invalid/authorize' }, error: null }; },
+      // Supabase announces a new session on its own event, as it does after an email code.
+      signInWithIdToken: async input => {
+        calls.push(['idToken', input]);
+        const answer = idToken ? await idToken(input) : { data: { session: SESSION }, error: null };
+        if (answer?.data?.session) supabase.auth.callback('SIGNED_IN', answer.data.session);
+        return answer;
+      },
       verifyOtp: async () => ({}),
       signOut: async () => ({}),
     },
-    from() { const builder = { select: () => builder, order: () => builder, eq: () => builder, then: (resolve) => resolve({ data: [] }) }; return builder; },
+    from() { const builder = { select: () => builder, order: () => builder, eq: () => builder, single: async () => ({ data: null }), then: (resolve, reject) => Promise.resolve({ data: [] }).then(resolve, reject) }; return builder; },
     async rpc(name) { calls.push([name]); return { error: { code: 'PGRST202', message: 'Could not find the function' } }; },
   };
   const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' }, supabase: { createClient: () => supabase },
     VeyletPlace: { generalLocationProblem: () => '' }, addEventListener: (name, handler) => { windowEvents[name] = handler; } };
-  if (sessionStorage) window.sessionStorage = sessionStorage;
-  const documentStub = { hidden: false, getElementById: id => ids[id], createElement: tag => new Element(tag), addEventListener() {}, querySelector: () => null };
+  if (apple) window.AppleID = apple.AppleID;
+  const documentStub = { hidden: false, getElementById: id => ids[id], createElement: tag => new Element(tag), addEventListener() {}, querySelector: () => null,
+    // Apple's script tag: `sdk` decides the load ('fail' or a stand-in AppleID to install).
+    head: { append: el => { scripts.push(el.src); Promise.resolve().then(() => { if (sdk && sdk !== 'fail') { window.AppleID = sdk.AppleID; el.onload?.(); } else el.onerror?.(); }); } } };
   if (appMode) documentStub.documentElement = { dataset: { appMode: 'true' } };
   const context = { window, document: documentStub, URL, URLSearchParams, Date, Blob: class {}, navigator: {},
+    crypto: crypto.webcrypto, TextEncoder, btoa,
     location: { pathname: pathname || (page === 'app' ? '/app/account' : page === 'callback' ? '/auth/callback' : '/account'), search, hash,
       replace: value => redirects.push(value), assign: value => redirects.push(value) },
-    setTimeout: (fn, ms) => { const timer = setTimeout(fn, ms); timer.unref(); return timer; }, clearTimeout, setInterval: () => 0, clearInterval() {},
+    setTimeout: (fn, ms) => { if (ms === 1500) { idle.push(fn); return 0; } const timer = setTimeout(fn, ms); timer.unref(); return timer; }, clearTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
   await vm.runInNewContext(account, context);
   await tick();
-  return { ids, calls, redirects, windowEvents, status: () => ids['account-status'].textContent,
-    oauth: () => calls.filter(([name]) => name === 'oauth').map(([, input]) => input) };
+  return { ids, calls, redirects, windowEvents, scripts, apple, status: () => ids['account-status'].textContent,
+    idle: () => { for (const fn of idle.splice(0)) fn(); },
+    idTokens: () => calls.filter(([name]) => name === 'idToken').map(([, input]) => input) };
 }
 
 test('each sign-in page puts Sign in with Apple first, above the email form, per Apple’s web button guidelines', () => {
@@ -99,60 +124,118 @@ test('each sign-in page puts Sign in with Apple first, above the email form, per
   for (const page of ['account/index.html', 'app/account/index.html']) assert.match(read(page), /account-guide\.css\?v=/, page + ' loads the button’s style');
 });
 
-test('a click asks Supabase for Apple with exactly the email link’s return, on every page and query', async () => {
-  const store = () => { const data = {}; return { getItem: key => (key in data ? data[key] : null), setItem: (key, value) => { data[key] = String(value); }, removeItem: key => { delete data[key]; }, data }; };
-  for (const [page, search, expected] of [
-    ['web', '', 'https://veylet.com/auth/callback'],
-    ['web', '?tour=' + TOUR, 'https://veylet.com/auth/callback?tour=' + TOUR],
-    ['web', '?join=1', 'https://veylet.com/auth/callback?join=1'],
-    ['web', '?tour=SECRET', 'https://veylet.com/auth/callback'],
-    ['app', '', 'https://veylet.com/auth/callback?app=1'],
-    ['app', '?tour=' + TOUR, 'https://veylet.com/auth/callback?app=1&tour=' + TOUR],
-    ['app', '?join=1', 'https://veylet.com/auth/callback?app=1&join=1'],
-  ]) {
-    const session = store();
-    const h = await load({ page, search, sessionStorage: session });
-    assert.equal(h.ids['account-apple'].hidden, false);
-    await h.ids['account-apple'].fire('click');
-    assert.deepEqual(JSON.parse(JSON.stringify(h.oauth())), [{ provider: 'apple', options: { redirectTo: expected } }], page + search);
-    assert.equal(session.data['veylet-auth-edition'], page === 'app' ? 'app' : undefined, 'the edition is kept as for an email link');
-    // The email path from the same page returns to the same address.
-    const email = await load({ page, search });
-    email.ids['account-sign-in'].values = { email: 'owner@example.invalid', role_intent: 'owner' };
-    await email.ids['account-sign-in'].fire('submit');
-    assert.equal(email.calls.find(([name]) => name === 'otp')[1].options.emailRedirectTo, expected, page + search);
+test('a press opens Apple’s popup for com.veylet.web with a hashed nonce, and gives Supabase the raw nonce and the token', async () => {
+  const h = await load();
+  await h.ids['account-apple'].fire('click'); await tick();
+  assert.equal(h.apple.inits.length, 1);
+  const [init] = h.apple.inits;
+  assert.deepEqual({ ...init, state: undefined, nonce: undefined }, { clientId: 'com.veylet.web', scope: 'name email', redirectURI: 'https://veylet.com/auth/callback', state: undefined, nonce: undefined, usePopup: true });
+  const [sent] = h.idTokens();
+  assert.deepEqual(Object.keys(sent).sort(), ['nonce', 'provider', 'token']);
+  assert.equal(sent.provider, 'apple');
+  assert.equal(sent.token, 'synthetic.id.token');
+  assert.match(sent.nonce, /^[A-Za-z0-9_-]{43}$/, '32 random bytes, base64url');
+  assert.equal(init.nonce, sha256hex(sent.nonce), 'Apple gets the lowercase SHA-256 hex of the raw nonce');
+  assert.match(init.state, /^[A-Za-z0-9_-]{22}$/);
+  // Each press has its own nonce and state.
+  const again = await load();
+  await again.ids['account-apple'].fire('click'); await tick();
+  assert.notEqual(again.idTokens()[0].nonce, sent.nonce);
+  assert.notEqual(again.apple.inits[0].state, init.state);
+});
+
+test('after Apple, the session routes exactly as after an email code: ?join= to the invite, the desk otherwise', async () => {
+  const joined = await load({ search: '?join=1' });
+  await joined.ids['account-apple'].fire('click'); await tick(); await new Promise(resolve => setTimeout(resolve, 5));
+  assert.deepEqual(joined.redirects, ['/join']);
+  for (const [page, search] of [['web', ''], ['web', '?tour=' + TOUR], ['app', '?join=1'], ['app', '?tour=' + TOUR]]) {
+    const h = await load({ page, search });
+    await h.ids['account-apple'].fire('click'); await tick(); await new Promise(resolve => setTimeout(resolve, 5));
+    assert.deepEqual(h.redirects, [], page + search + ': no detour; the desk opens here');
+    assert.equal(h.ids['account-home'].hidden, false, page + search);
+    assert.equal(h.ids['account-sign-in'].hidden, true, page + search);
+    assert.equal(h.ids['account-title'].textContent, 'Your account.');
   }
 });
 
-test('the Apple button is busy until the page leaves, refuses a second press, and comes back from the back button', async () => {
+test('the Apple button is busy while Apple’s window is open and refuses a second press', async () => {
   let answer;
-  const h = await load({ oauth: () => new Promise(resolve => { answer = resolve; }) });
+  const apple = appleStub(config => new Promise(resolve => { answer = () => resolve({ authorization: { id_token: 'synthetic.id.token', state: config.state } }); }));
+  const h = await load({ apple });
   const button = h.ids['account-apple'];
-  const pressed = button.fire('click');
+  const pressed = button.fire('click'); await tick();
   assert.equal(button.disabled, true);
   assert.equal(button.getAttribute('aria-busy'), 'true');
   assert.equal(h.status(), 'Opening Apple sign-in…');
   await button.fire('click');
-  assert.equal(h.oauth().length, 1, 'one request');
-  answer({ data: { provider: 'apple', url: 'https://example.invalid/authorize' }, error: null });
-  await pressed;
-  assert.equal(button.disabled, true, 'still busy while the browser goes to Apple');
-  h.windowEvents.pageshow({ persisted: true });
+  assert.equal(apple.inits.length, 1, 'one popup');
+  answer(); await pressed; await tick();
+  assert.equal(h.idTokens().length, 1);
   assert.equal(button.disabled, false);
   assert.equal(button.getAttribute('aria-busy'), null);
 });
 
-test('an unavailable Apple provider falls back to email in the page’s own status line', async () => {
-  for (const oauth of [() => ({ data: { provider: 'apple', url: null }, error: { message: 'Unsupported provider: provider is not enabled', status: 400 } }),
-    () => { throw new Error('Failed to fetch'); }]) {
-    const h = await load({ oauth });
-    await h.ids['account-apple'].fire('click');
-    assert.equal(h.status(), UNAVAILABLE);
+test('closing Apple’s window is quiet; a state mismatch, a blocked popup, a failed load or a Supabase refusal fall back to email', async () => {
+  for (const error of ['popup_closed_by_user', 'user_cancelled_authorize']) {
+    const h = await load({ apple: appleStub(() => { throw { error }; }) });
+    const before = h.status();
+    await h.ids['account-apple'].fire('click'); await tick();
+    assert.equal(h.status(), before, error + ': the page says what it said before');
     assert.equal(h.ids['account-apple'].disabled, false);
-    assert.equal(h.ids['account-apple'].getAttribute('aria-busy'), null);
-    assert.equal(h.ids['account-sign-in'].hidden, false, 'the email form stays');
-    assert.equal(h.ids['account-sign-in-submit'].disabled, false);
+    assert.equal(h.idTokens().length, 0);
   }
+  const cases = {
+    'state mismatch': { apple: appleStub(() => ({ authorization: { id_token: 'synthetic.id.token', state: 'someone-else' } })) },
+    'no token': { apple: appleStub(config => ({ authorization: { state: config.state } })) },
+    'popup blocked': { apple: appleStub(() => { throw { error: 'popup_blocked_by_browser' }; }) },
+    'script failed': { apple: null, sdk: 'fail' },
+    'script without AppleID': { apple: null, sdk: { AppleID: undefined } },
+    'supabase refused': { idToken: () => ({ data: { session: null }, error: { message: 'Unacceptable audience in id_token: [com.veylet.web]' } }) },
+    'supabase unreachable': { idToken: () => { throw new TypeError('Failed to fetch'); } },
+  };
+  for (const [name, options] of Object.entries(cases)) {
+    const h = await load(options);
+    await h.ids['account-apple'].fire('click'); await tick(5);
+    assert.equal(h.status(), UNAVAILABLE, name);
+    assert.equal(h.ids['account-apple'].disabled, false, name);
+    assert.equal(h.ids['account-sign-in'].hidden, false, name + ': the email form stays');
+    if (/state|token|popup/.test(name)) assert.equal(h.idTokens().length, 0, name + ': nothing reaches Supabase');
+  }
+});
+
+test('Apple’s script loads only on the signed-out sign-in pages, once, when idle or on the first press', async () => {
+  const stub = appleStub();
+  const h = await load({ apple: null, sdk: stub });
+  assert.deepEqual(h.scripts, [], 'nothing before the browser is idle');
+  h.idle(); await tick();
+  assert.deepEqual(h.scripts, [APPLE_JS]);
+  await h.ids['account-apple'].fire('click'); await tick();
+  assert.deepEqual(h.scripts, [APPLE_JS], 'loaded once');
+  assert.equal(stub.inits.length, 1);
+  // Pressed before idle: the press loads it.
+  const early = await load({ apple: null, sdk: appleStub() });
+  await early.ids['account-apple'].fire('click'); await tick(5);
+  assert.deepEqual(early.scripts, [APPLE_JS]);
+  assert.equal(early.idTokens().length, 1);
+  for (const options of [{ session: SESSION }, { page: 'callback' }]) {
+    const quiet = await load({ ...options, apple: null, sdk: appleStub() });
+    quiet.idle(); await tick();
+    assert.deepEqual(quiet.scripts, [], JSON.stringify(options));
+  }
+  for (const page of ['account/index.html', 'app/account/index.html', 'auth/callback/index.html']) assert.doesNotMatch(read(page), /appleid/, page + ': no Apple script in the page itself');
+});
+
+test('the QA fixture stands in for Apple: nothing is loaded from Apple or sent to Apple', async () => {
+  const source = fs.readFileSync(path.join(__dirname, 'account-browser-fixture.js'), 'utf8');
+  assert.doesNotMatch(source, /appleid\.(?:apple|cdn-apple)\.com/);
+  const context = { URLSearchParams, location: { search: '?session=out', pathname: '/__qa/account/' }, navigator: {},
+    localStorage: { getItem: () => null, setItem() {} }, document: { createElement: () => ({}), addEventListener() {} } };
+  context.window = context;
+  vm.runInNewContext(source, context);
+  assert.equal(typeof context.AppleID.auth.init, 'function', 'the page sees AppleID and never adds Apple’s script');
+  await assert.rejects(context.AppleID.auth.signIn(), value => value.error === 'fixture_no_apple');
+  const answer = await context.supabase.createClient().auth.signInWithIdToken({ provider: 'apple', token: 'x', nonce: 'y' });
+  assert.ok(answer.error);
 });
 
 test('the Apple button hides with the email form while a code is awaited and once signed in', async () => {
@@ -160,17 +243,17 @@ test('the Apple button hides with the email form while a code is awaited and onc
   h.ids['account-sign-in'].values = { email: 'owner@example.invalid', role_intent: 'owner' };
   await h.ids['account-sign-in'].fire('submit');
   assert.equal(h.ids['account-sign-in'].hidden, true, 'the button is inside the form, so it hides too');
-  await h.ids['account-apple'].fire('click');
-  assert.equal(h.oauth().length, 0, 'no Apple request while a code is awaited');
-  const signedIn = await load({ session: { user: { id: 'user-1', email: 'person@example.invalid' }, access_token: 'token-1' } });
+  await h.ids['account-apple'].fire('click'); await tick();
+  assert.equal(h.apple.inits.length, 0, 'no Apple popup while a code is awaited');
+  const signedIn = await load({ session: SESSION });
   assert.equal(signedIn.ids['account-sign-in'].hidden, true);
-  await signedIn.ids['account-apple'].fire('click');
-  assert.equal(signedIn.oauth().length, 0);
+  await signedIn.ids['account-apple'].fire('click'); await tick();
+  assert.equal(signedIn.apple.inits.length, 0);
 });
 
-test('/auth/callback completes an Apple return like an email link, and turns an error into fixed words and a retry link', async () => {
-  // The code exchange is supabase-js's own (detectSessionInUrl, PKCE) for both; a session goes back where sign-in began.
-  const session = { user: { id: 'user-1', email: 'person@example.invalid' }, access_token: 'token-1' };
+test('/auth/callback still completes an email link, and turns an error in its address into fixed words and a retry link', async () => {
+  // The code exchange is supabase-js's own (detectSessionInUrl, PKCE); a session goes back where sign-in began.
+  const session = SESSION;
   assert.deepEqual((await load({ page: 'callback', search: '?code=synthetic-code', session })).redirects, ['/account']);
   assert.deepEqual((await load({ page: 'callback', search: '?code=synthetic-code&app=1&tour=' + TOUR, session })).redirects, ['/app/account?tour=' + TOUR]);
   assert.match(PAGES.callback, /<a class="button" href="\/account" id="auth-retry">Sign in again/);

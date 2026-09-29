@@ -1025,6 +1025,12 @@
   const primaryCase = params.get('primary');
   let primaryNow = 'synthetic-workspace';
   window.VEYLET_QA_CALLS = [];
+  // Apple's JS, stood in for so the page never loads Apple's script or opens Apple's
+  // popup: a press is recorded and answered as Apple being unavailable.
+  window.AppleID = { auth: {
+    init: config => { window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.init', args: { clientId: config.clientId, usePopup: config.usePopup } }); },
+    signIn: async () => { window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.signIn' }); throw { error: 'fixture_no_apple' }; },
+  } };
   window.VEYLET_SUPABASE = { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' };
   window.supabase = { createClient: () => ({
     auth: {
@@ -1033,7 +1039,7 @@
       signOut: async () => { callback?.('SIGNED_OUT', null); return {}; },
       signInWithOtp: async () => ({ error: { message: 'No emails are sent from this fixture.' } }),
       // Nothing leaves the fixture for Apple either: the page says Apple is unavailable.
-      signInWithOAuth: async () => ({ data: { provider: 'apple', url: null }, error: { message: 'No sign-in leaves this fixture.' } }),
+      signInWithIdToken: async () => ({ data: { session: null }, error: { message: 'No sign-in leaves this fixture.' } }),
     },
     from(table) {
       const role = scenario === 'operator' || teamCase === 'member-refused' ? 'operator' : teamCase === 'member' || !teamOwnerNow ? 'reviewer' : 'owner';
