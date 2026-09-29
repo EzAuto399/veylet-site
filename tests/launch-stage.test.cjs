@@ -176,7 +176,7 @@ test('home and /start have one main path, the waitlist, and do not send visitors
 });
 
 test('the privacy notices describe weekly admission from the waitlist with a legal-review marker, and no studio test', () => {
-  const sentence = 'New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz.';
+  const sentence = 'New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at support@veylet.com.';
   for (const page of ['privacy/index.html', 'app/privacy/index.html']) {
     const html = read(page);
     assert.ok(html.includes(`<!-- LEGAL REVIEW 2026-09-26: access wording (stage open) -->${sentence}`), page);
@@ -185,12 +185,15 @@ test('the privacy notices describe weekly admission from the waitlist with a leg
   assert.doesNotMatch(read('app/privacy/index.html'), /href="\/waitlist"|A\$/, '/app/privacy names no purchase path or price');
 });
 
-test('the marketing, guide, help and privacy pages name no support@veylet.com address', () => {
+// 29 Sep 2026 (owner): support@veylet.com (Cloudflare Email Routing) is the public address. yoda@yodalai.xyz
+// appears only where FormSubmit delivers, because FormSubmit's activation is tied to it.
+test('the marketing, guide, help and privacy pages show support@veylet.com, and the old inbox only as FormSubmit delivery', () => {
   const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
   const roots = ['guides', 'help', 'app/help', 'privacy', 'app/privacy', 'start', 'request', 'waitlist'].map(dir => path.join(dist, dir));
   const files = [...roots.flatMap(walk), ...['index.html', 'llms.txt', 'enquiry.js'].map(file => path.join(dist, file))];
   for (const file of files.filter(f => /\.(?:html|js|txt)$/.test(f))) {
-    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /support@veylet/i, path.relative(dist, file));
+    const text = fs.readFileSync(file, 'utf8').replace(/formsubmit\.co\/(?:ajax\/)?yoda@yodalai\.xyz|yoda@yodalai\.xyz via FormSubmit|FormSubmit to yoda@yodalai\.xyz|var INBOX = 'yoda@yodalai\.xyz'/g, '');
+    assert.doesNotMatch(text, /yoda@yodalai/i, path.relative(dist, file));
   }
 });
 

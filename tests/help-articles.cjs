@@ -25,7 +25,7 @@ const { createHash } = require('node:crypto');
 const DIST = path.join(__dirname, '../dist');
 const ORIGIN = 'https://veylet.com';
 // The support address every page on the site uses (dist/support, dist/app/support).
-const SUPPORT = 'yoda@yodalai.xyz';
+const SUPPORT = 'support@veylet.com';
 
 // The rule ids the app and the desk know (cloud/quality_gate.py RULES; account.js REVIEW_FLAG_WORDS).
 const RECAPTURE_RULES = ['no_frames', 'no_depth', 'upload_limits', 'phone_budget', 'not_property'];

@@ -173,7 +173,8 @@ test('the fallback address is the one the support page gives', () => {
 
 test('while the database has no waitlist, a sign-up reaches the owner\'s inbox once; if that fails too, the email route', async () => {
   const api = load();
-  assert.equal(api.INBOX_ENDPOINT, 'https://formsubmit.co/ajax/' + api.SUPPORT);
+  assert.equal(api.SUPPORT, 'support@veylet.com');
+  assert.equal(api.INBOX_ENDPOINT, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
   // The database answers "no such function"; FormSubmit accepts: the visitor is on the list.
   const ok = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true', message: 'The form was submitted successfully.' } }]);
   ok.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, consent_tips: 'yes' });
@@ -268,7 +269,7 @@ test('attribution is the stored first touch, else this page\'s own link, else no
 test('the inbox route sends volume, labels, a reply-to and the auto-reply the owner approved', async () => {
   const api = load();
   // Transactional only: no offer, price or plan line.
-  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. If that wasn\'t you, or to leave the list, email yoda@yodalai.xyz. Veylet Studio (Yo-Da Lai)');
+  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. If that wasn\'t you, or to leave the list, email support@veylet.com. Veylet Studio (Yo-Da Lai)');
   assert.doesNotMatch(api.AUTORESPONSE, /free|month|walkthroughs included|\$/);
   const sent = page([{ status: 200, body: { success: 'true' } }], null);
   sent.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });

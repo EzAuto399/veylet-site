@@ -119,7 +119,7 @@ test('/app/terms is the public terms word for word, less the sentences that name
 
 test('/app/support: support contact, help and deletion, all inside the app', () => {
   const html = read('app/support/index.html');
-  assert.match(html, /<a href="mailto:yoda@yodalai\.xyz\?subject=Veylet%20support">yoda@yodalai\.xyz<\/a>/);
+  assert.match(html, /<a href="mailto:support@veylet\.com\?subject=Veylet%20support">support@veylet\.com<\/a>/);
   assert.match(words(html), /Deleting your account In the app under Account, or in your account under "Finishing, exporting or leaving"\. We complete it within 30 days/);
   assert.match(words(html), /Pause sharing keeps the same link: within a minute, the link, embed and QR show "not available" until you resume\./);
   assert.doesNotMatch(words(html), /studio|business day|working day/i, 'no studio and no promised turnaround');

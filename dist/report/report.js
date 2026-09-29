@@ -11,7 +11,7 @@
 (function () {
   'use strict';
 
-  var SUPPORT = 'yoda@yodalai.xyz';
+  var SUPPORT = 'support@veylet.com';
   var REASONS = { privacy: 'Privacy', misleading: 'Not this property, or misleading', offensive: 'Offensive or illegal', other: 'Something else' };
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   var TOKEN = /^[A-Za-z0-9_-]{16,128}$/;

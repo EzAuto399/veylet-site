@@ -684,7 +684,7 @@
   }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
-    return 'mailto:yoda@yodalai.xyz?subject=' + encodeURIComponent(subject + ' · walkthrough ' + reference)
+    return 'mailto:support@veylet.com?subject=' + encodeURIComponent(subject + ' · walkthrough ' + reference)
       + '&body=' + encodeURIComponent(['Walkthrough reference: ' + reference, '', ...lines, '', 'Leave out street addresses and access details.'].join('\n'));
   }
   // `options.label` is "Turn sharing on" (approved, never shared) or "Turn sharing
@@ -1865,7 +1865,7 @@
       const body = ['Walkthrough reference: ' + reference, 'Version: ' + revisionOf(tour), 'Tour reference: ' + String(tour.id).slice(0, 8),
         'Package: ' + snapshot.revision.slice(0, 12), '',
         'What needs correcting:', '', 'Where it happens (captured view number, room or doorway):', '', 'Leave out street addresses and access details.'].join('\n');
-      return 'mailto:yoda@yodalai.xyz?subject=' + encodeURIComponent('Veylet corrections · walkthrough ' + reference) + '&body=' + encodeURIComponent(body);
+      return 'mailto:support@veylet.com?subject=' + encodeURIComponent('Veylet corrections · walkthrough ' + reference) + '&body=' + encodeURIComponent(body);
     };
     corrections.href = correctionsHref();
     corrections.addEventListener('click', () => { corrections.href = correctionsHref(); say('Your mail app opens with the walkthrough’s reference. List everything in one request, so corrections take a single round.'); });
@@ -2372,7 +2372,7 @@
     }
     if (source === 'studio' || source === 'web') {
       const ask = document.createElement('a'); ask.className = 'text-link';
-      ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan';
+      ask.href = 'mailto:support@veylet.com?subject=Veylet%20plan';
       ask.textContent = ['pending', 'ended'].includes(view.status) ? 'Ask Veylet support about a plan' : 'Request a plan change or cancellation';
       actions.append(ask);
       // A plan paid by card is a website plan, not an invoice. During the free months
@@ -2445,7 +2445,7 @@
             (rollover ? ' Unused monthly walkthroughs roll over, up to ' + PLAN_MAX_BANKED + ' banked.' : '')
           : cadence;
       const resolve = document.createElement('a'); resolve.className = 'text-link';
-      resolve.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20capacity';
+      resolve.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity';
       resolve.textContent = 'Resolve walkthrough capacity with Veylet support';
       if (cap.can_accept) {
         // Release with the authoritative one-capture counting migration; old usage is immutable.
@@ -2518,13 +2518,13 @@
     if (kind === 'used') {
       say('annual-lead', 'This agency or workspace has already had its free months.');
       say('annual-note', 'A second free trial is not available. Veylet support can start the plan with you.');
-      const ask = annualNode('a', 'text-link', 'Ask Veylet support about the plan'); ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan';
+      const ask = annualNode('a', 'text-link', 'Ask Veylet support about the plan'); ask.href = 'mailto:support@veylet.com?subject=Veylet%20plan';
       refs.primary = ask; parts.push(annualRow(ask));
       return parts;
     }
     // card-retired: one neutral line and the way to support; nothing to finish or pay.
     say('annual-lead', 'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.');
-    const ask = annualNode('a', 'text-link', 'Ask Veylet support about this sign-up'); ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20card%20sign-up';
+    const ask = annualNode('a', 'text-link', 'Ask Veylet support about this sign-up'); ask.href = 'mailto:support@veylet.com?subject=Veylet%20card%20sign-up';
     refs.primary = ask; parts.push(annualRow(ask));
     return parts;
   }
@@ -2838,7 +2838,7 @@
       parts.push(packList(state));
       say('annual-lead annual-soon', 'Card payment for packs opens soon.');
       const ask = annualNode('a', 'text-link', 'Ask Veylet support to invoice a pack');
-      ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20pack'; refs.primary = ask;
+      ask.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20pack'; refs.primary = ask;
       parts.push(annualRow(ask));
       return parts;
     }
@@ -4645,7 +4645,7 @@
   // Active, when an answer does not say: the desk keeps reading while one of these is on it.
   const RENDER_ACTIVE = ['uploading', 'waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_EXPRESS = ['waiting', 'rendering', 'retrying', 'stale'];
-  const RENDER_SUPPORT_CONTACT = 'mailto:yoda@yodalai.xyz';
+  const RENDER_SUPPORT_CONTACT = 'mailto:support@veylet.com';
   const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.

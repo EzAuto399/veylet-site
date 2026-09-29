@@ -807,7 +807,7 @@ test('the pending plan panel states conditional introductory terms in the shared
   assert.deepEqual(planTerms(h), FREE_TERMS);
   assert.deepEqual(planValues(h), ['Not started', '0 of 6', 'Not started', HOSTING_INCLUDED, '—', 'Studio invoice']);
   // An invoiced account cannot start itself, so it is given the studio.
-  assert.deepEqual(planLinks(h), ['/offer', 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
   const four = await withPlan({ status: 'pending', trial_months: 4, trial_included_walkthroughs: 2,
     trial_started_at: null, trial_ends_at: null });
   assert.match(planText(four), /Eligible subscribers can start with 4 free months and 2 walkthroughs in total\./);
@@ -869,7 +869,7 @@ test('the plan panel counts the six free walkthroughs and states the renewal whi
   assert.deepEqual(planValues(h), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.equal(planTitle(h), 'Free until ' + until);
   assert.equal(planTitle(h).split(until).length - 1, 1, 'the lead line states the date once');
-  assert.deepEqual(planLinks(h), ['/offer', 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
 });
 
 test('an App Store account is shown the App Store price, and where to cancel it', async () => {
@@ -904,7 +904,7 @@ test('the plan panel states the plan and its price once it is active', async () 
   assert.deepEqual(planValues(h), ['Active', '1 of 2 accepted', longDate(renews), HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
   assert.equal(planText(h).split('Veylet plan · A$99 a month').length - 1, 1, 'the price is stated once');
-  assert.deepEqual(planLinks(h), ['/offer', 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
   // An active plan with no period end cannot say when it renews.
   const noPeriod = await withPlan({ status: 'active', current_period_ends_at: null });
   assert.equal(planTitle(noPeriod), 'Plan status unavailable');
@@ -945,7 +945,7 @@ test('the panel separates free months that lapsed from a plan that ended', async
   assert.equal(planTitle(h), 'Free months ended ' + longDate(lapsed));
   assert.deepEqual(planValues(h), ['Ended', '3 of 6', '—', 'Offline 14 days after the plan ends', '—', 'Studio invoice']);
   assert.match(planText(h), /Your released walkthroughs stay online for 14 days after the plan ends, then go offline\. Restarting the plan brings the same links back at once; a second free trial is not guaranteed\./);
-  assert.deepEqual(planLinks(h), ['/offer', 'mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
   const restart = h.ids['account-plan-body'].all().find(el => el.tagName === 'A' && el.textContent === 'Restart your plan');
   assert.equal(restart.className, 'button', 'the one fix is filled');
   assert.doesNotMatch(planText(h), /12 months|twelve months|A\$49|Guaranteed/);
@@ -1337,7 +1337,7 @@ test('the terms state the subscription the App Store listing points at', () => {
     'guarantees that cannot be excluded under the Australian Consumer Law',
     'If GST applies it is included in the price shown',
     'governed by the law of Queensland, Australia',
-    'yoda@yodalai.xyz',
+    'support@veylet.com',
   ]) assert.ok(flat.includes(phrase), `the terms say: ${phrase}`);
   // Nothing the product cannot keep, and no card on this website.
   assert.doesNotMatch(terms, /autocomplete="cc-|card number|cardholder|cvc/i);
@@ -1684,7 +1684,7 @@ test('each hosting situation reads its own line on the card', async () => {
     assert.deepEqual(fix.children.map(el => [el.textContent, el.className]), [['Restart your plan', 'tour-action tour-action-primary'],
       ['Keep this walkthrough online (A$49 a year)', 'text-link tour-extension-request']]);
     const mail = decodeURIComponent(fix.children[1].href);
-    assert.ok(mail.startsWith('mailto:yoda@yodalai.xyz?subject=Veylet hosting extension · walkthrough t1'), mail);
+    assert.ok(mail.startsWith('mailto:support@veylet.com?subject=Veylet hosting extension · walkthrough t1'), mail);
     assert.match(mail, /Tour ID: t1\n/);
     const chip = h.all().find(el => el.dataset?.chip === 'state');
     assert.deepEqual([chip.textContent, chip.className], {
@@ -2186,7 +2186,7 @@ test('card lane closed: the packs as statements, “opens soon” and the studio
   assert.match(packText(h), /Card payment for packs opens soon\./);
   assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['A$169', 'A$499']);
   assert.deepEqual(packNodes(h).filter(el => el.tagName === 'A').map(link => [link.textContent, link.href]),
-    [['Ask Veylet support to invoice a pack', 'mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20pack']]);
+    [['Ask Veylet support to invoice a pack', 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20pack']]);
   assert.equal(packNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
   assert.equal(packFilled(h).length, 0);
 });
@@ -2337,7 +2337,7 @@ test('what is left follows the sentence, then how the plan is managed, then its 
   // Used up: the pack is the next step, so the panel names it and the studio link returns.
   const used = await withCapacity({ ...capacityRow, included_used: 6, included_remaining: 0, can_accept: false, reason_code: 'allowance_exhausted' }, { accepted_in_free_months: 6 });
   assert.match(capacityText(used), /a walkthrough pack adds more/);
-  assert.ok(planLinks(used).includes('mailto:yoda@yodalai.xyz?subject=Veylet%20walkthrough%20capacity'));
+  assert.ok(planLinks(used).includes('mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity'));
 });
 
 test('existing checkout recovery: Sandbox reads “Test ·” on the plan and on the packs card, said once under each heading', async () => {
@@ -2491,7 +2491,7 @@ test('the corrections email names the walkthrough and version, so the studio rec
   const link = h.all().find(el => el.textContent === 'Request corrections by email');
   await link.fire('click');
   const [head, query] = link.href.split('?');
-  assert.equal(head, 'mailto:yoda@yodalai.xyz');
+  assert.equal(head, 'mailto:support@veylet.com');
   const params = new URLSearchParams(query.replace(/\+/g, '%2B'));
   assert.equal(params.get('subject'), 'Veylet corrections · walkthrough 1a2b3c4d');
   assert.match(params.get('body'), /^Walkthrough reference: 1a2b3c4d\nVersion: 2\nTour reference: 5e6f7a8b\n/);
@@ -2892,7 +2892,7 @@ test('a pending card sign-up answer never renders an amount or a start or resume
       assert.equal(trialCard(h).hidden, false, label);
       assert.equal(trialClass(h, 'annual-lead').textContent,
         'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.', label);
-      assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20card%20sign-up'], label);
+      assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:support@veylet.com?subject=Veylet%20card%20sign-up'], label);
       assert.equal(trialNodes(h).some(el => /annual-amount|annual-card|annual-choice/.test(el.className || '')), false, label);
       assert.equal(h.scripts.length, 0, label + ': Square’s SDK is not loaded');
       assert.equal(h.requests.some(request => request.method === 'POST' || /\/square\/trial\//.test(request.path)), false, label + ': nothing is started');
@@ -2909,7 +2909,7 @@ test('free months: not the owner, a used trial, an error and a missing function 
   assert.deepEqual(trialControls(owner), []);
   const used = await withTrial(trialLocked(['trial_used']));
   assert.match(trialText(used), /This agency or workspace has already had its free months\.[\s\S]*A second free trial is not available/);
-  assert.deepEqual(trialNodes(used).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:yoda@yodalai.xyz?subject=Veylet%20plan']);
+  assert.deepEqual(trialNodes(used).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:support@veylet.com?subject=Veylet%20plan']);
   assert.deepEqual(trialControls(used), []);
   for (const answer of [null, trialLocked([]), { eligible: true, missing: ['not_owner'] }, trialLocked(['something_else']), { eligible: 'yes', missing: [] }]) {
     const broken = await withTrial(answer);
@@ -3188,7 +3188,7 @@ test('an older trial_limit hold stays waiting and ignores its retired cap, date,
   assert.equal(h.block().all().find(el => /\bpill\b/.test(el.className || '')).textContent, 'Automatic');
   assert.equal(h.control('render-check-again').textContent, 'Check again');
   assert.equal(h.control('contact').textContent, 'Contact Veylet support');
-  assert.match(h.control('contact').href, /^mailto:yoda@yodalai\.xyz\?/);
+  assert.match(h.control('contact').href, /^mailto:support@veylet\.com\?/);
   assert.equal(h.control('start-plan-today'), undefined);
   assert.equal(h.calls.some(call => ['get_start_plan_now', 'start_plan_now'].includes(call[0])), false);
   assert.equal(h.requests.some(request => request.path === '/square/trial/start-now'), false);

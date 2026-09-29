@@ -21,9 +21,11 @@
 (function () {
   'use strict';
 
-  var SUPPORT = 'yoda@yodalai.xyz';
+  var SUPPORT = 'support@veylet.com';
+  // FormSubmit's activation (23 Sep) is tied to this delivery address; support@veylet.com forwards to it.
+  var INBOX = 'yoda@yodalai.xyz';
   // Used only while the database has no join_waitlist (see above); the same inbox the /request form uses.
-  var INBOX_ENDPOINT = 'https://formsubmit.co/ajax/' + SUPPORT;
+  var INBOX_ENDPOINT = 'https://formsubmit.co/ajax/' + INBOX;
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
   var CHANNELS = ['own_website', 'realestate_com_au', 'domain', 'social', 'client_deliverables', 'other'];
