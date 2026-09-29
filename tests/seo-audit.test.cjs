@@ -53,3 +53,11 @@ test('the home cost answer links the cost guide, in the visible answer and its s
   assert.equal(text(visibleHtml), structured);
   assert.ok(locs.includes('https://veylet.com/guides/3d-tour-cost-australia'));
 });
+
+test('llms.txt is Markdown with an H1 and links every guide and help page as [name](url)', () => {
+  const llms = read('llms.txt');
+  assert.match(llms, /^# Veylet$/m);
+  const linked = new Set([...llms.matchAll(/\]\((https:\/\/veylet\.com\/[^)\s]*)\)/g)].map((m) => m[1]));
+  const wanted = locs.filter((loc) => /\/(guides|help)(\/|$)/.test(loc)).concat(['https://veylet.com/offer', 'https://veylet.com/waitlist', 'https://veylet.com/start']);
+  for (const loc of wanted) assert.ok(linked.has(loc), `llms.txt links ${loc}`);
+});
