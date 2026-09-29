@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
     <link rel="stylesheet" href="/style.css?v=3412b25235ba11a4" />
-    <link rel="stylesheet" href="/account-guide.css?v=338644f12cdf4b11" />
+    <link rel="stylesheet" href="/account-guide.css?v=cbca5f950e45130c" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
@@ -21,7 +21,7 @@
     <script src="/tour-sharing.js?v=be796c17f4972ab7" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <script src="/account.js?v=ea17c95438c1fc4f" defer></script>
+    <script src="/account.js?v=84de2803a1de9ce4" defer></script>
     <script src="/stage.js?v=bdc521b740f4b892" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -60,6 +60,7 @@
           <p class="apple-note">One tap, no password. New to Veylet? This creates your account.</p>
         </div>
         <p class="sign-in-or">or use email</p>
+        <p class="sign-in-link-hint">Signed up with email before? Sign in with email, then link your Apple ID in your account.</p>
         <label>
           Email
           <input name="email" type="email" inputmode="email" required maxlength="200" autocomplete="email" autocapitalize="off" spellcheck="false" />
@@ -217,6 +218,13 @@
                 Copy account id
               </button>
             </p>
+            </details>
+            <!-- Sign-in methods: the account's email and whether an Apple ID is linked (the user's
+                 identities, dist/account.js). Linking an Apple ID lets Sign in with Apple open this
+                 same account. Hidden until the identities are read, and when they cannot be. -->
+            <details class="account-details" id="account-methods" hidden><summary>Sign-in methods</summary>
+              <ul class="sign-in-methods" id="account-methods-list"></ul>
+              <p class="contact-note" id="account-methods-status" role="status" aria-live="polite"></p>
             </details>
             <!-- Email preferences: the recorded choice and the exact current wording, read from
                  get_email_preferences. Hidden until that answer arrives, and while the backend

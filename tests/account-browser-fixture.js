@@ -1026,11 +1026,24 @@
   let primaryNow = 'synthetic-workspace';
   window.VEYLET_QA_CALLS = [];
   // Apple's JS, stood in for so the page never loads Apple's script or opens Apple's
-  // popup: a press is recorded and answered as Apple being unavailable.
+  // popup: a press is recorded and answered as Apple being unavailable, or with `?apple=token`
+  // a synthetic identity token for the state it was given (`?apple=cancel`: the window closed).
+  const appleCase = params.get('apple');
+  let appleState = null;
   window.AppleID = { auth: {
-    init: config => { window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.init', args: { clientId: config.clientId, usePopup: config.usePopup } }); },
-    signIn: async () => { window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.signIn' }); throw { error: 'fixture_no_apple' }; },
+    init: config => { appleState = config.state; window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.init', args: { clientId: config.clientId, usePopup: config.usePopup } }); },
+    signIn: async () => {
+      window.VEYLET_QA_CALLS.push({ name: 'AppleID.auth.signIn' });
+      if (appleCase === 'token') return { authorization: { id_token: 'synthetic.apple.token', code: 'synthetic', state: appleState } };
+      throw { error: appleCase === 'cancel' ? 'popup_closed_by_user' : 'fixture_no_apple' };
+    },
   } };
+  // Sign-in methods (`?identities=email` by default, `apple` for email and Apple, `missing` for
+  // an unreadable answer) and linking an Apple ID (`?link=ok|taken|disabled|fail`, default ok).
+  const identitiesCase = params.get('identities') || 'email';
+  let appleLinked = identitiesCase === 'apple';
+  const identities = () => [{ provider: 'email', identity_data: { email: 'review@example.invalid' } }]
+    .concat(appleLinked ? [{ provider: 'apple', identity_data: { email: 'relay@privaterelay.appleid.com' } }] : []);
   window.VEYLET_SUPABASE = { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' };
   window.supabase = { createClient: () => ({
     auth: {
@@ -1040,6 +1053,16 @@
       signInWithOtp: async () => ({ error: { message: 'No emails are sent from this fixture.' } }),
       // Nothing leaves the fixture for Apple either: the page says Apple is unavailable.
       signInWithIdToken: async () => ({ data: { session: null }, error: { message: 'No sign-in leaves this fixture.' } }),
+      getUserIdentities: async () => identitiesCase === 'missing' ? { data: null, error: { message: 'offline' } } : { data: { identities: identities() }, error: null },
+      linkIdentity: async args => {
+        window.VEYLET_QA_CALLS.push({ name: 'linkIdentity', args: { provider: args.provider, nonce: typeof args.nonce } });
+        const linkCase = params.get('link') || 'ok';
+        if (linkCase === 'taken') return { data: { user: null, session: null }, error: { code: 'identity_already_exists', message: 'Identity is already linked to another user', status: 422 } };
+        if (linkCase === 'disabled') return { data: { user: null, session: null }, error: { code: 'manual_linking_disabled', message: 'Manual linking is disabled', status: 404 } };
+        if (linkCase === 'fail') return { data: { user: null, session: null }, error: { message: 'Something else', status: 500 } };
+        appleLinked = true;
+        return { data: { user: { id: 'synthetic-user', identities: identities() }, session: null }, error: null };
+      },
     },
     from(table) {
       const role = scenario === 'operator' || teamCase === 'member-refused' ? 'operator' : teamCase === 'member' || !teamOwnerNow ? 'reviewer' : 'owner';

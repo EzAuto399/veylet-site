@@ -580,3 +580,11 @@
 .sign-in-or { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .sign-in-or::before,
 .sign-in-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.sign-in-link-hint { margin: -6px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* Sign-in methods on the signed-in desk: one row each for email and Apple. */
+.sign-in-methods { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.sign-in-methods li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 44px; font-size: 14px; }
+.sign-in-method-name { min-width: 56px; color: var(--muted); }
+.sign-in-method-value { min-width: 0; overflow-wrap: anywhere; }
+#account-methods-status:empty { display: none; }

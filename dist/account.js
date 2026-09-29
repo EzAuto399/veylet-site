@@ -24,6 +24,12 @@
   const signInSubmit = document.getElementById('account-sign-in-submit');
   // Sign in with Apple, above the email form and hidden with it.
   const appleButton = document.getElementById('account-apple');
+  // Signed in: the account's sign-in methods (email, Apple), and linking an Apple ID.
+  const methodsPanel = document.getElementById('account-methods');
+  const methodsList = document.getElementById('account-methods-list');
+  const methodsStatus = document.getElementById('account-methods-status');
+  let methodsVersion = 0;
+  let linkingApple = false;
   // Apple's JS, loaded only on the sign-in pages (appleWarm, below), and the web Services ID.
   const APPLE_JS = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
   const APPLE_CLIENT_ID = 'com.veylet.web';
@@ -381,6 +387,7 @@
     clientsHide();
     teamHide();
     emailHide();
+    methodsHide();
     if (updatedEl) updatedEl.textContent = '';
     resetSignInAttempt();
     sessionHeading(false);
@@ -5612,6 +5619,7 @@
       currentUserId = null;
       currentUserEmail = ''; currentUserConfirmedAt = null;
       emailHide();
+      methodsHide();
       signupTipsOffer(supabase);
       focusedTourForUser = null;
       deskVersion += 1; deskShownAt = 0;
@@ -5632,7 +5640,7 @@
     }
     sessionHeading(true);
     // Another account's desk is never kept on the page while this one's is read.
-    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); }
+    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); methodsHide(); }
     currentUserId = session.user.id;
     currentUserEmail = session.user.email || '';
     currentUserConfirmedAt = session.user.email_confirmed_at || session.user.confirmed_at || session.user.created_at || null;
@@ -5651,6 +5659,7 @@
         'Save a space and arrange a practice capture. Client work needs device and practice assessment.';
     }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
+    void methodsLoad(session);
     setStatus('Signed in. Loading your spaces…');
     // A landed email link returns to the edition it began in (the app's pages, or the desk).
     if (location.pathname.startsWith('/auth/')) { location.replace(authReturnPath()); return; }
@@ -5736,23 +5745,31 @@
     const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw)));
     return { raw, state, hashed: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('') };
   }
-  // 'signed-in', 'cancelled' (the person closed Apple's window) or 'unavailable'.
-  async function appleSignIn() {
+  // Apple's popup, for signing in and for linking alike: { token, nonce } (the identity token
+  // and the raw nonce whose hash Apple signed into it), or { outcome: 'cancelled' } when the
+  // person closed Apple's window, or { outcome: 'unavailable' }.
+  async function appleToken() {
     const loaded = await settled(appleSdkLoad(), 15000);
     const AppleID = loaded.value;
-    if (!AppleID?.auth) return 'unavailable';
+    if (!AppleID?.auth) return { outcome: 'unavailable' };
     const { raw, state, hashed } = await appleNonce();
     AppleID.auth.init({ clientId: APPLE_CLIENT_ID, scope: 'name email', redirectURI: 'https://veylet.com/auth/callback', state, nonce: hashed, usePopup: true });
     let answer;
     try {
       answer = await AppleID.auth.signIn();
     } catch (error) {
-      return /popup_closed_by_user|user_cancelled_authorize|user_trigger(?:r)?ed_auth_cancel/.test(String(error?.error || '')) ? 'cancelled' : 'unavailable';
+      return { outcome: /popup_closed_by_user|user_cancelled_authorize|user_trigger(?:r)?ed_auth_cancel/.test(String(error?.error || '')) ? 'cancelled' : 'unavailable' };
     }
     const authorization = answer?.authorization;
     // An answer for another request is refused.
-    if (!authorization?.id_token || authorization.state !== state) return 'unavailable';
-    const result = await settled(supabase.auth.signInWithIdToken({ provider: 'apple', token: authorization.id_token, nonce: raw }));
+    if (!authorization?.id_token || authorization.state !== state) return { outcome: 'unavailable' };
+    return { token: authorization.id_token, nonce: raw };
+  }
+  // 'signed-in', 'cancelled' (the person closed Apple's window) or 'unavailable'.
+  async function appleSignIn() {
+    const apple = await appleToken();
+    if (!apple.token) return apple.outcome;
+    const result = await settled(supabase.auth.signInWithIdToken({ provider: 'apple', token: apple.token, nonce: apple.nonce }));
     return result.timedOut || result.error || result.value?.error ? 'unavailable' : 'signed-in';
   }
   appleButton?.addEventListener('click', async () => {
@@ -5772,6 +5789,102 @@
     else if (outcome === 'signed-in') setStatus('Signed in.');
     else setStatus(APPLE_UNAVAILABLE);
   });
+
+  // Sign-in methods on the signed-in desk: the email address and whether an Apple ID is
+  // linked (the user's identities). Linking an Apple ID to this account (Supabase manual
+  // linking, with Apple's identity token) makes a later Sign in with Apple open this same
+  // account. The block stays away when the identities cannot be read.
+  function methodsSay(text) { if (methodsStatus) methodsStatus.textContent = text; }
+  function methodsHide() {
+    methodsVersion += 1;
+    linkingApple = false;
+    if (methodsPanel) methodsPanel.hidden = true;
+    methodsList?.replaceChildren();
+    methodsSay('');
+  }
+  function methodsDraw(identities, user) {
+    if (!methodsPanel || !methodsList || !Array.isArray(identities)) { if (methodsPanel) methodsPanel.hidden = true; return; }
+    const rows = [];
+    const row = (name, value) => {
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      label.className = 'sign-in-method-name';
+      label.textContent = name;
+      item.append(label, value);
+      rows.push(item);
+    };
+    const email = identities.find(identity => identity?.provider === 'email');
+    if (email) {
+      const address = document.createElement('span');
+      address.className = 'sign-in-method-value';
+      address.textContent = email.identity_data?.email || email.email || user?.email || '';
+      row('Email', address);
+    }
+    if (identities.some(identity => identity?.provider === 'apple')) {
+      row('Apple', pill('Linked', 'good'));
+    } else {
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'tour-action';
+      link.id = 'account-link-apple';
+      link.textContent = 'Link Apple ID';
+      link.addEventListener('click', () => { void linkApple(link); });
+      row('Apple', link);
+    }
+    methodsList.replaceChildren(...rows);
+    methodsPanel.hidden = false;
+  }
+  async function methodsLoad(session) {
+    const ticket = ++methodsVersion;
+    const userId = session?.user?.id;
+    let identities = null;
+    if (typeof supabase.auth.getUserIdentities === 'function') {
+      const result = await settled(supabase.auth.getUserIdentities());
+      if (ticket !== methodsVersion || currentUserId !== userId) return;
+      identities = result.value?.data?.identities || null;
+    }
+    if (!Array.isArray(identities) && Array.isArray(session?.user?.identities)) identities = session.user.identities;
+    if (ticket !== methodsVersion || currentUserId !== userId) return;
+    methodsDraw(identities, session?.user);
+  }
+  // Supabase's answer to a link, in fixed words: its own text is never shown.
+  function linkProblem(error) {
+    const said = [error?.code, error?.error_code, error?.message, error?.msg].map(value => String(value || '')).join(' ').toLowerCase();
+    if (/identity_already_exists|already linked|already exists/.test(said)) return 'This Apple ID already has its own Veylet account. Sign out, then use Sign in with Apple to open it.';
+    if (/manual_linking_disabled|manual linking is disabled/.test(said)) return 'Linking isn’t available right now.';
+    return 'Your Apple ID wasn’t linked. Try again later.';
+  }
+  async function linkApple(button) {
+    if (linkingApple || !currentUserId) return;
+    linkingApple = true;
+    const userId = currentUserId;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    methodsSay('Opening Apple…');
+    let outcome = 'unavailable', result = null;
+    try {
+      const apple = await appleToken();
+      if (apple.token) {
+        result = await settled(supabase.auth.linkIdentity({ provider: 'apple', token: apple.token, nonce: apple.nonce }));
+        outcome = result.timedOut || result.error || result.value?.error ? 'refused' : 'linked';
+      } else outcome = apple.outcome;
+    } catch { outcome = 'unavailable'; }
+    // A session refresh can redraw the block meanwhile; only another account drops the answer.
+    linkingApple = false;
+    if (currentUserId !== userId) return;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    // Closing Apple's window changes nothing.
+    if (outcome === 'cancelled') { methodsSay(''); return; }
+    if (outcome !== 'linked') {
+      methodsSay(outcome === 'refused' ? linkProblem(result.error || result.value?.error) : 'Your Apple ID wasn’t linked. Try again later.');
+      return;
+    }
+    methodsSay('Apple ID linked. Next time you can sign in with Apple.');
+    const user = result.value?.data?.user;
+    if (Array.isArray(user?.identities)) methodsDraw(user.identities, user);
+    else await methodsLoad({ user: { id: userId } });
+  }
 
   signInForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
