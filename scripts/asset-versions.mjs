@@ -17,6 +17,8 @@ function localAsset(raw, source) {
   if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(raw)) return null;
   const url = new URL(raw.replaceAll('&amp;', '&'), `${origin}/${source}`);
   if (!/\.(?:js|css)$/.test(url.pathname)) return null;
+  // Vercel serves /_vercel/* itself (dist/insights.js loads its counter from there): not a dist file, never versioned.
+  if (url.pathname.startsWith('/_vercel/')) return null;
   return url;
 }
 

@@ -609,6 +609,8 @@ function head({ title, description, canonical, edition, jsonLd, extra = '', card
   lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/studio-avatar.png">', stylesheets());
   if (extra) lines.push(extra);
   if (jsonLd) lines.push('<script type="application/ld+json">\n' + JSON.stringify(jsonLd, null, 2) + '\n</script>');
+  // Cookieless page counts on the public edition only (dist/insights.js); never in the app edition.
+  if (edition === 'public') lines.push(`<script src="/insights.js?v=${assetHash(fs.readFileSync(path.join(DIST, 'insights.js')))}" defer></script>`);
   lines.push('</head>');
   return lines.join('\n');
 }
