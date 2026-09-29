@@ -1379,7 +1379,9 @@ test('the privacy notice says what is collected and what is never sold', () => {
     'never your card number',
     'counts of use: walkthroughs sent, accepted, handoffs created and revoked',
     'We never sell, rent or trade personal information',
-    'no advertising cookies and no third-party trackers',
+    'Google Analytics 4 loads only after you allow Analytics in Privacy choices.',
+    'Advertising tracking, including Meta Pixel, is off.',
+    'Our site does not send custom click, form, waitlist or purchase events.',
   ]) assert.ok(flat.includes(phrase), `the privacy notice says: ${phrase}`);
 });
 

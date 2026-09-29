@@ -1,11 +1,12 @@
 /*
  * /waitlist: one form, one call. The answers go to rpc/join_waitlist (the product repository's
  * supabase/drafts/release-2/20260926102000_waitlist.sql, not yet released) with the public key and
- * nothing else: no third-party script, no cookie, no analytics. A backend without the function
+ * the form answers only: no third-party script, no cookie. Optional website measurement is separate and
+ * consent-controlled; it receives fixed outcome codes from the join_waitlist response only. A backend without the function
  * (PostgREST PGRST202 / 404), or a page without its configuration, sends the same answers once to the
  * owner's inbox through FormSubmit's JSON endpoint instead (owner decision, 29 September 2026, until the
  * release-2 waitlist is applied): no script, cookie or frame is loaded for it, and a sign-up that cannot
- * be delivered either way still gets the email route.
+ * be delivered either way still gets the email route. The inbox route is not a measured conversion.
  * The server answers joined (new or already listed: the same words, so the page never says whether
  * an address was on the list), busy (its hourly limit), or invalid. The "tips and offers" box is a
  * separate, unticked choice (Spam Act): joining never depends on it. Its label is the consent wording
@@ -154,17 +155,37 @@
     return state;
   }
 
+  // Only fixed outcomes from this submission may leave the form. No answers or raw errors.
+  function measureResult(win, state) {
+    var errorCodes = { busy: 'busy', invalid: 'validation', missing: 'unavailable', error: 'network' };
+    var name = state === 'joined' ? 'waitlist_submission_accepted' : 'form_error';
+    var props = { form_id: 'waitlist' };
+    if (state !== 'joined') {
+      if (!Object.prototype.hasOwnProperty.call(errorCodes, state)) return;
+      props.error_code = errorCodes[state];
+    }
+    try {
+      if (win.VeyletAnalytics && typeof win.VeyletAnalytics.track === 'function') {
+        win.VeyletAnalytics.track(name, props);
+      }
+    } catch (blocked) { /* optional measurement never interrupts joining or recovery */ }
+  }
+
   async function send(win, form) {
     var doc = win.document;
     var data = new win.FormData(form);
     // A filled honeypot is a form-filling robot: it sees the same success and nothing is sent.
     if (String(data.get('_honey') || '').trim()) return show(doc, 'joined');
     var answers = answersFrom(data);
-    if (problem(answers)) return show(doc, 'invalid');
+    if (problem(answers)) { measureResult(win, 'invalid'); return show(doc, 'invalid'); }
     var config = win.VEYLET_SUPABASE;
     show(doc, 'sending');
-    var state = config && config.url && config.anonKey ? await join(win.fetch.bind(win), config, answers) : 'missing';
-    if (state === 'missing') state = await joinByInbox(win.fetch.bind(win), answers);
+    var rpc = config && config.url && config.anonKey ? await join(win.fetch.bind(win), config, answers) : null;
+    var state = rpc === null || rpc === 'missing' ? await joinByInbox(win.fetch.bind(win), answers) : rpc;
+    // Only the join_waitlist response is a receipt. The honeypot, DOM success and the FormSubmit inbox
+    // route are not; an unavailable RPC is reported only when the inbox route could not take it either.
+    // The measurement module enforces consent.
+    if (rpc !== null && (rpc !== 'missing' || state === 'missing')) measureResult(win, state);
     return show(doc, state);
   }
 
@@ -182,7 +203,7 @@
       event.preventDefault();
       if (busy) return;
       var where = place && place.briefLocationProblem && region ? place.briefLocationProblem(region.value) : '';
-      if (where) { status.textContent = where; if (region.focus) region.focus(); return; }
+      if (where) { measureResult(win, 'invalid'); status.textContent = where; if (region.focus) region.focus(); return; }
       busy = true;
       try { await send(win, form); } finally { busy = false; }
     });

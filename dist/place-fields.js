@@ -200,6 +200,16 @@ window.VeyletPlace = (() => {
       event.preventDefault();
       // Nothing further may treat this as a submission attempt.
       if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+      // This capture listener stops later submit handlers. Report only the fixed public-form
+      // failure here; field values and the messages shown below stay inside the form.
+      try {
+        const formID = form.getAttribute?.('data-analytics-form');
+        const honey = form.querySelector?.('[name="_honey"]');
+        if (!String(honey?.value || '').trim() && ['waitlist', 'request'].includes(formID) &&
+            typeof window.VeyletAnalytics?.track === 'function') {
+          window.VeyletAnalytics.track('form_error', { form_id: formID, error_code: 'validation' });
+        }
+      } catch { /* optional measurement never interrupts validation */ }
       // A problem inside a closed optional section is a problem nobody can see.
       for (const control of problems) {
         const section = control.closest ? control.closest('details') : null;

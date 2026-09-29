@@ -87,10 +87,14 @@ test('the app pages have a minimal header, and their only navigation is to one a
 const words = html => html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const mainOf = html => html.match(/<main\b[\s\S]*?<\/main>/)[0];
 
+// The app opens no page outside /app, so Google's policy is named there as plain text, not linked.
+const GOOGLE_POLICY_LINK = '<a href="https://policies.google.com/privacy">Privacy Policy</a>';
 test('/app/privacy is the public notice word for word; only its account link stays in the app', () => {
   const app = mainOf(read('app/privacy/index.html'));
   const site = mainOf(read('privacy/index.html'));
-  assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site);
+  assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
+  assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
+  assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site.replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
 });
 
 test('/app/terms is the public terms word for word, less the sentences that name an amount or a purchase the app does not sell', () => {
