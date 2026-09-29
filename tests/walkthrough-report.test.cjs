@@ -94,8 +94,8 @@ test('/report reads the token, takes it out of the address bar and shows the for
   assert.equal(await api.run(none.window), 'incomplete');
   assert.equal(none.ids['report-form'].hidden, true);
   assert.equal(none.ids['report-fallback'].hidden, false);
-  assert.match(none.ids['report-fallback-text'].textContent, /This report link is incomplete\. Email yoda@yodalai\.xyz/);
-  assert.match(none.ids['report-mail'].getAttribute('href'), /^mailto:yoda@yodalai\.xyz\?subject=Report%20a%20walkthrough/);
+  assert.match(none.ids['report-fallback-text'].textContent, /This report link is incomplete\. Email support@veylet\.com/);
+  assert.match(none.ids['report-mail'].getAttribute('href'), /^mailto:support@veylet\.com\?subject=Report%20a%20walkthrough/);
   assert.equal(none.requests.length, 0);
 });
 
@@ -169,12 +169,12 @@ test('/report is private and first party: noindex, no referrer, no outside scrip
   assert.match(markup, /<meta name="referrer" content="no-referrer" \/>/);
   for (const src of [...markup.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)].map(m => m[1])) assert.match(src, /^\/(?!\/)/);
   assert.doesNotMatch(script, /https?:\/\//);
-  assert.equal(load().SUPPORT, 'yoda@yodalai.xyz');
+  assert.equal(load().SUPPORT, 'support@veylet.com');
 });
 
 test('the app\'s support page tells an owner how to report someone else\'s walkthrough, by mail link inside the app', () => {
   const support = read('app/support/index.html');
   assert.match(support, /<div id="report"><dt>Reporting someone else’s walkthrough<\/dt>/);
-  assert.match(support, /href="mailto:yoda@yodalai\.xyz\?subject=Report%20a%20walkthrough"/);
+  assert.match(support, /href="mailto:support@veylet\.com\?subject=Report%20a%20walkthrough"/);
   assert.match(support, /Privacy reports are reviewed within 24 hours\./);
 });

@@ -178,7 +178,7 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   assert.equal(await api.send(ok.window, ok.ids['waitlist-form']), 'joined');
   assert.equal(ok.requests.length, 2);
   const inbox = ok.requests[1];
-  assert.equal(inbox.url, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
+  assert.equal(inbox.url, 'https://formsubmit.co/ajax/support@veylet.com');
   assert.equal(inbox.init.credentials, 'omit');
   assert.deepEqual(inbox.body, { _subject: 'Veylet waitlist', _template: 'table', _captcha: 'false', name: 'Sam Agent',
     email: 'Sam@Agency.com.au', business: 'sales_agent', device: 'iphone_pro_lidar', region: 'Brisbane',

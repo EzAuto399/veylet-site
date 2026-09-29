@@ -659,7 +659,7 @@ test('a stray script error on the client page never covers a working walkthrough
   const handlers = {};
   vm.runInNewContext(read('place-fields.js'), { window: { addEventListener: (type, listener) => { handlers[type] = listener; } }, document, console });
   handlers.error({ message: 'Script error.' });
-  assert.match(desk.textContent, /email yoda@yodalai\.xyz/);
+  assert.match(desk.textContent, /email support@veylet\.com/);
 });
 
 test('the client page and /tour connect early to the account service and the tour host, and fetch the v2 player beside the lookup (VIEWER-13)', () => {

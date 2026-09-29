@@ -357,7 +357,7 @@ window.VeyletPlace = (() => {
       document.getElementById('handoff-status') ||
       document.getElementById('request-status');
     const message =
-      'This page did not finish loading. Reload it — if it still will not start, email yoda@yodalai.xyz and say what you were doing.';
+      'This page did not finish loading. Reload it — if it still will not start, email support@veylet.com and say what you were doing.';
     if (status) {
       status.textContent = message;
       return;

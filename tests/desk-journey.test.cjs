@@ -378,7 +378,7 @@ test('each walkthrough row carries one state chip in the contract’s words', as
   const ask = ended.ids['account-next-step'].children[3];
   assert.equal(ask.tagName, 'A');
   assert.equal(ask.dataset.control, 'hosting-extension');
-  assert.match(decodeURIComponent(ask.href), /^mailto:yoda@yodalai\.xyz\?subject=Veylet hosting extension · walkthrough t1[\s\S]*Tour ID: t1\n/);
+  assert.match(decodeURIComponent(ask.href), /^mailto:support@veylet\.com\?subject=Veylet hosting extension · walkthrough t1[\s\S]*Tour ID: t1\n/);
   // Someone who cannot review reads whose turn it is.
   const operator = await load({ tours: [readyTour()], role: 'operator' });
   assert.equal(chipOf(operator.card('t1')).textContent, 'Ready for review');
@@ -1197,7 +1197,7 @@ test('an older trial_limit hold stays waiting, ignores the retired billing trigg
   const support = block.all().find(el => el.dataset.control === 'contact');
   assert.equal(check.textContent, 'Check again');
   assert.equal(support.textContent, 'Contact Veylet support');
-  assert.match(support.href, /^mailto:yoda@yodalai\.xyz\?/);
+  assert.match(support.href, /^mailto:support@veylet\.com\?/);
   assert.deepEqual(h.ids['account-next-step'].children.map(el => el.textContent),
     ['Your capture is waiting to start.', words + ' Use Check again or Contact Veylet support on Sample space below.']);
   assert.equal(h.count('get_start_plan_now') + h.count('start_plan_now'), 0);

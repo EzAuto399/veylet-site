@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  var SUPPORT = 'yoda@yodalai.xyz';
+  var SUPPORT = 'support@veylet.com';
   // Used only while the database has no join_waitlist (see above); the same inbox the /request form uses.
   var INBOX_ENDPOINT = 'https://formsubmit.co/ajax/' + SUPPORT;
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];

@@ -12,7 +12,7 @@ Short answers:
 - Price in one line: eligible subscribers receive 1 free month with 3 accepted walkthroughs in total, then the Veylet plan through the App Store: A$139.99/month for 3 new walkthroughs each paid month (bank up to 6), the same 3 as the free month, or A$1,399.99 upfront/year for a 36-walkthrough annual pool (the same 3 a month) with no annual rollover. Annual saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by our pipeline, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
 - Viewers: tour viewers need no app. Studio visits are not currently offered.
-- Contact: yoda@yodalai.xyz
+- Contact: support@veylet.com
 
 ## Pages
 - [Site](https://veylet.com/)
@@ -97,5 +97,5 @@ How-to answers for the Veylet Capture app and the account desk. Index: [help ind
 - Scope, capture authority, exclusions, quote, hosting dates and sharing approval are confirmed separately before the corresponding work.
 - Enquiries use FormSubmit; a return page is not proof of inbox delivery.
 - New subscriptions start in the app through the App Store. No new Square recurring subscription or automatic transfer from Apple is offered. Existing card or invoice agreements keep their terms. Buying a separate service cannot automatically pause or cancel an Apple subscription.
-- Email accounts are free. New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at yoda@yodalai.xyz.
+- Email accounts are free. New accounts are admitted in weekly groups from the waitlist; for help, contact Veylet support at support@veylet.com.
 - Production capture needs assessment; capture, processing, hosting and invited pilot allowances require agreed scope. Phone recording does not automatically reconstruct a tour.

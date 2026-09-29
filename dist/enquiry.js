@@ -94,6 +94,6 @@
       nextStep.hidden = false;
     }
     const followup = document.getElementById('enquiry-followup');
-    if (followup) followup.href = 'mailto:yoda@yodalai.xyz?subject=' + encodeURIComponent('Veylet enquiry follow-up · ' + references[0]);
+    if (followup) followup.href = 'mailto:support@veylet.com?subject=' + encodeURIComponent('Veylet enquiry follow-up · ' + references[0]);
   }
 })();

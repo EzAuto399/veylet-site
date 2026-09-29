@@ -24,7 +24,7 @@ const checker = import(pathToFileURL(path.join(__dirname, '../scripts/check-app-
 const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-key' };
 const RPC_URL = CONFIG.url + '/rest/v1/rpc/get_public_service_status';
 const UNAVAILABLE = 'Status isn’t available right now. Email support if something looks wrong.';
-const SUPPORT_MAILTO = 'mailto:yoda@yodalai.xyz?subject=Veylet%20status';
+const SUPPORT_MAILTO = 'mailto:support@veylet.com?subject=Veylet%20status';
 // 26 September 2026, 11:40 am in Brisbane (UTC+10, no daylight saving).
 const NOW = Date.parse('2026-09-26T01:40:00Z');
 const row = (fields = {}) => ({ admissions_open: false, typical_start_minutes: 12, rendering_paused: false,
@@ -340,7 +340,7 @@ test('both pages carry the exact words, the support address and a no-script fall
     const noscript = html.match(/<noscript>([\s\S]*?)<\/noscript>/);
     assert.ok(noscript, edition + ' has a no-script fallback');
     assert.equal(flat(noscript[1]), UNAVAILABLE, edition);
-    assert.match(html, /<a href="mailto:yoda@yodalai\.xyz\?subject=Veylet%20status">yoda@yodalai\.xyz<\/a>/, edition + ' shows the support address');
+    assert.match(html, /<a href="mailto:support@veylet\.com\?subject=Veylet%20status">support@veylet\.com<\/a>/, edition + ' shows the support address');
     assert.match(html, /<section class="status-board" id="status-board"[^>]*\bhidden>/, edition + ': the live board stays hidden without the script');
     assert.doesNotMatch(flat(html).replace(/Veylet Studio|VEYLET STUDIO/g, ''), /studio/i, edition + ': no "studio" outside the brand name');
     // The current bytes of the page's own assets (the site's ?v= convention).

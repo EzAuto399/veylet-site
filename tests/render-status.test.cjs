@@ -198,7 +198,7 @@ test('render status: the filled action belongs to whoever acts next', async () =
   const contact = broken.controls()[0];
   assert.equal(contact.textContent, 'Contact Veylet support');
   assert.equal(contact.className, 'tour-action');
-  assert.match(contact.href, /^mailto:yoda@yodalai\.xyz\?subject=Veylet%20render%20%C2%B7%20capture%20a1b2c3d4&body=/);
+  assert.match(contact.href, /^mailto:support@veylet\.com\?subject=Veylet%20render%20%C2%B7%20capture%20a1b2c3d4&body=/);
   // An operator cannot approve: the owner's turn, and nothing for the operator to press.
   const operator = await withState('ready', { role: 'operator' });
   assert.equal(operator.title(), 'Ready for review', '“your review” is said to whoever reviews');
