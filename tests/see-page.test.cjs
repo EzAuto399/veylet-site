@@ -15,7 +15,7 @@ const offer = JSON.parse(read('offer/offer.json'));
 const manifest = JSON.parse(read('samples/eyeful-apartment/manifest.json'));
 const plan = offer.plans.find(entry => entry.code === 'solo');
 
-const FULL_LABEL = 'Public research capture (Meta Eyeful Tower, MIT licence) processed by the Veylet pipeline. Not captured with Veylet Capture; not a client property.';
+const FULL_LABEL = 'Sample scene: Meta Eyeful Tower research apartment (MIT licence), processed by Veylet.';
 const decode = text => text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 const flat = fragment => decode(fragment.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 const body = html.slice(html.indexOf('<body'));
@@ -74,7 +74,10 @@ test('the full label sits once, directly under the paired frames; each frame car
     assert.match(head[0], /<span class="pill see-tag">Research sample<\/span>/);
   }
   // The walkthrough's own truth line says the same thing.
-  assert.ok(manifest.truth_label.startsWith(FULL_LABEL), 'the package truth label matches the page');
+  // The page carries a short credit (owner, 29 Sep); the package keeps its full truth label.
+  for (const part of ['Meta Eyeful Tower', 'MIT licence']) {
+    assert.ok(FULL_LABEL.includes(part) && manifest.truth_label.includes(part), part);
+  }
   assert.match(video, /src="\/media\/result-social-9x16.mp4"/);
   assert.match(video, /src="\/media\/result-listing-16x9.mp4"/);
 });
@@ -82,7 +85,7 @@ test('the full label sits once, directly under the paired frames; each frame car
 test('the example is described truthfully: the source, the licence, the rooms and what it is not', () => {
   const about = flat(element('aria-labelledby="about-title"', 'section'));
   for (const phrase of ['Meta’s Eyeful Tower research dataset', 'research camera rig', 'MIT licence', 'Copyright (c) Meta Platforms, Inc. and affiliates.',
-    'Not captured with Veylet Capture, and not a client property.', 'an iPhone capture of your space will look different']) {
+    'This scene was photographed with a research camera rig.', 'nothing is shared until you approve it']) {
     assert.ok(about.includes(phrase), phrase);
   }
   // The licence notice is the page's own copy, so it never depends on the samples folder.
