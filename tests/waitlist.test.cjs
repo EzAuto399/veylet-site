@@ -182,6 +182,9 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   const inbox = ok.requests[1];
   assert.equal(inbox.url, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
   assert.equal(inbox.init.credentials, 'omit');
+  // FormSubmit rejects a request without a Referer; only the origin is sent (live failure, 29 Sep).
+  assert.equal(inbox.init.referrerPolicy, 'origin');
+  assert.equal(ok.requests[0].init.referrerPolicy, 'no-referrer');
   assert.deepEqual(inbox.body, { _subject: 'Veylet waitlist', _template: 'table', _captcha: 'false', name: 'Sam Agent',
     email: 'Sam@Agency.com.au', business: 'sales_agent', device: 'iphone_pro_lidar', region: 'Brisbane',
     channels: 'own_website, domain', tips_and_offers: 'yes', consent_wording: 'tips-v1', volume: '', utm_source: '',

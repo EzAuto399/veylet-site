@@ -218,7 +218,9 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify(message),
         credentials: 'omit',
-        referrerPolicy: 'no-referrer',
+        // FormSubmit refuses a request with no Referer ("open this page through a web server") and matches
+        // the activated form by it: send the site origin only, never the path or query.
+        referrerPolicy: 'origin',
       });
       var body = null;
       try { body = await response.json(); } catch (unreadable) { body = null; }
