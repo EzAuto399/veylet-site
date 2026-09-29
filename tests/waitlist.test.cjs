@@ -82,8 +82,10 @@ test('no third-party script, font or form service: every script and stylesheet i
   // to the owner's inbox through FormSubmit's JSON endpoint. No form action, script or frame points there,
   // the page says so, and it is the script's only external address.
   assert.doesNotMatch(markup, /action="https?:|<script[^>]+formsubmit|<iframe/i);
-  assert.match(markup, /Until our waitlist database is live, they reach us by email through FormSubmit\./);
-  assert.deepEqual([...new Set(script.match(/https?:\/\/[^'"\s)]+/g) || [])], ['https://formsubmit.co/ajax/']);
+  assert.match(markup, /Until our waitlist database is live, they reach us by email through FormSubmit, which also emails you a confirmation\./);
+  // The only other address is the share link on the success state, which is shared or copied, never fetched.
+  assert.deepEqual([...new Set(script.match(/https?:\/\/[^'"\s)]+/g) || [])],
+    ['https://formsubmit.co/ajax/', 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks']);
 });
 
 test('answers are trimmed and allowlisted; consent is true only when ticked', () => {
@@ -92,6 +94,7 @@ test('answers are trimmed and allowlisted; consent is true only when ticked', ()
   assert.deepEqual(JSON.parse(JSON.stringify(answers)), {
     p_name: 'Sam Agent', p_email: 'Sam@Agency.com.au', p_business_type: 'sales_agent', p_device: 'iphone_pro_lidar',
     p_region: 'Brisbane', p_channels: ['own_website', 'domain'], p_consent_tips: false, p_consent_wording: 'tips-v1',
+    p_volume: null, p_utm_source: null, p_utm_medium: null, p_utm_campaign: null, p_utm_content: null, p_click: null, p_landing: null,
   });
   assert.equal(api.answersFrom(new FakeFormData({ ...ANSWERS, consent_tips: 'yes' })).p_consent_tips, true);
   assert.equal(api.answersFrom(new FakeFormData({ ...ANSWERS, consent_tips: 'yes' })).p_consent_wording, 'tips-v1', 'the wording shown travels with a tick');
@@ -111,7 +114,8 @@ test('joining is one POST to rpc/join_waitlist with the public key and the answe
   assert.equal(url, 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist');
   assert.equal(init.method, 'POST');
   assert.deepEqual([init.headers.apikey, init.headers.Authorization, init.credentials], ['public-anon-key', 'Bearer public-anon-key', 'omit']);
-  assert.deepEqual(Object.keys(body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_consent_wording', 'p_device', 'p_email', 'p_name', 'p_region']);
+  assert.deepEqual(Object.keys(body).sort(), ['p_business_type', 'p_channels', 'p_click', 'p_consent_tips', 'p_consent_wording', 'p_device',
+    'p_email', 'p_landing', 'p_name', 'p_region', 'p_utm_campaign', 'p_utm_content', 'p_utm_medium', 'p_utm_source', 'p_volume']);
 });
 
 test('a backend without the function, the hourly limit, a refusal and a failure each have their own answer', async () => {
@@ -131,16 +135,14 @@ test('a backend without the function, the hourly limit, a refusal and a failure 
   }
 });
 
-test('success hides the form and says the weekly-groups sentence; a missing waitlist gives the email route', async () => {
+test('success hides the form and moves focus to "You’re on the list."; a missing waitlist gives the email route', async () => {
   const api = load();
   const joined = page([{ status: 200, body: { state: 'joined' } }]);
   joined.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(joined.window, joined.ids['waitlist-form']), 'joined');
   assert.equal(joined.ids['waitlist-form'].hidden, true);
   assert.equal(joined.ids['waitlist-done'].hidden, false);
-  assert.equal(`${api.COPY.joinedTitle} ${api.COPY.joined}`,
-    'You’re on the list. We admit new accounts in weekly groups and will email you when it’s your turn.');
-  assert.match(markup, /<h2 id="waitlist-done-title" tabindex="-1">You’re on the list\.<\/h2>\s*<p id="waitlist-done-body">We admit new accounts in weekly groups and will email you when it’s your turn\.<\/p>/);
+  assert.match(markup, /<h2 id="waitlist-done-title" tabindex="-1">You’re on the list\.<\/h2>/);
   assert.equal(joined.ids['waitlist-done-title'].focused, 1);
 
   const missing = page([{ status: 404, body: { code: 'PGRST202' } }]);
@@ -182,7 +184,9 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   assert.equal(inbox.init.credentials, 'omit');
   assert.deepEqual(inbox.body, { _subject: 'Veylet waitlist', _template: 'table', _captcha: 'false', name: 'Sam Agent',
     email: 'Sam@Agency.com.au', business: 'sales_agent', device: 'iphone_pro_lidar', region: 'Brisbane',
-    channels: 'own_website, domain', tips_and_offers: 'yes', consent_wording: 'tips-v1' });
+    channels: 'own_website, domain', tips_and_offers: 'yes', consent_wording: 'tips-v1', volume: '', utm_source: '',
+    utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '', _replyto: 'Sam@Agency.com.au',
+    _autoresponse: api.AUTORESPONSE });
   assert.equal(ok.ids['waitlist-form'].hidden, true);
   // Both fail: nothing is claimed, the email route shows, and nothing typed is lost.
   const down = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 500, body: { success: 'false' } }]);
@@ -200,4 +204,126 @@ test('while the database has no waitlist, a sign-up reaches the owner\'s inbox o
   live.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
   assert.equal(await api.send(live.window, live.ids['waitlist-form']), 'joined');
   assert.equal(live.requests.length, 1);
+});
+
+// 29 Sep 2026 (owner): lead quality and attribution. An optional volume answer matching the Meta lead form,
+// the campaign labels of the link that brought the visit (never the click identifiers), a FormSubmit
+// auto-reply, and a success state that says what happens next.
+function storage(values = {}) {
+  const map = new Map(Object.entries(values));
+  return { getItem: key => (map.has(key) ? map.get(key) : null), setItem: (key, value) => map.set(key, String(value)) };
+}
+const TOUCH = { utm_source: 'instagram', utm_medium: 'paid', utm_campaign: 'waitlist-sep', utm_content: 'reel_a', click: 'meta', landing: '/see' };
+
+test('an optional volume question follows the device question, with the Meta lead form\'s answers', () => {
+  const api = load();
+  assert.deepEqual([...api.VOLUMES], ['none', '1_2', '3_5', '6_plus', 'not_sure']);
+  const select = /How many listings or spaces do you expect to capture in the next 3 months\? \(optional\)\s*<select name="volume">([\s\S]*?)<\/select>/.exec(markup);
+  assert.ok(select, 'the volume question and its label');
+  assert.deepEqual([...select[1].matchAll(/<option value="([^"]*)">([^<]*)<\/option>/g)].map(m => [m[1], m[2]]),
+    [['', 'Choose one'], ['none', 'None yet'], ['1_2', '1–2'], ['3_5', '3–5'], ['6_plus', '6 or more'], ['not_sure', 'Not sure yet']]);
+  const order = ['name="device"', 'name="volume"', 'name="region"'].map(needle => markup.indexOf(needle));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'device, then volume, then region');
+  assert.doesNotMatch(fieldTags().find(f => f.name === 'volume').attrs, /\brequired\b/);
+});
+
+test('answers carry the volume and the visit\'s campaign labels; empty ones are null and bad shapes never leave', () => {
+  const api = load();
+  const answers = api.answersFrom(new FakeFormData({ ...ANSWERS, volume: '3_5' }), TOUCH);
+  assert.deepEqual([answers.p_volume, answers.p_utm_source, answers.p_utm_medium, answers.p_utm_campaign, answers.p_utm_content,
+    answers.p_click, answers.p_landing], ['3_5', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see']);
+  assert.equal(api.problem(answers), '');
+  const bare = api.answersFrom(new FakeFormData(ANSWERS), { utm_source: '<script>', utm_medium: 'a b', click: 'tiktok', landing: 'https://evil.example/' });
+  assert.deepEqual([bare.p_volume, bare.p_utm_source, bare.p_utm_medium, bare.p_utm_campaign, bare.p_utm_content, bare.p_click, bare.p_landing],
+    [null, null, null, null, null, null, null]);
+  assert.equal(api.problem(api.answersFrom(new FakeFormData({ ...ANSWERS, volume: '11_plus' }))), 'volume');
+  assert.equal(api.problem({ ...answers, p_volume: null }), '', 'volume is optional');
+});
+
+test('attribution is the stored first touch, else this page\'s own link, else nothing; click ids are never read', () => {
+  const api = load();
+  const withStore = { sessionStorage: storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) }), location: { search: '?utm_source=google' }, URLSearchParams };
+  assert.deepEqual(JSON.parse(JSON.stringify(api.attribution(withStore))), TOUCH);
+  // Tampered storage is re-checked here too.
+  const tampered = { sessionStorage: storage({ [api.TOUCH_KEY]: JSON.stringify({ utm_source: 'x'.repeat(101), click: 'meta', landing: '/see?x=<b>' }) }) };
+  assert.deepEqual(JSON.parse(JSON.stringify(api.attribution(tampered))),
+    { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: 'meta', landing: '' });
+  const otherHost = { sessionStorage: storage({ [api.TOUCH_KEY]: JSON.stringify({ ...TOUCH, landing: '//other.example/x' }) }) };
+  assert.equal(api.attribution(otherHost).landing, '', 'a second leading slash is refused');
+  const own = { sessionStorage: storage(), location: { search: '?utm_source=facebook&utm_campaign=lead+form&fbclid=IwAR0secret' }, URLSearchParams };
+  const touch = api.attribution(own);
+  assert.deepEqual(JSON.parse(JSON.stringify(touch)),
+    { utm_source: 'facebook', utm_medium: '', utm_campaign: '', utm_content: '', click: 'meta', landing: '/waitlist' });
+  assert.doesNotMatch(JSON.stringify(api.answersFrom(new FakeFormData(ANSWERS), touch)), /IwAR0secret/);
+  const blocked = { get sessionStorage() { throw new Error('SecurityError'); }, location: { search: '?gclid=abc' }, URLSearchParams };
+  assert.equal(api.attribution(blocked).click, 'google');
+  assert.equal(api.attribution(blocked).landing, '/waitlist');
+  assert.deepEqual(JSON.parse(JSON.stringify(api.attribution({ location: { search: '?ref=x' }, URLSearchParams }))),
+    { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' });
+});
+
+test('the inbox route sends volume, labels, a reply-to and the auto-reply the owner approved', async () => {
+  const api = load();
+  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email your invitation to the Veylet Capture app when your group opens. Your first month is free, with 3 walkthroughs included. To leave the list, email yoda@yodalai.xyz. Yo-Da Lai, Veylet Studio');
+  const sent = page([{ status: 200, body: { success: 'true' } }], null);
+  sent.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });
+  sent.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: '6_plus' });
+  assert.equal(await api.send(sent.window, sent.ids['waitlist-form']), 'joined');
+  const { body } = sent.requests[0];
+  assert.deepEqual([body.volume, body.utm_source, body.utm_medium, body.utm_campaign, body.utm_content, body.click, body.landing],
+    ['6_plus', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see']);
+  assert.equal(body._replyto, 'Sam@Agency.com.au');
+  assert.equal(body._autoresponse, api.AUTORESPONSE);
+  // The database route gets the same labels as its own parameters.
+  const rpc = page([{ status: 200, body: { state: 'joined' } }]);
+  rpc.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });
+  rpc.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: 'none' });
+  await api.send(rpc.window, rpc.ids['waitlist-form']);
+  assert.deepEqual([rpc.requests[0].body.p_volume, rpc.requests[0].body.p_utm_source, rpc.requests[0].body.p_landing], ['none', 'instagram', '/see']);
+});
+
+test('the success state lists what happens next, offers /see and sharing, and names the capture devices only when needed', async () => {
+  assert.match(markup, /<ol class="next-steps waitlist-next"[^>]*>\s*<li>We review new sign-ups each week\.<\/li>\s*<li>When your group opens, we email your invitation to the Veylet Capture app\.<\/li>\s*<li>Your first month is free, with 3 walkthroughs included\.<\/li>\s*<\/ol>/);
+  assert.match(markup, />What happens next</);
+  assert.match(markup, /<a class="button" href="\/see">See a result /);
+  assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
+  assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
+  assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);
+  assert.match(markup, /id="waitlist-done-device" hidden>Capturing needs an iPhone 12 Pro or later Pro model, or an iPad Pro with LiDAR\. Any phone can view a walkthrough\.</);
+  const api = load();
+  for (const [device, hidden] of [['android', false], ['iphone_other', false], ['not_sure', false], ['iphone_pro_lidar', true], ['ipad_pro_lidar', true]]) {
+    const joined = page([{ status: 200, body: { state: 'joined' } }]);
+    joined.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, device });
+    assert.equal(await api.send(joined.window, joined.ids['waitlist-form']), 'joined');
+    assert.equal(joined.ids['waitlist-done-device'].hidden, hidden, device);
+  }
+  const bot = page([]);
+  bot.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, device: 'android', _honey: 'x' });
+  await api.send(bot.window, bot.ids['waitlist-form']);
+  assert.equal(bot.ids['waitlist-done-device'].hidden, true);
+});
+
+test('sharing uses the share sheet, else copies the link, else shows it; a dismissed sheet does nothing', async () => {
+  const api = load();
+  const URL_ = 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks';
+  assert.equal(api.SHARE_URL, URL_);
+  const run = async navigator => { const p = page([]); p.window.navigator = navigator; return [await api.share(p.window), p.ids['waitlist-share-status'].textContent]; };
+  const calls = [];
+  const clipboard = { writeText: async url => { calls.push(['copy', url]); } };
+  assert.deepEqual(await run({ share: async data => { calls.push(['share', data.url]); }, clipboard }), ['shared', '']);
+  assert.deepEqual(calls, [['share', URL_]]);
+  const abort = Object.assign(new Error('cancelled'), { name: 'AbortError' });
+  assert.deepEqual(await run({ share: async () => { throw abort; }, clipboard }), ['cancelled', '']);
+  assert.equal(calls.length, 1, 'no copy after a dismissed share sheet');
+  assert.deepEqual(await run({ clipboard }), ['copied', 'Link copied.']);
+  assert.deepEqual(calls[1], ['copy', URL_]);
+  assert.deepEqual(await run({ share: async () => { throw new Error('NotAllowedError'); }, clipboard: { writeText: async () => { throw new Error('denied'); } } }), ['shown', URL_]);
+  assert.deepEqual(await run({}), ['shown', URL_]);
+  assert.deepEqual(await run(undefined), ['shown', URL_]);
+});
+
+test('the privacy page says campaign labels travel with a sign-up and click identifiers are not kept', () => {
+  const privacy = fs.readFileSync(path.join(dist, 'privacy/index.html'), 'utf8');
+  const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1];
+  assert.match(enquiries, /<!-- LEGAL REVIEW 2026-09-29: campaign labels on waitlist sign-ups -->When you arrive from a campaign link, this browser keeps that link’s campaign labels \(such as utm_source=instagram\) for the visit, and a waitlist sign-up includes them so we know which link brought you; the click identifiers added by Meta or Google are not kept\./);
 });

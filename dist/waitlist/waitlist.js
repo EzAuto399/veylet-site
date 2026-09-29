@@ -13,6 +13,10 @@
  * tips-v1 of the product repository's docs/lifecycle-email.md (never edited; a new wording is a new
  * version), and every join sends that version as p_consent_wording, ticked or not, so the server records
  * which words the choice was made on.
+ * Attribution (owner, 29 September 2026): each sign-up carries the campaign labels of the link that
+ * brought the visit (kept by /first-touch.js in session storage; else this page's own link), re-checked
+ * here against the same shapes. Click identifiers (fbclid, gclid) are never read or sent, only whether
+ * the click came from Meta or Google. The optional listings-volume answer matches the Meta lead form.
  */
 (function () {
   'use strict';
@@ -23,6 +27,18 @@
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
   var CHANNELS = ['own_website', 'realestate_com_au', 'domain', 'social', 'client_deliverables', 'other'];
+  var VOLUMES = ['none', '1_2', '3_5', '6_plus', 'not_sure'];
+  // The device answers that cannot capture: the success state says what capture needs.
+  var VIEW_ONLY = ['iphone_other', 'android', 'not_sure'];
+  var TOUCH_KEY = 'veylet.firstTouch';
+  var LABELS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
+  var LABEL = /^[A-Za-z0-9._~+:-]{1,100}$/;
+  var LANDING = /^\/(?!\/)[A-Za-z0-9\/_.-]{0,199}$/;
+  var SHARE_URL = 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks';
+  // FormSubmit emails this to the address typed in the form (inbox route only).
+  var AUTORESPONSE = 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email ' +
+    'your invitation to the Veylet Capture app when your group opens. Your first month is free, with 3 walkthroughs ' +
+    'included. To leave the list, email ' + SUPPORT + '. Yo-Da Lai, Veylet Studio';
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   var TIPS = { version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' };
 
@@ -34,6 +50,7 @@
     busy: 'The waitlist is busy right now, so nothing was saved. Try again in an hour, or email ' + SUPPORT + ' to be added.',
     error: 'We couldn’t add you just now, so nothing was saved. Try again in a minute, or email ' + SUPPORT + ' to be added.',
     invalid: 'One answer wasn’t accepted, so nothing was saved. Check your email address and the other answers, then send again.',
+    copied: 'Link copied.',
   };
 
   function text(value, max) {
@@ -41,8 +58,40 @@
     return clean.length <= max ? clean : clean.slice(0, max);
   }
 
-  /** The answers as the server takes them, from a FormData-like reader. */
-  function answersFrom(data) {
+  function keep(pattern, value) { return typeof value === 'string' && pattern.test(value) ? value : ''; }
+
+  /** A campaign touch in its allowed shapes only: anything else becomes ''. */
+  function cleanTouch(raw) {
+    var touch = {};
+    LABELS.forEach(function (name) { touch[name] = keep(LABEL, raw[name]); });
+    touch.click = raw.click === 'meta' || raw.click === 'google' ? raw.click : '';
+    touch.landing = keep(LANDING, raw.landing);
+    return touch;
+  }
+
+  /** The visit's first touch from /first-touch.js, else this page's own campaign labels, else all ''. */
+  function attribution(win) {
+    try {
+      var stored = JSON.parse(win.sessionStorage.getItem(TOUCH_KEY) || 'null');
+      if (stored && typeof stored === 'object') return cleanTouch(stored);
+    } catch (unavailable) { /* no storage: this page's own link below */ }
+    try {
+      var query = new win.URLSearchParams(win.location.search);
+      var tagged = LABELS.concat(['fbclid', 'gclid']).some(function (name) { return Boolean(query.get(name)); });
+      if (tagged) {
+        var raw = { click: query.get('fbclid') ? 'meta' : query.get('gclid') ? 'google' : '', landing: '/waitlist' };
+        LABELS.forEach(function (name) { raw[name] = query.get(name); });
+        return cleanTouch(raw);
+      }
+    } catch (unreadable) { /* no labels */ }
+    return cleanTouch({});
+  }
+
+  function orNull(value) { return value ? value : null; }
+
+  /** The answers as the server takes them, from a FormData-like reader and the visit's attribution. */
+  function answersFrom(data, touch) {
+    var campaign = cleanTouch(touch || {});
     var channels = (data.getAll ? data.getAll('channels') : []).map(String)
       .filter(function (value, index, all) { return CHANNELS.indexOf(value) !== -1 && all.indexOf(value) === index; });
     return {
@@ -54,6 +103,13 @@
       p_channels: channels,
       p_consent_tips: data.get('consent_tips') === 'yes',
       p_consent_wording: TIPS.version,
+      p_volume: orNull(String(data.get('volume') || '')),
+      p_utm_source: orNull(campaign.utm_source),
+      p_utm_medium: orNull(campaign.utm_medium),
+      p_utm_campaign: orNull(campaign.utm_campaign),
+      p_utm_content: orNull(campaign.utm_content),
+      p_click: orNull(campaign.click),
+      p_landing: orNull(campaign.landing),
     };
   }
 
@@ -64,6 +120,7 @@
     if (BUSINESS.indexOf(answers.p_business_type) === -1) return 'business_type';
     if (DEVICES.indexOf(answers.p_device) === -1) return 'device';
     if (!answers.p_region) return 'region';
+    if (answers.p_volume && VOLUMES.indexOf(answers.p_volume) === -1) return 'volume';
     return '';
   }
 
@@ -109,6 +166,15 @@
           channels: answers.p_channels.join(', '),
           tips_and_offers: answers.p_consent_tips ? 'yes' : 'no',
           consent_wording: answers.p_consent_wording,
+          volume: answers.p_volume || '',
+          utm_source: answers.p_utm_source || '',
+          utm_medium: answers.p_utm_medium || '',
+          utm_campaign: answers.p_utm_campaign || '',
+          utm_content: answers.p_utm_content || '',
+          click: answers.p_click || '',
+          landing: answers.p_landing || '',
+          _replyto: answers.p_email,
+          _autoresponse: AUTORESPONSE,
         }),
         credentials: 'omit',
         referrerPolicy: 'no-referrer',
@@ -135,7 +201,7 @@
     el.append(mailLink(doc), sentence.slice(at + SUPPORT.length));
   }
 
-  function show(doc, state) {
+  function show(doc, state, answers) {
     var form = doc.getElementById('waitlist-form');
     var status = doc.getElementById('waitlist-status');
     var fallback = doc.getElementById('waitlist-fallback');
@@ -149,6 +215,8 @@
     if (state === 'joined') {
       form.hidden = true;
       done.hidden = false;
+      var device = doc.getElementById('waitlist-done-device');
+      if (device) device.hidden = !(answers && VIEW_ONLY.indexOf(answers.p_device) !== -1);
       var title = doc.getElementById('waitlist-done-title');
       if (title && title.focus) title.focus();
     }
@@ -176,7 +244,7 @@
     var data = new win.FormData(form);
     // A filled honeypot is a form-filling robot: it sees the same success and nothing is sent.
     if (String(data.get('_honey') || '').trim()) return show(doc, 'joined');
-    var answers = answersFrom(data);
+    var answers = answersFrom(data, attribution(win));
     if (problem(answers)) { measureResult(win, 'invalid'); return show(doc, 'invalid'); }
     var config = win.VEYLET_SUPABASE;
     show(doc, 'sending');
@@ -186,7 +254,25 @@
     // route are not; an unavailable RPC is reported only when the inbox route could not take it either.
     // The measurement module enforces consent.
     if (rpc !== null && (rpc !== 'missing' || state === 'missing')) measureResult(win, state);
-    return show(doc, state);
+    return show(doc, state, answers);
+  }
+
+  /** Share sheet, else copy the link, else show it to copy by hand. A dismissed share sheet does nothing. */
+  async function share(win) {
+    var doc = win.document;
+    var nav = win.navigator || {};
+    var note = doc.getElementById('waitlist-share-status');
+    if (note) note.textContent = '';
+    if (typeof nav.share === 'function') {
+      try { await nav.share({ url: SHARE_URL }); return 'shared'; } catch (failure) {
+        if (failure && failure.name === 'AbortError') return 'cancelled';
+      }
+    }
+    if (nav.clipboard && typeof nav.clipboard.writeText === 'function') {
+      try { await nav.clipboard.writeText(SHARE_URL); if (note) note.textContent = COPY.copied; return 'copied'; } catch (blocked) { /* shown below */ }
+    }
+    if (note) note.textContent = SHARE_URL;
+    return 'shown';
   }
 
   function run(win) {
@@ -199,6 +285,8 @@
     if (place && place.inlineValidation) place.inlineValidation(form, status);
     var region = form.querySelector ? form.querySelector('[name="region"]') : null;
     var busy = false;
+    var shareButton = doc.getElementById('waitlist-share');
+    if (shareButton) shareButton.addEventListener('click', function () { share(win); });
     form.addEventListener('submit', async function (event) {
       event.preventDefault();
       if (busy) return;
@@ -210,9 +298,10 @@
     return form;
   }
 
-  var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, COPY: COPY, TIPS: TIPS,
-    INBOX_ENDPOINT: INBOX_ENDPOINT, answersFrom: answersFrom, problem: problem, join: join, joinByInbox: joinByInbox,
-    show: show, send: send, run: run };
+  var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, VOLUMES: VOLUMES, COPY: COPY, TIPS: TIPS,
+    INBOX_ENDPOINT: INBOX_ENDPOINT, AUTORESPONSE: AUTORESPONSE, SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY,
+    answersFrom: answersFrom, attribution: attribution, problem: problem, join: join, joinByInbox: joinByInbox,
+    show: show, send: send, share: share, run: run };
   if (typeof window !== 'undefined') {
     window.VeyletWaitlist = api;
     if (!window.VEYLET_WAITLIST_MANUAL) {

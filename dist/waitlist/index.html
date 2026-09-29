@@ -40,6 +40,13 @@
       .waitlist-done h2 { font-size: 28px; margin: 0 0 8px; }
       .waitlist-done p { margin: 0; max-width: 52ch; }
       .waitlist-lidar { display: block; }
+      .waitlist-done .waitlist-next-title { margin: 20px 0 0; color: var(--muted); }
+      .waitlist-done .next-steps { gap: 12px; margin: 12px 0 20px; }
+      .waitlist-done .next-steps li { line-height: 1.55; }
+      .waitlist-done .waitlist-device { margin: 0 0 20px; }
+      .waitlist-done .waitlist-done-actions { gap: 12px 20px; margin: 0; max-width: none; }
+      .waitlist-done .waitlist-share-status { margin: 12px 0 0; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
+      .waitlist-share-status:empty { display: none; }
     </style>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
   </head>
@@ -94,6 +101,17 @@
           <small id="waitlist-lidar" class="waitlist-lidar">Capture needs the LiDAR scanner on the back of an iPhone Pro or Pro Max (iPhone 12 Pro or later) or an iPad Pro that has one. Any phone can view a walkthrough.</small>
         </label>
         <label>
+          How many listings or spaces do you expect to capture in the next 3 months? (optional)
+          <select name="volume">
+            <option value="">Choose one</option>
+            <option value="none">None yet</option>
+            <option value="1_2">1–2</option>
+            <option value="3_5">3–5</option>
+            <option value="6_plus">6 or more</option>
+            <option value="not_sure">Not sure yet</option>
+          </select>
+        </label>
+        <label>
           Suburb or region *
           <input name="region" autocomplete="address-level2" autocapitalize="words" enterkeyhint="next" required maxlength="120" aria-describedby="waitlist-region-help" />
           <small id="waitlist-region-help">For example, Parramatta, Geelong or the Gold Coast. No street address.</small>
@@ -111,19 +129,31 @@
           <input type="checkbox" name="consent_tips" value="yes" aria-labelledby="waitlist-tips-label" aria-describedby="waitlist-tips-note" />
           <span><span id="waitlist-tips-label">Email me tips and offers from Veylet Studio. I can unsubscribe at any time.</span><small id="waitlist-tips-note">Separate from the waitlist: you can join without it. We still email you when it’s your turn.</small></span>
         </label>
-        <p class="contact-note form-assurance">We use your answers to run the waitlist and to email you when it is your turn. Until our waitlist database is live, they reach us by email through FormSubmit. To leave the list, email <a href="mailto:yoda@yodalai.xyz?subject=Leave%20the%20Veylet%20waitlist">yoda@yodalai.xyz</a>. <a href="/privacy">How we handle personal information</a>.</p>
+        <p class="contact-note form-assurance">We use your answers to run the waitlist and to email you when it is your turn. Until our waitlist database is live, they reach us by email through FormSubmit, which also emails you a confirmation. To leave the list, email <a href="mailto:yoda@yodalai.xyz?subject=Leave%20the%20Veylet%20waitlist">yoda@yodalai.xyz</a>. <a href="/privacy">How we handle personal information</a>.</p>
         <button class="button" type="submit" id="waitlist-submit">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></button>
       </form>
       <p class="contact-note waitlist-status" id="waitlist-status" role="status" aria-live="polite"></p>
       <p class="waitlist-fallback" id="waitlist-fallback" hidden></p>
       <section class="waitlist-done" id="waitlist-done" aria-labelledby="waitlist-done-title" hidden>
         <h2 id="waitlist-done-title" tabindex="-1">You’re on the list.</h2>
-        <p id="waitlist-done-body">We admit new accounts in weekly groups and will email you when it’s your turn.</p>
+        <h3 class="eyebrow waitlist-next-title" id="waitlist-next-title">What happens next</h3>
+        <ol class="next-steps waitlist-next" aria-labelledby="waitlist-next-title">
+          <li>We review new sign-ups each week.</li>
+          <li>When your group opens, we email your invitation to the Veylet Capture app.</li>
+          <li>Your first month is free, with 3 walkthroughs included.</li>
+        </ol>
+        <p class="journey-note waitlist-device" id="waitlist-done-device" hidden>Capturing needs an iPhone 12 Pro or later Pro model, or an iPad Pro with LiDAR. Any phone can view a walkthrough.</p>
+        <p class="tour-actions-row waitlist-done-actions">
+          <a class="button" href="/see">See a result <span class="icon-arrow" aria-hidden="true"></span></a>
+          <button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague</button>
+        </p>
+        <p class="contact-note waitlist-share-status" id="waitlist-share-status" role="status" aria-live="polite"></p>
       </section>
     </main>
     <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
     <script src="/place-fields.js?v=fd7d2ab7357d2019"></script>
-    <script src="/waitlist/waitlist.js?v=bbdd0045570db541" defer></script>
+    <script src="/first-touch.js?v=57a1a7e27ce7ad81" defer></script>
+    <script src="/waitlist/waitlist.js?v=7925d73925193cab" defer></script>
   </body>
 </html>
