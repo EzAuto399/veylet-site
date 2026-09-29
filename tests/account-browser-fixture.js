@@ -428,15 +428,7 @@
   // used; the early-annual bonus is retired from 2026-09-28.1, so
   // `?case=plan-annual-bonus` now reads the same as the pool. `?case=plan-pending` has not started
   // and shows the Start your free months card (see the trial fixtures below).
-  // `?annual=` forces an annual plan card state and, unless `?case=plan-…`
-  // says otherwise, the plan row that goes with it (see the annual fixtures below).
-  const annualCase = params.get('annual');
-  const ANNUAL_PLAN_ROW = { 'locked-start': 'pending', 'locked-accept': 'trial-none', 'not-owner': 'apple-trial',
-    'renewal-on': 'apple-trial', 'renewal-off': 'apple-trial', 'no-bonus': 'apple-trial', pending: 'apple-trial', scheduled: 'apple-trial',
-    'scheduled-team': 'team-active', conflict: 'apple-trial', 'lane-closed': 'apple-trial', 'one-month': 'apple-trial', invoice: 'trial',
-    'start-today': 'trial-exhausted', 'no-plan': 'ended-after-active', active: 'web-annual',
-    'start-failed': 'ended', 'start-failed-retrying': 'ended' };
-  const planCase = scenario.startsWith('plan-') ? scenario.slice(5) : ANNUAL_PLAN_ROW[annualCase] || 'trial';
+  const planCase = scenario.startsWith('plan-') ? scenario.slice(5) : 'trial';
   const planBase = {
     workspace_id: 'synthetic-workspace', plan_code: 'solo', source: 'studio', trial_months: 1,
     trial_included_walkthroughs: 3, accepted_in_free_months: 2, extras_in_free_months: 0,
@@ -721,82 +713,14 @@
       active_share_count: 0 },
   ];
 
-  /* Annual plan fixtures (offer 2026-09-25.2). `?annual=` picks the answer of
-   * get_members_annual_offer; `?lane=open|sandbox|closed|error` the hooks lane
-   * (default open, or closed for `lane-closed`); `?checkout=<error code>|fail`
-   * refuses the next checkout; `?recheck=off` turns App Store renewal off after
-   * the first read, as if the member did it in another tab; `?sdk=fail` makes
-   * Square's script fail to load and `?tokenize=fail` makes the card declined;
-   * `?card=open` presses "Pay yearly by card" once the card is drawn; `start-failed`
-   * and `start-failed-retrying` are a first yearly charge that failed. One public
-   * annual price for the Veylet plan, A$990 (offer.json membersAnnual.tiers.standard);
-   * it opens once the free months have started (`locked-start` before them). Every
-   * answer carries early_annual_bonus { walkthroughs: 4, express_renders: 4, granted,
-   * available }: available while the free months run (dated by starts_on, their
-   * end), kept for agreements that were granted it before the offer 2026-09-28.1
-   * retirement; `no-bonus` is `renewal-off` with the bonus already granted. Legacy
-   * answers an older server may still send: `locked-accept` (an accepted walkthrough
-   * still required) and `one-month` (a second tier); `scheduled-team` is a
-   * year bought on the retired Team plan, which must still read by its own name.
-   * Dates match the fixture plan rows, whose free months end on 1 October 2026.
+  /* The website annual card and get_members_annual_offer are retired (owner decision,
+   * 29 September 2026): account.js never asks, so there are no annual fixtures.
    * No request leaves the page: the hooks origin below is answered here. */
   const brisbaneToday = (() => {
     const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' })
       .formatToParts(new Date()).map(part => [part.type, part.value]));
     return parts.year + '-' + parts.month + '-' + parts.day;
   })();
-  const annualPlans = months => [
-    { code: 'solo', year_cents: 9900 * (12 - months), monthly_cents: 9900, months_free: months, saving_cents: 9900 * months },
-  ];
-  const FREE_MONTHS_END = '2026-10-01';
-  // Retired bonus figures: only an agreement that was already granted it can still answer available.
-  const annualBonusNow = { walkthroughs: 4, express_renders: 4, granted: false, available: true };
-  const annualBase = { eligible: true, missing: [], tier: 'standard', plans: annualPlans(2), source: 'apple', plan_status: 'trial',
-    apple_auto_renews: true, apple_in_free_trial: true, starts_on: FREE_MONTHS_END, can_start_now: false, free_walkthroughs_remaining: 1,
-    scheduled: null, checkout_pending: null, conflict: false, active_annual: false, early_annual_bonus: annualBonusNow };
-  const annualLocked = { eligible: false, plans: [], starts_on: null, can_start_now: false };
-  const annualNoApple = { apple_auto_renews: null, apple_in_free_trial: null };
-  // Not running free months (or the bonus already granted): the object says it is not available.
-  const annualNoBonus = { early_annual_bonus: { walkthroughs: 4, express_renders: 4, granted: false, available: false } };
-  const annualScheduled = { plan_code: 'solo', year_cents: 99000, starts_on: FREE_MONTHS_END };
-  const annualOffers = {
-    'locked-start': { ...annualBase, ...annualLocked, ...annualNoApple, ...annualNoBonus, missing: ['free_months_not_started'], source: null, plan_status: 'pending', free_walkthroughs_remaining: null },
-    'locked-accept': { ...annualBase, ...annualLocked, ...annualNoApple, missing: ['no_accepted_walkthrough'], tier: 'twoMonthsFree', source: 'studio', free_walkthroughs_remaining: 4, early_annual_bonus: undefined },
-    'not-owner': { ...annualBase, ...annualLocked, missing: ['not_owner'] },
-    closed: { ...annualBase, ...annualLocked, tier: 'closed' },
-    'renewal-on': { ...annualBase },
-    'renewal-off': { ...annualBase, apple_auto_renews: false },
-    'no-bonus': { ...annualBase, apple_auto_renews: false, early_annual_bonus: { walkthroughs: 4, express_renders: 4, granted: true, available: false } },
-    'one-month': { ...annualBase, tier: 'oneMonthFree', plans: annualPlans(1), apple_auto_renews: false },
-    invoice: { ...annualBase, ...annualNoApple, source: 'studio' },
-    // An invoiced monthly plan running (`?case=plan-monthly-banked` and `plan-active`): no bonus once the free months are over.
-    'invoice-active': { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'studio', plan_status: 'active', starts_on: '2026-10-01', free_walkthroughs_remaining: 0 },
-    'start-today': { ...annualBase, ...annualNoApple, source: 'studio', can_start_now: true, free_walkthroughs_remaining: 0 },
-    'no-plan': { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'web', plan_status: 'ended', starts_on: brisbaneToday, free_walkthroughs_remaining: 0 },
-    // A checkout left open on the server: the page offers the card form again (no state of its own).
-    pending: { ...annualBase, apple_auto_renews: false, checkout_pending: { plan_code: 'solo', created_at: '2026-09-24T02:10:00Z' } },
-    scheduled: { ...annualBase, apple_auto_renews: false, scheduled: annualScheduled },
-    'scheduled-team': { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'studio', plan_status: 'active', starts_on: '2026-10-01',
-      scheduled: { plan_code: 'studio', year_cents: 189000, starts_on: '2026-10-01' } },
-    conflict: { ...annualBase, apple_auto_renews: true, conflict: true, scheduled: annualScheduled },
-    'lane-closed': { ...annualBase, apple_auto_renews: false },
-    active: { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'web', plan_status: 'active', active_annual: true },
-    // The first yearly charge, due when the free months ended on 1 September 2026 (the
-    // `ended` plan row), failed. A retry starts today at the price it was bought at;
-    // `-retrying` has asked once already and waits on Square to stop the failed start.
-    'start-failed': { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'studio', plan_status: 'ended', starts_on: brisbaneToday, can_start_now: true,
-      free_walkthroughs_remaining: 0, start_failed: { plan_code: 'solo', year_cents: 99000, starts_on: '2026-09-01', failed_at: '2026-09-01T00:12:00Z', retrying: false } },
-    'start-failed-retrying': { ...annualBase, ...annualNoApple, ...annualNoBonus, source: 'studio', plan_status: 'ended', starts_on: brisbaneToday, can_start_now: true,
-      free_walkthroughs_remaining: 0, start_failed: { plan_code: 'solo', year_cents: 99000, starts_on: '2026-09-01', failed_at: '2026-09-01T00:12:00Z', retrying: true } },
-  };
-  // Without `?annual=`, the answer that goes with the plan row: an active annual plan
-  // hides the card, a running monthly plan starts the year when its month ends, and
-  // everything else (the default invoiced trial) shows the invoice state.
-  const ANNUAL_DEFAULT = { 'annual-pool': 'active', 'annual-bonus': 'active', 'web-annual': 'active',
-    'monthly-banked': 'invoice-active', active: 'invoice-active' };
-  const annualFallback = () => annualOffers[ANNUAL_DEFAULT[planCase]] || annualOffers.invoice;
-  let annualLive = annualOffers[annualCase] ? JSON.parse(JSON.stringify(annualOffers[annualCase])) : null;
-  let annualReads = 0;
   /* Walkthrough pack fixtures (offer 2026-09-24.2). `?packs=` picks the answer of
    * get_pack_offer: choose (the default on an activated desk), credits (two
    * available, the next expiring 2 March 2027), not-activated (the default on a
@@ -817,7 +741,7 @@
       // Bonus walkthroughs usable now are extra credits in the same ledger (walkthrough_extra_credits).
       credits_available: extraCredits + ((CAPACITY_V8[planCase] || {}).bonus_credits_available || 0), next_expiry: packExpiry };
   };
-  const laneCase = params.get('lane') || (annualCase === 'lane-closed' ? 'closed' : 'open');
+  const laneCase = params.get('lane') || 'open';
   /* Start the free months (offer 2026-09-25.2; get_trial_offer and POST
    * /square/trial/start are proposed names, not yet in the backend). Shown on a
    * pending plan (`?case=plan-pending`). `?trial=` picks the answer: choose (the
@@ -1025,24 +949,6 @@
       return reply(200, { url: DOWNLOAD_HOST + EXPORT_NAMES[body.kind] + '?expires=600', filename: EXPORT_NAMES[body.kind],
         bytes: file.bytes, content_type: file.content_type, expires_in: 600 });
     }
-    if (method === 'POST' && path === '/square/members-annual/checkout') {
-      const refusal = params.get('checkout');
-      if (refusal === 'fail') return reply(500, { error: 'server_error' });
-      const statuses = { unauthorized: 401, not_eligible: 403, lane_closed: 503, checkout_failed: 502, invalid_request: 400, payment_declined: 402 };
-      if (refusal) return reply(statuses[refusal] || 409, { error: refusal });
-      if (!body || body.plan_code !== 'solo' || !['scheduled', 'now'].includes(body.start)
-        || !/^[A-Za-z0-9:_-]{8,512}$/.test(body.source_id || '')) return reply(400, { error: 'invalid_request' });
-      // The server fixes the terms: the tier's price and the start it computes, never the page's copy.
-      const live = annualLive || annualFallback();
-      // A retry after a failed first charge keeps the price that start was bought at.
-      const plan = live.start_failed ? { code: live.start_failed.plan_code, year_cents: live.start_failed.year_cents }
-        : live.plans.find(entry => entry.code === body.plan_code);
-      if (!plan) return reply(403, { error: 'not_eligible' });
-      const today = body.start === 'now' || !(live.starts_on > brisbaneToday);
-      const scheduled = { plan_code: plan.code, year_cents: plan.year_cents, starts_on: today ? brisbaneToday : live.starts_on };
-      annualLive = { ...live, scheduled, checkout_pending: null, start_failed: null };
-      return reply(200, { scheduled, charge_today: today, sandbox: true });
-    }
     if (method === 'POST' && path === '/square/packs/checkout') {
       const refusal = params.get('pack-checkout');
       if (refusal === 'fail') return reply(500, { error: 'server_error' });
@@ -1086,11 +992,6 @@
       expressLive.taken += 1;
       expressLive.order = { state: 'open', due_at: minutesFromNow(30), completed_at: null, paid_with: 'card', amount_cents: 2900, refund: null };
       return reply(200, { job_id: EXPRESS_JOB, express: { ...expressLive.order }, taken_today: expressLive.taken, credits_available: expressLive.credits, sandbox: laneCase === 'sandbox' });
-    }
-    if (method === 'POST' && path === '/square/members-annual/cancel') {
-      if (!annualLive || (!annualLive.scheduled && !annualLive.start_failed)) return reply(409, { error: 'invalid_request' });
-      annualLive = { ...annualLive, scheduled: null, conflict: false, start_failed: null };
-      return reply(200, { cancelled: true });
     }
     return reply(404, { error: 'invalid_request' });
   };
@@ -1232,16 +1133,6 @@
           reason_code: blocked || (remaining + extra === 0 ? 'allowance_exhausted' : null), ...v8,
           included_limit: limit, included_used: used }] };
       }
-      if (name === 'get_members_annual_offer') {
-        if (annualCase === 'loading') return new Promise(() => {});
-        if (annualCase === 'error') return { error: { message: 'Synthetic members’ price failure' } };
-        // `?annual=missing`: the function does not exist yet, so no card (a capture of another card alone).
-        if (annualCase === 'missing') return { error: { code: 'PGRST202', message: 'Could not find the function public.get_members_annual_offer' } };
-        annualReads += 1;
-        if (params.get('recheck') === 'off' && annualReads > 1 && annualLive) annualLive.apple_auto_renews = false;
-        // Without `?annual=`, the answer that goes with the plan row (see annualFallback).
-        return { data: JSON.parse(JSON.stringify(annualLive || annualFallback())) };
-      }
       if (name === 'get_trial_offer') {
         if (trialCase === 'loading') return new Promise(() => {});
         if (trialCase === 'error') return { error: { message: 'Synthetic trial offer failure' } };
@@ -1373,10 +1264,6 @@
           renewal_price_aud_cents: STUDIO_INVOICE_CENTS[args.p_billing_interval], price_aud_cents: 9900, included_per_month: args.p_billing_interval === 'annual' ? 24 : 2,
           auto_renews: false, current_period_ends_at: args.p_period_end, period_started_at: args.p_period_start });
         return { data: [planFields(account)] };
-      }
-      if (name === 'studio_members_annual_tier') {
-        if (studioCase === 'unavailable' || studioTier === 'error') return { error: { message: 'Synthetic tier unavailable' } };
-        return { data: [{ tier: studioTier, updated_at: '2026-09-24T00:00:00Z' }] };
       }
       // Proposed: a settled pack invoice for any activated account, idempotent per receipt.
       if (name === 'studio_record_pack_invoice') {
@@ -1906,16 +1793,6 @@
         const leaving = document.getElementById('account-leaving');
         if (leaving) leaving.open = true;
         if (leaving || ++tries > 30) clearInterval(open);
-      }, 100);
-    }
-    // Review affordance only: `?card=open` presses "Pay yearly by card" once, so
-    // a capture can show Square's card step. It never confirms.
-    if (location.pathname === '/__qa/account/' && params.get('card') === 'open') {
-      let tries = 0;
-      const press = setInterval(() => {
-        const pay = [...document.querySelectorAll('#account-annual .tour-action-primary')].find(el => /Pay yearly by card|Start yearly plan today/.test(el.textContent));
-        if (pay) pay.click();
-        if (pay || ++tries > 40) clearInterval(press);
       }, 100);
     }
     // Review affordance only: `?packs-card=open` presses the pack's buy button

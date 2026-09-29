@@ -371,7 +371,6 @@
     expressHide();
     renderForget();
     packsHide();
-    annualHide();
     referralHide();
     deletionPanel?.replaceChildren();
     deletionPanel?.setAttribute('aria-busy', 'false');
@@ -1981,7 +1980,7 @@
     const count = Number(value);
     return Number.isFinite(count) ? String(count) : PLAN_DASH;
   }
-  /** Format integer cents, including a legacy A$99 invoice from offer 2026-09-25.2 or a current A$139.99 price. */
+  /** Format integer cents as the server sends them, whole dollars or with cents (A$139.99). */
   function planMoney(cents) {
     const amount = Number(cents);
     if (cents === null || cents === undefined || cents === '' || !Number.isInteger(amount) || amount < 0) return '';
@@ -2162,7 +2161,6 @@
     // Whether the free months can start here depends on the plan row, so that card waits for it.
     trialHide();
     packsSkeleton();
-    annualSkeleton();
     referralSkeleton();
   }
   function planWorkspaceName(id, props) {
@@ -2396,11 +2394,10 @@
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
     notice?.focus?.();
-    // Starting the free months, walkthrough packs, the annual plan and the share
-    // link read their own answers; none of them ever holds up the plan.
+    // Starting the free months, walkthrough packs and the share link read their
+    // own answers; none of them ever holds up the plan.
     void renderTrial(supabase, ticket, workspaceID, row);
     void renderPacks(supabase, ticket, workspaceID);
-    void renderAnnual(supabase, ticket, workspaceID, row);
     // Recording who referred this office is for its owner, before the plan is paid for.
     const owner = memberships.length > 0 && memberships[0].role === 'owner';
     void renderReferral(supabase, ticket, workspaceID, owner && ['pending', 'trial'].includes(row?.status));
@@ -2479,7 +2476,7 @@
   /* ---- Start the free months ---------------------------------------------
    * Offer 2026-09-25.2: the free months start with a payment method on file. On
    * this website that is a card in Square's own field, loaded by the same loader
-   * as the annual plan and packs; POST /square/trial/start saves it and schedules
+   * as packs and Super fast; POST /square/trial/start saves it and schedules
    * the first charge for the day the free months end, so nothing is charged today
    * and cancelling before then charges nothing. What is offered (the months, the
    * walkthroughs, both plans' prices and the first charge day) is the server's
@@ -2888,55 +2885,21 @@
     void loadDesk(state.supabase);
   }
 
-  /* ---- Annual plan --------------------------------------------------------
-   * The Veylet plan paid yearly by card on this website, at the one public
-   * annual price (offer 2026-09-25.2: A$990 for a yearly pool of 24; before it,
-   * docs/design/members-annual-offer-20260924.md). The workspace owner can choose
-   * it once the free months have started. Eligibility, the price, the start date,
-   * any early-annual bonus (4 walkthroughs and 4 express renders while the free
-   * months run) and any scheduled plan are the server's answer (get_members_annual_offer);
-   * whether card checkout is open, and whether it is Square Sandbox, is the hooks
-   * lane's answer. There is no plan to choose: the card states the one price,
-   * takes the card in Square's own field, sends only its single-use token with
-   * the start the owner chose, and reads the result back. An App Store member
-   * turns off App Store renewal first, so nobody pays twice. It never infers a
-   * state from a click, never compares with the App Store, and shows at most one
-   * filled action in any state.
+  /* ---- Shared card helpers ------------------------------------------------
+   * Dates, nodes, the Square card lane and its SDK loader, used by the free-months,
+   * walkthrough-pack and Super fast cards. (The names keep their historical
+   * "annual" prefix.) The website annual card and its server read were removed by
+   * owner decision on 29 September 2026: annual plans are sold only through the
+   * App Store, so this page never reads, shows or starts a website annual plan,
+   * whatever an older server still answers.
    */
-  const annualEl = document.getElementById('account-annual');
-  // 'no_accepted_walkthrough' only comes from a server older than offer 2026-09-25.1,
-  // which still asked for an accepted walkthrough; its locked state is kept for it.
-  const ANNUAL_MISSING = ['not_owner', 'free_months_not_started', 'no_accepted_walkthrough'];
-  // The Veylet plan (solo) is the only annual plan sold; a year already
-  // scheduled or running on the retired Team plan (studio) still reads by its name.
-  const ANNUAL_CODES = ['solo', 'studio'];
-  const ANNUAL_PLAN = 'solo';
   // offer.json plans[0].annualIncluded: the Veylet plan's yearly pool (36 from offer 2026-09-29.2).
   const ANNUAL_INCLUDED = 36;
-  const ANNUAL_APPLE = 'https://apps.apple.com/account/subscriptions';
   // Card entry is Square's own Web Payments iframe. Its script comes only from
-  // Square's CDN, loads only after "Pay yearly by card", and only once.
+  // Square's CDN, loads only when a card form opens, and only once.
   const ANNUAL_SDK_URLS = ['https://sandbox.web.squarecdn.com/v1/square.js', 'https://web.squarecdn.com/v1/square.js'];
-  const ANNUAL_CARD_FIELD = 'account-annual-card-field';
   const ANNUAL_SDK_FAILED = 'Card form couldn’t load. Try again.';
-  const ANNUAL_TEST_LINE = 'Test · Square Sandbox: a test checkout, not a live payment.';
-  // What each refusal means. Whether anything was charged is said only where it is certain.
-  const ANNUAL_REFUSALS = {
-    checkout_failed: 'The yearly plan wasn’t confirmed.',
-    not_eligible: 'The annual plan isn’t available for this workspace right now, so nothing was set up.',
-    apple_still_renews: 'App Store renewal is still on, so nothing was set up. Turn it off in the App Store, then try again.',
-    start_now_unavailable: 'Starting today is no longer available, so nothing was set up. Choose the later start, then try again.',
-    already_scheduled: 'A yearly plan is already scheduled for this workspace, so nothing more was set up.',
-    lane_closed: 'Card payment for the annual price is closed right now, so nothing was set up.',
-  };
-  // Square declined the card before the yearly plan started (HTTP 402). Certain, so said whole.
-  const ANNUAL_DECLINED = 'Your card was declined, so nothing was charged and the yearly plan hasn’t started. Check the details or use another card, then try again.';
-  // A retry after a failed first charge waits until Square confirms the failed start stopped.
-  const ANNUAL_RETRY_WAIT = ' Square may still be stopping the start that failed. Try again in a few minutes: a retry never charges twice.';
   let annualSdkLoad = null;
-  let annualVersion = 0;
-  let annual = null;
-  let annualCheckedAt = 0;
 
   function annualNode(tag, className, text) {
     const node = document.createElement(tag);
@@ -2961,130 +2924,10 @@
     return parts.year + '-' + parts.month + '-' + parts.day;
   }
   function annualFuture(day) { return Boolean(annualDay(day)) && day > annualToday(); }
-  function annualPlanValid(plan) {
-    return Boolean(plan) && typeof plan === 'object' && ANNUAL_CODES.includes(plan.code)
-      && ['year_cents', 'monthly_cents', 'months_free', 'saving_cents'].every(key => Number.isInteger(plan[key]) && plan[key] > 0)
-      && plan.months_free < 12
-      // "N months free" and the saving are stated, so they must be exactly what the numbers say.
-      && plan.year_cents === plan.monthly_cents * (12 - plan.months_free)
-      && plan.saving_cents === plan.monthly_cents * 12 - plan.year_cents;
-  }
-  function annualValid(offer) {
-    if (!offer || typeof offer !== 'object' || typeof offer.eligible !== 'boolean'
-      || !Array.isArray(offer.missing) || !Array.isArray(offer.plans)) return false;
-    if (offer.missing.some(code => !ANNUAL_MISSING.includes(code))) return false;
-    // A locked answer never carries prices; an unlocked one always carries its start.
-    if (!offer.eligible && offer.plans.length) return false;
-    if (offer.eligible && (offer.missing.length || !offer.plans.length || !annualDay(offer.starts_on))) return false;
-    if (!offer.plans.every(annualPlanValid) || new Set(offer.plans.map(plan => plan.code)).size !== offer.plans.length) return false;
-    // An unlocked answer must carry the Veylet plan's price; any other plan in it is not offered.
-    if (offer.eligible && !offer.plans.some(plan => plan.code === ANNUAL_PLAN)) return false;
-    const scheduled = offer.scheduled;
-    if (scheduled !== null && scheduled !== undefined && !(typeof scheduled === 'object' && ANNUAL_CODES.includes(scheduled.plan_code)
-      && Number.isInteger(scheduled.year_cents) && scheduled.year_cents > 0 && annualDay(scheduled.starts_on))) return false;
-    const pending = offer.checkout_pending;
-    if (!(pending === null || pending === undefined || (typeof pending === 'object' && ANNUAL_CODES.includes(pending.plan_code)))) return false;
-    // A first yearly charge that failed carries the price it was bought at, the day it was
-    // due and whether a retry is already waiting on Square; a retry starts from starts_on.
-    const failedStart = offer.start_failed;
-    return failedStart === null || failedStart === undefined || (typeof failedStart === 'object'
-      && ANNUAL_CODES.includes(failedStart.plan_code) && Number.isInteger(failedStart.year_cents) && failedStart.year_cents > 0
-      && Boolean(annualDay(failedStart.starts_on)) && typeof failedStart.retrying === 'boolean' && Boolean(annualDay(offer.starts_on)));
-  }
-  /* One state from the two answers. A bought plan outranks the tier; the lane
-   * only matters where a price or a payment action is shown. */
-  function annualKind(offer, lane) {
-    if (!annualValid(offer)) return 'error';
-    if (offer.active_annual === true) return 'active';
-    if (offer.missing.includes('not_owner')) return 'not-owner';
-    // Named whatever the lane says: the failure is a fact about money, and hiding it
-    // behind "couldn't check" would leave the owner thinking the year had started.
-    if (offer.start_failed) return 'start-failed';
-    if (offer.conflict === true) return lane ? 'conflict' : 'error';
-    if (offer.scheduled) return lane ? 'scheduled' : 'error';
-    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && offer.checkout_pending?.plan_code !== undefined
-        && offer.checkout_pending.plan_code !== ANNUAL_PLAN) return 'retired-pending';
-    if (!NEW_CARD_SUBSCRIPTIONS_ENABLED && !offer.checkout_pending) return 'new-sales-closed';
-    if (offer.tier === 'closed') return 'closed';
-    if (offer.missing.includes('free_months_not_started')) return 'locked-start';
-    if (offer.missing.includes('no_accepted_walkthrough')) return 'locked-accept';
-    if (!offer.eligible || !lane) return 'error';
-    return lane.open ? 'unlocked' : 'lane-closed';
-  }
-  function annualCardAllowed(state) {
-    if (!state || !['unlocked', 'start-failed'].includes(state.kind) || !annualValid(state.offer)
-        || state.offer.missing.includes('not_owner')) return false;
-    return NEW_CARD_SUBSCRIPTIONS_ENABLED ||
-      (state.kind === 'start-failed' && state.offer.start_failed?.plan_code === ANNUAL_PLAN) ||
-      (state.kind === 'unlocked' && state.offer.checkout_pending?.plan_code === ANNUAL_PLAN);
-  }
-  function annualAppleRunning(offer) { return offer.source === 'apple' && ['trial', 'active'].includes(offer.plan_status); }
-  // Who acts next: Apple (renewal still on), Square (checkout left open) or the owner (a paused start).
-  function annualWaiting(state) {
-    if (!state) return null;
-    if (state.kind === 'conflict') return 'conflict';
-    if (state.kind !== 'unlocked') return null;
-    return annualAppleRunning(state.offer) && state.offer.apple_auto_renews !== false ? 'renewal' : null;
-  }
-  // Square Sandbox labels every price and payment action, as the plan panel labels a sandbox plan.
-  function annualTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
-  function annualName(code) { return PLAN_NAMES[code] || 'Plan'; }
-  function annualSaving(plan) {
-    return plan.months_free + (plan.months_free === 1 ? ' month' : ' months') + ' free: ' + planMoney(plan.saving_cents) +
-      ' less than 12 monthly payments of ' + planMoney(plan.monthly_cents);
-  }
-  function annualPool() { return ANNUAL_INCLUDED + ' walkthroughs to use any time in the plan year'; }
-  // Choosing the annual plan before the free months end adds bonus walkthroughs, and
-  // (offer 2026-09-25.2) express renders, to the first plan year. The answer's
-  // early_annual_bonus says whether it is available now; while the free months run its
-  // starts_on is the day they end, which dates the line. Express renders are stated
-  // only when the answer carries a count (an older server does not).
-  function annualBonus(offer) {
-    const bonus = offer && offer.early_annual_bonus;
-    return bonus && typeof bonus === 'object' && bonus.available === true && Number.isInteger(bonus.walkthroughs)
-      && bonus.walkthroughs > 0 && bonus.walkthroughs <= ANNUAL_INCLUDED && offer.plan_status === 'trial'
-      && annualFuture(offer.starts_on) ? bonus : null;
-  }
+  // A super fast render count in an early-annual bonus answer (the free-months card).
   function annualBonusExpress(bonus) {
     const count = bonus && bonus.express_renders;
     return Number.isInteger(count) && count > 0 && count <= ANNUAL_INCLUDED ? count : 0;
-  }
-  function annualBonusLine(bonus, offer) {
-    const express = annualBonusExpress(bonus);
-    return 'Choose it before ' + annualDay(offer.starts_on) + ' and get ' + bonus.walkthroughs + ' bonus walkthrough' + (bonus.walkthroughs === 1 ? '' : 's') +
-      (express ? ' and ' + express + ' super fast render' + (express === 1 ? '' : 's') : '') +
-      ' in your first plan year (' + (ANNUAL_INCLUDED + bonus.walkthroughs) + ' walkthroughs in total' + (express ? '; super fast renders are used on this website' : '') + ').';
-  }
-  // One plan: the Veylet plan's price, whatever the account is on today. After a
-  // failed first charge it is the price that start was bought at, which a retry keeps.
-  function annualPlan(state) {
-    const failedStart = state.kind === 'start-failed' ? state.offer.start_failed : null;
-    if (failedStart) return { code: failedStart.plan_code, year_cents: failedStart.year_cents };
-    return state.offer.plans.find(plan => plan.code === ANNUAL_PLAN);
-  }
-  // Starting today is offered only when the server allows it and the start is otherwise later.
-  function annualCanStartNow(state) { return state.offer.can_start_now === true && annualFuture(state.offer.starts_on); }
-  function annualStartsToday(state) {
-    return annualCanStartNow(state) ? state.start !== 'scheduled' : !annualFuture(state.offer.starts_on);
-  }
-  function annualCharge(state) {
-    const today = annualStartsToday(state);
-    return annualTest(state) + (today ? '' : 'Nothing is charged today. ') + 'First charge ' + planMoney(annualPlan(state).year_cents) +
-      (today ? ' today' : ' on ' + annualDay(state.offer.starts_on)) + ', then it renews each year until you cancel.';
-  }
-  function annualPrimaryLabel(state) {
-    return annualTest(state) + (state.problem ? 'Try again' : state.card ? 'Confirm yearly plan'
-      : state.kind === 'start-failed' ? 'Try another card'
-        : annualCanStartNow(state) && state.start !== 'scheduled' ? 'Start yearly plan today' : 'Pay yearly by card');
-  }
-  function annualProblemText(state, code) {
-    if (code === 'payment_declined') return ANNUAL_DECLINED;
-    const today = annualStartsToday(state);
-    if (!ANNUAL_REFUSALS[code] || code === 'checkout_failed') {
-      if (state.kind === 'start-failed') return ANNUAL_REFUSALS.checkout_failed + ANNUAL_RETRY_WAIT;
-      return ANNUAL_REFUSALS.checkout_failed + (today ? ' Try again: a retry finishes the same plan and never charges twice.' : ' Nothing was charged. Try again.');
-    }
-    return ANNUAL_REFUSALS[code] + (today ? '' : ' Nothing was charged.');
   }
   // The lane's public Web Payments identifiers, accepted only in Square's own shapes.
   function annualCardForm(lane) {
@@ -3137,16 +2980,6 @@
     const reply = await settled(Promise.resolve().then(() => supabase.auth.getSession()));
     return failed(reply) ? null : reply.value?.data?.session?.access_token || null;
   }
-
-  function annualHead(label, tone, refs) {
-    const head = annualNode('div', 'annual-head');
-    const title = annualNode('h3', 'annual-title', 'Annual plan');
-    title.id = 'account-annual-title'; title.tabIndex = -1;
-    if (refs) refs.title = title;
-    head.append(title);
-    if (label) head.append(pill(label, tone));
-    return head;
-  }
   function annualRow(...controls) {
     const row = annualNode('p', 'annual-actions'); row.append(...controls); return row;
   }
@@ -3159,79 +2992,7 @@
     box.append(icon, words);
     return box;
   }
-  function annualAppleLink(refs) {
-    const link = annualNode('a', 'tour-action tour-action-primary', 'Turn off App Store renewal');
-    link.href = ANNUAL_APPLE; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    link.append(annualNode('span', 'annual-vh', ' (opens in a new tab)'));
-    refs.primary = link;
-    return link;
-  }
-  function annualCheckButton(refs) {
-    const check = button('Check again', () => { void annualCheckAgain(check); });
-    refs.check = check;
-    return check;
-  }
-  function annualChecklist(items) {
-    const list = annualNode('ol', 'annual-checklist');
-    let next = true;
-    for (const [done, text] of items) {
-      const item = annualNode('li', 'annual-check');
-      item.dataset.state = done ? 'done' : next ? 'next' : 'open';
-      const mark = annualNode('span', 'annual-mark'); mark.setAttribute('aria-hidden', 'true');
-      const words = annualNode('span', 'annual-check-text');
-      words.append(annualNode('span', 'annual-vh', done ? 'Done: ' : next ? 'Next: ' : 'Then: '), annualNode('span', '', text));
-      if (!done) next = false;
-      item.append(mark, words); list.append(item);
-    }
-    return list;
-  }
-  function annualStep(number, status, title) {
-    const step = annualNode('li', 'annual-step'); step.dataset.state = status;
-    if (status === 'active') step.setAttribute('aria-current', 'step');
-    const label = annualNode('p', 'annual-step-label');
-    const mark = annualNode('span', 'annual-mark'); mark.setAttribute('aria-hidden', 'true');
-    label.append(mark, annualNode('span', '', 'Step ' + number + ' of 2' + (status === 'done' ? ' · done' : '')));
-    step.append(label, annualNode('p', 'annual-step-title', title));
-    return step;
-  }
-  // Money is a statement: the yearly total, then what the year includes, then the months free and the saving.
-  function annualPrice(state, plan, full) {
-    const body = annualNode('span', 'annual-option-body');
-    body.append(annualNode('span', 'annual-option-name', annualName(plan.code)),
-      annualNode('span', 'annual-amount', annualTest(state) + planMoney(plan.year_cents) + ' a year'));
-    if (full) {
-      if (plan.code === ANNUAL_PLAN) body.append(annualNode('span', 'annual-qualifier', annualPool()));
-      body.append(annualNode('span', 'annual-qualifier', annualSaving(plan)));
-    }
-    return body;
-  }
-  function annualPlanList(state, plans, full) {
-    const list = annualNode('ul', 'annual-plans');
-    for (const plan of plans) { const item = annualNode('li'); item.append(annualPrice(state, plan, full)); list.append(item); }
-    return list;
-  }
-  // Choosing changes only the words beside the button, so focus stays on the choice.
-  function annualSync(state, refs) {
-    if (refs.charge) refs.charge.textContent = annualCharge(state);
-    if (refs.pay) refs.pay.textContent = annualPrimaryLabel(state);
-    if (refs.problem) refs.problem.hidden = true;
-  }
-  // A failure (or its clearing) is written into the drawn card, so Square's card field is never redrawn.
-  function annualProblem(state, text) {
-    state.problem = text || null;
-    const refs = state.refs || {};
-    if (refs.problemText) refs.problemText.textContent = text || '';
-    if (refs.problem) refs.problem.hidden = !text;
-    if (refs.pay) { refs.pay.textContent = annualPrimaryLabel(state); refs.pay.disabled = false; }
-    if (text) setStatus(text);
-  }
-  function annualDropCard(state) {
-    const card = state?.card;
-    if (!card) return;
-    state.card = null;
-    Promise.resolve().then(() => card.destroy?.()).catch(() => {});
-  }
-  function annualChoice(state, refs, legend, name, options, current, choose, sync = annualSync) {
+  function annualChoice(state, refs, legend, name, options, current, choose, sync) {
     const set = annualNode('fieldset', 'annual-choice');
     set.append(annualNode('legend', '', legend));
     for (const [value, body] of options) {
@@ -3241,464 +3002,6 @@
       label.append(input, body); set.append(label);
     }
     return set;
-  }
-  // `retry` is the start after a failed first charge: no start choice (it starts as
-  // soon as the server allows), a plain lead, and Cancel beside the one filled button.
-  function annualPay(state, refs, retry = null) {
-    const { offer } = state;
-    const nodes = [];
-    const day = annualDay(offer.starts_on);
-    if (retry) nodes.push(annualNode('p', 'annual-step-text', retry.lead));
-    else if (annualCanStartNow(state)) {
-      const today = annualNode('span', 'annual-option-body');
-      today.append(annualNode('span', 'annual-option-name', 'Today'), annualNode('span', 'annual-qualifier', 'First charge today'));
-      const later = annualNode('span', 'annual-option-body');
-      later.append(annualNode('span', 'annual-option-name', day), annualNode('span', 'annual-qualifier', 'Nothing is charged today'));
-      nodes.push(annualNode('p', 'annual-step-text', 'Your free walkthroughs are used up, so you can start today.'),
-        annualChoice(state, refs, 'When it starts', 'annual-start', [['now', today], ['scheduled', later]],
-          state.start === 'scheduled' ? 'scheduled' : 'now', value => { state.start = value; }));
-    } else if (annualFuture(offer.starts_on) && !annualAppleRunning(offer)) {
-      const running = offer.plan_status === 'trial' ? 'Your free months run until ' : offer.plan_status === 'active' ? 'Your current plan runs until ' : '';
-      if (running) nodes.push(annualNode('p', 'annual-step-text', running + day + '. The yearly plan starts then.'));
-    }
-    const charge = annualNode('p', 'annual-charge', annualCharge(state)); charge.id = 'account-annual-charge';
-    nodes.push(charge);
-    if (state.card) {
-      const label = annualNode('p', 'annual-card-label', 'Card details'); label.id = ANNUAL_CARD_FIELD + '-label';
-      const field = annualNode('div', 'annual-card-field'); field.id = ANNUAL_CARD_FIELD;
-      field.setAttribute('role', 'group'); field.setAttribute('aria-labelledby', label.id); field.tabIndex = -1;
-      refs.field = field;
-      const block = annualNode('div', 'annual-card'); block.append(label, field); nodes.push(block);
-    }
-    const primary = button(annualPrimaryLabel(state), () => { void (state.card ? annualConfirmCard(primary) : annualOpenCard(primary)); });
-    primary.className = 'tour-action tour-action-primary';
-    primary.setAttribute('aria-describedby', 'account-annual-charge');
-    refs.charge = charge; refs.primary = primary; refs.pay = primary;
-    nodes.push(state.card ? annualRow(primary, button('Not now', () => annualCloseCard())) : annualRow(primary, ...(retry?.extras || [])));
-    const problem = annualAlert(state.problem || '', 'annual-alert annual-problem', refs);
-    problem.hidden = !state.problem; refs.problem = problem; nodes.push(problem);
-    nodes.push(annualNode('p', 'annual-note', 'Your card goes into Square’s secure form on this page; Veylet never sees it.'));
-    return nodes;
-  }
-  function annualConfirm(state, refs, day) {
-    const { offer } = state;
-    const after = !annualAppleRunning(offer) ? 'Your current plan is unchanged.'
-      : offer.apple_auto_renews === false ? 'Your App Store plan still ends on ' + day + ' unless you turn its renewal back on.'
-        : 'Your App Store plan keeps renewing.';
-    const text = annualNode('p', 'annual-confirm', state.kind === 'retired-pending'
-      ? 'Cancel the unfinished yearly checkout? Its status will be checked before cancellation is confirmed.'
-      : state.kind === 'start-failed'
-      ? 'Cancel the yearly plan? Its first charge didn’t go through, so nothing has been charged, and nothing will be. A later yearly plan uses the annual price at that time.'
-      : (day ? 'Cancel the yearly plan that starts ' + day + '?' : 'Cancel the paused yearly plan?') +
-        ' Nothing has been charged. ' + after + ' A later yearly plan uses the annual price at that time.');
-    text.tabIndex = -1; refs.confirm = text;
-    const yes = button(annualTest(state) + 'Cancel yearly plan', () => { void annualCancel(yes); });
-    yes.className = 'tour-action tour-action-danger'; yes.dataset.armed = 'true';
-    const keep = button('Keep yearly plan', () => { state.confirming = false; setStatus('Your yearly plan is unchanged.'); annualDraw('cancel'); });
-    return [text, annualRow(yes, keep)];
-  }
-
-  function annualParts(state, refs) {
-    const { kind, offer } = state;
-    if (kind === 'active') return null;
-    if (kind === 'new-sales-closed') {
-      const parts = [annualHead('App Store', 'quiet', refs),
-        annualNode('p', 'annual-lead', 'Start or manage your subscription in Veylet Capture on your iPhone or iPad.')];
-      const setup = annualNode('a', 'text-link', 'Open the app setup steps'); setup.href = '/start';
-      parts.push(annualRow(setup));
-      if (state.notice) {
-        const notice = annualNode('p', 'annual-notice', state.notice);
-        notice.tabIndex = -1; refs.title = notice; parts.push(notice);
-      }
-      return parts;
-    }
-    const parts = [];
-    const begin = (label, tone) => {
-      parts.push(annualHead(label, tone, refs));
-      if (state.notice) parts.push(annualNode('p', 'annual-notice', state.notice));
-    };
-    const say = (className, text) => parts.push(annualNode('p', className, text));
-    // Sandbox is said once, under the heading, before any "Test ·" price or button.
-    const testLine = () => { if (annualTest(state)) say('plan-scope plan-test', ANNUAL_TEST_LINE); };
-    if (kind === 'retired-pending') {
-      begin('Unfinished', 'quiet');
-      say('annual-lead', 'This unfinished checkout is for a retired plan. It cannot start a new subscription.');
-      if (state.confirming) parts.push(...annualConfirm(state, refs, ''));
-      else {
-        const cancel = button('Cancel yearly plan', () => { state.confirming = true; annualDraw('confirm'); });
-        refs.cancel = cancel; parts.push(annualRow(cancel));
-      }
-      return parts;
-    }
-    if (kind === 'error') {
-      begin();
-      say('annual-lead', 'Couldn’t check the annual plan.');
-      say('annual-note', 'Nothing has changed, and your plan above is not affected.');
-      const retry = button('Try again', () => { void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { focus: 'title' }); });
-      refs.retry = retry; parts.push(annualRow(retry));
-      return parts;
-    }
-    if (kind === 'not-owner') { begin('Locked', 'quiet'); say('annual-lead', 'Only the workspace owner can choose the annual plan here.'); return parts; }
-    if (kind === 'closed') { begin(); say('annual-lead', 'Choosing the annual plan here is paused for now.'); say('annual-note', 'Your plan above is unchanged.'); return parts; }
-    if (kind === 'locked-start') {
-      begin();
-      say('annual-lead', 'You can choose the annual plan here once your free months have started.');
-      say('annual-note', 'They start when the plan is activated with a payment method on file: in the app through the App Store, with a card on this page, or by Veylet for an invoiced account.');
-      return parts;
-    }
-    if (kind === 'locked-accept') {
-      // A server older than offer 2026-09-25.1 still asks for an accepted walkthrough first.
-      begin('Locked', 'quiet');
-      say('annual-lead', 'The annual plan opens here after one more step.');
-      parts.push(annualChecklist([[true, 'Free months started'], [false, 'Get your first walkthrough accepted']]));
-      say('annual-note', 'A walkthrough counts once its automatic quality check has passed and you have approved it for release. Saving a space or sending a capture does not.');
-      const link = annualNode('a', 'text-link', 'See your first-capture steps'); link.href = '/start';
-      refs.primary = link; parts.push(annualRow(link));
-      return parts;
-    }
-    if (kind === 'start-failed') {
-      // The first yearly charge failed: say so with its price and day, then the
-      // one way forward (another card, at the same price) and the way out.
-      const failedStart = offer.start_failed;
-      begin('Charge failed', 'busy');
-      testLine();
-      parts.push(annualAlert(annualTest(state) + 'Your first yearly charge of ' + planMoney(failedStart.year_cents) + ', due ' +
-        annualDay(failedStart.starts_on) + ', didn’t go through. Nothing was charged, and your yearly plan hasn’t started.'));
-      parts.push(annualPlanList(state, [annualPlan(state)], false));
-      if (state.confirming) { parts.push(...annualConfirm(state, refs, '')); return parts; }
-      const cancel = button(annualTest(state) + 'Cancel yearly plan', () => { state.confirming = true; annualDraw('confirm'); });
-      refs.cancel = cancel;
-      const ask = () => {
-        const link = annualNode('a', 'text-link', 'Email Veylet support about this plan');
-        link.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20yearly%20plan'; return link;
-      };
-      if (!state.lane) {
-        // Both a new card and a cancellation go through the card lane, so neither is offered unread.
-        say('annual-lead', 'Card payment couldn’t be reached, so a new card can’t be added right now.');
-        const retry = button('Check again', () => { void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { focus: 'title' }); });
-        refs.retry = retry; parts.push(annualRow(retry, ask()));
-        return parts;
-      }
-      if (!state.lane.open) {
-        say('annual-lead', 'Card payment for the annual price is closed right now, so a new card can’t be added here.');
-        parts.push(annualRow(ask()));
-        return parts;
-      }
-      if (failedStart.plan_code !== ANNUAL_PLAN) {
-        // A year bought on a retired plan is not sold again: it can only be cancelled.
-        say('annual-lead', 'This yearly plan was for ' + annualName(failedStart.plan_code) + ', which is no longer sold, so it can’t be restarted with a new card. Cancel it; nothing is charged.');
-        parts.push(annualRow(cancel));
-        return parts;
-      }
-      if (failedStart.retrying) say('annual-note', 'The start that failed is still being stopped at Square. A new card is used only once it has stopped, so nobody pays twice.');
-      const block = annualNode('div', 'annual-pay');
-      block.append(...annualPay(state, refs, { lead: 'Use another card to start your yearly plan at the same price, or cancel it.', extras: [cancel] }));
-      parts.push(block);
-      return parts;
-    }
-    if (kind === 'scheduled' || kind === 'conflict') {
-      const scheduled = offer.scheduled || null;
-      const day = scheduled ? annualDay(scheduled.starts_on) : '';
-      const future = scheduled ? state.chargeToday !== true && annualFuture(scheduled.starts_on) : true;
-      if (kind === 'conflict') {
-        begin('Paused', 'quiet');
-        testLine();
-        parts.push(annualAlert('App Store renewal is on again, so both would charge. We paused ' +
-          (scheduled ? 'your yearly plan, due to start ' + day : 'your yearly start') + '. Nothing has been charged.'));
-        say('annual-note', 'Turn off App Store renewal to keep the yearly plan, or cancel it.');
-      } else {
-        begin('Scheduled', 'good');
-        testLine();
-        const running = annualAppleRunning(offer) ? ' Your App Store plan runs until then.' : ['trial', 'active'].includes(offer.plan_status) ? ' Your current plan runs until then.' : '';
-        say('annual-lead', annualTest(state) + (future ? 'Yearly plan starts ' + day + '.' + running : 'Yearly plan starts today.'));
-      }
-      if (scheduled) {
-        parts.push(annualPlanList(state, [{ code: scheduled.plan_code, year_cents: scheduled.year_cents }], false));
-        say('annual-charge', annualTest(state) + (future ? 'Nothing has been charged. First charge ' + planMoney(scheduled.year_cents) + ' on ' + day
-          : 'First charge ' + planMoney(scheduled.year_cents) + ' today') + ', then it renews each year until you cancel.');
-      }
-      if (state.confirming) parts.push(...annualConfirm(state, refs, day));
-      else if (kind === 'scheduled' && !future) {
-        // Started today: it is no longer a start that can be withdrawn here.
-        const ask = annualNode('a', 'text-link', 'Email Veylet support about this plan');
-        ask.href = 'mailto:yoda@yodalai.xyz?subject=Veylet%20yearly%20plan'; refs.cancel = ask;
-        parts.push(annualRow(ask));
-      } else {
-        const cancel = button(annualTest(state) + 'Cancel yearly plan', () => { state.confirming = true; annualDraw('confirm'); });
-        refs.cancel = cancel;
-        parts.push(kind === 'conflict' ? annualRow(annualAppleLink(refs), cancel, annualCheckButton(refs)) : annualRow(cancel));
-        if (kind === 'conflict' && state.checkNote) say('annual-note', state.checkNote);
-      }
-      return parts;
-    }
-    // Open to choose: the one price; with the card lane closed, only it and when card payment opens.
-    begin();
-    testLine();
-    say('annual-lead', 'Pay once a year instead of monthly.');
-    // The one price, as a statement: the yearly total, what the year includes, the months free and the saving.
-    parts.push(annualPlanList(state, [annualPlan(state)], true));
-    const bonus = annualBonus(offer);
-    if (bonus) say('annual-bonus', annualBonusLine(bonus, offer));
-    if (kind === 'lane-closed') {
-      say('annual-lead annual-soon', 'Card payment for the annual price opens soon.');
-      return parts;
-    }
-    if (annualAppleRunning(offer)) {
-      const renewing = offer.apple_auto_renews !== false;
-      const until = annualDay(offer.starts_on);
-      const steps = annualNode('ol', 'annual-steps');
-      const one = annualStep(1, renewing ? 'active' : 'done', renewing ? 'App Store renewal is on' : 'App Store renewal is off');
-      one.append(annualNode('p', 'annual-step-text', renewing
-        ? 'Your App Store plan keeps running until ' + until + '. Turning off renewal does not end it early.'
-        : 'Your App Store plan runs until ' + until + '.'));
-      if (renewing) {
-        one.append(annualRow(annualAppleLink(refs), annualCheckButton(refs)));
-        if (state.checkNote) one.append(annualNode('p', 'annual-note', state.checkNote));
-      }
-      const two = annualStep(2, renewing ? 'upcoming' : 'active', 'Pay by card');
-      if (renewing) two.append(annualNode('p', 'annual-step-text', 'Opens once App Store renewal is off.'));
-      else two.append(...annualPay(state, refs));
-      steps.append(one, two); parts.push(steps);
-    } else {
-      const block = annualNode('div', 'annual-pay'); block.append(...annualPay(state, refs)); parts.push(block);
-    }
-    return parts;
-  }
-  function annualDraw(focus) {
-    const state = annual;
-    if (!state || !annualEl) return;
-    const refs = {};
-    const parts = annualParts(state, refs);
-    if (!parts) { annualEl.hidden = true; annualEl.replaceChildren(); return; }
-    state.refs = refs;
-    annualEl.hidden = false;
-    annualEl.replaceChildren(...parts);
-    if (focus && refs[focus]) refs[focus].focus();
-  }
-  function annualHide() {
-    annualDropCard(annual);
-    annualVersion += 1; annual = null;
-    if (!annualEl) return;
-    annualEl.hidden = true; annualEl.setAttribute('aria-busy', 'false'); annualEl.replaceChildren();
-  }
-  // Waiting keeps the card's own shape: the lead, the one price, the start, the
-  // charge line, the action and the note, each at the length it usually is.
-  function annualSkeleton() {
-    if (!annualEl) return;
-    annualDropCard(annual);
-    annualVersion += 1; annual = null;
-    annualEl.hidden = false; annualEl.setAttribute('aria-busy', 'true');
-    const price = annualNode('li', 'annual-skeleton-row');
-    const body = annualNode('span', 'annual-option-body');
-    body.append(skeletonLine('span', 'annual-option-name', 11), skeletonLine('span', 'annual-amount', 12),
-      skeletonLine('span', 'annual-qualifier', 47), skeletonLine('span', 'annual-qualifier', 58));
-    price.append(body);
-    const plans = annualNode('ul', 'annual-plans'); plans.append(price);
-    const action = annualNode('span', 'plan-skeleton annual-skeleton-action'); action.setAttribute('aria-hidden', 'true');
-    const pay = annualNode('div', 'annual-pay');
-    pay.append(skeletonLine('p', 'annual-step-text', 71), skeletonLine('p', 'annual-charge', 106), annualRow(action), skeletonLine('p', 'annual-note', 77));
-    annualEl.replaceChildren(annualHead(), annualNode('p', 'annual-lead', 'Checking the annual plan…'), plans, pay);
-  }
-  async function renderAnnual(supabase, ticket, workspaceID, planRow, options = {}) {
-    if (!annualEl) return;
-    if (!workspaceID) { annualHide(); return; }
-    if (options.quiet && annual) annualEl.setAttribute('aria-busy', 'true');
-    else annualSkeleton();
-    const version = ++annualVersion;
-    annualCheckedAt = Date.now();
-    const [reply, lane] = await Promise.all([
-      settled(Promise.resolve().then(() => supabase.rpc('get_members_annual_offer', { p_workspace_id: workspaceID }))),
-      squareLane(),
-    ]);
-    if (ticket !== deskVersion || version !== annualVersion) return;
-    annualEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check the annual plan.'); return; }
-    // Before the backend has the function there is no offer to show; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') { annualHide(); return; }
-    const previous = annual && annual.workspaceID === workspaceID ? annual : null;
-    annualDropCard(annual);
-    const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    annual = { supabase, workspaceID, planRow, offer, lane, kind: annualKind(offer, lane),
-      start: previous?.start || null, busy: false, confirming: false,
-      problem: null, notice: options.notice || null, checkNote: null };
-    annualDraw(options.focus);
-    options.after?.(previous, annual);
-  }
-  // Check again, and coming back to the page, re-read the server; the page never assumes Apple or Square acted.
-  function annualAfterCheck(explicit) {
-    return (previous, next) => {
-      const was = annualWaiting(previous);
-      const now = annualWaiting(next);
-      if (was && was === now) {
-        if (!explicit) return;
-        if (now !== 'checkout') {
-          next.checkNote = 'Checked at ' + new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) +
-            '. App Store renewal is still on. Apple can take a few minutes to tell us.';
-          setStatus(next.checkNote);
-        }
-        annualDraw('check');
-        return;
-      }
-      if (was === 'renewal' && next.kind === 'unlocked' && !now) {
-        setStatus('App Store renewal is off. Step 2 is ready.');
-        if (explicit) annualDraw('primary');
-        return;
-      }
-      if (explicit) annualDraw('title');
-    };
-  }
-  async function annualCheckAgain(control) {
-    const state = annual;
-    if (!state || state.busy) return;
-    state.busy = true; control.disabled = true; control.textContent = 'Checking…';
-    await renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, after: annualAfterCheck(true) });
-  }
-  function annualRecheck(force) {
-    const state = annual;
-    if (!state || !currentUserId) return;
-    // A page restored from the back-forward cache may still say "Opening checkout…".
-    if (state.card || (!force && (state.busy || state.confirming || !annualWaiting(state) || Date.now() - annualCheckedAt < 5000))) return;
-    void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, after: annualAfterCheck(false) });
-  }
-  function annualRefused(state, answer) {
-    const code = answer?.body?.error || (answer?.status === 401 ? 'unauthorized' : null);
-    if (code === 'unauthorized') { showSignedOut('Your sign-in has expired. Sign in again and check whether the yearly plan was cancelled.'); return; }
-    const notice = 'The cancellation was not confirmed. Check the plan below before trying again.';
-    setStatus(notice);
-    void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, notice, focus: 'title' });
-  }
-  // "Pay yearly by card": load Square's SDK once, open its card field in the card, and move focus into it.
-  async function annualOpenCard(control) {
-    const state = annual;
-    if (!annualCardAllowed(state) || state.busy || state.card || !['unlocked', 'start-failed'].includes(state.kind)) return;
-    // One card form on the desk at a time: any other open card form is closed first.
-    closeCardForms('annual');
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Loading card form…';
-    setStatus('Loading Square’s card form…');
-    let form = annualCardForm(state.lane);
-    if (!form) {
-      const lane = await squareLane(true);
-      if (annual !== state) return;
-      if (lane) state.lane = lane;
-      form = annualCardForm(lane);
-    }
-    const made = form ? await settled(annualSdk(form.sdk_url).then(Square => Square.payments(form.application_id, form.location_id).card({ style: SQUARE_CARD_STYLE })))
-      : { error: new Error('No card form') };
-    if (made.timedOut) annualSdkLoad = null;
-    const card = made.timedOut || made.error ? null : made.value;
-    if (annual !== state) { Promise.resolve().then(() => card?.destroy?.()).catch(() => {}); return; }
-    if (!card || typeof card.attach !== 'function' || typeof card.tokenize !== 'function') {
-      state.busy = false; annualProblem(state, ANNUAL_SDK_FAILED); control.focus?.(); return;
-    }
-    state.card = card;
-    annualDraw();
-    const attached = await settled(Promise.resolve().then(() => card.attach('#' + ANNUAL_CARD_FIELD)));
-    if (annual !== state) return;
-    state.busy = false;
-    if (attached.timedOut || attached.error) {
-      annualDropCard(state); state.problem = ANNUAL_SDK_FAILED; annualDraw('pay'); setStatus(ANNUAL_SDK_FAILED); return;
-    }
-    setStatus('Enter your card in Square’s card form, then confirm the yearly plan.');
-    if (typeof card.focus === 'function') { try { await card.focus('cardNumber'); return; } catch { /* the field itself, below */ } }
-    state.refs?.field?.focus();
-  }
-  function annualCloseCard() {
-    const state = annual;
-    if (!state || state.busy) return;
-    annualDropCard(state); state.problem = null;
-    annualDraw('pay');
-    setStatus('Card form closed. Nothing was set up.');
-  }
-  // "Confirm yearly plan": Square tokenizes the card in its iframe; only that single-use token is sent.
-  async function annualConfirmCard(control) {
-    const state = annual;
-    if (!annualCardAllowed(state) || state.busy || !state.card) return;
-    const plan = annualPlan(state);
-    const start = annualCanStartNow(state) && state.start !== 'scheduled' ? 'now' : 'scheduled';
-    const expected = { plan_code: plan.code, year_cents: plan.year_cents, starts_on: annualStartsToday(state) ? annualToday() : state.offer.starts_on };
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Confirming…';
-    setStatus('Confirming your yearly plan…');
-    const tokenized = await settled(Promise.resolve().then(() => state.card.tokenize()));
-    if (annual !== state) return;
-    const result = tokenized.timedOut || tokenized.error ? null : tokenized.value;
-    const sourceID = result?.status === 'OK' ? result.token : null;
-    if (typeof sourceID !== 'string' || !/^[A-Za-z0-9:_-]{8,512}$/.test(sourceID)) {
-      state.busy = false;
-      annualProblem(state, 'Square couldn’t use those card details. Check them and try again. Nothing was charged.');
-      control.focus?.();
-      return;
-    }
-    const token = await annualToken(state.supabase);
-    if (annual !== state) return;
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to pay yearly. Nothing was set up.'); return; }
-    const reply = await settled(annualHooks('/square/members-annual/checkout', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ workspace_id: state.workspaceID, plan_code: plan.code, start, source_id: sourceID }) }), 30000);
-    if (annual !== state) return;
-    state.busy = false;
-    const answer = reply.timedOut || reply.error ? null : reply.value;
-    const done = answer?.ok ? answer.body : null;
-    const scheduled = done?.scheduled;
-    if (scheduled && typeof scheduled === 'object' && ANNUAL_CODES.includes(scheduled.plan_code) && Number.isInteger(scheduled.year_cents)
-      && scheduled.year_cents > 0 && annualDay(scheduled.starts_on) && typeof done.charge_today === 'boolean') {
-      annualConfirmed(state, done, expected);
-      return;
-    }
-    const code = answer?.body?.error || (answer?.status === 401 ? 'unauthorized' : null);
-    if (code === 'unauthorized') { showSignedOut('Your sign-in has expired. Sign in again to pay yearly. Nothing was set up.'); return; }
-    if (answer?.ok || code === 'already_scheduled') {
-      // A plan is already there, or an answer this page cannot read: the server's record is shown.
-      const notice = code === 'already_scheduled' ? ANNUAL_REFUSALS.already_scheduled : 'The answer could not be read. This is your plan as it stands now.';
-      setStatus(notice);
-      void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, notice, focus: 'title' });
-      return;
-    }
-    annualProblem(state, annualProblemText(state, code));
-    control.focus?.();
-  }
-  // The scheduled state is drawn from the server's answer: the same plan, price and date the button stated.
-  function annualConfirmed(state, done, expected) {
-    annualDropCard(state);
-    const scheduled = { plan_code: done.scheduled.plan_code, year_cents: done.scheduled.year_cents, starts_on: done.scheduled.starts_on };
-    const differs = ['plan_code', 'year_cents', 'starts_on'].some(key => scheduled[key] !== expected[key]);
-    state.offer = { ...state.offer, scheduled, checkout_pending: null, start_failed: null };
-    Object.assign(state, { kind: 'scheduled', chargeToday: done.charge_today, sandbox: done.sandbox === true, problem: null, start: null,
-      notice: differs ? 'These are the terms your yearly plan was set up with; they differ from what was shown before you confirmed.' : null });
-    annualDraw('title');
-    setStatus(done.charge_today ? 'Yearly plan confirmed. The first charge is today.' : 'Yearly plan confirmed. Nothing is charged today.');
-  }
-  async function annualCancel(control) {
-    const state = annual;
-    if (!state || state.busy) return;
-    state.busy = true; control.disabled = true; control.textContent = 'Cancelling…';
-    setStatus('Cancelling the yearly plan…');
-    const token = await annualToken(state.supabase);
-    if (annual !== state) return;
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to cancel the yearly plan. Nothing was changed.'); return; }
-    const reply = await settled(annualHooks('/square/members-annual/cancel', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ workspace_id: state.workspaceID }) }));
-    if (annual !== state) return;
-    state.busy = false; state.confirming = false;
-    const answer = reply.timedOut || reply.error ? null : reply.value;
-    if (answer?.ok && answer.body?.cancelled === true) {
-      const done = 'Yearly plan cancelled. Nothing was charged.';
-      setStatus(done);
-      void renderAnnual(state.supabase, deskVersion, state.workspaceID, state.planRow, { quiet: true, notice: done, focus: 'title' });
-      return;
-    }
-    annualRefused(state, answer);
-  }
-
-  // Opening a card form elsewhere on the desk closes this one, quietly.
-  function annualCloseOther() {
-    const state = annual;
-    if (!state || state.busy || !state.card) return;
-    annualDropCard(state); state.problem = null; annualDraw();
   }
 
   /* ---- Walkthrough packs ---------------------------------------------------
@@ -3755,7 +3058,7 @@
     return lane.open ? 'choose' : 'lane-closed';
   }
   function packWords(count) { return count + (count === 1 ? ' walkthrough' : ' walkthroughs'); }
-  // Square Sandbox labels every price and payment action, as the annual card does.
+  // Square Sandbox labels every price and payment action, as the free-months card does.
   function packTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
   function packChosen(state) {
     return state.offer.packs.find(pack => pack.code === state.selected) || state.offer.packs[0];
@@ -4459,7 +3762,6 @@
   function closeCardForms(except) {
     if (except !== 'trial') trialCloseOther();
     if (except !== 'packs') packsCloseOther();
-    if (except !== 'annual') annualCloseOther();
     if (except !== 'express') expressCloseOther();
   }
 
@@ -6410,7 +5712,7 @@
       if (statusEl?.textContent === 'Signed in. Loading your spaces…') setStatus('');
       nextStep?.replaceChildren(); targetMessage('');
       planBody?.replaceChildren(); planPanel?.setAttribute('aria-busy', 'false');
-      trialHide(); packsHide(); annualHide(); referralHide(); clientsHide(); teamHide();
+      trialHide(); packsHide(); referralHide(); clientsHide(); teamHide();
       renderSay(offlineWords(0));
       return;
     }
@@ -6876,10 +6178,9 @@
     if (document.hidden) { renderStop(); return; }
     if (!currentUserId) return;
     const now = Date.now();
-    // When the desk does not reload, an annual plan that is waiting on Apple
-    // or Square is read again on its own, and so is render status.
+    // When the desk does not reload, render status is read again on its own.
     if (deskDirty || !lastDesk || !lastDesk.rows.some(row => row.status === 'processing' || row.status === 'draft')
-      || now - lastFocusLoad < 60000) { annualRecheck(); renderResume(); return; }
+      || now - lastFocusLoad < 60000) { renderResume(); return; }
     lastFocusLoad = now; void loadDesk(supabase);
   });
   // Offline: stop reading and say how old the page is. Back online: read again, and
@@ -6894,9 +6195,6 @@
     if (!deskDirty) { void loadDesk(supabase); return; }
     if (render && render.ticket === deskVersion) { renderStop(); render.failures = 0; void renderRead(); } else renderSay('');
   });
-  // Back from Apple's subscriptions page in another tab, or from Square checkout.
-  window.addEventListener?.('focus', () => annualRecheck());
-  window.addEventListener?.('pageshow', event => { if (event?.persisted) annualRecheck(true); });
   // Your own records, as a file. Metadata only: no link secrets, storage paths,
   // imagery or scene files. It is a convenience copy, not a backup of a tour.
   exportButton?.addEventListener('click', () => {

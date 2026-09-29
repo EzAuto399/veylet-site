@@ -844,10 +844,8 @@ test('the reminder email is planned, never claimed as sent, on every public page
 });
 
 test('no public page gates the annual behind membership', () => {
-  assert.equal(record.membersAnnual.newSalesEnabled, false);
-  assert.equal(record.membersAnnual.unlock.acceptedWalkthroughsAtLeast, 0);
-  assert.deepEqual(Object.keys(record.membersAnnual.tiers), ['standard']);
-  assert.equal(record.membersAnnual.tiers.standard.planAud, 990, 'existing agreements keep their legacy price');
+  // Owner decision 29 September 2026: the members' annual is removed from the record.
+  assert.equal(record.membersAnnual, undefined);
   const gating = /members[ -]only|Members get an annual price|annual price in (?:their|your) account|after (?:their|your) first accepted walkthrough|never (?:on )?a public page|members[’'] annual|members’ price/i;
   for (const file of walk(/\.(?:html|txt)$/)) {
     assert.doesNotMatch(visible(rel(file)), gating, `${rel(file)} gates the annual`);

@@ -33,7 +33,9 @@ test('the canonical offer is 2026-09-29.2 and separates payment channels and una
   // yearly pool is 36 at the same A$1,399.99. Every earlier version is history.
   assert.equal(record.version, '2026-09-29.2');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2']]);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2'], ['2026-09-29.2', undefined]]);
+  // The last entry restates the current version (owner decision 29 September 2026): no price moved.
+  assert.match(record.history.at(-1).restated, /members' annual \(A\$990\) is removed; it is not sold, quoted or started/);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
@@ -199,16 +201,10 @@ test('human and machine summaries keep renewal and exhausted-trial recovery trut
   }
 });
 
-test('legacy website annual agreements remain intact but new subscription switches are disabled', () => {
-  const members = record.membersAnnual;
-  assert.equal(members.newSalesEnabled, false);
-  assert.match(members.status, /legacy website annual agreements only; new subscriptions use the App Store/);
-  assert.equal(members.currentTier, 'standard');
-  assert.deepEqual(members.tiers, { standard: { planAud: 990, monthsCharged: 10 } });
-  assert.match(members.tierRule, /scheduled or active annual plans keep the price they were bought at/);
-  assert.deepEqual(members.unlock, { freeMonthsStarted: true, acceptedWalkthroughsAtLeast: 0, checkedBy: 'server, before any checkout or invoice' });
-  assert.match(members.switchFromAppStore, /cannot be cancelled or paused automatically/);
-  assert.equal(members.startNow, 'not offered for new subscriptions');
+test('the members’ annual is removed from the record; subscription switches stay disabled', () => {
+  assert.equal(record.membersAnnual, undefined);
+  assert.equal(record.subscriptionCheckout.websiteCardEnabled, false);
+  assert.deepEqual(record.subscriptionCheckout.newBuyerChannels, ['appStore']);
 });
 
 test('every public page states the free-month walkthrough count from the record', () => {

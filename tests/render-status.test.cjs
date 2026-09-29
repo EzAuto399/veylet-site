@@ -76,7 +76,7 @@ async function load(options = {}) {
       }
       if (name === 'can_produce_tours') return { data: false };
       if (name === 'get_account_deletion') return { data: [] };
-      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'get_members_annual_offer', 'get_referral_code'].includes(name)) return { error: { code: 'PGRST202', message: 'Could not find the function' } };
+      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'get_referral_code'].includes(name)) return { error: { code: 'PGRST202', message: 'Could not find the function' } };
       if (name === 'get_tour_review') return { data: [{ approved: Boolean(options.approved) }] };
       if (name === 'get_tour_review_target') { const tour = table.tours.data.find(row => row.id === args.p_tour_id); return { data: [{ tour_id: tour?.id, storage_path: tour?.storage_path, package_revision: 'a'.repeat(64) }] }; }
       return { data: null };

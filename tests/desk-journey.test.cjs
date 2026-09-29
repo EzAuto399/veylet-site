@@ -103,7 +103,7 @@ function harness(options = {}) {
       if (options.rpc?.[name]) return options.rpc[name](args, { tours, approved, table });
       if (name === 'can_produce_tours') return { data: false };
       if (name === 'get_account_deletion') return { data: [] };
-      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'get_members_annual_offer', 'get_referral_code', 'list_workspace_render_status', 'get_workspace_public_contact'].includes(name)) return missing;
+      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'get_referral_code', 'list_workspace_render_status', 'get_workspace_public_contact'].includes(name)) return missing;
       if (name === 'get_tour_hosting') return { data: options.hosting || [] };
       if (name === 'get_tour_review') return { data: [{ approved: approved.has(args.p_tour_id) }] };
       if (name === 'get_tour_review_target') { const row = tours.find(item => item.id === args.p_tour_id); return { data: [{ tour_id: row?.id, storage_path: row?.storage_path, package_revision: 'a'.repeat(64) }] }; }

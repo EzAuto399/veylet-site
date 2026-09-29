@@ -218,7 +218,7 @@ export const APP_ACCOUNT_CASES = Object.freeze([
   '?case=plan-web-active', '?case=plan-apple-active', '?case=plan-monthly-banked', '?case=plan-annual-pool', '?case=plan-team-active',
   '?case=plan-trial-exhausted', '?case=plan-ended', '?case=plan-ended-after-active', '?case=plan-nomembership',
   '?express=offer&render=rendering', '?express=ordered&render=rendering', '?express=credit&render=waiting', '?render=all',
-  '?referral=link&ref=0123456789ab', '?packs=credits', '?annual=scheduled', '?trial=choose&case=plan-pending',
+  '?referral=link&ref=0123456789ab', '?packs=credits', '?trial=choose&case=plan-pending',
   '?pause=paused', '?pause=missing', '?views=zero', '?contact=shown', '?case=correction', '?share=review',
   '?render=waiting&hold=admission', '?render=waiting&hold=paused', '?render=waiting&hold=weekly_limit', '?render=ready&flags=all',
   '?render=all&flags=unknown&hold=weekly_limit', '?render=waiting&hold=trial_limit', '?render=all&rooms=17', '?express=capacity&render=waiting', '?primary=office', '?render=waiting&hold=trial_limit&start-now=web', '?render=paused',

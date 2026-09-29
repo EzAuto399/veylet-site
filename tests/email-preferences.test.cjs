@@ -80,7 +80,7 @@ async function load({ signedOut = false, email = 'missing', save, user, storage,
         if (save) return save(args);
         return { data: { tips_opt_in: args.p_opt_in, wording_version: args.p_opt_in ? args.p_wording_version : null, changed_at: '2026-09-25T00:00:00Z' } };
       }
-      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'list_workspace_render_status', 'get_members_annual_offer', 'get_referral_code', 'get_walkthrough_capacity', 'get_workspace_plan'].includes(name)) return MISSING(name);
+      if (['get_pack_offer', 'get_trial_offer', 'get_express_offer', 'list_workspace_render_status', 'get_referral_code', 'get_walkthrough_capacity', 'get_workspace_plan'].includes(name)) return MISSING(name);
       if (name === 'can_produce_tours') return { data: false };
       if (name === 'get_account_deletion') return { data: [] };
       return { data: null };

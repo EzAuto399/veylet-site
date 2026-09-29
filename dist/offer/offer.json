@@ -184,31 +184,6 @@
     "iPhone 12 Pro and later Pro or Pro Max models",
     "iPad Pro models with LiDAR"
   ],
-  "membersAnnual": {
-    "status": "legacy website annual agreements only; new subscriptions use the App Store",
-    "unlock": {
-      "freeMonthsStarted": true,
-      "acceptedWalkthroughsAtLeast": 0,
-      "checkedBy": "server, before any checkout or invoice"
-    },
-    "visibility": "not a new subscription offer",
-    "channels": [
-      "squareCard",
-      "studioInvoice"
-    ],
-    "tiers": {
-      "standard": {
-        "planAud": 990,
-        "monthsCharged": 10
-      }
-    },
-    "currentTier": "standard",
-    "tierRule": "one public annual price; scheduled or active annual plans keep the price they were bought at",
-    "switchFromAppStore": "No new Square subscription switch is offered. Existing signed agreements retain their terms; Apple subscriptions cannot be cancelled or paused automatically by Veylet.",
-    "startNow": "not offered for new subscriptions",
-    "renews": "each year until cancelled",
-    "newSalesEnabled": false
-  },
   "retiredPlans": {
     "codes": [
       "studio",
@@ -363,6 +338,12 @@
       "replacedBy": "2026-09-29.2",
       "on": "2026-09-29",
       "change": "Owner decision, 29 September 2026: the free month and the paid month carry the same allowance. The Veylet plan includes 3 accepted walkthroughs a month, was 2, with up to 6 banked, was 4; the yearly pool is 36, was 24, at the same A$1,399.99, so yearly is still the same allowance as 12 monthly payments for A$279.89 (16.7%) less. Per walkthrough when every included one is used: A$46.66 monthly, A$38.89 yearly (were A$70.00 and A$58.33). The free month stays 1 month with 3. Prices, packs, Super fast, hosting, editing and counting are unchanged. The unavailable recurring-capacity totals (A$219.99 for 4, A$319.99 for 6) now cost more per walkthrough than the plan; they stay unavailable and are no longer shown on the public offer page until repriced."
+    },
+    {
+      "version": "2026-09-29.2",
+      "on": "2026-09-29",
+      "restated": "owner decision 29 September 2026: the legacy members' annual (A$990) is removed; it is not sold, quoted or started",
+      "scope": "version, prices and allowances unchanged; the website annual card and its server read are removed from /account, and any members' annual answer an older server still sends is ignored"
     }
   ],
   "subscriptionCheckout": {
