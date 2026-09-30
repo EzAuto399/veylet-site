@@ -54,9 +54,8 @@ test('the form asks the plan\'s questions, and only the waitlist answers are req
   assert.match(markup, /<option value="iphone_pro_lidar">iPhone 12 Pro or newer \(Pro or Pro Max\)</);
   assert.match(markup, /<option value="ipad_pro_lidar">iPad Pro, 2020 or newer</);
   assert.match(markup, /<option value="iphone_other">Another iPhone \(standard, Plus or older\)</);
-  // Plain words in the form: no sensor jargon (owner, 29 Sep). The hero lead names LiDAR once (owner copy, 30 Sep).
-  assert.doesNotMatch(markup.split('<form id="waitlist-form"')[1].split('</form>')[0], /LiDAR/);
-  assert.equal((markup.match(/LiDAR/g) || []).length, 1);
+  // Plain words on the page: no sensor jargon (owner, 29 Sep).
+  assert.doesNotMatch(markup, /LiDAR/);
   assert.match(markup, /Where will you show walkthroughs\?/);
   // The device line explains the question and is read with it.
   assert.match(markup, /aria-describedby="waitlist-lidar"/);
@@ -70,7 +69,7 @@ test('the hero says what joining is for, the free month and the prices from offe
   const aud = value => 'A$' + value.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   assert.match(markup, /<h1 id="waitlist-title" tabindex="-1">Join the waitlist for 3D walkthroughs\.<\/h1>/);
   const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
-  assert.equal(intro, 'Capture a listing with a LiDAR iPhone or iPad Pro and Veylet builds the 3D walkthrough. When your weekly group opens, '
+  assert.equal(intro, 'Capture a listing with a recent iPhone Pro or iPad Pro and Veylet builds the 3D walkthrough. When your weekly group opens, '
     + `your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
     + 'Capture quality is still being proven. Joining is free.');
   assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
