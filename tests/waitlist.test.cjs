@@ -54,12 +54,26 @@ test('the form asks the plan\'s questions, and only the waitlist answers are req
   assert.match(markup, /<option value="iphone_pro_lidar">iPhone 12 Pro or newer \(Pro or Pro Max\)</);
   assert.match(markup, /<option value="ipad_pro_lidar">iPad Pro, 2020 or newer</);
   assert.match(markup, /<option value="iphone_other">Another iPhone \(standard, Plus or older\)</);
-  // Plain words on the page: no sensor jargon (owner, 29 Sep).
-  assert.doesNotMatch(markup, /LiDAR/);
+  // Plain words in the form: no sensor jargon (owner, 29 Sep). The hero lead names LiDAR once (owner copy, 30 Sep).
+  assert.doesNotMatch(markup.split('<form id="waitlist-form"')[1].split('</form>')[0], /LiDAR/);
+  assert.equal((markup.match(/LiDAR/g) || []).length, 1);
   assert.match(markup, /Where will you show walkthroughs\?/);
   // The device line explains the question and is read with it.
   assert.match(markup, /aria-describedby="waitlist-lidar"/);
   assert.match(markup, /id="waitlist-lidar"[^>]*>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Standard and Plus iPhones, older models and Android phones can’t capture yet\. Any phone can view a walkthrough\.</);
+});
+
+// Owner copy, 30 September 2026: the hero names the product and the offer, with the App Store prices as offer.json states them.
+test('the hero says what joining is for, the free month and the prices from offer.json, and that joining is free', () => {
+  const offer = JSON.parse(fs.readFileSync(path.join(dist, 'offer/offer.json'), 'utf8'));
+  const solo = offer.plans.find(entry => entry.code === 'solo');
+  const aud = value => 'A$' + value.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  assert.match(markup, /<h1 id="waitlist-title" tabindex="-1">Join the waitlist for 3D walkthroughs\.<\/h1>/);
+  const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
+  assert.equal(intro, 'Capture a listing with a LiDAR iPhone or iPad Pro and Veylet builds the 3D walkthrough. When your weekly group opens, '
+    + `your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
+    + 'Capture quality is still being proven. Joining is free.');
+  assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
 });
 
 test('the tips box is unticked, optional and separate from joining, labelled with wording tips-v1; there is a honeypot and a privacy line', () => {
@@ -295,9 +309,15 @@ test('both privacy notices say waitlist sign-ups and /request enquiries are stor
 });
 
 test('the success state lists what happens next, offers /see and sharing, and names the capture devices only when needed', async () => {
-  assert.match(markup, /<ol class="next-steps waitlist-next"[^>]*>\s*<li>We review new sign-ups each week\.<\/li>\s*<li>When your group opens, we email your invitation to the Veylet Capture app\.<\/li>\s*<li>Your first month is free, with 3 walkthroughs included\.<\/li>\s*<\/ol>/);
+  const steps = [.../<ol class="next-steps waitlist-next"[^>]*>([\s\S]*?)<\/ol>/.exec(markup)[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]);
+  assert.deepEqual(steps, [
+    'Tell us when your next listing goes live: reply to your confirmation email, or email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a>. A rough date is fine.',
+    'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet Capture app.',
+    'Your first month is free, with 3 walkthroughs included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
+  ]);
   assert.match(markup, />What happens next</);
-  assert.match(markup, /<a class="button" href="\/see">See a result /);
+  assert.match(markup, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
+  assert.doesNotMatch(markup, /See a result/);
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
   assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
   assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);
