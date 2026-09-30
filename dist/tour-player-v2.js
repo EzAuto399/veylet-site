@@ -104,9 +104,18 @@
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
+    // grade (S18): one brightness touch-up the packager applied to the whole scene. Absent or null: none.
+    // Any other value must be exactly version 1 of global_gain_rolloff, or the package is refused.
+    const grade = json.grade;
+    if (grade !== undefined && grade !== null && (!grade || typeof grade !== 'object' || Array.isArray(grade)
+        || Object.keys(grade).sort().join() !== 'exposure_ev,method,source_median_luma,version'
+        || grade.version !== 1 || grade.method !== 'global_gain_rolloff'
+        || !Number.isFinite(grade.exposure_ev) || grade.exposure_ev <= 0 || grade.exposure_ev > 1
+        || !Number.isFinite(grade.source_median_luma) || grade.source_median_luma < 0 || grade.source_median_luma > 1)) bad('grade');
     return {
       synthetic: json.synthetic === true,
       researchSample: json.research_sample === true,
+      grade: grade ? { exposureEv: grade.exposure_ev, sourceMedianLuma: grade.source_median_luma } : null,
       truthLabel: json.truth_label,
       scene: { lodMeta: scene.lod_meta, levels: scene.lod_levels, counts: scene.lod_counts, rotation: scene.rotation_degrees, background: scene.background,
         ...(chunked ? { chunked } : {}) },
@@ -973,7 +982,12 @@
       const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.6 (MIT licence). ');
       const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
       credits.append(licence);
-      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
+      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel));
+      if (manifest.grade) {
+        ui.aboutPanel.append(el('p', { class: 'v2-grade-note' },
+          'Brightness evened automatically: +' + manifest.grade.exposureEv.toFixed(1) + ' EV, the same everywhere in this walkthrough.'));
+      }
+      ui.aboutPanel.append(controls);
       if (saveData) {
         // Data Saver is on: low detail stays unless the visitor asks for more.
         const more = el('button', { type: 'button', class: 'v2-primary' }, 'Load full detail');

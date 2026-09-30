@@ -542,6 +542,68 @@ test('a research sample says so: research_sample is read only when exactly true'
   assert.match(playerSource, /'Research sample · not a Veylet capture · not to scale'/);
 });
 
+// ---------- S18: the packager's optional brightness grade ----------
+
+const grade = (overrides = {}) => ({ version: 1, method: 'global_gain_rolloff', exposure_ev: 0.54, source_median_luma: 0.3102, ...overrides });
+
+test('a brightness grade is read as { exposureEv, sourceMedianLuma }; absent or null means none', () => {
+  const { player } = load();
+  assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade() })).grade }, { exposureEv: 0.54, sourceMedianLuma: 0.3102 });
+  assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade({ exposure_ev: 1, source_median_luma: 0 }) })).grade }, { exposureEv: 1, sourceMedianLuma: 0 });
+  assert.equal(player.validateManifest(manifest()).grade, null);
+  assert.equal(player.validateManifest(manifest({ grade: null })).grade, null);
+});
+
+test('a malformed brightness grade refuses the package (manifest-invalid:grade)', () => {
+  const { player } = load();
+  const { exposure_ev: _dropped, ...missing } = grade();
+  const cases = {
+    'version 2': grade({ version: 2 }),
+    'version as text': grade({ version: '1' }),
+    'another method': grade({ method: 'per_splat_gain' }),
+    'exposure 0': grade({ exposure_ev: 0 }),
+    'negative exposure': grade({ exposure_ev: -0.3 }),
+    'exposure 1.5': grade({ exposure_ev: 1.5 }),
+    'exposure NaN': grade({ exposure_ev: NaN }),
+    'exposure as text': grade({ exposure_ev: '0.5' }),
+    'median luma 1.2': grade({ source_median_luma: 1.2 }),
+    'negative median luma': grade({ source_median_luma: -0.1 }),
+    'median luma as text': grade({ source_median_luma: '0.3' }),
+    'an extra key': grade({ note: 'x' }),
+    'a missing key': missing,
+    'an array': [1, 'global_gain_rolloff', 0.54, 0.31],
+    'an empty object': {},
+    'false': false,
+    'zero': 0,
+    'a string': 'global_gain_rolloff',
+  };
+  for (const [name, value] of Object.entries(cases)) {
+    assert.throws(() => player.validateManifest(manifest({ grade: value })), error => error.code === 'manifest-invalid:grade', name);
+  }
+});
+
+test('About names a brightness grade in one line after the truth label, and says nothing when there is none', async () => {
+  for (const [value, expected] of [[grade(), 'Brightness evened automatically: +0.5 EV, the same everywhere in this walkthrough.'], [null, null], [undefined, null]]) {
+    const x = await started({ manifest: manifest({ grade: value }) });
+    const app = x.engine.apps[0];
+    app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+    app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+    await x.pending;
+    const about = byClass(x.stage, 'v2-about');
+    const notes = about.querySelectorAll('.v2-grade-note');
+    if (expected === null) {
+      assert.equal(notes.length, 0, String(value));
+      assert.doesNotMatch(about.textContent, /Brightness evened/);
+      continue;
+    }
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].tagName, 'P');
+    assert.equal(notes[0].textContent, expected);
+    const order = about.children.map(child => child.className);
+    assert.equal(order[order.indexOf('v2-truth-full') + 1], 'v2-grade-note');
+  }
+});
+
 // ---------- launch audit 26 September 2026 (VIEWER-02, 07, 08, 10, 11, 12, 16) ----------
 
 /** Timers the test fires by hand: { ms, fire } for every pending setTimeout. */
