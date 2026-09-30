@@ -542,6 +542,143 @@ test('a research sample says so: research_sample is read only when exactly true'
   assert.match(playerSource, /'Research sample · not a Veylet capture · not to scale'/);
 });
 
+// ---------- Astra round 2: simulated fullscreen (F08) ----------
+
+function documentEvent(document, type, values = {}) {
+  const event = { type, preventDefault() { this.defaultPrevented = true; }, ...values };
+  for (const listener of document.listeners.get(type) || []) listener(event);
+  return event;
+}
+
+function surroundingPage(x) {
+  const document = x.document;
+  document.documentElement = document.createElement('html');
+  document.documentElement.append(document.body);
+  document.documentElement.style.overflow = 'scroll';
+  const header = document.createElement('header');
+  const outside = document.createElement('button');
+  header.append(outside);
+  const main = document.createElement('main');
+  const adjacent = document.createElement('button');
+  const footer = document.createElement('footer');
+  footer.setAttribute('inert', 'inert');
+  footer.setAttribute('aria-hidden', 'false');
+  main.append(x.stage, adjacent);
+  document.body.append(header, main, footer);
+  return { header, outside, main, adjacent, footer };
+}
+
+test('F08: simulated fullscreen isolates ancestor siblings, wraps Tab both ways and restores exact prior state', async () => {
+  const x = await readyPlayer();
+  const { header, outside, main, adjacent, footer } = surroundingPage(x);
+  const full = byClass(x.stage, 'v2-fullscreen');
+  x.stage.setAttribute('style', 'border: 1px solid red');
+  outside.focus();
+  full.click();
+  assert.equal(x.document.activeElement, full, 'entry moves an outside focus into the player');
+  for (const node of [header, adjacent, footer]) {
+    assert.equal(node.hasAttribute('inert'), true);
+    assert.equal(node.getAttribute('aria-hidden'), 'true');
+  }
+  assert.equal(main.hasAttribute('inert'), false, 'the player ancestor stays usable');
+  assert.equal(x.stage.hasAttribute('inert'), false);
+  assert.equal(documentEvent(x.document, 'keydown', { key: 'Tab' }).defaultPrevented, true);
+  assert.equal(x.document.activeElement, x.canvas, 'Tab wraps to the first visible control');
+  assert.equal(documentEvent(x.document, 'keydown', { key: 'Tab', shiftKey: true }).defaultPrevented, true);
+  assert.equal(x.document.activeElement, full, 'Shift+Tab wraps to the last visible control');
+  byClass(x.stage, 'v2-next').focus();
+  assert.equal(Boolean(documentEvent(x.document, 'keydown', { key: 'Tab' }).defaultPrevented), false, 'middle controls keep normal tab order');
+  documentEvent(x.document, 'keydown', { key: 'Escape' });
+  assert.equal(x.document.activeElement, outside);
+  assert.equal(header.hasAttribute('inert'), false);
+  assert.equal(header.hasAttribute('aria-hidden'), false);
+  assert.equal(adjacent.hasAttribute('inert'), false);
+  assert.equal(footer.getAttribute('inert'), 'inert');
+  assert.equal(footer.getAttribute('aria-hidden'), 'false');
+  assert.equal(x.document.documentElement.style.overflow, 'scroll');
+  assert.equal(x.stage.getAttribute('style'), 'border: 1px solid red');
+  assert.equal(Boolean(documentEvent(x.document, 'keydown', { key: 'Tab' }).defaultPrevented), false, 'normal page tabbing resumes');
+  full.click();
+  full.click();
+  assert.equal(x.document.activeElement, outside, 'button exit also restores the entry focus');
+  assert.equal(header.hasAttribute('inert'), false, 'a second entry leaves no inert residue');
+});
+
+test('F08: simulated fullscreen catches escaped focus and includes newly opened panel controls', async () => {
+  const x = await readyPlayer();
+  const { outside } = surroundingPage(x);
+  const full = byClass(x.stage, 'v2-fullscreen');
+  full.focus(); full.click();
+  const about = byClass(x.stage, 'v2-about-toggle');
+  about.click();
+  const close = byClass(x.stage, 'v2-about').querySelector('button');
+  close.focus();
+  documentEvent(x.document, 'focusin', { target: close });
+  outside.focus();
+  documentEvent(x.document, 'focusin', { target: outside });
+  assert.equal(x.document.activeElement, close, 'an outside focus request returns to the last usable player control');
+  byClass(x.stage, 'v2-about').hidden = true;
+  outside.focus();
+  documentEvent(x.document, 'focusin', { target: outside });
+  assert.equal(x.document.activeElement, x.canvas, 'a hidden former target is not reused');
+  full.click();
+  outside.focus();
+  documentEvent(x.document, 'focusin', { target: outside });
+  assert.equal(x.document.activeElement, outside, 'focus containment ends at exit');
+});
+
+test('F08: failure teardown releases the background and restores the page layout', async () => {
+  const timers = manualTimers();
+  const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const { header } = surroundingPage(x);
+  const full = byClass(x.stage, 'v2-fullscreen');
+  full.focus(); full.click();
+  assert.equal(header.hasAttribute('inert'), true);
+  x.canvas.dispatch('webglcontextlost');
+  timers.fire(5000);
+  assert.equal(header.hasAttribute('inert'), false);
+  assert.equal(x.document.documentElement.style.overflow, 'scroll');
+  assert.equal(x.stage.classList.contains('v2-filled'), false);
+});
+
+test('F08: native standard and prefixed fullscreen keep the browser focus and isolation behavior', async () => {
+  for (const prefixed of [false, true]) {
+    const x = load({ files: { 'manifest.json': manifest() } });
+    const { header, outside } = surroundingPage(x);
+    const requests = [];
+    const element = prefixed ? 'webkitFullscreenElement' : 'fullscreenElement';
+    x.document[prefixed ? 'webkitFullscreenEnabled' : 'fullscreenEnabled'] = true;
+    x.stage[prefixed ? 'webkitRequestFullscreen' : 'requestFullscreen'] = () => {
+      requests.push('enter'); x.document[element] = x.stage;
+      documentEvent(x.document, prefixed ? 'webkitfullscreenchange' : 'fullscreenchange');
+      return Promise.resolve();
+    };
+    x.document[prefixed ? 'webkitExitFullscreen' : 'exitFullscreen'] = () => {
+      requests.push('exit'); x.document[element] = null;
+      documentEvent(x.document, prefixed ? 'webkitfullscreenchange' : 'fullscreenchange');
+      return Promise.resolve();
+    };
+    const engine = fakeEngine(x.log);
+    const pending = x.player.start(x.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2,
+      page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+    for (let i = 0; i < 12; i++) await tick();
+    engine.apps[0].systems.gsplat.fire('frame:ready', null, null, false, 1);
+    engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+    await pending;
+    outside.focus();
+    const full = byClass(x.stage, 'v2-fullscreen');
+    full.click();
+    assert.equal(full.getAttribute('aria-label'), 'Exit full screen');
+    assert.equal(x.document.activeElement, outside);
+    assert.equal(header.hasAttribute('inert'), false);
+    assert.equal(x.document.documentElement.style.overflow, 'scroll');
+    assert.equal(Boolean(documentEvent(x.document, 'keydown', { key: 'Tab' }).defaultPrevented), false);
+    full.click();
+    assert.deepEqual(requests, ['enter', 'exit']);
+    assert.equal(full.getAttribute('aria-label'), 'Full screen');
+  }
+});
+
 // ---------- launch audit 26 September 2026 (VIEWER-02, 07, 08, 10, 11, 12, 16) ----------
 
 /** Timers the test fires by hand: { ms, fire } for every pending setTimeout. */
@@ -744,4 +881,66 @@ test('full screen on an iPhone clears the notch and the home indicator (VIEWER-1
   assert.equal(x.stage.classList.contains('v2-filled'), true);
   full.click();
   assert.equal(x.stage.classList.contains('v2-filled'), false);
+});
+
+// ---------- Astra round 2: failure recovery (F07) ----------
+
+test('F07: a final graphics loss announces the failure and moves hidden or removed focus to Try again', async () => {
+  for (const selector of ['.v2-canvas', '.v2-next', '.v2-hotspots button', '.v2-fullscreen']) {
+    const timers = manualTimers();
+    const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+    const focused = x.stage.querySelector(selector);
+    assert.ok(focused, selector);
+    focused.focus();
+    if (selector === '.v2-fullscreen') {
+      x.document.documentElement = x.document.createElement('html');
+      focused.click();
+      assert.equal(x.stage.classList.contains('v2-filled'), true);
+    }
+    x.canvas.dispatch('webglcontextlost');
+    timers.fire(5000);
+    const fallback = byClass(x.stage, 'v2-fallback');
+    const retry = fallback.querySelector('button');
+    assert.equal(fallback.hidden, false);
+    assert.equal(x.document.activeElement, retry, selector);
+    assert.equal(x.stage.classList.contains('v2-filled'), false, 'failure exits simulated fullscreen before recovery focus');
+    assert.match(byClass(x.stage, 'v2-sr').textContent, /^3D stopped on this device\. .*Try again/);
+    retry.click();
+    assert.equal(x.log.at(-1), 'retry');
+  }
+});
+
+test('F07: failure announces itself without taking focus from a visible player control or the surrounding page', async () => {
+  for (const outside of [false, true]) {
+    const timers = manualTimers();
+    const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+    const focused = outside ? x.document.createElement('button') : byClass(x.stage, 'v2-about-toggle');
+    if (outside) x.document.body.append(focused);
+    focused.focus();
+    x.canvas.dispatch('webglcontextlost');
+    timers.fire(5000);
+    assert.equal(x.document.activeElement, focused);
+    assert.match(byClass(x.stage, 'v2-sr').textContent, /^3D stopped on this device\./);
+  }
+});
+
+test('F07: a non-retryable failure replaces the focused loading action with a focusable explanation', async () => {
+  const timers = manualTimers();
+  const x = load({ files: { 'manifest.json': manifest() }, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const engine = fakeEngine(x.log);
+  let finishDevice;
+  engine.createGraphicsDevice = () => new Promise(resolve => { finishDevice = resolve; });
+  const pending = x.player.start(x.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2,
+    page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+  for (let i = 0; i < 12; i++) await tick();
+  timers.fire(45000);
+  const fallback = byClass(x.stage, 'v2-fallback');
+  fallback.querySelector('button').focus();
+  finishDevice(null);
+  assert.equal((await pending).reason, 'no-graphics');
+  assert.equal(fallback.querySelector('button'), null);
+  const title = fallback.querySelector('h2');
+  assert.equal(title.getAttribute('tabindex'), '-1');
+  assert.equal(x.document.activeElement, title);
+  assert.match(byClass(x.stage, 'v2-sr').textContent, /^3D can’t open in this browser\./);
 });

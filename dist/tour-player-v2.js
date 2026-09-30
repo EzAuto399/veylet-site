@@ -723,23 +723,31 @@
 
     function fail(kind, retryable = true) {
       const [heading, body] = FALLBACK_WORDS[kind] || FALLBACK_WORDS['engine-unavailable'];
+      // These controls are hidden or removed below. Keep unrelated, visible
+      // focus where it is, including when the failure happens during loading.
+      const recoverFocus = [ui.canvas, ui.bar, ui.hotspots, ui.fallback]
+        .some(part => part.contains(document.activeElement));
       ui.fallback.replaceChildren();
-      const title = el('h2', { id: 'v2-fallback-title' }, heading);
+      const title = el('h2', { id: 'v2-fallback-title', tabindex: '-1' }, heading);
+      let recovery = title;
       ui.fallback.append(title, el('p', {}, body));
       if (retryable) {
         const retry = el('button', { type: 'button', class: 'v2-primary' }, 'Try again');
         retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
         ui.fallback.append(retry);
+        recovery = retry;
       }
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
       ui.bar.hidden = true;
       ui.progress.hidden = true;
       ui.status.textContent = '';
+      ui.announce.textContent = `${heading} ${body}`;
       ui.canvas.hidden = true;
       ui.hotspots.replaceChildren();
       becomeVisible();
       teardown();
+      if (recoverFocus) recovery.focus();
       const outcome = { readiness: 'viewer-failed', reason: kind, marks };
       settle(outcome);
       return outcome;
@@ -1278,7 +1286,19 @@
       if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
-    const escapeFull = event => { if (event.key === 'Escape' && pseudo) { event.preventDefault(); setPseudo(false); } };
+    const escapeFull = event => {
+      if (!pseudo) return;
+      if (event.key === 'Escape') { event.preventDefault(); setPseudo(false); }
+      else if (event.key === 'Tab') {
+        const controls = pseudoControls();
+        const first = controls[0] || ui.full, last = controls[controls.length - 1] || first;
+        const active = document.activeElement;
+        if (!controls.includes(active) || (event.shiftKey ? active === first : active === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+    };
     document.addEventListener('keydown', escapeFull);
     ui.prev.addEventListener('click', () => goToStop(stepStop(hereStop(), -1, manifest.stops.length)));
     ui.next.addEventListener('click', () => goToStop(stepStop(hereStop(), 1, manifest.stops.length)));
@@ -1303,21 +1323,60 @@
     const fullElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
     let pseudo = null; // the stage's own inline style while it fills the window
     const isFull = () => pseudo !== null || (fullElement() !== null && fullElement() === stage);
+    function usableFocus(node) {
+      if (!node || !document.body.contains(node) || node.disabled || typeof node.focus !== 'function') return false;
+      for (let part = node; part; part = part.parentNode) {
+        if (part.hidden || part.hasAttribute?.('inert') || part.getAttribute?.('aria-hidden') === 'true') return false;
+      }
+      return !node.getClientRects || node.getClientRects().length > 0;
+    }
+    function pseudoControls() {
+      return [...stage.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+        .filter(node => usableFocus(node) && (node.getAttribute('tabindex') === null || Number(node.getAttribute('tabindex')) >= 0));
+    }
+    function containPseudoFocus(event) {
+      if (!pseudo) return;
+      if (stage.contains(event.target) && usableFocus(event.target)) { pseudo.focus = event.target; return; }
+      const target = usableFocus(pseudo.focus) ? pseudo.focus : pseudoControls()[0] || ui.full;
+      target.focus();
+    }
     function setPseudo(on) {
       if (on === (pseudo !== null)) return;
       const root = document.documentElement;
       if (on) {
-        pseudo = { style: stage.getAttribute('style'), overflow: root.style.overflow };
+        pseudo = { style: stage.getAttribute('style'), overflow: root.style.overflow,
+          previousFocus: document.activeElement, focus: null, background: [] };
         Object.assign(stage.style, { position: 'fixed', top: '0', right: '0', bottom: '0', left: '0', width: '100vw', height: '100vh',
           maxWidth: 'none', minHeight: '0', margin: '0', borderRadius: '0', zIndex: '2147483000' });
         stage.style.height = '100dvh'; // kept at 100vh where dvh is unknown
         stage.classList.add('v2-filled'); // the stylesheet keeps the controls inside the safe area
         root.style.overflow = 'hidden';
+        document.addEventListener('focusin', containPseudoFocus);
+        if (!stage.contains(document.activeElement) || !usableFocus(document.activeElement)) ui.full.focus();
+        pseudo.focus = document.activeElement;
+        // Isolate siblings at every ancestor level, keeping the stage's own
+        // branch available. Attribute values are restored exactly on exit.
+        for (let branch = stage; branch.parentNode; branch = branch.parentNode) {
+          for (const node of branch.parentNode.children) {
+            if (node === branch) continue;
+            pseudo.background.push({ node, inert: node.getAttribute('inert'), hidden: node.getAttribute('aria-hidden') });
+            node.setAttribute('inert', '');
+            node.setAttribute('aria-hidden', 'true');
+          }
+          if (branch.parentNode === document.body) break;
+        }
       } else {
+        const previousFocus = pseudo.previousFocus;
         if (pseudo.style === null) stage.removeAttribute('style'); else stage.setAttribute('style', pseudo.style);
         stage.classList.remove('v2-filled');
         root.style.overflow = pseudo.overflow;
+        for (const { node, inert, hidden } of pseudo.background) {
+          if (inert === null) node.removeAttribute('inert'); else node.setAttribute('inert', inert);
+          if (hidden === null) node.removeAttribute('aria-hidden'); else node.setAttribute('aria-hidden', hidden);
+        }
         pseudo = null;
+        document.removeEventListener('focusin', containPseudoFocus);
+        if (usableFocus(previousFocus)) previousFocus.focus();
       }
       fullscreenChanged();
     }
