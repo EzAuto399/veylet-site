@@ -170,7 +170,7 @@ test('service units: one accepted capture is one unit; correction and recapture 
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
   assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
   assert.doesNotMatch(current['dist/offer/index.html'], /12 render attempts|fair.use cap/i);
-  assert.match(current['dist/offer/index.html'], /Super fast is sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data, your account says “Super fast isn’t available right now” and nothing is charged\./);
+  assert.match(current['dist/offer/index.html'], /Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged\./);
   assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
 });
 

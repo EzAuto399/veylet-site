@@ -156,7 +156,7 @@ test('every price on the page is offer.json 2026-09-29.2, set on data-price elem
   assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
   assert.ok(terms.includes('included in the plan when video exports open'), 'listing videos are qualified');
-  assert.ok(terms.includes('New accounts are admitted weekly. You need an iPhone Pro or iPad Pro with LiDAR.'));
+  assert.ok(terms.includes('New accounts are admitted weekly. You need a recent iPhone Pro or iPad Pro.'));
   assert.match(terms, /New trials start through Apple’s free introductory offer in the app, if eligible/);
   assert.match(terms, /Existing card and invoice agreements retain their terms/);
   assert.doesNotMatch(terms, /by card or invoice|card payment on this website is coming later/);
