@@ -545,16 +545,35 @@ test('a research sample says so: research_sample is read only when exactly true'
 // ---------- S18: the packager's optional brightness grade ----------
 
 const grade = (overrides = {}) => ({ version: 1, method: 'global_gain_rolloff', exposure_ev: 0.54, source_median_luma: 0.3102, ...overrides });
+const GRADE_WARNING = 'Veylet player: ignoring an unrecognised brightness grade in this walkthrough.';
+/** Runs fn with console.warn recorded instead of printed (the player sees this console), then restores it. */
+async function recordingWarnings(fn) {
+  const warnings = [];
+  const original = console.warn;
+  console.warn = (...args) => warnings.push(args.join(' '));
+  try { await fn(); } finally { console.warn = original; }
+  return warnings;
+}
+async function gradedPlayer(value) {
+  const x = await started({ manifest: manifest({ grade: value }) });
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  return { ...x, outcome: await x.pending, about: byClass(x.stage, 'v2-about') };
+}
 
-test('a brightness grade is read as { exposureEv, sourceMedianLuma }; absent or null means none', () => {
+test('a brightness grade is read as { exposureEv, sourceMedianLuma }; absent or null means none, without a warning', async () => {
   const { player } = load();
-  assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade() })).grade }, { exposureEv: 0.54, sourceMedianLuma: 0.3102 });
-  assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade({ exposure_ev: 1, source_median_luma: 0 }) })).grade }, { exposureEv: 1, sourceMedianLuma: 0 });
-  assert.equal(player.validateManifest(manifest()).grade, null);
-  assert.equal(player.validateManifest(manifest({ grade: null })).grade, null);
+  const warnings = await recordingWarnings(() => {
+    assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade() })).grade }, { exposureEv: 0.54, sourceMedianLuma: 0.3102 });
+    assert.deepEqual({ ...player.validateManifest(manifest({ grade: grade({ exposure_ev: 1, source_median_luma: 0 }) })).grade }, { exposureEv: 1, sourceMedianLuma: 0 });
+    assert.equal(player.validateManifest(manifest()).grade, null);
+    assert.equal(player.validateManifest(manifest({ grade: null })).grade, null);
+  });
+  assert.deepEqual(warnings, []);
 });
 
-test('a malformed brightness grade refuses the package (manifest-invalid:grade)', () => {
+test('an unrecognised brightness grade plays ungraded, with one warning per manifest', async () => {
   const { player } = load();
   const { exposure_ev: _dropped, ...missing } = grade();
   const cases = {
@@ -566,6 +585,7 @@ test('a malformed brightness grade refuses the package (manifest-invalid:grade)'
     'exposure 1.5': grade({ exposure_ev: 1.5 }),
     'exposure NaN': grade({ exposure_ev: NaN }),
     'exposure as text': grade({ exposure_ev: '0.5' }),
+    'exposure as a boolean': grade({ exposure_ev: true }),
     'median luma 1.2': grade({ source_median_luma: 1.2 }),
     'negative median luma': grade({ source_median_luma: -0.1 }),
     'median luma as text': grade({ source_median_luma: '0.3' }),
@@ -578,22 +598,48 @@ test('a malformed brightness grade refuses the package (manifest-invalid:grade)'
     'a string': 'global_gain_rolloff',
   };
   for (const [name, value] of Object.entries(cases)) {
-    assert.throws(() => player.validateManifest(manifest({ grade: value })), error => error.code === 'manifest-invalid:grade', name);
+    const warnings = await recordingWarnings(() => {
+      const result = player.validateManifest(manifest({ grade: value }));
+      assert.equal(result.grade, null, name);
+      assert.equal(result.stops.length, 5, name);
+    });
+    assert.deepEqual(warnings, [GRADE_WARNING], name);
   }
 });
 
-test('About names a brightness grade in one line after the truth label, and says nothing when there is none', async () => {
-  for (const [value, expected] of [[grade(), 'Brightness evened automatically: +0.5 EV, the same everywhere in this walkthrough.'], [null, null], [undefined, null]]) {
-    const x = await started({ manifest: manifest({ grade: value }) });
-    const app = x.engine.apps[0];
-    app.systems.gsplat.fire('frame:ready', null, null, false, 1);
-    app.systems.gsplat.fire('frame:ready', null, null, true, 0);
-    await x.pending;
-    const about = byClass(x.stage, 'v2-about');
+test('a grade with an extra key, or a version 2 grade, still plays: the manifest validates and the walkthrough reaches ready', async () => {
+  for (const [name, value] of [['an extra key', grade({ note: 'from a newer packager' })], ['version 2', grade({ version: 2 })]]) {
+    const { player } = load();
+    const validated = await recordingWarnings(() => {
+      const result = player.validateManifest(manifest({ grade: value }));
+      assert.equal(result.truthLabel, manifest().truth_label, name);
+      assert.equal(result.grade, null, name);
+    });
+    assert.deepEqual(validated, [GRADE_WARNING], name);
+    const played = await recordingWarnings(async () => {
+      const x = await gradedPlayer(value);
+      assert.equal(x.outcome.readiness, 'viewer-ready', name);
+    });
+    assert.deepEqual(played, [GRADE_WARNING], name);
+  }
+});
+
+test('About names a brightness grade in one line after the truth label; no line without one or for one it does not recognise', async () => {
+  const cases = [
+    ['valid', grade(), 'Brightness raised +0.54 EV, one setting for the whole walkthrough.', 0],
+    ['null', null, null, 0],
+    ['absent', undefined, null, 0],
+    ['version 2', grade({ version: 2 }), null, 1],
+    ['an array', [1, 'global_gain_rolloff', 0.54, 0.31], null, 1],
+  ];
+  for (const [name, value, expected, warned] of cases) {
+    let about;
+    const warnings = await recordingWarnings(async () => { ({ about } = await gradedPlayer(value)); });
+    assert.equal(warnings.length, warned, name);
     const notes = about.querySelectorAll('.v2-grade-note');
     if (expected === null) {
-      assert.equal(notes.length, 0, String(value));
-      assert.doesNotMatch(about.textContent, /Brightness evened/);
+      assert.equal(notes.length, 0, name);
+      assert.doesNotMatch(about.textContent, /Brightness/, name);
       continue;
     }
     assert.equal(notes.length, 1);
