@@ -6,12 +6,12 @@
  * Order of work on every device: a 256 px preview, then the poster (both are
  * renders of the packaged scene from the opening stop), then the coarsest
  * level of detail, then finer levels within a splat budget chosen for the
- * device. The PlayCanvas engine 2.22.2 is vendored (MIT,
+ * device. The PlayCanvas engine 2.22.6 is vendored (MIT,
  * /vendor/LICENSE.playcanvas.txt) and imported only when this browser can
  * draw it. Package files are data: JSON and WebP. Nothing from a package runs.
  */
 (() => {
-  const ENGINE_URL = '/vendor/playcanvas-2.22.2.min.js?v=5c9bf4a346ca2e3d';
+  const ENGINE_URL = '/vendor/playcanvas-2.22.6.min.js?v=37ab7320dff06cb8';
   const STYLE_URL = '/tour-player-v2.css?v=72a09df6f0e1e23b';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
@@ -970,7 +970,7 @@
         walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
         'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
       ]) controls.append(el('li', {}, line));
-      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.2 (MIT licence). ');
+      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.6 (MIT licence). ');
       const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
       credits.append(licence);
       ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
