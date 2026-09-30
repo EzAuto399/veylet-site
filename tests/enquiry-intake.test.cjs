@@ -262,3 +262,14 @@ test('no file in dist mentions FormSubmit or the former inbox', () => {
     assert.doesNotMatch(text, /yodalai/i, path.relative(dist, file));
   }
 });
+
+// Owner decision, 30 September 2026: enquiry replies are promised as the confirmation email words them.
+test('the request and return pages promise a reply usually within one business day, never a few working days', () => {
+  
+  
+  for (const page of ['dist/request/index.html', 'dist/thanks/index.html']) {
+    const html = fs.readFileSync(path.join(__dirname, '..', page), 'utf8').replace(/\s+/g, ' ');
+    assert.match(html, /within one business day/, page);
+    assert.doesNotMatch(html, /few working days/i, page);
+  }
+});
