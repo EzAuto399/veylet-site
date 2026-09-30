@@ -59,7 +59,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const packLine = document.querySelector('[data-pack-line]');
     if (packLine) packLine.hidden = !code;
     if (code) {
-      put('[data-pack-what]', `Pack of ${count} walkthroughs · by card or invoice · valid ${valid} months`);
+      put('[data-pack-what]', `Pack of ${count} walkthroughs · by studio invoice (card later) · valid ${valid} months`);
       put('[data-pack-amount]', money(cost.packCents));
     }
     const payments = annual

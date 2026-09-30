@@ -389,7 +389,7 @@ const ARTICLES = [
       ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
-      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM, and make listing videos for realestate.com.au and social media. Listing videos and stills are included in your plan, and files you download are yours to keep.',
+      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
     ] }],
     notWorking: [
       'Listing portals do not accept the embed code. Use the listing URL there instead.',

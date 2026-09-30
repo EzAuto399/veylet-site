@@ -272,7 +272,7 @@ test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and th
   assert.match(lines, /<div data-free-month="1"><dt><span class="line-when" data-line-when>Month 1<\/span><span class="line-what">Free · cancel before it ends and pay nothing<\/span>/);
   assert.match(lines, /<div class="line-paid" data-paid-month><dt><span class="line-when" data-line-when>Month 2 onward<\/span><span class="line-what">Veylet plan<\/span>/);
   assert.match(lines, /<div class="line-pack" data-pack-line hidden>/, 'the pack line waits for a pack');
-  assert.ok(lines.includes(`data-pack-what>Pack of ${pack3.walkthroughs} walkthroughs · by card or invoice · valid ${pack3.validMonths} months<`));
+  assert.ok(lines.includes(`data-pack-what>Pack of ${pack3.walkthroughs} walkthroughs · by studio invoice (card later) · valid ${pack3.validMonths} months<`));
   assert.match(lines, /<span class="amount-note">once<\/span>/);
   assert.match(lines, /data-total-caption>1 free month, then 11 monthly App Store payments</);
   assert.ok(lines.indexOf('data-paid-month') < lines.indexOf('data-pack-line') && lines.indexOf('data-pack-line') < lines.indexOf('line-total'));
@@ -371,7 +371,7 @@ test('the calculator states the plan monthly and annual, on each channel, with n
         assert.match(allowance, /the free-months end date stays the same\.$/i, label);
         if (entry) {
           assert.equal(v['[data-pack-amount]'], aud(entry.webAud), label);
-          assert.equal(v['[data-pack-what]'], `Pack of ${entry.walkthroughs} walkthroughs · by card or invoice · valid ${entry.validMonths} months`, label);
+          assert.equal(v['[data-pack-what]'], `Pack of ${entry.walkthroughs} walkthroughs · by studio invoice (card later) · valid ${entry.validMonths} months`, label);
           assert.ok(allowance.includes(`The pack adds ${entry.walkthroughs}, used after the included ones and valid ${entry.validMonths} months from purchase.`), label);
         }
         const explanation = v['[data-billing-explanation]'];
