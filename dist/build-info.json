@@ -1,10 +1,10 @@
 {
   "name": "veylet-site",
   "version": "0.0.0",
-  "commit": "c0e8526430eb1146d93c866590c1e43b461411c0",
-  "shortCommit": "c0e8526",
+  "commit": "838a46f3978c320906cca9b0e2ec2840dee9ae75",
+  "shortCommit": "838a46f",
   "dirty": false,
-  "builtAt": "2026-09-30T07:53:13.164Z",
+  "builtAt": "2026-09-30T07:56:01.960Z",
   "environment": "local",
   "publicContentSha256": "b63538918a59022bc2f2e406f6b8f7f805594d339eedbfee4e0e2ceaddc8dc51",
   "publicFileCount": 349,
