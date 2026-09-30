@@ -607,7 +607,7 @@
         return;
       }
       const actions = {
-        draft: ['Your walkthrough is at its quality check.', 'Rendering, step 5 of 5: Checking quality. The check is automatic; the walkthrough opens for your review once it passes. You can open its preview below.', 'Open walkthrough details'],
+        draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
         processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. We’ll email you when it’s ready. Refresh to check for an update.', 'Refresh progress'],
         revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
       };

@@ -157,12 +157,12 @@ test('processing guidance gives no turnaround time and promises no pilot target'
   assert.match(guidance, /We’ll email you when it’s ready\./);
   assert.doesNotMatch(guidance, /targets 1.?2 hours|usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
 });
-test('tour guidance follows the requested visible tour and never publishes or approves', async () => {
+test('F14 draft guidance describes automatic rendering and flagged-area review without approving', async () => {
   const target = { ...tour, id: requestedID, status: 'draft' };
   const h = await load({ tours: [tour, target], search: '?tour=' + requestedID });
   const panel = h.ids['account-next-step'];
-  assert.match(panel.all().map(el => el.textContent).join(' '), /Your walkthrough is at its quality check\. Rendering, step 5 of 5: Checking quality\. The check is automatic/);
-  assert.doesNotMatch(panel.all().map(el => el.textContent).join(' '), /studio|a person|business day/i);
+  assert.match(panel.all().map(el => el.textContent).join(' '), /Rendering and the quality check are automatic\. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing\./);
+  assert.doesNotMatch(panel.all().map(el => el.textContent).join(' '), /once it passes|step 5 of 5|studio|a person|business day/i);
   await panel.all().find(el => el.tagName === 'BUTTON').fire('click');
   assert.equal(h.all().find(el => el.id === 'requested-tour').wasFocused, true);
   assert.equal(h.calls.some(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)), false);
