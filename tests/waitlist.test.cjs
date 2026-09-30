@@ -69,10 +69,19 @@ test('the hero says what joining is for, the free month and the prices from offe
   const aud = value => 'A$' + value.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   assert.match(markup, /<h1 id="waitlist-title" tabindex="-1">Join the waitlist for 3D walkthroughs\.<\/h1>/);
   const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
-  assert.equal(intro, 'Capture a listing with a recent iPhone Pro or iPad Pro and Veylet builds the 3D walkthrough. When your weekly group opens, '
+  assert.equal(intro, 'Turn your next listing into a 3D walkthrough buyers can explore on any phone. When your weekly group opens, '
     + `your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
     + 'Capture quality is still being proven. Joining is free.');
   assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
+});
+
+// Owner rule, 30 September 2026: "with marketing we should not include technology". The hero names no device;
+// the device question, its help text and the thank-you device line stay, because visitors need them.
+test('the hero names no device or sensor; the device question and the thank-you device line keep theirs', () => {
+  const hero = [/<h1 id="waitlist-title"[^>]*>([\s\S]*?)<\/h1>/, /<p class="intro">([\s\S]*?)<\/p>/].map(re => re.exec(markup)[1]).join(' ');
+  assert.doesNotMatch(hero, /iPhone|iPad|\bPro\b|LiDAR|sensor/i);
+  assert.match(markup, /id="waitlist-lidar"[^>]*>Capture works on iPhone 12 Pro/);
+  assert.match(markup, /id="waitlist-done-device" hidden>Capture works on iPhone 12 Pro/);
 });
 
 test('the tips box is unticked, optional and separate from joining, labelled with wording tips-v1; there is a honeypot and a privacy line', () => {
