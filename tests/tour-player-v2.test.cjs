@@ -599,8 +599,10 @@ test('About names a brightness grade in one line after the truth label, and says
     assert.equal(notes.length, 1);
     assert.equal(notes[0].tagName, 'P');
     assert.equal(notes[0].textContent, expected);
+    // It takes the truth paragraph's spacing (both classes) and sits right after the truth label.
     const order = about.children.map(child => child.className);
-    assert.equal(order[order.indexOf('v2-truth-full') + 1], 'v2-grade-note');
+    assert.equal(order[order.indexOf('v2-truth-full') + 1], 'v2-truth-full v2-grade-note');
+    assert.equal(about.querySelector('.v2-truth-full').textContent, manifest().truth_label);
   }
 });
 

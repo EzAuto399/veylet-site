@@ -984,7 +984,7 @@
       credits.append(licence);
       ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel));
       if (manifest.grade) {
-        ui.aboutPanel.append(el('p', { class: 'v2-grade-note' },
+        ui.aboutPanel.append(el('p', { class: 'v2-truth-full v2-grade-note' },
           'Brightness evened automatically: +' + manifest.grade.exposureEv.toFixed(1) + ' EV, the same everywhere in this walkthrough.'));
       }
       ui.aboutPanel.append(controls);
