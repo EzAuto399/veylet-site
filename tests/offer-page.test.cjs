@@ -33,7 +33,9 @@ const graceDays = record.freeMonths.hostingDaysAfterPlanEnds;
 const ROOMS_SENTENCE = 'One new accepted capture uses one walkthrough, regardless of room count. '
   + 'Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. '
   + 'A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.';
-const SUPER_FAST_AVAILABILITY = 'Super fast is sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise.';
+// Owner rule, 30 September 2026: marketing copy names no hardware, so the page says "processing" and "9 in 10"
+// where offer.json and /terms keep "GPU" and "90th percentile".
+const SUPER_FAST_AVAILABILITY = 'Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise.';
 const hostingYear = record.services.hostingPerWalkthroughPerFurtherYearAud;
 const aud = (n) => `A$${n.toLocaleString('en-AU', {
   minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
@@ -525,7 +527,7 @@ test('the plan is one ledger with a monthly and an annual row, then the anchor, 
   const expressRow = ways.slice(ways.indexOf('data-offer-express'), ways.indexOf('<div class="offer-packs">'));
   assert.ok(expressRow.includes(`<dt>${express.name}</dt>\n<dd><span class="offer-price" data-price="express">${aud(express.webAud)}</span><span class="offer-price-note">a capture, on this website</span></dd>`));
   assert.equal(text(expressRow.match(/<dd class="offer-scope">([\s\S]*?)<\/dd>/)[1]),
-    `First in the queue on the fastest GPU available in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the ${aud(express.webAud)} is refunded automatically. `
+    `First in the queue on our fastest processing in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the ${aud(express.webAud)} is refunded automatically. `
     + `Your account offers it when you send a capture. No daily limit and no business hours. ${SUPER_FAST_AVAILABILITY} Not sold in the app.`);
   const packRows = ways.slice(ways.indexOf('data-offer-packs'), ways.indexOf('</dl>', ways.indexOf('data-offer-packs')));
   for (const entry of [pack3, pack10]) {
@@ -628,7 +630,7 @@ test('the straight answers match their structured data word for word, and answer
     `Annual, if you list steadily: ${aud(plan.annualAud)} upfront a year gives the same ${plan.annualIncluded} walkthroughs as 12 months of monthly for ${aud(saving)} less (${savingsPercent}%), and they can be used any time in the plan year, so a busy month can use several. `
     + `Monthly, if you want to be able to stop in any month: ${aud(plan.appAud)} a month for ${plan.includedPerMonth} walkthroughs, and unused ones roll over, up to ${banked} banked.`);
   assert.equal(byQuestion['What is a Super fast render?'],
-    'Your capture goes first in the queue and is rendered on the fastest GPU available in Australia, so it is ready for your review in about 30 minutes, any day, any time, '
+    'Your capture goes first in the queue on our fastest processing in Australia, so it is ready for your review in about 30 minutes, any day, any time, '
     + `for ${aud(express.webAud)}. If it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the ${aud(express.webAud)} is refunded automatically. `
     + `There is no daily limit: your account offers it when you send a capture. ${SUPER_FAST_AVAILABILITY} It is sold on this website only, not in the app.`);
   assert.equal(plain(byQuestion['What if our first walkthrough is not good enough to list?']),
@@ -1081,7 +1083,7 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.match(expressLine, new RegExp(`or the ${escape(aud(express.webAud))} is refunded automatically`));
   assert.match(expressLine, /When a bonus Super fast render was used, it is returned instead/);
   assert.match(expressLine, /Super fast is sold only while its availability gate is green/);
-  assert.match(expressLine, /until the probe has data, the account says "Super fast isn't available right now" and nothing is charged/);
+  assert.match(expressLine, /until that check has data, the account says "Super fast isn't available right now" and nothing is charged/);
   assert.ok(expressLine.endsWith('An order already paid keeps its promise. Not sold in the app.'));
   // Offer 2026-09-27.1: the rooms rule, fair use and the audience, in llms.txt's words.
   assert.match(lineStarting('- One new accepted capture'), /uses one walkthrough, regardless of room count/);
