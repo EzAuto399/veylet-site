@@ -92,10 +92,15 @@ test('no third-party script, font or form service: every script and stylesheet i
 
 // 30 Sep 2026: the hosted database stores the sign-up and emails the studio (release 3); FormSubmit's
 // AJAX endpoint answers 500. The page says where the answers go and promises no confirmation email.
-test('the page says the answers are stored in Veylet’s database and we are emailed; no FormSubmit, no confirmation', () => {
+test('the page says the answers are stored in Veylet’s database and a confirmation follows by email; no FormSubmit', () => {
   const assurance = /<p class="contact-note form-assurance">([\s\S]*?)<\/p>/.exec(markup)[1];
-  assert.equal(assurance, 'We use your answers to run the waitlist and to email you when it is your turn. They are stored in Veylet’s database, and we are notified by email. To leave the list, email <a href="mailto:support@veylet.com?subject=Leave%20the%20Veylet%20waitlist">support@veylet.com</a>. <a href="/privacy">How we handle personal information</a>.');
-  assert.doesNotMatch(markup, /formsubmit|confirmation/i);
+  assert.equal(assurance, 'We use your answers to run the waitlist and to email you when it is your turn. They are stored in Veylet’s database; we’ll email you a confirmation and let you know when your group opens. To leave the list, email <a href="mailto:support@veylet.com?subject=Leave%20the%20Veylet%20waitlist">support@veylet.com</a>. <a href="/privacy">How we handle personal information</a>.');
+  assert.doesNotMatch(markup, /formsubmit/i);
+  // The confirmation is sent later by the database; no copy tells the visitor to go and check an inbox now.
+  for (const words of [markup, ...['privacy/index.html', 'app/privacy/index.html'].map(file => fs.readFileSync(path.join(dist, file), 'utf8'))]) {
+    assert.doesNotMatch(words, /check your (?:inbox|mail|junk|spam)|check your email(?! address)|look in your inbox/i);
+  }
+  assert.doesNotMatch(script, /check your (?:inbox|mail|junk|spam)|check your email(?! address)|look in your inbox/i);
   assert.doesNotMatch(script, /formsubmit|yodalai|_replyto|_autoresponse/i, 'the script has no FormSubmit route at all');
 });
 
@@ -278,11 +283,11 @@ test('attribution is the stored first touch, else this page\'s own link, else no
     { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' });
 });
 
-test('both privacy notices say waitlist sign-ups are stored with Supabase and emailed to us through Resend; /request still goes via FormSubmit', () => {
+test('both privacy notices say waitlist sign-ups are stored with Supabase and Resend emails us a copy and you a confirmation; /request still goes via FormSubmit', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
     const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
-    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Request forms go to yoda@yodalai.xyz via FormSubmit. Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend, an email service that may process information outside Australia, emails us a copy of your answers.'), file);
+    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Request forms go to yoda@yodalai.xyz via FormSubmit. Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
     assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
     assert.match(privacy, /Last updated 30 September 2026\./, file);
   }

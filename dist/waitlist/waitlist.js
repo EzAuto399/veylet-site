@@ -3,9 +3,9 @@
  * repository's release-2 20260926102000_waitlist.sql: eight parameters) with the public key and the form
  * answers only: no third-party script, no cookie, no Referer. Every answer is sent first; a function that
  * does not take them all is asked once more with its eight (see join). The database keeps the sign-up in
- * public.waitlist_entries and emails the studio about it (release 3, a trigger that sends through Resend);
- * the page sends nothing anywhere else and no email goes to the address typed in the form (30 September
- * 2026). A sign-up the database did not take (no function, an error, its hourly limit) is not saved: the
+ * public.waitlist_entries and, through Resend, emails the studio inbox a copy and the person a confirmation
+ * (release 3; the confirmation arrives with the release-3 attribution migration, owner 30 September 2026).
+ * The page sends nothing anywhere else. A sign-up the database did not take (no function, an error, its hourly limit) is not saved: the
  * page says so and gives support@veylet.com. Optional website measurement is separate and
  * consent-controlled; it receives fixed outcome codes from the join_waitlist response only.
  * The server answers joined (new or already listed: the same words, so the page never says whether
