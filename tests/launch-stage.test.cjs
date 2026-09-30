@@ -185,27 +185,18 @@ test('the privacy notices describe weekly admission from the waitlist with a leg
   assert.doesNotMatch(read('app/privacy/index.html'), /href="\/waitlist"|A\$/, '/app/privacy names no purchase path or price');
 });
 
-// 29 Sep 2026 (owner): support@veylet.com (Cloudflare Email Routing) is the public address. yoda@yodalai.xyz
-// appears only where FormSubmit delivers, because FormSubmit's activation is tied to it. Since 30 Sep 2026
-// that is the /request form alone (its action and its note) and the privacy notices' /request sentence:
-// waitlist sign-ups go to the database, not FormSubmit.
-test('the marketing, guide, help and privacy pages show support@veylet.com, and the old inbox only as /request\'s FormSubmit delivery', () => {
+// 29 Sep 2026 (owner): support@veylet.com (Cloudflare Email Routing) is the public address. Since 30 Sep 2026
+// waitlist sign-ups and /request enquiries both go to the database, so FormSubmit and its former inbox
+// (yoda@yodalai.xyz) appear nowhere.
+test('the marketing, guide, help and privacy pages show support@veylet.com, and the old inbox and FormSubmit nowhere', () => {
   const walk = dir => fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]);
   const roots = ['guides', 'help', 'app/help', 'privacy', 'app/privacy', 'start', 'request', 'waitlist'].map(dir => path.join(dist, dir));
   const files = [...roots.flatMap(walk), ...['index.html', 'llms.txt', 'enquiry.js'].map(file => path.join(dist, file))];
-  const allowed = {
-    'request/index.html': [/action="https:\/\/formsubmit\.co\/yoda@yodalai\.xyz"/g, /Sent via FormSubmit to yoda@yodalai\.xyz/g],
-    'privacy/index.html': [/Request forms go to\s+yoda@yodalai\.xyz via FormSubmit\./g],
-    'app/privacy/index.html': [/Request forms go to\s+yoda@yodalai\.xyz via FormSubmit\./g],
-  };
   for (const file of files.filter(f => /\.(?:html|js|txt)$/.test(f))) {
     const where = path.relative(dist, file).split(path.sep).join('/');
-    let text = fs.readFileSync(file, 'utf8');
-    for (const pattern of allowed[where] || []) {
-      assert.equal((text.match(pattern) || []).length, 1, `${where}: ${pattern}`);
-      text = text.replace(pattern, '');
-    }
-    assert.doesNotMatch(text, /yoda@yodalai/i, where);
+    const text = fs.readFileSync(file, 'utf8');
+    assert.doesNotMatch(text, /yoda@yodalai|yodalai\.xyz/i, where);
+    assert.doesNotMatch(text, /formsubmit/i, where);
   }
   assert.doesNotMatch(read('waitlist/waitlist.js'), /formsubmit/i, 'waitlist sign-ups never go to FormSubmit');
 });

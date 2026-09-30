@@ -283,12 +283,13 @@ test('attribution is the stored first touch, else this page\'s own link, else no
     { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' });
 });
 
-test('both privacy notices say waitlist sign-ups are stored with Supabase and Resend emails us a copy and you a confirmation; /request still goes via FormSubmit', () => {
+test('both privacy notices say waitlist sign-ups and /request enquiries are stored with Supabase and Resend emails us a copy and you a confirmation; no FormSubmit', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
     const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
-    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Request forms go to yoda@yodalai.xyz via FormSubmit. Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
+    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: enquiry storage and notification -->Walkthrough enquiries from /request are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend emails us a copy and emails you a confirmation. <!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
     assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
+    assert.doesNotMatch(privacy, /formsubmit|yodalai/i, file);
     assert.match(privacy, /Last updated 30 September 2026\./, file);
   }
 });

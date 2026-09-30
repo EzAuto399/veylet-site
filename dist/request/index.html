@@ -28,8 +28,18 @@
     <link rel="stylesheet" href="/style.css?v=3412b25235ba11a4" />
     <link rel="stylesheet" href="/conversion.css?v=3c82fa9f8cd5a55c" />
     <link rel="stylesheet" href="/refinement.css?v=3396f9c21e422ea8" />
+    <style>
+      .request-done h2 { font-size: 26px; letter-spacing: -0.025em; margin: 0 0 12px; }
+      .request-done h2:focus { outline: none; }
+      .request-done p { margin: 0 0 10px; line-height: 1.6; }
+      .request-done .request-reference strong { white-space: nowrap; }
+      #request-status:empty { display: none; }
+      #request-status { color: var(--ink); font-size: 15px; border-left: 2px solid var(--ink); padding-left: 12px; }
+      #request-status a, .request-noscript a { overflow-wrap: anywhere; }
+    </style>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
-    <script src="/enquiry.js?v=74784e95c6fa923e" defer></script>
+    <script src="/supabase-public.js?v=b6fc53a3d04f45d1"></script>
+    <script src="/enquiry.js?v=c95a4aeebe5b721a" defer></script>
     <script src="/place-fields.js?v=b597ac72159bd08e"></script>
     <script type="application/ld+json">
       {
@@ -93,20 +103,12 @@
       <p class="form-summary">No account or payment needed to enquire. Required fields are marked *.</p>
       </div>
       <div class="intake-fields">
+      <noscript><p class="contact-note request-noscript">This form needs JavaScript. Without it, email <a href="mailto:support@veylet.com?subject=Veylet%20walkthrough%20enquiry">support@veylet.com</a> with the same short brief.</p></noscript>
       <form
         data-enquiry-route="managed"
         class="veylet-form"
-        action="https://formsubmit.co/yoda@yodalai.xyz"
-        method="POST"
+        method="post"
        data-analytics-form="request">
-        <input type="hidden" name="_subject" value="Veylet — walkthrough enquiry" />
-        <input
-          type="hidden"
-          name="_next"
-          value="https://veylet.com/thanks"
-        />
-        <input type="hidden" name="enquiry_ref" value="" />
-        <input type="hidden" name="_template" value="table" />
         <label class="honey-label" aria-hidden="true">Leave this field empty<input type="text" name="_honey" class="honey" tabindex="-1" autocomplete="off" aria-hidden="true" /></label>
         <fieldset class="choice-group">
           <legend>How would you like to capture it?</legend>
@@ -124,7 +126,7 @@
         </label>
         <label>
           Email *
-          <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="next" required maxlength="200" />
+          <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="next" required maxlength="254" />
         </label>
         <label>
           What sort of space? *
@@ -140,8 +142,8 @@
           </select>
         </label>
         <label>
-          Suburb or region *
-          <input name="location" aria-describedby="location-help" autocomplete="address-level2" autocapitalize="words" enterkeyhint="next" required maxlength="200" />
+          General area (suburb or town) — never a street address *
+          <input name="location" aria-describedby="location-help" autocomplete="address-level2" autocapitalize="words" enterkeyhint="next" required maxlength="80" />
           <small id="location-help">For example, Parramatta or Geelong. No street address or access details.</small>
         </label>
         <label>
@@ -165,12 +167,17 @@
         <button class="button" type="submit">
           Ask about my space <span class="icon-arrow" aria-hidden="true"></span>
         </button>
-        <p class="contact-note form-mechanics">Sent via FormSubmit to yoda@yodalai.xyz, which may show a quick spam check before returning you here. Use general details only: no private client images or access codes. <a href="/privacy">How we handle your enquiry</a>.</p>
+        <p class="contact-note form-mechanics">Use general details only: no private client images or access codes. <a href="/privacy">How we handle your enquiry</a>.</p>
       </form>
       <p class="contact-note" id="request-status" role="status"></p>
+      <section class="request-done" id="request-done" aria-labelledby="request-done-title" hidden>
+        <h2 id="request-done-title" tabindex="-1">Received.</h2>
+        <p class="request-reference" id="request-done-reference"></p>
+        <p>Check your inbox for a confirmation.</p>
+      </section>
       <details id="enquiry-copy" class="optional-brief enquiry-copy" hidden>
         <summary>Keep a copy or recover your enquiry</summary>
-        <p>Keep a copy before continuing to the submission page. If submission stops, use it in your email to the studio. A copy is not a delivery receipt.</p>
+        <p>Keep a copy of your answers before you send. If sending fails, paste it into an email to the studio. A copy is not a delivery receipt.</p>
         <button class="button button-ghost" id="enquiry-copy-button" type="button">Copy my enquiry</button>
         <p id="enquiry-copy-status" class="contact-note" role="status"></p>
         <textarea id="enquiry-copy-text" aria-label="Your enquiry copy" readonly rows="8" hidden></textarea>
@@ -189,11 +196,11 @@
           const location = form?.querySelector('input[name="location"]');
           const place = window.VeyletPlace;
           if (!form || !place) return;
-          // Answers are checked first, the brief is kept against a refresh,
-          // then one intent is stopped from becoming two submissions.
+          // Answers are checked first and the brief is kept against a refresh.
           place.inlineValidation(form, status);
           place.keepDraft(form, status, 'managed');
-          place.guardDoubleSubmit(form, status);
+          // /enquiry.js then sends one request per intent to the database and restores the button after
+          // any failure, so place.guardDoubleSubmit (built for a page that navigates away) is not used here.
           form.addEventListener('submit', (event) => {
             const problem = place.briefLocationProblem(location?.value);
             if (!problem) return;
@@ -202,6 +209,12 @@
             if (status) status.textContent = problem;
             location?.focus();
           }, true);
+          // If /enquiry.js did not load, nothing is sent anywhere: say so and give the address.
+          form.addEventListener('submit', (event) => {
+            if (event.defaultPrevented || window.VeyletEnquiry) return;
+            event.preventDefault();
+            if (status) status.textContent = 'We couldn’t send your enquiry just now, so nothing was saved. Reload the page, or email support@veylet.com.';
+          });
         })();
       </script>
     </main>
