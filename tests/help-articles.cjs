@@ -61,7 +61,7 @@ const ARTICLES = [
       '**A LiDAR device:** an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.',
       '**Free space:** keep at least 3 GB free. A capture cannot start with less than 2 GB.',
       '**An email address** for your Veylet account. There is no password.',
-      '**About five minutes** in one room at home for the [practice room](help:practice-room).',
+      '**About five minutes** in one room at home for the [practice room](help:practice-room). Complete the practice room once before starting a real capture. A successful practice already saved on this iPhone counts.',
       '**For a real home:** permission to capture it, working lights, and a clear route through each room.',
     ] }],
     notWorking: [
@@ -89,9 +89,9 @@ const ARTICLES = [
   {
     slug: 'practice-room', group: 'getting-started', title: 'The practice room, and how to pass it', short: 'Practice room',
     description: 'Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.',
-    lead: 'Before your first real capture, you practise in one room at home. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done.',
+    lead: 'One successful practice room is required before you start your first real capture. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done. If this iPhone already has a successful practice result, it stays unlocked after an update. You can still send real captures you have already made.',
     body: [{ steps: [
-      'Open the practice room and pick an ordinary room at home. Turn the lights on.',
+      'Tap **Do the practice room** when the app asks, or open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.',
       'Stand in the middle and make one slow, level circle: about 36 seconds, pausing whenever views stop saving. This is the **Full turn at one spot** check.',
       'Tilt the phone about 30 degrees up and make another slow circle, then tilt about 30 degrees down and make a third. These are the **Circle tilted up** and **Circle tilted down** checks.',
       'Walk out through the doorway in small steps, showing both edges of the door frame from both sides.',
