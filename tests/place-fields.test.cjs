@@ -362,8 +362,9 @@ test('the intake page checks its answers and keeps its brief, and the partner in
     const source = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
     assert.match(source, /place\.inlineValidation\(form, status\);/);
     assert.match(source, new RegExp("place\\.keepDraft\\(form, status, '" + key + "'\\);"));
-    // Checking answers must happen before one intent becomes two submissions.
-    assert.ok(source.indexOf('inlineValidation') < source.indexOf('guardDoubleSubmit'));
+    // 30 Sep 2026: /request sends by fetch and stays on the page, so the navigate-away guard is not called;
+    // /enquiry.js holds one request per intent and restores the button after a failure (tests/enquiry-intake.test.cjs).
+    assert.doesNotMatch(source, /place\.guardDoubleSubmit\(/);
     // The person is told before they type, not only after a draft comes back.
     assert.match(source, /kept in this browser as you type/);
   }
