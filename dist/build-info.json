@@ -1,14 +1,14 @@
 {
   "name": "veylet-site",
   "version": "0.0.0",
-  "commit": "1fcfdf442c89be84531e111301ffa4d6d8439103",
-  "shortCommit": "1fcfdf4",
+  "commit": "fe680edc59b4d24c22ad8bac77b0d6cd5fd52662",
+  "shortCommit": "fe680ed",
   "dirty": false,
-  "builtAt": "2026-09-30T01:39:19.049Z",
+  "builtAt": "2026-09-30T06:16:52.856Z",
   "environment": "local",
-  "publicContentSha256": "4db0eb04915ba347202fbfeea7580ac35adb2d676b544ccc1e11245c636913a4",
+  "publicContentSha256": "dc5937f0514195667bd5c1e89d326c7e250438ad4cd25a938fb7745b86a5745c",
   "publicFileCount": 349,
-  "publicBytes": 56207095,
+  "publicBytes": 56202073,
   "assetVersions": {
     "account-guide.css": "cbca5f950e45130c",
     "account.js": "988fd543ec765abe",
@@ -54,7 +54,7 @@
     "vendor/playcanvas-2.22.6.min.js": "37ab7320dff06cb8",
     "vendor/qrcode-1.5.4.min.js": "5084f09dc9b6baba",
     "vendor/supabase-js-2.116.0.min.js": "84ee9bf45695c1dd",
-    "waitlist/waitlist.js": "75fded7e1ba2bb4a",
+    "waitlist/waitlist.js": "a4edbc507cb2cd7b",
     "website-guide.js": "3559123101a8c2ce"
   }
 }
