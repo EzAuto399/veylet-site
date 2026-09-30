@@ -71,18 +71,19 @@ const ARTICLES = [
   },
   {
     slug: 'install-and-sign-in', group: 'getting-started', title: 'Install the app and sign in', short: 'Install and sign in',
-    description: 'Install Veylet Capture, then sign in with an email link. No password, and the first link creates your account.',
-    lead: 'You sign in with a link sent to your email. There is no password, and the first link also creates your account.',
+    description: 'Install Veylet Capture from your invitation, then sign in with Apple or email using the same account as the website.',
+    lead: 'Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.',
     body: [{ steps: [
-      'Install **Veylet Capture** on your Pro iPhone or iPad, from the App Store or the invitation link Veylet sent you.',
-      'Open it. You can read how it works and do the practice room before you sign in.',
-      'When asked, enter your email address. Use the same email you use for your Veylet account on the website.',
-      'Open the email on the same iPhone and tap the link. You come back to the app, signed in.',
+      'Install **Veylet Capture** on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.',
+      'Open it and read how it works. Choose **Sign in with Apple**, or **Use email instead** and enter the email you use on the website. Your first sign-in creates your account.',
+      'For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.',
+      'After signing in, start with the practice room from Captures before your first real capture.',
     ] }],
     notWorking: [
       'No email after a minute? Check your junk folder, then send it again from the app.',
-      'If the link opens somewhere other than the app, go back to the app and choose **Continue in browser** to sign in there instead.',
-      'Sign-in links work once. If one has already been used, send a new one.',
+      'If the email link opens somewhere other than the app, return to the app and enter the six-digit code from that email.',
+      'Signed up with Apple using Hide My Email? Choose **Sign in with Apple** again to reach the same account.',
+      'Sign-in links and codes work once. If yours has expired or was already used, send a new email.',
     ],
   },
   {
@@ -198,11 +199,11 @@ const ARTICLES = [
   {
     slug: 'uploading', group: 'sending', title: 'Sending your capture', short: 'Sending',
     description: 'How a capture uploads: Wi-Fi or mobile data, in the background, with pause, resume and cancel.',
-    lead: 'Send from the app: it uploads in the background. Check your account for rendering status. After the phone check, tap **Send to Veylet**; sending keeps going even if you leave the app.',
+    lead: 'Send from the app: it uploads in the background. Check your account for rendering status. After the phone check, tap **Send to Veylet**. Reopen the app to check progress or resume a paused upload.',
     body: [{ steps: [
       'Tap **Send to Veylet**. The first time, the app asks to send you notifications. Allow them to hear when your walkthrough is ready.',
       'The upload uses Wi-Fi or mobile data, whichever the phone has. A whole home is large, so Wi-Fi is quicker and saves your data.',
-      'You can leave Veylet: sending continues in the background, even if you close the app. Keeping the phone plugged in helps it finish.',
+      'Sending can continue in the background while you use another app. Reopen Veylet to check progress; if it says **Sending paused**, tap **Resume sending**. Keeping the phone plugged in helps it finish.',
       'The listing shows **Uploading** and how much has been sent. Your original capture stays on the iPhone.',
       'When every part has arrived, it moves to **Waiting to render** by itself.',
     ] }],
@@ -352,28 +353,29 @@ const ARTICLES = [
 
   // ---- Reviewing and sharing ------------------------------------------------------------------
   {
-    slug: 'approve-and-share', group: 'sharing', title: 'Approve and share: the seven checks', short: 'Approve and share',
-    description: 'How to review a ready walkthrough on your phone, the five checks and two permissions, and what one press of Approve and share does.',
-    lead: 'When a walkthrough is **Ready for your review**, you walk it on your phone, tick seven checks and press **Approve and share** once. Nothing is shared before that.',
+    slug: 'approve-and-share', group: 'sharing', title: 'Approve and share your walkthrough', short: 'Approve and share',
+    description: 'Review a ready walkthrough on your phone, inspect any flagged areas, then use one rights confirmation and press Approve and share.',
+    lead: 'When a walkthrough is **Ready for your review**, walk it on your phone, make one rights confirmation and press **Approve and share** once. Nothing is shared before that.',
     body: [{ steps: [
       'Tap the **Ready for your review** notification, or open the listing and tap **Review walkthrough**.',
       'Walk through every room on your phone. Read any areas listed as [worth a look](help:fix/worth-a-look) and check them.',
-      'Tick each check that is true (see the list below). Leave one off if something needs fixing.',
-      'Press **Approve and share** and confirm. Anyone with the link can open it and forward it. It stays online while your plan is active.',
+      'After inspecting it, tick the one rights confirmation: **I have the right to share this walkthrough.** If something needs fixing, request a correction before approving.',
+      'Press **Approve and share** once. Anyone with the link can open it and forward it. It stays online while your plan is active.',
       'The listing now reads **Live**. Share it: see [share your walkthrough](help:share-your-walkthrough).',
-    ] }, { title: 'The seven checks', terms: [
+    ] }, { title: 'What to inspect', terms: [
       ['Coverage', 'Every included room and required surface is present.'],
       ['Alignment', 'Walls, furniture and edges stay aligned while turning.'],
       ['Navigation', 'Viewpoints and movement do not cross walls or expose broken areas.'],
       ['Privacy', 'People, documents, screens and excluded areas have been checked.'],
       ['Phone', 'This exact tour has been checked on a physical phone.'],
+    ] }, { title: 'Before confirming your rights', terms: [
       ['Capture permission', 'I have the property’s permission for this capture.'],
       ['Permission to publish', 'I have permission to publish and share this exact tour.'],
     ] }],
     notWorking: [
-      'The button stays off until all seven checks are ticked.',
+      'Before pressing **Approve and share**, tick the one rights confirmation.',
       '**Approved. Sharing waits for** a reason: the card names the one fix, such as someone with sharing permission. Your approval is kept.',
-      'You can also review in [your Veylet account](account) on a computer, with the same checks.',
+      'You can also review in [your Veylet account](account) on a computer, with the same rights confirmation.',
     ],
   },
   {

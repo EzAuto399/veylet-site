@@ -49,6 +49,20 @@ test('sending help uses status checks and makes no timing promise', () => {
   }
 });
 
+test('F04 install help follows the current Apple/email and invited app journey', () => {
+  for (const base of ['help', 'app/help']) {
+    const words = text(main(read(`${base}/install-and-sign-in/index.html`)));
+    assert.match(words, /invitation link Veylet sent you/, base);
+    assert.match(words, /invite-only testing through TestFlight/, base);
+    assert.match(words, /Sign in with Apple/, base);
+    assert.match(words, /Use email instead/, base);
+    assert.match(words, /same sign-in.*website/, base);
+    assert.match(words, /six-digit code/, base);
+    assert.match(words, /After signing in.*practice room/, base);
+    assert.doesNotMatch(words, /from the App Store|Continue in browser|practice room before you sign in/, base);
+  }
+});
+
 test('your-plan mirrors the accepted capture allowance and says exports are not open yet', () => {
   for (const file of ['help/your-plan/index.html', 'app/help/your-plan/index.html']) {
     const words = text(main(read(file)));
@@ -72,6 +86,17 @@ test('render-status and every blocking-fix page state the bounded recapture allo
       assert.match(words, allowance, file);
       assert.doesNotMatch(words, /recaptur(?:e this room|e it|ing)[^.]{0,100}(?:won’t|won't|will not) use a walkthrough/i, file);
     }
+  }
+});
+
+test('F19 upload help describes background sending and reopening to check or resume', () => {
+  for (const base of ['help', 'app/help']) {
+    const words = text(main(read(`${base}/uploading/index.html`)));
+    assert.match(words, /Sending can continue in the background while you use another app\./, base);
+    assert.match(words, /Reopen Veylet to check progress; if it says Sending paused\s*, tap Resume sending\s*\./, base);
+    assert.doesNotMatch(words, /even if you close the app|sending keeps going even if you leave the app/i, base);
+    assert.match(words, /Your original capture stays on the iPhone\./, base);
+    assert.match(words, /Renew expired upload|Retry this job/, base);
   }
 });
 
@@ -119,6 +144,28 @@ test('public pages are indexable with their own title, description, canonical UR
     const data = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1]);
     assert.equal(data['@context'], 'https://schema.org', page.file);
     assert.equal((html.match(/<h1\b/g) || []).length, 1, page.file);
+  }
+});
+
+test('F06 approval help describes one rights confirmation and keeps inspection advice', () => {
+  const inspection = [
+    'Every included room and required surface is present.',
+    'Walls, furniture and edges stay aligned while turning.',
+    'Viewpoints and movement do not cross walls or expose broken areas.',
+    'People, documents, screens and excluded areas have been checked.',
+    'This exact tour has been checked on a physical phone.',
+  ];
+  for (const base of ['help', 'app/help']) {
+    const words = text(main(read(`${base}/approve-and-share/index.html`)));
+    assert.match(words, /one rights confirmation/, base);
+    assert.match(words, /I have the right to share this walkthrough\./, base);
+    assert.match(words, /Press Approve and share once\./, base);
+    assert.match(words, /worth a look/, base);
+    for (const advice of inspection) assert.ok(words.includes(advice), base + ': ' + advice);
+    assert.doesNotMatch(words, /seven checks|five checks and two permissions|tick each check|all seven|and confirm/i, base);
+    assert.match(words, /Your approval is kept\./, base);
+    const index = text(main(read(`${base}/index.html`)));
+    assert.doesNotMatch(index, /seven checks|five checks and two permissions/i, base);
   }
 });
 
