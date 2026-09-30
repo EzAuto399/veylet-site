@@ -1,14 +1,13 @@
 /*
- * /waitlist: one form. The answers go to rpc/join_waitlist (the product repository's release-2
- * 20260926102000_waitlist.sql, applied on the hosted database: eight parameters) with the public key and
- * the form answers only: no third-party script, no cookie. Every answer is sent first; a function that
- * does not take them all is asked once more with its eight (see join). A sign-up the database took is
- * also emailed to the owner's inbox as a copy with every answer (owner decision, 30 September 2026). Optional website measurement is separate and
- * consent-controlled; it receives fixed outcome codes from the join_waitlist response only. A backend without the function
- * (PostgREST PGRST202 / 404), or a page without its configuration, sends the same answers once to the
- * owner's inbox through FormSubmit's JSON endpoint instead (owner decision, 29 September 2026, until the
- * release-2 waitlist is applied): no script, cookie or frame is loaded for it, and a sign-up that cannot
- * be delivered either way still gets the email route. The inbox route is not a measured conversion.
+ * /waitlist: one form. The answers go to rpc/join_waitlist on the hosted database (the product
+ * repository's release-2 20260926102000_waitlist.sql: eight parameters) with the public key and the form
+ * answers only: no third-party script, no cookie, no Referer. Every answer is sent first; a function that
+ * does not take them all is asked once more with its eight (see join). The database keeps the sign-up in
+ * public.waitlist_entries and emails the studio about it (release 3, a trigger that sends through Resend);
+ * the page sends nothing anywhere else and no email goes to the address typed in the form (30 September
+ * 2026). A sign-up the database did not take (no function, an error, its hourly limit) is not saved: the
+ * page says so and gives support@veylet.com. Optional website measurement is separate and
+ * consent-controlled; it receives fixed outcome codes from the join_waitlist response only.
  * The server answers joined (new or already listed: the same words, so the page never says whether
  * an address was on the list), busy (its hourly limit), or invalid. The "tips and offers" box is a
  * separate, unticked choice (Spam Act): joining never depends on it. Its label is the consent wording
@@ -24,10 +23,6 @@
   'use strict';
 
   var SUPPORT = 'support@veylet.com';
-  // FormSubmit's activation (23 Sep) is tied to this delivery address; support@veylet.com forwards to it.
-  var INBOX = 'yoda@yodalai.xyz';
-  // Used only while the database has no join_waitlist (see above); the same inbox the /request form uses.
-  var INBOX_ENDPOINT = 'https://formsubmit.co/ajax/' + INBOX;
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
   var CHANNELS = ['own_website', 'realestate_com_au', 'domain', 'social', 'client_deliverables', 'other'];
@@ -39,25 +34,18 @@
   var LABEL = /^[A-Za-z0-9._~+:-]{1,100}$/;
   var LANDING = /^\/(?!\/)[A-Za-z0-9\/_.-]{0,199}$/;
   var SHARE_URL = 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks';
-  // FormSubmit emails this to the address typed in the form (inbox route only). Transactional: no offer.
-  // This page asks for it at most once per address and 3 times per browser tab session (see autoReply),
-  // which stops accidental repeats; deliberate abuse of the public endpoint is left to FormSubmit's limits.
-  var AUTORESPONSE = 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email ' +
-    'you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. ' +
-    'If that wasn\'t you, or to leave the list, email ' + SUPPORT + '. Veylet Studio (Yo-Da Lai)';
-  var REPLIES_KEY = 'veylet.waitlistReplies';
-  var REPLIES_MAX = 3;
-  var repliedThisPage = false; // used only when session storage is unavailable
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   var TIPS = { version: 'tips-v1', wording: 'Email me tips and offers from Veylet Studio. I can unsubscribe at any time.' };
 
+  // A database without the function and a failed call say the same thing: nothing was saved.
+  var NOT_SAVED = 'We couldn’t add you just now, so nothing was saved. Try again in a minute, or email ' + SUPPORT + ' to be added.';
   var COPY = {
     sending: 'Adding you to the list…',
     joinedTitle: 'You’re on the list.',
     joined: 'We admit new accounts in weekly groups and will email you when it’s your turn.',
-    missing: 'The waitlist opens soon. Email ' + SUPPORT + ' to be added.',
+    missing: NOT_SAVED,
     busy: 'The waitlist is busy right now, so nothing was saved. Try again in an hour, or email ' + SUPPORT + ' to be added.',
-    error: 'We couldn’t add you just now, so nothing was saved. Try again in a minute, or email ' + SUPPORT + ' to be added.',
+    error: NOT_SAVED,
     invalid: 'One answer wasn’t accepted, so nothing was saved. Check your email address and the other answers, then send again.',
     copied: 'Link copied.',
   };
@@ -181,83 +169,6 @@
     }
   }
 
-  // A short non-reversible tag of the address (FNV-1a), so session storage never holds the address itself.
-  function addressTag(email) {
-    var address = String(email || '').toLowerCase();
-    var hash = 0x811c9dc5;
-    for (var i = 0; i < address.length; i++) { hash ^= address.charCodeAt(i); hash = Math.imul(hash, 0x01000193) >>> 0; }
-    return ('0000000' + hash.toString(16)).slice(-8);
-  }
-
-  function repliesSent(win) {
-    var list = JSON.parse(win.sessionStorage.getItem(REPLIES_KEY) || '[]');
-    return Array.isArray(list) ? list : [];
-  }
-
-  /** Whether this inbox send may ask FormSubmit for the auto-reply: once per address, 3 per session. */
-  function mayAutoReply(win, email) {
-    try {
-      var sent = repliesSent(win);
-      return sent.indexOf(addressTag(email)) === -1 && sent.length < REPLIES_MAX;
-    } catch (unavailable) { return !repliedThisPage; }
-  }
-
-  function noteAutoReply(win, email) {
-    try {
-      var sent = repliesSent(win);
-      sent.push(addressTag(email));
-      win.sessionStorage.setItem(REPLIES_KEY, JSON.stringify(sent));
-    } catch (unavailable) { repliedThisPage = true; }
-  }
-
-  /** The answers as one plain message to the owner's inbox; 'joined' only when FormSubmit says it sent. */
-  async function joinByInbox(fetchImpl, answers, win, saved) {
-    var reply = mayAutoReply(win, answers.p_email);
-    try {
-      var message = {
-          _subject: 'Veylet waitlist',
-          _template: 'table',
-          _captcha: 'false',
-          name: answers.p_name,
-          email: answers.p_email,
-          business: answers.p_business_type,
-          device: answers.p_device,
-          region: answers.p_region,
-          channels: answers.p_channels.join(', '),
-          tips_and_offers: answers.p_consent_tips ? 'yes' : 'no',
-          consent_wording: answers.p_consent_wording,
-          volume: answers.p_volume || '',
-          utm_source: answers.p_utm_source || '',
-          utm_medium: answers.p_utm_medium || '',
-          utm_campaign: answers.p_utm_campaign || '',
-          utm_content: answers.p_utm_content || '',
-          click: answers.p_click || '',
-          landing: answers.p_landing || '',
-          _replyto: answers.p_email,
-      };
-      // A copy of a sign-up the database took says so, so the inbox never reads as the only record.
-      if (saved) message.saved_in_database = 'yes';
-      // The owner's copy always goes; only the auto-reply to the typed address is capped.
-      if (reply) message._autoresponse = AUTORESPONSE;
-      var response = await fetchImpl(INBOX_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(message),
-        credentials: 'omit',
-        // FormSubmit refuses a request with no Referer ("open this page through a web server") and matches
-        // the activated form by it: send the site origin only, never the path or query.
-        referrerPolicy: 'origin',
-      });
-      var body = null;
-      try { body = await response.json(); } catch (unreadable) { body = null; }
-      var delivered = response.ok && body && String(body.success) === 'true';
-      if (delivered && reply) noteAutoReply(win, answers.p_email);
-      return delivered ? 'joined' : 'missing';
-    } catch (failure) {
-      return 'missing';
-    }
-  }
-
   function mailLink(doc) {
     var link = doc.createElement('a');
     link.setAttribute('href', 'mailto:' + SUPPORT + '?subject=' + encodeURIComponent('Veylet waitlist'));
@@ -318,20 +229,14 @@
     var answers = answersFrom(data, attribution(win));
     if (problem(answers)) { measureResult(win, 'invalid'); return show(doc, 'invalid'); }
     var config = win.VEYLET_SUPABASE;
+    // A page without its database configuration sends nothing: the sign-up is not saved.
+    if (!(config && config.url && config.anonKey)) return show(doc, 'missing', answers);
     show(doc, 'sending');
-    var rpc = config && config.url && config.anonKey ? await join(win.fetch.bind(win), config, answers) : null;
-    var state = rpc === null || rpc === 'missing' ? await joinByInbox(win.fetch.bind(win), answers, win) : rpc;
-    // Only the join_waitlist response is a receipt. The honeypot, DOM success and the FormSubmit inbox
-    // route are not; an unavailable RPC is reported only when the inbox route could not take it either.
-    // The measurement module enforces consent.
-    if (rpc !== null && (rpc !== 'missing' || state === 'missing')) measureResult(win, state);
-    var shown = show(doc, state, answers);
-    // Owner decision (30 September 2026): a sign-up the database took is also emailed to the inbox, with
-    // every answer (volume and campaign labels included, which the released function does not keep yet).
-    // Best effort, after the page has said "You're on the list": its failure changes nothing on the page.
-    // A sign-up that went by the inbox already is not sent twice; busy and invalid send nothing.
-    if (rpc === 'joined') joinByInbox(win.fetch.bind(win), answers, win, true).catch(function () { /* best effort */ });
-    return shown;
+    var state = await join(win.fetch.bind(win), config, answers);
+    // Only the join_waitlist response is a receipt (the honeypot and DOM success are not). The measurement
+    // module enforces consent.
+    measureResult(win, state);
+    return show(doc, state, answers);
   }
 
   /** Clears the live region, then writes in a later task, so a repeated identical message is announced again. */
@@ -386,9 +291,8 @@
   }
 
   var api = { SUPPORT: SUPPORT, BUSINESS: BUSINESS, DEVICES: DEVICES, CHANNELS: CHANNELS, VOLUMES: VOLUMES, COPY: COPY, TIPS: TIPS,
-    INBOX_ENDPOINT: INBOX_ENDPOINT, AUTORESPONSE: AUTORESPONSE, REPLIES_KEY: REPLIES_KEY, SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY,
-    BASE_PARAMS: BASE_PARAMS, answersFrom: answersFrom, attribution: attribution, problem: problem, join: join, joinByInbox: joinByInbox,
-    show: show, send: send, share: share, run: run };
+    SHARE_URL: SHARE_URL, TOUCH_KEY: TOUCH_KEY, BASE_PARAMS: BASE_PARAMS, answersFrom: answersFrom, attribution: attribution,
+    problem: problem, join: join, show: show, send: send, share: share, run: run };
   if (typeof window !== 'undefined') {
     window.VeyletWaitlist = api;
     if (!window.VEYLET_WAITLIST_MANUAL) {

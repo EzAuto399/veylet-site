@@ -128,8 +128,8 @@ test('public CTA hooks use fixed destinations and placements and intake forms ke
 test('a real accepted waitlist response emits only the safe accepted-submission event', async () => {
   const f = fixture();
   assert.equal(await f.send(), 'joined');
-  // The join, then the inbox copy of the sign-up (owner, 30 September 2026), which is not measured.
-  assert.equal(f.requests.length, 2);
+  // The join is the only request (30 September 2026: no inbox copy; the database emails the studio).
+  assert.equal(f.requests.length, 1);
   assert.match(f.requests[0].url, /\/rest\/v1\/rpc\/join_waitlist$/);
   assert.deepEqual(f.events, [{ name: 'waitlist_submission_accepted', props: { form_id: 'waitlist' } }]);
   assert.equal(f.ids['waitlist-form'].hidden, true);
@@ -211,17 +211,18 @@ for (const deploymentEnabled of [false, true]) test(`real analytics runtime pres
   assert.equal(f.window.VeyletAnalytics.track('waitlist_submission_accepted', { form_id: 'waitlist' }), false);
 });
 
-test('the FormSubmit inbox route is never measured as an accepted waitlist submission', async () => {
-  // The join_waitlist RPC is missing, so the answers go once to the owner's inbox instead.
-  const inbox = fixture([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true' } }]);
-  assert.equal(await inbox.send(), 'joined');
-  assert.equal(inbox.requests.length, 3, 'every answer, the eight released ones, then the inbox');
-  assert.equal(inbox.ids['waitlist-done'].hidden, false, 'the visitor still sees the joined state');
-  assert.deepEqual(inbox.events, [], 'an inbox delivery is not an RPC receipt');
+test('a missing join_waitlist is measured as unavailable, with no other destination and no success', async () => {
+  // 30 Sep 2026: the database is the only destination; the former FormSubmit inbox route is gone.
+  const missing = fixture([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }, { status: 200, body: { success: 'true' } }]);
+  assert.equal(await missing.send(), 'missing');
+  assert.equal(missing.requests.length, 2, 'every answer, then the eight released ones; nothing else');
+  assert.equal(missing.ids['waitlist-done'].hidden, true, 'no joined state is shown');
+  assert.deepEqual(missing.events, [{ name: 'form_error', props: { form_id: 'waitlist', error_code: 'unavailable' } }]);
   const unconfigured = fixture([{ status: 200, body: { success: 'true' } }]);
   unconfigured.window.VEYLET_SUPABASE = null;
-  assert.equal(await unconfigured.send(), 'joined');
-  assert.deepEqual(unconfigured.events, []);
+  assert.equal(await unconfigured.send(), 'missing');
+  assert.equal(unconfigured.requests.length, 0);
+  assert.deepEqual(unconfigured.events, [], 'no request, no outcome');
 });
 
 test('honeypot, DOM success and page loads never fabricate a submission outcome', async () => {

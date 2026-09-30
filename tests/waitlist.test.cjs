@@ -2,8 +2,10 @@
  * /waitlist (dist/waitlist/index.html + waitlist.js): the form the launch plan's stage 2 opens
  * (§3 onboarding items 1-2): device, segment and "Where will you show walkthroughs?", an unticked
  * and separate "tips and offers" consent (Spam Act), a honeypot, one call to rpc/join_waitlist
- * (the product repository's supabase/drafts/release-2/20260926102000_waitlist.sql), and the email
- * route when the function does not exist yet.
+ * (the product repository's supabase/drafts/release-2/20260926102000_waitlist.sql), and the
+ * support address when the database did not take the sign-up. Since 30 September 2026 the database is
+ * the only destination: it stores the sign-up and emails the studio (release 3); the page sends nothing
+ * to FormSubmit and promises no confirmation email.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -81,14 +83,20 @@ test('no third-party script, font or form service: every script and stylesheet i
   assert.ok(sources.length >= 4);
   for (const src of sources) assert.match(src, /^\/(?!\/)/, src);
   assert.doesNotMatch(markup, /googleapis|gtag|recaptcha|hcaptcha/i);
-  // 29 Sep 2026 (owner): until the release-2 waitlist is applied, a sign-up the database cannot take goes
-  // to the owner's inbox through FormSubmit's JSON endpoint. No form action, script or frame points there,
-  // the page says so, and it is the script's only external address.
-  assert.doesNotMatch(markup, /action="https?:|<script[^>]+formsubmit|<iframe/i);
-  assert.match(markup, /Until our waitlist database is live, they reach us by email through FormSubmit, which also emails you a confirmation\./);
-  // The only other address is the share link on the success state, which is shared or copied, never fetched.
+  assert.doesNotMatch(markup, /action="https?:|<iframe/i);
+  // The script's only address is the share link on the success state, which is shared or copied, never
+  // fetched; the database address comes from /supabase-public.js.
   assert.deepEqual([...new Set(script.match(/https?:\/\/[^'"\s)]+/g) || [])],
-    ['https://formsubmit.co/ajax/', 'https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks']);
+    ['https://veylet.com/waitlist?utm_source=referral&utm_medium=share&utm_campaign=waitlist-thanks']);
+});
+
+// 30 Sep 2026: the hosted database stores the sign-up and emails the studio (release 3); FormSubmit's
+// AJAX endpoint answers 500. The page says where the answers go and promises no confirmation email.
+test('the page says the answers are stored in Veylet’s database and we are emailed; no FormSubmit, no confirmation', () => {
+  const assurance = /<p class="contact-note form-assurance">([\s\S]*?)<\/p>/.exec(markup)[1];
+  assert.equal(assurance, 'We use your answers to run the waitlist and to email you when it is your turn. They are stored in Veylet’s database, and we are notified by email. To leave the list, email <a href="mailto:support@veylet.com?subject=Leave%20the%20Veylet%20waitlist">support@veylet.com</a>. <a href="/privacy">How we handle personal information</a>.');
+  assert.doesNotMatch(markup, /formsubmit|confirmation/i);
+  assert.doesNotMatch(script, /formsubmit|yodalai|_replyto|_autoresponse/i, 'the script has no FormSubmit route at all');
 });
 
 test('answers are trimmed and allowlisted; consent is true only when ticked', () => {
@@ -155,7 +163,7 @@ test('success hides the form and moves focus to "You’re on the list."; a missi
   assert.equal(await api.send(missing.window, missing.ids['waitlist-form']), 'missing');
   const fallback = missing.ids['waitlist-fallback'];
   assert.equal(fallback.hidden, false);
-  assert.equal(fallback.textContent, `The waitlist opens soon. Email ${api.SUPPORT} to be added.`);
+  assert.equal(fallback.textContent, `We couldn’t add you just now, so nothing was saved. Try again in a minute, or email ${api.SUPPORT} to be added.`);
   assert.equal(fallback.links()[0].getAttribute('href'), `mailto:${api.SUPPORT}?subject=Veylet%20waitlist`);
   assert.equal(missing.ids['waitlist-form'].hidden, false, 'nothing typed is lost');
 });
@@ -176,49 +184,47 @@ test('the fallback address is the one the support page gives', () => {
 });
 
 
-test('while the database has no waitlist, a sign-up reaches the owner\'s inbox once; if that fails too, the email route', async () => {
+test('a sign-up the database did not take says nothing was saved, gives the support address, and sends nothing else', async () => {
   const api = load();
-  assert.equal(api.SUPPORT, 'support@veylet.com');
-  assert.equal(api.INBOX_ENDPOINT, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
-  // The database answers "no such function"; FormSubmit accepts: the visitor is on the list.
-  const ok = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } },
-    { status: 200, body: { success: 'true', message: 'The form was submitted successfully.' } }]);
-  ok.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, consent_tips: 'yes' });
-  assert.equal(await api.send(ok.window, ok.ids['waitlist-form']), 'joined');
-  assert.equal(ok.requests.length, 3, 'all answers, the eight released ones, then the inbox once');
-  const inbox = ok.requests[2];
-  assert.equal(inbox.url, 'https://formsubmit.co/ajax/yoda@yodalai.xyz');
-  assert.equal(inbox.init.credentials, 'omit');
-  // FormSubmit rejects a request without a Referer; only the origin is sent (live failure, 29 Sep).
-  assert.equal(inbox.init.referrerPolicy, 'origin');
-  assert.equal(ok.requests[0].init.referrerPolicy, 'no-referrer');
-  assert.deepEqual(inbox.body, { _subject: 'Veylet waitlist', _template: 'table', _captcha: 'false', name: 'Sam Agent',
-    email: 'Sam@Agency.com.au', business: 'sales_agent', device: 'iphone_pro_lidar', region: 'Brisbane',
-    channels: 'own_website, domain', tips_and_offers: 'yes', consent_wording: 'tips-v1', volume: '', utm_source: '',
-    utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '', _replyto: 'Sam@Agency.com.au',
-    _autoresponse: api.AUTORESPONSE });
-  assert.equal(ok.ids['waitlist-form'].hidden, true);
-  // Both fail: nothing is claimed, the email route shows, and nothing typed is lost.
-  const down = page([{ status: 404, body: { code: 'PGRST202' } }, { status: 404, body: { code: 'PGRST202' } }, { status: 500, body: { success: 'false' } }]);
-  down.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
-  assert.equal(await api.send(down.window, down.ids['waitlist-form']), 'missing');
-  assert.equal(down.ids['waitlist-fallback'].hidden, false);
-  assert.equal(down.ids['waitlist-form'].hidden, false);
-  // A page without its database configuration goes straight to the inbox.
+  const NOT_SAVED = 'We couldn’t add you just now, so nothing was saved. Try again in a minute, or email support@veylet.com to be added.';
+  const MISSING = { status: 404, body: { code: 'PGRST202' } };
+  const cases = [
+    ['no function either way', [MISSING, MISSING], 'missing', 2, NOT_SAVED],
+    ['a server error', [{ status: 500, body: { message: 'boom' } }], 'error', 1, NOT_SAVED],
+    ['no network', [new TypeError('Failed to fetch')], 'error', 1, NOT_SAVED],
+    ['an error on the eight-answer retry', [MISSING, { status: 503, body: null }], 'error', 2, NOT_SAVED],
+    ['the hourly limit', [{ status: 200, body: { state: 'busy' } }], 'busy', 1,
+      'The waitlist is busy right now, so nothing was saved. Try again in an hour, or email support@veylet.com to be added.'],
+  ];
+  for (const [label, answers, state, calls, words] of cases) {
+    const p = page(answers);
+    p.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
+    assert.equal(await api.send(p.window, p.ids['waitlist-form']), state, label);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(p.requests.length, calls, `${label}: only join_waitlist is called`);
+    for (const request of p.requests) {
+      assert.equal(request.url, 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist', label);
+      assert.equal(request.init.referrerPolicy, 'no-referrer', label);
+    }
+    const fallback = p.ids['waitlist-fallback'];
+    assert.equal(fallback.hidden, false, label);
+    assert.equal(fallback.textContent, words, label);
+    assert.equal(fallback.links()[0].getAttribute('href'), 'mailto:support@veylet.com?subject=Veylet%20waitlist', label);
+    assert.equal(p.ids['waitlist-form'].hidden, false, `${label}: nothing typed is lost`);
+    assert.equal(p.ids['waitlist-done'].hidden, true, `${label}: no success is shown`);
+  }
+  // A page without its database configuration sends nothing and says the same.
   const noConfig = page([{ status: 200, body: { success: 'true' } }], null);
   noConfig.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
-  assert.equal(await api.send(noConfig.window, noConfig.ids['waitlist-form']), 'joined');
-  assert.equal(noConfig.requests.length, 1);
-  // A working database takes it, and the inbox gets one copy (owner, 30 September 2026; tested below).
-  const live = page([{ status: 200, body: { state: 'joined' } }, { status: 200, body: { success: 'true' } }]);
-  live.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
-  assert.equal(await api.send(live.window, live.ids['waitlist-form']), 'joined');
-  assert.deepEqual(live.requests.map(request => request.url), ['https://project.supabase.invalid/rest/v1/rpc/join_waitlist', api.INBOX_ENDPOINT]);
+  assert.equal(await api.send(noConfig.window, noConfig.ids['waitlist-form']), 'missing');
+  assert.equal(noConfig.requests.length, 0);
+  assert.equal(noConfig.ids['waitlist-fallback'].textContent, NOT_SAVED);
+  assert.equal(noConfig.ids['waitlist-done'].hidden, true);
 });
 
 // 29 Sep 2026 (owner): lead quality and attribution. An optional volume answer matching the Meta lead form,
-// the campaign labels of the link that brought the visit (never the click identifiers), a FormSubmit
-// auto-reply, and a success state that says what happens next.
+// the campaign labels of the link that brought the visit (never the click identifiers), and a success
+// state that says what happens next.
 function storage(values = {}) {
   const map = new Map(Object.entries(values));
   return { getItem: key => (map.has(key) ? map.get(key) : null), setItem: (key, value) => map.set(key, String(value)) };
@@ -272,26 +278,14 @@ test('attribution is the stored first touch, else this page\'s own link, else no
     { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' });
 });
 
-test('the inbox route sends volume, labels, a reply-to and the auto-reply the owner approved', async () => {
-  const api = load();
-  // Transactional only: no offer, price or plan line.
-  assert.equal(api.AUTORESPONSE, 'Thanks for joining the Veylet waitlist. We admit new accounts in weekly groups and will email you when your group opens. You\'re getting this because this address was entered at veylet.com/waitlist. If that wasn\'t you, or to leave the list, email support@veylet.com. Veylet Studio (Yo-Da Lai)');
-  assert.doesNotMatch(api.AUTORESPONSE, /free|month|walkthroughs included|\$/);
-  const sent = page([{ status: 200, body: { success: 'true' } }], null);
-  sent.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });
-  sent.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: '6_plus' });
-  assert.equal(await api.send(sent.window, sent.ids['waitlist-form']), 'joined');
-  const { body } = sent.requests[0];
-  assert.deepEqual([body.volume, body.utm_source, body.utm_medium, body.utm_campaign, body.utm_content, body.click, body.landing],
-    ['6_plus', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see']);
-  assert.equal(body._replyto, 'Sam@Agency.com.au');
-  assert.equal(body._autoresponse, api.AUTORESPONSE);
-  // The database route gets the same labels as its own parameters.
-  const rpc = page([{ status: 200, body: { state: 'joined' } }]);
-  rpc.window.sessionStorage = storage({ [api.TOUCH_KEY]: JSON.stringify(TOUCH) });
-  rpc.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, volume: 'none' });
-  await api.send(rpc.window, rpc.ids['waitlist-form']);
-  assert.deepEqual([rpc.requests[0].body.p_volume, rpc.requests[0].body.p_utm_source, rpc.requests[0].body.p_landing], ['none', 'instagram', '/see']);
+test('both privacy notices say waitlist sign-ups are stored with Supabase and emailed to us through Resend; /request still goes via FormSubmit', () => {
+  for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
+    const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
+    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
+    assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Request forms go to yoda@yodalai.xyz via FormSubmit. Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend, an email service that may process information outside Australia, emails us a copy of your answers.'), file);
+    assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
+    assert.match(privacy, /Last updated 30 September 2026\./, file);
+  }
 });
 
 test('the success state lists what happens next, offers /see and sharing, and names the capture devices only when needed', async () => {
@@ -342,39 +336,6 @@ test('both privacy notices say campaign labels, ad source and landing page trave
   }
 });
 
-test('the auto-reply goes once per address and at most 3 times a session; the owner copy always goes', async () => {
-  const api = load();
-  const store = storage();
-  const sendAs = async (email, win = { sessionStorage: store }) => {
-    const { fetch, requests } = recordingFetch([{ status: 200, body: { success: 'true' } }]);
-    const answers = api.answersFrom(new FakeFormData({ ...ANSWERS, email }));
-    assert.equal(await api.joinByInbox(fetch, answers, win), 'joined');
-    assert.equal(requests.length, 1, 'the owner copy is sent');
-    assert.equal(requests[0].body.email, email);
-    return '_autoresponse' in requests[0].body;
-  };
-  assert.equal(await sendAs('a@agency.com.au'), true);
-  assert.equal(await sendAs('A@Agency.com.au'), false, 'the same address in other case');
-  assert.equal(await sendAs('b@agency.com.au'), true);
-  assert.equal(await sendAs('c@agency.com.au'), true);
-  assert.equal(await sendAs('d@agency.com.au'), false, 'a fourth address in the session');
-  assert.doesNotMatch(store.getItem(api.REPLIES_KEY), /agency|@/, 'the addresses themselves are not stored');
-  // A failed send does not use up the address.
-  const fresh = storage();
-  const failing = recordingFetch([{ status: 500, body: { success: 'false' } }, { status: 200, body: { success: 'true' } }]);
-  const answers = api.answersFrom(new FakeFormData(ANSWERS));
-  assert.equal(await api.joinByInbox(failing.fetch, answers, { sessionStorage: fresh }), 'missing');
-  assert.equal(await api.joinByInbox(failing.fetch, answers, { sessionStorage: fresh }), 'joined');
-  assert.ok('_autoresponse' in failing.requests[1].body);
-  // Storage that throws: still sent, the auto-reply once per page load.
-  const blocked = { get sessionStorage() { throw new Error('SecurityError'); } };
-  const again = load();
-  const twice = recordingFetch([{ status: 200, body: { success: 'true' } }, { status: 200, body: { success: 'true' } }]);
-  assert.equal(await again.joinByInbox(twice.fetch, answers, blocked), 'joined');
-  assert.equal(await again.joinByInbox(twice.fetch, { ...answers, p_email: 'other@agency.com.au' }, blocked), 'joined');
-  assert.deepEqual(twice.requests.map(r => '_autoresponse' in r.body), [true, false]);
-});
-
 test('a landing path alone is not a touch: the page\'s own link counts only when a label or click survives', () => {
   const api = load();
   const empty = { utm_source: '', utm_medium: '', utm_campaign: '', utm_content: '', click: '', landing: '' };
@@ -405,12 +366,11 @@ test('the share live region stays rendered and a repeated message is cleared, th
 });
 
 
-// 30 Sep 2026 (owner): Release 2's join_waitlist takes 8 parameters. The page sends all 15 first (a later
-// migration adds the rest), asks once more with the 8 when the function does not take them, and emails the
-// inbox a copy of every sign-up the database took, with every answer, so attribution is not lost.
+// 30 Sep 2026: Release 2's join_waitlist takes 8 parameters. The page sends all 15 first (a later migration
+// adds the rest) and asks once more with the 8 when the function does not take them. The database is the
+// only destination: no copy goes anywhere else.
 const RPC = 'https://project.supabase.invalid/rest/v1/rpc/join_waitlist';
 const NO_FUNCTION = { status: 404, body: { code: 'PGRST202', message: 'Could not find the function public.join_waitlist(p_business_type, p_channels, p_click, ...)' } };
-const SENT = { status: 200, body: { success: 'true' } };
 const withTouch = extra => {
   const p = page(extra);
   p.window.sessionStorage = storage({ 'veylet.firstTouch': JSON.stringify(TOUCH) });
@@ -419,61 +379,45 @@ const withTouch = extra => {
 };
 const settled = () => new Promise(resolve => setImmediate(resolve));
 
-test('a database that takes every answer: one call, then one inbox copy with every answer', async () => {
+test('a database that takes every answer: one call carrying the volume and the visit\'s attribution, and nothing else', async () => {
   const api = load();
-  const p = withTouch([{ status: 200, body: { state: 'joined' } }, SENT]);
+  const tracked = [];
+  const p = withTouch([{ status: 200, body: { state: 'joined' } }, { status: 200, body: { success: 'true' } }]);
+  p.window.VeyletAnalytics = { track: (name, props) => tracked.push([name, props.error_code || null]) };
   assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
-  await settled();
-  assert.deepEqual(p.requests.map(request => request.url), [RPC, api.INBOX_ENDPOINT]);
-  assert.equal(Object.keys(p.requests[0].body).length, 15);
-  const copy = p.requests[1].body;
-  assert.deepEqual([copy.volume, copy.utm_source, copy.utm_medium, copy.utm_campaign, copy.utm_content, copy.click, copy.landing, copy.saved_in_database],
-    ['3_5', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see', 'yes']);
-  assert.equal(p.requests[1].init.referrerPolicy, 'origin', 'the FormSubmit Referer fix holds for the copy');
+  await settled(); await settled();
+  assert.deepEqual(p.requests.map(request => request.url), [RPC], 'no copy is sent anywhere after the database took it');
+  const body = p.requests[0].body;
+  assert.equal(Object.keys(body).length, 15);
+  assert.deepEqual([body.p_volume, body.p_utm_source, body.p_utm_medium, body.p_utm_campaign, body.p_utm_content, body.p_click, body.p_landing],
+    ['3_5', 'instagram', 'paid', 'waitlist-sep', 'reel_a', 'meta', '/see']);
+  assert.equal(p.requests[0].init.referrerPolicy, 'no-referrer');
+  assert.equal(p.requests[0].init.credentials, 'omit');
   assert.equal(p.ids['waitlist-form'].hidden, true);
+  assert.equal(p.ids['waitlist-fallback'].hidden, true);
+  assert.deepEqual(tracked, [['waitlist_submission_accepted', null]], 'measured once, as the database answered');
 });
 
-test('Release 2’s function: all answers, then exactly the eight it takes, then the inbox copy with the rest', async () => {
+test('Release 2’s function: all answers, then exactly the eight it takes, and nothing else', async () => {
   const api = load();
-  const p = withTouch([NO_FUNCTION, { status: 200, body: { state: 'joined' } }, SENT]);
+  const p = withTouch([NO_FUNCTION, { status: 200, body: { state: 'joined' } }, { status: 200, body: { success: 'true' } }]);
   assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
-  await settled();
-  assert.deepEqual(p.requests.map(request => request.url), [RPC, RPC, api.INBOX_ENDPOINT]);
+  await settled(); await settled();
+  assert.deepEqual(p.requests.map(request => request.url), [RPC, RPC]);
+  assert.equal(Object.keys(p.requests[0].body).length, 15, 'the first call carries every answer');
+  assert.equal(p.requests[0].body.p_utm_campaign, 'waitlist-sep');
   assert.deepEqual(Object.keys(p.requests[1].body).sort(), ['p_business_type', 'p_channels', 'p_consent_tips', 'p_consent_wording', 'p_device', 'p_email', 'p_name', 'p_region']);
   assert.deepEqual(p.requests[1].body, Object.fromEntries(api.BASE_PARAMS.map(name => [name, p.requests[0].body[name]])));
-  assert.equal(p.requests[1].init.referrerPolicy, 'no-referrer');
-  const copy = p.requests[2].body;
-  assert.deepEqual([copy.volume, copy.utm_source, copy.utm_campaign, copy.landing], ['3_5', 'instagram', 'waitlist-sep', '/see']);
+  assert.deepEqual(p.requests.map(request => request.init.referrerPolicy), ['no-referrer', 'no-referrer']);
   assert.equal(p.ids['waitlist-done'].hidden, false);
 });
 
-test('no function either way: the inbox takes it once (no second copy); busy and invalid send no copy', async () => {
+test('busy and invalid send one call and nothing else', async () => {
   const api = load();
-  const p = withTouch([NO_FUNCTION, NO_FUNCTION, SENT, SENT]);
-  assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
-  await settled();
-  assert.deepEqual(p.requests.map(request => request.url), [RPC, RPC, api.INBOX_ENDPOINT]);
-  assert.equal(p.requests[2].body.saved_in_database, undefined, 'the inbox is the record here, and says nothing else');
   for (const state of ['busy', 'invalid']) {
-    const q = withTouch([{ status: 200, body: { state } }, SENT]);
+    const q = withTouch([{ status: 200, body: { state } }, { status: 200, body: { success: 'true' } }]);
     assert.equal(await api.send(q.window, q.ids['waitlist-form']), state);
     await settled();
     assert.deepEqual(q.requests.map(request => request.url), [RPC], state);
   }
-});
-
-test('a failed inbox copy changes nothing on the page after the database took the sign-up', async () => {
-  const api = load();
-  const tracked = [];
-  for (const failure of [{ status: 500, body: { success: 'false' } }, new TypeError('Failed to fetch')]) {
-    const p = withTouch([{ status: 200, body: { state: 'joined' } }, failure]);
-    p.window.VeyletAnalytics = { track: (name, props) => tracked.push([name, props.error_code || null]) };
-    assert.equal(await api.send(p.window, p.ids['waitlist-form']), 'joined');
-    await settled(); await settled();
-    assert.equal(p.ids['waitlist-form'].hidden, true);
-    assert.equal(p.ids['waitlist-done'].hidden, false);
-    assert.equal(p.ids['waitlist-fallback'].hidden, true);
-    assert.equal(p.ids['waitlist-status'].textContent, '');
-  }
-  assert.deepEqual(tracked, [['waitlist_submission_accepted', null], ['waitlist_submission_accepted', null]], 'measured once each, as the database answered');
 });
