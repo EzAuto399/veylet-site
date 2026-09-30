@@ -94,7 +94,7 @@ test('no third-party script, font or form service: every script and stylesheet i
 // AJAX endpoint answers 500. The page says where the answers go and promises no confirmation email.
 test('the page says the answers are stored in Veylet’s database and a confirmation follows by email; no FormSubmit', () => {
   const assurance = /<p class="contact-note form-assurance">([\s\S]*?)<\/p>/.exec(markup)[1];
-  assert.equal(assurance, 'We use your answers to run the waitlist and to email you when it is your turn. They are stored in Veylet’s database; we’ll email you a confirmation and let you know when your group opens. To leave the list, email <a href="mailto:support@veylet.com?subject=Leave%20the%20Veylet%20waitlist">support@veylet.com</a>. <a href="/privacy">How we handle personal information</a>.');
+  assert.equal(assurance, 'We use your answers to run the waitlist. They are stored in Veylet’s database; we’ll email you a confirmation and let you know when your group opens. To leave the list, email <a href="mailto:support@veylet.com?subject=Leave%20the%20Veylet%20waitlist">support@veylet.com</a>. <a href="/privacy">How we handle personal information</a>.');
   assert.doesNotMatch(markup, /formsubmit/i);
   // The confirmation is sent later by the database; no copy tells the visitor to go and check an inbox now.
   for (const words of [markup, ...['privacy/index.html', 'app/privacy/index.html'].map(file => fs.readFileSync(path.join(dist, file), 'utf8'))]) {
