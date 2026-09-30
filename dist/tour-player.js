@@ -405,7 +405,7 @@
     if (!stage) { failed(PACKAGE_BODY, false); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=eb3db4a7a3057aa7');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=911f64ef87c44818');
     } catch {
       failed(OFFLINE_BODY, true);
       return;
