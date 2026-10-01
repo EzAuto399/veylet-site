@@ -76,7 +76,7 @@ test('D1 practice is required once, preserves saved success and does not block s
   }
 });
 
-test('your-plan mirrors the accepted capture allowance and says exports are not open yet', () => {
+test('your-plan mirrors the accepted capture allowance and says listing videos are in the plan', () => {
   for (const file of ['help/your-plan/index.html', 'app/help/your-plan/index.html']) {
     const words = text(main(read(file)));
     assert.match(words, /One accepted capture uses one walkthrough, regardless of room count\./, file);
@@ -84,8 +84,8 @@ test('your-plan mirrors the accepted capture allowance and says exports are not 
     assert.match(words, /permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough\./, file);
     assert.match(words, /A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver\./, file);
     assert.doesNotMatch(words, /up to 8 rooms|each further 8 rooms|recapture of the rooms the quality check names, uses none/i, file);
-    assert.match(words, /Listing videos and stills are included in your plan once exports open\. Exports are not open yet\./, file);
-    assert.doesNotMatch(words, /Listing videos and stills are included in your plan\. Files you already downloaded/, file);
+    assert.match(words, /Listing videos \(16:9 and 9:16 MP4\) and stills are included in your plan, made automatically from the same capture\. Files you download are yours to keep, also after your plan ends\./, file);
+    assert.doesNotMatch(words, /once exports open|Exports are not open yet/, file);
   }
 });
 

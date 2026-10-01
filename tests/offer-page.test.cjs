@@ -459,7 +459,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.equal(terms.Hosting, 'Every released walkthrough stays live while your account has a running plan: the free months, monthly or annual. '
     + `When the plan ends, its links, embeds and QR codes keep working for ${graceDays} days, then go offline. Restart the plan and the same links come back at once. `
     + `To keep a single walkthrough online without a plan, ask us for a hosting extension: ${aud(hostingYear)} a year per walkthrough.`);
-  assert.equal(terms['Listing videos and photos'], 'Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.');
+  assert.equal(terms['Listing videos and photos'], 'Included in the plan: a landscape listing video and a vertical social video (16:9 and 9:16 MP4) and still photos of each released walkthrough, made automatically from the same capture. Files you download are yours to keep.');
   // Starting needs a payment method on file, in each channel's own words.
   assert.match(terms.Starting, /Start in the app through Apple’s 1-month free introductory offer, if eligible/);
   assert.match(terms.Starting, /It includes 3 accepted walkthroughs in total/);
@@ -1107,7 +1107,7 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.match(llms, /More walkthroughs inside the free months come from a walkthrough pack \(below\), which can be bought during the free months; the free-months end date stays the same\./);
   assert.equal(lineStarting('- Hosting:'), '- Hosting: every released walkthrough stays live while the account has an active plan (free months, monthly or annual). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline; they are not deleted or revoked, and restarting the plan brings the same links back at once. '
     + `To keep a single walkthrough online without a plan, ask us for a hosting extension: ${aud(hostingYear)} a year per walkthrough.`);
-  assert.match(lineStarting('- While subscribed:'), /listing videos \(MP4\) and stills are included in the plan once video exports open, and downloaded files are the account's to keep\.$/i);
+  assert.match(lineStarting('- While subscribed:'), /Listing videos for realestate\.com\.au and social media \(16:9 and 9:16 MP4\) and stills are included in the plan, made automatically from the same capture, and downloaded files are the account's to keep\.$/);
   assert.doesNotMatch(llms, /at least twelve months|hosting costs|There is no hosting without a plan/);
   assert.match(llms, /The App Store sells the Veylet plan monthly and annual\./);
   assert.match(llms, /corrections to the same walkthrough do not use a second unit/i);
@@ -1235,4 +1235,29 @@ test('the offer page shows the buyable plan and no unavailable capacity, says wh
   assert.deepEqual(product.offers.map((o) => [o.price, o.priceCurrency, o.priceSpecification.billingDuration]),
     [[plan.appAud.toFixed(2), 'AUD', 'P1M'], [plan.annualAppAud.toFixed(2), 'AUD', 'P1Y']]);
   assert.ok(product.offers.every((o) => o.availability === 'https://schema.org/LimitedAvailability'), 'invitation-only today');
+});
+
+// Walkthrough videos are open (copy flip of 2 October 2026, merged after the first real capture export is proven):
+// no public page still says listing videos wait for exports to open, the offer record says they are open, and the
+// share help explains the formats, the consent tick, the on-video line and that downloaded files stay the customer's.
+test('listing videos are open on every surface that names them', () => {
+  const surfaces = ['offer/index.html', 'see/index.html', 'llms.txt', 'terms/index.html', 'app/terms/index.html',
+    'help/share-your-walkthrough/index.html', 'app/help/share-your-walkthrough/index.html', 'help/your-plan/index.html', 'app/help/your-plan/index.html'];
+  for (const page of surfaces) {
+    assert.doesNotMatch(read(page), /(once|when) (video )?exports open|exports are not open yet/i, page);
+  }
+  assert.match(record.plans[0].listingExports.status, /^open: 16:9 and 9:16 MP4 videos and stills are included in the plan/);
+  for (const page of ['terms/index.html', 'app/terms/index.html']) {
+    const text = read(page).replace(/\s+/g, ' ');
+    assert.match(text, /<strong>Listing videos and stills\.<\/strong> Listing videos \(16:9 and 9:16 MP4\) and stills made automatically from the same capture are included in the plan/, page);
+    assert.ok(text.includes('“3D reconstruction from on-site capture; may contain inaccuracies.”'), page);
+    assert.match(text, /files you download remain yours, also after the plan ends\./, page);
+  }
+  for (const page of ['help/share-your-walkthrough/index.html', 'app/help/share-your-walkthrough/index.html']) {
+    const html = read(page);
+    assert.match(html, /<h2 id="listing-videos">Listing videos and stills<\/h2>/, page);
+    for (const words of ['both MP4', 'Make listing videos', 'tick the box beside it', '3D reconstruction from on-site capture; may contain inaccuracies.', 'yours to keep']) {
+      assert.ok(html.includes(words), page + ': ' + words);
+    }
+  }
 });

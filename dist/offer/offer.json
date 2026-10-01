@@ -94,7 +94,7 @@
         ],
         "price": "included in the plan; not sold separately",
         "ownership": "downloaded files stay the customer's, also after the plan ends",
-        "status": "not open yet: video exports are included in the plan once they open"
+        "status": "open: 16:9 and 9:16 MP4 videos and stills are included in the plan, made automatically from the same capture"
       },
       "rollover": {
         "enabled": true,

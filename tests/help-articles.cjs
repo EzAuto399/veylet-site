@@ -389,11 +389,20 @@ const ARTICLES = [
       ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
-      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
+      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. You can also share listing videos on realestate.com.au and social media: listing videos (16:9 and 9:16 MP4) and stills are included in the plan, made automatically from the same capture, and files you download are yours to keep.',
+    ] }, { title: 'Listing videos and stills', id: 'listing-videos', terms: [
+      ['What you get', 'A 16:9 listing video and a 9:16 social video, both MP4, and a ZIP of still photos of each room, made from the same capture as the walkthrough.'],
+      ['Where to use them', 'The video field of a realestate.com.au or Domain listing, YouTube and social media.'],
+      ['The label on each video', 'Each video carries the line “3D reconstruction from on-site capture; may contain inaccuracies.” It has no web address, QR code or call to action.'],
+    ] }, { steps: [
+      'Approve the walkthrough first: its videos and stills are available only once it is approved.',
+      'Under **Videos and stills for your listing**, on the listing in the app or in [your Veylet account](account), read the statement and tick the box beside it. Downloaded files can’t be recalled.',
+      'Choose **Make listing videos**. When it reads **Ready to download.**, download each file. The files are yours to keep, also after your plan ends.',
     ] }],
     notWorking: [
       'Listing portals do not accept the embed code. Use the listing URL there instead.',
       'If a link shows "not available", sharing is paused or turned off. See [pause or turn off sharing](help:pause-or-turn-off).',
+      'If the videos section reads **Exports open soon.**, listing videos are not open for your account yet, and nothing was asked for. Check again later.',
     ],
   },
   {
@@ -484,7 +493,7 @@ const ARTICLES = [
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
       'One accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
-      'Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.',
+      'Listing videos (16:9 and 9:16 MP4) and stills are included in your plan, made automatically from the same capture. Files you download are yours to keep, also after your plan ends. See [listing videos and stills](help:share-your-walkthrough#listing-videos).',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {
       // Offer 2026-09-26.2: the hosting extension is sold on request from the website only; the app's edition never
