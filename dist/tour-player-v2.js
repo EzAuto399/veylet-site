@@ -22,6 +22,11 @@
   const HINT_KEY = 'veylet-player-hint-seen';
   // After a lost graphics context: where the visitor was, for one retry at a lower budget (this tab only).
   const RESUME_KEY = 'veylet-player-resume';
+  // Still refinement off for this tab: '1' after a lost graphics context, 'slow-frame' after a refined frame took too long.
+  const REFINEMENT_DISABLED_KEY = 'veylet-player-refinement-disabled';
+  // Refinement waits for 250 ms of stillness, and 2 s after it last ended so short bursts of dragging do not resize the
+  // canvas each time; a refined frame followed by a tick more than 150 ms later shows the device cannot afford it.
+  const REFINE_IDLE_MS = 250, REFINE_REARM_MS = 2000, REFINED_FRAME_MS = 150;
   // The tours Worker serves a shared package's files under r/<rev>/ (rev: the stored manifest's hash) so they cache
   // immutably; one such folder is accepted in front of a package path, never two.
   const REVISION = /^r\/[0-9a-f]{8,64}\//;
@@ -401,6 +406,210 @@
     return reach >= minStep ? [from[0] + dx * reach / length, from[1] + dz * reach / length] : null;
   }
 
+  const WALK_SPEED = 1.3, WALK_RAMP = 0.25, TURN_SPEED = 60;
+  // A released drag coasts for 0.3 s at no more than 120°/s, so a flick turns the view at most ~36° on its own:
+  // enough to feel continuous, little enough for visitors prone to motion sickness.
+  const INERTIA_SPEED = 120, INERTIA_DECAY = 0.3;
+  // Routes keep 0.15 m of shoulder room and prefer 0.35 m. Within ROUTE_RELIEF of either end (a stop beside
+  // furniture, a viewer slid against a wall) any open floor will do. A route is worked out between two frames: masks
+  // of up to ROUTE_CELLS, ROUTE_NODES cells searched and ROUTE_BUDGET_MS; past that the caller moves as it did before.
+  const ROUTE_CLEARANCE = 0.15, ROUTE_ROOM = 0.35, ROUTE_RELIEF = 0.35;
+  const ROUTE_CELLS = 1 << 20, ROUTE_NODES = 250_000, ROUTE_BUDGET_MS = 30;
+  const walkingDuration = distance => Math.min(4000, Math.max(500, (distance / WALK_SPEED + WALK_RAMP) * 1000));
+  const angleDelta = (from, to) => ((to - from) % 360 + 540) % 360 - 180;
+
+  /** Visit every crossed grid cell, including both sides of a diagonal corner. */
+  function floorSegment(mask, from, to) {
+    if (!mask.walkable(...from) || !mask.walkable(...to)) return false;
+    const { cell, origin: [x0, z0] } = mask;
+    let c = Math.floor((from[0] - x0) / cell), r = Math.floor((from[1] - z0) / cell);
+    const endC = Math.floor((to[0] - x0) / cell), endR = Math.floor((to[1] - z0) / cell);
+    const dx = to[0] - from[0], dz = to[1] - from[1], sx = Math.sign(dx), sz = Math.sign(dz);
+    const stepX = sx ? cell / Math.abs(dx) : Infinity, stepZ = sz ? cell / Math.abs(dz) : Infinity;
+    let nextX = sx ? (x0 + (c + (sx > 0 ? 1 : 0)) * cell - from[0]) / dx : Infinity;
+    let nextZ = sz ? (z0 + (r + (sz > 0 ? 1 : 0)) * cell - from[1]) / dz : Infinity;
+    const steps = Math.abs(endC - c) + Math.abs(endR - r) + 1;
+    for (let i = 0; i < steps && (c !== endC || r !== endR); i++) {
+      if (Math.abs(nextX - nextZ) < 1e-10) {
+        if (!mask.on(c + sx, r) || !mask.on(c, r + sz)) return false;
+        c += sx; r += sz; nextX += stepX; nextZ += stepZ;
+      } else if (nextX < nextZ) { c += sx; nextX += stepX; }
+      else { r += sz; nextZ += stepZ; }
+      if (!mask.on(c, r)) return false;
+    }
+    return c === endC && r === endR;
+  }
+
+  /** Distance from a point to the nearest blocked cell, up to a comfortable shoulder clearance. */
+  function floorClearance(mask, point, radius = ROUTE_ROOM) {
+    if (!mask.walkable(...point)) return 0;
+    const { cell, origin: [x0, z0] } = mask;
+    let distance = Math.min(radius, point[0] - x0, point[1] - z0, x0 + mask.columns * cell - point[0], z0 + mask.rows * cell - point[1]);
+    for (let r = Math.max(0, Math.floor((point[1] - z0 - radius) / cell)); r <= Math.min(mask.rows - 1, Math.floor((point[1] - z0 + radius) / cell)); r++) {
+      for (let c = Math.max(0, Math.floor((point[0] - x0 - radius) / cell)); c <= Math.min(mask.columns - 1, Math.floor((point[0] - x0 + radius) / cell)); c++) {
+        if (mask.on(c, r)) continue;
+        const dx = Math.max(x0 + c * cell - point[0], 0, point[0] - (x0 + (c + 1) * cell));
+        const dz = Math.max(z0 + r * cell - point[1], 0, point[1] - (z0 + (r + 1) * cell));
+        distance = Math.min(distance, Math.hypot(dx, dz));
+      }
+    }
+    return distance;
+  }
+
+  // floorClearance at every cell centre, worked out once per mask (routing asks for it thousands of times).
+  const clearanceGrids = new WeakMap();
+  /** Each row's distance in cells to its nearest blocked cell, then the nearest such cell within reach above or below. */
+  function clearanceGrid(mask) {
+    let grid = clearanceGrids.get(mask);
+    if (grid) return grid;
+    const { cell, columns, rows } = mask, reach = Math.ceil(ROUTE_ROOM / cell + 0.5);
+    const across = new Uint8Array(columns * rows); // 0 on a blocked cell; reach + 1 when none is near
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0, wall = -Infinity; c < columns; c++) { if (!mask.on(c, r)) wall = c; across[r * columns + c] = Math.min(reach + 1, c - wall); }
+      for (let c = columns - 1, wall = Infinity; c >= 0; c--) { if (!mask.on(c, r)) wall = c; across[r * columns + c] = Math.min(across[r * columns + c], wall - c); }
+    }
+    // Squared distance from a cell centre to the near edge of a cell `n` rows or columns away.
+    const edge = Array.from({ length: reach + 2 }, (_, n) => (n ? ((n - 0.5) * cell) ** 2 : 0));
+    grid = new Float32Array(columns * rows);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < columns; c++) {
+        if (!across[r * columns + c]) continue;
+        let room = Math.min(ROUTE_ROOM, (c + 0.5) * cell, (r + 0.5) * cell, (columns - c - 0.5) * cell, (rows - r - 0.5) * cell) ** 2;
+        // The nearest blocked cell of a row is the one fewest columns away.
+        for (let dr = Math.max(-reach, -r), last = Math.min(reach, rows - 1 - r); dr <= last; dr++) {
+          const distance = edge[across[(r + dr) * columns + c]] + edge[dr < 0 ? -dr : dr];
+          if (distance < room) room = distance;
+        }
+        grid[r * columns + c] = Math.sqrt(room);
+      }
+    }
+    clearanceGrids.set(mask, grid);
+    return grid;
+  }
+
+  // The eight steps between cells (columns, rows), and a binary heap of cell ids ordered by f then id, so equal costs
+  // always break the same way. Module-level, so the engine keeps them compiled between routes.
+  const STEP_C = [1, 0, -1, 0, 1, -1, -1, 1], STEP_R = [0, 1, 0, -1, 1, 1, -1, -1], DIAGONAL = Math.SQRT2;
+  // Octile distance (in cells) between cells dx and dz apart: never more than the cheapest eight-way path.
+  const octile = (dx, dz) => (dx < 0 ? -dx : dx) + (dz < 0 ? -dz : dz) + (DIAGONAL - 2) * Math.min(dx < 0 ? -dx : dx, dz < 0 ? -dz : dz);
+  const ahead = (heap, i, j) => heap.f[i] < heap.f[j] || (heap.f[i] === heap.f[j] && heap.id[i] < heap.id[j]);
+  function heapSwap(heap, i, j) {
+    const f = heap.f[i], id = heap.id[i];
+    heap.f[i] = heap.f[j]; heap.id[i] = heap.id[j]; heap.f[j] = f; heap.id[j] = id;
+  }
+  function heapPush(heap, f, id) {
+    let i = heap.f.length;
+    heap.f.push(f); heap.id.push(id);
+    while (i) { const parent = (i - 1) >> 1; if (!ahead(heap, i, parent)) break; heapSwap(heap, i, parent); i = parent; }
+  }
+  function heapPop(heap) {
+    const id = heap.id[0], last = heap.f.length - 1;
+    heapSwap(heap, 0, last); heap.f.pop(); heap.id.pop();
+    for (let i = 0, child = 1; child < last; i = child, child = i * 2 + 1) {
+      if (child + 1 < last && ahead(heap, child + 1, child)) child++;
+      if (!ahead(heap, child, i)) break;
+      heapSwap(heap, i, child);
+    }
+    return id;
+  }
+
+  /**
+   * A deterministic A* search over the mask's cells, eight ways but never between two blocked corners, then cuts the
+   * corners that open floor allows. Narrow passages cost more; walls never become shortcuts. Out of time while
+   * cutting corners, the rest of the path stays uncut; out of time or cells while searching, there is no route.
+   */
+  function routeWalk(mask, from, to, { budget = ROUTE_BUDGET_MS, now = () => performance.now() } = {}) {
+    const failed = reason => ({ points: null, distance: 0, reason });
+    if (!mask) return failed('no-walkable-mask');
+    if (mask.cell < 0.02) return failed('route-resolution-limit');
+    if (mask.columns * mask.rows > ROUTE_CELLS) return failed('route-size-limit');
+    if (![...from, ...to].every(Number.isFinite)) return failed('invalid-target');
+    if (!mask.walkable(...from) || !mask.walkable(...to)) return failed('outside-walkable-mask');
+    const started = now();
+    let checks = 0, late = false;
+    const overdue = () => late || ((++checks & 63) === 0 && (late = now() - started > budget));
+    const { cell, columns, rows, origin: [x0, z0] } = mask, grid = clearanceGrid(mask);
+    const pointAt = id => [x0 + (id % columns + 0.5) * cell, z0 + (Math.floor(id / columns) + 0.5) * cell];
+    const relief = ROUTE_RELIEF ** 2;
+    const relieved = (x, z) => (x - from[0]) ** 2 + (z - from[1]) ** 2 < relief || (x - to[0]) ** 2 + (z - to[1]) ** 2 < relief;
+    // A point's clearance is at least its cell centre's less the distance between them; only near a wall is it scanned.
+    const roomAt = (x, z) => {
+      const c = Math.floor((x - x0) / cell), r = Math.floor((z - z0) / cell);
+      if (!mask.on(c, r)) return 0;
+      const least = grid[r * columns + c] - Math.sqrt((x - x0 - (c + 0.5) * cell) ** 2 + (z - z0 - (r + 0.5) * cell) ** 2);
+      return least >= ROUTE_CLEARANCE ? least : floorClearance(mask, [x, z]);
+    };
+    const safeLine = (a, b) => {
+      if (!floorSegment(mask, a, b)) return false;
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / Math.min(cell / 2, 0.1)));
+      for (let i = 0; i <= n; i++) {
+        if (overdue()) return false;
+        const x = a[0] + (b[0] - a[0]) * i / n, z = a[1] + (b[1] - a[1]) * i / n;
+        if (!relieved(x, z) && roomAt(x, z) < ROUTE_CLEARANCE - 1e-6) return false;
+      }
+      return true;
+    };
+    const finish = (points, reason) => ({ points, distance: points.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0), reason });
+    if (safeLine(from, to)) return finish([from.slice(), to.slice()], 'routed');
+    const cellAt = point => Math.floor((point[1] - z0) / cell) * columns + Math.floor((point[0] - x0) / cell);
+    const start = cellAt(from), end = cellAt(to), endC = end % columns, endR = (end - endC) / columns;
+    // seen: 1 queued, 2 done. A cell queued again more cheaply leaves a stale heap entry, skipped when popped.
+    const seen = new Uint8Array(columns * rows), costs = new Float64Array(columns * rows), parents = new Int32Array(columns * rows);
+    const heap = { f: [], id: [] }, minimum = ROUTE_CLEARANCE - 1e-6;
+    seen[start] = 1;
+    heapPush(heap, 0, start);
+    for (let expanded = 0; heap.f.length;) {
+      const id = heapPop(heap);
+      if (seen[id] === 2) continue;
+      if (overdue()) return failed('route-time-limit');
+      if (++expanded > ROUTE_NODES) return failed('route-search-limit');
+      seen[id] = 2;
+      if (id === end) {
+        const ids = [end]; while (ids[ids.length - 1] !== start) ids.push(parents[ids[ids.length - 1]]);
+        ids.reverse();
+        // A straight run of cells is as safe as its steps; keep the cells where the path turns.
+        const step = (a, b) => (b % columns - a % columns) + ',' + (Math.floor(b / columns) - Math.floor(a / columns));
+        const turns = ids.filter((cellId, i) => !i || i === ids.length - 1 || step(ids[i - 1], cellId) !== step(cellId, ids[i + 1]));
+        const points = [from.slice(), ...turns.map(pointAt), to.slice()], smooth = [points[0]];
+        // Only remove a corner when the replacement still has clearance; once out of time, keep every corner left.
+        for (let i = 1; i < points.length - 1; i++) if (late || !safeLine(smooth[smooth.length - 1], points[i + 1])) smooth.push(points[i]);
+        smooth.push(points[points.length - 1]);
+        return finish(smooth.filter((p, i) => !i || Math.hypot(p[0] - smooth[i - 1][0], p[1] - smooth[i - 1][1]) > 1e-6), late ? 'routed-unsmoothed' : 'routed');
+      }
+      const c = id % columns, r = (id - c) / columns, g = costs[id];
+      for (let k = 0; k < 8; k++) {
+        const dc = STEP_C[k], dr = STEP_R[k], nc = c + dc, nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= columns || nr >= rows) continue;
+        // Open cells have a positive clearance; a diagonal needs both cells beside it open too.
+        const next = id + dr * columns + dc, room = grid[next];
+        if (!(room > 0) || seen[next] === 2 || (dc && dr && !(grid[id + dc] > 0 && grid[id + dr * columns] > 0))) continue;
+        if (room < minimum && !relieved(x0 + (nc + 0.5) * cell, z0 + (nr + 0.5) * cell)) continue;
+        const cost = g + (dc && dr ? DIAGONAL : 1) * cell * (1 + 1.5 * (1 - room / ROUTE_ROOM));
+        if (seen[next] === 1 && cost >= costs[next]) continue;
+        seen[next] = 1; costs[next] = cost; parents[next] = id;
+        heapPush(heap, cost + cell * octile(nc - endC, nr - endR), next);
+      }
+    }
+    return failed('unreachable');
+  }
+
+  /** Small swept steps prevent tunnelling; a blocked diagonal can continue along either wall. */
+  function slideWalk(mask, from, delta) {
+    if (!mask || !Number.isFinite(mask.cell) || mask.cell < 0.02 || ![...from, ...delta].every(Number.isFinite)
+        || !mask.walkable(...from)) return from.slice();
+    const steps = Math.max(1, Math.ceil(Math.hypot(...delta) / Math.min(mask.cell / 2, 0.1)));
+    if (!Number.isFinite(steps) || steps > 10000) return from.slice();
+    let point = from.slice();
+    for (let i = 0; i < steps; i++) {
+      const dx = delta[0] / steps, dz = delta[1] / steps;
+      const candidates = [[point[0] + dx, point[1] + dz], [point[0] + dx, point[1]], [point[0], point[1] + dz]];
+      const next = candidates.find((p, index) => floorSegment(mask, point, p) && (index !== 0 || !dx || !dz
+        || (floorSegment(mask, point, candidates[1]) && floorSegment(mask, point, candidates[2]))));
+      if (next) point = next;
+    }
+    return point;
+  }
+
   /** Where a view ray meets the floor plane, if in front and within reach. */
   function floorHit(origin, direction, floorY, reach = 12) {
     if (direction[1] >= -1e-4) return null;
@@ -662,6 +871,8 @@
     const base = resolveBase(options.base, page);
     const env = options.env || browserEnv();
     const profile = deviceProfile(env);
+    const features = { refinement: options.idleRefinement === true, inertia: options.lookInertia === true,
+      walking: options.humanWalking === true, keyboard: options.continuousWalking === true };
     const reduceQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
     const marks = {};
     const mark = name => { marks[name] = performance.now(); try { performance.mark('veylet:' + name); } catch { /* optional */ } };
@@ -880,8 +1091,11 @@
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
+    let lastMotion = performance.now(), inertia = null, keyMotion = null;
+    const keys = new Set();
     const requestRender = () => { app.renderNextFrame = true; };
     function applyCamera() {
+      lastMotion = performance.now();
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
       const view = fieldOfView(aspect(), posterSpec, state.zoom);
@@ -1096,6 +1310,7 @@
 
     function togglePanel(panel, toggle, open) {
       const show = open ?? panel.hidden;
+      if (show) stopKeyboard();
       for (const [other, button] of [[ui.stopsPanel, ui.stopsToggle], [ui.aboutPanel, ui.about]]) {
         if (other !== panel && !other.hidden) { other.hidden = true; button.setAttribute('aria-expanded', 'false'); }
       }
@@ -1111,6 +1326,17 @@
 
     // ----- movement -----
     let flight = null;
+    function cancelInertia() {
+      if (!inertia) return;
+      inertia = null;
+      continuous = Math.max(0, continuous - 1);
+    }
+    function interruptMotion() {
+      cancelInertia();
+      cancelRefinement('input');
+      if (features.refinement && continuous === 0) lastRender = 0;
+      lastMotion = performance.now();
+    }
     // Every flight holds the render loop (continuous) until it lands or is cut short here.
     function cancelFlight() {
       if (!flight) return;
@@ -1118,8 +1344,11 @@
       continuous = Math.max(0, continuous - 1);
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    function flyTo(position, yaw, pitch, onArrive) {
+    // `fallback`: why a walk that wanted a route glides straight instead.
+    function flyTo(position, yaw, pitch, onArrive, route = null, fallback = null) {
       cancelFlight();
+      interruptMotion();
+      stopKeyboard();
       if (reduced()) {
         Object.assign(state, { position, yaw, pitch });
         applyCamera();
@@ -1129,13 +1358,82 @@
       let deltaYaw = ((yaw - state.yaw) % 360 + 540) % 360 - 180;
       const from = { position: [...state.position], yaw: state.yaw, pitch: state.pitch };
       const distance = Math.hypot(...position.map((v, i) => v - from.position[i]));
-      const duration = clamp(450 + distance * 220, 450, 1100);
-      flight = { from, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
+      let duration = features.walking ? walkingDuration(route ? route.distance : distance) : clamp(450 + distance * 220, 450, 1100);
+      let segments = null;
+      if (features.walking) {
+        const points = route ? route.points : [[from.position[0], from.position[2]], [position[0], position[2]]];
+        segments = [];
+        for (let i = 1; i < points.length; i++) {
+          const a = points[i - 1], b = points[i], length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          const count = Math.max(1, Math.ceil(length / 0.2));
+          for (let j = 0; j < count; j++) {
+            const start = [a[0] + (b[0] - a[0]) * j / count, a[1] + (b[1] - a[1]) * j / count];
+            const end = [a[0] + (b[0] - a[0]) * (j + 1) / count, a[1] + (b[1] - a[1]) * (j + 1) / count];
+            const room = route ? floorClearance(walkable, [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2]) : 0.35;
+            const weight = length / count / (0.55 + 0.45 * clamp(room / 0.35, 0, 1));
+            segments.push({ start, end, weight });
+          }
+        }
+        const weightedDistance = segments.reduce((sum, segment) => sum + segment.weight, 0);
+        duration = Math.min(4000, Math.max(walkingDuration(route ? weightedDistance : Math.max(weightedDistance, distance)), Math.abs(deltaYaw) / TURN_SPEED * 1000 + 100));
+      }
+      flight = { from, position, deltaYaw, pitch, duration, started: performance.now(), last: performance.now(), onArrive, segments,
+        total: segments && segments.reduce((sum, segment) => sum + segment.weight, 0), distance };
+      if (features.walking) stats.motion = { reason: route ? route.reason : fallback || 'no-route-mask', ...(fallback ? { fallback: 'straight' } : {}),
+        distance: route ? route.distance : distance, duration, route: route ? route.points : null };
       continuous++;
+    }
+    /** One frame of a human-paced walk; returns the arrival callback once the walk is over. */
+    function stepWalk(now, t) {
+      const dt = Math.max(0, (now - flight.last) / 1000);
+      flight.last = now;
+      // A constant cruise with quarter-second ramps; distance, not frame count, sets the pace.
+      const ramp = Math.min(WALK_RAMP, flight.duration / 2000), seconds = t * flight.duration / 1000;
+      const duration = flight.duration / 1000, area = duration - ramp;
+      const progress = seconds < ramp ? seconds * seconds / (2 * ramp * area)
+        : seconds > duration - ramp ? 1 - (duration - seconds) ** 2 / (2 * ramp * area) : (seconds - ramp / 2) / area;
+      let remaining = progress * flight.total, segment = flight.segments[flight.segments.length - 1];
+      for (const part of flight.segments) { segment = part; if (remaining <= part.weight) break; remaining -= part.weight; }
+      if (segment) {
+        const k = segment.weight ? clamp(remaining / segment.weight, 0, 1) : 1;
+        state.position = [segment.start[0] + (segment.end[0] - segment.start[0]) * k,
+          flight.from.position[1] + (flight.position[1] - flight.from.position[1]) * progress,
+          segment.start[1] + (segment.end[1] - segment.start[1]) * k];
+        const travelYaw = lookAngles([segment.start[0], 0, segment.start[1]], [segment.end[0], 0, segment.end[1]]).yaw;
+        const finalYaw = flight.from.yaw + flight.deltaYaw;
+        const remainingSeconds = (1 - t) * duration;
+        if (flight.total < 1e-6 || remainingSeconds <= Math.abs(angleDelta(state.yaw, finalYaw)) / TURN_SPEED + dt + 0.05) flight.settling = true;
+        const destination = flight.settling ? finalYaw : travelYaw;
+        state.yaw += clamp(angleDelta(state.yaw, destination), -TURN_SPEED * dt, TURN_SPEED * dt);
+      }
+      state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * progress;
+      applyCamera();
+      if (chunked) { enterChunk(chunkAt(manifest, state.position, currentChunk, sameLevel)); releaseFarChunks(); }
+      if (t >= 1) {
+        state.position = [...flight.position];
+        const finalYaw = flight.from.yaw + flight.deltaYaw;
+        if (Math.abs(angleDelta(state.yaw, finalYaw)) > 0.01) return null;
+        state.yaw = finalYaw;
+        const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1);
+        return done;
+      }
+      return null;
     }
     function stepFlight(now) {
       if (!flight) return;
-      const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
+      if (flight.segments && reduced()) {
+        Object.assign(state, { position: [...flight.position], yaw: flight.from.yaw + flight.deltaYaw, pitch: flight.pitch });
+        const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); applyCamera(); done?.();
+        return;
+      }
+      const t = clamp((now - flight.started) / flight.duration, 0, 1);
+      if (flight.segments) {
+        let done = null;
+        try { done = stepWalk(now, t); } catch (error) { disable('walking', error); }
+        done?.();
+        return;
+      }
+      const k = easeInOut(t);
       state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
       state.yaw = flight.from.yaw + flight.deltaYaw * k;
       state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
@@ -1158,19 +1456,36 @@
       ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
     }
     function goToStop(index) {
-      if (!ready) return;
+      if (!ready || !manifest.stops[index]) return;
       dismissHint();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
+      let route = null, fallback = null;
+      if (features.walking && walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)) {
+        route = routeFrom([stop.position[0], stop.position[2]]);
+        stats.motion = { reason: route.reason };
+        // Next, Previous, the stop list and Home never dead-end: with no route the move glides straight, as before.
+        if (!route.points) { fallback = route.reason; route = null; }
+      }
       // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
-      if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
-      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); });
+      if (chunked && !route) enterChunk(chunked.chunkOfRoom[stop.room]);
+      flyTo([...stop.position], look.yaw, look.pitch, () => {
+        arrived(index);
+        if (chunked) { if (route) enterChunk(chunked.chunkOfRoom[stop.room]); releaseFarChunks(); }
+      }, route, fallback);
     }
-    function walkTo(point) {
+    // A fault in routing switches human walking off for this session instead of stopping the move.
+    function routeFrom(target) {
+      try { return routeWalk(walkable, [state.position[0], state.position[2]], target); }
+      catch (error) { disable('walking', error); return { points: null, distance: 0, reason: 'route-failed' }; }
+    }
+    function walkTo(point, route = null, fallback = null) {
       const eye = walkable ? walkable.eyeHeight : 1.4;
       const target = [point[0], point[1] + eye, point[2]];
-      if (chunked) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
-      flyTo(target, state.yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); });
+      if (chunked && !route) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
+      // A routed walk ends facing the way it went; reduced motion keeps the heading, as a jump always has.
+      const yaw = route && route.points.length > 1 && !reduced() ? lookAngles(state.position, target).yaw : state.yaw;
+      flyTo(target, yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); }, route, fallback);
     }
     // Where Next and Previous count from: this stop, or between stops the nearest one on this level (as the labels say).
     const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
@@ -1198,13 +1513,83 @@
       return tapAim([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
     }
     function tapAt(clientX, clientY) {
+      interruptMotion();
       if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
       if (offMask()) { say(OFF_MASK); return; }
       const aim = aimFor(clientX, clientY);
+      let fallback = null;
+      if (features.walking && aim && walkable.walkable(...aim)) {
+        const route = routeFrom(aim);
+        stats.motion = { reason: route.reason };
+        if (route.points) {
+          if (route.distance >= 0.3) walkTo([aim[0], walkable.floorY, aim[1]], route);
+          return;
+        }
+        // With no route a tap moves as it did before routing: straight, over open floor only, or not at all.
+        fallback = route.reason;
+      }
       const to = aim && walkTarget(walkable, [state.position[0], state.position[2]], aim);
       // Short enough to fit a 280 px phone frame on one line.
       if (!to) { say('Can’t walk there. Try open floor.'); return; }
-      walkTo([to[0], walkable.floorY, to[1]]);
+      walkTo([to[0], walkable.floorY, to[1]], null, fallback);
+    }
+
+    function stepInertia(now) {
+      if (!inertia) return;
+      if (reduced()) { cancelInertia(); return; }
+      const dt = Math.max(0, (now - inertia.last) / 1000), decay = Math.exp(-dt / INERTIA_DECAY);
+      inertia.last = now;
+      state.yaw += inertia.yaw * INERTIA_DECAY * (1 - decay);
+      state.pitch = clamp(state.pitch + inertia.pitch * INERTIA_DECAY * (1 - decay), -80, 80);
+      inertia.yaw *= decay; inertia.pitch *= decay;
+      applyCamera();
+      if (Math.hypot(inertia.yaw, inertia.pitch) < 0.5) cancelInertia();
+    }
+    // Some keyboard events (IME composition, autofill) carry no key.
+    const keyName = key => (typeof key === 'string' ? { ArrowUp: 'w', ArrowDown: 's', ArrowLeft: 'a', ArrowRight: 'd' }[key] || key.toLowerCase() : '');
+    function stopKeyboard() {
+      keys.clear();
+      if (!keyMotion) return;
+      const moved = keyMotion.moved;
+      keyMotion = null;
+      continuous = Math.max(0, continuous - 1);
+      if (moved) { arrived(nearestStop(manifest, state.position, 0.35, sameLevel)); if (chunked) releaseFarChunks(); }
+    }
+    function stepKeyboard(now) {
+      if (!keyMotion) return;
+      if (reduced()) { stopKeyboard(); return; }
+      // A stalled frame (a busy main thread, a tab coming back) moves no further than a tenth of a second would.
+      const dt = clamp((now - keyMotion.last) / 1000, 0, 0.1);
+      keyMotion.last = now;
+      const forward = Number(keys.has('w')) - Number(keys.has('s'));
+      const sideways = Number(keys.has('d')) - Number(keys.has('a'));
+      const shift = keys.has('shift'), length = Math.hypot(forward, shift ? sideways : 0) || 1;
+      if (!shift) state.yaw -= sideways * TURN_SPEED * dt;
+      const decay = Math.exp(-dt / 0.12), targetForward = forward / length * WALK_SPEED, targetSide = shift ? sideways / length * WALK_SPEED : 0;
+      const distanceForward = targetForward * dt + (keyMotion.forward - targetForward) * 0.12 * (1 - decay);
+      const distanceSide = targetSide * dt + (keyMotion.side - targetSide) * 0.12 * (1 - decay);
+      keyMotion.forward = targetForward + (keyMotion.forward - targetForward) * decay;
+      keyMotion.side = targetSide + (keyMotion.side - targetSide) * decay;
+      if (Math.abs(distanceForward) + Math.abs(distanceSide) > 1e-8 && walkable && !offMask()) {
+        const direction = forwardOf(state.yaw, 0), right = [Math.cos(state.yaw * Math.PI / 180), -Math.sin(state.yaw * Math.PI / 180)];
+        const from = [state.position[0], state.position[2]];
+        const delta = [direction[0] * distanceForward + right[0] * distanceSide, direction[2] * distanceForward + right[1] * distanceSide];
+        const steps = Math.ceil(Math.hypot(...delta) / Math.min(walkable.cell / 2, 0.1));
+        if (walkable.cell < 0.02 || !Number.isFinite(steps) || steps > 10000) {
+          stats.motion = { reason: walkable.cell < 0.02 ? 'route-resolution-limit' : 'movement-work-limit' };
+          stopKeyboard();
+          return;
+        }
+        const next = slideWalk(walkable, from, delta);
+        if (Math.hypot(next[0] - from[0], next[1] - from[1]) > 1e-8) {
+          state.position = [next[0], state.position[1], next[1]];
+          keyMotion.moved = true;
+          state.stop = -1;
+          if (chunked) { enterChunk(chunkAt(manifest, state.position, currentChunk, sameLevel)); releaseFarChunks(); }
+        }
+      }
+      applyCamera();
+      if (!forward && !sideways && Math.hypot(keyMotion.forward, keyMotion.side) < 0.02) stopKeyboard();
     }
 
     // ----- input -----
@@ -1212,11 +1597,14 @@
     let drag = null, pinch = null, engaged = false;
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
+      interruptMotion();
+      stopKeyboard();
+      if (features.walking) cancelFlight();
       engaged = true;
       dismissHint();
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
+      if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), last: performance.now(), moved: 0, yaw: 0, pitch: 0 };
       else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom: state.zoom };
@@ -1238,6 +1626,13 @@
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
         cancelFlight();
+        const now = performance.now(), dt = (now - drag.last) / 1000;
+        if (dt > 0) {
+          drag.yaw = dx * perPixel / dt; drag.pitch = dy * perPixel / dt;
+          const speed = Math.hypot(drag.yaw, drag.pitch), scale = speed > INERTIA_SPEED ? INERTIA_SPEED / speed : 1;
+          drag.yaw *= scale; drag.pitch *= scale;
+        }
+        drag.last = now;
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1249,7 +1644,13 @@
       continuous = Math.max(0, continuous - 1);
       // A finger wobbles: a short press that moved a little is still a tap.
       const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
-      if (drag && event.type === 'pointerup' && drag.moved < (touch ? 16 : 8) && performance.now() - drag.time < (touch ? 600 : 450)) tapAt(event.clientX, event.clientY);
+      const tapped = drag && event.type === 'pointerup' && drag.moved < (touch ? 16 : 8) && performance.now() - drag.time < (touch ? 600 : 450);
+      if (tapped) tapAt(event.clientX, event.clientY);
+      else if (features.inertia && !reduced() && drag && event.type === 'pointerup' && performance.now() - drag.last <= 100 && Math.hypot(drag.yaw, drag.pitch) >= 0.5) {
+        inertia = { yaw: drag.yaw, pitch: drag.pitch, last: performance.now() };
+        continuous++;
+      }
+      lastMotion = performance.now();
       if (pointers.size < 2) pinch = null;
       drag = null;
     };
@@ -1259,6 +1660,7 @@
     // and inside someone else's page only once the visitor has used the player.
     ui.canvas.addEventListener('wheel', event => {
       if (!ready || !event.ctrlKey || (framed && !engaged)) return;
+      interruptMotion();
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
@@ -1267,8 +1669,32 @@
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
       engaged = true;
       const key = event.key;
-      const handled = () => { event.preventDefault(); dismissHint(); };
-      if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); cancelFlight(); state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
+      const handled = () => { event.preventDefault(); dismissHint(); interruptMotion(); };
+      if (features.keyboard && ['w', 'a', 's', 'd'].includes(keyName(key))) {
+        handled(); cancelFlight();
+        if (walkable && walkable.cell < 0.02 && (keyName(key) === 'w' || keyName(key) === 's' || event.shiftKey)) {
+          stats.motion = { reason: 'route-resolution-limit' };
+          say('Use Next stop, or N and P, to move.');
+          return;
+        }
+        // Reduced motion: one step or turn per keydown, held keys repeating, exactly as the arrows always worked.
+        if (reduced()) {
+          const name = keyName(key);
+          if (name === 'w' || name === 's') stepForward(name === 'w' ? 1 : -1);
+          else { state.yaw += name === 'a' ? 10 : -10; applyCamera(); }
+          return;
+        }
+        if ((keyName(key) === 'w' || keyName(key) === 's' || event.shiftKey) && (!walkable || offMask())) {
+          stats.motion = { reason: walkable ? 'mask-on-another-floor' : 'no-walkable-mask' };
+          say(walkable ? OFF_MASK : 'Use Next stop, or N and P, to move.');
+          return;
+        }
+        keys.add(keyName(key));
+        if (event.shiftKey) keys.add('shift'); else keys.delete('shift');
+        if (!keyMotion) { keyMotion = { last: performance.now(), forward: 0, side: 0, moved: false }; continuous++; }
+      }
+      else if (key === 'Shift' && features.keyboard && keyMotion) keys.add('shift');
+      else if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); cancelFlight(); state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
       else if (key === 'ArrowUp' || key === 'ArrowDown') { handled(); stepForward(key === 'ArrowUp' ? 1 : -1); }
       else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
@@ -1279,9 +1705,26 @@
       else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
     });
+    const keyReleased = event => { keys.delete(keyName(event.key)); };
+    // Losing focus releases held keys, drags and coasting; with every option off nothing here is listened for.
+    const releasesInput = features.keyboard || features.inertia || features.walking || features.refinement;
+    const abandonInput = () => {
+      if (!features.keyboard && !features.inertia && !features.walking && !features.refinement) return;
+      stopKeyboard(); cancelInertia();
+      if (features.walking) cancelFlight();
+      continuous = Math.max(0, continuous - pointers.size);
+      pointers.clear(); drag = null; pinch = null;
+      lastMotion = performance.now();
+    };
+    if (features.keyboard) ui.canvas.addEventListener('keyup', keyReleased);
+    if (releasesInput) {
+      ui.canvas.addEventListener('blur', abandonInput);
+      window.addEventListener?.('blur', abandonInput);
+    }
     // Any press anywhere in the player means the visitor has found the controls.
-    ui.root.addEventListener('pointerdown', () => dismissHint(), true);
+    ui.root.addEventListener('pointerdown', () => { dismissHint(); interruptMotion(); }, true);
     ui.root.addEventListener('keydown', event => {
+      interruptMotion();
       if (event.key !== 'Escape') return;
       if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
@@ -1438,6 +1881,136 @@
     // ----- rendering, loading phases and frame pacing -----
     const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, saveData, frames: [], changes: [] };
     if (chunked) stats.rooms = []; // per room change: the chunk and how long "Loading this room…" showed
+    let refinement = null, refinementAttempt = -Infinity, refinementEnded = -Infinity, refinedFrameAt = 0, tickAt = 0;
+    let governorCut = false; // the governor has cut detail for slow motion in this session
+    // Why still refinement is off for this session: a lost graphics context, a refined frame that came too slowly, a fault.
+    let refinementOff = resume ? 'context-lost' : null;
+    if (features.refinement) {
+      try {
+        const stored = sessionStorage.getItem(REFINEMENT_DISABLED_KEY);
+        refinementOff ||= stored === '1' ? 'context-lost' : stored === 'slow-frame' ? stored : null;
+      } catch { /* this instance still remembers */ }
+      stats.refinement = { active: false, reason: refinementOff || 'waiting-for-idle' };
+    }
+    function cancelRefinement(reason, lostContext = false) {
+      if (!features.refinement) return;
+      const active = refinement;
+      refinement = null;
+      if (active) {
+        refinementEnded = performance.now();
+        for (const item of active.levels) { item.component.lodRangeMin = item.min; item.component.lodRangeMax = item.max; }
+        for (const { octree, index } of active.pins) {
+          try { octree.decRefCount(index, lostContext ? 0 : octree.cooldownTicks); } catch { /* an octree destroyed with its room let go already */ }
+        }
+        app.scene.gsplat.splatBudget = governor.state.budget;
+        stats.pixelRatio = governor.state.pixelRatio;
+        // Only a changed pixel ratio reallocates the canvas.
+        if (device.maxPixelRatio !== governor.state.pixelRatio) { device.maxPixelRatio = governor.state.pixelRatio; app.updateCanvasSize(); }
+        lastRender = 0; // neither an idle gap nor the refinement frame is a motion sample
+        requestRender();
+      }
+      stats.refinement = { active: false, reason: refinementOff || reason };
+    }
+    /** Ends still refinement for this session; a lost context or a slow refined frame is remembered for the tab. */
+    function stopRefining(reason, lostContext = false) {
+      refinementOff = reason;
+      if (reason === 'context-lost' || reason === 'slow-frame') {
+        try { sessionStorage.setItem(REFINEMENT_DISABLED_KEY, reason === 'context-lost' ? '1' : reason); } catch { /* this instance still remembers */ }
+      }
+      cancelRefinement(reason, lostContext);
+    }
+    function refineIdle(now) {
+      // The tick after a refined frame came too late: this device cannot afford still refinement.
+      if (refinedFrameAt) {
+        const slow = now - refinedFrameAt > REFINED_FRAME_MS;
+        refinedFrameAt = 0;
+        if (slow) { stopRefining('slow-frame'); return; }
+      }
+      if (refinementOff || refinement || !ready || phase !== 'complete' || document.hidden || continuous > 0 || benchmark
+          || now - lastMotion < REFINE_IDLE_MS || now - refinementEnded < REFINE_REARM_MS || refinementAttempt === lastMotion) return;
+      refinementAttempt = lastMotion;
+      const pixels = { phone: 3_000_000, tablet: 4_000_000, desktop: 8_000_000 }[profile.kind];
+      const width = stage.clientWidth, height = stage.clientHeight;
+      if (!(width > 0 && height > 0)) { stats.refinement.reason = 'unknown-canvas-size'; return; }
+      // Once the governor has cut detail for slow motion, stillness asks for no more pixels than it allows.
+      const ratio = governorCut ? governor.state.pixelRatio : Math.min(env.dpr || 1, Math.sqrt(pixels / (width * height)));
+      let finer = null, budget = governor.state.budget, reason = saveData ? 'save-data' : 'no-finer-level';
+      const item = chunked ? held.get(currentChunk) : { entity: splat, asset };
+      const counts = chunked ? chunked.chunks.find(chunk => chunk.id === currentChunk).counts : manifest.scene.counts;
+      const next = (chunked ? item.level : stats.level) - 1;
+      const others = chunked ? [...held].reduce((sum, [id, heldItem]) => sum + (id === currentChunk ? 0 : chunked.chunks.find(chunk => chunk.id === id).counts[heldItem.level]), 0) : 0;
+      if (!saveData && next >= 0) {
+        reason = 'finer-over-budget';
+        if (counts[next] + others <= profile.maxBudget) {
+          reason = 'finer-not-resident';
+          const octree = item.asset.resource?.octree;
+          // These read/pin methods are the vendored 2.22.6 octree API. Never call ensureFileResource: it can fetch.
+          if (octree && !octree.destroyed && Array.isArray(octree.nodes) && octree.nodes.length
+              && typeof octree.getFileResource === 'function' && typeof octree.incRefCount === 'function' && typeof octree.decRefCount === 'function') {
+            const indices = new Set(), pins = [];
+            let resident = true;
+            try {
+              for (const node of octree.nodes) {
+                const lod = node.lods?.[next];
+                if (!lod || !Number.isInteger(lod.fileIndex) || lod.fileIndex < -1 || !Number.isSafeInteger(lod.count) || lod.count < 0
+                    || (lod.fileIndex === -1 && lod.count > 0)) { resident = false; reason = 'invalid-resident-metadata'; break; }
+                if (lod.fileIndex >= 0 && lod.count > 0) { if (!octree.getFileResource(lod.fileIndex)) { resident = false; break; } indices.add(lod.fileIndex); }
+                let shown = false;
+                for (let level = item.entity.gsplat.lodRangeMin; level <= item.entity.gsplat.lodRangeMax; level++) {
+                  const previous = node.lods?.[level];
+                  if (previous?.count > 0) shown = true;
+                  if (previous?.fileIndex >= 0 && octree.getFileResource(previous.fileIndex)) indices.add(previous.fileIndex);
+                }
+                // Held to the finer level alone, a node with no splats there would vanish (the engine skips it).
+                if (shown && lod.count === 0) { resident = false; break; }
+              }
+            } catch { resident = false; reason = 'resident-check-failed'; }
+            if (resident && indices.size) {
+              try { for (const index of indices) { octree.incRefCount(index); pins.push({ octree, index }); } }
+              catch {
+                for (const pin of pins.splice(0)) pin.octree.decRefCount(pin.index, pin.octree.cooldownTicks);
+                resident = false; reason = 'resident-pin-failed';
+              }
+            }
+            if (resident && pins.length) {
+              // Recorded before the level changes, so any later fault still restores it and releases the pins.
+              const component = item.entity.gsplat;
+              refinement = { levels: [{ component, min: component.lodRangeMin, max: component.lodRangeMax }], pins };
+              component.lodRangeMin = next; component.lodRangeMax = next;
+              finer = next; budget = Math.max(budget, counts[next] + others); reason = 'loaded-finer-level';
+            }
+          }
+        }
+      }
+      if (ratio <= governor.state.pixelRatio + 0.01 && finer === null) {
+        stats.refinement = { active: false, reason: ratio < governor.state.pixelRatio ? 'pixel-budget' : governorCut && reason === 'no-finer-level' ? 'governor-cut' : reason };
+        return;
+      }
+      refinement ||= { levels: [], pins: [] };
+      const pixelRatio = ratio > governor.state.pixelRatio + 0.01 ? ratio : governor.state.pixelRatio;
+      app.scene.gsplat.splatBudget = budget;
+      stats.pixelRatio = pixelRatio;
+      stats.refinement = { active: true, reason, pixelRatio, level: finer, pixelBudget: pixels, budget };
+      lastRender = 0;
+      if (device.maxPixelRatio !== pixelRatio) { device.maxPixelRatio = pixelRatio; app.updateCanvasSize(); }
+      requestRender();
+    }
+    // An opt-in feature that throws is switched off for the rest of this session, so every frame still renders.
+    function disable(name, error) {
+      if (!features[name]) return;
+      (stats.disabled ||= {})[name] = String(error?.message || error).slice(0, 120);
+      try {
+        if (name === 'refinement') { refinementOff = 'failed'; cancelRefinement('failed'); }
+        else if (name === 'inertia') cancelInertia();
+        else if (name === 'keyboard') stopKeyboard();
+        else cancelFlight();
+      } catch { /* switched off below regardless */ }
+      features[name] = false;
+    }
+    function guarded(name, step, now) {
+      if (!features[name]) return;
+      try { step(now); } catch (error) { disable(name, error); }
+    }
 
     // ----- chunked packages: the room you are in, the rooms beyond its doorways, nothing further -----
     // Phases after the first frame: 'room' while newly held chunks load at the coarsest level (the room you walked
@@ -1492,6 +2065,7 @@
     // first if it is not here yet (with a small note that does not block looking or moving), then its neighbours.
     function enterChunk(id) {
       if (!ready || !id || id === currentChunk) return;
+      cancelRefinement('room-change');
       setChunkLevel(held.get(currentChunk), coarsest);
       currentChunk = id;
       startRun();
@@ -1582,28 +2156,35 @@
           ui.progress.hidden = true;
           if (ui.status.textContent === 'Sharpening detail…') ui.status.textContent = '';
           continuous = Math.max(0, continuous - 1);
+          lastMotion = performance.now();
         }
       }
     });
     continuous++; // stream the first levels continuously; released when detail completes
     app.on('update', () => {
       const now = performance.now();
+      tickAt = now;
       stepFlight(now);
+      guarded('inertia', stepInertia, now);
+      guarded('keyboard', stepKeyboard, now);
       if (continuous > 0 || benchmark) requestRender();
       if (benchmark) {
+        cancelRefinement('benchmark');
         state.yaw += benchmark.degreesPerFrame;
         applyCamera();
         if (now > benchmark.until) { const done = benchmark.done; benchmark = null; done(); }
       }
+      guarded('refinement', refineIdle, now);
     });
     app.on('postrender', () => {
       const now = performance.now();
-      if (lastRender && (continuous > 0 || benchmark)) {
+      if (!refinement && lastRender && (continuous > 0 || benchmark)) {
         const frameMs = now - lastRender;
         stats.frames.push(frameMs);
         if (stats.frames.length > 600) stats.frames.shift();
         const change = governor.sample(frameMs, now);
         if (change) {
+          if (change.fps < 28) governorCut = true;
           stats.changes.push({ at: Math.round(now), ...change });
           if (change.pixelRatio) { device.maxPixelRatio = change.pixelRatio; stats.pixelRatio = change.pixelRatio; app.updateCanvasSize(); }
           if (change.budget) {
@@ -1614,9 +2195,11 @@
           }
         }
       }
-      lastRender = now;
+      if (refinement) refinedFrameAt = tickAt;
+      lastRender = refinement ? 0 : now;
     });
     const observer = new ResizeObserver(() => {
+      cancelRefinement('resize');
       fitBar();
       posterSpec = ready ? posterFor(manifest, aspect()) : posterSpec;
       app.updateCanvasSize();
@@ -1630,6 +2213,9 @@
     const lost = event => {
       event?.preventDefault?.();
       if (lostWait || torndown) return;
+      // Neither may stop the restore wait below from starting.
+      try { if (features.refinement) stopRefining('context-lost', true); } catch { /* the wait still starts */ }
+      try { abandonInput(); } catch { /* the wait still starts */ }
       ui.status.textContent = 'Restoring 3D…';
       lostWait = visibleDeadline(() => {
         lostWait = null;
@@ -1649,7 +2235,12 @@
     device.on?.('devicerestored', restored);
     ui.canvas.addEventListener('webglcontextlost', lost);
     ui.canvas.addEventListener('webglcontextrestored', restored);
-    const visibility = () => { if (!document.hidden) requestRender(); };
+    const visibility = () => {
+      if (document.hidden) { abandonInput(); cancelRefinement('hidden'); refinedFrameAt = 0; return; }
+      // With still refinement, the hidden time is neither a motion sample nor stillness.
+      if (features.refinement) { lastMotion = performance.now(); lastRender = 0; }
+      requestRender();
+    };
     document.addEventListener('visibilitychange', visibility);
 
     buildStopsPanel();
@@ -1673,7 +2264,9 @@
     const originalDestroy = app.destroy.bind(app);
     viewer = {
       destroy() {
+        try { abandonInput(); cancelRefinement('destroyed'); } catch { /* tear down regardless */ }
         observer.disconnect();
+        if (releasesInput) window.removeEventListener?.('blur', abandonInput);
         document.removeEventListener('visibilitychange', visibility);
         document.removeEventListener('fullscreenchange', fullscreenChanged);
         document.removeEventListener('webkitfullscreenchange', fullscreenChanged);
@@ -1694,7 +2287,9 @@
       // For QA and measurement: the camera state and where each stop's floor disc projects.
       inspect: () => {
         const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
-        return { state: { ...state, position: [...state.position] }, discs, ready };
+        return { state: { ...state, position: [...state.position] }, discs, ready,
+          ...(features.inertia ? { inertia: inertia ? { yaw: inertia.yaw, pitch: inertia.pitch } : null } : {}),
+          ...(features.walking ? { walking: flight ? { duration: flight.duration, started: flight.started } : null } : {}) };
       },
       benchmark(seconds = 5, degreesPerSecond = 30) {
         stats.frames = [];
@@ -1717,7 +2312,7 @@
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
     fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
-    chunkHops, chunkPlan, chunkAt, finestChunkLevel,
+    chunkHops, chunkPlan, chunkAt, finestChunkLevel, routeWalk, walkingDuration, slideWalk, clearanceGrid, floorClearance,
     start, current: null,
   };
 })();
