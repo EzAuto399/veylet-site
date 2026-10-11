@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "veylet-site-preview",
+  "account_id": "195cf1d6da99ca2d1e64e0069e0d87c6",
+  "compatibility_date": "2026-10-03",
+  "main": "./output/worker.mjs",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": { "CF_DEPLOYMENT_ENV": "preview" },
+  "assets": {
+    "directory": "./output/site",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  }
+}

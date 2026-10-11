@@ -1,0 +1,2399 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "26d5eda6596e72603cf5dbbae30f5cd5090b23b5",
+  "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
+  "vercelConfigSha256": "c062905eb26a249859253487628f8b314cef8d0e4b622c65add839f22f1acc5a",
+  "headerNames": [
+    "content-type",
+    "cache-control",
+    "content-security-policy",
+    "x-content-type-options",
+    "x-frame-options",
+    "referrer-policy",
+    "permissions-policy",
+    "x-dns-prefetch-control",
+    "x-robots-tag"
+  ],
+  "observedHeaderProfiles": [
+    {
+      "content-type": "application/json",
+      "cache-control": "public, max-age=3600",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/css; charset=utf-8",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "application/javascript; charset=utf-8",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": "frame-ancestors *",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": null,
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "image/jpeg",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "image/webp",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "font/woff2",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "image/png",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "video/mp4",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "image/svg+xml",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "model/gltf-binary",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "application/octet-stream",
+      "cache-control": "public, max-age=14400, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "application/xml",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": null
+    },
+    {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, no-store",
+      "content-security-policy": null,
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": "noindex, nofollow"
+    },
+    {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-security-policy": "frame-ancestors *",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": null,
+      "referrer-policy": "no-referrer",
+      "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+      "x-dns-prefetch-control": "off",
+      "x-robots-tag": "noindex, nofollow"
+    }
+  ],
+  "files": [
+    {
+      "path": ".well-known/apple-app-site-association",
+      "bytes": 1196,
+      "sha256": "7e1bf8c727527ff43246887acf1f85f22773d05c4bf300f2582735beab471bb6",
+      "headerProfile": 0
+    },
+    {
+      "path": "404.html",
+      "bytes": 2020,
+      "sha256": "55c105e8f269800c4bab9a004db4be3f1f7f2802490e6282edbe2938e36d42d4",
+      "headerProfile": 1
+    },
+    {
+      "path": "6602480d14f4f616ee821ae77a9d26dc.txt",
+      "bytes": 32,
+      "sha256": "4d9d986e0644d0df59cd34ee421ec1bc3fb3969486fdf48db6a932be86de328d",
+      "headerProfile": 2
+    },
+    {
+      "path": "Outfit-OFL.txt",
+      "bytes": 4387,
+      "sha256": "0e5fcef5d93bfcae273c11c00f0bb453d3b5491860e1ac8b658767b7577c938f",
+      "headerProfile": 2
+    },
+    {
+      "path": "account/index.html",
+      "bytes": 18862,
+      "sha256": "c48dbe4f78d11a647bc15badbb23a4a0e186331fb08b4228ec2cc8703107ca45",
+      "headerProfile": 1
+    },
+    {
+      "path": "account-guide.css",
+      "bytes": 42797,
+      "sha256": "cbca5f950e45130ce6c7b39277b750781a74d8243e5212451bf98b11a9b962a0",
+      "headerProfile": 3
+    },
+    {
+      "path": "account.js",
+      "bytes": 390996,
+      "sha256": "4cecdf5571a1c4d6a0a1e35573ebce287f1f6190ada681bd2f295363ebd8c6ea",
+      "headerProfile": 4
+    },
+    {
+      "path": "analytics-config.js",
+      "bytes": 1572,
+      "sha256": "46c7ebe5f00cc79d0feca9b9d734ae39f1989ad02306d9290355d04b4c9a3029",
+      "headerProfile": 4
+    },
+    {
+      "path": "analytics.css",
+      "bytes": 2486,
+      "sha256": "3fa4f6de0f812df2a046a072c8a570d8453c4ed587266769a734053c437ef728",
+      "headerProfile": 3
+    },
+    {
+      "path": "analytics.js",
+      "bytes": 22536,
+      "sha256": "0cf1473a218eaeb89fa739a9ac05310990056f7ceedd15979a77598145ead879",
+      "headerProfile": 4
+    },
+    {
+      "path": "app/account/index.html",
+      "bytes": 11241,
+      "sha256": "e606bca3d732beaf11061ca715adbdb0e5bed8527c842af1be3eed32cb260565",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/approve-and-share/index.html",
+      "bytes": 5276,
+      "sha256": "12388e49cb40f16e74a85537835b2d7b44cae4a2dd1faae65b4e2a4138b5660b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/delete-account/index.html",
+      "bytes": 3976,
+      "sha256": "8024a4a6872a4bffef531c3153a3129759fa34970e0779f445207c59fc92b23f",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/doorways/index.html",
+      "bytes": 3988,
+      "sha256": "531aaac2f2a46d7721f1ccd743b8c261b635f06b8db0a00c66b103a06651c6fb",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/ai_visual/index.html",
+      "bytes": 946,
+      "sha256": "8adca1849faa88c803b15c93960ac4d513241855f273686ce2c47983d36decd3",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/coverage/index.html",
+      "bytes": 884,
+      "sha256": "c064568ac83ec14f60a373e5697842baaceddb253607028428dc464d81ff6965",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/few_views/index.html",
+      "bytes": 952,
+      "sha256": "cd74bce6c8ae1a81ff80f0a07399b0c30c055175fd58f66f0630d5675d57b3c4",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/floaters/index.html",
+      "bytes": 914,
+      "sha256": "afabe99dbeff3a10e3728bcb852e34198498b34145a32e5916abee2f8af1d4a2",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_depth/index.html",
+      "bytes": 4160,
+      "sha256": "519611c4029809aa371556ac720450a80a39c672ef6f354f1a60afa81fb5aa2b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_floor/index.html",
+      "bytes": 899,
+      "sha256": "754306ffe25fa1cec992cc69941fadc66e0468938e95a5183d1a210e569fec12",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_frames/index.html",
+      "bytes": 4291,
+      "sha256": "4b8d4ac7af2f140b00a8c84970bfd945c87e94ef40ae45cc0b27672629de283f",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/not_connected/index.html",
+      "bytes": 933,
+      "sha256": "e928cbe8c5f9d460fec9baf66c598cb38c70f6d23c1c843f85be4b8a485a811b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/not_property/index.html",
+      "bytes": 3949,
+      "sha256": "c1913498b8282bbbe4f25e3680268873b1986e57227b7dac995a429f93fa6c38",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/phone_budget/index.html",
+      "bytes": 4040,
+      "sha256": "5e5be218d5682baf846ac7d91def9fd5a83e869df1eac4e248e158bfc1dcaf66",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/photo_match/index.html",
+      "bytes": 887,
+      "sha256": "8bda4fcced877d2c067e07bcc24564a95be3f4bb169f5ac3419f6d1b0fc05caa",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/upload_limits/index.html",
+      "bytes": 4014,
+      "sha256": "25c1f6dc899a9f7021883ab6e5c2dcc3bf144b6b9a0e9bb189c7f0546607e704",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/worth-a-look/index.html",
+      "bytes": 6093,
+      "sha256": "3bb4bd74b58b0eec48d70b971c671dc69a3daab70bde5b057e359dab8df6f021",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/index.html",
+      "bytes": 9926,
+      "sha256": "abaa7f46781a655896d03440c4cc294fe8ad7edb11a0c7a6ebd468a884685e46",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/install-and-sign-in/index.html",
+      "bytes": 3985,
+      "sha256": "421204f19bf3f99fad7899debae37525f590dd8b521410b2ae66cf8082079fb3",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/light-mirrors-windows/index.html",
+      "bytes": 3966,
+      "sha256": "11d3d682e546cbddb76676147fc695d65ca4f6521ccc3cc9c8df670000f6bd95",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/pause-or-turn-off/index.html",
+      "bytes": 4298,
+      "sha256": "1143568fd49527baa4c6377142c763c62016495870782d4c76bd7a836837a065",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/phone-check/index.html",
+      "bytes": 4483,
+      "sha256": "b0741a72ac36946a2094da655ed8989000f1d9689bd4b5450976cf94864403eb",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/practice-room/index.html",
+      "bytes": 4771,
+      "sha256": "d4d49600a3f9fc7ea140932a517971da74d1c974c0daae888f54208556889fac",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/privacy-and-consent/index.html",
+      "bytes": 4224,
+      "sha256": "edc1a4611543441f85446d9e9fae914f5eaacfaf60110657016c05b5a23cd1b2",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/render-status/index.html",
+      "bytes": 4868,
+      "sha256": "568aa9dc5aef3e3cf2c9c6b7a6a5885adae471859ff63b9dffd4816b23104403",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/share-your-walkthrough/index.html",
+      "bytes": 4780,
+      "sha256": "261432b7872bd7de687294e358a5d53f21a613eaa6969a86d05297c58c33e99a",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/uploading/index.html",
+      "bytes": 4037,
+      "sha256": "87269c1208b74032e6893b80d633f99e06ddf2dca626d6a7edd936b4b957e4ea",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/walk-a-room/index.html",
+      "bytes": 4419,
+      "sha256": "a0ed802b4cfc63f84fda9b11e2b32a377a3051cb7ef68c11337e55064acf2dfc",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/website/index.html",
+      "bytes": 4630,
+      "sha256": "79b9b39249d053fd2fb796458957f9cfc8975dd63204dc92a5b44506f1bc9813",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/what-you-need/index.html",
+      "bytes": 3950,
+      "sha256": "452973958a37da75302f35fe85be62f65ea9b625026e8a33c5eb8b9c204204ae",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/what-your-client-sees/index.html",
+      "bytes": 4616,
+      "sha256": "e13e1fcc99a4dc6f564a47c6fc889c7d5ecc22741fdd39b99a4176d7dbaea4a1",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/whole-home/index.html",
+      "bytes": 4121,
+      "sha256": "d44579a658259808f301e56227854fe4176e817b239d720fad93433cd645e4b7",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/your-plan/index.html",
+      "bytes": 4824,
+      "sha256": "80ccc7339c91b16dd231aaa52c6a8f34bff41285dce42da8779aa5f5003db08f",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/privacy/index.html",
+      "bytes": 12322,
+      "sha256": "205402d600bf935d7fefcb49ecde8e2177e25bb2186e3d33a8a6172eaa966ae3",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/status/index.html",
+      "bytes": 3159,
+      "sha256": "21d63942c77f932055f27878b739c1cf4d5c7d80af6fe11964624fc4f870158f",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/support/index.html",
+      "bytes": 4023,
+      "sha256": "c32f82c19b1dff4f1784b69086aba4557b567279d26ed2c7a77d2e028a04e8c1",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/terms/index.html",
+      "bytes": 10661,
+      "sha256": "8696cb0990fda4f99f6b5e20402812b4024f91df30a70b93b666d0d743c5bbc8",
+      "headerProfile": 5
+    },
+    {
+      "path": "app.js",
+      "bytes": 1211,
+      "sha256": "95fe4bf239078c21c689830d127e8161a8e545081363ed6be71f8e060f1043f5",
+      "headerProfile": 4
+    },
+    {
+      "path": "auth/callback/index.html",
+      "bytes": 2559,
+      "sha256": "e0b243b866876b2c1bb1e8738f3a07fe439696329d67556ad39a500e576f8a96",
+      "headerProfile": 1
+    },
+    {
+      "path": "brand-host.js",
+      "bytes": 2254,
+      "sha256": "1c06a18e19b340077b7c893079421772d15df426f54cb799f225c1db85d9c7ec",
+      "headerProfile": 4
+    },
+    {
+      "path": "build-info.json",
+      "bytes": 2372,
+      "sha256": "05518d525a884bb8c893c83011820132142b9433d00a8601e5a20ef277a3b468",
+      "headerProfile": 6
+    },
+    {
+      "path": "client-page.css",
+      "bytes": 8328,
+      "sha256": "86b52db17ca6b659e05c8ab6489f82560f4c83a8056c7c19920a5bb0daf50ed7",
+      "headerProfile": 3
+    },
+    {
+      "path": "client-page.js",
+      "bytes": 23492,
+      "sha256": "d210ebdd6f0af45a8d35318e15ddbe305eb362ee7de9c57cc13d39af7b5f3f4a",
+      "headerProfile": 4
+    },
+    {
+      "path": "collection.json",
+      "bytes": 2025,
+      "sha256": "221397f1da008de786352af8f3d488677d502626bb8279f9ef4bea083260db10",
+      "headerProfile": 6
+    },
+    {
+      "path": "conversion.css",
+      "bytes": 21015,
+      "sha256": "3c82fa9f8cd5a55c36f3efccd2e6155a004e7cb4af97a716571913982fd7a255",
+      "headerProfile": 3
+    },
+    {
+      "path": "embed/index.html",
+      "bytes": 17516,
+      "sha256": "314281f84f93b6408f7769dd40bf514f1f26062616fb0858fbf53530d49b97fb",
+      "headerProfile": 7
+    },
+    {
+      "path": "enquiry.js",
+      "bytes": 16933,
+      "sha256": "c95a4aeebe5b721ac0fc134858e81e786c2399b47695f22959f1ec501aee87e1",
+      "headerProfile": 4
+    },
+    {
+      "path": "first-touch.js",
+      "bytes": 2855,
+      "sha256": "2a2b56b660ab0f8fea0a023e90143e871a8f3e418277a05bc3ecddcf5d55ab45",
+      "headerProfile": 4
+    },
+    {
+      "path": "guides/3d-tour-cost-australia/index.html",
+      "bytes": 22254,
+      "sha256": "61a29f1afdcf5a9d48ab81fffc7bc72a9da64787d6abad99365332dbd285dfc3",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/3d-tours-realestate-com-au-domain/index.html",
+      "bytes": 20343,
+      "sha256": "5da566480cb2c1d67a11aea4a96f533b87f12ced1a1598134a9348a8493ee3dc",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/do-3d-tours-help-sell-faster/index.html",
+      "bytes": 19822,
+      "sha256": "e1644d909a911ca33034c61a5977cc761ae056f3af19ed8fbca12ee0e1e6bca2",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/index.html",
+      "bytes": 7922,
+      "sha256": "0d69de8fa6007317ca610b36036fcb37641e21cffcb31287c4a5c771a599260b",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/iphone-lidar-vs-matterport/index.html",
+      "bytes": 18284,
+      "sha256": "d15338bfe33f266bde5aaed8112c89df456afee4a638822632b1256705936350",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/privacy-3d-home-tour/index.html",
+      "bytes": 20196,
+      "sha256": "26ad3fede56d1afbe18b7ee9f52d04eb5c5f5f7616f4f47f1d4bc651a0f5f46a",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/what-is-a-3d-walkthrough/index.html",
+      "bytes": 16611,
+      "sha256": "d2a980c495e009f4fbb6491691e73e0bed62eca067d25c6ab214973e746b16d0",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides.css",
+      "bytes": 7430,
+      "sha256": "ceeecc110ad9b6b471076595295c598147527806769d8685edf0f4184582b1cf",
+      "headerProfile": 3
+    },
+    {
+      "path": "handoff/index.html",
+      "bytes": 13453,
+      "sha256": "ae5e8d1eee12485699ae728ededfcf5b0646a09ef1e16074078177e9ccb6c3ce",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/approve-and-share/index.html",
+      "bytes": 7520,
+      "sha256": "9b6c329a8d600c1d269fe41c432dec1a2d703c400f1bfcf305fae59abe953641",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/delete-account/index.html",
+      "bytes": 6194,
+      "sha256": "578871b5d3891a2f6226ab531b72768fc34430fb49d1fed80c87d31f06052c5c",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/doorways/index.html",
+      "bytes": 6084,
+      "sha256": "8980d64d864ec21ea3e3ba2d74122fb3f75e955d8f6806765153a07652832e1d",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/ai_visual/index.html",
+      "bytes": 938,
+      "sha256": "d29506064fdce6d82b15f4513f0b8bac9c73cb83146c388eeede4c6aee8e99ee",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/coverage/index.html",
+      "bytes": 876,
+      "sha256": "6b451bd94c3172be30c30bc00cb70139a5661afc0d05ea61679b0aeac2f7eb5e",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/few_views/index.html",
+      "bytes": 944,
+      "sha256": "e5061b3ba78d699d0a9f19fb8e2dce98bb714daf649be5ac3f31e39376e7fdff",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/floaters/index.html",
+      "bytes": 906,
+      "sha256": "f8443530e538dd3155e1db84acfcf74a2a5df4298077e582302d7b154bc0411b",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/no_depth/index.html",
+      "bytes": 6301,
+      "sha256": "2d8f317851c92951ede1e9c5466bd7b34480cc460ade07f3506d100dd4fdd6b8",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/no_floor/index.html",
+      "bytes": 891,
+      "sha256": "1e4cfd841087d12a609aced3767c04c266d45b32ae1546017c476716fd712e88",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/no_frames/index.html",
+      "bytes": 6428,
+      "sha256": "68039f67e8003cb70c12eba9f801aeed88cc72cff2dc21e50b75a3026cde4046",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/not_connected/index.html",
+      "bytes": 925,
+      "sha256": "5e72f1717147d7745100f5e46c1fac310d6d453a908b592a920523458b76fd9d",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/not_property/index.html",
+      "bytes": 6119,
+      "sha256": "2171a0d014ffd380dfedd4df466f9a88cbd1266976201685fd37ee4283426c0f",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/phone_budget/index.html",
+      "bytes": 6259,
+      "sha256": "e81b0cad534ee0ae0512226533c2ccc49b3c8dd755161f4f1c483411efb423c4",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/photo_match/index.html",
+      "bytes": 879,
+      "sha256": "d0f8b58518fbc327244c2f3ed5c914d2dacd011767555f17d405801ec37d5cb2",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/upload_limits/index.html",
+      "bytes": 6184,
+      "sha256": "ed73be934e15d5ab4769f187dae41d687ec52022248c9432b4633f50ba511e6c",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/fix/worth-a-look/index.html",
+      "bytes": 8339,
+      "sha256": "a8897ffeaa328594d48d057ed13a35f2b29e2684190cb896d56c07721eda9207",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/help.css",
+      "bytes": 3383,
+      "sha256": "4491086eed76473e9810dd5c66a5b43a197bafd94ff620a27c3e21bb2f53b6b9",
+      "headerProfile": 3
+    },
+    {
+      "path": "help/index.html",
+      "bytes": 17036,
+      "sha256": "5e0da28440239aee1a0ff8ed4f43f191551f3b3a12e03a753c8de6f9aef1a04d",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/install-and-sign-in/index.html",
+      "bytes": 6221,
+      "sha256": "43e50ca72ba541a5bbf35d1f91af583797b4d18ffd6d0796d52cd16619f05c3c",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/light-mirrors-windows/index.html",
+      "bytes": 6135,
+      "sha256": "40e0e5d2dd0f3ca5ec970c2e8109f25f8675d8c1294a0ae3ef2882c74e5f9593",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/pause-or-turn-off/index.html",
+      "bytes": 6504,
+      "sha256": "4186bfdaea4be4411971f0c8e8456b4bc52173cab91a63e012d9254aee4fc910",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/phone-check/index.html",
+      "bytes": 6699,
+      "sha256": "ca926063d1fe46ff8f6d9c3a99519042af1bb40cd356aec0353d4345dc259875",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/practice-room/index.html",
+      "bytes": 7047,
+      "sha256": "68502175e4e41dc4de6cdb01025655937c9c1b23f19175f9fd42786d9c6207a4",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/privacy-and-consent/index.html",
+      "bytes": 6508,
+      "sha256": "66d38004e4d78506618757f8b507eeb1b360e9a149690dc0fcc1d833f98b5942",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/render-status/index.html",
+      "bytes": 7099,
+      "sha256": "9a36acf48647e93d35f4ff50ef805209b7085d20ad15b051464888f581e8d7c2",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/share-your-walkthrough/index.html",
+      "bytes": 7113,
+      "sha256": "efdbcc1f192106128c6d2e3fedccea3c9cd7ff48b7fbbab128d2248a1a3a9fde",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/uploading/index.html",
+      "bytes": 6155,
+      "sha256": "3400472972336e359b1ff938146f90a78392f40c752b00f64f1ff8cc06ad1684",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/walk-a-room/index.html",
+      "bytes": 6637,
+      "sha256": "24fd40711b4b407d9b7280b6b59dd41aa9c945134fba2fb2c4fece6daabe1112",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/website/index.html",
+      "bytes": 6787,
+      "sha256": "7474d614d71e3679577f37f044f7d9d8bd8a91cf917434bb347390b8af206d32",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/what-you-need/index.html",
+      "bytes": 6142,
+      "sha256": "5b44d8180bc3b03e133189290085684dacbf528647f16475d72997aa72a1ade3",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/what-your-client-sees/index.html",
+      "bytes": 6894,
+      "sha256": "0fcea7be6d79036d392688b5b0cc844959a638be50a5c69c115edf1ba3339f85",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/whole-home/index.html",
+      "bytes": 6289,
+      "sha256": "a65738a4e9c4a40ee8f35e6337f7b6f9f0ee22a31c194c8bfffe51856f22dac7",
+      "headerProfile": 1
+    },
+    {
+      "path": "help/your-plan/index.html",
+      "bytes": 7379,
+      "sha256": "fff4f47793808fb79850e888ee7028dff817eedd0080a6a5939b3fe08f42fb75",
+      "headerProfile": 1
+    },
+    {
+      "path": "home-refinement.js",
+      "bytes": 1523,
+      "sha256": "075fabb50280faf2942dec44f11134982c276f9e627b354e438f10dd4bf6e0f8",
+      "headerProfile": 4
+    },
+    {
+      "path": "index.html",
+      "bytes": 24687,
+      "sha256": "07cfb77fe336bc1b0e7cd11878f81bd1ab96f6032016a1fbb608fdc432f44392",
+      "headerProfile": 1
+    },
+    {
+      "path": "insights.js",
+      "bytes": 1800,
+      "sha256": "8d217f3362eb989f059e3afbf0f810343759b8189449132b80a5418bf21f7946",
+      "headerProfile": 4
+    },
+    {
+      "path": "join/index.html",
+      "bytes": 3487,
+      "sha256": "c346db52ea71ce2d71b4be015998f803c6f3cdc6c52285a646f6bd4e3432f085",
+      "headerProfile": 1
+    },
+    {
+      "path": "join/join.js",
+      "bytes": 9946,
+      "sha256": "d681fcefdd1485230be01fe2bde89c8a7c7aeedc501196634c47a9159619bcdc",
+      "headerProfile": 4
+    },
+    {
+      "path": "llms.txt",
+      "bytes": 15140,
+      "sha256": "7a4dabfdb18609795773404da4dbf80d134d81ec7bb6263dc669d27c5da041f5",
+      "headerProfile": 2
+    },
+    {
+      "path": "media/01-a-sense-of-space.jpg",
+      "bytes": 213086,
+      "sha256": "60bdad28d9839af305ccc3660f1c08f240347ea7b5c7b95f7f1daa50e1a4aeb5",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/01-a-sense-of-space.webp",
+      "bytes": 49580,
+      "sha256": "62bc4ab4739a547104af3c98025143d6332d0f9db9cad3c81b945a5572f4f5f3",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/02-step-inside.jpg",
+      "bytes": 207525,
+      "sha256": "68c1ee83436d9346c262950f54748f4b09aac0f5ec4ce1b5abe9be3213efcd94",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/03-a-new-perspective.jpg",
+      "bytes": 222880,
+      "sha256": "a982373eb9fb2ba83f7da660f545324343b290ce659caaddd32dd54a5c6299d4",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/03-a-new-perspective.webp",
+      "bytes": 54736,
+      "sha256": "53b4e843333ad552d344db0c275327c314d71179247af42aa7815b59bb932677",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/04-light-considered.jpg",
+      "bytes": 401374,
+      "sha256": "924bf32987165af6bbe971e8b6df276bfa51d8c44c5440765a9942615e1627be",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/05-space-in-motion.jpg",
+      "bytes": 126535,
+      "sha256": "802241463e32bf653c45f4f2b9affdb73e2f5c6e8d3549e15f63ee081c171a8e",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/05-space-in-motion.webp",
+      "bytes": 28840,
+      "sha256": "790dd6f7432819803460eab9c57ec49fdbaf55eb4a9f84da97aafc43de22cf4c",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/06-depth-by-design.jpg",
+      "bytes": 143691,
+      "sha256": "b76022bdbe185d17deda29c48a666bc27b60168305f47984a071aad62f4a87c7",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/07-places-with-a-story.jpg",
+      "bytes": 229350,
+      "sha256": "e58edb5d8593af9698eb0b3c7988e054885f2a08ee98b5620ef690db2d5bfd59",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/07-places-with-a-story.webp",
+      "bytes": 62558,
+      "sha256": "ffd5da699b932be02458d1e5d4eeaff7fdf9f46b089cebfbe60a0b931ab23d27",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/08-space-makers.jpg",
+      "bytes": 253910,
+      "sha256": "6c451cf77513462d710c858b1b7821bb47c804eac55bcbb9675f2f9d5e79d6fa",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/09-a-closer-look.jpg",
+      "bytes": 192316,
+      "sha256": "2b49a49ce49cd83ccdcf557f7469cc3ccfe97e7d9952a74e0e5ee7caf670a9db",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/Outfit-400.woff2",
+      "bytes": 14032,
+      "sha256": "71f028fd2349990b3f8aa643abe767e82e0f596be407ae66f0004ff164121bdb",
+      "headerProfile": 10
+    },
+    {
+      "path": "media/Outfit-500.woff2",
+      "bytes": 13528,
+      "sha256": "fc9bff941def6d924a71632bd8a93190528872eae6414844f3c367ff948d92fd",
+      "headerProfile": 10
+    },
+    {
+      "path": "media/app-captures.webp",
+      "bytes": 32934,
+      "sha256": "cf201ad777df09ae8bd8f22f35be514c0c3df380c60ba42882b994bc403bac30",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/app-ready-to-send.webp",
+      "bytes": 62276,
+      "sha256": "539e68ce5bc21a6929f23bbf9cc2c609f5f10f274e5afcc8652f7df257ef1b59",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/app-welcome.webp",
+      "bytes": 35296,
+      "sha256": "32fa1324c4f7701f490b1282f126e3d1a14de7a3bf1228e8b993aa2dd70bfbda",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-cost-720.webp",
+      "bytes": 33030,
+      "sha256": "50510d850be1fe1fe0471f355cd9ebfc063c2fba58a7e3317d77ade4291db355",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-cost.jpg",
+      "bytes": 139068,
+      "sha256": "9d407255ac000e56a3191f310bb8d3cbea4c659cc89e142953ed654c79fe8040",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-cost.webp",
+      "bytes": 84450,
+      "sha256": "a7ce4ef865b3cd9825a2c23f0959b2a51c92392b4500ccca5cfea225aab91fe8",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-lidar-720.webp",
+      "bytes": 15368,
+      "sha256": "c0a7f0ea6392f789227e19650ef1a43ba0c17676865c25b908ed918b5c43cddb",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-lidar.jpg",
+      "bytes": 76008,
+      "sha256": "0690142604d84d64ffbe782ffec163b2e5f6714e91fb133f5bf880fb306b375b",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-lidar.webp",
+      "bytes": 28960,
+      "sha256": "61628bc746ee785aac94a48a5d7719e814a5fd632f19bc0de9c7d62a0fb9da4d",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-portals-720.webp",
+      "bytes": 29224,
+      "sha256": "eb5b1972164b9cf578bd95409cd754816e96d7f3f9d9022959aa922fd0130f12",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-portals.jpg",
+      "bytes": 133937,
+      "sha256": "4abbc0b6be3914cd27e23e1df58a7fa91924ff3020d5f416794f55379b0c5166",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-portals.webp",
+      "bytes": 77960,
+      "sha256": "6a26838f23db29ab15c5a0e01828b50ba31bfedad0acf0bbed4b3abb72ae0547",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-privacy-720.webp",
+      "bytes": 16732,
+      "sha256": "5a3ea7ea1017afb6a713a58667013d57e2133b8751fc100257c070eac4a0c9aa",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-privacy.jpg",
+      "bytes": 94452,
+      "sha256": "e13d96a01f4647e7bacfb5a6f78692971c6f2557ee1120859d4becd31695f65a",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-privacy.webp",
+      "bytes": 41542,
+      "sha256": "207656f24f146e2e9d24988f24234f9b97da1b6c64877f0769506b4a09cd474e",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-sell-720.webp",
+      "bytes": 29318,
+      "sha256": "b448b472a1023271478e9c74adc3783b6cbd63dfa7880108901fb387488cd814",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-sell.jpg",
+      "bytes": 137252,
+      "sha256": "ee17e95971b61fffd0b88ba37a1aadf175de63cd97b66671d854ec7a8e484b08",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-sell.webp",
+      "bytes": 74998,
+      "sha256": "86faf09a2902dce5b35cf90de725d03e398e4d7313ecc34f3dc7af1ebfa5cde5",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-what-is-720.webp",
+      "bytes": 29224,
+      "sha256": "eb5b1972164b9cf578bd95409cd754816e96d7f3f9d9022959aa922fd0130f12",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-what-is.jpg",
+      "bytes": 133937,
+      "sha256": "4abbc0b6be3914cd27e23e1df58a7fa91924ff3020d5f416794f55379b0c5166",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/guide-what-is.webp",
+      "bytes": 77960,
+      "sha256": "6a26838f23db29ab15c5a0e01828b50ba31bfedad0acf0bbed4b3abb72ae0547",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/illus-capture-hands-640.webp",
+      "bytes": 26432,
+      "sha256": "71d1e3cf7f987027025d4f20b7feca6c448f3ac60be8a64eec1086c12ed88c78",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/illus-capture-hands.webp",
+      "bytes": 49664,
+      "sha256": "eddedb043407ed001f2ca7bdac861e90583d5300d381f8217c6034ffcf0366e0",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/illus-hero-room-900.webp",
+      "bytes": 50770,
+      "sha256": "e618909c4c4fcd796245b4ca9b20566cdd15b0053a653fa0f01a97e5e9bfb7f4",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/illus-hero-room.jpg",
+      "bytes": 226497,
+      "sha256": "5001f5b431852182e06b98b9884f54f4a088c0913f72fe8243323a053c9ba3ec",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/illus-hero-room.webp",
+      "bytes": 115678,
+      "sha256": "a0fddcab8251004c3dc50097ff87cf63bc3070389c071143178990d8f5a240ad",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/launch-reel-poster-wide-v2.png",
+      "bytes": 355338,
+      "sha256": "4f569d032e47d805a33495efa61939b2786676690aa66a3207ec511e79aec587",
+      "headerProfile": 11
+    },
+    {
+      "path": "media/launch-reel-poster-wide-v2.webp",
+      "bytes": 34938,
+      "sha256": "0e4410092344434de82bd80b4be7f1b2eb336a46c7d68f947cfba10c3a1cf732",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/launch-reel-poster.png",
+      "bytes": 638263,
+      "sha256": "08a7876f126b035b6d61282dc572133cd5c851f4f10c2e2efaee5e04f8545ef7",
+      "headerProfile": 11
+    },
+    {
+      "path": "media/launch-reel.mp4",
+      "bytes": 2864630,
+      "sha256": "b4079f50cb90163e2da1577dac63df2f21651b1e8c1c082a49d9be9042ba7ec7",
+      "headerProfile": 12
+    },
+    {
+      "path": "media/og-cost.jpg",
+      "bytes": 130429,
+      "sha256": "2410a2bb5b508468cedf65d0850103eef30c3b1be6483701e841ca569d0d87a3",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/og-lidar.jpg",
+      "bytes": 71934,
+      "sha256": "1cc0d1d8e47f3ae0f86dd924766827a38e3fd7a31b8d772b6bc7595ff000eeb7",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/og-portals.jpg",
+      "bytes": 126343,
+      "sha256": "9d5caa53e2b68b78e34bacaae5c333af500c9d6c0e37fa11fdc9fca6ad777391",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/og-privacy.jpg",
+      "bytes": 87865,
+      "sha256": "b2e0cc5679956b49a33b68319d657900a985a809704012a91cf4758e30da21cb",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/og-sell.jpg",
+      "bytes": 129214,
+      "sha256": "3b690c687ce4976dfd8f2f48afbb16f2b7b8f9bb00625b102f4c31fc62aeea8d",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/og-what-is.jpg",
+      "bytes": 126343,
+      "sha256": "9d5caa53e2b68b78e34bacaae5c333af500c9d6c0e37fa11fdc9fca6ad777391",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/result-listing-16x9.mp4",
+      "bytes": 4426278,
+      "sha256": "f3ceba6ef27ed3eb4892c1c795777a1b141630cba449efcb8f0c53a548ccaa94",
+      "headerProfile": 12
+    },
+    {
+      "path": "media/result-poster-16x9.webp",
+      "bytes": 48168,
+      "sha256": "a579c849a018e09e683a9d3b9e845136aab6f40a14ba547865c95e19c603e5bf",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-poster-9x16.webp",
+      "bytes": 45760,
+      "sha256": "6b1c68292119a23dda34791095e84675c18c00321cc249cca3313277fe06f2fc",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-room-bedroom.webp",
+      "bytes": 27216,
+      "sha256": "95ebcaf827ed8ea0c8fab8a06e8dc1c08f2be9e4d430111639a1efc155e5a805",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-room-kitchen.webp",
+      "bytes": 18520,
+      "sha256": "94b26fb5471cd4c7080ffb0090b91f611e7c340e16f4753ae6e1a34b3cc132bb",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-room-living-area.webp",
+      "bytes": 47616,
+      "sha256": "e83a8162dbf0fb82ec32bf3f58ca7c88dd731b31a655261c348c190fe5b2fdfc",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-room-workshop.webp",
+      "bytes": 47224,
+      "sha256": "682235f084cb27900d1a39b7941abb10f2ad8db8185a1140531d1eafd70e91aa",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-sample-poster-portrait.webp",
+      "bytes": 46030,
+      "sha256": "7955342289228a394377ecda0cf1d05d7c9cb5c4af875ba0eef56d3fead200f6",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-sample-poster.webp",
+      "bytes": 47488,
+      "sha256": "38fcb06d65c03fc74c80fef81868ca1ba52f23df47bdc6bfa048d2cbaffde118",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/result-share-qr.svg",
+      "bytes": 2332,
+      "sha256": "fa9f9ee593af4f15a33b4e1897cabb0b50e26a6e9a0de0b49f90f2344df26742",
+      "headerProfile": 13
+    },
+    {
+      "path": "media/result-social-9x16.mp4",
+      "bytes": 1170216,
+      "sha256": "fae6d7a83e630cea5e5ebe30c45cf6630781b2a227f247ebee3b9dd136d76349",
+      "headerProfile": 12
+    },
+    {
+      "path": "media/share/guides.jpg",
+      "bytes": 76458,
+      "sha256": "0f567c96177732a86baa1c213eb166d1df60123ffbfa8bc12e81d2d9e3d9ac82",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/share/help.jpg",
+      "bytes": 68583,
+      "sha256": "65733607c9804ba5e98a403f2b950f4991ab2086456966c27024e9ba6a79ca2c",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/share/home.jpg",
+      "bytes": 143829,
+      "sha256": "e0fa44b5800c25d26f42023a3dd97a0aa8f828b90feb81af704d8b0ecfe8b3b9",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/share/offer.jpg",
+      "bytes": 118010,
+      "sha256": "a664ddb0c4fc456721af03aee40db187ba2251a20ba8aa977a66794179f15c18",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/share/start.jpg",
+      "bytes": 62479,
+      "sha256": "e480b5d2d133cfb28d31403fd9425846f9d086b309dcb80419a8f734a3ba6993",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/share-card.jpg",
+      "bytes": 41089,
+      "sha256": "efe5d72defb1bf0ce8300d96b783ce16bd904da3f388e346ea1390003006e0e8",
+      "headerProfile": 8
+    },
+    {
+      "path": "media/studio-avatar.png",
+      "bytes": 10269,
+      "sha256": "255429a73c7bd8b99c5ff45ebefbd6bf36a82e1976e4db762591be668c0415db",
+      "headerProfile": 11
+    },
+    {
+      "path": "media/walk-demo.svg",
+      "bytes": 4378,
+      "sha256": "85aa04e9830c9904060c44fdb4bfadc7cf1fae950ee67a750811cfb2c6b97752",
+      "headerProfile": 13
+    },
+    {
+      "path": "media/walkthrough-card.png",
+      "bytes": 9167,
+      "sha256": "ff06b22527b82d3a703fd267a16cd5ef4b46ff37138733d905eb829cf493bd0b",
+      "headerProfile": 11
+    },
+    {
+      "path": "offer/index.html",
+      "bytes": 51650,
+      "sha256": "f9416a022f8793edc9111215e98321f7197947bf193497d70a94856a41a4a2bb",
+      "headerProfile": 1
+    },
+    {
+      "path": "offer/offer.json",
+      "bytes": 22748,
+      "sha256": "ef98389e5ed555ee3e28b77b2c7f46a0bfdf3fbad47c7989386daa067585dd22",
+      "headerProfile": 6
+    },
+    {
+      "path": "offer.js",
+      "bytes": 9229,
+      "sha256": "e292f716a9724738a82212dae26e4909a1a1ac942f19cdaaf1e7b5716290364e",
+      "headerProfile": 4
+    },
+    {
+      "path": "place-fields.js",
+      "bytes": 17225,
+      "sha256": "b597ac72159bd08e2eb96c8a6a52916dbb7502076c68b715eeccbd5d1bc16b1f",
+      "headerProfile": 4
+    },
+    {
+      "path": "play/index.html",
+      "bytes": 8457,
+      "sha256": "8a210675b7c7268c31dc38ce64ece84f66ba7b31084ae2a80f2cbd1ad57f100a",
+      "headerProfile": 1
+    },
+    {
+      "path": "privacy/index.html",
+      "bytes": 15422,
+      "sha256": "005340d5ea6815857f5df9ee2ffda81e0c477bbb52aabd222c54849ff728b059",
+      "headerProfile": 1
+    },
+    {
+      "path": "refinement.css",
+      "bytes": 15577,
+      "sha256": "3396f9c21e422ea80e69351f7999ddeadc8555648806d647eb243d2fe00b265e",
+      "headerProfile": 3
+    },
+    {
+      "path": "report/index.html",
+      "bytes": 5925,
+      "sha256": "4b023ea999c23d9df420f955023f5e3eb7aa8dce9e443157465ec57b5c4305b9",
+      "headerProfile": 1
+    },
+    {
+      "path": "report/report.js",
+      "bytes": 8672,
+      "sha256": "06d6a6d26ebcdd800c1210e3232c20b0af4fc60466d234e989b99e82f8e51196",
+      "headerProfile": 4
+    },
+    {
+      "path": "request/index.html",
+      "bytes": 13477,
+      "sha256": "454783a10fae5432376e02c2681b1874422492c9925fe8d131be84390b885a33",
+      "headerProfile": 1
+    },
+    {
+      "path": "robots.txt",
+      "bytes": 914,
+      "sha256": "890fa324c9c5acb781dc0e2813bd8ff4d53bd1e6a425a7fe913cc179665969e1",
+      "headerProfile": 14
+    },
+    {
+      "path": "samples/eyeful-apartment/LICENSE.txt",
+      "bytes": 1088,
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "headerProfile": 2
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r1-default/scene.collision.glb",
+      "bytes": 77236,
+      "sha256": "f1ac5981828c5922ea8ed976c83bb0d8d1526d025be0ed0e872da0c133796c80",
+      "headerProfile": 15
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r1-default/scene.voxel.bin",
+      "bytes": 18932,
+      "sha256": "dfe5e37ce5df5dd36b85d4291e607ec8ff76aa8d4255c12dfafb9438430a955b",
+      "headerProfile": 16
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r1-default/scene.voxel.json",
+      "bytes": 661,
+      "sha256": "cffbbad03e73040f7012a2e41ae4a86561ef617b2a802e79c3cd3ee636b27c92",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r2-default/scene.collision.glb",
+      "bytes": 77236,
+      "sha256": "f1ac5981828c5922ea8ed976c83bb0d8d1526d025be0ed0e872da0c133796c80",
+      "headerProfile": 15
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r2-default/scene.voxel.bin",
+      "bytes": 18932,
+      "sha256": "dfe5e37ce5df5dd36b85d4291e607ec8ff76aa8d4255c12dfafb9438430a955b",
+      "headerProfile": 16
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r2-default/scene.voxel.json",
+      "bytes": 661,
+      "sha256": "cffbbad03e73040f7012a2e41ae4a86561ef617b2a802e79c3cd3ee636b27c92",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r3-default/scene.collision.glb",
+      "bytes": 77236,
+      "sha256": "f1ac5981828c5922ea8ed976c83bb0d8d1526d025be0ed0e872da0c133796c80",
+      "headerProfile": 15
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r3-default/scene.voxel.bin",
+      "bytes": 18932,
+      "sha256": "dfe5e37ce5df5dd36b85d4291e607ec8ff76aa8d4255c12dfafb9438430a955b",
+      "headerProfile": 16
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r3-default/scene.voxel.json",
+      "bytes": 661,
+      "sha256": "cffbbad03e73040f7012a2e41ae4a86561ef617b2a802e79c3cd3ee636b27c92",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r4-default/scene.collision.glb",
+      "bytes": 77236,
+      "sha256": "f1ac5981828c5922ea8ed976c83bb0d8d1526d025be0ed0e872da0c133796c80",
+      "headerProfile": 15
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r4-default/scene.voxel.bin",
+      "bytes": 18932,
+      "sha256": "dfe5e37ce5df5dd36b85d4291e607ec8ff76aa8d4255c12dfafb9438430a955b",
+      "headerProfile": 16
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r4-default/scene.voxel.json",
+      "bytes": 661,
+      "sha256": "cffbbad03e73040f7012a2e41ae4a86561ef617b2a802e79c3cd3ee636b27c92",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r5-default/scene.collision.glb",
+      "bytes": 77236,
+      "sha256": "f1ac5981828c5922ea8ed976c83bb0d8d1526d025be0ed0e872da0c133796c80",
+      "headerProfile": 15
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r5-default/scene.voxel.bin",
+      "bytes": 18932,
+      "sha256": "dfe5e37ce5df5dd36b85d4291e607ec8ff76aa8d4255c12dfafb9438430a955b",
+      "headerProfile": 16
+    },
+    {
+      "path": "samples/eyeful-apartment/build/collision-r5-default/scene.voxel.json",
+      "bytes": 661,
+      "sha256": "cffbbad03e73040f7012a2e41ae4a86561ef617b2a802e79c3cd3ee636b27c92",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/build/poster-landscape.webp",
+      "bytes": 440012,
+      "sha256": "f22a309790af811c3aa7826d22fbf4450e9da362e8f5d068af87b7efe3079a47",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/build/poster-portrait.webp",
+      "bytes": 414424,
+      "sha256": "7ba2772f7fc74b268ea4ada732627716865b26d5d0a799d57095a418e1478cdd",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/means_l.webp",
+      "bytes": 413028,
+      "sha256": "0227633fe75ba138c1e2f4de46103992badc14593db4967a2cd8ddeeee6803a0",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/means_u.webp",
+      "bytes": 148174,
+      "sha256": "ccd365f39b10f5b2ac3d976564cc544db57dac31df6c42d4056fb681f67bba55",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/meta.json",
+      "bytes": 15654,
+      "sha256": "972ccd61cdc91992bdec8b6ce9e0c44a7c3df18277b9f567ebea07351853d7a4",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/quats.webp",
+      "bytes": 448690,
+      "sha256": "0c2bf023ac37c7d38607cdec98576a6520019e7f7b75147f4dae551f93839989",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/scales.webp",
+      "bytes": 382222,
+      "sha256": "15e448fe34adbf69ca5c0b78d2d9b60da165f4ceef5beb02d7dfea8f162e0f04",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/sh0.webp",
+      "bytes": 423990,
+      "sha256": "21ab13694879be28918cd217c7769acba2a4e98f68bce1d150d89ba85d092b9b",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/shN_centroids.webp",
+      "bytes": 1292186,
+      "sha256": "d2ab2e47cee70e88a10bbfc80eee654c40428b0e917a829fa4cf12c6f12fb48d",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_0/shN_labels.webp",
+      "bytes": 261590,
+      "sha256": "d48a1860db817d511c3ac039f1e5ebc769ee36282c133ff9a760087f13c8b789",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/means_l.webp",
+      "bytes": 420696,
+      "sha256": "bbf2ebd9bdcca96c15d4fade3f431a88d03b21591c1128a46529d61c4eea3a17",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/means_u.webp",
+      "bytes": 141704,
+      "sha256": "0e9735cb060d9fff181b78ecafd1eca32f297c64ddfe51ef5177ace6a88d13f9",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/meta.json",
+      "bytes": 15687,
+      "sha256": "bce0ebe0490135634cfa365bacfdb1a1129d9b8dc969c61262e7124ebc2c9511",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/quats.webp",
+      "bytes": 457150,
+      "sha256": "9ac1a9b14d88fda1f59583164e4326f0ecf258b9d4b8578e7b9124689a4a1658",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/scales.webp",
+      "bytes": 388508,
+      "sha256": "f75d35ba0a4749dfdb669f3cdea1ec234f41d1623aa5884c7c80b3a666fd4ef3",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/sh0.webp",
+      "bytes": 440734,
+      "sha256": "b9e2dc60a001c7f18fcd0068b26baf693b3e475e795f946a9717d016d4b98d15",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/shN_centroids.webp",
+      "bytes": 1306236,
+      "sha256": "bee8a772804b157b6456955da889e6c7b16bf10fe51d1b97bf6976e29bb0e6ac",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_1/shN_labels.webp",
+      "bytes": 265162,
+      "sha256": "aec432731ea4c438622e6c6b8eafeef5950cc6cd631cfd8c5731eff2bf9a6f14",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/means_l.webp",
+      "bytes": 416674,
+      "sha256": "d69c8712eb3169a1375adc3d1a1f95f508802bdf447a7d07310e0349855a19d8",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/means_u.webp",
+      "bytes": 120006,
+      "sha256": "749f93ec096ffbc1118ff029a7710557744813a200585461c3ed31e4feae0f2c",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/meta.json",
+      "bytes": 15672,
+      "sha256": "860a6a2db75b57a7a215a14b420d3b8b77ddd25e7d4d5b6fe631ca4d01c70442",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/quats.webp",
+      "bytes": 452698,
+      "sha256": "9062f5a439d24559d7535f79fad31bb0d5afe90900404d400f2e2297b9afaaf3",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/scales.webp",
+      "bytes": 384876,
+      "sha256": "3e3f1afc9188d2e119a12036f2a284ca6f8270e31b0615271bada002404bd8c3",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/sh0.webp",
+      "bytes": 414288,
+      "sha256": "d03e75085efa72e35f7eef47fdd17f422c60ef3307d4541da617e97e2bfb8658",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/shN_centroids.webp",
+      "bytes": 1243494,
+      "sha256": "45af63f19fce277db005056b88ab1a3ab1dcd66b089568dc50d1e11211c9358d",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_2/shN_labels.webp",
+      "bytes": 265564,
+      "sha256": "9d9c5aa5bbf8c9ea797e9d41f4329f6f229b2949cdb4389ed5b8687a9c7d9966",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/means_l.webp",
+      "bytes": 431506,
+      "sha256": "56033d9c7b7f0d7f8a13fc58fd3771b329af986c78ba634048a2073853c4ca95",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/means_u.webp",
+      "bytes": 158486,
+      "sha256": "c987c9c4ea6d0e994f6a4efaeb96af1c2b909e59c9289dfc15de50429b06ad8e",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/meta.json",
+      "bytes": 15764,
+      "sha256": "cd25ca2cde97c2b74a19f97dec631ebac7ef058daecfa921e80cf9b7659fe6bd",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/quats.webp",
+      "bytes": 468898,
+      "sha256": "bf3c8e8e32fa168a0bf2f75883619c1368153738f0c7a103518bded470334453",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/scales.webp",
+      "bytes": 400894,
+      "sha256": "49ad01b0eb7e452f339c3552ac1a99e7c4aa37b5a199319c5bdfafe6d03f8b8a",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/sh0.webp",
+      "bytes": 433000,
+      "sha256": "65e8f5717dc378a61486d3915240187d7ca046be37a1955e8e677502247c42f4",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/shN_centroids.webp",
+      "bytes": 1246606,
+      "sha256": "25e77d9edf54d765f52acd1ce5053eee823ae9453903379e06a5a8915fec0921",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_3/shN_labels.webp",
+      "bytes": 276206,
+      "sha256": "7ae45daabed90fd06a4749b3f7e40ea8ebe3dbdefd8f29b4225df3bb492d6a94",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/means_l.webp",
+      "bytes": 424592,
+      "sha256": "a415325976919c80ab9b0210f04a32131b5bb65b44404bc8179bc31682f27584",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/means_u.webp",
+      "bytes": 153024,
+      "sha256": "e33ed009c106855dcb1e1ff813739576d3eefd421073ae6067b45fae8d380e61",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/meta.json",
+      "bytes": 15744,
+      "sha256": "f9565b018de8fa4c3af2b6903e803bf4f3da10fdf6e32442cbe274759648cc53",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/quats.webp",
+      "bytes": 461468,
+      "sha256": "77b08201d2b7571cf79135fcea8d37a3f5517382bca082ee11c700d242849aeb",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/scales.webp",
+      "bytes": 394848,
+      "sha256": "998eba133b58a3fa27729090285d2a2e1f019e1bec14b3c261525fda1e3378b5",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/sh0.webp",
+      "bytes": 427470,
+      "sha256": "43e3114a7752f4cd87d23a4e1a5240eb6787bcf927ddd8a1ee966d8eaa6d18c8",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/shN_centroids.webp",
+      "bytes": 1264692,
+      "sha256": "8cbe404c2ac6149580272bb23d2478fd95cbb4c78377ce7cf32913dee3e7d99b",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_4/shN_labels.webp",
+      "bytes": 269468,
+      "sha256": "30aa32dbc675dff80c998306b6274e3c06b0b9c12a0ec14f8387c20988081377",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/means_l.webp",
+      "bytes": 144804,
+      "sha256": "d22e6f76755aadd81d377ff4b3092f6ea849a48efb35bbb91a5a4fdea3a2d0df",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/means_u.webp",
+      "bytes": 64080,
+      "sha256": "d7b70165cf03d6443ffd2f11b0a77452e76aed10c9d7e97aef5e3b3f172d4275",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/meta.json",
+      "bytes": 15745,
+      "sha256": "68afe5c2bb991e4546bba5607c8895efc1d3fce2245c6c026bfba89262174cc4",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/quats.webp",
+      "bytes": 157244,
+      "sha256": "1039bc03cbebec3c83cb7be76f3cf97a3df9e20818fa258f0f9bf8a44496cd14",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/scales.webp",
+      "bytes": 135652,
+      "sha256": "c6fb9c28d1e639c85de26a7970f5c9d583dfe49f50d34a2035aa95af1c4a9d88",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/sh0.webp",
+      "bytes": 147550,
+      "sha256": "91b828d119be8afef14a31215456e26cd8ad143415e5918d7460960d180da0bf",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/shN_centroids.webp",
+      "bytes": 638008,
+      "sha256": "520d4e7912dbd5edbb721c1076738bb93dbc50334efa4fa638c6e33597c59646",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/0_5/shN_labels.webp",
+      "bytes": 78606,
+      "sha256": "0bcfaa24b428835a9d9163a40bac67edd40fc484ce2d8faf08c6a52f41dada98",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/means_l.webp",
+      "bytes": 423736,
+      "sha256": "eb3d212489d5cc397c70d26b9b49d1e33210213b45483fdd16e8c3aaf056b599",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/means_u.webp",
+      "bytes": 159664,
+      "sha256": "fd6576e576eec4b208c11b41924a8cdf624353b876a16c73a2a4f634f65e636a",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/meta.json",
+      "bytes": 15655,
+      "sha256": "b19888e999d5ceb4a557e228472ae4efc021f699d825cce358961b8e666e0b67",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/quats.webp",
+      "bytes": 454142,
+      "sha256": "80b2f2e03472abc50a3faa2d8cbf7e87edfd862080f43f8e9be244c862822c60",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/scales.webp",
+      "bytes": 368924,
+      "sha256": "be12a9a025ff24abff2b008ee3937a82edc9b5e6eaee28f9023a1558080afccf",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/sh0.webp",
+      "bytes": 453368,
+      "sha256": "b0873550f8c43b4628fc7db0ea718f0a95d15c01acdcde33e6eb5affc1de868e",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/shN_centroids.webp",
+      "bytes": 1291172,
+      "sha256": "05431042f728ca6d25e7651779bc37c0306ed0734ed66d5a75e62f9f2ec6777f",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_0/shN_labels.webp",
+      "bytes": 267674,
+      "sha256": "698d9708825ce1f1b4d5b91a16063ed679d2900a074bb514923afed73ed95182",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/means_l.webp",
+      "bytes": 424000,
+      "sha256": "dec94dfd192e3df6db0d2d73cf1f36e8de5bfcb8700b4acf906ca88c1bdef506",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/means_u.webp",
+      "bytes": 136558,
+      "sha256": "c2286f2a34b346751775a67ba3c41e9920a2b56e1ba7622851529fd65862968d",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/meta.json",
+      "bytes": 15744,
+      "sha256": "1f7a767618fe053977656983dce43aa9db19a4b06528f47d4bed126f9ab006ee",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/quats.webp",
+      "bytes": 450166,
+      "sha256": "c91e1aaaf29801b4f5c71f6bfc8b81f06acbc5cf752d682ff59d86a6a9ab96cc",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/scales.webp",
+      "bytes": 365146,
+      "sha256": "799520aa108ca3d52517322902d66cd4d0b970366ae735ca0a50f97073c171d7",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/sh0.webp",
+      "bytes": 422588,
+      "sha256": "310f28ff2de82853e4435c2027859e768bd8590301e76c57176cf158106efc9a",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/shN_centroids.webp",
+      "bytes": 1224658,
+      "sha256": "fd43362d397b8e580a00057fb1d92fd5f39a1b897149fd762a4d96bc79f40ad4",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_1/shN_labels.webp",
+      "bytes": 268920,
+      "sha256": "282a958c4a6f86021e1933ad24ba4502c6fd7bef29f6db9bb1287e3493486e7c",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/means_l.webp",
+      "bytes": 280176,
+      "sha256": "476fcef25a0d0140c85546af9de910ae278f33f7223d2738d75518f0ce619d6f",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/means_u.webp",
+      "bytes": 115074,
+      "sha256": "36a34c6471395684f3c70780dbc9c59c91119a9a61e50e83317bf0b1092f3a87",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/meta.json",
+      "bytes": 15719,
+      "sha256": "0eb9013dc07b3d9fbeed59741c74cbfafa6f76deb90ce13e6bc6991e9aa4e7b4",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/quats.webp",
+      "bytes": 298586,
+      "sha256": "335033d5c06048a240faa661ce6dcde5c698b5d0074f6a03cf797ba5377cfead",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/scales.webp",
+      "bytes": 242906,
+      "sha256": "5d8b4a9f13ddc2ac63d67f669852252d1046554bcb92245992a22a127d7e267b",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/sh0.webp",
+      "bytes": 285798,
+      "sha256": "2aa15ab3a6d7e194c931e8ed88e8fbadd9ff07f3113a68bb1f00fb00d8614232",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/shN_centroids.webp",
+      "bytes": 1255780,
+      "sha256": "03f9970c69a45479eef3a97042faad086fbe1c2f7e792a9b31e7864fbeba1de5",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/1_2/shN_labels.webp",
+      "bytes": 154620,
+      "sha256": "db3e808adfe306de5db7523cf0b113a0afb28e3d628b892ed611a8629d616a3a",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/means_l.webp",
+      "bytes": 426704,
+      "sha256": "d09e0efb6f965db7c6a8666dd2c1e5b7acf04c9c2c61f64d9ff8269fa09e716c",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/means_u.webp",
+      "bytes": 147708,
+      "sha256": "761a8487ebaf49d2f42aca0fde84938a93484c3d0274be56148c534b86aaaac4",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/meta.json",
+      "bytes": 15663,
+      "sha256": "f46f821594dc53fa1dfc60f0215e0137d49cd37a3c43cee70297786b664875b0",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/quats.webp",
+      "bytes": 452800,
+      "sha256": "b24da122433c62bebc9ddb1d39643618e35ad12932a42761cf2f6d9a635a23b5",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/scales.webp",
+      "bytes": 362598,
+      "sha256": "b3235c6a0dc7a7763948b51124c5a5b4ca5cdce817f506d2dcbc6c3f025d4eeb",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/sh0.webp",
+      "bytes": 446932,
+      "sha256": "529c44d784bd693aee55b8cca1b6293d8c0b395817eba1df3716e0061ec6b281",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/shN_centroids.webp",
+      "bytes": 1253500,
+      "sha256": "9785d22678f0c08506195224e65719f4b4521aa9cd97bf8779134d8a536ffdc8",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_0/shN_labels.webp",
+      "bytes": 269328,
+      "sha256": "50313bc82bef3aa76780625b276343f852030a11fdb86f0d9cc1cb9d2d01758b",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/means_l.webp",
+      "bytes": 138502,
+      "sha256": "a64be5a06d1b3b990963a84df45bf3e916fd2370c3c845fa30f679faa4130e87",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/means_u.webp",
+      "bytes": 64568,
+      "sha256": "472aa98de21ab032a0b6e0011aa337bb2f4456e6c35c0a82e4c6d0ff7b08c790",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/meta.json",
+      "bytes": 15736,
+      "sha256": "60d75b3a95acce780df107dd8d8ed32284fefcd0ba38f6f029ed4bafb3fd1a02",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/quats.webp",
+      "bytes": 147070,
+      "sha256": "5f7d231d50e002046aa1c2d787382a11e91f01650a71c61923248a0b52224adf",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/scales.webp",
+      "bytes": 118462,
+      "sha256": "e7219757bce48312ba2541bb43424ccdd829f44716aa5937e4c8ffb8f541018c",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/sh0.webp",
+      "bytes": 142526,
+      "sha256": "32866646971e69a960750a2522bf88d3e3e45683a897d9e224918d0f4628720e",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/shN_centroids.webp",
+      "bytes": 620802,
+      "sha256": "c44fbc20120744058db41c47c0d2ccffabb943459dbd16d1252f327e62fe7219",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/2_1/shN_labels.webp",
+      "bytes": 72716,
+      "sha256": "edc31df5c33f0d17647cc4ae2f2eb1eee37535c54740e02c58c72e4bde9ea8f8",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/means_l.webp",
+      "bytes": 225180,
+      "sha256": "7e41c6e446dfe7636ac8458cf757250802195669377ae08ac1317337c261c7b3",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/means_u.webp",
+      "bytes": 93558,
+      "sha256": "79a7c3e028ba73a69a4a503ec4b7e4dfc05506d3672a527f58aafc65cc86875a",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/meta.json",
+      "bytes": 15680,
+      "sha256": "1ef94c24bd08b7bcb0032a5e5b1d160ba079d9bcc16fc9c144cef5291eec64cd",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/quats.webp",
+      "bytes": 240094,
+      "sha256": "e4e2d58e0e18050d5142637e0d508c692225a655352461018ee37e1afdda7607",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/scales.webp",
+      "bytes": 191894,
+      "sha256": "2620913a361855c7dbb5b699d425925ce4a8e20235e3521ff24e5a6c148e9948",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/sh0.webp",
+      "bytes": 237826,
+      "sha256": "8070e4b2914efbe1cda360fd63c5b237595391019732b601f09aec8ebec01699",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/shN_centroids.webp",
+      "bytes": 1244024,
+      "sha256": "ebd1127f7ce0225bd9d9c9c5ec51e2541bf43dbd4c633689336643de4800e79f",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/3_0/shN_labels.webp",
+      "bytes": 86854,
+      "sha256": "76a64bb9d0ed2fa4b2f90448cc2db9d04117152658ffc269452188e0def0405f",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/lod/lod-meta.json",
+      "bytes": 8016,
+      "sha256": "9b61e97c4194fe84d35728f94c748d5bd34b9adf267e18a3cf1dfd006106fe1d",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/manifest.json",
+      "bytes": 14748,
+      "sha256": "cf2a052038d19c84f46ced8dc027f572b32455788fce82dfe91b2cad2b8dca78",
+      "headerProfile": 6
+    },
+    {
+      "path": "samples/eyeful-apartment/poster-portrait.webp",
+      "bytes": 46030,
+      "sha256": "7955342289228a394377ecda0cf1d05d7c9cb5c4af875ba0eef56d3fead200f6",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/poster.webp",
+      "bytes": 47488,
+      "sha256": "38fcb06d65c03fc74c80fef81868ca1ba52f23df47bdc6bfa048d2cbaffde118",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/preview.webp",
+      "bytes": 4178,
+      "sha256": "c4cc2670e8c26ba52cade2c9975a06be4d7eba096d50791eb85b22d1478c1cbc",
+      "headerProfile": 9
+    },
+    {
+      "path": "samples/eyeful-apartment/walkable.json",
+      "bytes": 896,
+      "sha256": "4b9e382dd1580b63314f3e2a45b9adfe7aaab7b498756d7a23a524fe9edcf51f",
+      "headerProfile": 6
+    },
+    {
+      "path": "see/eyeful-tower-LICENSE.txt",
+      "bytes": 1088,
+      "sha256": "da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93",
+      "headerProfile": 2
+    },
+    {
+      "path": "see/index.html",
+      "bytes": 33243,
+      "sha256": "0647064f522afedafb618b263e29b86637119c50b88d9a1638a7415e75a94680",
+      "headerProfile": 1
+    },
+    {
+      "path": "see/see.css",
+      "bytes": 28807,
+      "sha256": "ade0c7dbfeb298f5e4362ceaf4ba70ed4756a49a47394e530cb5ac7be9144a21",
+      "headerProfile": 3
+    },
+    {
+      "path": "see/see.js",
+      "bytes": 25944,
+      "sha256": "d9bcf2b27fb9d0ebcdd28062a3d45729bb2dacc390896cbb0ce5e82ce19dbf80",
+      "headerProfile": 4
+    },
+    {
+      "path": "showcase.css",
+      "bytes": 21196,
+      "sha256": "68947999070d91216c3494a2562a6af5b4aa70a7d6adddbeaf00c47706a56077",
+      "headerProfile": 3
+    },
+    {
+      "path": "showcase.js",
+      "bytes": 17303,
+      "sha256": "68afa4d01a1662de7081f66d5b6ed9f6e23c850c6c423b433cce0a54eaf2b5fd",
+      "headerProfile": 4
+    },
+    {
+      "path": "sitemap.xml",
+      "bytes": 3904,
+      "sha256": "a766954de9a7d898055e23a05949920a7bd353e90d09e327972aada06ad0c13e",
+      "headerProfile": 17
+    },
+    {
+      "path": "stage.js",
+      "bytes": 3552,
+      "sha256": "bdc521b740f4b8925c3d358800f63ca7cb655d9dc24d8d10e2d6b1c943f20ac3",
+      "headerProfile": 4
+    },
+    {
+      "path": "start/index.html",
+      "bytes": 19715,
+      "sha256": "12c8d97a3382688172bdc1acb4431c54049f82a5c16d545f3536de52a20b4ba4",
+      "headerProfile": 1
+    },
+    {
+      "path": "status/index.html",
+      "bytes": 4099,
+      "sha256": "a866275d342aae86b1c43bcc8d7f4ac853ab12c900b0b0e568eaa501bfe4d02b",
+      "headerProfile": 1
+    },
+    {
+      "path": "status.css",
+      "bytes": 2306,
+      "sha256": "4cfab56561d4e3d1cef26847e6757776c6b140d56a6532a4a05c9e33500a3eca",
+      "headerProfile": 3
+    },
+    {
+      "path": "status.js",
+      "bytes": 10438,
+      "sha256": "b554950380c20789e8507207a6d52451f46b60aec1d5ca1f173718b8f7bb41e8",
+      "headerProfile": 4
+    },
+    {
+      "path": "studio/index.html",
+      "bytes": 13888,
+      "sha256": "aff45ce6478f236344e6503a468ae1da84f935da9078ce14141799c44242d560",
+      "headerProfile": 18
+    },
+    {
+      "path": "studio.css",
+      "bytes": 22573,
+      "sha256": "dd35e6ff75d47f6b0a2b85f8826dcdab6375d3f003c47984f10a58869192d0ee",
+      "headerProfile": 3
+    },
+    {
+      "path": "studio.js",
+      "bytes": 131478,
+      "sha256": "2f86a42caf63acf6f05d2375e4dcb645a0a771aec3b6e2bcdcc18821843a278e",
+      "headerProfile": 4
+    },
+    {
+      "path": "style.css",
+      "bytes": 45805,
+      "sha256": "3412b25235ba11a445eeca1fef09c3490ea2c53673170a5e3a7ae6fa020be129",
+      "headerProfile": 3
+    },
+    {
+      "path": "supabase-public.js",
+      "bytes": 448,
+      "sha256": "b6fc53a3d04f45d15f00d0174e11f70492078620c6698f7f9d2307c6447a7fb2",
+      "headerProfile": 4
+    },
+    {
+      "path": "support/index.html",
+      "bytes": 6278,
+      "sha256": "8630c5851aa231b7ea36c88bee66416118bf157e21edfdf154a86d513ca450ff",
+      "headerProfile": 1
+    },
+    {
+      "path": "terms/index.html",
+      "bytes": 16604,
+      "sha256": "9f08862399aaee7667769fedcd2a8c62c56c1a57801f06537735f3c099fc86ac",
+      "headerProfile": 1
+    },
+    {
+      "path": "thanks/index.html",
+      "bytes": 3410,
+      "sha256": "e8dac8682872c83f4d4c9467b20aeaae7644a70e830de481e6d908436ea9c768",
+      "headerProfile": 1
+    },
+    {
+      "path": "tour/index.html",
+      "bytes": 13091,
+      "sha256": "97a6a400c4d45a8bf4d9c544e315236589a28d31e4675b2474d7fe47c8e73cff",
+      "headerProfile": 19
+    },
+    {
+      "path": "tour-player-v2.css",
+      "bytes": 12112,
+      "sha256": "72a09df6f0e1e23be7cc32a4ac7ace83a351b8cbbc5355dfeba6516d0d0df7d3",
+      "headerProfile": 3
+    },
+    {
+      "path": "tour-player-v2.js",
+      "bytes": 95366,
+      "sha256": "911f64ef87c448189449250f0291b3b419fb36cc09949f8d20401d4583cf5709",
+      "headerProfile": 4
+    },
+    {
+      "path": "tour-player.js",
+      "bytes": 20266,
+      "sha256": "51bdce56f449891665b840f3cc94912b1890e221f656acd293d5aca234864bcf",
+      "headerProfile": 4
+    },
+    {
+      "path": "tour-sharing.js",
+      "bytes": 11095,
+      "sha256": "be796c17f4972ab7c8b603ae47621c5d99ef99889e7612b22f9fcbd6ac52285a",
+      "headerProfile": 4
+    },
+    {
+      "path": "tour-stage.css",
+      "bytes": 1275,
+      "sha256": "6800a56190b612071984227af33c08544aa320710c5e17b7ea7771889beb2d61",
+      "headerProfile": 3
+    },
+    {
+      "path": "unsubscribe/index.html",
+      "bytes": 3176,
+      "sha256": "2bb420e46a6aff2a3a8b24d980845e1ec84659967561d98ac450e1c1773aad4d",
+      "headerProfile": 1
+    },
+    {
+      "path": "unsubscribe.js",
+      "bytes": 7033,
+      "sha256": "7f4e1de75803ea5b5fa1c0650c2f1e0540f86ed2a753419c7cb067d0d84517f2",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/LICENSE.gsap.txt",
+      "bytes": 344,
+      "sha256": "fa606a651e1309fb0fa06277df3fbb577e32f1e80d82d420c89b6769582ed2ae",
+      "headerProfile": 2
+    },
+    {
+      "path": "vendor/LICENSE.jszip.txt",
+      "bytes": 33753,
+      "sha256": "566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4",
+      "headerProfile": 2
+    },
+    {
+      "path": "vendor/LICENSE.playcanvas.txt",
+      "bytes": 1064,
+      "sha256": "42fa51ddd556be151a29f381fb97ee975825dcc454e805ea3ea9c079cca04d34",
+      "headerProfile": 2
+    },
+    {
+      "path": "vendor/LICENSE.qrcode.txt",
+      "bytes": 2089,
+      "sha256": "c3365367abb427de2076742518e578abba68f2e974115411d1ed62cbe669408f",
+      "headerProfile": 2
+    },
+    {
+      "path": "vendor/LICENSE.supabase-js.txt",
+      "bytes": 1065,
+      "sha256": "334dd6820e2eaeab2064e7c59001b810566728a28a41a7c1dbf69bbee17d0936",
+      "headerProfile": 2
+    },
+    {
+      "path": "vendor/ScrollTrigger-3.15.0.min.js",
+      "bytes": 44575,
+      "sha256": "b0b14d67b55b0c43c756ac0b106cfcb09d0879945f6ead64451065b0672916a2",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/gsap-3.15.0.min.js",
+      "bytes": 72927,
+      "sha256": "92bb9a96476f983d212a2bc4f54c889039c1696dd4461d40a736860938570fbb",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/jszip-3.10.2.min.js",
+      "bytes": 97781,
+      "sha256": "7f839b2d4688b845c105ebf5d2f9803075f91ea0fe72bdaac176c3a04dd3d2c1",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/playcanvas-2.22.6.min.js",
+      "bytes": 2466208,
+      "sha256": "37ab7320dff06cb8946eac5dc45c90c407cd82abc78faa6eca794244e97cb374",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/qrcode-1.5.4.min.js",
+      "bytes": 21518,
+      "sha256": "5084f09dc9b6baba4b2bd799b030ef31fab2ffad135b0133ef10eccfee09fc04",
+      "headerProfile": 4
+    },
+    {
+      "path": "vendor/supabase-js-2.116.0.min.js",
+      "bytes": 218318,
+      "sha256": "84ee9bf45695c1dd3ba1595b6bcfb0f09672434631351ffc8ebe9140545d5ff6",
+      "headerProfile": 4
+    },
+    {
+      "path": "waitlist/index.html",
+      "bytes": 12245,
+      "sha256": "97585e33363a4ba1e065902f4f735a151aac68cd78e388e19dee97d33be6da0f",
+      "headerProfile": 1
+    },
+    {
+      "path": "waitlist/waitlist.js",
+      "bytes": 15295,
+      "sha256": "324eaa8062626e5f1b6ca1d1faf62c025d59489cd8fad2df61ec2161d82c12bb",
+      "headerProfile": 4
+    },
+    {
+      "path": "website-guide/index.html",
+      "bytes": 11800,
+      "sha256": "f3147014b19cbdc2a86dffa8207a2678443dde81414e75d0055bd8ad2a36df4c",
+      "headerProfile": 1
+    },
+    {
+      "path": "website-guide.js",
+      "bytes": 2154,
+      "sha256": "3559123101a8c2cee86e8199ba916c1ea4dd393b0d7960d839f640ab5bec2bb9",
+      "headerProfile": 4
+    }
+  ],
+  "analyticsTransform": {
+    "omittedAsset": "insights.js",
+    "loaderTag": "<script src=\"/insights.js?v=8d217f3362eb989f\" defer></script>",
+    "loaderPaths": [
+      "guides/3d-tour-cost-australia/index.html",
+      "guides/3d-tours-realestate-com-au-domain/index.html",
+      "guides/do-3d-tours-help-sell-faster/index.html",
+      "guides/index.html",
+      "guides/iphone-lidar-vs-matterport/index.html",
+      "guides/privacy-3d-home-tour/index.html",
+      "guides/what-is-a-3d-walkthrough/index.html",
+      "help/approve-and-share/index.html",
+      "help/delete-account/index.html",
+      "help/doorways/index.html",
+      "help/fix/no_depth/index.html",
+      "help/fix/no_frames/index.html",
+      "help/fix/not_property/index.html",
+      "help/fix/phone_budget/index.html",
+      "help/fix/upload_limits/index.html",
+      "help/fix/worth-a-look/index.html",
+      "help/index.html",
+      "help/install-and-sign-in/index.html",
+      "help/light-mirrors-windows/index.html",
+      "help/pause-or-turn-off/index.html",
+      "help/phone-check/index.html",
+      "help/practice-room/index.html",
+      "help/privacy-and-consent/index.html",
+      "help/render-status/index.html",
+      "help/share-your-walkthrough/index.html",
+      "help/uploading/index.html",
+      "help/walk-a-room/index.html",
+      "help/website/index.html",
+      "help/what-you-need/index.html",
+      "help/what-your-client-sees/index.html",
+      "help/whole-home/index.html",
+      "help/your-plan/index.html",
+      "index.html",
+      "offer/index.html",
+      "privacy/index.html",
+      "see/index.html",
+      "start/index.html",
+      "status/index.html",
+      "support/index.html",
+      "terms/index.html",
+      "website-guide/index.html"
+    ],
+    "privacyParagraph": "      <!-- LEGAL REVIEW 2026-09-29: cookieless page counts (Vercel Web Analytics) -->\n      <p>\n        <strong>Page counts.</strong> veylet.com counts page views with Vercel\n        Web Analytics, which uses no cookies and stores no personal identifiers:\n        it counts the page address (without query strings or fragments), the\n        referrer, the country and the device type in aggregate. Vercel\n        may process this outside Australia. Google Analytics still runs only\n        after you allow it.\n      </p>",
+    "privacyPaths": [
+      "privacy/index.html",
+      "app/privacy/index.html"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "veylet-cloudflare-hosting",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.22.0" },
+  "scripts": {
+    "build": "node build.mjs",
+    "verify": "node verify.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check:local": "node tests/workerd-check.mjs",
+    "dev": "wrangler dev --local --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8896"
+  },
+  "devDependencies": { "wrangler": "4.143.0" }
+}
