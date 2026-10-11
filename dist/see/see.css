@@ -31,25 +31,19 @@ html {
 }
 
 /* ---------- First viewport: the viewing room ---------- */
-/* Wide screens: the headline across the top, then a narrow column (intro, actions) beside a
-   diptych: the 3D walkthrough (16:10) and the phone (9:16), top-aligned, 24 px apart, equal in
-   height. The pair is as wide as the column allows and no wider than the first screen allows,
-   so the frames, their captions and the label all sit above the fold. */
+/* Wide screens: a compact headline, intro and actions above a full-width diptych. The 3D
+   walkthrough (16:10) and phone (9:16) stay top-aligned, 24 px apart and equal in height.
+   Frame size follows the available width, so a short browser window does not shrink the demo. */
 .see-hero {
   --pair-gap: 24px;
-  --pair-ratio: 2.1625; /* 16/10 + 9/16: pair width = height x this + the gap */
-  --hero-rest: 470px; /* header, headline, captions and label: everything but the frames */
   position: relative;
   display: grid;
-  grid-template-columns:
-    minmax(340px, 1fr)
-    minmax(0, min(900px, calc((100vh - var(--hero-rest)) * var(--pair-ratio) + var(--pair-gap))));
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   grid-template-areas:
-    "title title"
-    "intro stage"
-    "actions stage"
-    ". stage";
-  grid-template-rows: auto auto auto 1fr;
+    "title intro"
+    "title actions"
+    "stage stage";
+  grid-template-rows: auto auto auto;
   column-gap: clamp(36px, 4vw, 56px);
   padding-top: 14px;
   padding-bottom: var(--chapter-space);
@@ -58,8 +52,8 @@ html {
   grid-area: title;
   position: relative;
   z-index: 1;
-  margin: 0 0 40px;
-  font-size: clamp(44px, 4.6vw, 66px);
+  margin: 0;
+  font-size: clamp(40px, 3.8vw, 56px);
   line-height: 1.06;
   letter-spacing: -0.04em;
   text-wrap: initial;
@@ -94,7 +88,7 @@ html {
   align-items: center;
   align-self: start;
   gap: 12px 28px;
-  margin-top: 28px;
+  margin-top: 20px;
 }
 /* Phones only: the offer in one line under the full-width button. */
 .see-actions-line {
@@ -110,6 +104,7 @@ html {
   position: relative;
   z-index: 1;
   min-width: 0;
+  margin-top: 28px;
 }
 .see-pair {
   display: flex;
@@ -379,10 +374,10 @@ html {
   line-height: 1.55;
 }
 
-/* The signature: one hairline from "One capture." that runs right and drops onto the top edge
-   of each frame. Drawn by default; see.js lays it out and, with motion allowed, lets the scroll
-   draw it. */
+/* The compact copy band occupies the hairline's old route. Keep its markup and controller
+   intact, but leave this decoration out so it cannot cross the intro or actions. */
 .see-thread {
+  display: none;
   position: absolute;
   top: 0;
   left: 0;
@@ -401,16 +396,15 @@ html {
   fill: var(--ink);
 }
 
-/* 801-1100 px: the same diptych, full width under the intro and actions. */
+/* 801-1100 px: stack the copy above the same full-width diptych. */
 @media (max-width: 1100px) and (min-width: 801px) {
   .see-hero {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "title" "intro" "actions" "stage";
     grid-template-rows: none;
   }
-  .see-stage {
-    max-width: 900px;
-    margin-top: 44px;
+  .see-hero h1 {
+    margin-bottom: 18px;
   }
 }
 /* Phones: headline, intro, the action and the offer in a line, then one frame at a time. */
