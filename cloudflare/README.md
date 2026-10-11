@@ -1,6 +1,6 @@
 # Maintained Cloudflare hosting adapter
 
-Prepare Cloudflare from reviewed release `26d5eda6596e72603cf5dbbae30f5cd5090b23b5`, whose 351 tracked public files match the frozen Vercel production deployment. Keep `dist/` and `vercel.json` unchanged for the Vercel rollback. This adapter emits `output/site/`, the Worker, derived routing policy and a complete deployment-input/hash receipt. Nothing outside `output/site/` is a public asset.
+The baseline is reviewed release `26d5eda6596e72603cf5dbbae30f5cd5090b23b5`, whose 351 tracked public files matched the frozen Vercel production deployment. The 11 October demo sizing release changes only `dist/see/see.css` and its HTML cache reference, with both updated pins reviewed in `public-release.json`; see [the current release receipt](HANDOFF.md#demo-sizing-release--11-october-2026). The manifest's baseline source/deployment fields retain historical provenance; its file hashes identify the current scoped artifact. `vercel.json` and the retained Vercel deployment remain available for rollback. This adapter emits `output/site/`, the Worker, derived routing policy and a complete deployment-input/hash receipt. Nothing outside `output/site/` is a public asset.
 
 ## Local release preparation
 
@@ -34,7 +34,7 @@ For rollback, root can remove the two HTTPS Worker routes while retaining the ex
 
 ## Declared provider-only analytics change
 
-Cloudflare does not serve Vercel's relative `/_vercel/insights/script.js` endpoint. The output therefore omits `insights.js`, removes one exact loader tag from 41 public HTML files, and removes the discontinued Vercel Page counts paragraph from `/privacy` and `/app/privacy`. The original 351 source files remain intact. The emitted 350 files comprise 308 byte-identical files and 42 HTML files changed only by these guarded removals. The build receipt records every original/output hash and exact reason; it is not placed in public assets.
+Cloudflare does not serve Vercel's relative `/_vercel/insights/script.js` endpoint. The output therefore omits `insights.js`, removes one exact loader tag from 41 public HTML files, and removes the discontinued Vercel Page counts paragraph from `/privacy` and `/app/privacy`. The reviewed source allowlist remains 351 files. Relative to the pinned current source, the emitted 350 files comprise 308 byte-identical files and 42 HTML files changed only by these guarded removals. The build receipt records every source/output hash and exact reason; it is not placed in public assets.
 
 Consent-gated Google Analytics, privacy choices and original application/API/auth/payment/capture/tour endpoints are byte-identical. No replacement analytics or paid measurement service was added. Preview intentionally prevents these external integrations. Original `build-info.json` remains the frozen Vercel-source marker; its digest describes that original selection, not the transformed Cloudflare output. Use `output/build-manifest.json` to identify the Cloudflare artifact.
 
