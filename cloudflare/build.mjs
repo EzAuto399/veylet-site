@@ -11,7 +11,7 @@ export const repositoryRoot = dirname(adapterRoot);
 export const sha256 = value => createHash('sha256').update(value).digest('hex');
 export const inputNames = [
   'build.mjs', 'verify.mjs', 'worker.mjs', 'hosting-policy.mjs', 'public-release.json',
-  'package.json', 'package-lock.json', 'wrangler.preview.jsonc', 'wrangler.production.jsonc',
+  'package.json', 'package-lock.json', 'wrangler.preview.jsonc', 'wrangler.production.jsonc', 'live-release.json',
 ];
 
 export async function walkPublic(root, prefix = '') {
@@ -113,6 +113,7 @@ export async function build() {
   const manifest = {
     schemaVersion: 1, sourceCommit: release.sourceCommit,
     verifiedPublicDeployment: release.verifiedPublicDeployment,
+    liveReleaseContext: JSON.parse(await readFile(join(adapterRoot, 'live-release.json'), 'utf8')),
     wranglerVersion: '4.143.0', compatibilityDate: '2026-10-03', inputs, generated, files, omitted,
     analytics: 'Vercel Web Analytics discontinued on this Cloudflare output; consent-gated Google Analytics unchanged; no replacement analytics added',
     totals: { sourceFiles: release.files.length, outputFiles: files.length, unchangedFiles: files.filter(file => !file.changes.length).length, transformedHtmlFiles: files.filter(file => file.changes.length).length, omittedProviderFiles: omitted.length },

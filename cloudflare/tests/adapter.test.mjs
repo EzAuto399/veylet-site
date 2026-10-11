@@ -4,7 +4,7 @@ import { readFile, mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, adapterRoot, repositoryRoot, transformAnalytics, sha256, validateSource } from '../build.mjs';
-import { verify } from '../verify.mjs';
+import { verify, validateConfiguration } from '../verify.mjs';
 import { headersFor } from '../hosting-policy.mjs';
 import worker from '../output/worker.mjs';
 import policy from '../output/routing-policy.json' with { type: 'json' };
@@ -20,6 +20,21 @@ const fetchAsset = async request => {
   return new Response(request.method === 'HEAD' ? null : bytes, { headers: { ETag: etag, 'Content-Length': String(bytes.length) } });
 };
 const call = (path, env = prod, init = {}) => worker.fetch(new Request((env === prod ? 'https://veylet.com' : 'http://127.0.0.1:8896') + path, init), { ...env, ASSETS: { fetch: fetchAsset } });
+
+test('maintained deployment rejects route removal, HTTP/broad routes and tenant/Worker identity drift', async () => {
+  for (const name of ['wrangler.preview.jsonc', 'wrangler.production.jsonc']) {
+    const config = JSON.parse(await readFile(join(adapterRoot, name), 'utf8')); validateConfiguration(config, name);
+    assert.throws(() => validateConfiguration({ ...config, account_id: 'synthetic-wrong-tenant' }, name), /tenant mismatch/);
+    assert.throws(() => validateConfiguration({ ...config, name: 'synthetic-wrong-worker' }, name), /identity mismatch/);
+    assert.throws(() => validateConfiguration({ ...config, route: 'veylet.com/*' }, name), /Unexpected deploy/);
+    if (name.includes('production')) {
+      for (const routes of [[], [{ pattern: 'veylet.com/*', zone_name: 'veylet.com' }], [{ pattern: 'https://*.veylet.com/*', zone_name: 'veylet.com' }], config.routes.map(route => ({ ...route, pattern: route.pattern.replace('https:', 'http:') })), config.routes.map(route => ({ ...route, custom_domain: true }))]) {
+        assert.throws(() => validateConfiguration({ ...config, routes }, name), /two live HTTPS routes/);
+      }
+      const missing = { ...config }; delete missing.routes; assert.throws(() => validateConfiguration(missing, name), /Unexpected deploy/);
+    } else assert.throws(() => validateConfiguration({ ...config, routes: [{ pattern: 'https://veylet.com/*', zone_name: 'veylet.com' }] }, name), /Unexpected deploy/);
+  }
+});
 
 test('build preserves the complete reviewed public selection and is deterministic', async () => {
   const first = await verify();

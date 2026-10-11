@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "phase": "root-reported-production-routes-active",
+  "reportedAt": "2026-10-11",
+  "workerName": "veylet-site",
+  "accountId": "195cf1d6da99ca2d1e64e0069e0d87c6",
+  "rootReportedProductionVersion": "32eb8ae0-1eaf-49a1-a9c7-a6f807fd0d8f",
+  "routes": [
+    { "pattern": "https://veylet.com/*", "zone_name": "veylet.com" },
+    { "pattern": "https://www.veylet.com/*", "zone_name": "veylet.com" }
+  ],
+  "rootReportedChecks": {
+    "apexPublicAssetBodies": 350,
+    "apexExtraRoutingHeaderChecks": 9,
+    "wwwHttps": "existing Cloudflare 301 to apex preserves path and query",
+    "http": "outside HTTPS-only Worker routes; existing Vercel origin upgrades to HTTPS",
+    "hostnameChecksFailed": 0,
+    "positiveAccountPaymentCaptureWrites": "unverified; not exercised by this adapter task"
+  },
+  "proofBoundary": "Root observed deployment/routes and hosted checks. This adapter update performs local configuration/build validation only, with no provider calls or hosted changes. The version is the dated first live release context, not a claim about every future deployment.",
+  "rollback": "Keep existing proxied Vercel CNAME records and Vercel website deployment. Root can remove these two HTTPS Worker routes to restore the retained Vercel origin; disable/update this maintained route config before the next deployment so routes are not recreated. Keep hooks and Supabase active."
+}

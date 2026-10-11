@@ -4,12 +4,33 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { adapterRoot, repositoryRoot, inputNames, sha256, walkPublic, validateSource, transformAnalytics, policyFor } from './build.mjs';
 
+export const productionRoutes = [
+  { pattern: 'https://veylet.com/*', zone_name: 'veylet.com' },
+  { pattern: 'https://www.veylet.com/*', zone_name: 'veylet.com' },
+];
+export function validateConfiguration(config, name) {
+  assert(['wrangler.preview.jsonc', 'wrangler.production.jsonc'].includes(name));
+  const production = name === 'wrangler.production.jsonc';
+  const keys = ['$schema', 'name', 'account_id', 'compatibility_date', 'main', 'workers_dev', 'preview_urls', 'vars', 'assets', ...(production ? ['routes'] : [])];
+  assert.deepEqual(Object.keys(config).sort(), keys.sort(), 'Unexpected deploy configuration: no custom domains, crons, secrets or app bindings');
+  assert.equal(config.account_id, '195cf1d6da99ca2d1e64e0069e0d87c6', 'Cloudflare tenant mismatch');
+  assert.equal(config.name, production ? 'veylet-site' : 'veylet-site-preview', 'Worker identity mismatch');
+  assert.equal(config.compatibility_date, '2026-10-03'); assert.equal(config.main, './output/worker.mjs');
+  assert.deepEqual(config.assets, { directory: './output/site', binding: 'ASSETS', run_worker_first: true, html_handling: 'none', not_found_handling: 'none' }, 'Only reviewed Static Assets are allowed');
+  assert.deepEqual(config.vars, { CF_DEPLOYMENT_ENV: production ? 'production' : 'preview' }, 'No API/auth configuration added');
+  assert.equal(config.workers_dev, !production); assert.equal(config.preview_urls, false);
+  if (production) assert.deepEqual(config.routes, productionRoutes, 'Preserve exactly the two live HTTPS routes and retained HTTP origin');
+}
+
 export async function verify() {
   const release = JSON.parse(await readFile(join(adapterRoot, 'public-release.json'), 'utf8'));
   const source = await validateSource(repositoryRoot, release);
   const output = join(adapterRoot, 'output');
   const manifest = JSON.parse(await readFile(join(output, 'build-manifest.json'), 'utf8'));
   assert.equal(manifest.sourceCommit, release.sourceCommit);
+  const liveContext = JSON.parse(await readFile(join(adapterRoot, 'live-release.json'), 'utf8'));
+  assert.deepEqual(manifest.liveReleaseContext, liveContext, 'Live release context changed');
+  assert.deepEqual(liveContext.routes, productionRoutes); assert.equal(liveContext.workerName, 'veylet-site'); assert.equal(liveContext.accountId, '195cf1d6da99ca2d1e64e0069e0d87c6');
   assert.deepEqual(manifest.inputs.map(input => input.path), inputNames, 'Deployment input list changed');
   for (const input of manifest.inputs) assert.equal(sha256(await readFile(join(adapterRoot, input.path))), input.sha256, 'Stale deployment input: ' + input.path);
   assert.deepEqual(manifest.generated.map(input => input.path), ['worker.mjs', 'routing-policy.json']);
@@ -30,19 +51,7 @@ export async function verify() {
   assert.deepEqual(JSON.parse(await readFile(join(output, 'routing-policy.json'), 'utf8')), policyFor(manifest.files), 'Generated hosting policy differs from reviewed rules');
   for (const configName of ['wrangler.preview.jsonc', 'wrangler.production.jsonc']) {
     const config = JSON.parse(await readFile(join(adapterRoot, configName), 'utf8'));
-    assert(!config.routes && !config.route && !config.triggers && !config.secrets, 'No bound domains, routes, crons or secrets');
-    assert.deepEqual(Object.keys(config.vars), ['CF_DEPLOYMENT_ENV'], 'No API/auth configuration added');
-    assert.equal(config.compatibility_date, '2026-10-03');
-    assert.equal(config.main, './output/worker.mjs');
-    assert.equal(config.assets.directory, './output/site');
-    assert.equal(config.assets.run_worker_first, true);
-    assert.equal(config.assets.html_handling, 'none');
-    assert.equal(config.assets.not_found_handling, 'none');
-    assert.equal(config.preview_urls, false);
-    if (configName.includes('production')) {
-      assert.equal(config.vars.CF_DEPLOYMENT_ENV, 'production');
-      assert.equal(config.workers_dev, false);
-    } else assert.equal(config.vars.CF_DEPLOYMENT_ENV, 'preview');
+    validateConfiguration(config, configName);
   }
   const packageJson = JSON.parse(await readFile(join(adapterRoot, 'package.json'), 'utf8'));
   const lock = JSON.parse(await readFile(join(adapterRoot, 'package-lock.json'), 'utf8'));

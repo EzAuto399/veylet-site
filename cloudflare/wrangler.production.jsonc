@@ -6,6 +6,10 @@
   "main": "./output/worker.mjs",
   "workers_dev": false,
   "preview_urls": false,
+  "routes": [
+    { "pattern": "https://veylet.com/*", "zone_name": "veylet.com" },
+    { "pattern": "https://www.veylet.com/*", "zone_name": "veylet.com" }
+  ],
   "vars": { "CF_DEPLOYMENT_ENV": "production" },
   "assets": {
     "directory": "./output/site",
