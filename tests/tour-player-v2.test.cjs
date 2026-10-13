@@ -568,7 +568,7 @@ async function readyPlayer(options = {}) {
 
 test('the render loop goes idle after an interrupted flight: a drag, a turn or a new move (VIEWER-08)', async () => {
   const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time } });
+  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
   x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
   x.app.systems.gsplat.fire('frame:ready', null, null, true, 0);
   assert.equal(x.window.VeyletPlayerV2.current.stats().phase, 'complete');
@@ -844,4 +844,50 @@ test('graphics failure announces recovery and moves focus off the hidden canvas'
   assert.equal(x.canvas.hidden, true);
   assert.equal(x.document.activeElement.textContent, 'Try again');
   assert.match(byClass(x.stage, 'v2-sr').textContent, /3D stopped on this device/);
+});
+
+
+function navigationFloor(blocked = false) {
+  const columns = 60, rows = 20, bits = new Uint8Array(Math.ceil(columns * rows / 8)).fill(255);
+  if (blocked) for (let row = 0; row < rows; row++) { const bit = row * columns + 25; bits[bit >> 3] &= ~(1 << (bit & 7)); }
+  return { version: 1, cell_metres: 0.1, origin: [-1, -1], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
+}
+
+for (const scenario of ['blocked', 'missing', 'unmeasured', 'other-storey', 'height-without-floor-id']) {
+  test(`stop transitions snap to exact captured pose when route is ${scenario}`, async () => {
+    const time = clock(), data = manifest({ walkable: scenario === 'missing' ? null : { path: 'walkable.json' } });
+    if (scenario === 'unmeasured') delete data.stops[2].floor_measured;
+    if (scenario === 'other-storey' || scenario === 'height-without-floor-id') {
+      for (const stop of data.stops) stop.floor_id = 'f1';
+      const stop = data.stops[2]; stop.position[1] += 3; stop.target[1] += 3; stop.floor[1] += 3;
+      if (scenario === 'other-storey') stop.floor_id = 'f2'; else for (const stop of data.stops) delete stop.floor_id;
+    }
+    const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data, files: { 'walkable.json': navigationFloor(scenario === 'blocked') } });
+    const controller = x.window.VeyletPlayerV2.current;
+    controller.goToStop(1); time.t += 100; x.app.fire('update'); // interrupt an existing clear flight where available
+    controller.goToStop(2);
+    const state = controller.inspect().state, look = x.player.lookAngles(data.stops[2].position, data.stops[2].target);
+    assert.deepEqual([...state.position], data.stops[2].position);
+    assert.equal(state.yaw, look.yaw); assert.equal(state.pitch, look.pitch); assert.equal(state.stop, 2);
+    time.t += 5000; x.app.fire('update');
+    assert.deepEqual([...controller.inspect().state.position], data.stops[2].position, 'cancelled flight cannot overwrite the endpoint');
+    x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
+    x.app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+    x.app.renderNextFrame = false; x.app.fire('update');
+    assert.equal(x.app.renderNextFrame, false, 'no continuous render hold remains after the snap');
+  });
+}
+
+test('a clear measured-floor stop route still animates, while reduced motion lands immediately', async () => {
+  for (const reduced of [false, true]) {
+    const time = clock(), data = manifest({ walkable: { path: 'walkable.json' } });
+    const x = await readyPlayer({ reduced, context: { performance: time }, manifest: data, files: { 'walkable.json': navigationFloor() } });
+    const controller = x.window.VeyletPlayerV2.current;
+    controller.goToStop(2); time.t += 400; x.app.fire('update');
+    const state = controller.inspect().state;
+    if (reduced) assert.deepEqual([...state.position], data.stops[2].position);
+    else assert.ok(state.position[0] > 0 && state.position[0] < 2, 'a known clear route retains interpolation');
+    time.t += 5000; x.app.fire('update');
+    assert.deepEqual([...controller.inspect().state.position], data.stops[2].position);
+  }
 });
