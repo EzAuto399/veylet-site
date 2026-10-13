@@ -99,7 +99,7 @@
       if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
       // floor_id (whole-home packages): which floor the stop stands on. Anything else is ignored, not refused.
       const floorId = typeof stop.floor_id === 'string' && /^f\d{1,3}$/.test(stop.floor_id) ? stop.floor_id : null;
-      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId };
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId, floorMeasured: stop.floor_measured === true };
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
@@ -1128,9 +1128,9 @@
       continuous = Math.max(0, continuous - 1);
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    function flyTo(position, yaw, pitch, onArrive) {
+    function flyTo(position, yaw, pitch, onArrive, animate = true) {
       cancelFlight();
-      if (reduced()) {
+      if (!animate || reduced()) {
         Object.assign(state, { position, yaw, pitch });
         applyCamera();
         onArrive?.();
@@ -1174,7 +1174,14 @@
       const look = lookAngles(stop.position, stop.target);
       // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
       if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
-      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); });
+      // A saved pose is not a walking route. Only interpolate on the mask's measured floor;
+      // unknown paths and other storeys jump directly, without passing through walls or floors.
+      const from = state.stop >= 0 ? manifest.stops[state.stop] : null;
+      const onMeasuredFloor = item => item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15;
+      const animate = Boolean(walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)
+        && onMeasuredFloor(stop) && (from ? onMeasuredFloor(from) : Math.abs(state.position[1] - walkable.eyeHeight - walkable.floorY) <= 0.15)
+        && walkable.clear([state.position[0], state.position[2]], [stop.position[0], stop.position[2]]));
+      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); }, animate);
     }
     function walkTo(point) {
       const eye = walkable ? walkable.eyeHeight : 1.4;
