@@ -6,12 +6,12 @@
  * Order of work on every device: a 256 px preview, then the poster (both are
  * renders of the packaged scene from the opening stop), then the coarsest
  * level of detail, then finer levels within a splat budget chosen for the
- * device. The PlayCanvas engine 2.22.2 is vendored (MIT,
+ * device. The PlayCanvas engine 2.23.2 is vendored (MIT,
  * /vendor/LICENSE.playcanvas.txt) and imported only when this browser can
  * draw it. Package files are data: JSON and WebP. Nothing from a package runs.
  */
 (() => {
-  const ENGINE_URL = '/vendor/playcanvas-2.22.2.min.js?v=5c9bf4a346ca2e3d';
+  const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
   const STYLE_URL = '/tour-player-v2.css?v=72a09df6f0e1e23b';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
@@ -248,10 +248,11 @@
 
   /**
    * Keeps motion at 30 fps or better. Pixel ratio goes first (cheapest to give
-   * back), then the splat budget. Budget returns slowly when there is room.
+   * back), then the splat budget. Budget returns first; pixels recover gradually
+   * after five seconds of sustained headroom, up to the original device ceiling.
    */
   function createGovernor(profile) {
-    let samples = [], elapsed = 0, lastChange = -Infinity;
+    let samples = [], elapsed = 0, headroomMs = 0, lastChange = -Infinity;
     const state = { budget: profile.budget, pixelRatio: profile.maxPixelRatio };
     return {
       state,
@@ -262,10 +263,12 @@
         samples.push(frameMs);
         elapsed += frameMs;
         if ((samples.length < 45 && (elapsed < 1500 || samples.length < 5)) || now - lastChange < 2000) return null;
+        const windowMs = elapsed;
         elapsed = 0;
         const sorted = [...samples].sort((a, b) => a - b);
         const fps = 1000 / sorted[Math.floor(sorted.length / 2)];
         samples = [];
+        headroomMs = fps > 50 ? headroomMs + windowMs : 0;
         if (fps < 28) {
           lastChange = now;
           if (state.pixelRatio > profile.minPixelRatio + 0.01) {
@@ -280,8 +283,15 @@
         }
         if (fps > 50 && state.budget < profile.maxBudget) {
           lastChange = now;
+          headroomMs = 0;
           state.budget = Math.min(profile.maxBudget, Math.round(state.budget * 1.2));
           return { budget: state.budget, fps };
+        }
+        if (fps > 50 && state.pixelRatio < profile.maxPixelRatio && headroomMs >= 5000 && now - lastChange >= 5000) {
+          lastChange = now;
+          headroomMs = 0;
+          state.pixelRatio = Math.min(profile.maxPixelRatio, Math.round(state.pixelRatio * 1.1 * 100) / 100);
+          return { pixelRatio: state.pixelRatio, fps };
         }
         return null;
       },
@@ -723,23 +733,31 @@
 
     function fail(kind, retryable = true) {
       const [heading, body] = FALLBACK_WORDS[kind] || FALLBACK_WORDS['engine-unavailable'];
+      // These controls are hidden or removed below. Keep unrelated, visible
+      // focus where it is, including when the failure happens during loading.
+      const recoverFocus = [ui.canvas, ui.bar, ui.hotspots, ui.fallback]
+        .some(part => part.contains(document.activeElement));
       ui.fallback.replaceChildren();
-      const title = el('h2', { id: 'v2-fallback-title' }, heading);
+      const title = el('h2', { id: 'v2-fallback-title', tabindex: '-1' }, heading);
+      let recovery = title;
       ui.fallback.append(title, el('p', {}, body));
       if (retryable) {
         const retry = el('button', { type: 'button', class: 'v2-primary' }, 'Try again');
         retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
         ui.fallback.append(retry);
+        recovery = retry;
       }
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
       ui.bar.hidden = true;
       ui.progress.hidden = true;
       ui.status.textContent = '';
+      ui.announce.textContent = `${heading} ${body}`;
       ui.canvas.hidden = true;
       ui.hotspots.replaceChildren();
       becomeVisible();
       teardown();
+      if (recoverFocus) recovery.focus();
       const outcome = { readiness: 'viewer-failed', reason: kind, marks };
       settle(outcome);
       return outcome;
@@ -970,7 +988,7 @@
         walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
         'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
       ]) controls.append(el('li', {}, line));
-      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.22.2 (MIT licence). ');
+      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
       const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
       credits.append(licence);
       ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
@@ -1278,7 +1296,19 @@
       if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
-    const escapeFull = event => { if (event.key === 'Escape' && pseudo) { event.preventDefault(); setPseudo(false); } };
+    const escapeFull = event => {
+      if (!pseudo) return;
+      if (event.key === 'Escape') { event.preventDefault(); setPseudo(false); }
+      else if (event.key === 'Tab') {
+        const controls = pseudoControls();
+        const first = controls[0] || ui.full, last = controls[controls.length - 1] || first;
+        const active = document.activeElement;
+        if (!controls.includes(active) || (event.shiftKey ? active === first : active === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }
+    };
     document.addEventListener('keydown', escapeFull);
     ui.prev.addEventListener('click', () => goToStop(stepStop(hereStop(), -1, manifest.stops.length)));
     ui.next.addEventListener('click', () => goToStop(stepStop(hereStop(), 1, manifest.stops.length)));
@@ -1303,21 +1333,60 @@
     const fullElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
     let pseudo = null; // the stage's own inline style while it fills the window
     const isFull = () => pseudo !== null || (fullElement() !== null && fullElement() === stage);
+    function usableFocus(node) {
+      if (!node || !document.body.contains(node) || node.disabled || typeof node.focus !== 'function') return false;
+      for (let part = node; part; part = part.parentNode) {
+        if (part.hidden || part.hasAttribute?.('inert') || part.getAttribute?.('aria-hidden') === 'true') return false;
+      }
+      return !node.getClientRects || node.getClientRects().length > 0;
+    }
+    function pseudoControls() {
+      return [...stage.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+        .filter(node => usableFocus(node) && (node.getAttribute('tabindex') === null || Number(node.getAttribute('tabindex')) >= 0));
+    }
+    function containPseudoFocus(event) {
+      if (!pseudo) return;
+      if (stage.contains(event.target) && usableFocus(event.target)) { pseudo.focus = event.target; return; }
+      const target = usableFocus(pseudo.focus) ? pseudo.focus : pseudoControls()[0] || ui.full;
+      target.focus();
+    }
     function setPseudo(on) {
       if (on === (pseudo !== null)) return;
       const root = document.documentElement;
       if (on) {
-        pseudo = { style: stage.getAttribute('style'), overflow: root.style.overflow };
+        pseudo = { style: stage.getAttribute('style'), overflow: root.style.overflow,
+          previousFocus: document.activeElement, focus: null, background: [] };
         Object.assign(stage.style, { position: 'fixed', top: '0', right: '0', bottom: '0', left: '0', width: '100vw', height: '100vh',
           maxWidth: 'none', minHeight: '0', margin: '0', borderRadius: '0', zIndex: '2147483000' });
         stage.style.height = '100dvh'; // kept at 100vh where dvh is unknown
         stage.classList.add('v2-filled'); // the stylesheet keeps the controls inside the safe area
         root.style.overflow = 'hidden';
+        document.addEventListener('focusin', containPseudoFocus);
+        if (!stage.contains(document.activeElement) || !usableFocus(document.activeElement)) ui.full.focus();
+        pseudo.focus = document.activeElement;
+        // Isolate siblings at every ancestor level, keeping the stage's own
+        // branch available. Attribute values are restored exactly on exit.
+        for (let branch = stage; branch.parentNode; branch = branch.parentNode) {
+          for (const node of branch.parentNode.children) {
+            if (node === branch) continue;
+            pseudo.background.push({ node, inert: node.getAttribute('inert'), hidden: node.getAttribute('aria-hidden') });
+            node.setAttribute('inert', '');
+            node.setAttribute('aria-hidden', 'true');
+          }
+          if (branch.parentNode === document.body) break;
+        }
       } else {
+        const previousFocus = pseudo.previousFocus;
         if (pseudo.style === null) stage.removeAttribute('style'); else stage.setAttribute('style', pseudo.style);
         stage.classList.remove('v2-filled');
         root.style.overflow = pseudo.overflow;
+        for (const { node, inert, hidden } of pseudo.background) {
+          if (inert === null) node.removeAttribute('inert'); else node.setAttribute('inert', inert);
+          if (hidden === null) node.removeAttribute('aria-hidden'); else node.setAttribute('aria-hidden', hidden);
+        }
         pseudo = null;
+        document.removeEventListener('focusin', containPseudoFocus);
+        if (usableFocus(previousFocus)) previousFocus.focus();
       }
       fullscreenChanged();
     }
@@ -1532,9 +1601,11 @@
       stepFlight(now);
       if (continuous > 0 || benchmark) requestRender();
       if (benchmark) {
-        state.yaw += benchmark.degreesPerFrame;
+        const through = Math.min(now, benchmark.until);
+        state.yaw += benchmark.degreesPerSecond * Math.max(0, through - benchmark.last) / 1000;
+        benchmark.last = through;
         applyCamera();
-        if (now > benchmark.until) { const done = benchmark.done; benchmark = null; done(); }
+        if (now >= benchmark.until) { const done = benchmark.done; benchmark = null; done(); }
       }
     });
     app.on('postrender', () => {
@@ -1640,7 +1711,8 @@
       benchmark(seconds = 5, degreesPerSecond = 30) {
         stats.frames = [];
         return new Promise(resolve => {
-          benchmark = { until: performance.now() + seconds * 1000, degreesPerFrame: degreesPerSecond / 60, done: () => resolve(controller.stats()) };
+          const now = performance.now();
+          benchmark = { until: now + seconds * 1000, last: now, degreesPerSecond, done: () => resolve(controller.stats()) };
         });
       },
     };

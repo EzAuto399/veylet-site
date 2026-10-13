@@ -55,8 +55,8 @@ test('the QR generator and the engine are vendored with their licences and fetch
   assert.match(read('vendor/LICENSE.qrcode.txt'), /Copyright \(c\) 2012 Ryan Day/);
   assert.match(read('vendor/LICENSE.qrcode.txt'), /dijkstrajs/);
   assert.match(read('vendor/LICENSE.playcanvas.txt'), /Copyright \(c\) 2011-2026 PlayCanvas Ltd\./);
-  assert.match(read('vendor/playcanvas-2.22.2.min.js').slice(0, 200), /PlayCanvas Engine v2\.22\.2/);
-  assert.match(read('tour-player-v2.js'), /'\/vendor\/playcanvas-2\.22\.2\.min\.js\?v=[a-f0-9]{16}'/);
+  assert.match(read('vendor/playcanvas-2.23.2.min.js').slice(0, 200), /PlayCanvas Engine v2\.23\.2/);
+  assert.match(read('tour-player-v2.js'), /'\/vendor\/playcanvas-2\.23\.2\.min\.js\?v=[a-f0-9]{16}'/);
   // Visitor pages carry no share kit.
   for (const page of ['handoff/index.html', 'embed/index.html']) assert.doesNotMatch(read(page), /qrcode|handoff-kit|Domain listing/i, page);
 });

@@ -147,7 +147,7 @@ test('splat budgets follow the device class, and one detail level is chosen to f
   assert.equal(player.detailLevel(counts, 3_000_000, true), 3); // Save-Data: the coarsest level only
 });
 
-test('a slow device gives back pixels first, then splats; a fast one earns splats back', () => {
+test('a slow device gives back pixels first, then splats; a fast one earns detail back', () => {
   const { player } = load();
   const governor = player.createGovernor({ budget: 500_000, maxBudget: 500_000, minBudget: 150_000, maxPixelRatio: 1.5, minPixelRatio: 1 });
   let now = 10_000;
@@ -157,7 +157,8 @@ test('a slow device gives back pixels first, then splats; a fast one earns splat
   assert.ok(slow.every((change, i) => i === 0 || change.now - slow[i - 1].now >= 2000), 'changes are at least 2 s apart');
   assert.equal(governor.state.budget >= 150_000, true);
   const fast = run(10, 30); // then 100 fps
-  assert.ok(fast.length > 0 && fast.every(change => change.budget > 0));
+  assert.ok(fast.some(change => change.budget > 0));
+  assert.ok(fast.some(change => change.pixelRatio > 1));
   assert.equal(governor.state.budget, 500_000); // back to the device's ceiling, never above it
   // A very slow device is helped after 1.5 s of frames, not after 45 frames.
   const struggling = player.createGovernor({ budget: 500_000, maxBudget: 500_000, minBudget: 150_000, maxPixelRatio: 1.5, minPixelRatio: 1 });
@@ -744,4 +745,103 @@ test('full screen on an iPhone clears the notch and the home indicator (VIEWER-1
   assert.equal(x.stage.classList.contains('v2-filled'), true);
   full.click();
   assert.equal(x.stage.classList.contains('v2-filled'), false);
+});
+
+
+test('sustained headroom restores pixels gradually after a transient slowdown without exceeding the device ceiling', () => {
+  const { player } = load();
+  const governor = player.createGovernor({ budget: 500_000, maxBudget: 500_000, minBudget: 150_000, maxPixelRatio: 1.5, minPixelRatio: 1 });
+  let now = 10_000;
+  const run = (ms, seconds) => {
+    const changes = [];
+    for (const end = now + seconds * 1000; now < end;) {
+      now += ms;
+      const change = governor.sample(ms, now);
+      if (change) changes.push({ ...change, now });
+    }
+    return changes;
+  };
+  const slow = run(50, 1.5);
+  assert.equal(governor.state.pixelRatio, 1.2);
+  assert.equal(governor.state.budget, 500_000);
+  assert.equal(run(10, 4).length, 0, 'brief headroom does not immediately raise resolution');
+  const recovered = run(10, 30);
+  assert.equal(governor.state.pixelRatio, 1.5, 'recover native sharpness when sustained performance allows it');
+  assert.ok(recovered.length >= 3, 'resolution recovery is gradual');
+  let previous = slow.at(-1);
+  for (const change of recovered) {
+    assert.ok(change.pixelRatio <= 1.5, 'device pixel ceiling remains authoritative');
+    assert.ok(change.pixelRatio > previous.pixelRatio && change.pixelRatio - previous.pixelRatio <= 0.15);
+    assert.ok(change.now - previous.now >= 5000, 'at least five seconds between resolution increases');
+    previous = change;
+  }
+  assert.equal(run(10, 10).length, 0, 'no change once the device ceiling is reached');
+  assert.ok(run(50, 3).some(change => change.pixelRatio < 1.5), 'slow rendering still lowers resolution promptly');
+  const low = governor.state.pixelRatio;
+  const modest = run(30, 15);
+  assert.ok(modest.every(change => !change.pixelRatio || change.pixelRatio <= low), '30 fps without headroom does not raise resolution');
+});
+
+test('benchmark turns at the same timed speed at 30, 60 and 120 fps and clamps the last frame', async () => {
+  const turns = [];
+  for (const fps of [30, 60, 120]) {
+    const time = clock();
+    const x = await readyPlayer({ context: { performance: time } });
+    const controller = x.window.VeyletPlayerV2.current;
+    const initial = controller.inspect().state.yaw;
+    const begin = time.t;
+    const done = controller.benchmark(5, 30);
+    for (let frame = 1; frame <= 5 * fps + 1; frame++) {
+      time.t = begin + frame * 1000 / fps;
+      x.app.fire('update');
+      x.app.fire('postrender');
+    }
+    await done;
+    const turn = controller.inspect().state.yaw - initial;
+    turns.push(turn);
+    assert.ok(Math.abs(turn - 150) < 1e-8, `${fps} fps turns 150 degrees, got ${turn}`);
+  }
+  assert.ok(Math.max(...turns) - Math.min(...turns) < 1e-8);
+});
+
+
+test('pseudo fullscreen isolates background controls and restores their attributes and focus on exit', async () => {
+  const x = await readyPlayer();
+  x.document.documentElement = x.document.createElement('html');
+  const outside = x.document.createElement('button');
+  outside.setAttribute('aria-hidden', 'false');
+  outside.setAttribute('inert', 'retained-value');
+  x.document.body.append(outside);
+  outside.focus();
+  const full = byClass(x.stage, 'v2-fullscreen');
+  full.click();
+  assert.equal(x.document.activeElement, full);
+  assert.equal(outside.getAttribute('inert'), '');
+  assert.equal(outside.getAttribute('aria-hidden'), 'true');
+  const tab = { key: 'Tab', shiftKey: false, preventDefault() { this.defaultPrevented = true; } };
+  outside.focus();
+  for (const listener of x.document.listeners.get('keydown')) listener(tab);
+  assert.equal(tab.defaultPrevented, true);
+  assert.ok(x.stage.contains(x.document.activeElement), 'Tab cannot escape to background controls');
+  full.click();
+  assert.equal(outside.getAttribute('inert'), 'retained-value');
+  assert.equal(outside.getAttribute('aria-hidden'), 'false');
+  // An originally inert control is not a usable return target.
+  outside.removeAttribute('inert');
+  outside.focus();
+  full.click();
+  full.click();
+  assert.equal(x.document.activeElement, outside, 'return to the original visible control');
+  assert.equal(outside.getAttribute('inert'), null);
+});
+
+test('graphics failure announces recovery and moves focus off the hidden canvas', async () => {
+  const timers = manualTimers();
+  const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  x.canvas.focus();
+  x.canvas.dispatch('webglcontextlost', {});
+  timers.fire(5000);
+  assert.equal(x.canvas.hidden, true);
+  assert.equal(x.document.activeElement.textContent, 'Try again');
+  assert.match(byClass(x.stage, 'v2-sr').textContent, /3D stopped on this device/);
 });
