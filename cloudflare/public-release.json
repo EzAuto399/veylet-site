@@ -264,7 +264,7 @@
     {
       "path": "account/index.html",
       "bytes": 18862,
-      "sha256": "c48dbe4f78d11a647bc15badbb23a4a0e186331fb08b4228ec2cc8703107ca45",
+      "sha256": "5c8cd63c6deefdbb5cde7253c091dfff932cd5e651ca04882ed839a3360b7b82",
       "headerProfile": 1
     },
     {
@@ -300,7 +300,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11241,
-      "sha256": "e606bca3d732beaf11061ca715adbdb0e5bed8527c842af1be3eed32cb260565",
+      "sha256": "07913ac2334d25d6bc662c46662a7847307e9c9489a2312b57111c1da0dc6be3",
       "headerProfile": 5
     },
     {
@@ -504,7 +504,7 @@
     {
       "path": "app/status/index.html",
       "bytes": 3159,
-      "sha256": "21d63942c77f932055f27878b739c1cf4d5c7d80af6fe11964624fc4f870158f",
+      "sha256": "58013a6da31fcfe4bdfb065014c6155b4667a4e646097985c00329349c1ec9bb",
       "headerProfile": 5
     },
     {
@@ -528,7 +528,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2559,
-      "sha256": "e0b243b866876b2c1bb1e8738f3a07fe439696329d67556ad39a500e576f8a96",
+      "sha256": "4780cea4b68cd785e9f399db92450c5bbcdb9d5e588ca40da2aa3f3faea77da8",
       "headerProfile": 1
     },
     {
@@ -570,7 +570,7 @@
     {
       "path": "embed/index.html",
       "bytes": 17516,
-      "sha256": "314281f84f93b6408f7769dd40bf514f1f26062616fb0858fbf53530d49b97fb",
+      "sha256": "205ac8e29455643b525389a4caf6a6ed39f215803f9a012ecf4b84ef4651fa46",
       "headerProfile": 7
     },
     {
@@ -636,7 +636,7 @@
     {
       "path": "handoff/index.html",
       "bytes": 13453,
-      "sha256": "ae5e8d1eee12485699ae728ededfcf5b0646a09ef1e16074078177e9ccb6c3ce",
+      "sha256": "f861a2936b0ea4ee525fcc35c535d07463b498c8a12d0fa4626861e3b0308fad",
       "headerProfile": 1
     },
     {
@@ -858,7 +858,7 @@
     {
       "path": "join/index.html",
       "bytes": 3487,
-      "sha256": "c346db52ea71ce2d71b4be015998f803c6f3cdc6c52285a646f6bd4e3432f085",
+      "sha256": "0b332a2243c3ad1485724b2e8b7976ad6419eb0aa3c1b07a83f407e2430156bf",
       "headerProfile": 1
     },
     {
@@ -1332,7 +1332,7 @@
     {
       "path": "play/index.html",
       "bytes": 8457,
-      "sha256": "8a210675b7c7268c31dc38ce64ece84f66ba7b31084ae2a80f2cbd1ad57f100a",
+      "sha256": "18912cc66a6395af4bac6e2b22af75ebbe16363876b2505cbafe39adfaa1bfd6",
       "headerProfile": 1
     },
     {
@@ -1350,7 +1350,7 @@
     {
       "path": "report/index.html",
       "bytes": 5925,
-      "sha256": "4b023ea999c23d9df420f955023f5e3eb7aa8dce9e443157465ec57b5c4305b9",
+      "sha256": "6cf1576e06526adb0ef32e7810cfdc3859f6d358e92f038f19a44a6ce0fd46b1",
       "headerProfile": 1
     },
     {
@@ -1362,7 +1362,7 @@
     {
       "path": "request/index.html",
       "bytes": 13477,
-      "sha256": "454783a10fae5432376e02c2681b1874422492c9925fe8d131be84390b885a33",
+      "sha256": "6204e106aa926176cba046926e93149fd7738ff43e19faf1a57b5f9c7cfa21eb",
       "headerProfile": 1
     },
     {
@@ -2148,7 +2148,7 @@
     {
       "path": "status/index.html",
       "bytes": 4099,
-      "sha256": "a866275d342aae86b1c43bcc8d7f4ac853ab12c900b0b0e568eaa501bfe4d02b",
+      "sha256": "c05210bee40e056ec67ddf38704647926bfc4a1705ddbfbf223f28ed91ea35bb",
       "headerProfile": 1
     },
     {
@@ -2166,7 +2166,7 @@
     {
       "path": "studio/index.html",
       "bytes": 13888,
-      "sha256": "aff45ce6478f236344e6503a468ae1da84f935da9078ce14141799c44242d560",
+      "sha256": "ef72b7f091d03abe2acbf38b973438d94fefb86c3c826eb702d33f00346ca1c6",
       "headerProfile": 18
     },
     {
@@ -2189,8 +2189,8 @@
     },
     {
       "path": "supabase-public.js",
-      "bytes": 448,
-      "sha256": "b6fc53a3d04f45d15f00d0174e11f70492078620c6698f7f9d2307c6447a7fb2",
+      "bytes": 441,
+      "sha256": "67f9f1943ae2f97937c402eff9f2601406c034b39252f39f19d0b4d46f090b92",
       "headerProfile": 4
     },
     {
@@ -2214,7 +2214,7 @@
     {
       "path": "tour/index.html",
       "bytes": 13091,
-      "sha256": "97a6a400c4d45a8bf4d9c544e315236589a28d31e4675b2474d7fe47c8e73cff",
+      "sha256": "a28fff0ff5e23c9442cec14719188eb2602e9fcfe6913dc01bf0d0fa8d6ffd50",
       "headerProfile": 19
     },
     {
@@ -2250,7 +2250,7 @@
     {
       "path": "unsubscribe/index.html",
       "bytes": 3176,
-      "sha256": "2bb420e46a6aff2a3a8b24d980845e1ec84659967561d98ac450e1c1773aad4d",
+      "sha256": "28b8ba41de24fe256fdb79c5679396ffa7d391d13a65ea141bef8c388144a712",
       "headerProfile": 1
     },
     {
@@ -2328,7 +2328,7 @@
     {
       "path": "waitlist/index.html",
       "bytes": 12245,
-      "sha256": "97585e33363a4ba1e065902f4f735a151aac68cd78e388e19dee97d33be6da0f",
+      "sha256": "66ca2381f526e1b3e840b5a32bc6b718de7dd0508a0c8836c0be32a77809c16d",
       "headerProfile": 1
     },
     {

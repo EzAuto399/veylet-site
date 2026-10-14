@@ -1949,7 +1949,7 @@ test('the website annual card is removed: no section, no members’ annual read,
   const code = account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(code, /get_members_annual_offer|members-annual|annualOpenCard|annualConfirmCard|renderAnnual|annualPlanValid/);
   assert.doesNotMatch(account, /A\$990|A\$99(?![\d.,])/, 'no comment cites the retired prices either');
-  assert.match(fs.readFileSync(path.join(__dirname, '../dist/supabase-public.js'), 'utf8'), /window\.VEYLET_HOOKS = \{ url: 'https:\/\/veylet-hooks\.vercel\.app' \}/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../dist/supabase-public.js'), 'utf8'), /window\.VEYLET_HOOKS = \{ url: 'https:\/\/hooks\.veylet\.com' \}/);
 });
 
 test('whatever an older server answers for the members’ annual, the page never reads it, shows it or starts it', async () => {
