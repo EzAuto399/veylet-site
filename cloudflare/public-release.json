@@ -868,9 +868,15 @@
       "headerProfile": 4
     },
     {
+      "path": "llms-full.txt",
+      "bytes": 134361,
+      "sha256": "2832334e35b54418bd9fa3957dca4e2f816381479b6117fe4b63f05760ef34ec",
+      "headerProfile": 2
+    },
+    {
       "path": "llms.txt",
-      "bytes": 15140,
-      "sha256": "7a4dabfdb18609795773404da4dbf80d134d81ec7bb6263dc669d27c5da041f5",
+      "bytes": 15230,
+      "sha256": "6787df4fc7f6011333ad923ace1de65ed90b9aa280ea022e4f7b25cc42400394",
       "headerProfile": 2
     },
     {

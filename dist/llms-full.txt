@@ -1,0 +1,1545 @@
+# Veylet — full text
+
+> Veylet (Veylet Studio) makes 3D walkthroughs for homes, businesses and venues. Anyone with a supported iPhone captures a space with the Veylet Capture app; Veylet processes and checks it automatically and hosts a walkthrough the account reviews and approves before sharing, shared as a link or a website embed that viewers open with no app. Early accounts are onboarding in south-east Queensland, Australia; no client-accepted tour is available yet.
+
+Short answers:
+- Who it is for: anyone: agents, property managers and freelancers, on the same plan and prices; there is no separate tier.
+- What it is: the product is the Veylet Capture iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
+- Processing: automatic, with no person checking. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. The check looks at how well the photos match, coverage, stray artefacts and walkable paths. We'll email you when it's ready. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
+- Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
+- The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- Sending: Send from the app: it uploads in the background. Check your account for rendering status.
+- Price in one line: eligible subscribers receive 1 free month with 3 accepted walkthroughs in total, then the Veylet plan through the App Store: A$139.99/month for 3 new walkthroughs each paid month (bank up to 6), the same 3 as the free month, or A$1,399.99 upfront/year for a 36-walkthrough annual pool (the same 3 a month) with no annual rollover. Annual saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
+- See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
+- Viewers: tour viewers need no app. Studio visits are not currently offered.
+- Contact: support@veylet.com
+
+
+This file is the full public text of the pages linked from https://veylet.com/llms.txt, generated from the published pages. If anything here differs from a live page, the live page is authoritative.
+
+
+## 3D virtual tours captured on your iPhone — Veylet
+Source: https://veylet.com/
+
+Veylet makes 3D walkthroughs of homes, businesses and venues that people can walk through on their phone before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
+Open to anyone, admitted weekly
+New accounts are admitted in weekly groups.
+1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
+
+### You capture the space. We make the walkthrough.
+Pilot status. We are onboarding early accounts while our own captures are still under quality review; we have no client-accepted tour to show yet. The app shows route checks; an automatic quality check assesses capture quality before a walkthrough is offered for your approval.
+No camera to buy
+- Your iPhone does the capture, in about 3 minutes a room, and the app coaches you as you walk.
+Only what you approve counts
+- Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.
+A link and an embed
+- Hosted while your plan is active, with a link and embed for approved sharing.
+
+### See a result.
+A public research apartment, processed by Veylet: a 3D walkthrough to explore in the browser and a walkthrough video to post.
+
+### From your walk to their browser.
+One space, four steps. You walk it with the phone; Veylet builds and checks the walkthrough automatically; nothing is shared until you approve it.
+- Walk the space with the phone upright. At each spot, turn until the ring closes; the app flags anything it still needs before you finish.
+- Finish and check the saved route. Send from the app: it uploads in the background. Check your account for rendering status.
+- Veylet builds the walkthrough. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. A capture that cannot be used is never counted.
+- Review the exact version on your phone, then share a link or a website embed. Viewers need no app or account; revoking stops new access.
+- Photo match
+- Coverage
+- Walkable paths
+Illustration of the process, not a captured space.
+New accounts are admitted in weekly groups. 1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
+
+### The app, as it is today.
+Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.
+Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.
+- Sign in A link to your email, no password.
+- Practise first One small room before a real space.
+- Check before sending The saved route and what the app could not see.
+
+### Before you write.
+1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
+We do not yet have a client-accepted tour to show. Our captures are still under quality review. The room images and animations here are labelled illustrations. Veylet support can tell you what has been tested so far.
+No. Joining the waitlist creates no account and takes no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with.
+
+### Start with one space.
+Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups. Works with recent iPhone Pro and iPad Pro models.
+
+## Veylet offer and prices: 1 free month, then one plan
+Source: https://veylet.com/offer
+
+For real-estate agents and property managers across Australia. Buyers and tenants walk through the space on their phone before they visit. You walk it once with the Veylet app on your iPhone; Veylet checks the capture automatically, hosts it and hands you a 3D walkthrough to review, with a private link and a website embed. No camera to buy, no course, and nobody sees it before you approve it.
+Join the waitlist See how a first walkthrough runs
+Open to anyone, admitted weekly. We admit new accounts from the waitlist each week, as many as our processing budget allows. The app is in invitation-only testing through TestFlight and is not listed on the App Store yet; the prices here are the App Store prices it uses. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
+You only use a walkthrough when you approve it. A capture that fails the automatic quality check, or that you don’t approve for release, is never counted. A correction, or a permitted recapture of every original room, keeps the same link and uses no extra walkthrough.
+If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.
+
+### Your first year, itemised.
+Month 1 Free · cancel before it ends and pay nothing
+- A$0
+Month 2 onward Veylet plan
+- A$139.99 a month in the App Store
+First twelve months 1 free month, then 11 monthly App Store payments
+- A$1,539.89
+Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.
+3 accepted walkthroughs in total during the 1 free month. Then 3 a month on the plan; unused ones roll over, up to 6 banked. Need more? A pack adds 3 or 10 walkthroughs, and you can buy one during the free months. The free-months end date stays the same.
+On the Veylet plan, monthly or annual: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no extra walkthrough.
+Illustration for the Veylet plan with an eligible 1-month App Store introductory offer, then A$139.99 each month automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase. Nothing is charged by this calculator.
+
+### What counts, and what never costs anything.
+An accepted walkthrough
+- One capture made with the app that passed the automatic quality check and that you approved for release. It is the only thing we count.
+A whole home
+- One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.
+3 in your free month
+- 3 accepted walkthroughs in the 1 free month: the same 3 a month as the plan. Use them in one week or spread them out.
+3 a month
+- On the monthly plan, 3 accepted walkthroughs a month, however you are billed. Unused ones roll over, up to 6 banked at any time.
+36 a year
+- On the annual plan, 36 walkthroughs to use any time in the plan year: a yearly pool with no monthly limit. It resets on each plan-year anniversary, and unused ones do not carry into the next year.
+Packs
+- A pack of 3 walkthroughs is A$169 and a pack of 10 is A$499. The account owner can buy one during the free months or on the plan. Its walkthroughs are used after the ones your free months or plan include, and stay valid 12 months from purchase. Pack walkthroughs are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
+Your first walkthrough
+- If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.
+A capture that is not good enough
+- A failed capture is never counted. A hard failure stops the render; other findings are flagged for you to review. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough.
+Seats
+- Unlimited. Everyone in your office can capture on the same account. You pay for walkthroughs, not people.
+Hosting
+- Every released walkthrough stays live while your account has a running plan: the free months, monthly or annual. When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
+Listing videos and photos
+- Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.
+Starting
+- Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 3 accepted walkthroughs in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
+Before the first charge
+- The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
+Stopping
+- Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.
+Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.
+
+### One plan, monthly or annual. Super fast renders and packs when you need more.
+The Veylet plan includes 3 accepted walkthroughs a month, or the same 36 a year to use any time for less. When you need one fast, add a Super fast render; when you need more, add a pack. Eligible accounts get their first month free, with the same 3 walkthroughs.
+Veylet plan, monthly
+- A$139.99 a month in the App Store
+- 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Unlimited seats: everyone in your office captures on one account. Each walkthrough gets the automatic quality check, a private link and a tested embed, and every released walkthrough stays live while you subscribe. New subscriptions start in the app through Apple. Existing agreements keep their terms.
+Veylet plan, annual Save A$279.89
+- A$1,399.99 upfront a year in the App Store against 12 monthly payments, for the same 36 walkthroughs
+- The same 36 walkthroughs a year as monthly, 3 a month, in one yearly pool with no monthly limit: a busy month can use several. It resets on each plan-year anniversary, with no rollover between years. When you use all 36, each costs A$38.89, against A$46.66 on monthly (16.7% less). Everything else is the same as monthly.
+
+#### What one walkthrough costs.
+A photographer’s 3D tour
+- A$195–400 each
+- A photographer’s 3D tour costs A$195–400 each, from published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026. The providers and what each price includes are in our guide, What does a 3D tour cost in Australia?
+A Veylet walkthrough, monthly
+- A$46.66 each
+- A$139.99 a month for 3, when you use all of them.
+A Veylet walkthrough, annual
+- A$38.89 each
+- A$1,399.99 a year for 36, when you use all of them.
+Super fast render
+- A$29 a capture, on this website
+- First in the queue on our fastest processing in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. Your account offers it when you send a capture. No daily limit and no business hours. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. Not sold in the app.
+One-time pack of 3 walkthroughs
+- A$169 once, valid 12 months usable during the free months
+One-time pack of 10 walkthroughs
+- A$499 once, valid 12 months usable during the free months
+Pack walkthroughs are used after the ones your free months or plan include. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
+
+#### What you pay at three, five or eight walkthroughs a month.
+On the monthly App Store plan, after the free months, plus a separately purchased one-time pack. At these rates a pack is used up long before its 12 months run out.
+3 a month
+- A$139.99 a month
+- The three walkthroughs the plan includes.
+5 a month
+- A$139.99 a month A$499 every five months
+- The plan’s three, and two a month from a pack of 10.
+8 a month
+- A$139.99 a month A$499 every two months
+- The plan’s three, and five a month from a pack of 10.
+Referrals. When an office you refer becomes a paying account, you each get 1 bonus walkthrough. Share your own link from your account.
+Founding agencies, by invitation only. At most five agencies, on the normal plan and pack prices, with no locked or special price. Their perks: priority rendering, a free 3-pack for each referred office that becomes a paying account (up to four), and a direct line to the founder. Veylet invites agencies directly; there is nothing to sign up for here.
+New subscriptions use the App Store. Existing signed agreements retain their terms. The App Store sells the Veylet plan monthly and annual; Super fast renders are sold on this website only. In-app pack purchase arrives in a later app version. Card payment on this website is coming later.
+
+### Other work, by agreement.
+We agree any additional work in writing before it starts. In-person capture and office visits are not currently offered.
+Editing and derivatives
+- A$120 an hour, written estimate first
+- Thirty-minute minimum. An indicative floor plan from the same capture is coming and will be quoted when available. Listing videos and stills are included in the plan once video exports open.
+A measured floor plan, DSLR photography, an edited film, drone work, a listing on a property portal, unlimited revisions, or a custom domain.
+
+### How it works, start to finish.
+Works with recent iPhone Pro and iPad Pro models. One email signs in both the app and your desk on this site.
+- Walk the space with the phone upright and turn at each spot until the ring closes. The app shows route checks; an automatic quality check assesses capture quality after you send it.
+- Finish and check the saved route. Send from the app: it uploads in the background. Check your account for rendering status.
+- Veylet builds the walkthrough. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. A capture that cannot be used is never counted.
+- Check the exact version, tick “I have the right to share this walkthrough” and press Approve and share: one press puts its link, QR code and website embed live. If rooms need fixing, a permitted whole recapture must include every original room. It replaces the walkthrough on the same link and uses no extra walkthrough once you review and approve it. Only an approved walkthrough counts. Revoking blocks new access immediately.
+- Photo match
+- Coverage
+- Walkable paths
+Illustration of the process, not a captured space.
+
+### Straight answers.
+iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards, on iOS 17 or later. Other iPhone and iPad models are not supported. If you are unsure, the phone’s Settings › General › About shows its model name.
+No. Your free months end on the same date. If you need more before then, the account owner can buy a pack of 3 or 10 walkthroughs: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
+The plan you chose starts, monthly or annual, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
+Annual, if you list steadily: A$1,399.99 upfront a year gives the same 36 walkthroughs as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use several. Monthly, if you want to be able to stop in any month: A$139.99 a month for 3 walkthroughs, and unused ones roll over, up to 6 banked.
+One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.
+Add a walkthrough pack: 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months and used after the ones your plan includes. On the annual plan, the year’s 36 walkthroughs can also go into one busy month. If you expect more than about ten a month, tell us first, and we will say plainly what we can process before you rely on it.
+Your capture goes first in the queue on our fastest processing in Australia, so it is ready for your review in about 30 minutes, any day, any time, for A$29. If it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. There is no daily limit: your account offers it when you send a capture. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. It is sold on this website only, not in the app.
+We redo it free. If your first walkthrough isn’t listing-ready, we correct it on the same link, and the redo uses no walkthrough. It covers your account’s first accepted walkthrough; a new capture visit is not included.
+New monthly and annual subscriptions are managed by Apple and renew unless cancelled through Apple. Existing signed agreements keep their terms. Buying a separate service never automatically pauses or cancels an Apple subscription.
+The app flags route checks, but these do not prove capture quality. After you send it, an automatic quality check stops a render that cannot work; anything else it finds is flagged for you to look at before you approve. A failed capture is never counted. Each new accepted capture uses one walkthrough. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps its link and uses no extra walkthrough. Only a walkthrough you accept counts against your allowance.
+Not yet. REA shows tours only from its supported suppliers, and we are not one. Domain includes its own tour product with some listings. What you get is a link and an embed for your own website, emails, portals that accept a link, and social channels. Tell us the exact destinations you need and we will say plainly which ones work.
+Whoever controls the space, and the occupants if it is lived in or worked in. For a rental that means the tenant as well as the owner; for a listing you do not control, the selling agent. Capture permission and permission to publish are separate choices, and the app records both for each space.
+You do. Before capture, clear people, documents, screens and personal photographs, and leave out any area you want excluded. Processing is automatic: no one at Veylet views the capture as part of normal processing, and the automatic quality check tests the walkthrough, not privacy. An AI visual check is planned and will be described in the privacy notice before it is switched on. You see the exact version before release; approve it only when nothing private shows. Revocation stops new access at once; it cannot recall copies someone already downloaded.
+You keep the rights to your space and its imagery. Your account states who may share, embed and revoke each walkthrough, how long it is hosted and what we retain. We never publish or use your space in our own marketing without a separate written yes.
+Not yet. Our captures are still under quality review and we will not show concept artwork as proof. Veylet support can tell you what has been tested so far.
+
+### Start with one space.
+Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups, and we email you when it’s your turn. Your free months begin when you activate the plan with a payment method on file, and the first charge is on the day they end. Questions first? Write to Veylet support at support@veylet.com and a person replies.
+Join the waitlist See how a first walkthrough runs
+
+## Embed a 3D walkthrough on your website — Veylet
+Source: https://veylet.com/website-guide
+
+An approved walkthrough can sit alongside your listing photos or open from a simple link. Visitors do not need an account or the capture app.
+
+### Start with the client link.
+In your desk, preview and review the finished tour, then create its client handoff. Use that handoff link here. Owner preview links only work for your signed-in account.
+
+### Where to paste it, by website builder.
+Every builder has a block that accepts custom HTML. Paste the responsive embed code into that block, publish, then open the published page signed out on a phone. If your site is managed by a developer or an agency template provider, send them the code and this page.
+Where a builder lets the block size itself, the embed handles its own height. Where the builder makes you set a fixed height — Wix, and some agency listing templates — give it at least 320 pixels. Anything shorter crops the player and hides the button that starts the tour.
+In the block editor add a Custom HTML block, paste the embed code, then Preview and Update. Some page-builder plugins and security plugins strip iframes for non-administrator roles; if the player does not appear after publishing, an administrator must add the block.
+Add a Code block (not a Markdown block), paste the embed code, keep “Display source” off and save. Code blocks need a Business or Commerce plan; Personal plans do not include them. The editor shows a placeholder rather than the player, which is normal — judge it on the published page.
+Add Embed → Embed HTML (the HTML iframe element), choose Code, paste the embed code and apply. Wix gives the element a fixed size you drag, and it crops whatever is taller. Make the element at least 320 pixels tall. A shorter element cuts off the “Explore in 3D” button, and a visitor cannot start the tour at all. For a full-width element, allow a little over half its width in height so the view is not letterboxed.
+Drag an Embed element into the page, paste the embed code and publish. Embeds render only on the published site, not in the designer canvas.
+Ask your developer for a custom HTML or raw HTML region on the listing template and paste the code there. If a template allows links but not iframes, use the button option above: a link labelled “Explore the property in 3D” to the client handoff works everywhere.
+These are the builders’ documented custom-HTML paths; builder interfaces change, so always test the published page. Listing portals do not accept this embed; see the offer page for what we can and cannot deliver there.
+
+### Place it on the listing.
+- Choose a link or a custom HTML block. The simplest option is a button labelled “Explore the property in 3D” linked to the client handoff. For an inline player, paste the embed code into your website builder’s custom HTML or embed block. Do not paste it into ordinary paragraph text.
+
+#### Choose a link or a custom HTML block.
+- Keep the page quick to open. Place a single tour below the listing’s essential information. The iframe loads lazily, and the tour downloads after a visitor chooses to explore. Use the included direct link if the website builder removes iframe code.
+
+#### Keep the page quick to open.
+- Test the actual published page. Open the page signed out on desktop and phone, including a cellular connection. Start the tour, turn through each viewpoint and check fullscreen and the fallback link. A preview in a website builder is not the same as its published page.
+
+#### Test the actual published page.
+
+### Stay in control.
+No. Listing portals do not accept this embed. They do not run pasted HTML from an agent, so the iframe will not appear there however it is entered. Where a portal offers a virtual-tour URL field, the client handoff link can go in it if that portal permits an external link; otherwise keep the tour on your own website and link to it. We claim no integration with any portal.
+New requests to the old handoff and its embed stop opening. Someone who already downloaded a tour may still have a copy. Remove the embed and old link from your listing as well. Sharing it again requires checking the current release and permissions.
+Try the direct client link and an up-to-date browser with hardware graphics enabled. Check the connection, wait for the download, then retry once. If the link is expired or revoked, ask the operator for a current one. Keep listing photos and a contact route available if a visitor’s device cannot render 3D.
+Tell the studio your browser, device and which step failed. Share the unlisted link only through your agreed support route. Keep addresses, access codes and private client imagery out of a public support post.
+
+## Support — Veylet
+Source: https://veylet.com/support
+
+One studio, one inbox. Write to us and a person replies; while processing is attended the studio answers on working days in Brisbane time.
+Email support@veylet.com. Include the space name as it appears in the app or on your desk, your phone model, the app build number from About, and what you expected to happen. Never send passwords, access codes or private images by email.
+
+### The quick answers.
+The app says recapture advised
+- Follow the reasons it lists; each names the fix. A capture that is not good enough never counts toward your walkthroughs.
+The sign-in email did not arrive
+- Check the address you typed and your spam folder, then request a new link; each link works once and only on the device that asked.
+Your plan, free months or renewal
+- Your desk at veylet.com/account shows the same record as the app. App Store subscriptions are managed in Settings › Subscriptions; the terms are at /terms.
+Putting a walkthrough on your website
+- The website guide has the paste location for each builder and a place to test the embed before you publish.
+Deleting your account
+- In the app under Account, or on your desk under "Finishing, exporting or leaving". We complete it within 30 days; the privacy page says what is kept and for how long.
+
+### Guides.
+Your first walkthrough · Website guide · The offer · Terms · Privacy
+
+## Guides to 3D walkthroughs and virtual tours — Veylet
+Source: https://veylet.com/guides
+
+Plain answers to the questions people ask before they commission, capture or share a 3D tour of a home, business or venue. Each guide answers first and lists the sources it relies on, with the date they were checked.
+- What is a 3D walkthrough? A precise definition, how it differs from a 360° photo tour and a video, and what a viewer can and cannot do.
+- What does a 3D tour cost in Australia? Published prices from Australian photographers, Matterport and iGUIDE, and what moves a quote up or down.
+- Your phone or a dedicated 3D camera? How capturing with a phone differs from capturing with a dedicated 3D camera, and who each suits.
+- Is it safe to put a 3D tour of your home online? What a 3D tour of a home can reveal, and what to check before one is shared.
+- Will a 3D tour show on realestate.com.au or Domain? How realestate.com.au and Domain handle 3D tours, and where else a tour can be shared.
+- Do 3D tours help a property sell or lease faster? What the published evidence says, who published it, and what it cannot show.
+
+## What is a 3D walkthrough? 3D vs 360° tours — Veylet
+Source: https://veylet.com/guides/what-is-a-3d-walkthrough
+
+A 3D walkthrough is a real space rebuilt in 3D from photographs, that a viewer explores in a web browser, choosing where to move and where to look. A 360° photo tour links separate panoramas instead, and a video follows one fixed path. A walkthrough shows how a space looks and connects; it is not a measured survey.
+Veylet Studio · Updated 30 September 2026
+
+### What counts as a 3D walkthrough?
+Three things make a 3D walkthrough: it is captured from a real place, rebuilt as one connected 3D space, and explored by the viewer rather than played to them. Capture happens on site, with a dedicated 3D camera or a phone. The photographs are then joined into one connected space, which opens from a link in a browser.
+The names vary. Wikipedia uses “virtual tour” for any simulation of an existing place, whether it is built from video, still images or 360° photographs. Matterport says its own 3D tours are also called models, spaces and digital twins.
+“Walkthrough” also means two other things in property marketing, so ask which one you are being offered:
+- A walkthrough video: a filmed walk through the property. One Brisbane photographer, for example, sells a single-take walkthrough video alongside its Matterport tours.
+- A rendered walkthrough: a computer-generated visualisation of a building, often one not yet built. Architectural rendering covers walkthroughs as well as still images and animations.
+- A captured 3D walkthrough: the subject of this guide, and what Veylet makes.
+
+### How is it different from a 360° tour or a video?
+The difference is who controls the movement: a 360° tour lets you look around from fixed spots and jump between them, a video moves you along a path someone else chose, and a 3D walkthrough lets you travel through one connected space yourself.
+- Format
+- Built from
+- How the viewer moves
+- Sense of layout
+- 3D walkthrough
+- Photographs, joined into one connected 3D space
+- Chooses where to go and where to look
+- Rooms connect as they do on site; some platforms add an overview or floor plan
+- 360° photo tour
+- Separate spherical photographs, each taken from one spot
+- Looks around each spot, then jumps to the next
+- Depends on the links between spots and any floor plan supplied
+- Video walkthrough
+- Continuous footage, edited
+- Watches; the path is fixed
+- Depends on how it was filmed and edited
+Matterport’s help article draws the same line. Its 360° views are single spherical photographs: “visitors can see them, but can’t navigate within them”, and they do not join the tour’s dollhouse or floor plan views. The same article defines a video as pre-recorded and non-interactive. Wikipedia makes the same point about video tours: they are linear, and the videographer, not the viewer, decides what is seen.
+A 360° tour is not a lesser product; it answers a different question. It shows what a room looks like from a chosen spot. A 3D walkthrough shows how the place fits together.
+
+### What can a viewer do, and what can’t they?
+A viewer can move through the space at their own pace, look in any direction and see how rooms connect, but they only see what was captured, as it was on the day.
+A walkthrough gives visual context, not a guarantee of size or condition, so keep listing photographs and required property information alongside it, as our guide to a first walkthrough recommends. What to clear away before a home is captured is covered in Privacy when a home goes online as a 3D tour.
+
+#### What a viewer can do
+- Move between viewpoints and look around from each one.
+- Follow the route between rooms, doorways and levels.
+- On some platforms, switch to an overview such as Matterport’s dollhouse view, or take on-screen measurements.
+- Open it from a link or a website embed, usually without installing anything.
+
+#### What a viewer cannot do
+- See what the capture did not cover: inside cupboards, behind closed doors, or areas left out for privacy.
+- Judge condition reliably. Small defects, noise, smells and the street outside do not come through a screen.
+- Know what has changed since the capture. A walkthrough is a snapshot, not a live view.
+- Rely on it for dimensions. It is not a measured floor plan or a building survey; where a measurement matters, use a measured plan or a surveyor.
+
+### How does Veylet make a walkthrough?
+Veylet turns a few minutes of iPhone capture into a reviewed walkthrough: the person who controls a space captures it with their iPhone in the Veylet Capture app, Veylet processes and checks it automatically, and the account reviews that exact version before anyone else sees it.
+A released walkthrough is shared as a browser link and a website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. Viewers need no app or account. Our website guide shows how the embed goes on a page, and the offer page sets out the plans.
+Not yet proven: Veylet Capture is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review, and no client-accepted walkthrough exists yet. Veylet has no property-portal integration.
+
+### Questions people ask
+Not always. “Virtual tour” covers any online stand-in for a visit, including linked 360° photographs and video. A 3D walkthrough is one kind of virtual tour, in which every viewpoint sits inside one connected 3D space that the viewer moves through freely.
+A 360° tour links separate panoramic photographs, so the viewer looks around from fixed spots and jumps between them. A 3D walkthrough places its viewpoints inside one connected space, so the viewer can follow how the rooms connect.
+No. It gives visual context for a space. It is not a measured floor plan, a building survey or a guarantee of condition, so check any dimension that matters with a measured plan or a surveyor.
+Most 3D walkthroughs open in a current web browser from a link or a website embed. Veylet walkthroughs need no app or account; how smoothly one runs depends on the device and the connection.
+
+### Sources
+- Wikipedia — Virtual tour, accessed 24 September 2026.
+- Wikipedia — Architectural illustration, accessed 24 September 2026.
+- Matterport Help Center — Matterport Viewing Modes: 3D, Dollhouse, 360, and Video, accessed 24 September 2026.
+- Borderland Real Estate Media — Pricing, accessed 24 September 2026.
+
+### Start with one space.
+Join the waitlist with your iPhone model; it is free and creates no account. Your first session is one practice capture in a small room; capture visits are not currently offered.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- What does a 3D tour cost in Australia? Published prices from Australian photographers, Matterport and iGUIDE, and what moves a quote up or down.
+- Your phone or a dedicated 3D camera? How capturing with a phone differs from capturing with a dedicated 3D camera, and who each suits.
+- Is it safe to put a 3D tour of your home online? What a 3D tour of a home can reveal, and what to check before one is shared.
+
+## What does a 3D virtual tour cost in Australia? — Veylet
+Source: https://veylet.com/guides/3d-tour-cost-australia
+
+In published price lists checked in September 2026, a photographer-captured 3D tour of a home cost $195 to $400 across Sydney, Brisbane, Perth and Adelaide, or $200 to $300 plus GST from a provider in four capital cities with photographs and a floor plan bundled. Capturing it yourself with a dedicated camera costs $3,850 (iGUIDE PLANIX R1) or US$3,995 (Matterport Pro3), plus platform fees.
+Veylet Studio · Updated 29 September 2026
+
+### What does a photographer charge for a 3D tour?
+Published photographer prices for a 3D tour of a home sit between $195 and $400, and the differences mostly follow what is bundled in: hosting time, a floor plan, photographs and the size of the property.
+- Provider and area
+- Price
+- What the price covers
+- Hosting included
+- Borderland Real Estate Media, Brisbane and Moreton Bay
+- $215–$359 incl. GST
+- Matterport tour: $215 for 1–2 bedrooms, $299 for 3–4, $359 for 5 or more
+- Three months
+- RE Photos, Brisbane and surrounding suburbs
+- $395
+- Matterport tour up to 300 m²; a floor plan in the tour is $135 extra
+- Six months; six more for $90
+- 3D Inspection, Sydney
+- From $300–$400
+- 3D tour from $300 for an apartment and $400 for a standard house, with photographs included; video $100 and floor plan $50 extra
+- One year; $39 a year after that
+- Xsite Property Photography, Sydney
+- From $200
+- Matterport tour; size and inclusions not published
+- Not stated
+- GB Photography, Mandurah to Perth
+- From $299 incl. GST
+- Matterport tour with a 3D model, a floor plan and a realestate.com.au presentation link
+- Not stated
+- Eddison Photographic Studios, Adelaide
+- $195
+- 360° real estate tour with a doll-house (3D model) view
+- Six months; renewal $120
+- R24, Sydney, Melbourne, Brisbane and Perth
+- $200–$300 + GST
+- Matterport or iGUIDE tour with a 2D floor plan and at least 15 photos: apartment $200, villa or townhouse $250, house $300
+- Not stated
+- Little Hinges, Australia-wide
+- $299
+- Showcase package: 3D tour, 2D floor plan and 15 HD photos
+- Not stated for this package
+- Digital 1 QLD, south-east Queensland
+- $150 incl. GST
+- 360° tour with 10 spins: linked panoramas, not a 3D tour
+- Not stated
+The Brisbane prices are for Matterport tours, priced by bedrooms at Borderland and by floor area at RE Photos. None of the Melbourne photographers we checked published a separate tour price; R24 and Little Hinges publish bundles that cover Melbourne. R24 charges the same for Matterport or iGUIDE. The 360° tour is listed for contrast: it is a set of linked panoramas, not a 3D walkthrough, and it is priced by the number of spins.
+
+### What does it cost to capture a 3D tour yourself?
+Capturing it yourself swaps the per-property fee for equipment, either a dedicated camera or a phone, and a platform fee paid monthly or per project.
+- Route
+- Equipment
+- Platform fee
+- Condition
+- Matterport with a Pro3 camera
+- US$3,995
+- Professional 20 plan: US$69 a month or US$696 a year
+- Pro3 captures need a Professional plan or higher
+- Matterport with a phone
+- Your phone
+- Free plan, or Starter 5: US$14 a month or US$144 a year
+- Captures from Matterport’s Pro cameras cannot be uploaded to these plans
+- iGUIDE with a PLANIX R1 camera
+- $3,850 incl. tax
+- Per project, no subscription: Standard from $59.40 incl. GST, estimated by floor area
+- iGUIDE says there are no ongoing platform or hosting fees
+The camera is the largest single cost. Matterport’s price list says its Pro3 needs a Professional plan or higher, so that route carries both the camera and a subscription. With a phone, Matterport’s free and Starter plans are available instead. iGUIDE charges per project rather than by subscription and estimates each price by floor area.
+Owning the equipment also means doing the capture, checking the result and managing the hosting yourself. How phone capture compares with a dedicated camera is covered in Your phone or a dedicated 3D camera?
+
+### What makes one quote higher than another?
+Six things move the price: the size of the property, what is bundled with the tour, how long it stays online, travel, subscription or per-project pricing, and GST.
+- Size. Borderland prices by bedrooms; RE Photos quotes its tour for up to 300 m², and Little Hinges prices commercial capture by floor area. Large or complex properties are often quoted individually.
+- Floor plans and photographs. R24 and Little Hinges include a 2D floor plan and photographs. RE Photos charges $135 to add a floor plan to its tour, and Matterport charges per schematic floor plan, from US$14.99 on its Professional plans.
+- Hosting term. Included hosting in these lists runs from three months (Borderland) to six (RE Photos, which charges $90 for six more) and twelve on Little Hinges’ commercial packages. Ask what happens to the link when it ends.
+- Travel. Little Hinges charges no travel surcharge in its metro areas and quotes regional work separately; Digital 1 QLD adds a travel levy beyond 30 km of its bases.
+- Subscription or per project. Photographers and iGUIDE charge per property or project. Matterport charges monthly or yearly according to how many active spaces the plan holds, and its plans renew unless cancelled.
+- GST. Borderland and Digital 1 QLD include it, R24 adds it, and Matterport says tax may be added to its prices. Compare totals, not headline figures.
+
+### How do you compare two quotes fairly?
+Compare the total for the same property, including GST, travel, any floor plan you need and hosting for as long as the tour must stay online.
+- Ask for the price for your property’s size, not the starting price.
+- Check the hosting term, what an extension costs and what happens to the link when hosting ends.
+- Check whether a floor plan and photographs are included or extra.
+- Ask where the tour can be shared: a link, an embed on your own website, or a portal. Our website guide shows what an embed involves.
+- If you list on realestate.com.au or Domain, check what your listing package already includes before paying separately; see Will a 3D tour show on realestate.com.au or Domain?
+
+### Where does Veylet fit?
+Veylet’s plans and prices are on its offer page, not in this guide, and we make no value-for-money claim against the providers above, because Veylet has no client-accepted walkthrough yet.
+Veylet works differently from both routes: the person who controls a space captures it with their iPhone in the Veylet Capture app, Veylet processes and checks it automatically, and the account reviews it before release. Released walkthroughs are shared as a link and a website embed, live while the office’s plan is active. Our first-walkthrough guide explains each step.
+Not yet proven: Veylet Capture is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review. Veylet has no property-portal integration.
+
+### Questions people ask
+From photographers checked on 29 September 2026, a Matterport-style tour of a home cost $195 in Adelaide with six months of hosting, $215 to $359 in Brisbane with three months, $395 in Brisbane with six, and from $300 for an apartment or $400 for a standard house in Sydney with a year. To capture your own, Matterport lists the Pro3 camera at US$3,995, and it needs at least a Professional plan, from US$69 a month.
+For a typical house, the photographer prices checked on 29 September 2026 ran from $195 in Adelaide to $400 for a standard house in Sydney, with $299 in Brisbane and from $299 in Perth; R24 charged $300 plus GST with photographs and a floor plan (checked 24 September). Floor plans, longer hosting and travel outside a provider’s area can add to that.
+It depends on how often you capture. Photographers and iGUIDE charge per property or project, so you pay only when you use them. Matterport charges a monthly or yearly fee for a set number of active spaces, and its plans renew unless cancelled.
+It depends on the provider. In the price lists checked, included hosting ran from three months to twelve, and one photographer charged $90 for six more months. Ask what happens to the link when hosting ends. Veylet keeps each released walkthrough live while the office’s plan is active, and for 14 days after it ends; restarting the plan brings the same link back, and a hosting extension, on request, keeps a single walkthrough online.
+Veylet publishes its plans on its offer page at veylet.com/offer. This guide does not repeat them or compare them with other providers, because Veylet has no client-accepted walkthrough yet to show what the price buys.
+
+### Sources
+- Matterport Help Center — Matterport Price List (last updated 29 July 2026), accessed 24 September 2026.
+- iGUIDE — Pricing, Packages, Options and Add-ons, accessed 24 September 2026.
+- iGUIDE Australia Store — PLANIX R1, accessed 24 September 2026.
+- Borderland Real Estate Media — Pricing, accessed 29 September 2026.
+- RE Photos — Pricing, accessed 29 September 2026.
+- 3D Inspection — Pricing, accessed 29 September 2026.
+- Xsite Property Photography — 360 Tour, accessed 29 September 2026.
+- GB Photography — Residential, accessed 29 September 2026.
+- Eddison Photographic Studios — 360° Virtual Tour, accessed 29 September 2026.
+- R24 — 3D Virtual Tours for Real Estate, accessed 24 September 2026.
+- Little Hinges — Real Estate Photography & 3D Tour Pricing, accessed 24 September 2026.
+- Digital 1 QLD — Real Estate Photography Packages & Price List, accessed 24 September 2026.
+
+### Start with one space.
+Join the waitlist with your iPhone model; it is free and creates no account. The offer page lists the plans and what each includes.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- What is a 3D walkthrough? A precise definition, how it differs from a 360° photo tour and a video, and what a viewer can and cannot do.
+- Your phone or a dedicated 3D camera? How capturing with a phone differs from capturing with a dedicated 3D camera, and who each suits.
+- Will a 3D tour show on realestate.com.au or Domain? How realestate.com.au and Domain handle 3D tours, and where else a tour can be shared.
+
+## Phone or Matterport camera: which suits a 3D tour? — Veylet
+Source: https://veylet.com/guides/iphone-lidar-vs-matterport
+
+Either can make a 3D tour. A supported iPhone or iPad needs nothing extra if you already own one and suits smaller homes and simpler spaces, though it sees less far. A dedicated camera such as Matterport’s Pro3 costs thousands of dollars and is set up at each spot, but it reaches further and records more detail.
+Veylet Studio · Updated 30 September 2026
+
+### Which iPhones and iPads work with Veylet?
+Every iPhone Pro and Pro Max from the iPhone 12 Pro to the iPhone 18 Pro works, as does every iPad Pro since 2020; no other iPhone or iPad does. Apple’s comparison pages list each model. Veylet Capture needs one of the models below on iOS 17 or later, as the offer page sets out; if you are unsure, name your model when you join the waitlist.
+- iPhone: 12 Pro and 12 Pro Max, 13 Pro and 13 Pro Max, 14 Pro and 14 Pro Max, 15 Pro and 15 Pro Max, 16 Pro and 16 Pro Max, 17 Pro and 17 Pro Max, 18 Pro and 18 Pro Max.
+- iPad Pro: 11-inch (2nd generation) and later, 12.9-inch (4th generation) and later, including the M4 and M5 models.
+- Not supported: standard, Plus, mini, e and SE iPhones, iPhone Air, iPhone Duo, and every iPad Air, iPad mini and iPad.
+
+### Phone or dedicated camera: how do they compare?
+A phone needs nothing extra if you already carry one and captures as you walk; a dedicated camera costs more and takes more set-up, but it reaches further and records more detail. Light matters with either, so Veylet’s first-walkthrough guide asks you to keep lighting steady while you capture.
+Matterport’s own guidance says phone capture in its app suits simpler jobs than its specialised camera, and the researchers below reached a similar view: the iPhone for quick, low-cost work in simpler spaces, the Pro3 for accurate, high-resolution capture.
+The common “Polycam vs Matterport” question compares different things. Polycam is a phone app for capturing, sharing and exporting 3D files. Matterport makes dedicated cameras and a platform for hosting tours, and its app can also capture with a phone.
+- Factor
+- Supported iPhone or iPad
+- Dedicated camera (Matterport Pro3)
+- Hardware
+- Nothing extra if you already own a supported model
+- From US$3,995, plus a phone or tablet to run it
+- Software
+- Apps range from free tiers to paid plans; Polycam’s Business plan is US$400 a year per user
+- A Matterport Professional plan or higher
+- To carry
+- The phone in your pocket
+- A 2.2 kg camera that mounts on a tripod
+- Capture
+- Walk the route holding the device
+- Under 20 seconds per scan, then move it; no more than 8 m apart in large, open areas
+- Reach
+- Up to 5 m, Apple’s published figure
+- 20 m normally; up to 100 m in exported files
+- Points in one study
+- 506,961
+- 1,877,324
+- Suits
+- Smaller homes and simpler spaces; quick, low-cost capture
+- Larger homes, complex or outdoor spaces, and denser measurement
+
+### How accurate is a phone compared with a dedicated camera?
+Good enough to show a space, but less precise than a dedicated camera: in the one published comparison we could check, the iPhone recorded far fewer points than a Matterport Pro3 and differed from it by about 4 cm on average.
+Mengyuan Wang and colleagues scanned a six-storey building of 17,567 square metres with a Pro3, then compared it with an iPhone scan of the same environment; the paper does not say which iPhone or app was used. The Pro3 recorded 1,877,324 points against the iPhone’s 506,961. Once the two were aligned, they differed by 4.08 cm on average, with a standard deviation of 7.15 cm, and by up to 52 cm around doors. That is a difference between two devices, not an error measured against a survey. Matterport rates the Pro3 at about 20 mm of error at 10 metres.
+A walkthrough from either device gives visual context. It is not a measured floor plan or building survey, so keep proper measurements alongside it when dimensions matter.
+
+### Where does Veylet fit?
+Veylet works with the supported iPhone or iPad you already have; what it adds is the automatic processing, quality check and hosting after capture, not different equipment.
+Veylet Capture guides you through the space and saves the capture on your phone. Send from the app: it uploads in the background. Check your account for rendering status. Veylet builds it automatically. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record; it retries once when a retry can help, then asks for a recapture of the named rooms. Other findings about photo match, coverage, stray artefacts and walkable paths do not block the render: they are flagged for you to check before approval. No person checks it; you then review the exact version on your phone before anyone else sees it. The released walkthrough is shared as a private link and website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. The first-walkthrough guide covers each step.
+Where we are today: Veylet Capture is available by invitation through Apple’s TestFlight, not yet on the App Store. Our own captures are still under internal quality review, and no client has accepted a Veylet walkthrough yet, so we make no claim that phone capture matches a dedicated camera. For a measured survey or a very large building, a dedicated camera may be the better tool.
+
+### Questions people ask
+Yes, on a supported iPhone: Veylet Capture records the shape of each room as well as photographs, and some other apps work from photographs alone on other phones. The result shows what a space looks like; it is not a measured survey.
+The Pro and Pro Max models from iPhone 12 Pro to iPhone 18 Pro, on iOS 17 or later. Standard, Plus, mini, e and SE models, iPhone Air and iPhone Duo do not work. Among iPads, only iPad Pro models released since 2020 do.
+No. Polycam is a phone app for capturing, sharing and exporting 3D files, with a free tier and paid plans. Matterport makes dedicated cameras and a tour platform, and its app can also capture with a phone. Compare them on the result you need, not only the equipment.
+Not where exact dimensions matter. In one study, an iPhone scan differed from a Matterport Pro3 scan of the same space by 4.08 cm on average and by up to 52 cm around doors. Use a measured plan or survey for dimensions.
+No. Veylet Capture works with recent iPhone Pro and iPad Pro models on iOS 17 or later, and Veylet processes, checks and hosts the result automatically. The app is available by invitation through TestFlight, not yet on the App Store.
+
+### Sources
+- Apple — iPhone: Compare Models, accessed 24 September 2026.
+- Apple — iPad: Compare Models, accessed 24 September 2026.
+- Apple Newsroom — Apple unveils new iPad Pro with breakthrough LiDAR Scanner and brings trackpad support to iPadOS (18 March 2020), accessed 24 September 2026.
+- Matterport — LiDAR vs Photogrammetry: Key Differences and Use Cases, accessed 24 September 2026.
+- Matterport — Pro3 3D Camera for Scanning and Virtual Tours, accessed 24 September 2026.
+- Matterport Store — Pro3 specifications and FAQs, accessed 24 September 2026.
+- Wang, Liu, Wang, Dong and El Saddik — Empirical Studies of Large Scale Environment Scanning by Consumer Electronics (arXiv:2506.14771; accepted by IEEE Consumer Electronics Magazine), accessed 24 September 2026.
+- Polycam — Pricing, accessed 24 September 2026.
+
+### Start with the phone you have.
+If you own a recent iPhone Pro or iPad Pro, join the waitlist with your model. It is free and creates no account, and the app invitation comes when your account is admitted.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- What is a 3D walkthrough? How a walkthrough differs from a 360° photo tour and a video.
+- What does a 3D tour cost in Australia? What drives the price, with other providers’ published figures.
+- Is it safe to put a 3D tour of your home online? What a tour can reveal, and what to clear before capture.
+
+## Is it safe to put a 3D tour of your home online? — Veylet
+Source: https://veylet.com/guides/privacy-3d-home-tour
+
+It can be, with preparation. A 3D tour lets viewers move through the rooms and zoom in, so it can show names, letters, medication, screens and valuables that listing photos might not. Clear those before capture, keep people out, check every room before release, and prefer a private link you can switch off to a public listing. Nobody can recall copies already downloaded.
+Veylet Studio · Updated 25 September 2026
+
+### What can a published 3D tour reveal?
+More than most people expect: in a University of Washington study of 44 home tours chosen because belongings were visible, 84 per cent showed a resident’s first name.
+Rachel McAmis and Tadayoshi Kohno reviewed tours of homes listed on Zillow in the United States and presented the work at USENIX Security 2023. Apart from the address, which every listing showed, 61 per cent revealed a resident’s last name and 77 per cent showed photos of residents. Individual tours showed medication labels, a health insurance account number, a password on a sticky note and credit card numbers with their security codes.
+Two findings matter when you prepare a home. A viewer can see each captured room from many angles and zoom in, so a letter left on a bench may be readable if the capture is sharp enough. Blurring is not a safety net either: in some tours, a face blurred when seen directly appeared unblurred in a mirror. The researchers studied information a remote stranger could use for fraud or phishing, not break-in risk, and noted that most listed tours are already staged to keep such things out of view.
+
+### What should you hide or remove before capture?
+Remove anything that names the people who live there, shows how to reach them, or tells a stranger what is worth taking.
+Start by agreeing which rooms stay out altogether, such as a study or a child’s bedroom; Veylet’s first-walkthrough guide includes this step. The research above covered personal information only, so the valuables and security items below are common-sense additions. In the rooms you capture, clear these:
+- People and pets: keep everyone out of the route, and check mirrors, glass doors and windows for reflections.
+- Paper: mail, bills, letters, calendars, fridge notes, certificates and anything with a name, account number or password.
+- Screens: switch off or close televisions, computers and tablets, and remove notes stuck to monitors.
+- Health: put medication and prescriptions in a cupboard that stays shut.
+- Family photos and children’s names: take down portraits, name signs on bedroom doors, labelled artwork, and school bags or uniforms that show a school.
+- Valuables and keys: jewellery, cash, watches, collections, spare keys, car keys and boxes from new electronics.
+- Security details: alarm keypads, camera positions, safes and any code written down.
+- Street-identifying views: house numbers, letterboxes, number plates and window views that pinpoint the address.
+
+### Who has to agree before a rented home is captured?
+The tenant does: in Queensland and New South Wales, advertising images that show a tenant’s belongings need the tenant’s written permission.
+Queensland’s Residential Tenancies Authority says the property manager or owner needs the tenant’s written permission to use photos of their possessions in advertising, online included; using them without it is an offence, and the tenant can issue a notice to remedy breach asking for removal. In New South Wales, rules in force from 21 September 2026 require agents to give tenants notice before photos or videos are taken for publication and let them move belongings; if belongings are still visible, including through windows, the tenant must get a free copy and give written consent.
+A walkthrough is built from photographs, so get the same written permission before capture. Veylet asks for the agreement of whoever controls the space and of the people who live or work in it, and records capture permission and permission to publish separately. This is general information, not legal advice; other states and territories have their own rules.
+
+### How do Veylet’s privacy controls work?
+A Veylet walkthrough stays private until you have reviewed the exact version and turned sharing on, and turning sharing off stops new access at once.
+- Private areas left out: before capture, you decide the rooms, any private areas to leave out and who reviews.
+- Automatic processing: walkthroughs are processed automatically on computers in Australia, and no Veylet staff member views a capture as part of normal processing. An automatic quality check decides whether it is ready; it tests quality, not privacy, so clear private items before capture. An AI visual check is planned and will be listed in the privacy notice before it is switched on.
+- Review before release: you open the exact version on your phone, then approve it or send one list of corrections.
+- An unlisted link: sharing creates a link that is not in a public gallery and is kept out of search engines. Anyone who has it can open and forward it.
+- Sharing you can turn off: new visitors are blocked at once. Copies someone already downloaded cannot be recalled, so remove the link or embed from your listing too.
+Review before release, unlisted links and turning off sharing work in the product today. What is not yet proven is capture quality: our own captures are still under internal review, and no client-accepted walkthrough exists yet. The privacy notice explains what we store and how deletion works.
+
+### How is a portal listing different from a private link?
+A portal listing is a public page built to be found by anyone searching the area, while an unlisted link reaches only the people who are given it, though they can pass it on.
+Veylet walkthroughs are not a built-in tour option on realestate.com.au or Domain today. If you paste the link into a portal’s virtual-tour field where the portal accepts an external link, the walkthrough becomes as public as that listing. The Washington researchers also note that details data brokers collect from public tours are hard to remove, even after a sale. Decide before capture whether the tour will ever sit on a public page; the website guide covers sharing on your own site.
+- Question
+- Public portal listing
+- Unlisted Veylet link
+- Who can see it
+- Anyone who finds the listing
+- Only people who have the link
+- Search
+- The listing is a public web page
+- Kept out of search engines
+- Passing it on
+- Anyone can share the listing
+- Anyone with the link can forward it
+- Ending access
+- Up to the agent and the portal
+- Turn off sharing; new visitors are blocked at once
+- Copies already made
+- Cannot be recalled
+- Cannot be recalled
+
+### Questions people ask
+Anything with a name, account number or password on it, family photos, screens, medication, valuables, keys, alarm keypads and anything that shows the house number or street. Keep people and pets out of the route and check mirrors for reflections.
+A tour shows the layout and what is inside, so put valuables, keys and security details out of sight before capture. The University of Washington study looked at information useful for fraud and phishing rather than burglary, so check physical security separately.
+The link can be switched off. With Veylet, turning off sharing blocks new visitors at once, but no one can recall copies already downloaded. Remove the link or embed from every page where you posted it.
+In Queensland, the owner or property manager needs the tenant’s written permission to use photos of their belongings in advertising. In New South Wales, written consent has been required since 21 September 2026 when a tenant’s belongings are visible. Veylet asks for the occupants’ agreement as well as the owner’s.
+It is unlisted, not locked. A Veylet link is kept out of search engines and public galleries, but anyone who has it can open it and forward it. Share it only with people who should see the space.
+No. We never publish or use your space in our own marketing without a separate written yes.
+
+### Sources
+- UW News — Q&A: UW researchers find privacy risks with 3D tours on real estate websites (16 November 2022), accessed 24 September 2026.
+- USENIX — McAmis and Kohno, The Writing on the Wall and 3D Digital Twins: Personal Information in (not so) Private Real Estate (USENIX Security 2023), accessed 24 September 2026.
+- Residential Tenancies Authority (Queensland) — Photographs of the property, accessed 24 September 2026.
+- NSW Government — Advertising guidelines for property agents in NSW, accessed 24 September 2026.
+
+### Prepare one space, then decide how it is shared.
+Plan which rooms should stay out before you capture. You review the exact walkthrough before anyone else sees it, and sharing stays off until you turn it on.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- What is a 3D walkthrough? How a walkthrough differs from a 360° photo tour and a video.
+- Will a 3D tour show on realestate.com.au or Domain? What the two big portals accept, and where a private link fits.
+- Your phone or a dedicated 3D camera? Phone capture and dedicated cameras compared on cost, range and detail.
+
+## realestate.com.au and Domain virtual tour rules — Veylet
+Source: https://veylet.com/guides/3d-tours-realestate-com-au-domain
+
+Only if the portal accepts the tour’s supplier. realestate.com.au shows 3D tours only from suppliers on its published list, and iGUIDE is the only fully integrated one. Domain takes a direct https link to a tour and includes Matterport tours with eligible Platinum Edge sale listings. A Veylet walkthrough is not a supported portal tour: share it by private link or on your own website.
+Veylet Studio · Updated 24 September 2026
+
+### What does realestate.com.au accept?
+realestate.com.au shows a 3D tour only when it comes from a supplier on its published list. REA’s help centre page for agents, last edited on 15 September 2026, sorts supported tours into immersive walkthroughs, which let a buyer move through the home, and 360° panoramic tours made of linked photos.
+- iGUIDE is the only tour fully integrated into the listing page, and REA recommends it. REA Group bought 61.5% of Planitar, the company behind iGUIDE, in October 2025.
+- REA waives its approval request for tours hosted by iGUIDE, Matterport and Kuula. Other listed suppliers include DIAKRIT, Metareal, REALSEE, iStaging and Box Brownie.
+- A tour from a supplier that is not on the list will not appear on a realestate.com.au listing. On realcommercial.com.au it may show in a Virtual Tour field on desktop, but not in the app.
+- The link format matters: REA asks for iGUIDE’s branded tour link, Matterport’s direct my.matterport.com link and Kuula’s embed link rather than its share link.
+- Agents add the link in the Online Tour 1 or Online Tour 2 field in Agent Admin, or through their listing uploader. A tour stops showing on a Buy listing once it is marked Sold.
+Suppliers apply to REA to be added. Its enquiry form asks for the hosting platform, three links to live Australian listings that use the supplier’s tours and the number of real estate offices using it.
+
+### What does Domain accept?
+Domain lets an agent add a tour link in a listing’s Virtual Tour field, and separately includes a Matterport tour with eligible Platinum Edge sale listings.
+- The Virtual Tour field, in Domain Agent Admin or the agency’s CRM, takes a web address rather than an upload. Domain says the link must lead directly to the tour, start with https:// and not redirect to any other page; other links breach its terms.
+- A listing has two link fields, Video Tour and Virtual Tour, so it can carry two of a video, a virtual tour and a 3D panorama, not all three.
+- The Matterport Suite is included in the Platinum Edge subscription for residential sale listings in designated areas, booked through Domain Skylight and captured by Domain’s photographers. It is not available for rentals, commercial listings, projects, developments or vacant land.
+- If Domain captures a property that is not then published as a live Platinum Edge sale listing within 60 days, it charges a $500 fee.
+- Domain licenses the Matterport 3D tour and drone media for Domain and the agency’s own website only. Its 2D photos and floor plans can be used on any platform, including other websites.
+Elite Agent reported in April 2026 that the rollout would reach more than 1,700 suburbs in Sydney, Melbourne, Brisbane, Perth, Adelaide and the Gold Coast from 1 July 2026. Domain is owned by CoStar Group, which completed its purchase of Matterport in February 2025.
+
+### Will a Veylet walkthrough show on either portal?
+No: a Veylet walkthrough is not a supported portal tour on realestate.com.au or Domain today.
+- Veylet is not on realestate.com.au’s supplier list, so under REA’s own rule a Veylet link in a tour field would not appear on the listing.
+- Veylet has no integration with Domain and claims no compatibility with its Virtual Tour field. Whether a link meets Domain’s rules is Domain’s decision, so we do not suggest relying on it.
+- Neither portal runs embed code. Both take a web address, so the embed code for a walkthrough will not work inside a listing.
+Each portal chooses its tour suppliers for its own reasons. If a tour inside the portal listing matters for a campaign, use a supplier that portal supports.
+
+### Where can a Veylet walkthrough go instead?
+Anywhere you control the page: a private link you send, and an embed on the agency’s own website.
+- A private link. Once you have reviewed a walkthrough and sharing is enabled, you create an unlisted handoff link in your desk to send by email or message. Viewers need no account or app. Anyone who has the link can open and forward it, so share it on purpose.
+- An embed on your website. Paste the embed code into a custom HTML block on WordPress, Squarespace, Wix, Webflow or an agency CMS, then test the published page on a phone. The website guide covers each builder.
+- A clean ending. When the listing closes, revoke the handoff. New visits to the link and the embed stop straight away, although a copy someone already downloaded cannot be recalled.
+The offer page lists what is included and says plainly that a listing on a property portal is not. Getting started explains how a walkthrough is captured, checked and reviewed before anyone sees it.
+
+### How often do these rules change?
+Often enough to check before every campaign: both portals changed their 3D tour arrangements within the past year, and we checked the rules below on 24 September 2026.
+- Rule
+- realestate.com.au
+- Domain
+- Where the link goes
+- Online Tour 1 or 2, in Agent Admin or a listing uploader
+- Virtual Tour, in Domain Agent Admin or a CRM
+- Which tours display
+- Only tours from suppliers on its list
+- A direct https link to the tour itself
+- Integrated 3D tour
+- iGUIDE
+- Matterport Suite, with eligible Platinum Edge sale listings
+- Embed code
+- Not accepted; the field takes a link
+- Not accepted; the field takes a link
+- Once sold
+- The tour stops showing on the Buy listing
+- Not covered in the help articles we checked
+- Veylet walkthrough
+- Not a supported supplier
+- No integration; no compatibility claimed
+Treat the table as a snapshot and each portal’s help centre as the authority.
+Veylet has no affiliation with REA Group, Domain or any tour supplier named here. This guide reports their published rules; it is not advice from either portal.
+
+### Questions people ask
+Its help centre names iGUIDE as the only fully integrated tour and lists other supported suppliers, including Matterport, Kuula, DIAKRIT, Metareal, REALSEE and iStaging. The list changes, so check it before you book a capture.
+It is included in the Platinum Edge subscription for eligible residential sale listings in designated areas. Domain charges a $500 fee if a property it captures is not published as a live Platinum Edge sale listing within 60 days.
+No. Domain licenses the 3D tour and drone media for Domain and the agency’s own website only, and prohibits uploading or embedding them on other portals. Its 2D photos and floor plans can be used anywhere.
+Not as a supported portal tour. Veylet is not on realestate.com.au’s supplier list and has no integration with Domain. Share the walkthrough by private link, or embed it on your agency’s own website.
+No. Both portals take a web address in a tour field, not HTML, so an iframe will not run there. Keep the embed for a website you control.
+It applies to REA through an enquiry form and follows REA’s integration guidelines. The form asks for the hosting platform, three links to live Australian listings that use its tours and how many agency offices use it.
+
+### Sources
+- realestate.com.au Help Centre — Supported 3D tour suppliers, accessed 24 September 2026.
+- realestate.com.au Help Centre — How to add a 3D tour to a listing in Agent Admin, accessed 24 September 2026.
+- realestate.com.au Help Centre — How to become an accepted 3D photography provider with us, accessed 24 September 2026.
+- Domain Help Centre — Add a Virtual Tour to your listing, accessed 24 September 2026.
+- Domain Help Centre — Matterport Key Terms & Conditions Summary, accessed 24 September 2026.
+- Elite Agent — Domain rolls out 3D property tours nationwide as CEO flags major shift in listings experience, 15 April 2026, accessed 24 September 2026.
+- Elite Agent — iGUIDE launches in Australia to level up property search with immersive 3D technology, 25 March 2026, accessed 24 September 2026.
+- Matterport — CoStar Group Completes Acquisition of Matterport, 28 February 2025, accessed 24 September 2026.
+
+### Share a walkthrough where you control the page.
+Veylet delivers a walkthrough you have reviewed as a private link and a website embed. Our captures are still under quality review, so check your admission date before promising a client one.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- Do 3D tours help a property sell or lease faster? What tour providers’ own figures and independent research say, and why they disagree.
+- What is a 3D walkthrough? A plain definition, and how a walkthrough differs from a 360° photo tour or a video.
+- Your phone or a dedicated 3D camera? How phone capture and dedicated camera capture differ, and who each suits.
+
+## Do 3D tours help sell a house faster? — Veylet
+Source: https://veylet.com/guides/do-3d-tours-help-sell-faster
+
+Not reliably. Zillow and Matterport, which both offer 3D tours, published figures of 10% and up to 31% faster sales from US data. A Harvard Business School study of 75,178 Los Angeles sales found no significant price gain once photo quality was counted, and tour listings could stay on the market longer. No study here measured leasing. Expect better-informed enquiries, not a guaranteed speed-up.
+Veylet Studio · Updated 24 September 2026
+
+### What do tour providers’ own figures say?
+They report faster sales and more attention for listings with tours, measured in their own markets. Each comes from a company with a stake in 3D tours.
+- Zillow, which runs its own 3D Home tours, said in a March 2021 press release that listings with a 3D Home tour sold 10% faster on average than listings without one, on data from December 2019 to May 2020. The same release said, on July to December 2020 data, that they were saved 32% more often and viewed 29% more.
+- Matterport, a 3D tour company, published a summary in February 2020 of a preliminary analysis of 143,575 listings in four US markets between November 2016 and November 2019, 3,935 of them with 3D tours. It reported sale prices 4–9% higher depending on the market, and sales up to 31% faster in the Southern market. A second comparison of 700 listings in one Southern city reported sales 20% faster.
+- REA Group, which runs realestate.com.au and holds 61.5% of iGUIDE’s maker, cited its own April 2025 survey, in which a third of buyers said video or 3D tours made them more inclined to inspect a property. That is a stated intention, not a measured sale.
+
+### What does independent research say?
+Academic studies find a much smaller effect, and sometimes none, once other differences between listings are taken into account.
+Isamar Troncoso of Harvard Business School and Mengxia Zhang of Western University’s Ivey Business School used Redfin data on 75,178 homes sold in greater Los Angeles from March 2019 to March 2021; about 22% had virtual tours. Harvard’s December 2023 summary reports three findings.
+- Without controls, homes with tours sold for about 1.1% more. After accounting for better photos and descriptions, the effect on price was not significant. Earlier studies had found 2–3%.
+- Sellers who used tours tended to start at a higher price and lower it before the sale, so those listings could stay on the market longer.
+- Tours seemed to help a little more in areas served by smaller agencies and in less sought-after neighbourhoods.
+A peer-reviewed 2022 study in the Journal of Real Estate Finance and Economics looked at 34,359 US single-family sales in 2019, counting both pre-recorded videos and self-guided 3D tours. Tours were linked to the sale prices of occupied homes, though the direction and size varied with price segment and with whether owners or tenants lived there. They made no difference to the prices of vacant homes, and the authors read this as tours helping with homes that are hard to show.
+- Published by
+- Finding
+- Measured
+- Data
+- Zillow, March 2021
+- 10% faster
+- Speed of sale
+- Listings with and without 3D Home tours, December 2019 to May 2020
+- Matterport, February 2020
+- Up to 31% faster
+- Days on market
+- 143,575 listings in four markets, 2016 to 2019; 31% in one of them
+- Matterport, February 2020
+- 4–9% higher
+- Sale price
+- The same listings; varies by market
+- REA Group, April 2025
+- 1 in 3 buyers
+- Stated intention to inspect
+- Survey of realestate.com.au buyers
+- Harvard Business School, December 2023
+- Not significant
+- Sale price
+- 75,178 Los Angeles sales, 2019 to 2021, photo quality controlled
+- Journal of Real Estate Finance and Economics, 2022
+- Varies by segment
+- Sale price of occupied homes
+- 34,359 single-family sales, 2019
+- Journal of Real Estate Finance and Economics, 2022
+- No effect
+- Sale price of vacant homes
+- The same sales
+
+### Why do the numbers disagree?
+Because they come from different publishers, markets and methods, and most cannot separate the tour from everything else that comes with it.
+- Who publishes. Zillow, Matterport and REA each have a tour product or a stake in one. That does not make their numbers wrong, but a company chooses which results to publish, and a press release rarely carries the full method.
+- Correlation, not cause. Agents choose which listings get a tour, and those listings differ in other ways. The Harvard researchers found that tour listings also tended to have more high-quality photos and longer descriptions; once those were counted, the price benefit was no longer significant.
+- Different measures. Faster can mean fewer days on market or a larger share sold within a set period. Views and saves measure attention, not a sale, and a survey records what buyers say they will do.
+- Different times and places. The Harvard data spans the pandemic, when inspections were restricted, and Troncoso suggested any time-on-market help from tours then looked short-lived once restrictions lifted. Every sales figure here comes from the United States, not Australia.
+
+### What does Veylet claim?
+Nothing about sale or lease outcomes: Veylet has no client-accepted walkthrough yet, so it has no results of its own to report.
+Our captures are still under quality review, and the Veylet Capture app is in testing on TestFlight, not the App Store. We do not borrow Zillow’s, Matterport’s or anyone else’s figures for our walkthroughs. What a walkthrough includes is on the offer page, and how one is captured and reviewed is in getting started.
+
+### What can you reasonably expect from a good 3D tour?
+A clearer picture of the space for people who cannot visit yet, rather than a guaranteed faster sale, higher price or quicker lease.
+- Fewer wasted inspections. A buyer or tenant can check the layout before booking a visit, and rule a place out without the trip. The Harvard summary suggests agents keep clients’ hopes realistic and point to practical gains instead, such as fewer inspections by people who were never going to buy.
+- Help where visiting is hard. The peer-reviewed study found price effects for occupied homes and none for vacant ones. The same logic applies to a buyer who is interstate or overseas.
+- Photos and words still come first. If time is short, the Harvard summary’s advice is to put it into high-quality photos and a clear description before a tour.
+- Context, not measurement. A walkthrough shows the space; it is not a measured floor plan, building report or guarantee of condition.
+- Sharing that works. Test the link and the embed on a phone before the campaign starts, as the website guide shows, and revoke the handoff when the listing ends.
+
+### Questions people ask
+Not by much in the independent evidence. A Harvard Business School study of 75,178 Los Angeles sales found about 1.1% more without controls, and no significant effect once photo quality and listing descriptions were taken into account.
+Read it with care. Matterport published it in 2020 from a preliminary analysis of US listings, and 31% was the result in one of four markets. It is not an average an Australian seller should expect.
+None of the studies here measured leasing, and the Harvard researchers named rentals as a subject for future research. A tour can help a tenant rule a place in or out before an inspection, but that is not evidence of faster leasing.
+That depends on the listing more than the brand. Research suggests tours help most when a home is hard to show in person, and matter less than good photos and a clear description. Weigh the cost against those uses.
+No. Veylet has no client-accepted walkthrough yet, so it makes no claim about sale or lease outcomes and does not reuse other companies’ figures.
+
+### Sources
+- Zillow — Nearly 40% of Millennials are Comfortable Buying a Home Online, press release, 10 March 2021, accessed 24 September 2026.
+- Matterport — With 3D Tours, properties sell up to 31% faster and at a higher price, 25 February 2020, accessed 24 September 2026.
+- Harvard Business School Working Knowledge — Are Virtual Tours Still Worth It in Real Estate? Evidence from 75,000 Home Sales, 5 December 2023, accessed 24 September 2026.
+- Anderson, Freybote and Manis — The Impact of Virtual Marketing Strategies on the Price-TOM Relation, Journal of Real Estate Finance and Economics, 30 June 2022, accessed 24 September 2026.
+- Elite Agent — From search to savings: realestate.com.au’s autumn launch showcases five new features, 9 April 2026, accessed 24 September 2026.
+- Elite Agent — iGUIDE launches in Australia to level up property search with immersive 3D technology, 25 March 2026, accessed 24 September 2026.
+
+### Judge a walkthrough on your own space.
+Veylet makes no outcome claim. If you want to try one on your own space, join the waitlist; it is free and creates no account.
+Join the waitlist See the offer
+New accounts are admitted in weekly groups.
+
+### Related guides
+- What does a 3D tour cost in Australia? Published Australian prices, and what drives the cost of a tour.
+- Will a 3D tour show on realestate.com.au or Domain? Each portal’s current tour rules, and where a Veylet walkthrough fits instead.
+- What is a 3D walkthrough? A plain definition, and how a walkthrough differs from a 360° photo tour or a video.
+
+## Help centre — Veylet
+Source: https://veylet.com/help
+
+Short answers for each step, from your first capture to your client’s first visit. Pick a topic below.
+
+### Getting started
+The device you need, signing in, and the practice room.
+- What you need to start The iPhone or iPad Veylet Capture needs, how much free space to keep, and what to have ready before your first capture.
+- Install the app and sign in Install Veylet Capture from your invitation, then sign in with Apple or email using the same account as the website.
+- The practice room, and how to pass it Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.
+
+### Capturing
+Walking a room so every view connects, from the first spot to the last doorway.
+- Walk a room: standing spots, level turns, tilt up and down How to capture one room: two standing spots, slow level circles, one circle tilted up and one down, and small connected steps.
+- Doorways and joining rooms How to cross a doorway so the rooms join up in the walkthrough, and how to finish the route.
+- Light, mirrors and windows Lighting a room for capture, and how to handle mirrors, glass, windows and blank walls.
+- A whole home, room by room Capture a whole home one room at a time: create the listing, name each room at its doorway, and finish with the phone check.
+- What the phone check means The check the app runs on your phone when you stop capturing: Ready to send, Recapture advised and Not enough views yet, and what to do next.
+
+### Sending and rendering
+The upload, and what each status means while your walkthrough is made.
+- Sending your capture How a capture uploads: Wi-Fi or mobile data, in the background, with pause, resume and cancel.
+- What each status means Uploading, Waiting to render, Rendering steps 1 to 5, Retrying, Needs recapture and Failed: what each means and whether you need to do anything.
+
+### Fixing a capture
+Each reason a capture comes back, and the fix. The names match the ones the app shows.
+- No usable photos were saved Why a capture came back with no usable photos, and how to capture it so views save as you go.
+- The capture has no depth readings Why a capture came back without depth, and how to capture it on an iPhone or iPad with LiDAR.
+- The capture is larger than Veylet can accept Why a capture was too big to accept, and how to split a home into smaller captures.
+- The walkthrough is too large for a phone Why a walkthrough was too large to open smoothly on a phone, and how to capture fewer rooms in one walkthrough.
+- The capture doesn’t look like a property Why a capture was not accepted as the inside of a property, and what to capture instead.
+- Worth a look before you share The automatic check’s advice on your walkthrough: blurry areas, missing corners, thin detail, smudges, the floor and the path between rooms.
+
+### Reviewing and sharing
+Approving, sharing, your website, and what your client sees.
+- Approve and share your walkthrough Review a ready walkthrough on your phone, inspect any flagged areas, then use one rights confirmation and press Approve and share.
+- Share your walkthrough: link, QR code, embed and listing URL Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the listing URL for portals and your CRM.
+- Pause or turn off sharing The difference between pausing sharing, which keeps the same link, and turning it off, which ends the link for good.
+- What your client sees, and views and taps The page your client opens: the walkthrough, your contact card with Call and Email, and the views and taps your account shows.
+- Put your walkthrough on your website Paste the embed code into WordPress, Squarespace, Wix or Webflow, with the size and plan each builder needs.
+
+### Privacy and your account
+Permission and privacy, your plan, and deleting your account.
+- Privacy and permission: people, documents and tenants What to clear before you capture, the permissions Veylet asks you to confirm, and where the privacy notice explains the rest.
+- Your plan: what each state means The plan states your account shows (Not started, Free months, Active and Ended), and what happens to shared walkthroughs when a plan ends.
+- Delete your account How to delete your Veylet account from the app or your account online, what is deleted within 30 days, and how to cancel a request.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+## What you need to start — Veylet help
+Source: https://veylet.com/help/what-you-need
+
+Veylet Capture records rooms with the LiDAR camera on a Pro iPhone or iPad. Check these before your first capture.
+- A LiDAR device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.
+- Free space: keep at least 3 GB free. A capture cannot start with less than 2 GB.
+- An email address for your Veylet account. There is no password.
+- About five minutes in one room at home for the practice room. Complete the practice room once before starting a real capture. A successful practice already saved on this iPhone counts.
+- For a real home: permission to capture it, working lights, and a clear route through each room.
+
+### If it doesn’t work
+In the app, open Account. It says "Ready to capture" when your device has the LiDAR camera Veylet needs. If it says the device has no rear LiDAR camera, that device cannot record; use a Pro model.
+If Account warns that space is low, delete videos or apps you no longer need, then try again.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Getting started
+- Install the app and sign in
+- The practice room, and how to pass it
+All help topics
+
+## Install the app and sign in — Veylet help
+Source: https://veylet.com/help/install-and-sign-in
+
+Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.
+- Install Veylet Capture on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.
+- Open it and read how it works. Choose Sign in with Apple, or Use email instead and enter the email you use on the website. Your first sign-in creates your account.
+- For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.
+- After signing in, start with the practice room from Captures before your first real capture.
+
+### If it doesn’t work
+No email after a minute? Check your junk folder, then send it again from the app.
+If the email link opens somewhere other than the app, return to the app and enter the six-digit code from that email.
+Signed up with Apple using Hide My Email? Choose Sign in with Apple again to reach the same account.
+Sign-in links and codes work once. If yours has expired or was already used, send a new email.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Getting started
+- What you need to start
+- The practice room, and how to pass it
+All help topics
+
+## The practice room, and how to pass it — Veylet help
+Source: https://veylet.com/help/practice-room
+
+One successful practice room is required before you start your first real capture. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done. If this iPhone already has a successful practice result, it stays unlocked after an update. You can still send real captures you have already made.
+- Tap Do the practice room when the app asks, or open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.
+- Stand in the middle and make one slow, level circle: about 36 seconds, pausing whenever views stop saving. This is the Full turn at one spot check.
+- Tilt the phone about 30 degrees up and make another slow circle, then tilt about 30 degrees down and make a third. These are the Circle tilted up and Circle tilted down checks.
+- Walk out through the doorway in small steps, showing both edges of the door frame from both sides.
+- Tap Finish & save, then confirm you showed both doorway edges.
+- Room done means every check passed. Your first real capture is now unlocked.
+
+### If it doesn’t work
+Not done yet: the screen names the one thing to do next, such as "Tilt thirty degrees up. Make one slow circle." Start another practice capture to finish the missing checks. The first one stays on your iPhone.
+Fast-turn warnings and Saving kept up are advice. They never stop you passing, but slower turns save more views.
+Not measured yet means the app cannot check that today, such as your distance from the walls.
+The turning-speed lesson lets you practise the pace, about ten degrees a second, without the camera.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Getting started
+- What you need to start
+- Install the app and sign in
+All help topics
+
+## How to walk a room for capture — Veylet help
+Source: https://veylet.com/help/walk-a-room
+
+A good capture is a set of connected views from a few standing spots. Turn slowly, keep an edge in view, and let each view save.
+- Turn on the room’s lights. Choose two spots: one near the doorway and one in the middle, about a metre from the walls where you can.
+- Hold the phone upright at chest height. At each spot, turn one slow, level circle: about 36 seconds, or 9 seconds for each quarter-turn.
+- Turn a little, wait for a view to save, then turn again. Keep the same corner, door frame or piece of furniture in view.
+- At the middle spot, tilt about 30 degrees up and make one slow circle. Then tilt about 30 degrees down and make another.
+- Between spots, walk in small steps of 15 to 20 centimetres, keeping a familiar edge in view.
+
+### If it doesn’t work
+If the app warns you are turning too fast, slow down: views are skipped while you turn quickly.
+Include an edge: a blank wall gives the app nothing to match. Point at a corner, door frame or furniture.
+Add light: the view is too dark for detail. Turn on a light or open the door.
+Small rooms like bathrooms and halls: sweep slowly from the doorway or a corner. Full circles are optional where there is no room to turn.
+A capture saves up to 300 views. For a bigger home, see a whole home, room by room.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Capturing
+- Doorways and joining rooms
+- Light, mirrors and windows
+- A whole home, room by room
+- What the phone check means
+All help topics
+
+## Doorways and joining rooms — Veylet help
+Source: https://veylet.com/help/doorways
+
+Rooms join up in the walkthrough only where the capture saw the doorway from both sides. Cross slowly, with the door frame in view.
+- Before you leave a room, show both edges of its doorway from inside.
+- Cross in small steps, keeping the door frame in view. Don’t step through and then spin around.
+- From the other side, show both edges of the doorway again.
+- In a whole-home capture, tap Next room at the doorway and name the room you are entering.
+- At the end, walk back on a slightly different clear path and finish facing the view you started with.
+
+### If it doesn’t work
+If the phone check says Close the break in your route, walk that stretch again slowly with a familiar doorway or corner in sight.
+If the review says walking on to the next room may not work, see the path between rooms.
+Keep doors in the same position until you finish. A door that moves between views confuses the join.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Capturing
+- Walk a room: standing spots, level turns, tilt up and down
+- Light, mirrors and windows
+- A whole home, room by room
+- What the phone check means
+All help topics
+
+## Light, mirrors and windows — Veylet help
+Source: https://veylet.com/help/light-mirrors-windows
+
+Even light and surfaces with detail give the sharpest walkthrough. Mirrors and glass reflect, so give them less of the view.
+- Turn on every light before you start, and keep lights, doors and furniture unchanged until you finish the room.
+- Point toward textured furniture, frames or a doorway rather than straight at a mirror or a blank wall.
+- Face mirrors, glass doors and large windows at an angle, with a frame or wall edge in the view. Reflections move as you move, and the 3D model cannot place them.
+- Check mirrors for yourself and anyone else in the room. Anything reflected can appear in the walkthrough.
+
+### If it doesn’t work
+Add light appears when a view is too dark for detail. Turn on a light or open the door.
+The phone check does not judge lighting, reflections or sharpness. The automatic check after upload does, and may flag an area as worth a look.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Capturing
+- Walk a room: standing spots, level turns, tilt up and down
+- Doorways and joining rooms
+- A whole home, room by room
+- What the phone check means
+All help topics
+
+## A whole home, room by room — Veylet help
+Source: https://veylet.com/help/whole-home
+
+A whole home is captured one room at a time in one capture. It takes about 3 minutes a room.
+- Create a new listing. Give it a name you will recognise, not the full address, and choose the whole home.
+- Start in the first room and capture it as usual: see walk a room.
+- At each doorway, tap Next room and name the room: Living, Kitchen, Bedroom, Bathroom, Hall, or Other for any name up to 32 characters.
+- Carry on room by room, crossing each doorway slowly.
+- After the last room, tap Finish & save. The phone check looks at every room.
+
+### If it doesn’t work
+A capture holds up to 300 views. If it reaches the limit or its room limit, finish it and capture the other rooms as a new capture.
+If a home is too big for one walkthrough, it may come back as too large for a phone. Split it into two captures.
+If a room comes back as Needs recapture after rendering, tap Recapture and the room’s name. The capture starts in that room.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Capturing
+- Walk a room: standing spots, level turns, tilt up and down
+- Doorways and joining rooms
+- Light, mirrors and windows
+- What the phone check means
+All help topics
+
+## What the phone check means — Veylet help
+Source: https://veylet.com/help/phone-check
+
+When you stop capturing, the app checks the views saved on your phone before you finish. It cannot judge the final 3D quality; that is checked automatically after the upload.
+Ready to send
+- Enough connected views were saved. Tap Finish & save, then Send to Veylet.
+Recapture advised
+- Something listed needs fixing. Tap Keep capturing and fix it while you are still in the room. Finish anyway saves it as it is, and a finished capture cannot be extended.
+Not enough views yet
+- Fewer than three views were saved, so nothing can be sent. Tap Keep capturing.
+In a whole-home capture, each room shows whether it is done, and you confirm you showed both doorway edges.
+The phone check does not judge lighting, reflections, mirrors or how sharp each photo is.
+
+### If it doesn’t work
+Close the break in your route: walk that stretch again slowly with a doorway or corner in sight.
+Pause and sweep from one spot: every view was saved while walking. Stop and turn slowly in small saved steps.
+Move back toward your last view: step back until a familiar edge is visible and wait for a view to save.
+If most views point up or down, hold the phone level for most of the room and keep a few planned tilted circles.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Capturing
+- Walk a room: standing spots, level turns, tilt up and down
+- Doorways and joining rooms
+- Light, mirrors and windows
+- A whole home, room by room
+All help topics
+
+## Sending your capture — Veylet help
+Source: https://veylet.com/help/uploading
+
+Send from the app: it uploads in the background. Check your account for rendering status. After the phone check, tap Send to Veylet. Reopen the app to check progress or resume a paused upload.
+- Tap Send to Veylet. The first time, the app asks to send you notifications. Allow them to hear when your walkthrough is ready.
+- The upload uses Wi-Fi or mobile data, whichever the phone has. A whole home is large, so Wi-Fi is quicker and saves your data.
+- Sending can continue in the background while you use another app. Reopen Veylet to check progress; if it says Sending paused, tap Resume sending. Keeping the phone plugged in helps it finish.
+- The listing shows Uploading and how much has been sent. Your original capture stays on the iPhone.
+- When every part has arrived, it moves to Waiting to render by itself.
+
+### If it doesn’t work
+Sending paused: tap Resume sending. The original is kept on the iPhone.
+If the upload window expired before every part arrived, tap Renew expired upload or Retry this job.
+You’re offline: the app shows the last status it read and the time. It carries on when you are back online.
+To stop, tap Cancel job. Your original capture stays on the iPhone.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Sending and rendering
+- What each status means
+All help topics
+
+## What each status means — Veylet help
+Source: https://veylet.com/help/render-status
+
+Rendering and the quality check are automatic. We’ll email you when it’s ready.
+Uploading
+- The capture is still being sent; the percentage shows how much has arrived. Nothing to do. See sending your capture.
+Waiting to render
+- Your capture is in line, with your place and the usual start time. Instead of a place, it may say why it is waiting: "We’ll start your render as soon as a rendering place opens for your account." "Rendering is paused for a moment. Yours keeps its place in line." "You’ve used this week’s renders." It starts on the day shown. None of these is a fault. It starts by itself.
+Rendering
+- Five steps: 1 Preparing photos, 2 Lining up camera positions, 3 Building your 3D walkthrough, 4 Packing it for phones, 5 Checking quality. Step 5 is an automatic check of the finished walkthrough.
+Retrying
+- Rendering hit a snag, so it is trying again automatically (attempt 2 of 2). Nothing to do.
+Needs recapture
+- A room could not be used. Each room shows its reason and the fix. This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver. See fixing a capture.
+Failed
+- Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.
+When it passes, the listing reads Ready for your review. See approve and share.
+
+### If it doesn’t work
+Still working, checking in means the renderer has not reported for a few minutes. Veylet support has been alerted; there is nothing for you to do.
+If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Sending and rendering
+- Sending your capture
+All help topics
+
+## No usable photos were saved — Veylet help
+Source: https://veylet.com/help/fix/no_frames
+
+The capture reached Veylet with fewer than three usable photos, so nothing could be built. The fix is to walk slowly and turn a full circle at each spot, so Veylet can save photos as you go.
+- Capture the room again with the lights on.
+- Hold the phone upright and point it at a corner or door frame until views start saving.
+- Walk slowly and turn a full circle at each spot, waiting for each view to save.
+- Finish, check the phone check says Ready to send, then tap Send to Veylet.
+
+### If it doesn’t work
+If the phone check says Not enough views yet, fewer than three photos were saved. Hold the phone level on a clear corner or doorway until views start saving.
+If the camera view stays black or frozen, close the app fully, open it again and retry.
+This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- The capture has no depth readings
+- The capture is larger than Veylet can accept
+- The walkthrough is too large for a phone
+- The capture doesn’t look like a property
+- Worth a look before you share
+All help topics
+
+## The capture has no depth readings — Veylet help
+Source: https://veylet.com/help/fix/no_depth
+
+The capture has no depth readings, so a 3D walkthrough cannot be built. Capture on an iPhone or iPad with LiDAR (a Pro model), so every photo has depth.
+- Check the device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. In the app, Account says "Ready to capture" on a device that can record.
+- Make sure nothing covers the rear cameras or the LiDAR sensor beside them: no case edge, finger or dirt.
+- Capture the room again with Veylet Capture, then send it.
+
+### If it doesn’t work
+If Account says the device has no rear LiDAR camera, that device cannot record a capture. See what you need.
+This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- No usable photos were saved
+- The capture is larger than Veylet can accept
+- The walkthrough is too large for a phone
+- The capture doesn’t look like a property
+- Worth a look before you share
+All help topics
+
+## The capture is larger than Veylet can accept — Veylet help
+Source: https://veylet.com/help/fix/upload_limits
+
+The capture is larger than Veylet can accept in one go. Capture fewer rooms at a time, and send the rest as another capture.
+- Decide where to split the home, for example the living areas in one capture and the bedrooms in another.
+- Capture the first group of rooms and send it.
+- Start a new capture for the remaining rooms and send that too.
+
+### If it doesn’t work
+Keep each room to what it needs: two standing spots and three circles are enough for an ordinary room. See walk a room.
+This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- No usable photos were saved
+- The capture has no depth readings
+- The walkthrough is too large for a phone
+- The capture doesn’t look like a property
+- Worth a look before you share
+All help topics
+
+## The walkthrough is too large for a phone — Veylet help
+Source: https://veylet.com/help/fix/phone_budget
+
+The finished walkthrough would be too large to open smoothly on a phone. Veylet has already tried once more automatically. Capture fewer rooms in one walkthrough.
+- Split the home into two captures, for example the living areas and the bedrooms.
+- Capture each group of rooms as its own capture, with its own name.
+- Send each one. Each becomes its own walkthrough, small enough for a phone.
+
+### If it doesn’t work
+Very large open-plan spaces count as big too. Keep to two standing spots and three circles in each.
+This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- No usable photos were saved
+- The capture has no depth readings
+- The capture is larger than Veylet can accept
+- The capture doesn’t look like a property
+- Worth a look before you share
+All help topics
+
+## The capture doesn’t look like a property — Veylet help
+Source: https://veylet.com/help/fix/not_property
+
+This capture does not look like the inside of a property. Capture the rooms inside the home you’re listing.
+- Capture indoor rooms of the home you are listing, not a screen, a photo or the view outside.
+- Walk each room from its standing spots with the lights on, keeping walls, doorways and furniture in view.
+- Send the new capture.
+
+### If it doesn’t work
+If you did capture the inside of a home, email Veylet support with the listing’s name as it appears in the app.
+This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- No usable photos were saved
+- The capture has no depth readings
+- The capture is larger than Veylet can accept
+- The walkthrough is too large for a phone
+- Worth a look before you share
+All help topics
+
+## Worth a look before you share — Veylet help
+Source: https://veylet.com/help/fix/worth-a-look
+
+The automatic quality check may list a few areas as worth a look. It is advice only: it never stops you approving. Walk through each area, then decide.
+
+### Some areas may look blurry
+The walkthrough does not match the photos closely enough there, usually because the phone moved during a photo. Walk to that area and look at edges and text.
+Next time: move slowly and hold the phone steady, waiting for each view to save.
+
+### Some corners may be missing
+Parts of the room were not photographed from where you stood. Look for gaps or smears at corners and behind furniture.
+Next time: turn a full circle at each spot, and add a spot where furniture hides a corner.
+
+### Few photos were taken here, so detail may be thin
+Only a few views were saved in that room. Look for soft or patchy walls.
+Next time: walk slowly and turn a full circle at each spot.
+
+### There may be stray smudges in the air
+Small cloudy blobs can float in mid-air. Look around the room at eye level.
+Next time: keep the lights on and nothing moving, including people, pets, doors and curtains.
+
+### The floor may be hard to walk on
+The check could not find a clear floor there, so tapping to walk may not work. Try walking around that room.
+Next time: tilt down for one slow circle so the floor and doorways are included.
+
+### Walking on to the next room may not work
+The check could not find a clear path on the floor from that room to the others. Try walking through the doorway.
+Next time: show the doorway from both sides and the floor between the rooms. See doorways.
+
+### An automatic check noticed something to look at
+An automatic visual check of the finished walkthrough found something unusual in that room. Walk through it and look closely.
+Next time: move slowly with the phone steady and the lights on.
+
+### If it doesn’t work
+If an area looks fine, approve and share as usual. Your client never sees this advice.
+If it isn’t good enough to share, don’t approve it. Capture the listing again with the fix above and send it, or email Veylet support first if you are unsure which rooms to redo.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Fixing a capture
+- No usable photos were saved
+- The capture has no depth readings
+- The capture is larger than Veylet can accept
+- The walkthrough is too large for a phone
+- The capture doesn’t look like a property
+All help topics
+
+## Approve and share your walkthrough — Veylet help
+Source: https://veylet.com/help/approve-and-share
+
+When a walkthrough is Ready for your review, walk it on your phone, make one rights confirmation and press Approve and share once. Nothing is shared before that.
+- Tap the Ready for your review notification, or open the listing and tap Review walkthrough.
+- Walk through every room on your phone. Read any areas listed as worth a look and check them.
+- After inspecting it, tick the one rights confirmation: I have the right to share this walkthrough. If something needs fixing, request a correction before approving.
+- Press Approve and share once. Anyone with the link can open it and forward it. It stays online while your plan is active.
+- The listing now reads Live. Share it: see share your walkthrough.
+
+### What to inspect
+Coverage
+- Every included room and required surface is present.
+Alignment
+- Walls, furniture and edges stay aligned while turning.
+Navigation
+- Viewpoints and movement do not cross walls or expose broken areas.
+Privacy
+- People, documents, screens and excluded areas have been checked.
+Phone
+- This exact tour has been checked on a physical phone.
+
+### Before confirming your rights
+Capture permission
+- I have the property’s permission for this capture.
+Permission to publish
+- I have permission to publish and share this exact tour.
+
+### If it doesn’t work
+Before pressing Approve and share, tick the one rights confirmation.
+Approved. Sharing waits for a reason: the card names the one fix, such as someone with sharing permission. Your approval is kept.
+You can also review in your Veylet account on a computer, with the same rights confirmation.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Reviewing and sharing
+- Share your walkthrough: link, QR code, embed and listing URL
+- Pause or turn off sharing
+- What your client sees, and views and taps
+- Put your walkthrough on your website
+All help topics
+
+## Share a walkthrough: link, QR code, embed — Veylet help
+Source: https://veylet.com/help/share-your-walkthrough
+
+A live walkthrough has one link and four ways to hand it out. Use the one that suits where your client will see it.
+Share or Copy link
+- Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.
+QR code
+- Show QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
+Embed code
+- Copy embed code and paste it into your website’s custom HTML block. See put it on your website.
+Listing URL (portals, CRM)
+- In your Veylet account, Copy listing URL (portals, CRM) and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.
+Open as your client shows the page exactly as the person you send it to will see it.
+While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.
+
+### If it doesn’t work
+Listing portals do not accept the embed code. Use the listing URL there instead.
+If a link shows "not available", sharing is paused or turned off. See pause or turn off sharing.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Reviewing and sharing
+- Approve and share your walkthrough
+- Pause or turn off sharing
+- What your client sees, and views and taps
+- Put your walkthrough on your website
+All help topics
+
+## Pause or turn off sharing — Veylet help
+Source: https://veylet.com/help/pause-or-turn-off
+
+Pause keeps the same link for later. Turn off ends the link for good. Both are under Manage sharing on the walkthrough’s card in your account.
+Pause sharing
+- Within a minute, the link, embed and QR code show "not available". The link stays the same, so printed QR codes work again when you resume.
+Resume sharing
+- Within a minute, the same link, embed and QR code open the walkthrough again.
+Turn off sharing
+- Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.
+- Open your Veylet account and find the walkthrough’s card.
+- Open Manage sharing.
+- Choose Pause sharing for a break, or Turn off sharing to end the link.
+
+### If it doesn’t work
+After turning sharing off, remove the old link and embed from your listing and website too.
+Changes reach viewers within a minute. If a page still shows the walkthrough, reload it.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Reviewing and sharing
+- Approve and share your walkthrough
+- Share your walkthrough: link, QR code, embed and listing URL
+- What your client sees, and views and taps
+- Put your walkthrough on your website
+All help topics
+
+## What your client sees, and views and taps — Veylet help
+Source: https://veylet.com/help/what-your-client-sees
+
+Your client opens a page with the listing’s name, the walkthrough and your contact card. They never need an account or an app.
+
+### The page
+- The walkthrough, with a short line: "Captured on site with an iPhone. Not to scale."
+- Moving around: drag to look, tap the floor or a numbered circle to walk, and use the arrows to go room to room.
+- Your contact card, with Call and Email buttons that reach you directly.
+- A Share button, so they can forward it to a partner.
+
+### Your contact card
+In your Veylet account, under What your clients see, enter your name, agency, phone and email, and turn on Show on shared walkthroughs. Only what you enter is shown.
+
+### Views and taps
+Each live walkthrough’s card in your account shows how often it was opened, for example "Opened 3 times", when it was last opened, and how many times people tapped Call and Email. "Not opened yet." means no one has opened it.
+
+### If it doesn’t work
+If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See pause or turn off sharing.
+"This link looks incomplete" means part of the link was lost when it was copied. Send it again.
+The listing URL for portals never shows your contact card.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Reviewing and sharing
+- Approve and share your walkthrough
+- Share your walkthrough: link, QR code, embed and listing URL
+- Pause or turn off sharing
+- Put your walkthrough on your website
+All help topics
+
+## Put your walkthrough on your website — Veylet help
+Source: https://veylet.com/help/website
+
+Copy the walkthrough’s embed code, then paste it into a custom HTML block on your page. Here is where that block is in each builder.
+WordPress
+- In the block editor, add a Custom HTML block, paste the embed code, then Preview and Update. Some page-builder and security plugins strip embeds for non-administrators; ask your site administrator if it disappears.
+Squarespace
+- Add a Code block (not a Markdown block), paste the embed code, keep "Display source" off and save. Code blocks need a Business or Commerce plan.
+Wix
+- Add Embed, then Embed HTML, choose Code, paste the embed code and apply. Make the element at least 320 pixels tall, or the button that starts the walkthrough is cut off.
+Webflow
+- Drag an Embed element into the page, paste the embed code and publish. Embeds show only on the published site, not in the designer.
+Any other builder: ask for a custom HTML or raw HTML area and paste the code there. Give it at least 320 pixels of height.
+
+### If it doesn’t work
+Blank or cut off? Check the element is at least 320 pixels tall, and check the published page on a phone.
+Shows "not available"? Sharing is paused or turned off for that walkthrough.
+Listing portals do not accept the embed code. Use the listing URL: see share your walkthrough.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Reviewing and sharing
+- Approve and share your walkthrough
+- Share your walkthrough: link, QR code, embed and listing URL
+- Pause or turn off sharing
+- What your client sees, and views and taps
+All help topics
+
+## Privacy and permission for captures — Veylet help
+Source: https://veylet.com/help/privacy-and-consent
+
+A walkthrough can show everything the camera saw. Clear the rooms first, and have permission for both the capture and publishing it.
+- Before you capture, ask people and pets to leave the room, and check mirrors for reflections of anyone, including you.
+- Put away documents, mail, photos, keys, medicines and valuables, and turn off screens.
+- Get permission from whoever controls the home. If someone lives in it, such as a tenant, get the occupants’ agreement as well as the owner’s.
+- Before sharing, walk the whole walkthrough and tick the privacy check: people, documents, screens and excluded areas have been checked.
+- Approve only with both permissions: to capture the home, and to publish and share this exact walkthrough.
+Veylet cannot give legal advice. The rules for rented homes and personal information depend on your state and your agency, so check with your agency or a legal adviser. How Veylet handles captures and your details is in the privacy notice.
+
+### If it doesn’t work
+Found something private after sharing? Pause sharing straight away (see pause or turn off sharing), then email Veylet support with the listing’s name.
+To have a walkthrough or capture removed, email Veylet support from the address on your account.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Privacy and your account
+- Your plan: what each state means
+- Delete your account
+All help topics
+
+## Your plan: what each state means — Veylet help
+Source: https://veylet.com/help/your-plan
+
+Your account shows one plan state. Here is what each means for your captures and shared walkthroughs.
+Not started
+- Your plan has not begun yet. You can practise; renders start once it is running.
+Free months
+- Your free months are running, with the date they end. Everything works as usual.
+Active
+- Your plan is running.
+Ended
+- Your plan or free months ended on the date shown. New captures wait until a plan is running again.
+Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.
+One accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.
+Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.
+See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.
+To keep a single walkthrough online without a plan, ask us for a hosting extension: use Keep this walkthrough online on its card in your Veylet account, or email Veylet support with the walkthrough’s name. It is invoiced a year at a time, per walkthrough.
+
+### If it doesn’t work
+Offline on a walkthrough means your plan ended more than 14 days ago, so its link shows "not available". Restart your plan and this link works again — same link, embed and QR.
+Deleting your Veylet account does not cancel an App Store subscription. Cancel it in Settings too.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Privacy and your account
+- Privacy and permission: people, documents and tenants
+- Delete your account
+All help topics
+
+## Delete your account — Veylet help
+Source: https://veylet.com/help/delete-account
+
+You can delete your account in the app or in your account online. Your account, spaces and walkthroughs are deleted within 30 days.
+- In the app, open Account and go to Delete your account. Online, it is under Finishing, exporting or leaving in your Veylet account.
+- Read what happens: your account, spaces and walkthroughs will be deleted within 30 days, shared links stop working when removal begins, and it cannot be undone.
+- Tap Delete my account and confirm.
+- It then says "Deletion requested" with the date. Until removal begins, you can still press Cancel deletion.
+Captures saved on your iPhone are not touched. Delete the app to remove them. An App Store subscription is not cancelled by deleting your account; cancel it in Settings.
+
+### If it doesn’t work
+Can’t sign in to delete? Email Veylet support from the address on your account and ask for deletion.
+The privacy notice says what is kept after deletion and for how long.
+
+### Still stuck? Email Veylet support
+Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Email Veylet support
+
+### More in Privacy and your account
+- Privacy and permission: people, documents and tenants
+- Your plan: what each state means
+All help topics

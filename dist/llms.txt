@@ -2,6 +2,8 @@
 
 > Veylet (Veylet Studio) makes 3D walkthroughs for homes, businesses and venues. Anyone with a supported iPhone captures a space with the Veylet Capture app; Veylet processes and checks it automatically and hosts a walkthrough the account reviews and approves before sharing, shared as a link or a website embed that viewers open with no app. Early accounts are onboarding in south-east Queensland, Australia; no client-accepted tour is available yet.
 
+Full text of the guide and help pages: [llms-full.txt](https://veylet.com/llms-full.txt)
+
 Short answers:
 - Who it is for: anyone: agents, property managers and freelancers, on the same plan and prices; there is no separate tier.
 - What it is: the product is the Veylet Capture iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
