@@ -14,5 +14,10 @@
  * ships with the `hidden` attribute, so with this flag off — or with JavaScript
  * off — the site reads exactly as the pre-approval site. dist/launch.js applies
  * this flag to the marked elements (tests/launch-flag.test.cjs checks both states).
+ *
+ * App Store links carry a per-placement campaign token: ct=web_home_hero, web_stays,
+ * web_agents, web_see, web_offer.
+ * TODO: add the provider token pt=<id> to those links only once App Store Connect
+ * Analytics has data and has issued the provider id; until then ct alone is used.
  */
 window.VEYLET_LAUNCH = Object.freeze({ appStoreLive: false });

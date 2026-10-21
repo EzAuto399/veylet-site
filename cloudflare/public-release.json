@@ -540,7 +540,7 @@
     {
       "path": "build-info.json",
       "bytes": 2452,
-      "sha256": "2304c48dbf682256a8b299dbaefdabdd1c2e09fc60ce6ef30bbc45b22b3aa9e9",
+      "sha256": "2f559990d38a328c0835543d545b295f1fd758e14fe71ded4eb577c4a7d1dee6",
       "headerProfile": 6
     },
     {
@@ -846,7 +846,7 @@
     {
       "path": "index.html",
       "bytes": 28905,
-      "sha256": "e0413cb592390f2a041ab7bc09a5a66028dc980b47c28785d27d57e8524d46d8",
+      "sha256": "b95060c5258ac02261dbbb979225597ad24922ab48382452da92f3815909012a",
       "headerProfile": 1
     },
     {
@@ -869,8 +869,8 @@
     },
     {
       "path": "launch-config.js",
-      "bytes": 1023,
-      "sha256": "fc50a0513b7bc878c46fd480b60fb909dd5e8c6fa4ace1d55cc2a1654bf99753",
+      "bytes": 1313,
+      "sha256": "fa9d54dcc2c95010ef3955a0e018cdf6f88052b024a865f354db62fdac4c8a1f",
       "headerProfile": 4
     },
     {
@@ -1326,7 +1326,7 @@
     {
       "path": "offer/index.html",
       "bytes": 53335,
-      "sha256": "b57c144cec009b91187a83e7c501808c0b0176c831c2c8667c08f4fb74e0862d",
+      "sha256": "5cf97a4389a9bc78407642ea237b61804a6224bc640f17c75a39b7616934f13b",
       "headerProfile": 1
     },
     {
@@ -2112,7 +2112,7 @@
     {
       "path": "see/index.html",
       "bytes": 35119,
-      "sha256": "304f25ba1fc3241267a6fd037872e44fc9a5a30172df692c00105bb99ec4e0aa",
+      "sha256": "c6eaac8b330a1497d9b81c403c807942879744467b07a623097e7c83d4166977",
       "headerProfile": 1
     },
     {
@@ -2154,7 +2154,7 @@
     {
       "path": "start/index.html",
       "bytes": 20620,
-      "sha256": "8c6516cb61cad1cf2499ad241f8059aca21fdbf99e9b5ca692d22a86d0a56499",
+      "sha256": "67d3036d14be3bb2109945d0223e3731ff3123d27ab5484e890502c1de60fa06",
       "headerProfile": 1
     },
     {
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "support/index.html",
-      "bytes": 6236,
-      "sha256": "f07ee74cbf4b7c5a2726592d663e0586a4a5a302d36090f06d96767306afc09d",
+      "bytes": 6452,
+      "sha256": "619df2c7afa163dc0cc3b294843f917b6a548e1c00109374177e8b7fbcc20baf",
       "headerProfile": 1
     },
     {
