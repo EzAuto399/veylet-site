@@ -308,13 +308,14 @@ test('missing, rejecting or throwing analytics cannot prevent real waitlist comp
   }
 });
 
-test('the public privacy notice describes only the accepted four-page GA measurement', () => {
+test('the public privacy notice describes only the accepted five-page GA measurement', () => {
   const privacy = read('privacy/index.html').replace(/\s+/g, ' ');
   for (const statement of [
     'Google Analytics 4 loads only after you allow Analytics in Privacy choices.',
-    'visits to our home, getting-started, offer and privacy pages',
+    'visits to our home, getting-started, see-a-result, offer and privacy pages',
     'Advertising tracking, including Meta Pixel, is off.',
-    'Our site does not send custom click, form, waitlist or purchase events.',
+    // One consented custom event only (the App Store click); no form, waitlist or purchase events.
+    'The only custom event our site can send is a single App Store click, with its placement, and only after you allow Analytics; we send no form, waitlist or purchase events.',
     'We may include approved campaign labels from public links.',
     'Withdrawal cannot recall information already sent to Google.',
   ]) assert.ok(privacy.includes(statement), statement);

@@ -1423,7 +1423,7 @@ test('the privacy notice says what is collected and what is never sold', () => {
     'We never sell, rent or trade personal information',
     'Google Analytics 4 loads only after you allow Analytics in Privacy choices.',
     'Advertising tracking, including Meta Pixel, is off.',
-    'Our site does not send custom click, form, waitlist or purchase events.',
+    'The only custom event our site can send is a single App Store click, with its placement, and only after you allow Analytics; we send no form, waitlist or purchase events.',
   ]) assert.ok(flat.includes(phrase), `the privacy notice says: ${phrase}`);
 });
 
