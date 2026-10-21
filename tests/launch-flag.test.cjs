@@ -110,7 +110,7 @@ function distHtml(prefix = '') {
 // carries an App Store element must load a stylesheet whose [hidden] (or [data-launch][hidden]) rule is
 // display:none !important (style.css has the global one today).
 test('every App Store page loads a stylesheet that force-hides hidden launch elements', () => {
-  const RULE = /(^|[\s,}])(\[data-launch\])?\[hidden\]\s*\{[^}]*display\s*:\s*none\s*!important/m;
+  const RULE = /(^|[},]\s*)(\[data-launch\])?\[hidden\]\s*\{[^}]*display\s*:\s*none\s*!important/m;
   const pages = distHtml().filter(file => /data-launch="app-store"/.test(read(file)));
   assert.ok(pages.length >= 4, `expected the launch pages to carry App Store elements, found ${pages.length}`);
   for (const page of pages) {
