@@ -35,7 +35,8 @@ These pages can't load `launch.js` (the in-app `/app/help` edition, plain-text `
 
 - [ ] `dist/help/install-and-sign-in/` and `dist/app/help/install-and-sign-in/` (generated from `tests/help-articles.cjs`): TestFlight install steps → App Store install.
 - [ ] `dist/privacy/` and `dist/app/privacy/`: the waitlist and "admitted in weekly groups" lines.
-- [ ] `dist/guides/what-is-a-3d-walkthrough/`, `do-3d-tours-help-sell-faster/`, `iphone-lidar-vs-matterport/`, `3d-tour-cost-australia/`: TestFlight mentions.
+- [ ] `dist/guides/what-is-a-3d-walkthrough/`, `do-3d-tours-help-sell-faster/`, `iphone-lidar-vs-matterport/`, `3d-tour-cost-australia/`, `privacy-3d-home-tour/`, `3d-tours-realestate-com-au-domain/`: TestFlight / weekly-admission mentions.
+- [ ] `dist/account/` and `dist/waitlist/`: weekly-admission wording (keep `/waitlist` as a fallback until admission is open, then 301 it to `/`).
 - [ ] `dist/llms.txt`, `dist/llms-full.txt`: TestFlight / waitlist mentions.
 - [ ] Re-pin `cloudflare/public-release.json` for every edited file (see `cloudflare/README.md`).
 
