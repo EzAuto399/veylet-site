@@ -9,8 +9,8 @@ const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-
 
 const dist = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
-// Accepted GA-only scope: four measurement pages. /apply was removed (it redirects to /offer).
-const measurementPages = ['index.html', 'start/index.html', 'offer/index.html', 'privacy/index.html'];
+// Accepted GA-only scope: five measurement pages (/see joined on 22 October 2026). /apply was removed (it redirects to /offer).
+const measurementPages = ['index.html', 'start/index.html', 'see/index.html', 'offer/index.html', 'privacy/index.html'];
 const hookPages = ['index.html', 'start/index.html', 'offer/index.html', 'see/index.html',
   'waitlist/index.html', 'request/index.html', 'privacy/index.html'];
 const destinations = ['waitlist', 'request', 'see', 'offer', 'start'];
@@ -80,7 +80,7 @@ function validatorFixture(formID = 'waitlist', analytics) {
   return { ...f, form, control, calledPhases };
 }
 
-test('only the four accepted public measurement pages load local analytics, in config-before-runtime order', () => {
+test('only the five accepted public measurement pages load local analytics, in config-before-runtime order', () => {
   const loaded = [];
   for (const file of publicHtml()) {
     const html = read(file);
@@ -308,13 +308,14 @@ test('missing, rejecting or throwing analytics cannot prevent real waitlist comp
   }
 });
 
-test('the public privacy notice describes only the accepted four-page GA measurement', () => {
+test('the public privacy notice describes only the accepted five-page GA measurement', () => {
   const privacy = read('privacy/index.html').replace(/\s+/g, ' ');
   for (const statement of [
     'Google Analytics 4 loads only after you allow Analytics in Privacy choices.',
-    'visits to our home, getting-started, offer and privacy pages',
+    'visits to our home, getting-started, see-a-result, offer and privacy pages',
     'Advertising tracking, including Meta Pixel, is off.',
-    'Our site does not send custom click, form, waitlist or purchase events.',
+    // One consented custom event only (the App Store click); no form, waitlist or purchase events.
+    'The only custom event our site can send is a single App Store click, with its placement, and only after you allow Analytics; we send no form, waitlist or purchase events.',
     'We may include approved campaign labels from public links.',
     'Withdrawal cannot recall information already sent to Google.',
   ]) assert.ok(privacy.includes(statement), statement);

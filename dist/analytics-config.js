@@ -21,5 +21,13 @@ window.VEYLET_ANALYTICS_CONFIG = Object.freeze({
     Object.freeze({ source: 'instagram', medium: 'organic_social', name: 'pilot_202609', content: 'link_in_bio' }),
     // Prepared for the 10 October enquiry card; native scheduling and QA unverified.
     Object.freeze({ source: 'facebook', medium: 'organic_social', name: 'pilot_202609', content: 'enquiry_details' }),
+    // App Store launch, October 2026. Warm email to short-stay hosts and real-estate agents.
+    Object.freeze({ source: 'email', medium: 'warm', name: 'launch-2026-10', content: 'stays' }),
+    Object.freeze({ source: 'email', medium: 'warm', name: 'launch-2026-10', content: 'agents' }),
+    // App Store launch, October 2026. Organic social for the two audiences.
+    Object.freeze({ source: 'instagram', medium: 'social', name: 'launch-2026-10', content: 'stays' }),
+    Object.freeze({ source: 'instagram', medium: 'social', name: 'launch-2026-10', content: 'agents' }),
+    Object.freeze({ source: 'facebook', medium: 'social', name: 'launch-2026-10', content: 'stays' }),
+    Object.freeze({ source: 'facebook', medium: 'social', name: 'launch-2026-10', content: 'agents' }),
   ]),
 });

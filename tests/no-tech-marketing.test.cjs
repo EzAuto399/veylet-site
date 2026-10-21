@@ -39,17 +39,29 @@ const BANNED = [
   [/\biphone \d|\bpro max\b|\bipad pro\b|\biphone (?:\d+ )?pro\b|\bios \d/i, 'a phone model list'],
 ];
 
+// The App Store launch terms line (Yoda's final copy, 22 October 2026) is required verbatim beside every
+// primary CTA and deliberately names the device requirement, including LiDAR. It is allow-listed per page.
+const LAUNCH_TERMS = 'Needs an iPhone Pro with LiDAR.';
+
 // Kept on purpose, each with its reason. A chunk containing the marker may name devices.
 const ALLOW = {
-  'index.html': [['Works with recent iPhone Pro and iPad Pro models.', 'requirement line at the final call to action']],
+  'index.html': [
+    ['Works with recent iPhone Pro and iPad Pro models.', 'requirement line at the final call to action'],
+    [LAUNCH_TERMS, 'App Store launch terms line beside each primary CTA'],
+  ],
   'offer/index.html': [
+    [LAUNCH_TERMS, 'App Store launch terms line beside the offer CTA'],
     ['Works with recent iPhone Pro and iPad Pro models.', 'requirement line where the steps start'],
     ['iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards', 'FAQ: which phones work'],
   ],
   'see/index.html': [
     ['You need a recent iPhone Pro or iPad Pro.', 'requirement line at the offer call to action'],
+    [LAUNCH_TERMS, 'App Store launch terms line beside the see hero CTA'],
   ],
-  'start/index.html': [['Capture needs an iPhone 12 Pro or a later Pro model', 'the "Not sure your phone can capture?" answer']],
+  'start/index.html': [
+    ['Capture needs an iPhone 12 Pro or a later Pro model', 'the "Not sure your phone can capture?" answer'],
+    [LAUNCH_TERMS, 'App Store launch terms line beside the start CTA'],
+  ],
   'request/index.html': [
     ['Works with recent iPhone Pro and iPad Pro models.', 'form help for the self-capture choice'],
     ['For example, iPhone 15 Pro', 'device-model field placeholder'],
@@ -125,9 +137,11 @@ test('every allow-listed exception still exists, so the device requirement stays
   }
 });
 
-test('allow-listed requirement lines never say LiDAR', () => {
+test('allow-listed requirement lines never say LiDAR, except the required App Store launch terms line', () => {
   for (const [file, entries] of Object.entries(ALLOW)) {
     for (const chunk of chunks(file)) {
+      // The launch terms line is the one deliberate, required exception that names LiDAR.
+      if (chunk.includes(LAUNCH_TERMS)) continue;
       if (entries.some(([marker]) => chunk.includes(marker)) && /lidar/i.test(chunk)) {
         assert.fail(`${file}: ${chunk.slice(0, 140)}`);
       }

@@ -58,7 +58,7 @@ Screens from the current build in the iOS Simulator; on a real iPhone the camera
 - Check before sending The saved route and what the app could not see.
 
 ### Before you write.
-1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
+1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling at least 24 hours before it ends charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
 We do not yet have a client-accepted tour to show. Our captures are still under quality review. The room images and animations here are labelled illustrations. Veylet support can tell you what has been tested so far.
 No. Joining the waitlist creates no account and takes no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with.
 
@@ -81,7 +81,7 @@ Month 2 onward Veylet plan
 - A$139.99 a month in the App Store
 First twelve months 1 free month, then 11 monthly App Store payments
 - A$1,539.89
-Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.
+Nothing is charged during the free month. The first charge is on the day it ends; cancel at least 24 hours before the free month ends and nothing is charged.
 3 accepted walkthroughs in total during the 1 free month. Then 3 a month on the plan; unused ones roll over, up to 6 banked. Need more? A pack adds 3 or 10 walkthroughs, and you can buy one during the free months. The free-months end date stays the same.
 On the Veylet plan, monthly or annual: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no extra walkthrough.
 Illustration for the Veylet plan with an eligible 1-month App Store introductory offer, then A$139.99 each month automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase. Nothing is charged by this calculator.
@@ -112,7 +112,7 @@ Listing videos and photos
 Starting
 - Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 3 accepted walkthroughs in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
 Before the first charge
-- The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
+- The first charge is on the day your free months end, at the price of the plan you chose. Cancel at least 24 hours before the free month ends and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
 Stopping
 - Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.
 Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.
@@ -181,7 +181,7 @@ Illustration of the process, not a captured space.
 ### Straight answers.
 iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards, on iOS 17 or later. Other iPhone and iPad models are not supported. If you are unsure, the phone’s Settings › General › About shows its model name.
 No. Your free months end on the same date. If you need more before then, the account owner can buy a pack of 3 or 10 walkthroughs: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
-The plan you chose starts, monthly or annual, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
+The plan you chose starts, monthly or annual, and its first charge is on that day. Cancel at least 24 hours before the free month ends and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
 Annual, if you list steadily: A$1,399.99 upfront a year gives the same 36 walkthroughs as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use several. Monthly, if you want to be able to stop in any month: A$139.99 a month for 3 walkthroughs, and unused ones roll over, up to 6 banked.
 One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.
 Add a walkthrough pack: 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months and used after the ones your plan includes. On the annual plan, the year’s 36 walkthroughs can also go into one busy month. If you expect more than about ten a month, tell us first, and we will say plainly what we can process before you rely on it.
@@ -196,7 +196,7 @@ You keep the rights to your space and its imagery. Your account states who may s
 Not yet. Our captures are still under quality review and we will not show concept artwork as proof. Veylet support can tell you what has been tested so far.
 
 ### Start with one space.
-Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups, and we email you when it’s your turn. Your free months begin when you activate the plan with a payment method on file, and the first charge is on the day they end. Questions first? Write to Veylet support at support@veylet.com and a person replies.
+Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups, and we email you when it’s your turn. Your free months begin when you activate the plan with a payment method on file, and the first charge is on the day they end. Questions first? Write to Veylet support at support@veylet.com.
 Join the waitlist See how a first walkthrough runs
 
 ## Embed a 3D walkthrough on your website — Veylet
@@ -237,7 +237,7 @@ Tell the studio your browser, device and which step failed. Share the unlisted l
 ## Support — Veylet
 Source: https://veylet.com/support
 
-One studio, one inbox. Write to us and a person replies; while processing is attended the studio answers on working days in Brisbane time.
+One studio, one inbox. Write to support@veylet.com. Say which step you were on and what you saw.
 Email support@veylet.com. Include the space name as it appears in the app or on your desk, your phone model, the app build number from About, and what you expected to happen. Never send passwords, access codes or private images by email.
 
 ### The quick answers.
@@ -865,7 +865,7 @@ Permission and privacy, your plan, and deleting your account.
 - Delete your account How to delete your Veylet account from the app or your account online, what is deleted within 30 days, and how to cancel a request.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ## What you need to start — Veylet help
@@ -883,7 +883,7 @@ In the app, open Account. It says "Ready to capture" when your device has the Li
 If Account warns that space is low, delete videos or apps you no longer need, then try again.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Getting started
@@ -907,7 +907,7 @@ Signed up with Apple using Hide My Email? Choose Sign in with Apple again to rea
 Sign-in links and codes work once. If yours has expired or was already used, send a new email.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Getting started
@@ -933,7 +933,7 @@ Not measured yet means the app cannot check that today, such as your distance fr
 The turning-speed lesson lets you practise the pace, about ten degrees a second, without the camera.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Getting started
@@ -959,7 +959,7 @@ Small rooms like bathrooms and halls: sweep slowly from the doorway or a corner.
 A capture saves up to 300 views. For a bigger home, see a whole home, room by room.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Capturing
@@ -985,7 +985,7 @@ If the review says walking on to the next room may not work, see the path betwee
 Keep doors in the same position until you finish. A door that moves between views confuses the join.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Capturing
@@ -1009,7 +1009,7 @@ Add light appears when a view is too dark for detail. Turn on a light or open th
 The phone check does not judge lighting, reflections or sharpness. The automatic check after upload does, and may flag an area as worth a look.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Capturing
@@ -1035,7 +1035,7 @@ If a home is too big for one walkthrough, it may come back as too large for a ph
 If a room comes back as Needs recapture after rendering, tap Recapture and the room’s name. The capture starts in that room.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Capturing
@@ -1065,7 +1065,7 @@ Move back toward your last view: step back until a familiar edge is visible and 
 If most views point up or down, hold the phone level for most of the room and keep a few planned tilted circles.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Capturing
@@ -1092,7 +1092,7 @@ You’re offline: the app shows the last status it read and the time. It carries
 To stop, tap Cancel job. Your original capture stays on the iPhone.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Sending and rendering
@@ -1122,7 +1122,7 @@ Still working, checking in means the renderer has not reported for a few minutes
 If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Sending and rendering
@@ -1144,7 +1144,7 @@ If the camera view stays black or frozen, close the app fully, open it again and
 This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1168,7 +1168,7 @@ If Account says the device has no rear LiDAR camera, that device cannot record a
 This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1192,7 +1192,7 @@ Keep each room to what it needs: two standing spots and three circles are enough
 This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1216,7 +1216,7 @@ Very large open-plan spaces count as big too. Keep to two standing spots and thr
 This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1240,7 +1240,7 @@ If you did capture the inside of a home, email Veylet support with the listing�
 This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1289,7 +1289,7 @@ If an area looks fine, approve and share as usual. Your client never sees this a
 If it isn’t good enough to share, don’t approve it. Capture the listing again with the fix above and send it, or email Veylet support first if you are unsure which rooms to redo.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Fixing a capture
@@ -1334,7 +1334,7 @@ Approved. Sharing waits for a reason: the card names the one fix, such as someon
 You can also review in your Veylet account on a computer, with the same rights confirmation.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Reviewing and sharing
@@ -1364,7 +1364,7 @@ Listing portals do not accept the embed code. Use the listing URL there instead.
 If a link shows "not available", sharing is paused or turned off. See pause or turn off sharing.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Reviewing and sharing
@@ -1393,7 +1393,7 @@ After turning sharing off, remove the old link and embed from your listing and w
 Changes reach viewers within a minute. If a page still shows the walkthrough, reload it.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Reviewing and sharing
@@ -1426,7 +1426,7 @@ If your client sees "This walkthrough isn’t available right now", sharing is p
 The listing URL for portals never shows your contact card.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Reviewing and sharing
@@ -1456,7 +1456,7 @@ Shows "not available"? Sharing is paused or turned off for that walkthrough.
 Listing portals do not accept the embed code. Use the listing URL: see share your walkthrough.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Reviewing and sharing
@@ -1482,7 +1482,7 @@ Found something private after sharing? Pause sharing straight away (see pause or
 To have a walkthrough or capture removed, email Veylet support from the address on your account.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Privacy and your account
@@ -1513,7 +1513,7 @@ Offline on a walkthrough means your plan ended more than 14 days ago, so its lin
 Deleting your Veylet account does not cancel an App Store subscription. Cancel it in Settings too.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Privacy and your account
@@ -1536,7 +1536,7 @@ Can’t sign in to delete? Email Veylet support from the address on your account
 The privacy notice says what is kept after deletion and for how long.
 
 ### Still stuck? Email Veylet support
-Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
+Write to support@veylet.com. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
 Email Veylet support
 
 ### More in Privacy and your account

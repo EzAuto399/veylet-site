@@ -107,7 +107,8 @@ function harness(options = {}) {
 }
 
 const gaOnly = { deploymentEnabled: true, gaEnabled: true, metaEnabled: false, pageViewsOnly: true, consentVersion: 2 };
-const pageViewPaths = ['/', '/start', '/offer', '/privacy'];
+// /see joined the page-view allowlist on 22 October 2026 so the result page is measured too.
+const pageViewPaths = ['/', '/start', '/see', '/offer', '/privacy'];
 
 // Owner decision, 29 September 2026: the shipped config is the accepted GA-only release variant
 // (config SHA-256 46c7ebe5…): GA on, Meta off with a blank pixel ID, page views only, consent v2.
@@ -119,7 +120,7 @@ test('GA-only release: the shipped config is the accepted GA-on, Meta-off, page-
   assert.equal(shipped.consentVersion, 2); assert.match(shipped.gaMeasurementId, /^G-[A-Z0-9]+$/);
 });
 
-test('GA-only release: shipped config loads only GA page views, only after analytics consent, only on four pages', () => {
+test('GA-only release: shipped config loads only GA page views, only after analytics consent, only on five pages', () => {
   for (const pathname of pageViewPaths) {
     const none = harness({ url: 'https://veylet.com' + pathname, useShippedConfig: true });
     assert.equal(none.scripts.length, 0, pathname + ' loads nothing before a choice');
@@ -143,7 +144,7 @@ test('GA-only release: shipped config loads only GA page views, only after analy
       assert.equal(h.session[ACCEPTED], undefined);
     }
   }
-  for (const pathname of ['/see', '/waitlist', '/request', '/apply', '/thanks', '/account']) {
+  for (const pathname of ['/waitlist', '/request', '/apply', '/thanks', '/account']) {
     for (const choice of [undefined, consent(true, false), consent(true, true)]) {
       const h = harness({ url: 'https://veylet.com' + pathname, choice, useShippedConfig: true });
       assert.equal(h.scripts.length, 0, pathname + ' must not attempt vendor loading');
@@ -173,8 +174,8 @@ test('GA-only release: four public page views require analytics consent and neve
   }
 });
 
-test('GA-only release: data-entry, sample, thanks and private pages never load even if runtime is included', () => {
-  for (const pathname of ['/request', '/apply', '/waitlist', '/see', '/thanks', '/account', '/auth/callback', '/studio']) {
+test('GA-only release: data-entry, thanks and private pages never load even if runtime is included', () => {
+  for (const pathname of ['/request', '/apply', '/waitlist', '/thanks', '/account', '/auth/callback', '/studio']) {
     const h = harness({ url: 'https://veylet.com' + pathname, config: gaOnly, choice: consent(true, false) });
     assert.equal(h.scripts.length, 0, pathname);
     for (const [name, params] of [['funnel_cta_click', { destination: 'offer', placement: 'hero' }],
@@ -193,7 +194,7 @@ test('GA-only release: data-entry, sample, thanks and private pages never load e
 });
 
 test('GA-only release: history transitions to excluded public routes stop and unload active measurement', () => {
-  for (const pathname of ['/request', '/apply', '/waitlist', '/see']) {
+  for (const pathname of ['/request', '/apply', '/waitlist']) {
     const h = harness({ config: gaOnly, choice: consent(true, false) });
     assert.equal(h.scripts.length, 1);
     assert.equal(h.ga().filter(args => args[0] === 'event').length, 1);
@@ -245,10 +246,17 @@ test('GA-only release: sanitized campaigns, failed storage and withdrawal retain
   assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.local, h.session]), /PRIVATE|fbclid|utm_source/);
   h.choose(false, false); assert.equal(h.reloads(), 1); assert.deepEqual(h.ga(), []);
   for (const options of [{ blockStorage: true }, { referrer: 'https://veylet.com/account' },
-    { url: 'https://veylet.com/?email=PRIVATE' }, { url: 'https://veylet.com/#PRIVATE' }]) {
+    { url: 'https://veylet.com/#PRIVATE' }]) {
     const denied = harness({ ...options, config: gaOnly, choice: consent(true, false) });
     assert.equal(denied.scripts.length, 0); assert.deepEqual(denied.ga(), []);
   }
+  // An unregistered private query is stripped and the clean page view still counts; nothing private is kept.
+  const stripped = harness({ url: 'https://veylet.com/?email=PRIVATE', config: gaOnly, choice: consent(true, false) });
+  assert.deepEqual(stripped.replaced, ['/']); assert.equal(stripped.scripts.length, 1);
+  const view = stripped.ga().find(args => args[0] === 'event');
+  assert.equal(view[1], 'page_view'); assert.equal(view[2].page_location, 'https://veylet.com/');
+  assert.equal(view[2].campaign_source, undefined, 'an unregistered query carries no attribution');
+  assert.doesNotMatch(JSON.stringify([stripped.ga(), stripped.local, stripped.session, stripped.writes]), /PRIVATE|email=/);
 });
 
 test('GA-only release: localhost and loopback render consent without any SDK or queue', () => {
@@ -342,10 +350,20 @@ test('only real public route aliases are accepted; private, unknown, malformed, 
     assert.ok(harness({ url: 'https://veylet.com' + pathname, choice: consent(true, true) }).scripts.length >= 1, pathname);
   }
   for (const suffix of ['/apply', '/account', '/app/account', '/auth/callback', '/tour', '/embed', '/join', '/client', '/studio', '/handoff',
-    '/play', '/report', '/unsubscribe', '/unknown', '/waitlist.html', '/offer//', '/%77aitlist', '/?email=PRIVATE',
-    '/?utm_source=facebook', '/?fbclid=PRIVATE&email=PRIVATE', '/#token=PRIVATE', '/?utm_campaign=arbitrary']) {
+    '/play', '/report', '/unsubscribe', '/unknown', '/waitlist.html', '/offer//', '/%77aitlist', '/#token=PRIVATE']) {
     const h = harness({ url: 'https://veylet.com' + suffix, choice: consent(true, true) });
     assert.equal(h.scripts.length, 0, suffix); assert.deepEqual(h.ga(), []);
+  }
+  // A query on a real public page is stripped to the clean path, which then counts; nothing private is kept or sent.
+  for (const suffix of ['/?email=PRIVATE', '/?utm_source=facebook', '/?fbclid=PRIVATE&email=PRIVATE', '/?utm_campaign=arbitrary']) {
+    const h = harness({ url: 'https://veylet.com' + suffix, choice: consent(true, true) });
+    assert.deepEqual(h.replaced, ['/'], suffix);
+    assert.ok(h.scripts.length >= 1, suffix);
+    const events = h.ga().filter(args => args[0] === 'event');
+    assert.deepEqual(events.map(args => args[1]), ['page_view'], suffix);
+    assert.equal(events[0][2].page_location, 'https://veylet.com/', suffix);
+    assert.equal(events[0][2].campaign_source, undefined, suffix);
+    assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.local, h.session, h.writes]), /PRIVATE|email=|utm_|arbitrary|fbclid/, suffix);
   }
 });
 
@@ -446,13 +464,61 @@ test('unknown events including manual page_view are rejected and deployment kill
   assert.equal(h.scripts.length, 0); assert.equal(h.track('page_view', {}), false);
 });
 
-test('campaign registry contains only the seven approved exact tuples, preserving both paid rows', () => {
+test('campaign registry contains only the approved exact tuples, preserving both paid rows and the launch tuples', () => {
   const h = harness();
   assert.deepEqual(plain(h.window.VEYLET_ANALYTICS_CONFIG.campaignRegistry), [
     { source: 'facebook', medium: 'paid_social', name: 'veylet_waitlist_20260927', content: 'walkthrough_demo' },
     { source: 'instagram', medium: 'paid_social', name: 'veylet_waitlist_20260927', content: 'walkthrough_demo' },
     ...organicCampaigns,
+    // App Store launch tuples (22 October 2026): warm email and organic social, one row per audience.
+    { source: 'email', medium: 'warm', name: 'launch-2026-10', content: 'stays' },
+    { source: 'email', medium: 'warm', name: 'launch-2026-10', content: 'agents' },
+    { source: 'instagram', medium: 'social', name: 'launch-2026-10', content: 'stays' },
+    { source: 'instagram', medium: 'social', name: 'launch-2026-10', content: 'agents' },
+    { source: 'facebook', medium: 'social', name: 'launch-2026-10', content: 'stays' },
+    { source: 'facebook', medium: 'social', name: 'launch-2026-10', content: 'agents' },
   ]);
+});
+
+test('a launch campaign tuple attaches its attribution to the clean page view after consent', () => {
+  for (const [content, pathname] of [['stays', '/'], ['agents', '/offer']]) {
+    const query = new URLSearchParams({ utm_source: 'email', utm_medium: 'warm', utm_campaign: 'launch-2026-10', utm_content: content });
+    const h = harness({ url: `https://veylet.com${pathname}?${query}`, config: gaOnly, choice: consent(true, false) });
+    assert.deepEqual(h.replaced, [pathname]);
+    const view = h.ga().find(args => args[0] === 'event' && args[1] === 'page_view')[2];
+    assert.equal(view.campaign_source, 'email'); assert.equal(view.campaign_medium, 'warm');
+    assert.equal(view.campaign_name, 'launch-2026-10'); assert.equal(view.campaign_content, content);
+    assert.equal(view.page_location, `https://veylet.com${pathname}`);
+  }
+});
+
+test('the one consented App Store click event carries only its placement, is Analytics-only, and respects page-views-only', () => {
+  // Shipped-style page-views-only config: the App Store click is the single allowed custom event.
+  for (const pathname of ['/', '/see', '/offer', '/start']) {
+    const placement = { '/': 'web_home_hero', '/see': 'web_see', '/offer': 'web_offer', '/start': 'web_stays' }[pathname];
+    const h = harness({ url: 'https://veylet.com' + pathname, config: gaOnly, choice: consent(true, false) });
+    assert.equal(h.track('app_store_click', { placement, destination: 'offer', url: 'https://secret.invalid' }), true, pathname);
+    const events = h.ga().filter(args => args[0] === 'event');
+    assert.deepEqual(events.map(args => args[1]), ['page_view', 'app_store_click'], pathname);
+    assert.deepEqual(events[1][2].placement, placement);
+    assert.equal(events[1][2].url, undefined, 'no extra params leak into the event');
+    assert.deepEqual(h.meta(), [], pathname + ' sends nothing to Meta');
+  }
+  // Unknown placements are rejected, and the event never fires without analytics consent.
+  const ok = harness({ url: 'https://veylet.com/', config: gaOnly, choice: consent(true, false) });
+  assert.equal(ok.track('app_store_click', { placement: 'PRIVATE_PLACEMENT' }), false);
+  const noConsent = harness({ url: 'https://veylet.com/', config: gaOnly, choice: consent(false, false) });
+  assert.equal(noConsent.track('app_store_click', { placement: 'web_home_hero' }), false);
+  assert.deepEqual(noConsent.ga(), []);
+});
+
+test('a delegated App Store link click fires exactly one consented app_store_click', () => {
+  const h = harness({ url: 'https://veylet.com/', config: gaOnly, choice: consent(true, false) });
+  const link = new Element('a'); link.setAttribute('data-analytics-appstore', 'web_home_hero');
+  h.docEvents.click({ target: { closest: selector => selector === '[data-analytics-appstore]' ? link : null } });
+  const events = h.ga().filter(args => args[0] === 'event');
+  assert.deepEqual(events.map(args => args[1]), ['page_view', 'app_store_click']);
+  assert.equal(events[1][2].placement, 'web_home_hero');
 });
 
 test('failed consent overwrite cannot reload into an old grant, even if local removal also fails', () => {
@@ -482,10 +548,13 @@ test('expiry schedules bounded checks and visible-page resume reconciles without
 
 test('known public anchors remain navigable without reloading; unrecognized fragments stop measurement', () => {
   const h = harness({ choice: consent(true, true) });
-  h.window.location.hash = '#process'; h.events.hashchange(); assert.equal(h.reloads(), 0);
+  for (const hash of ['#process', '#stays', '#agents']) {
+    h.window.location.hash = hash; h.events.hashchange(); assert.equal(h.reloads(), 0, hash);
+  }
   assert.equal(h.scripts.length, 2);
   h.window.location.hash = '#PRIVATE'; h.events.hashchange(); assert.equal(h.reloads(), 1);
-  for (const url of ['https://veylet.com/#top', 'https://veylet.com/offer#counts-title', 'https://veylet.com/start#first-session'])
+  for (const url of ['https://veylet.com/#top', 'https://veylet.com/#stays', 'https://veylet.com/#agents',
+    'https://veylet.com/offer#counts-title', 'https://veylet.com/start#first-session'])
     assert.ok(harness({ url, choice: consent(true, true) }).scripts.length > 0);
 });
 
@@ -530,8 +599,8 @@ for (const campaign of organicCampaigns) test(`registered organic ${campaign.sou
     /PRIVATE|fbclid|_fbc=|utm_source|utm_medium|utm_campaign|utm_content/);
 });
 
-test('organic missing, duplicate, unknown and legacy incomplete Instagram UTMs remain blocked', () => {
-  const rejected = [];
+test('organic missing, duplicate, unknown and legacy incomplete UTMs are stripped and counted without attribution', () => {
+  const cases = [];
   for (const campaign of organicCampaigns) {
     const pathname = campaign.source === 'facebook' ? '/request' : '/';
     const known = campaignQuery(campaign);
@@ -539,30 +608,52 @@ test('organic missing, duplicate, unknown and legacy incomplete Instagram UTMs r
       const missing = new URLSearchParams(known); missing.delete(key);
       const duplicate = new URLSearchParams(known); duplicate.append(key, known.get(key));
       const unknown = new URLSearchParams(known); unknown.set(key, 'PRIVATE_UNREGISTERED_CANARY');
-      rejected.push(...[missing, duplicate, unknown].map(query => `https://veylet.com${pathname}?${query}`));
+      cases.push(...[missing, duplicate, unknown].map(query => ({ pathname, url: `https://veylet.com${pathname}?${query}` })));
     }
-    rejected.push(`https://veylet.com${pathname}?${known}&utm_term=PRIVATE_TERM_CANARY`);
   }
   const legacy = 'https://veylet.com/?utm_source=ig&utm_medium=social&utm_content=link_in_bio';
-  rejected.push(legacy, legacy + '&fbclid=PRIVATE_CLICK_CANARY');
-  for (const url of rejected) {
+  cases.push({ pathname: '/', url: legacy }, { pathname: '/', url: legacy + '&fbclid=PRIVATE_CLICK_CANARY' });
+  for (const { pathname, url } of cases) {
     const h = harness({ url, choice: consent(true, true) });
-    assert.equal(h.scripts.length, 0, url); assert.deepEqual(h.replaced, [], url);
-    assert.deepEqual(h.ga(), []); assert.deepEqual(h.meta(), []); assert.equal(h.panel, undefined);
-    assert.equal(h.track('funnel_cta_click', { destination: 'offer', placement: 'body' }), false);
-    assert.doesNotMatch(JSON.stringify([h.local, h.session, h.writes, h.cookieWrites]), /PRIVATE/);
+    // The query is stripped to the clean path, which then counts, but an unmatched tuple attaches no campaign.
+    assert.deepEqual(h.replaced, [pathname], url);
+    assert.ok(h.scripts.length >= 1, url);
+    const events = h.ga().filter(args => args[0] === 'event' && args[1] === 'page_view');
+    assert.equal(events.length, 1, url);
+    assert.equal(events[0][2].campaign_source, undefined, url + ' carries no attribution');
+    assert.equal(events[0][2].page_location, `https://veylet.com${pathname}`, url);
+    assert.doesNotMatch(JSON.stringify([h.ga(), h.meta(), h.local, h.session, h.writes, h.cookieWrites, h.scripts.map(script => script.src)]),
+      /PRIVATE|pilot_202609|organic_social|utm_source|utm_medium|utm_campaign|utm_content|link_in_bio/, url);
   }
 });
 
-test('click IDs alone are discarded; unknown/duplicate campaign fields and failed URL cleanup never load vendors', () => {
+test('a registered tuple keeps attribution even with an extra stripped key; the extra value is never forwarded', () => {
+  for (const campaign of organicCampaigns) {
+    const pathname = campaign.source === 'facebook' ? '/request' : '/';
+    const query = campaignQuery(campaign); query.set('utm_term', 'PRIVATE_TERM_CANARY');
+    const h = harness({ url: `https://veylet.com${pathname}?${query}`, choice: consent(true, false) });
+    assert.deepEqual(h.replaced, [pathname]);
+    const view = h.ga().find(args => args[0] === 'event' && args[1] === 'page_view')[2];
+    assert.equal(view.campaign_source, campaign.source);
+    assert.equal(view.campaign_content, campaign.content);
+    assert.doesNotMatch(JSON.stringify([h.ga(), h.local, h.session, h.writes]), /PRIVATE|utm_term/);
+  }
+});
+
+test('click IDs alone are discarded; unknown/duplicate campaign fields strip and count; failed URL cleanup never loads vendors', () => {
   const h = harness({ url: 'https://veylet.com/?fbclid=PRIVATE_CLICK', choice: consent(true, true) });
   assert.equal(h.scripts.length, 2); assert.deepEqual(h.replaced, ['/']);
   assert.doesNotMatch(JSON.stringify([h.ga(), h.meta()]), /PRIVATE|campaign_source/);
   const known = '?utm_source=facebook&utm_medium=paid_social&utm_campaign=veylet_waitlist_20260927&utm_content=walkthrough_demo';
+  // Each of these is stripped to '/', which counts; only the exact paid tuple (first) keeps its attribution,
+  // and no private value from any of them is forwarded or persisted.
   for (const query of [known + '&email=PRIVATE', known + '&utm_source=facebook', known.replace('walkthrough_demo', 'PRIVATE'),
     known.replace('facebook', 'PRIVATE'), '?fbclid=one&fbclid=two', '?fbclid=PRIVATE&token=PRIVATE']) {
-    const blocked = harness({ url: 'https://veylet.com/' + query, choice: consent(true, true) });
-    assert.equal(blocked.scripts.length, 0); assert.deepEqual(blocked.replaced, []);
+    const stripped = harness({ url: 'https://veylet.com/' + query, choice: consent(true, true) });
+    assert.deepEqual(stripped.replaced, ['/'], query);
+    assert.ok(stripped.scripts.length >= 1, query);
+    assert.doesNotMatch(JSON.stringify([stripped.ga(), stripped.meta(), stripped.local, stripped.session, stripped.writes, stripped.cookieWrites]),
+      /PRIVATE|email=|token=|&utm_|\?utm_/, query);
   }
   assert.equal(harness({ url: 'https://veylet.com/' + known, choice: consent(true, true), failReplaceState: true }).scripts.length, 0);
 });

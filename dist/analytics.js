@@ -13,10 +13,12 @@
   const FORMS = ['waitlist', 'request'];
   const DESTINATIONS = ['waitlist', 'request', 'see', 'offer', 'start'];
   const PLACEMENTS = ['header', 'hero', 'body', 'footer', 'form', 'sticky'];
+  // The per-placement campaign tokens (ct=) of the App Store links. One consented custom event.
+  const APP_STORE_PLACEMENTS = ['web_home_hero', 'web_stays', 'web_agents', 'web_see', 'web_offer'];
   const ERRORS = ['validation', 'network', 'unavailable', 'busy', 'unknown'];
   const REFERRAL_HOSTS = ['facebook.com', 'www.facebook.com', 'l.facebook.com', 'm.facebook.com',
     'instagram.com', 'www.instagram.com', 'l.instagram.com', 'google.com', 'www.google.com'];
-  const ANCHORS = Object.freeze({ '/': ['main', 'top', 'process'], '/start': ['main', 'first-session'],
+  const ANCHORS = Object.freeze({ '/': ['main', 'top', 'process', 'stays', 'agents'], '/start': ['main', 'first-session'],
     '/offer': ['main', 'answers-title', 'counts-title', 'how-title', 'services-title', 'ways-title'],
     '/see': ['main', 'offer'], '/waitlist': ['main'], '/request': ['main'], '/privacy': ['main'] });
   const rejected = () => ({ analytics: false, ads: false });
@@ -68,7 +70,7 @@
     return category === 'ads' && config.metaEnabled === true && config.pageViewsOnly !== true;
   }
   function measurementPageAllowed(localAllowed = false) {
-    return config.pageViewsOnly !== true || ['/', '/start', '/offer', '/privacy'].includes(publicUrl(window.location.href, localAllowed));
+    return config.pageViewsOnly !== true || ['/', '/start', '/see', '/offer', '/privacy'].includes(publicUrl(window.location.href, localAllowed));
   }
   function choiceFromStorage() {
     try {
@@ -163,19 +165,17 @@
     try {
       const url = new URL(window.location.href);
       if (!url.search || !surfaceAllowed() || !publicPath(url.pathname)) return;
-      // A click ID is discarded, never forwarded, persisted or turned into _fbc.
-      const keys = Array.from(url.searchParams.keys());
-      const accepted = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'fbclid'];
-      if (keys.some(key => !accepted.includes(key) || url.searchParams.getAll(key).length !== 1)) return;
+      // Campaign attribution needs the exact four UTM keys, each present once, matching a reviewed tuple.
       const campaignKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
-      const hasCampaign = campaignKeys.some(key => url.searchParams.has(key));
+      const complete = campaignKeys.every(key => url.searchParams.getAll(key).length === 1);
       let registered;
-      if (hasCampaign) {
+      if (complete) {
         registered = (config.campaignRegistry || []).find(entry => campaignKeys.every((key, index) =>
           url.searchParams.get(key) === entry[['source', 'medium', 'name', 'content'][index]]));
-        if (!registered) return;
-      } else if (keys.length !== 1 || keys[0] !== 'fbclid') return;
-      // Unknown fragments remain ineligible even after query removal.
+      }
+      // Any query — a registered tuple, an unregistered or extra UTM key, a click ID or an unknown
+      // parameter — is stripped so the clean page view still counts. A stripped value is never
+      // forwarded, persisted or turned into _fbc; only a matched tuple becomes in-memory attribution.
       const clean = new URL(url.href); clean.search = '';
       if (!publicUrl(clean.href, true)) return;
       window.history.replaceState(window.history.state, '', clean.pathname + clean.hash);
@@ -224,7 +224,7 @@
     addScript('https://connect.facebook.net/en_US/fbevents.js', 'ads');
   }
   function googleEvent(name, params) {
-    if (!gaLoaded || !canMeasure('analytics') || (config.pageViewsOnly === true && name !== 'page_view')) return false;
+    if (!gaLoaded || !canMeasure('analytics') || (config.pageViewsOnly === true && name !== 'page_view' && name !== 'app_store_click')) return false;
     try {
       const path = publicUrl(window.location.href, false);
       window.gtag('event', name, Object.assign({ send_to: config.gaMeasurementId, page_location: 'https://veylet.com' + path,
@@ -252,11 +252,15 @@
     }
     if (name === 'waitlist_submission_accepted' && params.form_id === 'waitlist' && publicUrl(window.location.href, true) === '/waitlist')
       return { form_id: 'waitlist' };
+    // One consented custom event: a click on an App Store link, carrying only its fixed placement token.
+    if (name === 'app_store_click' && APP_STORE_PLACEMENTS.includes(params.placement))
+      return { placement: params.placement };
     return null;
   }
   function track(name, params) {
     try {
-      if (config.pageViewsOnly === true) return false;
+      // Page-views-only still permits the single consented App Store click event (Analytics only).
+      if (config.pageViewsOnly === true && name !== 'app_store_click') return false;
       const safe = validatedParams(name, params);
       if (!safe || stopping || (!canMeasure('analytics') && !canUseMeta()) || !probeStorage()) return false;
       if (name === 'form_start' && startedForms.has(safe.form_id)) return false;
@@ -356,8 +360,12 @@
     document.body.appendChild(panel);
     if (!storageReady) showStatus('Your browser cannot save choices. Optional tracking stays off.');
     document.addEventListener('click', event => {
-      const link = event.target && event.target.closest && event.target.closest('[data-analytics-cta]');
+      const target = event.target && event.target.closest && event.target;
+      if (!target) return;
+      const link = target.closest('[data-analytics-cta]');
       if (link) track('funnel_cta_click', { destination: link.getAttribute('data-analytics-cta'), placement: link.getAttribute('data-analytics-placement') });
+      const store = target.closest('[data-analytics-appstore]');
+      if (store) track('app_store_click', { placement: store.getAttribute('data-analytics-appstore') });
     });
     document.addEventListener('focusin', event => {
       const form = event.target && event.target.closest && event.target.closest('[data-analytics-form]');

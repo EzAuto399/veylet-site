@@ -652,7 +652,7 @@ function renderArticle(article, edition) {
     '</div>',
     '<section class="article-next help-stuck" aria-labelledby="still-stuck">',
     '<h2 id="still-stuck">Still stuck? Email Veylet support</h2>',
-    `<p>Write to <a href="${escape(mailto(subject))}">${SUPPORT}</a> and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.</p>`,
+    `<p>Write to <a href="${escape(mailto(subject))}">${SUPPORT}</a>. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.</p>`,
     `<p class="article-actions"><a class="button" href="${escape(mailto(subject))}">Email Veylet support</a></p>`,
     '</section>',
     siblings.length ? `<section class="article-related" aria-labelledby="more-in"><h2 id="more-in">More in ${escape(group.title)}</h2><ul class="guide-list">`
@@ -692,7 +692,7 @@ function renderIndex(edition) {
     `<div class="help-groups">\n${groups}\n</div>`,
     '<section class="article-next help-stuck" aria-labelledby="still-stuck">',
     '<h2 id="still-stuck">Still stuck? Email Veylet support</h2>',
-    `<p>Write to <a href="${escape(mailto('Veylet help'))}">${SUPPORT}</a> and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.</p>`,
+    `<p>Write to <a href="${escape(mailto('Veylet help'))}">${SUPPORT}</a>. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.</p>`,
     `<p class="article-actions"><a class="button" href="${escape(mailto('Veylet help'))}">Email Veylet support</a></p>`,
     '</section>',
     '</main>',
