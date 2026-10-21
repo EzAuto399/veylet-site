@@ -97,6 +97,30 @@ test('launch pages ship App Store elements hidden, pre-approval shown, and load 
   }
 });
 
+function distHtml(prefix = '') {
+  return fs.readdirSync(path.join(dist, prefix), { withFileTypes: true }).flatMap(entry => {
+    if (entry.name.startsWith('.')) return [];
+    const rel = prefix + entry.name;
+    return entry.isDirectory() ? distHtml(rel + '/') : rel.endsWith('.html') ? [rel] : [];
+  });
+}
+
+// The hidden attribute alone loses to an author display rule (.hero-actions flex, .sticky-cta a grid,
+// .offer-actions/.see-actions flex), so a hidden App Store badge would still render. Every page that
+// carries an App Store element must load a stylesheet whose [hidden] (or [data-launch][hidden]) rule is
+// display:none !important (style.css has the global one today).
+test('every App Store page loads a stylesheet that force-hides hidden launch elements', () => {
+  const RULE = /(^|[\s,}])(\[data-launch\])?\[hidden\]\s*\{[^}]*display\s*:\s*none\s*!important/m;
+  const pages = distHtml().filter(file => /data-launch="app-store"/.test(read(file)));
+  assert.ok(pages.length >= 4, `expected the launch pages to carry App Store elements, found ${pages.length}`);
+  for (const page of pages) {
+    const html = read(page);
+    const sheets = [...html.matchAll(/<link\b[^>]*rel="stylesheet"[^>]*href="\/([^"?]+\.css)(?:\?[^"]*)?"/g)].map(match => match[1]);
+    const guarded = sheets.some(sheet => { try { return RULE.test(read(sheet)); } catch { return false; } });
+    assert.ok(guarded, `${page}: none of its stylesheets (${sheets.join(', ')}) force-hides [data-launch][hidden]`);
+  }
+});
+
 test('home ties the waitlist CTA to pre-approval and the App Store badge+link to the flag', () => {
   const html = read('index.html');
   // Flag off, no JS: the App Store badge text sits only inside hidden App Store regions.
