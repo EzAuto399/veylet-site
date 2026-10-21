@@ -65,7 +65,7 @@ How-to answers for the Veylet Capture app and the account desk. Index: [help ind
 ## Free months
 - Capture with a recent iPhone Pro or iPad Pro.
 - 1 month free with 3 accepted walkthroughs in total for eligible App Store subscribers, starting on activation. Apple confirms eligibility, local price and renewal date. Existing signed offers keep their dates and allowances.
-- The first charge is on the day the free months end, at the price of the plan chosen; cancelling before then charges nothing.
+- The first charge is on the day the free months end, at the price of the plan chosen; cancelling at least 24 hours before they end charges nothing.
 - One trial per agency (ABN) and workspace; real captures unlock in the app once the practice room passes.
 - This website does not offer new recurring card subscriptions.
 - App Store subscriptions auto-renew unless cancelled through Apple. Existing website card subscriptions retain their agreed automatic renewal; studio invoice periods require explicit agreement and settlement and do not auto-renew.

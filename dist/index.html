@@ -101,7 +101,7 @@
             "name": "What does a walkthrough cost?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free."
+              "text": "1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling at least 24 hours before it ends charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free."
             }
           },
           {
@@ -128,6 +128,11 @@
     <script src="/analytics-config.js?v=6d8a59f6582cf883" defer></script>
     <script src="/analytics.js?v=39969cdc90d77147" defer></script>
     <script src="/insights.js?v=8d217f3362eb989f" defer></script>
+
+    <!-- Smart App Banner for Veylet Capture (App Store id 6814273913). Safari shows no banner until the app is available [unverified until launch]. -->
+    <meta name="apple-itunes-app" content="app-id=6814273913">
+    <script src="/launch-config.js?v=fc50a0513b7bc878" defer></script>
+    <script src="/launch.js?v=6d3e27f413e50920" defer></script>
   </head>
   <body id="top" class="conversion-home refined-marketing refined-home">
     <a class="skip" href="#main">Skip to content</a>
@@ -141,27 +146,32 @@
       <section class="hero wrap" aria-labelledby="hero-title">
         <div class="hero-copy">
           <h1 id="hero-title">
-            Know the space.<br /><em>Before you arrive.</em>
+            Capture a 3D walkthrough of any space on your iPhone.
           </h1>
           <p class="intro">
-            <span class="intro-lead">Veylet makes 3D walkthroughs of homes,
-            businesses and venues that people can walk through on their phone
-            before they visit.</span>
+            <span class="intro-lead">People explore it before they visit. Share
+            it by link, embed or QR code.</span>
             Capture the space with your iPhone; we check it automatically, you
             approve it, and we host the link. Your viewers open it in a browser, with no app to
             install.
           </p>
-          <p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly</strong></p>
-          <div class="hero-actions" data-hero-actions>
-            <a class="button" href="/waitlist" data-launch-cta data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist</a
+          <div data-launch="pre-approval">
+            <p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly</strong></p>
+            <div class="hero-actions" data-hero-actions>
+              <a class="button" href="/waitlist" data-launch-cta data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist</a
+              ><a class="button button-ghost" href="/see" data-analytics-cta="see" data-analytics-placement="hero">See a result</a>
+            </div>
+            <p class="hero-note hero-admit">New accounts are admitted in weekly groups.</p>
+          </div>
+          <div class="hero-actions app-store-actions" data-launch="app-store" hidden>
+            <!-- TODO before flipping the App Store flag (dist/launch-config.js): replace this placeholder link
+                 with Apple's official black "Download on the App Store" badge SVG from Apple Marketing Resources,
+                 dropped in unmodified. Do not draw or recreate the Apple badge. -->
+            <a class="app-store-badge" href="https://apps.apple.com/au/app/id6814273913?ct=web_home_hero" data-analytics-appstore="web_home_hero">Download on the App Store</a
             ><a class="button button-ghost" href="/see" data-analytics-cta="see" data-analytics-placement="hero">See a result</a>
           </div>
-          <p class="hero-note hero-admit">New accounts are admitted in weekly groups.</p>
-          <p class="hero-note">
-            1 free month with 3 walkthroughs included, then the Veylet plan
-            at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time.
-            Early accounts in south-east Queensland.
-          </p>
+          <p class="hero-note hero-terms">First month free (3 walkthroughs), then A$139.99/mo or A$1,399.99/yr. Cancel anytime, at least 24 hours before the free month ends. Needs an iPhone Pro with LiDAR.</p>
+          <p class="hero-note">Early accounts in south-east Queensland.</p>
         </div>
         <figure class="product-stage" data-product-stage>
           <div class="stage-frame">
@@ -207,6 +217,32 @@
           <div><dt>Only what you approve counts</dt><dd>Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.</dd></div>
           <div><dt>A link and an embed</dt><dd>Hosted while your plan is active, with a link and embed for approved sharing.</dd></div>
         </dl>
+      </section>
+
+      <section class="audience wrap" id="stays" aria-labelledby="stays-title">
+        <h2 id="stays-title">Let guests walk through your place before they book.</h2>
+        <p>Share the walkthrough on your listing page, on your own booking site, and as a QR code in the welcome book, so guests arrive already knowing the room they booked.</p>
+        <div data-launch="pre-approval">
+          <a class="button" href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="body">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a>
+        </div>
+        <div class="app-store-actions" data-launch="app-store" hidden>
+          <!-- TODO before flipping the App Store flag: replace with Apple's official black "Download on the App Store" badge SVG from Apple Marketing Resources, unmodified. Do not recreate the Apple badge. -->
+          <a class="app-store-badge" href="https://apps.apple.com/au/app/id6814273913?ct=web_stays" data-analytics-appstore="web_stays">Download on the App Store</a>
+        </div>
+        <p class="hero-note hero-terms">First month free (3 walkthroughs), then A$139.99/mo or A$1,399.99/yr. Cancel anytime, at least 24 hours before the free month ends. Needs an iPhone Pro with LiDAR.</p>
+      </section>
+
+      <section class="audience wrap" id="agents" aria-labelledby="agents-title">
+        <h2 id="agents-title">Let buyers and renters walk through your listing before the open home.</h2>
+        <p>Share the walkthrough as a listing embed, on your agency website, and as a QR code on the open-home board, so buyers and renters explore the space before they arrive.</p>
+        <div data-launch="pre-approval">
+          <a class="button" href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="body">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a>
+        </div>
+        <div class="app-store-actions" data-launch="app-store" hidden>
+          <!-- TODO before flipping the App Store flag: replace with Apple's official black "Download on the App Store" badge SVG from Apple Marketing Resources, unmodified. Do not recreate the Apple badge. -->
+          <a class="app-store-badge" href="https://apps.apple.com/au/app/id6814273913?ct=web_agents" data-analytics-appstore="web_agents">Download on the App Store</a>
+        </div>
+        <p class="hero-note hero-terms">First month free (3 walkthroughs), then A$139.99/mo or A$1,399.99/yr. Cancel anytime, at least 24 hours before the free month ends. Needs an iPhone Pro with LiDAR.</p>
       </section>
 
       <section class="see-band wrap" aria-labelledby="see-band-title">
@@ -283,7 +319,7 @@
         <div class="app-copy">
           <h2 id="app-title">The app, as it is today.</h2>
           <p>Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.</p>
-          <p class="fine">Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.</p>
+          <p class="fine">Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. <span data-launch="pre-approval">The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.</span><span data-launch="app-store" hidden>Veylet Capture is available on the App Store.</span></p>
         </div>
         <ol class="app-phones">
           <li><figure><div class="device"><div class="device-screen"><img src="/media/app-welcome.webp" alt="Veylet Capture sign-in screen: enter your email for a sign-in link. No password." width="660" height="1434" loading="lazy" decoding="async" /></div></div><figcaption>Sign in<small>A link to your email, no password.</small></figcaption></figure></li>
@@ -297,7 +333,7 @@
         <div class="faq-list">
         <details>
           <summary>What does a walkthrough cost?</summary>
-          <p>1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. <a href="/offer" data-analytics-cta="offer" data-analytics-placement="body">The offer page</a> itemises your first year, and <a href="/guides/3d-tour-cost-australia">what a 3D tour costs in Australia</a> compares photographer and camera prices. Joining the waitlist is free.</p>
+          <p>1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling at least 24 hours before it ends charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. <a href="/offer" data-analytics-cta="offer" data-analytics-placement="body">The offer page</a> itemises your first year, and <a href="/guides/3d-tour-cost-australia">what a 3D tour costs in Australia</a> compares photographer and camera prices. Joining the waitlist is free.</p>
         </details>
         <details>
           <summary>Can I see a real customer example?</summary>
@@ -323,10 +359,11 @@
       </section>
 
     </main>
-    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span><small class="legal-trademark" data-launch="app-store" hidden>Apple, the Apple logo, iPhone and App Store are trademarks of Apple Inc., registered in the U.S. and other countries.</small></footer>
     <nav class="sticky-cta" aria-label="Mobile actions" data-sticky-cta>
       <a href="/see" data-analytics-cta="see" data-analytics-placement="sticky">See a result</a>
-      <a href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist</a>
+      <a href="/waitlist" data-launch="pre-approval" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist</a>
+      <a href="https://apps.apple.com/au/app/id6814273913?ct=web_home_hero" data-launch="app-store" hidden data-analytics-appstore="web_home_hero">Download on the App Store</a>
     </nav>
     <script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer></script>
     <script src="/vendor/ScrollTrigger-3.15.0.min.js?v=b0b14d67b55b0c43" defer></script>

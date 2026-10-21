@@ -1366,7 +1366,7 @@ test('the terms state the subscription the App Store listing points at', () => {
     'No new website subscription or automatic transfer from Apple is offered.',
     'A$139.99 a month or A$1,399.99 upfront a year through the App Store',
     '1 free month with 3 accepted walkthroughs included',
-    'The first charge is on the day it ends, at the price of the plan you chose; if you cancel before then, nothing is charged.',
+    'The first charge is on the day it ends, at the price of the plan you chose; if you cancel at least 24 hours before then, nothing is charged.',
     'A reminder email 7 days before the first charge is planned but not running yet',
     'Cancel any time.',
     'Settings › Subscriptions',

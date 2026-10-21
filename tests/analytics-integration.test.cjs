@@ -9,8 +9,8 @@ const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-
 
 const dist = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
-// Accepted GA-only scope: four measurement pages. /apply was removed (it redirects to /offer).
-const measurementPages = ['index.html', 'start/index.html', 'offer/index.html', 'privacy/index.html'];
+// Accepted GA-only scope: five measurement pages (/see joined on 22 October 2026). /apply was removed (it redirects to /offer).
+const measurementPages = ['index.html', 'start/index.html', 'see/index.html', 'offer/index.html', 'privacy/index.html'];
 const hookPages = ['index.html', 'start/index.html', 'offer/index.html', 'see/index.html',
   'waitlist/index.html', 'request/index.html', 'privacy/index.html'];
 const destinations = ['waitlist', 'request', 'see', 'offer', 'start'];
@@ -80,7 +80,7 @@ function validatorFixture(formID = 'waitlist', analytics) {
   return { ...f, form, control, calledPhases };
 }
 
-test('only the four accepted public measurement pages load local analytics, in config-before-runtime order', () => {
+test('only the five accepted public measurement pages load local analytics, in config-before-runtime order', () => {
   const loaded = [];
   for (const file of publicHtml()) {
     const html = read(file);

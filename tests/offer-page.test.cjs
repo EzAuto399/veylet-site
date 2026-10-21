@@ -213,7 +213,10 @@ test('every amount on the offer page sits on its own data-price element and equa
   assert.deepEqual([prices['anchor-monthly'], prices['anchor-annual'], prices.anchor], ['A$46.66', 'A$38.89', 'A$195–400']);
   // Nothing else in the markup states an amount; the free rows carry A$0 on data-amount.
   const rest = body.replace(/<span[^>]*\bdata-price="[^"]+"[^>]*>A\$[\d,.]+(?:–\d+)?<\/span>/g, '')
-    .replace(/<dd class="amount" data-amount="0">A\$0<\/dd>/g, '');
+    .replace(/<dd class="amount" data-amount="0">A\$0<\/dd>/g, '')
+    // The App Store launch terms line (Yoda final copy) is required verbatim beside the CTA and states
+    // the plain App Store monthly/annual prices; they match offer.json but are not data-price slots.
+    .replace(/First month free \(3 walkthroughs\), then A\$139\.99\/mo or A\$1,399\.99\/yr\./g, '');
   assert.doesNotMatch(rest, /A\$/, 'an amount outside a data-price element');
   // Each amount is set in tabular figures where it sits.
   const css = read('conversion.css');
@@ -278,7 +281,7 @@ test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and th
   assert.ok(lines.indexOf('data-paid-month') < lines.indexOf('data-pack-line') && lines.indexOf('data-pack-line') < lines.indexOf('line-total'));
   const after = body.slice(body.indexOf('</dl>', body.indexOf('data-statement-lines')), body.indexOf('</aside>'));
   // The first charge, said plainly before any allowance: on the day the free months end, and nothing if cancelled first.
-  assert.ok(after.includes('<p class="statement-charge" data-statement-charge>Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.</p>'));
+  assert.ok(after.includes('<p class="statement-charge" data-statement-charge>Nothing is charged during the free month. The first charge is on the day it ends; cancel at least 24 hours before the free month ends and nothing is charged.</p>'));
   assert.ok(after.indexOf('data-statement-charge') < after.indexOf('data-statement-allowance'));
   assert.ok(after.includes(`data-statement-allowance>${free.includedWalkthroughs} accepted walkthroughs in total during the ${free.months} free month. `
     + `Then ${plan.includedPerMonth} a month on the plan; unused ones roll over, up to ${banked} banked. `
@@ -466,7 +469,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
   assert.match(terms.Starting, /Nothing is charged during the free month unless you separately choose an optional service/);
   assert.match(terms.Starting, /One trial per agency \(ABN\) and workspace; Apple also determines eligibility/);
   assert.match(terms.Starting, /Existing signed offers keep their dates and allowances/);
-  assert.equal(terms['Before the first charge'], 'The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. '
+  assert.equal(terms['Before the first charge'], 'The first charge is on the day your free months end, at the price of the plan you chose. Cancel at least 24 hours before the free month ends and nothing is charged. '
     + `Your account shows that date and the price. A reminder email ${free.reminderDaysBeforeFirstCharge} days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.`);
   assert.match(terms.Stopping, /Manage an App Store subscription in Settings › Subscriptions/);
   assert.match(terms.Stopping, /email us to cancel/);
@@ -621,7 +624,7 @@ test('the straight answers match their structured data word for word, and answer
   assert.match(used, /^No\. Your free months end on the same date\./);
   assert.match(used, /buy a pack of 3 or 10 walkthroughs: by studio invoice today, or by card in your account once card payment opens\. In-app purchase arrives in a later app version\. Nothing is added or charged automatically/);
   const ends = byQuestion['What happens when the free month ends?'];
-  assert.match(ends, /^The plan you chose starts, monthly or annual, and its first charge is on that day\. Cancel before then and nothing is charged\./);
+  assert.match(ends, /^The plan you chose starts, monthly or annual, and its first charge is on that day\. Cancel at least 24 hours before the free month ends and nothing is charged\./);
   assert.match(ends, /New subscriptions use the App Store/);
   assert.match(ends, /Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew/);
   assert.ok(ends.includes(`A reminder email ${free.reminderDaysBeforeFirstCharge} days before the first charge is planned but not running yet.`));
@@ -665,7 +668,7 @@ test('the offer page head and structured description state this offer', () => {
   const docs = [...offer.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
   const page = docs.flatMap((doc) => doc['@graph'] || [doc]).find((node) => node['@type'] === 'WebPage');
   for (const phrase of [`${free.months} free month with ${free.includedWalkthroughs} walkthroughs included from the day the plan is activated with a payment method on file`,
-    'The first charge is on the day the free month ends, and cancelling before then charges nothing.',
+    'The first charge is on the day the free month ends, and cancelling at least 24 hours before it ends charges nothing.',
     `${aud(plan.appAud)} a month in the App Store`, `up to ${banked} banked`,
     `${aud(plan.annualAppAud)} upfront a year in the App Store`,
     `the same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year, for ${aud(saving)} (${savingsPercent}%) less than 12 monthly payments`, `A Super fast render, sold only while its availability gate is green, is ready in about 30 minutes, any day, any time, for ${aud(express.webAud)}, or refunded.`,
@@ -870,7 +873,7 @@ test('the terms state the free months, the plan’s walkthroughs, referrals, the
     `An eligible new account gets ${free.months} free month with ${free.includedWalkthroughs} accepted walkthroughs included, on the Veylet plan monthly or annual.`,
     'There is one trial per agency (ABN) and workspace, and real captures unlock in the app once your practice room passes.',
     'Starting it needs a payment method on file.',
-    'The first charge is on the day it ends, at the price of the plan you chose; if you cancel before then, nothing is charged.',
+    'The first charge is on the day it ends, at the price of the plan you chose; if you cancel at least 24 hours before then, nothing is charged.',
     'More walkthroughs during the free month come only from a walkthrough pack the account owner chooses to buy.',
     `the Veylet plan monthly includes ${plan.includedPerMonth} accepted walkthroughs per monthly allowance window; unused ones roll over, up to ${banked} banked at any time.`,
     `The Veylet plan annual includes ${plan.annualIncluded} accepted walkthroughs to use any time in the plan year, with no monthly limit; the pool resets on each plan-year anniversary, and unused ones do not carry into the next year.`,
@@ -955,7 +958,7 @@ test('every amount on the offer page, home page, /start, /terms and llms.txt is 
   assert.ok(home.includes(`Monthly is ${aud(plan.appAud)} a month in the App Store, with ${plan.includedPerMonth} accepted walkthroughs a month; unused ones roll over, up to ${banked} banked`));
   assert.ok(home.includes(`Annual is ${aud(plan.annualAppAud)} upfront a year in the App Store: the same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year, for ${aud(saving)} (${savingsPercent}%) less than 12 monthly payments.`));
   assert.ok(home.includes(`a Super fast render is ${aud(express.webAud)}, ready in about 30 minutes, any day, any time, or refunded`));
-  assert.ok(home.includes('the first charge is on the day it ends, and cancelling before then charges nothing'));
+  assert.ok(home.includes('the first charge is on the day it ends, and cancelling at least 24 hours before it ends charges nothing'));
   assert.ok(home.includes(`add a pack of ${pack3.walkthroughs} walkthroughs for ${aud(pack3.webAud)} or ${pack10.walkthroughs} for ${aud(pack10.webAud)}`));
   const llms = read('llms.txt');
   for (const amount of [plan.appAud, plan.annualAud, plan.annualAppAud, pack3.webAud, pack10.webAud, hostingYear, record.services.editingPerHourAud, express.webAud]) {
@@ -971,8 +974,11 @@ test('the short pricing lines on the home page and /start name the plan monthly 
   const home = read('index.html');
   const start = read('start/index.html');
   const lead = `${free.months} free month with ${free.includedWalkthroughs} walkthroughs included, then the Veylet plan at ${aud(plan.appAud)} a month or ${aud(plan.annualAppAud)} a year through the App Store`;
-  const heroNote = flat(home.match(/<p class="hero-note">([\s\S]*?)<\/p>/)[1]);
-  assert.ok(heroNote.startsWith(`${lead}, which you can cancel any time.`), heroNote);
+  // The home hero now leads with the core promise and carries the verbatim App Store launch terms line
+  // beside its call to action; the one-line monthly/annual pricing still appears in the walk-after note.
+  const TERMS = 'First month free (3 walkthroughs), then A$139.99/mo or A$1,399.99/yr. Cancel anytime, at least 24 hours before the free month ends. Needs an iPhone Pro with LiDAR.';
+  assert.ok(flat(home).includes('Capture a 3D walkthrough of any space on your iPhone.'), 'the hero states the core promise');
+  assert.ok(flat(home.match(/<section class="hero[\s\S]*?<\/section>/)[0]).includes(TERMS), 'the hero carries the terms line beside its CTA');
   const walkAfter = flat(home.match(/<div class="walk-after">[\s\S]*?<p class="contact-note">([\s\S]*?)<\/p>/)[1]);
   assert.equal(walkAfter, `New accounts are admitted in weekly groups. ${lead}; cancel any time. This site takes no card payment yet.`);
   assert.equal(record.freeMonths.autoRenewalByChannel.studioInvoice, false, 'an invoice does not renew by itself');
@@ -986,7 +992,7 @@ test('the short pricing lines on the home page and /start name the plan monthly 
   const agency = Object.fromEntries(faqPairs(start))['Can an agency use it free?'];
   for (const phrase of ['one trial per agency (ABN) and workspace', 'App Store subscriptions renew at the price of the plan you chose, monthly or annual, unless cancelled through Apple',
     `unused ones roll over, up to ${banked} banked`, `the annual plan has ${plan.annualIncluded} to use any time in the plan year`,
-    'They begin when the plan is activated with a payment method on file', 'The first charge is on the day they end; cancel before then and nothing is charged.']) {
+    'They begin when the plan is activated with a payment method on file', 'The first charge is on the day they end; cancel at least 24 hours before the free month ends and nothing is charged.']) {
     assert.ok(agency.includes(phrase), `/start: ${phrase}`);
   }
 });
@@ -1098,7 +1104,7 @@ test('llms.txt states the plan monthly and annual, the first charge, the bonus, 
   assert.match(processing, /An AI visual check is planned and comes only once the privacy notice covers it; it does not run today\.$/);
   assert.doesNotMatch(llms, /studio check|(?<!no )business (?:day|hour)|express render|priority in the studio queue/i);
   assert.equal(lineStarting('- First walkthrough:'), `- First walkthrough: if an account's first walkthrough isn't listing-ready, we redo it free. The redo is a correction on the same link and uses no walkthrough; a new capture visit is not included.`);
-  assert.match(llms, /The first charge is on the day the free months end, at the price of the plan chosen; cancelling before then charges nothing\./);
+  assert.match(llms, /The first charge is on the day the free months end, at the price of the plan chosen; cancelling at least 24 hours before they end charges nothing\./);
   const packLine = lineStarting('- One-time walkthrough packs');
   assert.ok(packLine.includes(`${pack3.walkthroughs} walkthroughs for ${aud(pack3.webAud)} or ${pack10.walkthroughs} walkthroughs for ${aud(pack10.webAud)}`), 'pack sizes and prices');
   assert.ok(packLine.includes(`each valid ${pack3.validMonths} months after purchase and used only after the included walkthroughs of the free months or the plan.`));
