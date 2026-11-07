@@ -593,8 +593,8 @@
     },
     {
       "path": "guides/3d-tours-realestate-com-au-domain/index.html",
-      "bytes": 20343,
-      "sha256": "5da566480cb2c1d67a11aea4a96f533b87f12ced1a1598134a9348a8493ee3dc",
+      "bytes": 20350,
+      "sha256": "7e9a446fc003982383f392ec14e2dc0920053e93af73619becd0939ee7d93079",
       "headerProfile": 1
     },
     {
@@ -845,8 +845,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 24687,
-      "sha256": "07cfb77fe336bc1b0e7cd11878f81bd1ab96f6032016a1fbb608fdc432f44392",
+      "bytes": 24689,
+      "sha256": "f03cc8ffe67e526b11c2c4c07816178028d0029d4a8c33fc69533f02c7101b5d",
       "headerProfile": 1
     },
     {
@@ -875,8 +875,8 @@
     },
     {
       "path": "llms.txt",
-      "bytes": 15230,
-      "sha256": "6787df4fc7f6011333ad923ace1de65ed90b9aa280ea022e4f7b25cc42400394",
+      "bytes": 15231,
+      "sha256": "1576db3820ad8d7feaaf37103c7d7a1d492922b922aaa9f95a219afabb8d953c",
       "headerProfile": 2
     },
     {
