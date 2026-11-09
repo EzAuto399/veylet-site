@@ -12,7 +12,7 @@
     <link rel="canonical" href="https://veylet.com/account" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css?v=a55dc82d81c1fb55" />
+    <link rel="stylesheet" href="/style.css?v=0e96e7f637c1dd22" />
     <link rel="stylesheet" href="/account-guide.css?v=7d995793745e07ae" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
@@ -41,11 +41,6 @@
       <p class="intro" id="account-intro">
         Use the same sign-in on the website and capture app: Apple, or the same email.
       </p>
-      <!-- Arrived through another office's referral link: filled by the script. -->
-      <p class="contact-note" id="account-referred" hidden></p>
-      <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
-      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
-      <p id="account-status" class="contact-note" role="status"></p>
       <noscript><p class="contact-note">Signing in needs JavaScript, so the sign-in form is not shown here. Turn JavaScript on for this site and reload, or read the <a href="/start">first-tour guide</a> or <a href="/waitlist">join the waitlist</a> — neither needs an account.</p></noscript>
       <form id="account-sign-in" class="veylet-form">
         <!-- Sign in with Apple, first as in the capture app: the same account. The button follows
@@ -90,6 +85,12 @@
           Email me a sign-in link <span class="icon-arrow" aria-hidden="true"></span>
         </button>
       </form>
+      <!-- Notes follow the sign-in controls so the first button sits under the lead on small screens. -->
+      <!-- Arrived through another office's referral link: filled by the script. -->
+      <p class="contact-note" id="account-referred" hidden></p>
+      <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
+      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
+      <p id="account-status" class="contact-note" role="status"></p>
       <form id="account-verify" class="veylet-form" hidden>
         <p class="contact-note">
           Sent to <strong id="account-verify-email"></strong>. Open the link in

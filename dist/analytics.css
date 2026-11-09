@@ -22,4 +22,12 @@ body:has(.analytics-consent:not([hidden])) { padding-bottom: 300px !important; }
 @media (max-width: 600px) {
   .conversion-home .analytics-preferences, .see-page .analytics-preferences { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .analytics-consent { left: 0; right: 0; width: auto; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-inline: 0; border-radius: 0; }
+  /* Compact phone bar: title and privacy link share a row, the three choices share one equal-width row. */
+  .analytics-consent:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; }
+  .analytics-consent > * { grid-column: 1 / -1; }
+  .analytics-consent > h2 { grid-column: 1; grid-row: 1; margin: 0; }
+  .analytics-consent > p:has(> a[href="/privacy"]) { grid-column: 2; grid-row: 1; margin: 0; }
+  .analytics-consent > p:first-of-type { line-height: 1.35; }
+  .analytics-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 8px; }
+  .analytics-consent .analytics-actions button { padding: 4px 6px; line-height: 1.2; }
 }

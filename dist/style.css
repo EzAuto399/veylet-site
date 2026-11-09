@@ -116,7 +116,8 @@ nav {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 30px;
-  font-size: 12px;
+  /* Not below the 13px narrow-screen size: nav text never shrinks as the window widens. */
+  font-size: 13px;
 }
 nav a:last-child {
   border-bottom: 1px solid var(--field-line);
