@@ -166,7 +166,7 @@ html {
   display: grid;
   place-content: center;
   justify-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 16px;
   text-align: center;
 }
@@ -201,7 +201,7 @@ html {
 /* The scrim sits only behind the small line, where paper text meets the poster. */
 .see-player-start .see-player-weight {
   margin: 0;
-  padding: 3px 8px;
+  padding: 4px 10px;
   background: rgba(16, 35, 29, 0.72);
   color: var(--paper);
 }
@@ -331,6 +331,8 @@ html {
 /* Captions share a first line: what the frame is, and the Research sample tag beside it. */
 .see-frame figcaption {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: 3px;
   margin-top: 12px;
   font-size: 13px;
@@ -341,18 +343,25 @@ html {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--ink);
 }
 .see-caption-head strong {
   font-weight: 500;
 }
 .see-tag {
+  min-width: 0;
+  max-width: 100%;
   padding: 1px 8px;
   font-size: 11.5px;
   letter-spacing: 0;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .see-caption-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--muted);
 }
 .see-player-weight {
@@ -566,6 +575,7 @@ html {
   display: block;
   padding-top: 10px;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 .see-rooms figcaption {
   max-width: 72ch;
@@ -617,9 +627,11 @@ html {
 }
 .see-table tbody th {
   width: 24%;
+  min-width: 7em;
   color: var(--muted);
   font-size: 14px;
   font-weight: 400;
+  overflow-wrap: anywhere;
 }
 .see-table tbody tr:first-child > * {
   border-top: 0;
@@ -668,14 +680,17 @@ html {
 }
 .see-step-text {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(8.5rem, 1fr) fit-content(45%);
   align-items: baseline;
   column-gap: 24px;
   max-width: 640px;
+  min-width: 0;
 }
 .see-step h3 {
   grid-column: 1;
   grid-row: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 22px;
   font-weight: 500;
@@ -686,12 +701,13 @@ html {
 .see-step-text .see-step-time {
   grid-column: 2;
   grid-row: 1;
+  min-width: 0;
   margin: 0;
   color: var(--ink);
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .see-step-text p:last-child {
   grid-column: 1 / -1;
@@ -785,6 +801,9 @@ html {
   will-change: transform, filter;
   backface-visibility: hidden;
 }
+.see-flow[data-mode="pinned"] .see-step-screen:not([data-stage]) .device-screen > * {
+  visibility: hidden;
+}
 /* Only the shown screen's caption, so the stacked captions never overprint. */
 .see-flow[data-mode="pinned"] .see-step-screen figcaption {
   opacity: 0;
@@ -823,12 +842,18 @@ html {
   font-size: 4.4cqw;
   font-weight: 500;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-h {
   margin-top: 2cqw;
   font-size: 8.4cqw;
   font-weight: 500;
   letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-card {
   display: grid;
@@ -837,23 +862,36 @@ html {
   border: 1px solid rgba(198, 220, 201, 0.18);
   border-radius: 5cqw;
   background: #16241f;
+  min-width: 0;
 }
 .see-ui-state {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 2cqw;
   font-size: 5.2cqw;
   font-weight: 500;
+  min-width: 0;
+}
+.see-ui-state > span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-pill {
   flex: none;
+  max-width: 100%;
   padding: 1cqw 2.6cqw;
   border-radius: 99px;
   background: rgba(198, 220, 201, 0.16);
   color: #cfe0d2;
   font-size: 3.5cqw;
   font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 [data-state="ready"] .see-ui-pill,
@@ -864,6 +902,9 @@ html {
 .see-ui-line {
   color: rgba(238, 243, 238, 0.74);
   font-size: 4cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-steps {
   display: grid;
@@ -873,11 +914,16 @@ html {
   list-style: none;
   color: rgba(238, 243, 238, 0.55);
   font-size: 3.9cqw;
+  min-width: 0;
 }
 .see-ui-steps li {
   display: flex;
   align-items: center;
   gap: 2.4cqw;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-steps li::before {
   content: "";
@@ -930,6 +976,9 @@ html {
   font-size: 4.4cqw;
   font-weight: 500;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 [data-state="rendering"] [data-ui-cta] {
   visibility: hidden;
@@ -945,6 +994,7 @@ html {
   gap: 3.6cqw;
   padding: 17cqw 6cqw 8cqw;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(8cqw);
   transition:
     opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
@@ -958,6 +1008,7 @@ html {
 [data-state="shared"] [data-ui-layer="shared"],
 [data-state="browser"] [data-ui-layer="browser"] {
   opacity: 1;
+  visibility: inherit;
   transform: none;
 }
 .see-ui-thumb {
@@ -979,6 +1030,9 @@ html {
   gap: 2.6cqw;
   color: rgba(238, 243, 238, 0.86);
   font-size: 3.9cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-box {
   position: relative;
@@ -1008,16 +1062,22 @@ html {
   border: 1px solid rgba(198, 220, 201, 0.22);
   border-radius: 3cqw;
   font-size: 3.8cqw;
+  min-width: 0;
 }
 .see-ui-link span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .see-ui-link em {
   flex: none;
+  max-width: 50%;
   color: var(--sage);
   font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-qr {
   display: block;
@@ -1033,7 +1093,9 @@ html {
   color: rgba(238, 243, 238, 0.82);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 3.3cqw;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 [data-ui-layer="browser"] {
   gap: 0;
@@ -1048,6 +1110,9 @@ html {
   color: rgba(238, 243, 238, 0.86);
   font-size: 3.6cqw;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .see-ui-view {
   position: relative;
@@ -1058,11 +1123,15 @@ html {
   position: absolute;
   top: 4cqw;
   left: 4cqw;
+  max-width: calc(100% - 8cqw);
   padding: 1.6cqw 3cqw;
   border-radius: 1.4cqw;
   background: rgba(16, 35, 29, 0.88);
   color: var(--paper);
   font-size: 3.6cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- Your first 3 months ---------- */
@@ -1161,17 +1230,20 @@ html {
     border: 0;
   }
   .see-table tbody th {
+    width: auto;
     margin-bottom: 8px;
   }
   .see-table tbody td {
     display: grid;
-    grid-template-columns: 8ch minmax(0, 1fr);
+    grid-template-columns: minmax(6em, 8ch) minmax(0, 1fr);
     gap: 12px;
     padding: 3px 0;
     font-size: 15px;
   }
   .see-cell-label {
     display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--muted);
     font-size: 13px;
   }

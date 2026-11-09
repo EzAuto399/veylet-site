@@ -803,6 +803,41 @@
     }
     return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
   }
+  // Print-ready open-home sign card (1200 x 1600 PNG) drawn in this browser.
+  function qrSignPng(qr, url, name) {
+    const matrix = qr.matrix(url, 'M');
+    const quiet = Number.isInteger(qr.quietZone) ? qr.quietZone : 4;
+    const modules = matrix.size + quiet * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 1600;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#f8f6f1'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#10231d'; context.fillRect(80, 80, 1040, 180);
+    context.fillStyle = '#ffffff'; context.fillRect(140, 320, 920, 920);
+    const scale = Math.max(1, Math.floor(840 / modules));
+    const offset = Math.floor((1200 - modules * scale) / 2);
+    const top = 320 + Math.floor((920 - modules * scale) / 2);
+    context.fillStyle = '#10231d';
+    for (let row = 0; row < matrix.size; row++) {
+      for (let col = 0; col < matrix.size; col++) {
+        if (matrix.modules[row * matrix.size + col] === 1) {
+          context.fillRect(offset + (col + quiet) * scale, top + (row + quiet) * scale, scale, scale);
+        }
+      }
+    }
+    if (typeof context.fillText === 'function') {
+      context.fillStyle = '#f8f6f1';
+      context.font = '600 44px sans-serif';
+      context.fillText(String(name || '3D Walkthrough').slice(0, 38), 130, 190);
+      context.fillStyle = '#10231d';
+      context.font = '700 48px sans-serif';
+      context.fillText('Scan to walk through in 3D', 140, 1340);
+      context.font = '400 32px sans-serif';
+      context.fillText('Open on your phone — no app needed', 140, 1410);
+    }
+    return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
+  }
   // Show QR code: drawn in this browser by the vendored generator (window.VeyletQR,
   // /vendor/qrcode-1.5.4.min.js) when the disclosure opens. No QR service is called.
   function qrKit(tour, url, name) {
@@ -813,7 +848,9 @@
     code.textContent = 'Preparing the QR code…';
     const caption = document.createElement('p'); caption.className = 'tour-qr-caption';
     caption.textContent = 'Scan to open the walkthrough on a phone. Print it on a window card or brochure.';
-    const file = (slugOf(name) || 'veylet-walkthrough') + '-qr.png';
+    const slug = slugOf(name) || 'veylet-walkthrough';
+    const file = slug + '-qr.png';
+    const signFile = slug + '-open-home-sign.png';
     const download = button('Download QR code (PNG)', async () => {
       const qr = window.VeyletQR;
       if (download.disabled || !qr?.matrix) return;
@@ -825,7 +862,18 @@
       } catch { sayQr('The QR code couldn’t be saved here. Take a screenshot of it instead.'); }
     });
     download.disabled = true; download.dataset.control = 'qr-download';
-    const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download);
+    const signDownload = button('Download open-home sign (PNG)', async () => {
+      const qr = window.VeyletQR;
+      if (signDownload.disabled || !qr?.matrix) return;
+      try {
+        const href = URL.createObjectURL(await qrSignPng(qr, url, name));
+        const anchor = document.createElement('a'); anchor.href = href; anchor.download = signFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayQr('Open-home sign saved as ' + signFile + '.');
+      } catch { sayQr('The open-home sign couldn’t be saved here. Download the QR code instead.'); }
+    });
+    signDownload.disabled = true; signDownload.dataset.control = 'qr-sign-download';
+    const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download, signDownload);
     body.append(code, caption, row); details.append(summary, body);
     let drawn = false;
     const draw = () => {
@@ -834,7 +882,7 @@
       let svg = '';
       try { svg = qr?.svg ? qr.svg(url, { label: 'QR code that opens ' + name }) : ''; } catch { svg = ''; }
       if (!/^<svg[\s>]/.test(svg)) { code.textContent = 'The QR code couldn’t be made here. Copy the link instead.'; return; }
-      drawn = true; code.innerHTML = svg; download.disabled = false;
+      drawn = true; code.innerHTML = svg; download.disabled = false; signDownload.disabled = false;
     };
     details.addEventListener('toggle', () => { if (details.open) draw(); });
     const sayQr = rowSay(tour, details);
@@ -1019,9 +1067,136 @@
    * (the viewer beacon's counts). Hidden while the backend has no such function, and
    * on any error or odd answer: a missing count is never shown as zero.
    */
+  const CHANNEL_NAMES = Object.freeze({
+    link: 'Direct link',
+    qr: 'QR code',
+    embed: 'Website embed',
+    portal: 'Listing portal',
+    video: 'Video',
+    unknown: 'Other',
+  });
+  function formatDurationSeconds(seconds) {
+    if (!Number.isInteger(seconds) || seconds <= 0) return '';
+    if (seconds < 60) return seconds + 's';
+    const mins = Math.floor(seconds / 60), rem = seconds % 60;
+    return rem ? mins + 'm ' + rem + 's' : mins + 'm';
+  }
+  function positiveEntries(map) {
+    if (!map || typeof map !== 'object') return [];
+    return Object.entries(map).filter(([, v]) => Number.isInteger(v) && v > 0).sort((a, b) => b[1] - a[1]);
+  }
+  function vendorReportText(title, row, lastDate) {
+    const name = typeof title === 'string' && title.trim() ? title.trim() : 'Walkthrough';
+    const opens = viewCount(row?.opens) || 0;
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0;
+    const emails = viewCount(row?.email_taps) || 0;
+    const shares = viewCount(row?.share_taps) || 0;
+    const dwell = formatDurationSeconds(viewCount(row?.avg_dwell_seconds));
+    const lines = [
+      'Walkthrough campaign report — ' + name,
+      'Total opens: ' + opens + (days !== null ? ' (' + days + (days === 1 ? ' active day' : ' active days') + (lastDate ? ' · last opened ' + lastDate : '') + ')' : (lastDate ? ' (last opened ' + lastDate + ')' : '')),
+      'Direct buyer actions: ' + calls + (calls === 1 ? ' call tap' : ' call taps') + ' · ' + emails + (emails === 1 ? ' email tap' : ' email taps') + ' · ' + shares + (shares === 1 ? ' link share' : ' link shares') + (dwell ? ' · Avg. time ' + dwell : ''),
+    ];
+    const channels = positiveEntries(row?.by_src);
+    if (channels.length) {
+      lines.push('Where buyers opened from: ' + channels.map(([k, v]) => (CHANNEL_NAMES[k] || k) + ': ' + v + ' (' + Math.round((v / Math.max(1, opens)) * 100) + '%)').join(' · '));
+    }
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) {
+      lines.push('Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', '));
+    }
+    const rooms = positiveEntries(row?.by_room);
+    if (rooms.length) {
+      lines.push('Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · '));
+    }
+    return lines.join('\n');
+  }
+  function tourInsights(tour, row, title, box, lastDate) {
+    if (!box) return;
+    const opens = viewCount(row?.opens);
+    if (!opens || opens <= 0) { box.hidden = true; return; }
+    box.className = 'account-details tour-insights';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Walkthrough insights & vendor report';
+    const body = document.createElement('div');
+    body.className = 'tour-insights-body';
+    body.hidden = !box.open;
+    box.addEventListener('toggle', () => { body.hidden = !box.open; });
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0;
+    const emails = viewCount(row?.email_taps) || 0;
+    const shares = viewCount(row?.share_taps);
+    const dwell = formatDurationSeconds(viewCount(row?.avg_dwell_seconds));
+    const summaryBits = [];
+    if (days !== null) summaryBits.push('Active days: ' + days);
+    summaryBits.push('Direct enquiries: ' + (calls + emails));
+    if (shares !== null) summaryBits.push('Link shares: ' + shares);
+    if (dwell) summaryBits.push('Avg. time: ' + dwell);
+    const metrics = document.createElement('p');
+    metrics.className = 'tour-insights-summary';
+    metrics.textContent = summaryBits.join(' · ');
+    body.append(metrics);
+    const channels = positiveEntries(row?.by_src);
+    if (channels.length) {
+      const list = document.createElement('ul');
+      list.className = 'tour-insights-channels';
+      for (const [key, count] of channels) {
+        const pct = Math.round((count / Math.max(1, opens)) * 100);
+        const li = document.createElement('li');
+        li.className = 'tour-insights-channel';
+        li.textContent = (CHANNEL_NAMES[key] || key) + ': ' + count + ' (' + pct + '%)';
+        li.style?.setProperty?.('--share', Math.min(100, pct) + '%');
+        list.append(li);
+      }
+      body.append(list);
+    }
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) {
+      const hostLine = document.createElement('p');
+      hostLine.className = 'tour-insights-hosts';
+      hostLine.textContent = 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ');
+      body.append(hostLine);
+    }
+    const rooms = positiveEntries(row?.by_room);
+    if (rooms.length) {
+      const roomLine = document.createElement('p');
+      roomLine.className = 'tour-insights-rooms';
+      roomLine.textContent = 'Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · ');
+      body.append(roomLine);
+    }
+    const reportText = vendorReportText(title, row, lastDate);
+    const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
+    const copyBtn = button('Copy vendor report', async () => {
+      await window.VeyletSharing?.copy(reportText, null, statusEl, 'Vendor report copied. Paste it into your vendor update.');
+      sayInsights('Vendor report copied. Paste it into your vendor update.');
+    });
+    copyBtn.dataset.control = 'copy-vendor-report';
+    const downloadBtn = button('Download vendor report (.txt)', () => {
+      try {
+        const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+        const href = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = href; anchor.download = reportFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayInsights('Vendor report saved as ' + reportFile + '.');
+      } catch {
+        sayInsights('The vendor report couldn’t be saved here. Use Copy vendor report instead.');
+      }
+    });
+    downloadBtn.dataset.control = 'download-vendor-report';
+    const actions = document.createElement('p');
+    actions.className = 'tour-actions-row';
+    actions.append(copyBtn, downloadBtn);
+    body.append(actions);
+    box.replaceChildren(summary, body);
+    const sayInsights = rowSay(tour, box);
+    box.hidden = false;
+  }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
-  function tourViews(tour, host, supabase, ticket) {
+  function tourViews(tour, host, supabase, ticket, title, insightsBox) {
     host.className = 'tour-views'; host.hidden = true;
+    if (insightsBox) insightsBox.hidden = true;
     if (!viewsAvailable) return;
     void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
       if (ticket !== deskVersion) return;
@@ -1040,6 +1215,7 @@
         parts.push(taps);
       }
       host.replaceChildren(...parts); host.hidden = false;
+      if (opens > 0 && insightsBox) tourInsights(tour, row, title, insightsBox, last);
     });
   }
   function stopSharing(tour, supabase, ticket, parent) {
@@ -1812,7 +1988,14 @@
       }
       if (render?.answers) renderDraw();
       // Its views sit under the state line, on a live or paused link.
-      if (live) { const views = document.createElement('div'); item.append(views); tourViews(tour, views, supabase, ticket); }
+      if (live) {
+        const views = document.createElement('div');
+        const insights = document.createElement('details');
+        insights.className = 'account-details tour-insights';
+        insights.hidden = true;
+        item.append(views, insights);
+        tourViews(tour, views, supabase, ticket, title, insights);
+      }
       // An ended plan's fix (Restart your plan, and the hosting extension request) follows, before the link controls.
       if (hostingFix) item.append(hostingFix);
       if (canShare) {
@@ -5417,6 +5600,105 @@
     renderHide();
     return ticket;
   }
+  const PREP_CHECKLIST = Object.freeze([
+    'Open curtains and blinds, and turn on all room and bedside lights.',
+    'Clear kitchen benches, dining tables, vanity tops and entrance floors.',
+    'Tuck away personal photos, mail, keys, visible cables and pet bowls.',
+    'Open internal doors between rooms so doorway paths stay clear.',
+    'Allow 15 to 25 minutes of clear floor access with pets secured.',
+  ]);
+  function spacePrepNote(title) {
+    const name = typeof title === 'string' && title.trim() ? title.trim() : 'your space';
+    return [
+      'Hi — we are preparing to capture the 3D walkthrough for ' + name + '.',
+      'Before we arrive, please take 5 minutes to:',
+      ...PREP_CHECKLIST.map((line, idx) => (idx + 1) + '. ' + line),
+      'Thank you — this helps every room look its best in 3D.',
+    ].join('\n');
+  }
+  function icsStamp(date) {
+    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  }
+  function spaceCaptureIcs(space) {
+    const name = (typeof space?.title === 'string' && space.title.trim() ? space.title.trim() : 'Space').replace(/[\r\n,;\\]+/g, ' ');
+    const where = (typeof space?.location_general === 'string' && space.location_general.trim() ? space.location_general.trim() : '').replace(/[\r\n,;\\]+/g, ' ');
+    const now = new Date();
+    const start = new Date(now.getTime() + 86400000);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const desc = PREP_CHECKLIST.map((line, idx) => (idx + 1) + '. ' + line).join('\\n');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Veylet//Capture Slot//EN',
+      'BEGIN:VEVENT',
+      'UID:capture-' + String(space?.id || 'space') + '@veylet.com',
+      'DTSTAMP:' + icsStamp(now),
+      'DTSTART:' + icsStamp(start),
+      'DTEND:' + icsStamp(end),
+      'SUMMARY:3D walkthrough capture — ' + name,
+      ...(where ? ['LOCATION:' + where] : []),
+      'DESCRIPTION:' + desc,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ];
+    return lines.join('\r\n') + '\r\n';
+  }
+  function spacePrepKit(space) {
+    const details = document.createElement('details');
+    details.className = 'account-details space-prep';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Prepare or schedule capture';
+    const body = document.createElement('div');
+    body.className = 'space-prep-body';
+    body.hidden = !details.open;
+    details.addEventListener('toggle', () => { body.hidden = !details.open; });
+    const lead = document.createElement('p');
+    lead.className = 'tour-state-help space-prep-lead';
+    lead.textContent = 'Send this checklist to the owner or tenant before you arrive so every room is ready to capture in one visit.';
+    const list = document.createElement('ul');
+    list.className = 'space-prep-list';
+    for (const itemText of PREP_CHECKLIST) {
+      const li = document.createElement('li');
+      li.textContent = itemText;
+      list.append(li);
+    }
+    const note = spacePrepNote(space?.title);
+    const icsFile = (slugOf(space?.title) || 'veylet-space') + '-capture.ics';
+    const copyBtn = button('Copy owner & tenant prep note', async () => {
+      await window.VeyletSharing?.copy(note, null, statusEl, 'Prep checklist copied. Send it to the owner or tenant before capture.');
+      sayPrep('Prep checklist copied. Send it to the owner or tenant before capture.');
+    });
+    copyBtn.dataset.control = 'copy-prep-note';
+    const icsBtn = button('Download capture calendar slot (.ics)', () => {
+      try {
+        const blob = new Blob([spaceCaptureIcs(space)], { type: 'text/calendar;charset=utf-8' });
+        const href = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = href; anchor.download = icsFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayPrep('Calendar slot saved as ' + icsFile + '.');
+      } catch {
+        sayPrep('The calendar slot couldn’t be saved here. Copy the prep checklist instead.');
+      }
+    });
+    icsBtn.dataset.control = 'download-capture-ics';
+    const actions = document.createElement('p');
+    actions.className = 'tour-actions-row';
+    actions.append(copyBtn, icsBtn);
+    const said = document.createElement('p');
+    said.className = 'tour-row-status';
+    said.setAttribute('role', 'status');
+    said.hidden = true;
+    const sayPrep = text => {
+      said.textContent = text;
+      said.hidden = !text;
+      if (text) setStatus(text);
+    };
+    body.append(lead, list, actions, said);
+    details.append(summary, body);
+    return details;
+  }
   // Offline with a desk on the page: it stays as it was, says how old it is, and
   // reads again when the window hears it is back online.
   function deskOffline() {
@@ -5602,7 +5884,7 @@
         else if (tour.status === 'revoked') message(item, 'This walkthrough is unavailable for new access. Remove any old links or embeds from your listing, and contact Veylet support about the next step.');
         ul.append(item);
       }
-      li.append(ul); list.append(li);
+      li.append(ul, spacePrepKit(row)); list.append(li);
     }
     // A ready walkthrough's next step waits for its review answer, then says it once.
     updateGuide(reviewLoads.length > 0);

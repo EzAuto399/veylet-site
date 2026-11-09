@@ -56,7 +56,7 @@
   text-wrap: initial;
 }
 .refined-home .hero h1 em {
-  white-space: nowrap;
+  white-space: normal;
 }
 .refined-home .hero .intro {
   max-width: 48ch;

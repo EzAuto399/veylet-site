@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=72a09df6f0e1e23b';
+  const STYLE_URL = '/tour-player-v2.css?v=25009fa272a71592';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -90,7 +90,9 @@
     const rooms = json.rooms.map(room => {
       if (!room || typeof room.id !== 'string' || !/^r\d{1,3}$/.test(room.id)) bad('room');
       if (room.name !== null && (typeof room.name !== 'string' || !room.name.trim() || room.name.length > 40)) bad('room');
-      return { id: room.id, name: room.name };
+      const bounds = Array.isArray(room.bounds) && room.bounds.length === 2 && room.bounds.every(v => Number.isFinite(v) && v >= 0.8 && v <= 40)
+        ? [Math.round(room.bounds[0] * 10) / 10, Math.round(room.bounds[1] * 10) / 10] : null;
+      return { id: room.id, name: room.name, ...(bounds ? { bounds } : {}) };
     });
     if (!Array.isArray(json.stops) || json.stops.length < 1 || json.stops.length > 60) bad('stops');
     const stops = json.stops.map(stop => {
@@ -243,17 +245,20 @@
     const maxPixelRatio = kind === 'desktop' ? Math.min(dpr, 2) : Math.min(dpr, 1.5);
     // Save-Data: the coarsest level only, and no automatic upgrade.
     const saveData = Boolean(env.saveData);
-    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, minPixelRatio: Math.min(1, dpr), saveData };
+    const peakPixelRatio = saveData || modest ? maxPixelRatio : Math.min(dpr, 2);
+    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, peakPixelRatio, minPixelRatio: Math.min(1, dpr), saveData };
   }
 
   /**
    * Keeps motion at 30 fps or better. Pixel ratio goes first (cheapest to give
    * back), then the splat budget. Budget returns first; pixels recover gradually
-   * after five seconds of sustained headroom, up to the original device ceiling.
+   * after five seconds of sustained headroom, up to the original device ceiling
+   * (and up to peakPixelRatio when sustained >55 fps headroom proves capacity).
    */
   function createGovernor(profile) {
     let samples = [], elapsed = 0, headroomMs = 0, lastChange = -Infinity;
     const state = { budget: profile.budget, pixelRatio: profile.maxPixelRatio };
+    const peakPixelRatio = profile.peakPixelRatio ?? profile.maxPixelRatio;
     return {
       state,
       // Decide on 45 frames or 1.5 s of frames, whichever comes first, so a
@@ -293,6 +298,12 @@
           state.pixelRatio = Math.min(profile.maxPixelRatio, Math.round(state.pixelRatio * 1.1 * 100) / 100);
           return { pixelRatio: state.pixelRatio, fps };
         }
+        if (fps > 55 && state.budget >= profile.maxBudget && state.pixelRatio < peakPixelRatio && headroomMs >= 5000 && now - lastChange >= 5000) {
+          lastChange = now;
+          headroomMs = 0;
+          state.pixelRatio = Math.min(peakPixelRatio, Math.round(state.pixelRatio * 1.1 * 100) / 100);
+          return { pixelRatio: state.pixelRatio, fps };
+        }
         return null;
       },
     };
@@ -313,6 +324,31 @@
     const stop = manifest.stops[index];
     const room = manifest.rooms.find(item => item.id === stop.room);
     return { room: room && room.name ? room.name : '', stop: 'Stop ' + (index + 1) + ' of ' + manifest.stops.length };
+  }
+
+  /**
+   * Indicative room dimensions (width × depth in metres) from room.bounds or
+   * the span of stops in that room when 2+ stops exist on the room's floor.
+   */
+  function roomFootprint(manifest, roomId) {
+    if (!manifest || !Array.isArray(manifest.rooms) || !roomId) return null;
+    const room = manifest.rooms.find(item => item && item.id === roomId);
+    if (!room) return null;
+    if (Array.isArray(room.bounds) && room.bounds.length === 2 && room.bounds.every(v => Number.isFinite(v) && v >= 0.8)) {
+      const w = Math.round(room.bounds[0] * 10) / 10;
+      const d = Math.round(room.bounds[1] * 10) / 10;
+      return { widthMeters: w, depthMeters: d, label: `approx. ${w.toFixed(1)} × ${d.toFixed(1)} m` };
+    }
+    const stops = (manifest.stops || []).filter(stop => stop && stop.room === roomId && Array.isArray(stop.floor));
+    if (stops.length < 2) return null;
+    const xs = stops.map(stop => stop.floor[0]);
+    const zs = stops.map(stop => stop.floor[2]);
+    const spanX = Math.max(...xs) - Math.min(...xs);
+    const spanZ = Math.max(...zs) - Math.min(...zs);
+    if (spanX < 0.4 && spanZ < 0.4) return null;
+    const w = Math.round(Math.max(1.8, spanX + 1.4) * 10) / 10;
+    const d = Math.round(Math.max(1.8, spanZ + 1.4) * 10) / 10;
+    return { widthMeters: w, depthMeters: d, label: `approx. ${w.toFixed(1)} × ${d.toFixed(1)} m` };
   }
 
   const stepStop = (index, delta, count) => ((index + delta) % count + count) % count;
@@ -409,6 +445,89 @@
     }
     const reach = blocked ? open - margin : length;
     return reach >= minStep ? [from[0] + dx * reach / length, from[1] + dz * reach / length] : null;
+  }
+
+  /**
+   * Tethers a free-walk floor point to the verified station corridor (`maxCorridor` metres around
+   * captured stops and stop-to-stop segments on the same storey) so a visitor cannot wander into
+   * unobserved splat geometry behind furniture, while snapping within `snapRadius` of a stop.
+   */
+  function tetherToStations(walkable, from, point, stops, { snapRadius = 0.3, maxCorridor = 0.85, minStep = 0.3, skip = 0.25 } = {}) {
+    if (!point || !Array.isArray(stops) || !stops.length) return point;
+    const pts = stops.map(stop => [stop.position[0], stop.position[2]]);
+    for (const st of pts) {
+      if (Math.hypot(point[0] - st[0], point[1] - st[1]) <= snapRadius
+          && Math.hypot(st[0] - from[0], st[1] - from[1]) >= minStep
+          && (!walkable || (walkable.walkable(st[0], st[1]) && walkable.clear(from, st, skip)))) {
+        return st;
+      }
+    }
+    let closest = pts[0], bestDist = Math.hypot(point[0] - pts[0][0], point[1] - pts[0][1]);
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const d0 = Math.hypot(point[0] - a[0], point[1] - a[1]);
+      if (d0 < bestDist) { bestDist = d0; closest = a; }
+      if (i + 1 < pts.length) {
+        const b = pts[i + 1];
+        const abx = b[0] - a[0], abz = b[1] - a[1], len2 = abx * abx + abz * abz;
+        if (len2 > 1e-6) {
+          const t = clamp(((point[0] - a[0]) * abx + (point[1] - a[1]) * abz) / len2, 0, 1);
+          const proj = [a[0] + abx * t, a[1] + abz * t];
+          const dp = Math.hypot(point[0] - proj[0], point[1] - proj[1]);
+          if (dp < bestDist) { bestDist = dp; closest = proj; }
+        }
+      }
+    }
+    if (bestDist <= maxCorridor) return point;
+    const tethered = [
+      closest[0] + (point[0] - closest[0]) * (maxCorridor / bestDist),
+      closest[1] + (point[1] - closest[1]) * (maxCorridor / bestDist),
+    ];
+    if (Math.hypot(tethered[0] - from[0], tethered[1] - from[1]) >= minStep
+        && (!walkable || (walkable.walkable(tethered[0], tethered[1]) && walkable.clear(from, tethered, skip)))) {
+      return tethered;
+    }
+    if (Math.hypot(closest[0] - from[0], closest[1] - from[1]) >= minStep
+        && (!walkable || (walkable.walkable(closest[0], closest[1]) && walkable.clear(from, closest, skip)))) {
+      return closest;
+    }
+    return point;
+  }
+
+  /**
+   * Finds a clear walkable floor route from `fromPosition` to `toPosition`:
+   * `[toPosition]` when the straight line is open (allowing `skip` metres near
+   * the endpoint for a stop standing at the edge of the floor mask), or a
+   * 2-segment `[viaPosition, toPosition]` route through an intermediate stop
+   * or corridor bend when a kitchen island or sofa corner sits between them.
+   * Returns `null` when no clear walkable route exists on this floor.
+   */
+  function corridorRoute(walkable, fromPosition, toPosition, stops = [], { skip = 0.25 } = {}) {
+    if (!walkable || !Array.isArray(fromPosition) || !Array.isArray(toPosition)) return null;
+    const a = [fromPosition[0], fromPosition[2]], b = [toPosition[0], toPosition[2]];
+    const clearSeg = (p, q) => walkable.walkable(q[0], q[1]) && (walkable.clear(p, q, skip) || (walkable.walkable(p[0], p[1]) && walkable.clear(q, p, skip)));
+    if (clearSeg(a, b)) return [[...toPosition]];
+    let best = null, bestDistance = Infinity;
+    const consider = via3D => {
+      const v = [via3D[0], via3D[2]];
+      const d1 = Math.hypot(v[0] - a[0], v[1] - a[1]), d2 = Math.hypot(b[0] - v[0], b[1] - v[1]);
+      if (d1 < 0.05 || d2 < 0.05 || d1 + d2 >= bestDistance) return;
+      if (clearSeg(a, v) && clearSeg(v, b)) {
+        bestDistance = d1 + d2;
+        best = [[...via3D], [...toPosition]];
+      }
+    };
+    for (const stop of stops || []) {
+      if (Array.isArray(stop?.position)) consider(stop.position);
+    }
+    if (best) return best;
+    const midY = (fromPosition[1] + toPosition[1]) / 2;
+    const dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz) || 1;
+    const nx = -dz / len, nz = dx / len, mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2;
+    for (const [vx, vz] of [[a[0], b[1]], [b[0], a[1]], [mx + nx * 0.45, mz + nz * 0.45], [mx - nx * 0.45, mz - nz * 0.45], [mx + nx * 0.9, mz + nz * 0.9], [mx - nx * 0.9, mz - nz * 0.9]]) {
+      consider([vx, midY, vz]);
+    }
+    return best;
   }
 
   /** Where a view ray meets the floor plane, if in front and within reach. */
@@ -632,12 +751,13 @@
     // Not .v2-full: the stylesheet hides that class in frames of 330 px and
     // under, which is exactly where full screen is needed most.
     const full = iconButton('full', 'Full screen', 'v2-icon v2-fullscreen');
+    const roomsBar = el('div', { class: 'v2-room-pills', role: 'group', 'aria-label': 'Rooms', hidden: true });
     const bar = el('div', { class: 'v2-bar', role: 'toolbar', 'aria-label': 'Walkthrough controls', hidden: true });
     const moves = el('div', { class: 'v2-moves' });
     moves.append(prev, stopsToggle, next);
     const tools = el('div', { class: 'v2-tools' });
     tools.append(mapToggle, full);
-    bar.append(moves, tools);
+    bar.append(roomsBar, moves, tools);
     const stopsPanel = el('div', { class: 'v2-panel v2-stops', role: 'dialog', 'aria-label': 'Rooms and stops', hidden: true });
     const map = el('figure', { class: 'v2-map', hidden: true });
     const aboutPanel = el('div', { class: 'v2-panel v2-about', role: 'dialog', 'aria-label': 'About this walkthrough', hidden: true });
@@ -645,7 +765,7 @@
     root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, bar, fallback, announce);
     stage.append(root);
     return { root, preview, poster, canvas, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
-      prev, next, stopsToggle, mapToggle, full, bar, stopsPanel, map, aboutPanel, fallback };
+      prev, next, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, fallback };
   }
 
   const FALLBACK_WORDS = {
@@ -665,11 +785,14 @@
   function start(stage, options = {}) {
     return new Promise((resolve, reject) => { play(stage, options, resolve).then(resolve, reject); });
   }
+  function mount(stage, options = {}) {
+    return start(stage, options);
+  }
 
   async function play(stage, options, waiting) {
     const signal = options.signal;
     const page = options.page || location;
-    const base = resolveBase(options.base, page);
+    const base = resolveBase(options.base ?? options.packageUrl, page);
     const env = options.env || browserEnv();
     const profile = deviceProfile(env);
     const reduceQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
@@ -854,6 +977,9 @@
     // its distance and the budget call for; the coarse data stays on screen
     // until that level arrives, so no bytes go on levels in between.
     app.scene.gsplat.lodUnderfillLimit = 0;
+    app.scene.gsplat.radialSorting = true;
+    app.scene.gsplat.lodBehindPenalty = 1;
+    app.scene.gsplat.colorUpdateAngle = 2;
     const camera = new pc.Entity('camera');
     camera.addComponent('camera', { clearColor: new pc.Color().fromString(manifest.scene.background), nearClip: 0.05, farClip: 200 });
     app.root.addChild(camera);
@@ -890,13 +1016,14 @@
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
+    let flightFovOffset = 0;
     const requestRender = () => { app.renderNextFrame = true; };
     function applyCamera() {
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
       const view = fieldOfView(aspect(), posterSpec, state.zoom);
       camera.camera.horizontalFov = view.horizontal;
-      camera.camera.fov = view.fov;
+      camera.camera.fov = clamp(view.fov + flightFovOffset, 20, 130);
       requestRender();
       placeHotspots();
     }
@@ -928,8 +1055,21 @@
         const distance = Math.hypot(d[0], d[2]);
         const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
         // The mask says nothing about a storey it was not carved for.
-        const reachable = !walkable || (storeys && viewerLevel !== levelOf[manifest.start]) || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]]);
+        const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
+        const reachable = !walkable || (storeys && viewerLevel !== levelOf[manifest.start])
+          || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
+          || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
         if (index === state.stop && distance < 0.4 || !inFront || !reachable || distance > 12) { button.hidden = true; return; }
+        const label = stopLabel(manifest, index);
+        const activeStop = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
+        const nextStopIndex = stepStop(activeStop, 1, manifest.stops.length);
+        const currentRoomId = manifest.stops[activeStop]?.room;
+        if (index === nextStopIndex) button.dataset.next = 'true';
+        else delete button.dataset.next;
+        if (stop.room !== currentRoomId && label.room) button.dataset.roomLabel = label.room;
+        else if (index === nextStopIndex && manifest.stops.length > 1) button.dataset.roomLabel = 'Next';
+        else delete button.dataset.roomLabel;
+        button.title = [label.room, 'Stop ' + (index + 1)].filter(Boolean).join(' · ');
         world.set(...stop.floor);
         camera.camera.worldToScreen(world, screen);
         // A disc half off the edge is still worth a tap.
@@ -938,9 +1078,27 @@
         const size = clamp(Math.round(260 / Math.max(distance, 0.8)), 28, 64);
         button.style.setProperty('--size', size + 'px');
         button.style.transform = `translate(${Math.round(screen.x)}px, ${Math.round(screen.y)}px)`;
-        button.title = [stopLabel(manifest, index).room, 'Stop ' + (index + 1)].filter(Boolean).join(' · ');
       });
       drawMapMarker();
+    }
+
+    function buildRoomPills() {
+      ui.roomsBar.replaceChildren();
+      if (manifest.rooms.length < 2) { ui.roomsBar.hidden = true; return; }
+      for (const room of manifest.rooms) {
+        const firstStop = manifest.stops.findIndex(stop => stop.room === room.id);
+        if (firstStop < 0) continue;
+        const name = room.name || 'Room';
+        const footprint = roomFootprint(manifest, room.id);
+        const pill = el('button', { type: 'button', class: 'v2-room-pill', 'data-room': room.id }, name);
+        if (footprint) {
+          pill.dataset.dimensions = footprint.label;
+          pill.title = [name, footprint.label].filter(Boolean).join(' · ');
+        }
+        pill.addEventListener('click', () => goToStop(firstStop));
+        ui.roomsBar.append(pill);
+      }
+      ui.roomsBar.hidden = ui.roomsBar.children.length < 2;
     }
 
     function buildStopsPanel() {
@@ -971,6 +1129,12 @@
       for (const button of ui.stopsPanel.querySelectorAll('[data-stop]')) {
         if (Number(button.dataset.stop) === state.stop) button.setAttribute('aria-current', 'true');
         else button.removeAttribute('aria-current');
+      }
+      const activeIndex = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
+      const activeRoomId = manifest.stops[activeIndex]?.room;
+      for (const pill of ui.roomsBar.querySelectorAll('[data-room]')) {
+        if (pill.dataset.room === activeRoomId) pill.setAttribute('aria-current', 'true');
+        else pill.removeAttribute('aria-current');
       }
       ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? (state.stop + 1) : '–') + ' of ' + manifest.stops.length;
       ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? state.stop + 1 : 'none') + ' of ' + manifest.stops.length);
@@ -1125,12 +1289,14 @@
     function cancelFlight() {
       if (!flight) return;
       flight = null;
+      flightFovOffset = 0;
       continuous = Math.max(0, continuous - 1);
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    function flyTo(position, yaw, pitch, onArrive, animate = true) {
+    function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
       cancelFlight();
       if (!animate || reduced()) {
+        flightFovOffset = 0;
         Object.assign(state, { position, yaw, pitch });
         applyCamera();
         onArrive?.();
@@ -1138,19 +1304,33 @@
       }
       let deltaYaw = ((yaw - state.yaw) % 360 + 540) % 360 - 180;
       const from = { position: [...state.position], yaw: state.yaw, pitch: state.pitch };
-      const distance = Math.hypot(...position.map((v, i) => v - from.position[i]));
-      const duration = clamp(450 + distance * 220, 450, 1100);
-      flight = { from, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
+      const via = Array.isArray(waypoints) && waypoints.length === 2 ? waypoints[0] : null;
+      const distance = via
+        ? Math.hypot(...via.map((v, i) => v - from.position[i])) + Math.hypot(...position.map((v, i) => v - via[i]))
+        : Math.hypot(...position.map((v, i) => v - from.position[i]));
+      const duration = clamp(450 + distance * 220, 450, 1250);
+      if (continuous === 0 && !benchmark) lastRender = performance.now();
+      flight = { from, via, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
       continuous++;
     }
     function stepFlight(now) {
       if (!flight) return;
       const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
-      state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
+      if (flight.via) {
+        const u = 1 - k, p0 = flight.from.position, p1 = flight.via, p2 = flight.position;
+        state.position = p0.map((v, i) => {
+          const bezier = u * u * v + 2 * u * k * p1[i] + k * k * p2[i];
+          const linear = k < 0.5 ? v + (p1[i] - v) * (k * 2) : p1[i] + (p2[i] - p1[i]) * ((k - 0.5) * 2);
+          return bezier * 0.65 + linear * 0.35;
+        });
+      } else {
+        state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
+      }
       state.yaw = flight.from.yaw + flight.deltaYaw * k;
       state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
+      flightFovOffset = t < 1 ? 3.2 * Math.sin(Math.PI * t) : 0;
       applyCamera();
-      if (t >= 1) { const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); done?.(); }
+      if (t >= 1) { const done = flight.onArrive; flight = null; flightFovOffset = 0; continuous = Math.max(0, continuous - 1); done?.(); }
     }
     // On a home with levels, a stop straight above or below is not where you are.
     const sameLevel = storeys ? STOREY_METRES : Infinity;
@@ -1159,6 +1339,7 @@
     const maskLevel = storeys ? levelOf[manifest.start] : 0;
     const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
     const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
+    let lastRoomVisited = stopLabel(manifest, manifest.start).room || '';
     function arrived(index) {
       state.stop = index;
       const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
@@ -1166,6 +1347,14 @@
       markCurrent();
       placeHotspots();
       ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
+      if (label.room && label.room !== lastRoomVisited) {
+        lastRoomVisited = label.room;
+        try {
+          if (typeof CustomEvent === 'function') {
+            document.dispatchEvent?.(new CustomEvent('veylet:room', { detail: { room: label.room } }));
+          }
+        } catch { /* optional telemetry event */ }
+      }
     }
     function goToStop(index) {
       if (!ready) return;
@@ -1177,11 +1366,21 @@
       // A saved pose is not a walking route. Only interpolate on the mask's measured floor;
       // unknown paths and other storeys jump directly, without passing through walls or floors.
       const from = state.stop >= 0 ? manifest.stops[state.stop] : null;
-      const onMeasuredFloor = item => item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15;
-      const animate = Boolean(walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)
-        && onMeasuredFloor(stop) && (from ? onMeasuredFloor(from) : Math.abs(state.position[1] - walkable.eyeHeight - walkable.floorY) <= 0.15)
-        && walkable.clear([state.position[0], state.position[2]], [stop.position[0], stop.position[2]]));
-      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); }, animate);
+      const onMeasuredFloor = item => Boolean(walkable && item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15);
+      const canRoute = Boolean(walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)
+        && onMeasuredFloor(stop) && (from ? onMeasuredFloor(from) : Math.abs(state.position[1] - walkable.eyeHeight - walkable.floorY) <= 0.15));
+      let route = null;
+      if (canRoute) {
+        if (walkable.clear([state.position[0], state.position[2]], [stop.position[0], stop.position[2]])) {
+          route = [[...stop.position]];
+        } else {
+          const levelStops = storeys
+            ? manifest.stops.filter((_, i) => levelOf[i] === maskLevel && onMeasuredFloor(manifest.stops[i]))
+            : manifest.stops.filter(onMeasuredFloor);
+          route = corridorRoute(walkable, state.position, stop.position, levelStops);
+        }
+      }
+      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); }, Boolean(route), route);
     }
     function walkTo(point) {
       const eye = walkable ? walkable.eyeHeight : 1.4;
@@ -1201,9 +1400,21 @@
       if (!walkable) { say('Use Next stop, or N and P, to move.'); return; }
       if (offMask()) { say(OFF_MASK); return; }
       const forward = forwardOf(state.yaw, 0);
-      const to = [state.position[0] + forward[0] * 0.35 * sign, state.position[2] + forward[2] * 0.35 * sign];
-      if (!walkable.clear([state.position[0], state.position[2]], to)) { say('A wall or furniture is in the way.'); return; }
-      walkTo([to[0], walkable.floorY, to[1]]);
+      const from = [state.position[0], state.position[2]];
+      const to = [from[0] + forward[0] * 0.35 * sign, from[1] + forward[2] * 0.35 * sign];
+      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
+      if (walkable.clear(from, to)) {
+        const tethered = tetherToStations(walkable, from, to, levelStops);
+        walkTo([tethered[0], walkable.floorY, tethered[1]]);
+        return;
+      }
+      const slide = walkTarget(walkable, from, to, { minStep: 0.15, snap: 0.35 });
+      if (slide) {
+        const tethered = tetherToStations(walkable, from, slide, levelStops, { minStep: 0.15 });
+        walkTo([tethered[0], walkable.floorY, tethered[1]]);
+        return;
+      }
+      say('A wall or furniture is in the way.');
     }
     function aimFor(clientX, clientY) {
       const rect = ui.canvas.getBoundingClientRect();
@@ -1218,10 +1429,23 @@
       if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
       if (offMask()) { say(OFF_MASK); return; }
       const aim = aimFor(clientX, clientY);
-      const to = aim && walkTarget(walkable, [state.position[0], state.position[2]], aim);
+      const from = [state.position[0], state.position[2]];
+      const raw = aim && walkTarget(walkable, from, aim);
+      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
+      const to = raw && tetherToStations(walkable, from, raw, levelStops, { maxCorridor: 0.75 });
+      if (to) {
+        walkTo([to[0], walkable.floorY, to[1]]);
+        return;
+      }
+      if (aim) {
+        const candidateStop = nearestStop(manifest, [aim[0], state.position[1], aim[1]], 1.4, sameLevel);
+        if (candidateStop >= 0 && candidateStop !== state.stop) {
+          goToStop(candidateStop);
+          return;
+        }
+      }
       // Short enough to fit a 280 px phone frame on one line.
-      if (!to) { say('Can’t walk there. Try open floor.'); return; }
-      walkTo([to[0], walkable.floorY, to[1]]);
+      say('Can’t walk there. Try open floor.');
     }
 
     // ----- input -----
@@ -1239,6 +1463,7 @@
         pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom: state.zoom };
         drag = null;
       }
+      if (continuous === 0 && !benchmark) lastRender = performance.now();
       continuous++;
     });
     ui.canvas.addEventListener('pointermove', event => {
@@ -1272,10 +1497,10 @@
     };
     ui.canvas.addEventListener('pointerup', release);
     ui.canvas.addEventListener('pointercancel', release);
-    // A listing page scrolls with the wheel; zoom only on a trackpad pinch,
-    // and inside someone else's page only once the visitor has used the player.
+    // A listing page scrolls with the wheel; zoom on a trackpad pinch or on a
+    // standalone / fullscreen walkthrough, and inside someone else's page only once engaged.
     ui.canvas.addEventListener('wheel', event => {
-      if (!ready || !event.ctrlKey || (framed && !engaged)) return;
+      if (!ready || (framed && (!event.ctrlKey || !engaged))) return;
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
@@ -1285,13 +1510,23 @@
       engaged = true;
       const key = event.key;
       const handled = () => { event.preventDefault(); dismissHint(); };
-      if (key === 'ArrowLeft' || key === 'ArrowRight') { handled(); cancelFlight(); state.yaw += key === 'ArrowLeft' ? 10 : -10; applyCamera(); }
-      else if (key === 'ArrowUp' || key === 'ArrowDown') { handled(); stepForward(key === 'ArrowUp' ? 1 : -1); }
+      if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
+        handled();
+        cancelFlight();
+        const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
+        state.yaw += left ? 10 : -10;
+        applyCamera();
+      }
+      else if (key === 'ArrowUp' || key === 'ArrowDown' || key === 'w' || key === 'W' || key === 's' || key === 'S') {
+        handled();
+        const forward = key === 'ArrowUp' || key === 'w' || key === 'W';
+        stepForward(forward ? 1 : -1);
+      }
       else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
       else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(Number(key) - 1); }
-      else if (key === 'Home') { handled(); goToStop(manifest.start); }
+      else if (key === 'Home' || key === '0') { handled(); state.zoom = 1; goToStop(manifest.start); }
       else if (key === '+' || key === '=') { handled(); state.zoom = clamp(state.zoom * 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
@@ -1621,7 +1856,7 @@
         const frameMs = now - lastRender;
         stats.frames.push(frameMs);
         if (stats.frames.length > 600) stats.frames.shift();
-        const change = governor.sample(frameMs, now);
+        const change = (phase === 'complete' || benchmark) ? governor.sample(frameMs, now) : null;
         if (change) {
           stats.changes.push({ at: Math.round(now), ...change });
           if (change.pixelRatio) { device.maxPixelRatio = change.pixelRatio; stats.pixelRatio = change.pixelRatio; app.updateCanvasSize(); }
@@ -1633,7 +1868,7 @@
           }
         }
       }
-      lastRender = now;
+      lastRender = (continuous > 0 || benchmark) ? now : 0;
     });
     const observer = new ResizeObserver(() => {
       fitBar();
@@ -1671,6 +1906,7 @@
     const visibility = () => { if (!document.hidden) requestRender(); };
     document.addEventListener('visibilitychange', visibility);
 
+    buildRoomPills();
     buildStopsPanel();
     aboutContents();
     buildMap();
@@ -1719,6 +1955,7 @@
         stats.frames = [];
         return new Promise(resolve => {
           const now = performance.now();
+          lastRender = now;
           benchmark = { until: now + seconds * 1000, last: now, degreesPerSecond, done: () => resolve(controller.stats()) };
         });
       },
@@ -1735,9 +1972,9 @@
 
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
-    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
+    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, roomFootprint, stepStop, lookAngles, forwardOf,
+    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
-    start, current: null,
+    start, mount, current: null,
   };
 })();
