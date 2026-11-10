@@ -1114,11 +1114,11 @@ Retrying
 Needs recapture
 - A room could not be used. Each room shows its reason and the fix. This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver. See fixing a capture.
 Failed
-- Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.
+- Rendering could not finish and no walkthrough was used. Contact Veylet support.
 When it passes, the listing reads Ready for your review. See approve and share.
 
 ### If it doesn’t work
-Still working, checking in means the renderer has not reported for a few minutes. Veylet support has been alerted; there is nothing for you to do.
+Still working, checking in means the renderer has not reported for a few minutes. Check again later, or contact Veylet support.
 If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.
 
 ### Still stuck? Email Veylet support

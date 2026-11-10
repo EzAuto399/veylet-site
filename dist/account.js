@@ -6107,7 +6107,7 @@
       case 'waiting': return 'Waiting to render.' + (view.hold ? ' ' + renderHoldWords(view.hold) : view.position ? ' You’re ' + renderOrdinal(view.position) + ' in line.' : '');
       case 'rendering': return view.step ? 'Rendering, step ' + view.step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[view.step - 1] + '.' : 'Rendering.';
       case 'retrying': return 'Retrying' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.');
-      case 'failed': return 'Failed. Veylet support has been told; nothing was used.';
+      case 'failed': return 'Failed. Contact Veylet support; no walkthrough was used.';
       default: return RENDER_TITLES[view.key] + '.';
     }
   }
@@ -6216,7 +6216,7 @@
         line('Rendering hit a snag; we’re retrying automatically' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.'));
         break;
       case 'stale':
-        line('The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.');
+        line('We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.');
         if (view.step) note('Last reported: step ' + view.step + ' of ' + RENDER_STEPS.length + ', ' + RENDER_STEPS[view.step - 1] + '.');
         break;
       case 'ready':
@@ -6260,7 +6260,7 @@
         note(RECAPTURE_ALLOWANCE_WORDS);
         break;
       case 'failed': {
-        line('Something went wrong on our side. Veylet support has been told; nothing was used.');
+        line('Rendering could not finish. Contact Veylet support; no walkthrough was used.');
         const actions = annualNode('p', 'render-actions'); actions.append(renderContact(row, false)); block.append(actions);
         break;
       }
@@ -6325,7 +6325,7 @@
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
       });
-    } else if (said === 'failed') guide('Something went wrong on our side.', 'Veylet support has been told; nothing was used. Contact Veylet support from ' + broken.title + ' below if you want to talk it through.');
+    } else if (said === 'failed') guide('Rendering could not finish.', 'No walkthrough was used. Contact Veylet support from ' + broken.title + ' below.');
     else if (said === 'uploading') guide('Your capture is on its way.', 'Keep Veylet open or plugged in on your phone. How much has arrived shows on ' + moving.title + ' below.');
     else guide('Your walkthrough is being made automatically.', 'Its progress shows on ' + moving.title + ' below and updates by itself. You can leave this page; the render carries on.');
   }

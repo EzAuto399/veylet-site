@@ -154,8 +154,8 @@ const WORDS = {
   live: ['Live', null, ['Anyone with the link can open it.']],
   recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
-  failed: ['Failed', 'Veylet support', ['Something went wrong on our side. Veylet support has been told; nothing was used.']],
-  stale: ['Still working — checking in', 'Automatic', ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.',
+  failed: ['Failed', 'Veylet support', ['Rendering could not finish. Contact Veylet support; no walkthrough was used.']],
+  stale: ['Still working — checking in', 'Automatic', ['We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.',
     'Last reported: step 3 of 5, Building your 3D walkthrough.']],
 };
 
@@ -393,7 +393,7 @@ test('render status: a render the server marks stale reads Still working — che
   assert.equal(stale.progress(), null, 'a stalled render shows no live progress');
   assert.equal(stale.renderTimers(), 1, 'and keeps being checked');
   const unplaced = await load({ status: [job({ ...JOBS.stale, step: null })] });
-  assert.deepEqual(unplaced.lines(), ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.']);
+  assert.deepEqual(unplaced.lines(), ['We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.']);
 });
 
 test('render status: a super fast capture shows its due time as the super fast block says it, until it passes', async () => {
@@ -573,7 +573,7 @@ test('render status: the next step says whose turn it is while no walkthrough is
   assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.');
   assert.equal(next.children[2].textContent, 'Show what to recapture');
   const broken = await withState('failed');
-  assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Something went wrong on our side.');
+  assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Rendering could not finish.');
   assert.equal(broken.ids['account-next-step'].children.length, 2, 'nothing to press on Veylet support’s turn');
   // A poll that changes nothing does not rewrite the next step (a live region).
   const before = moving.ids['account-next-step'].children[0];

@@ -228,12 +228,12 @@ const ARTICLES = [
       ['Rendering', 'Five steps: 1 Preparing photos, 2 Lining up camera positions, 3 Building your 3D walkthrough, 4 Packing it for phones, 5 Checking quality. Step 5 is an automatic check of the finished walkthrough.'],
       ['Retrying', 'Rendering hit a snag, so it is trying again automatically (attempt 2 of 2). Nothing to do.'],
       ['Needs recapture', 'A room could not be used. Each room shows its reason and the fix. ' + RECAPTURE_ALLOWANCE_WORDS + ' See [fixing a capture](help#fixing).'],
-      ['Failed', 'Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.'],
+      ['Failed', 'Rendering could not finish and no walkthrough was used. Contact Veylet support.'],
     ] }, { paras: [
       'When it passes, the listing reads **Ready for your review**. See [approve and share](help:approve-and-share).',
     ] }],
     notWorking: [
-      '**Still working, checking in** means the renderer has not reported for a few minutes. Veylet support has been alerted; there is nothing for you to do.',
+      '**Still working, checking in** means the renderer has not reported for a few minutes. Check again later, or contact Veylet support.',
       'If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.',
     ],
   },
