@@ -54,7 +54,7 @@
 
 /* On a phone each row stacks as a short list: the first cell names it, the rest carry
    their column heading, so nothing is cut off and nothing needs sideways scrolling. */
-@media (max-width: 599px) {
+@media (max-width: 719px) {
   .article-table { min-width: 0; }
   .article-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .article-table caption { position: static; display: block; max-width: none; }
@@ -115,6 +115,8 @@ main .guide-list li > a:not(.button):not(.text-link):not(.tour-action) { text-de
 .guide-list a { grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 28px; align-items: start; }
 .guide-list-thumb { grid-row: 1 / span 2; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #d9d6cb; transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
 .guide-list a { overflow: hidden; }
+/* A related-guides list has no thumbnails: the title takes the whole row, not the thumbnail column. */
+.guide-list a:not(:has(.guide-list-thumb)) { grid-template-columns: minmax(0, 1fr); }
 .guide-list a:hover .guide-list-thumb { transform: scale(1.03); }
 .guide-list .guide-list-title { align-self: end; }
 @media (max-width: 640px) {
