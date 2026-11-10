@@ -33,7 +33,7 @@ No camera to buy
 Only what you approve counts
 - Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.
 A link and an embed
-- Hosted while your plan is active, with a link and embed for approved sharing.
+- Hosted while your plan is active, with a link, a QR code and a website embed once you approve it.
 
 ### See a result.
 A public research apartment, processed by Veylet: a 3D walkthrough to explore in the browser and a walkthrough video to post.
@@ -41,9 +41,9 @@ A public research apartment, processed by Veylet: a 3D walkthrough to explore in
 ### From your walk to their browser.
 One space, four steps. You walk it with the phone; Veylet builds and checks the walkthrough automatically; nothing is shared until you approve it.
 - Walk the space with the phone upright. At each spot, turn until the ring closes; the app flags anything it still needs before you finish.
-- Finish and check the saved route. Send from the app: it uploads in the background. Check your account for rendering status.
+- Tap Finish & save and read the phone check, then tap Send to Veylet. Send from the app: it uploads in the background. Check your account for rendering status.
 - Veylet builds the walkthrough. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. A capture that cannot be used is never counted.
-- Review the exact version on your phone, then share a link or a website embed. Viewers need no app or account; revoking stops new access.
+- When it says Ready for your review, check the exact version on your phone and tap Approve and share. You get a link, a QR code and a website embed; viewers need no app or account. Your account shows how often it was opened, and turning off sharing stops new access.
 - Photo match
 - Coverage
 - Walkable paths
@@ -51,7 +51,7 @@ Illustration of the process, not a captured space.
 New accounts are admitted in weekly groups. 1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
 
 ### The app, as it is today.
-Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.
+Veylet Capture signs you in with Apple or an email link, with no password. It coaches the route while you walk and checks what it saved before you send anything.
 Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.
 - Sign in A link to your email, no password.
 - Practise first One small room before a real space.
@@ -205,7 +205,7 @@ Source: https://veylet.com/website-guide
 An approved walkthrough can sit alongside your listing photos or open from a simple link. Visitors do not need an account or the capture app.
 
 ### Start with the client link.
-In your desk, preview and review the finished tour, then create its client handoff. Use that handoff link here. Owner preview links only work for your signed-in account.
+In your account, review the finished walkthrough and choose Approve and share. Then use Copy link on its card: that is the client handoff link, beginning https://veylet.com/handoff. Paste it here. Preview links only work for your signed-in account.
 
 ### Where to paste it, by website builder.
 Every builder has a block that accepts custom HTML. Paste the responsive embed code into that block, publish, then open the published page signed out on a phone. If your site is managed by a developer or an agency template provider, send them the code and this page.
@@ -230,9 +230,9 @@ These are the builders’ documented custom-HTML paths; builder interfaces chang
 
 ### Stay in control.
 No. Listing portals do not accept this embed. They do not run pasted HTML from an agent, so the iframe will not appear there however it is entered. Where a portal offers a virtual-tour URL field, the client handoff link can go in it if that portal permits an external link; otherwise keep the tour on your own website and link to it. We claim no integration with any portal.
-New requests to the old handoff and its embed stop opening. Someone who already downloaded a tour may still have a copy. Remove the embed and old link from your listing as well. Sharing it again requires checking the current release and permissions.
-Try the direct client link and an up-to-date browser with hardware graphics enabled. Check the connection, wait for the download, then retry once. If the link is expired or revoked, ask the operator for a current one. Keep listing photos and a contact route available if a visitor’s device cannot render 3D.
-Tell the studio your browser, device and which step failed. Share the unlisted link only through your agreed support route. Keep addresses, access codes and private client imagery out of a public support post.
+New requests to the old link and its embed stop opening. Pause sharing instead keeps the same link for later. Someone who already downloaded a walkthrough may still have a copy. Remove the embed and old link from your listing as well. Sharing it again requires checking the current release and permissions.
+Try the direct client link and an up-to-date browser with hardware graphics enabled. Check the connection, wait for the download, then retry once. If sharing is paused or turned off, ask whoever sent the link for a current one. Keep listing photos and a contact route available if a visitor’s device cannot render 3D.
+Tell Veylet support your browser, device and which step failed. Share the unlisted link only through your agreed support route. Keep addresses, access codes and private client imagery out of a public support post.
 
 ## Support — Veylet
 Source: https://veylet.com/support
