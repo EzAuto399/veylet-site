@@ -762,7 +762,8 @@ test('the records file lists spaces and tours without link secrets or storage pa
   const records = JSON.parse(text);
   assert.equal(records.spaces[0].tours[0].has_active_link, true);
   assert.doesNotMatch(text, /abcdefghijklmnop|original\.zip|share_token|storage_path/);
-  assert.match(h.ids['account-status'].textContent, /does not contain the tours themselves/);
+  assert.match(h.ids['account-status'].textContent, /does not contain the walkthroughs themselves/);
+  assert.equal(h.ids['account-export-status'].textContent, h.ids['account-status'].textContent, 'said beside the button too');
 });
 test('the records file is unavailable while tour status could not load', async () => {
   const h = await load({ tables: { tours: { error: { message: 'unavailable' } } } });
@@ -1121,7 +1122,7 @@ test('the desk first-capture steps follow the app-first flow', () => {
   assert.doesNotMatch(markup, /Save a space\. Suburb or city only/);
   // The walkthroughs come first and the plan follows them; the page still says
   // the heading without JavaScript having to write it.
-  assert.ok(markup.indexOf('>Your walkthroughs<') < markup.indexOf('id="account-plan"'));
+  assert.ok(markup.indexOf('>Walkthroughs</h1>') > 0 && markup.indexOf('>Walkthroughs</h1>') < markup.indexOf('id="account-plan"'));
   assert.equal(markup.match(/id="account-plan-title"/g).length, 1);
   // This desk takes no card, with or without a script.
   assert.doesNotMatch(markup, /autocomplete="cc-|card number|cardholder|cvc/i);
@@ -1192,7 +1193,7 @@ test('the panel leads with the vocabulary title, then the rows, then the sentenc
  * unanswered check is unavailable — never a safe account and never a deletion
  * already under way — and nothing is written without the named confirmation.
  */
-const DELETE_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
+const DELETE_CONFIRM = 'Your account, its spaces and its walkthroughs will be deleted within 30 days, and we confirm when it is done. You can cancel until removal starts; after that nothing can be restored. When deletion completes, every handoff link and embed stops working. A subscription billed by Apple is cancelled with Apple, not here.';
 const deletionText = h => h.ids['account-deletion'].all().map(el => el.textContent).join('\n');
 const deletionAction = (h, label) => h.ids['account-deletion'].all()
   .find(el => el.tagName === 'BUTTON' && el.textContent === label);
@@ -1243,6 +1244,8 @@ test('deleting is confirmed in its own words, and keeping the account writes not
   const h = await load();
   await deletionAction(h, 'Delete my account').fire('click');
   assert.match(deletionText(h), new RegExp(DELETE_CONFIRM.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(deletionText(h), /Delete the account for \S+@\S+\?/, 'the confirmation names the account');
+  assert.doesNotMatch(deletionText(h), /cannot be undone/, 'it can be cancelled until removal starts, so it never says otherwise');
   assert.ok(h.ids['account-deletion'].all().some(el => el.tagName === 'TEXTAREA'), 'the reason is offered, not demanded');
   assert.ok(deletionAction(h, 'Keep my account'));
   assert.equal(h.calls.some(call => call[0] === 'request_account_deletion'), false);
@@ -1338,7 +1341,7 @@ test('the desk replaces the deletion mailto with the flow, and keeps what it can
   assert.doesNotMatch(markup, /Ask for deletion/);
   assert.doesNotMatch(markup, /mailto:[^"]*deletion/i);
   assert.match(markup, /<div id="account-deletion" aria-live="polite"><\/div>/);
-  assert.match(markup, /Deleting your account cannot recall downloaded copies/);
+  assert.match(markup, /copies people already downloaded cannot be\s+recalled/);
   // One statement of the confirmation, written where the confirmation happens.
   assert.equal(account.split(DELETE_CONFIRM).length - 1, 1);
   assert.equal(account.split("'Delete my account'").length - 1, 2, 'the opener and the confirmation, and nothing else');
@@ -1532,13 +1535,15 @@ const capacityText = h => h.ids['account-plan-body'].all().find(el => el.classNa
 test('verified acceptance capacity distinguishes included units from pack and extra walkthroughs', async () => {
   const h = await withCapacity({ ...capacityRow, included_used: 6, included_remaining: 0, extra_credits_available: 2 },
     { accepted_in_free_months: 8 });
-  assert.match(capacityText(h), /0 included walkthroughs remaining · 2 extra walkthroughs available/);
+  // The table's two rows are the count (one fact, one place); no line under it repeats them.
+  assert.ok(planValues(h).includes('2 available'));
+  assert.doesNotMatch(capacityText(h), /remaining ·/);
   assert.match(capacityText(h), /next new walkthrough uses one extra walkthrough, the one that expires first/);
   assert.match(capacityText(h), /Each new accepted capture uses one walkthrough, regardless of room count\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough\. Saving a space or a failed capture also uses none\. A partial named-room recapture is not a waiver\. Previously accepted usage stays unchanged\./);
   assert.doesNotMatch(capacityText(h), /recapture of the rooms the check names.*uses none/i);
   assert.ok(planValues(h).includes('6 of 6 used'));
   assert.ok(planValues(h).includes('2 available'), 'the Extra walkthroughs row states the ledger’s count');
-  assert.match(planText(h), /6 of 6 included free walkthroughs used/);
+  assert.doesNotMatch(planText(h), /6 of 6 included free walkthroughs used/, 'said once, in the table');
   assert.doesNotMatch(planText(h), /8 of 6 free walkthroughs used/);
 });
 
@@ -1635,7 +1640,8 @@ test('production subscriptions still show the authoritative monthly included bal
         renewal_price_aud_cents: billing_interval === 'annual' ? 318999 : 21999,
         accepted_this_period: 2, current_period_ends_at: inDays(30) });
     assert.ok(planValues(h).includes('2 of 3 used'));
-    assert.match(capacityText(h), /1 included walkthrough remaining · 0 extra walkthroughs available/);
+    assert.ok(planValues(h).includes('0 available'));
+    assert.doesNotMatch(capacityText(h), /remaining ·/, 'the table rows are the one statement of the count');
     assert.match(planText(h), billing_interval === 'monthly' ? /2 of 3 walkthroughs used this month\./ : /2 of 3 walkthroughs this month/);
     assert.doesNotMatch(planText(h), /Test subscription|Production walkthroughs are not included/);
   }
@@ -1703,7 +1709,7 @@ test('each hosting situation reads its own line on the card', async () => {
   const rpc = row => ({ get_tour_hosting: async () => ({ data: [row] }) });
   // Without the member hosting read, the plan panel's end day decides once it answers.
   const grace = await withPlan({ status: 'ended', current_period_ends_at: recent, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
-  assert.equal(hostingText(grace), 'Goes offline on ' + offlineDay(recent) + ' unless the plan restarts.', 'the card keeps the date and what happens; the plan panel says the rest once');
+  assert.equal(hostingText(grace), 'Stays live if the plan restarts.', 'the chip says the day once; the card adds only what happens');
   assert.ok(planText(grace).includes('Your plan has ended. 1 live walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.'));
   // An ended plan never shows a green Live: the chip names the offline day once it is known.
   assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on ' + offlineDay(recent)), 'the chip follows once the plan answers');
@@ -1725,7 +1731,10 @@ test('each hosting situation reads its own line on the card', async () => {
     [{ hosting_state: 'live_with_extension', offline_on: '2027-10-01', extended_until: '2027-10-01T00:00:00Z' }, 'Live until 1 Oct 2027 with a hosting extension.', false],
   ]) {
     const h = await withHosting([hostingFor({ plan_active: false, ...extra })], { tours: [liveTour] });
-    assert.equal(hostingText(h), line);
+    // "Offline on {day}" is the chip's; the card's line does not say the day a second time.
+    const chipDay = /^Goes offline on (.+)\.$/.exec(line);
+    assert.equal(hostingText(h), chipDay ? '' : line);
+    if (chipDay) assert.ok(h.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on ' + chipDay[1]), line);
     assert.ok(byText(h, 'Copy link'), 'the card keeps its controls');
     assert.doesNotMatch(h.text(), /12 months|Guaranteed/);
     // Offer 2026-09-26.2: an ended plan's line ends with a quiet restart (only while the plan panel has none) and
@@ -1736,7 +1745,8 @@ test('each hosting situation reads its own line on the card', async () => {
       ['Keep this walkthrough online (A$49 a year)', 'text-link tour-extension-request']]);
     assert.equal(fix.children[0].hidden, !ended, line);
     assert.equal(fix.children[0].dataset.control, 'share-fix-plan');
-    assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '')).map(el => el.textContent), ['Copy link'], line);
+    // On the card: the Needs you row above the list has the page's own filled button.
+    assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '') && !/^needs-/.test(el.dataset?.control || '')).map(el => el.textContent), ['Copy link'], line);
     const mail = decodeURIComponent(fix.children[1].href);
     assert.ok(mail.startsWith('mailto:support@veylet.com?subject=Veylet hosting extension · walkthrough t1'), mail);
     assert.match(mail, /Tour ID: t1\n/);
@@ -1758,7 +1768,8 @@ test('with two offices, each space and each hosting line says whose office it is
   // An ended plan's card keeps the date and what happens; whose office it is stays on the space's own line.
   const ended = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })],
     { tours: [liveTour], tables: { memberships: two, properties: props, workspaces } });
-  assert.equal(hostingText(ended), 'Goes offline on 10 Oct 2027.');
+  assert.equal(hostingText(ended), '', 'the chip says the day; the line does not say it again');
+  assert.equal(ended.all().filter(el => /Offline on 10 Oct 2027|offline on 10 Oct 2027/.test(el.textContent) && !el.children.length && /^(pill|tour-hosting)/.test(el.className || '')).map(el => el.className).join(), 'pill pill-busy');
   assert.ok(ended.all().some(el => el.className === 'dash-space-meta' && el.textContent === 'Harbour Realty'));
   const one = await withHosting([hostingFor()], { tours: [liveTour], tables: { workspaces } });
   assert.equal(hostingText(one), 'Live while your plan is active.');
@@ -1769,7 +1780,7 @@ const extensionFix = h => h.all().find(el => el.className === 'tour-hosting-fix'
 test('the member hosting read (get_tour_hosting_states) chooses the words when the backend has it', async () => {
   const states = rows => ({ get_tour_hosting_states: async () => ({ data: rows }) });
   const grace = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', property_id: 'p1', state: 'offline_on', offline_at: '2027-10-10T00:00:00Z', sharing_on: true, share_paused: false, plan_active: false }]) });
-  assert.equal(hostingText(grace), 'Goes offline on 10 Oct 2027.');
+  assert.equal(hostingText(grace), '', 'the day is said once, by the chip');
   assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on 10 Oct 2027'), 'offline_on: the chip names the day, never a green Live');
   const off = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'offline', offline_at: '2026-09-12T00:00:00Z', plan_active: false }]) });
   assert.equal(hostingText(off), 'Offline since 12 Sep 2026. The same link, embed and QR work again when the plan restarts.');
@@ -1874,11 +1885,12 @@ test('a creator who may share but not approve gets the live card without Withdra
 
 test('the signed-in desk puts walkthroughs first and leaving last', () => {
   const home = markup.slice(markup.indexOf('id="account-home"'));
-  // Adding a space sits with the list it adds to; the plan, capture help and
-  // the account follow the walkthroughs in source order, so a phone reads the
-  // same sequence the wide two-column desk shows.
-  const order = ['id="account-next-step"', '>Your walkthroughs<', 'id="account-refresh"', 'id="account-add-space"', 'id="account-properties"',
-    'id="account-plan"', '>First capture? See the steps<', 'id="account-gate"', '>Account details<', 'id="account-leaving"', 'id="account-sign-out"'];
+  // Four views in source order: Walkthroughs (its head, adding a space, what needs
+  // you, the next step, the plan in one line, the list), Plan, Your team, Account
+  // (details, leaving, capture help, sign out). A phone reads the same sequence.
+  const order = ['id="view-walkthroughs"', '>Walkthroughs<', 'id="account-refresh"', 'id="account-add-open"', 'id="account-needs"',
+    'id="account-next-step"', 'id="account-add-space"', 'id="account-plan-line"', 'id="account-properties"', 'id="view-plan"', 'id="account-plan"', 'id="view-team"', 'id="account-team"',
+    'id="account-contact"', 'id="view-account"', '>Account details<', 'id="account-leaving"', '>First capture? See the steps<', 'id="account-gate"', 'id="account-sign-out"'];
   const positions = order.map(marker => home.indexOf(marker));
   assert.ok(positions.every(position => position >= 0), 'every section is present');
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);
@@ -2045,7 +2057,7 @@ test('walkthrough packs read their own answer for the plan’s workspace and sit
   assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_pack_offer')[1] }, { p_workspace_id: 'w1' });
   assert.equal(packsCard(h).hidden, false);
   assert.equal(packsCard(h).attributes['aria-busy'], 'false');
-  assert.equal(packClass(h, 'annual-title').tagName, 'H3');
+  assert.equal(packClass(h, 'annual-title').tagName, 'H2');
   assert.equal(packClass(h, 'annual-title').textContent, 'Walkthrough packs');
   assert.match(markup, /<section id="account-packs" class="packs-offer" aria-labelledby="account-packs-title" hidden><\/section>/);
   assert.equal(h.scripts.length, 0, 'Square’s SDK is not loaded just to show the card');
@@ -2149,7 +2161,7 @@ test('Pay sends only Square’s token and shows what the server added, the balan
   assert.equal(h.reads(), 1, 'the bought state is the answer itself');
   // The plan panel above re-reads the ledger, so both state the same balance.
   assert.equal(h.capacityReads(), 2);
-  assert.match(capacityText(h), /4 included walkthroughs remaining · 3 extra walkthroughs available/);
+  assert.ok(planValues(h).includes('2 of 6 used'), planValues(h).join(' | '));
   assert.ok(planValues(h).includes('3 available'));
   // Buy another pack goes back to the choice, with the balance the answer stated.
   await pressPack(h, 'Buy another pack');
@@ -2384,10 +2396,15 @@ test('what is left follows the sentence, then how the plan is managed, then its 
   const parts = h.ids['account-plan-body'].children;
   assert.deepEqual(parts.map(el => el.className), ['plan-title', 'leaving-list plan-list', 'plan-body', 'plan-capacity', 'plan-scope', 'tour-actions-row plan-actions']);
   const capacity = parts[3];
-  assert.deepEqual(capacity.children.map(el => el.className), ['plan-allowance', 'plan-scope']);
-  assert.equal(capacity.children[0].textContent, '4 included walkthroughs remaining · 0 extra walkthroughs available.');
-  // The count line is rewritten in place when the ledger answers, never shown twice.
-  assert.equal(h.ids['account-plan-body'].all().filter(el => el.className === 'plan-allowance').length, 1);
+  // The count is the table's rows and nothing under them repeats it; the counting rule waits,
+  // word for word, behind a disclosure titled in plain words.
+  assert.deepEqual(capacity.children.map(el => el.className), ['account-details plan-counting']);
+  assert.deepEqual(capacity.children[0].children.map(el => [el.tagName, el.className || '']), [['SUMMARY', ''], ['P', 'plan-scope']]);
+  assert.equal(capacity.children[0].children[0].textContent, 'How walkthroughs are counted');
+  assert.match(capacity.children[0].children[1].textContent, /^Each new accepted capture uses one walkthrough, regardless of room count\. /);
+  assert.equal(h.ids['account-plan-body'].all().filter(el => el.className === 'plan-allowance').length, 0);
+  assert.ok(planValues(h).includes('2 of 6 used') && planValues(h).includes('0 available'), planValues(h).join(' | '));
+  assert.doesNotMatch(parts[2].textContent, /free walkthroughs used/, 'the sentence keeps only what happens on the renewal date');
   // With walkthroughs left, the packs card below is the pointer to packs; the panel does not repeat it.
   assert.doesNotMatch(planText(h), /Need more walkthroughs|Ask about another walkthrough/);
   const prose = h.ids['account-plan-body'].all().filter(el => el.tagName === 'P' && !/plan-title|plan-actions/.test(el.className));
@@ -2734,7 +2751,7 @@ test('refer an office: the rule, the link built from the account’s own code, a
   assert.equal(block.hidden, false);
   assert.equal(block.attributes['aria-busy'], 'false');
   assert.match(markup, /<section id="account-referral" class="referral-offer" aria-labelledby="account-referral-title" hidden><\/section>/);
-  const title = referralNodes(h).find(el => el.tagName === 'H3');
+  const title = referralNodes(h).find(el => el.tagName === 'H2');
   assert.deepEqual([title.textContent, title.id], ['Refer an office', 'account-referral-title']);
   assert.ok(referralText(h).includes(REFERRAL_RULE));
   const field = referralNodes(h).find(el => el.tagName === 'INPUT');

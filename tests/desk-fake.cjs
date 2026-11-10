@@ -57,7 +57,8 @@ class Element {
 /**
  * options: tables ({ properties, tours, memberships }), rpc ({ name: (args, h) => answer }),
  * approved (tour ids whose review is approved; default all), appMode, search, signedOut,
- * navigator, pathname, formData (what the sign-in form's fields hold).
+ * navigator, pathname, formData (what the sign-in form's fields hold), hash (the address's
+ * #view). The harness keeps windowEvents (hashchange…) and assigned (location.assign).
  */
 async function loadDesk(options = {}) {
   const markup = fs.readFileSync(path.join(dist, options.appMode ? 'app/account/index.html' : 'account/index.html'), 'utf8');
@@ -66,7 +67,7 @@ async function loadDesk(options = {}) {
   for (const match of markup.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([\w-]+)\b[^>]*\bid="([^"]+)"[^>]*>/g)) {
     const el = new Element(match[1], doc); el.id = match[2]; el.hidden = /\shidden\b/.test(match[0]); ids[match[2]] = el;
   }
-  const calls = [], redirects = [], otp = [];
+  const calls = [], redirects = [], otp = [], assigned = [], windowEvents = {};
   const user = { id: 'user-1', email: 'owner@example.invalid' };
   const tables = {
     properties: { data: [{ id: 'p1', title: 'Harbour loft', workspace_id: 'w1' }] },
@@ -75,7 +76,7 @@ async function loadDesk(options = {}) {
     ...(options.tables || {}),
   };
   const approved = options.approved || null;
-  const h = { ids, calls, redirects, otp, doc };
+  const h = { ids, calls, redirects, otp, doc, assigned, windowEvents };
   const supabase = {
     auth: {
       getSession: async () => ({ data: { session: options.signedOut ? null : { user, access_token: 'token-1' } } }),
@@ -106,7 +107,7 @@ async function loadDesk(options = {}) {
   };
   const window = {
     VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' }, supabase: { createClient: () => supabase },
-    VeyletPlace: { generalLocationProblem: () => '' }, VEYLET_HOOKS: { url: 'https://hooks.example.invalid' }, addEventListener() {},
+    VeyletPlace: { generalLocationProblem: () => '' }, VEYLET_HOOKS: { url: 'https://hooks.example.invalid' }, addEventListener(type, handler) { windowEvents[type] = handler; },
   };
   // `options.localStorage`: this browser's storage (absent unless a test supplies one).
   if (options.localStorage) window.localStorage = options.localStorage;
@@ -117,12 +118,13 @@ async function loadDesk(options = {}) {
   const context = {
     window, document: documentStub, Date, URL, URLSearchParams, Intl, TypeError,
     navigator: options.navigator || { onLine: true, clipboard: { writeText: async () => {} } },
-    location: { pathname: options.pathname || (options.appMode ? '/app/account' : '/account'), search: options.search || '',
-      replace: url => redirects.push(url), assign() {} },
+    location: { pathname: options.pathname || (options.appMode ? '/app/account' : '/account'), search: options.search || '', hash: options.hash || '',
+      replace: url => redirects.push(url), assign: url => { assigned.push(url); } },
     setTimeout: () => ({}), clearTimeout() {}, setInterval: () => 0, clearInterval() {},
     FormData: class { get(key) { return (options.formData || {})[key] ?? ''; } }, Blob: class {},
   };
   vm.runInNewContext(sharing, context);
+  h.location = context.location;
   await vm.runInNewContext(account, context);
   await settle();
   Object.assign(h, {

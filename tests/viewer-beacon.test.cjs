@@ -774,9 +774,25 @@ test('the QA fixture records stop and look as the beacon posts them, and answers
     for (const [key, value] of Object.entries(row.bins)) { assert.match(key, /^(\d|1[01])_[0-2]$/); assert.ok(value > 0); }
     assert.equal(Object.values(row.bins).reduce((sum, value) => sum + value, 0), row.seconds, 'the fixture’s bins add up to its seconds');
   }
+  assert.deepEqual(plain(heat.stops.map(row => row.stop)), [0, 1, 2, 3, 4, 5, 6, 7], 'stops in stop order, as the function answers');
   const stats = (await client('').rpc('get_tour_view_stats', {})).data[0];
-  assert.deepEqual([stats.visits, stats.avg_dwell_seconds, plain(stats.by_room)], [11, 96, { 'Living area': 9, Kitchen: 7, 'Main bedroom': 4 }]);
+  // Every room that has seconds has visits (the desk divides one by the other), and the busiest room is entered on every visit.
+  assert.deepEqual([stats.visits, stats.avg_dwell_seconds, plain(stats.by_room)], [11, 96, { 'Living area': 11, Kitchen: 9, 'Main bedroom': 6, Balcony: 2 }]);
   assert.deepEqual(plain(stats.by_room_seconds), { Kitchen: 272, 'Living area': 258, 'Main bedroom': 129, Balcony: 5 });
+  // by_room_seconds is the heat map's seconds added up by room, as the draft's two functions read the same rows.
+  const byRoom = {};
+  for (const row of heat.stops) if (row.room) byRoom[row.room] = (byRoom[row.room] || 0) + row.seconds;
+  assert.deepEqual(byRoom, plain(stats.by_room_seconds));
+  // Every answer carries exactly the thirteen columns get_tour_view_stats returns (draft 20261110100000), whatever the case.
+  const COLUMNS = ['opens', 'days_with_opens', 'call_taps', 'email_taps', 'share_taps', 'by_src', 'by_host', 'last_opened_at', 'explores', 'avg_dwell_seconds', 'visits', 'by_room', 'by_room_seconds'];
+  for (const search of ['', '?views=zero', '?views=few']) {
+    const row = (await client(search).rpc('get_tour_view_stats', {})).data[0];
+    assert.deepEqual(plain(Object.keys(row)), COLUMNS, search || 'default');
+  }
+  const few = (await client('?views=few').rpc('get_tour_view_heatmap', {})).data;
+  assert.deepEqual([Object.keys(plain(few)), few.visits < 5, plain(few.stops).every(row => row.visits <= few.visits)], [['stops', 'visits', 'since'], true, true]);
+  assert.deepEqual(Object.keys(plain(heat)), ['stops', 'visits', 'since']);
+  for (const row of [...plain(heat.stops), ...plain(few.stops)]) assert.deepEqual(Object.keys(row), ['stop', 'room', 'visits', 'seconds', 'bins']);
   assert.deepEqual(plain((await client('?heat=empty').rpc('get_tour_view_heatmap', {})).data.stops), []);
   assert.deepEqual(plain((await client('?heat=empty').rpc('get_tour_view_heatmap', {})).data), { stops: [], visits: 0, since: null });
   assert.equal((await client('?heat=missing').rpc('get_tour_view_heatmap', {})).error.code, 'PGRST202');
