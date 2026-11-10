@@ -163,6 +163,10 @@ const shownIn = el => [el, ...el.shown()];
 const filled = el => shownIn(el).filter(node => /\btour-action-primary\b/.test(node.className) || (node.tagName === 'BUTTON' && node.type === 'submit' && /\bbutton\b/.test(node.className))).map(node => node.textContent);
 const chipOf = card => card.all().find(el => el.dataset.chip === 'state') || null;
 const rowLine = card => card.all().filter(el => el.className === 'tour-row-status' && !el.hidden).map(el => el.textContent).join('\n');
+// A card's quiet disclosures (Link, QR code, Website, Insights, Manage) and the panel each opens under its row.
+const toggleOf = (card, key) => card.all().find(el => el.dataset.disclosure === key) || null;
+const panelOf = (card, key) => card.all().find(el => el.className === 'tour-panel tour-' + key) || null;
+const openPanel = async (card, key) => { const toggle = toggleOf(card, key); if (toggle.attributes['aria-expanded'] !== 'true') await toggle.fire('click'); return panelOf(card, key); };
 const stateLine = card => card.children.find(el => /^tour-state-help/.test(el.className))?.textContent;
 const readyTour = (fields = {}) => ({ id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: null, ...fields });
 const reviewForm = card => card.all().find(el => el.tagName === 'FORM');
@@ -439,8 +443,8 @@ test('no retired word reaches the desk, in any state', async () => {
   ];
   for (const [index, options] of desks.entries()) {
     const h = await load(options);
-    const qr = h.all().find(el => el.className === 'account-details tour-qr');
-    if (qr) { qr.open = true; await qr.fire('toggle'); }
+    const qr = h.all().find(el => el.dataset.disclosure === 'qr');
+    if (qr) await qr.fire('click');
     assertNoRetired(h.visible(), 'desk ' + index);
   }
   // Every refusal and failure line after Approve and share.
@@ -525,7 +529,10 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   const card = h.card('t1');
   assert.deepEqual(filled(card), ['Share']);
   assert.equal(byText(card, 'Open as your client').href, HANDOFF);
-  assert.ok(byText(card, 'Copy link'));
+  // The row is the one filled button and Open as your client; Copy link sits beside the address, under Link.
+  const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Share'));
+  assert.deepEqual(row.children.map(child => child.textContent), ['Share', 'Open as your client']);
+  assert.ok(byText(panelOf(card, 'link'), 'Copy link'));
   assert.equal(byText(card, 'Open as a visitor'), undefined);
   await byText(card, 'Share').fire('click');
   assert.deepEqual(h.shared, [{ title: 'Sample space', url: LINK }]);
@@ -544,22 +551,24 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   assert.equal(byText(desk.card('t1'), 'Share'), undefined);
   await byText(desk.card('t1'), 'Copy link').fire('click');
   assert.deepEqual(desk.copied, [LINK]);
-  // The website steps and the one embed code are still there.
-  assert.ok(byText(desk.card('t1'), 'Add to your website'));
-  assert.ok(byText(desk.card('t1'), 'Copy embed code'));
+  // The website steps and the one embed code are still there, behind Website.
+  assert.equal(toggleOf(desk.card('t1'), 'website').textContent, 'Website');
+  assert.ok(byText(panelOf(desk.card('t1'), 'website'), 'Copy embed code'));
 });
 
 test('Show QR code draws the code in this browser and saves a PNG named after the listing', async () => {
   const h = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released()],
     properties: [{ id: 'p1', title: '12 Rue Café & Co.', workspace_id: 'w1' }] });
   const card = h.card('t1');
-  const qr = card.all().find(el => el.tagName === 'DETAILS' && el.className === 'account-details tour-qr');
-  assert.equal(qr.children[0].textContent, 'Show QR code');
+  const qr = panelOf(card, 'qr');
+  assert.equal(toggleOf(card, 'qr').textContent, 'QR code');
+  assert.equal(qr.hidden, true, 'closed until asked for');
   const code = qr.all().find(el => el.className === 'tour-qr-code');
   const download = byText(qr, 'Download QR code (PNG)');
   assert.equal(code.innerHTML, undefined, 'nothing is drawn until it is opened');
   assert.equal(download.disabled, true);
-  qr.open = true; await qr.fire('toggle');
+  await openPanel(card, 'qr');
+  assert.equal(qr.hidden, false);
   assert.match(code.innerHTML, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 \d+ \d+"/);
   assert.match(code.innerHTML, /role="img" aria-label="QR code that opens 12 Rue Café &amp; Co\."/);
   assert.match(code.innerHTML, /<path fill="#10231d" d="M[^"]+"/);
@@ -580,8 +589,7 @@ test('Show QR code draws the code in this browser and saves a PNG named after th
   assert.equal(h.created.some(el => el.tagName === 'IMG'), false);
   // Without the vendored generator: words, never a network service.
   const none = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, qr: false });
-  const closed = none.card('t1').all().find(el => el.className === 'account-details tour-qr');
-  closed.open = true; await closed.fire('toggle');
+  const closed = await openPanel(none.card('t1'), 'qr');
   assert.equal(closed.all().find(el => el.className === 'tour-qr-code').textContent, 'The QR code couldn’t be made here. Copy the link instead.');
   assert.equal(byText(closed, 'Download QR code (PNG)').disabled, true);
 });
@@ -876,7 +884,7 @@ test('the desk’s new controls and card reflow on a phone and keep 44px targets
 const PAUSED = 'Paused. Within a minute, the link, embed and QR show "not available" until you resume; the link stays the same.';
 const RESUMED = 'Sharing resumed. Within a minute, the same link, embed and QR open the walkthrough again.';
 const liveTour = (fields = {}) => readyTour({ share_token: TOKEN, ...fields });
-const manageOf = card => card.all().find(el => el.tagName === 'DETAILS' && el.children[0]?.textContent === 'Manage sharing');
+const manageOf = card => panelOf(card, 'manage');
 const pausing = () => ({
   pause_tour_share: async (args, { tours }) => { tours.find(row => row.id === args.p_tour_id).share_paused_at = '2026-09-25T01:00:00Z'; return { data: null }; },
   resume_tour_share: async (args, { tours }) => { const row = tours.find(item => item.id === args.p_tour_id); row.share_paused_at = null; return { data: row.share_token }; },
@@ -898,7 +906,8 @@ test('Pause sharing sits first under Manage sharing, unconfirmed and secondary; 
   assert.equal(rowLine(paused), 'Sharing paused. Resume sharing opens the same link again.', 'said where it happened, without repeating the card’s line');
   assert.deepEqual(filled(paused), ['Resume sharing']);
   assert.equal(byText(paused, 'Copy link'), undefined, 'no share kit while paused');
-  assert.equal(byText(paused, 'Show QR code'), undefined);
+  assert.equal(toggleOf(paused, 'qr'), null);
+  assert.equal(toggleOf(paused, 'link'), null);
   assert.equal(byText(manageOf(paused), 'Pause sharing'), undefined);
   assert.ok(byText(manageOf(paused), 'Turn off sharing'), 'turning off stays available');
   assert.equal(h.ids['account-next-step'].children[0].textContent, 'Sharing is paused.');
@@ -956,7 +965,13 @@ test('Copy listing URL gives portals and CRMs the unbranded /tour address, tagge
   const h = await load({ tours: [liveTour()], approved: true });
   const card = h.card('t1');
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Copy link'));
-  assert.deepEqual(row.children.map(child => child.textContent), ['Copy link', 'Copy listing URL (portals, CRM)', 'Open as your client'], 'next to Copy link');
+  assert.deepEqual(row.children.map(child => child.textContent), ['Copy link', 'Open as your client'], 'the row: one filled button and the client view');
+  // Copy listing URL sits with the address, behind Link.
+  const linkPanel = panelOf(card, 'link');
+  assert.equal(toggleOf(card, 'link').textContent, 'Link');
+  assert.equal(linkPanel.hidden, true);
+  assert.ok(byText(linkPanel, 'Copy listing URL (portals, CRM)'));
+  assert.ok(linkPanel.all().some(el => el.tagName === 'INPUT' && el.className === 'copy-field' && el.value === LINK), 'the address itself');
   const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Listing URL (portals, CRM)');
   assert.equal(field.hidden, true, 'the address shows once asked for');
   await byText(card, 'Copy listing URL (portals, CRM)').fire('click');
@@ -980,16 +995,16 @@ test('views: opens with the last day and the Call and Email taps, under the stat
   const card = h.card('t1');
   const views = card.all().find(el => el.className === 'tour-views');
   assert.equal(views.hidden, false);
-  assert.deepEqual(views.children.map(el => el.textContent), ['Opened 14 times · last 24 Sep 2026', 'Call taps 3 · Email taps 1']);
-  const order = card.children.map(el => el.className);
-  assert.equal(order.indexOf('tour-views'), order.indexOf('tour-state-help tour-hosting') + 1, 'right under the state line');
+  assert.equal(views.textContent, '14 opens · 3 calls · 1 email · last 24 Sep 2026');
+  assert.equal(views.parent.className, 'tour-meta-row', 'one line, ending the card’s first row');
+  assert.equal(views.parent.children.at(-1), views);
   assert.deepEqual(h.calls.filter(([name]) => name === 'get_tour_view_stats').map(([, args]) => args.p_tour_id), ['t1']);
   const once = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 1 }] }) } });
   await settle();
-  assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').children[0].textContent, 'Opened 1 time · last 24 Sep 2026');
+  assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').textContent, '1 open · 3 calls · 1 email · last 24 Sep 2026');
   const none = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 0, call_taps: 0, email_taps: 0, last_opened_at: null }] }) } });
   await settle();
-  assert.deepEqual(none.card('t1').all().find(el => el.className === 'tour-views').children.map(el => el.textContent), ['Not opened yet.']);
+  assert.equal(none.card('t1').all().find(el => el.className === 'tour-views').textContent, 'Not opened yet.');
   // PGRST202: hidden, and not asked again on the next read. An error or an odd answer: hidden.
   const missing = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
   await settle();
@@ -1000,7 +1015,7 @@ test('views: opens with the last day and the Call and Email taps, under the stat
     const odd = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => reply } });
     await settle();
     assert.equal(odd.card('t1').all().find(el => el.className === 'tour-views').hidden, true, JSON.stringify(reply));
-    assert.doesNotMatch(odd.visible(), /Opened|Not opened/);
+    assert.doesNotMatch(odd.visible(), /\d opens?\b|Not opened/);
   }
   // Only a card with a link asks.
   const draft = await load({ tours: [readyTour()], approved: true });
@@ -1027,7 +1042,7 @@ test('app mode: the plan is its state in words, and no money function is even as
   assert.deepEqual(body.all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent), ['State', 'Active']);
   assert.ok(byText(body, 'See your plan in the app.'));
   // The hosting line keeps its date and names no purchase path: the plan restarts in the app.
-  assert.equal(h.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent,
+  assert.equal(h.card('t1').all().find(el => el.className === 'tour-hosting-words').textContent,
     'Your plan has ended. This walkthrough goes offline on 1 Mar 2027. Restart your plan in the app to keep it live.');
   assert.equal(byText(h.card('t1'), 'Full website guide'), undefined, 'no link out to the public site');
   const text = h.visible();
@@ -1037,7 +1052,7 @@ test('app mode: the plan is its state in words, and no money function is even as
   assert.equal(h.all().some(el => el.dataset.control === 'hosting-extension'), false);
   const extended = await load({ markup: appMarkup, tours: [liveTour()], approved: true,
     hosting: [released({ plan_active: false, hosting_state: 'live_with_extension', offline_on: '2027-10-01', extended_until: '2027-10-01T00:00:00Z' })] });
-  assert.equal(extended.card('t1').all().find(el => /tour-hosting/.test(el.className)).textContent, 'Online until 1 Oct 2027.');
+  assert.equal(extended.card('t1').all().find(el => el.className === 'tour-hosting-words').textContent, 'Online until 1 Oct 2027.');
   assert.doesNotMatch(extended.all().map(el => el.textContent).join('\n'), /extension|A\$|\$\d/i);
   // Every plan state reads as its word; an unreadable one says so, with a refresh.
   for (const [status, word] of [['pending', 'Not started'], ['trial', 'Free months'], ['ended', 'Ended']]) {
@@ -1296,11 +1311,10 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   const card = h.card('t1');
 
   // 1. Walkthrough insights & vendor report disclosure.
-  const insights = card.all().find(el => el.className === 'account-details tour-insights');
-  assert.ok(insights && !insights.hidden);
-  assert.equal(insights.children[0].textContent, 'Walkthrough insights & vendor report');
-  insights.open = true;
-  await insights.fire('toggle');
+  assert.equal(toggleOf(card, 'insights').textContent, 'Insights');
+  assert.equal(toggleOf(card, 'insights').hidden, false, 'offered once there are opens');
+  const insights = await openPanel(card, 'insights');
+  assert.equal(insights.hidden, false);
   assert.equal(insights.all().find(el => el.className === 'tour-insights-summary').textContent,
     'Active days: 5 · Direct enquiries: 4 · Link shares: 2 · Avg. time: 1m 45s');
   assert.deepEqual(insights.all().filter(el => el.className === 'tour-insights-channel').map(el => el.textContent),
@@ -1325,9 +1339,9 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   assert.equal(rowLine(insights), 'Vendor report saved as 12-rue-cafe-co-vendor-report.txt.');
 
   // 2. Open-home QR sign card download.
-  const qr = card.all().find(el => el.className === 'account-details tour-qr');
-  qr.open = true;
-  await qr.fire('toggle');
+  const qr = await openPanel(card, 'qr');
+  assert.equal(insights.hidden, true, 'one panel open at a time');
+  assert.equal(toggleOf(card, 'insights').attributes['aria-expanded'], 'false');
   const signDl = qr.all().find(el => el.dataset.control === 'qr-sign-download');
   assert.equal(signDl.disabled, false);
   await signDl.fire('click');
@@ -1374,11 +1388,12 @@ async function heatDesk(heatmap, extra = {}) {
   const h = await load({ tours: [liveTour()], approved: true, hosting: [released()],
     rpc: { get_tour_view_stats: async () => ({ data: [extra.stats || VIEW_STATS] }), ...(heatmap === undefined ? {} : { get_tour_view_heatmap: heatmap }) } });
   await settle();
-  const insights = h.card('t1').all().find(el => el.className === 'account-details tour-insights');
-  const open = async () => { insights.open = true; await insights.fire('toggle'); await settle(); };
+  const insights = panelOf(h.card('t1'), 'insights');
+  const toggle = toggleOf(h.card('t1'), 'insights');
+  const open = async () => { await openPanel(h.card('t1'), 'insights'); await settle(); };
   const panel = () => insights.all().find(el => /^tour-heat$/.test(el.className));
   const texts = className => insights.all().filter(el => el.className === className).map(el => el.textContent);
-  return { h, insights, open, panel, texts };
+  return { h, insights, toggle, open, panel, texts };
 }
 
 test('the extended stats fill the time and room lines: average time, rooms by visits, time by room, and the vendor report', async () => {
@@ -1448,9 +1463,16 @@ test('Where viewers looked: asked once when the insights are opened, a ring and 
   ]);
   assert.ok(table.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'row').length === 3);
   // Closing and opening again does not ask again.
-  x.insights.open = false; await x.insights.fire('toggle');
+  await x.toggle.fire('click');
+  assert.equal(x.insights.hidden, true);
   await x.open();
   assert.equal(x.h.count('get_tour_view_heatmap'), 1);
+  assert.equal(x.panel().hidden, false, 'what it drew is still there');
+  // Escape closes the panel and returns to its button.
+  await x.insights.fire('keydown', { key: 'Escape' });
+  assert.equal(x.insights.hidden, true);
+  assert.equal(x.toggle.attributes['aria-expanded'], 'false');
+  assert.equal(x.h.documentStub.activeElement, x.toggle);
   // More than five stops: five rings, and the table carries them all.
   const many = { visits: 4, since: null, stops: Array.from({ length: 9 }, (_, stop) => ({ stop, room: null, visits: 1, seconds: 10 + stop, bins: { '0_1': 10 + stop } })) };
   const long = await heatDesk(async () => ({ data: many }));
@@ -1475,8 +1497,7 @@ test('Where viewers looked: "No visits yet" for an empty answer; no panel for a 
   await settle();
   const status = missing.status();
   for (const id of ['t1', 't2']) {
-    const insights = missing.card(id).all().find(el => el.className === 'account-details tour-insights');
-    insights.open = true; await insights.fire('toggle'); await settle();
+    const insights = await openPanel(missing.card(id), 'insights'); await settle();
     const panel = insights.all().find(el => el.className === 'tour-heat');
     assert.equal(panel.hidden, true, id);
     assert.equal(panel.children.length, 0);

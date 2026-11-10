@@ -644,6 +644,67 @@
     };
   }
   function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
+  /*
+   * An approved walkthrough's third row: its buttons on the left and, on the right,
+   * quiet disclosures (Link, QR code, Website, Insights, Manage). One panel is open
+   * at a time, directly under the row; Escape closes it and returns to its button.
+   * `opened` runs each time a panel opens, so what an accordion drew or fetched when
+   * it opened still waits for that.
+   */
+  const DECK_ORDER = ['link', 'qr', 'website', 'insights', 'exports', 'manage'];
+  function cardDeck(tour, item) {
+    const row = document.createElement('div'); row.className = 'tour-card-row'; row.hidden = true;
+    const nav = document.createElement('div'); nav.className = 'tour-disclosures'; nav.hidden = true;
+    nav.setAttribute('role', 'group'); nav.setAttribute('aria-label', 'More for this walkthrough');
+    row.append(nav);
+    const entries = [];
+    let actions = null, placed = false;
+    const sync = () => {
+      nav.hidden = !entries.some(entry => !entry.toggle.hidden);
+      row.hidden = nav.hidden && !actions;
+    };
+    const set = (entry, open) => {
+      entry.open = open; entry.panel.hidden = !open;
+      entry.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open && entry.opened) entry.opened();
+    };
+    const mount = () => { if (!placed) { placed = true; item.append(row); } };
+    return {
+      row,
+      // The card's buttons come first in the row; the row joins the card where they would have.
+      place(node) { actions = node; row.replaceChildren(node, nav); mount(); sync(); },
+      add(key, label, panel, opened = null) {
+        const entry = { key, panel, opened, open: false, toggle: null, show: null };
+        const toggle = button(label, () => {
+          const open = !entry.open;
+          for (const other of entries) if (other.open) set(other, false);
+          if (open) set(entry, true);
+        });
+        toggle.className = 'tour-disclosure'; toggle.dataset.disclosure = key;
+        panel.id = 'tour-' + key + '-' + tour.id; toggle.id = panel.id + '-toggle';
+        toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-controls', panel.id);
+        panel.setAttribute('role', 'group'); panel.setAttribute('aria-labelledby', toggle.id);
+        panel.hidden = true;
+        // From the row or from inside the panel: Escape closes whichever is open.
+        const escape = event => {
+          const open = event?.key === 'Escape' ? entries.find(each => each.open) : null;
+          if (!open) return;
+          event.stopPropagation?.(); set(open, false); open.toggle.focus?.({ preventScroll: true });
+        };
+        toggle.addEventListener('keydown', escape); panel.addEventListener('keydown', escape);
+        entry.toggle = toggle;
+        // Shown only once there is something behind it; hiding an open one closes it.
+        entry.show = visible => { toggle.hidden = !visible; if (!visible && entry.open) set(entry, false); sync(); };
+        entries.push(entry);
+        entries.sort((a, b) => DECK_ORDER.indexOf(a.key) - DECK_ORDER.indexOf(b.key));
+        nav.replaceChildren(...entries.map(each => each.toggle));
+        sync();
+        return entry;
+      },
+      // Once the card is drawn: the row (even without buttons), then its panels in order.
+      finish() { mount(); item.append(...entries.map(entry => entry.panel)); sync(); },
+    };
+  }
   function targetMessage(value) {
     if (!targetStatus) return;
     targetStatus.textContent = value;
@@ -703,19 +764,46 @@
     if (extra.control) link.dataset.control = extra.control;
     return link;
   }
-  // A live card's fix once the plan has ended: the filled "Restart your plan" and,
-  // beside it, the extension request. Shown only while the card is offline or goes
-  // offline on a date; the plan's answer can change that after the card is drawn.
+  // An ended plan's fix is said once, at the top of the desk: the plan panel's filled
+  // "Restart your plan". A card ends its state line with the extension request and,
+  // only when that panel has no restart for this card's office (another office's plan,
+  // or a plan it could not read), one quiet "Restart your plan" of its own.
+  let planAnswered = false, planRestartOffice = null;
   function hostingFixRow(tour) {
     if (APP_MODE) return null;
-    const row = document.createElement('p'); row.className = 'tour-actions-row tour-hosting-fix';
-    row.append(restartPlanButton(), extensionLinkNode(extensionRequest(tour)));
-    return row;
+    const row = document.createElement('span'); row.className = 'tour-hosting-fix';
+    const restart = button('Restart your plan', focusPlan); restart.className = 'text-link tour-plan-restart';
+    restart.dataset.control = 'share-fix-plan'; restart.hidden = true;
+    row.append(restart, extensionLinkNode(extensionRequest(tour)));
+    return { row, restart };
+  }
+  // The card's own words for an ended plan: the date and what happens, not whose plan
+  // it is or what to press (the plan panel and the space's own line say those once).
+  // `own`: the card carries its own "Restart your plan", so the sentence stops at the date.
+  function cardHostingWords(row, own = false) {
+    const phase = APP_MODE ? null : hostingPhase(row);
+    if (phase !== 'offline' && phase !== 'offline_on') return hostingWords(row || null, true);
+    const date = window.VeyletSharing.hostingState(row, Date.now(), deskPlanEndedAt)?.date;
+    const day = date ? window.VeyletSharing.hostingDate(date) : '';
+    if (phase === 'offline') return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + 'The same link, embed and QR work again when the plan restarts.';
+    if (own) return day ? 'Goes offline on ' + day + '.' : 'The plan has ended.';
+    return day ? 'Goes offline on ' + day + ' unless the plan restarts.' : 'The plan has ended. Restart it to keep this walkthrough live.';
   }
   function hostingFixSync(entry) {
-    if (!entry?.fix) return;
+    if (!entry) return;
     const phase = hostingPhase(entry.hosting);
-    entry.fix.hidden = !(phase === 'offline' || phase === 'offline_on');
+    const ended = phase === 'offline' || phase === 'offline_on';
+    // Until the plan answers, a card waits rather than repeat a fix the panel may carry.
+    const own = Boolean(entry.fix) && ended && planAnswered
+      && !(planRestartOffice && planRestartOffice === officeIdOfProperty.get(entry.tour.property_id));
+    entry.line.textContent = cardHostingWords(entry.hosting, own);
+    if (!entry.fix) return;
+    entry.fix.hidden = !ended; entry.restart.hidden = !own;
+  }
+  // The plan panel is drawn: `office` is the one whose ended plan it offers to restart, or null.
+  function planFixKnown(office) {
+    planAnswered = true; planRestartOffice = office || null;
+    for (const entry of hostingCards.values()) hostingFixSync(entry);
   }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
@@ -727,7 +815,10 @@
   // one fix is drawn at once; `withPreview` puts the reviewer's Preview beside the
   // button, so the walkthrough's next moves read as one row rather than two.
   function turnOnSharing(tour, item, supabase, ticket, options = {}) {
-    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; item.append(actions);
+    // What sharing does, said above the button until a refusal says why it waits instead.
+    const note = options.note ? message(item, options.note) : null;
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row';
+    if (options.deck) options.deck.place(actions); else item.append(actions);
     let fix = null, preview = null;
     // The one fix for a refusal is the filled control and comes first; a retry stays
     // beside it unless it cannot help.
@@ -767,8 +858,6 @@
     });
     enable.className = 'tour-action tour-action-primary'; enable.dataset.control = 'share-on'; actions.append(enable);
     if (options.withPreview) preview = tourPreview(tour, actions);
-    // What sharing does, said until a refusal says why it waits instead.
-    const note = options.note ? message(item, options.note) : null;
     const say = rowSay(tour, item);
     if (options.problem) showFix(options.problem);
   }
@@ -838,11 +927,10 @@
     }
     return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
   }
-  // Show QR code: drawn in this browser by the vendored generator (window.VeyletQR,
-  // /vendor/qrcode-1.5.4.min.js) when the disclosure opens. No QR service is called.
-  function qrKit(tour, url, name) {
-    const details = document.createElement('details'); details.className = 'account-details tour-qr';
-    const summary = document.createElement('summary'); summary.textContent = 'Show QR code';
+  // QR code: drawn in this browser by the vendored generator (window.VeyletQR,
+  // /vendor/qrcode-1.5.4.min.js) when its panel opens. No QR service is called.
+  function qrKit(tour, url, name, deck) {
+    const details = document.createElement('div'); details.className = 'tour-panel tour-qr';
     const body = document.createElement('div'); body.className = 'tour-qr-body';
     const code = document.createElement('div'); code.className = 'tour-qr-code';
     code.textContent = 'Preparing the QR code…';
@@ -874,7 +962,7 @@
     });
     signDownload.disabled = true; signDownload.dataset.control = 'qr-sign-download';
     const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download, signDownload);
-    body.append(code, caption, row); details.append(summary, body);
+    body.append(code, caption, row); details.append(body);
     let drawn = false;
     const draw = () => {
       if (drawn) return;
@@ -884,7 +972,7 @@
       if (!/^<svg[\s>]/.test(svg)) { code.textContent = 'The QR code couldn’t be made here. Copy the link instead.'; return; }
       drawn = true; code.innerHTML = svg; download.disabled = false; signDownload.disabled = false;
     };
-    details.addEventListener('toggle', () => { if (details.open) draw(); });
+    deck.add('qr', 'QR code', details, draw);
     const sayQr = rowSay(tour, details);
     return details;
   }
@@ -895,22 +983,22 @@
     return share.embedCode(token).split('"' + frame + '"').join('"' + tagged(frame, 'embed') + '"')
       .split('"' + page + '"').join('"' + tagged(page, 'embed') + '"');
   }
-  // The share kit on a live walkthrough: Share (the device's share sheet) where the
-  // browser has one, otherwise Copy link, filled; then Copy listing URL, Open as your
-  // client, Show QR code and the website steps with the embed code. Each handed-out
-  // address carries its channel (link, portal, qr, embed).
-  function liveSharing(tour, item, title) {
+  // The share kit on a live walkthrough. In the row: Share (the device's share sheet)
+  // where the browser has one, otherwise Copy link, filled; then Open as your client.
+  // Behind the row's disclosures: Link (the address, Copy listing URL, and Copy link
+  // when Share took its place), QR code, and Website (the builder's steps and the embed
+  // code). Each handed-out address carries its channel (link, portal, qr, embed).
+  function liveSharing(tour, item, title, deck) {
     const share = window.VeyletSharing;
     const page = share.handoffUrl(tour.share_token);
     // What the agent hands out carries its channel; Open as your client is the page itself.
     const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
-    const copy = async () => {
+    const copy = async tell => {
       await share.copy(url, link.field, statusEl, 'Link copied. Anyone with it can open or forward the walkthrough.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      if (statusEl?.textContent) tell(statusEl.textContent);
     };
-    const copyLink = button('Copy link', copy); copyLink.dataset.control = 'copy-link';
     // One direct, frameable address for a portal's or CRM's virtual tour field: the
     // walkthrough alone, with no agent card, links or QR code (/tour).
     const listingUrl = tagged(LISTING_BASE + encodeURIComponent(tour.share_token), 'portal');
@@ -919,34 +1007,39 @@
     const copyListing = button('Copy listing URL (portals, CRM)', async () => {
       listing.label.hidden = false;
       await share.copy(listingUrl, listing.field, statusEl, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      if (statusEl?.textContent) sayLink(statusEl.textContent);
     });
     copyListing.dataset.control = 'copy-listing';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row';
+    const linkActions = document.createElement('p'); linkActions.className = 'tour-actions-row';
     const device = typeof navigator !== 'undefined' ? navigator : null;
     let sheet = false;
     try { sheet = typeof device?.share === 'function' && (typeof device.canShare !== 'function' || device.canShare({ title: name, url }) !== false); } catch { sheet = false; }
+    // The row's one filled button; where that is Share, Copy link sits beside the address.
+    const copyLink = button('Copy link', () => copy(sheet ? sayLink : say)); copyLink.dataset.control = 'copy-link';
     if (sheet) {
       const send = button('Share', async () => {
         try { await device.share({ title: name, url }); }
-        catch (error) { if (error?.name !== 'AbortError') await copy(); }
+        catch (error) { if (error?.name !== 'AbortError') await copy(say); }
       });
       send.className = 'tour-action tour-action-primary'; send.dataset.control = 'share';
-      actions.append(send, copyLink);
+      actions.append(send); linkActions.append(copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
-    actions.append(copyListing);
+    linkActions.append(copyListing);
     const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
     actions.append(open);
-    // The link and what you do with it share one row where there is room.
-    const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
-    linkRow.append(link.label, actions); item.append(linkRow, listing.label);
+    deck.place(actions);
     const say = rowSay(tour, item);
-    item.append(qrKit(tour, tagged(page, 'qr'), name));
+    // Link: the address and what else to do with it share one row where there is room.
+    const linkPanel = document.createElement('div'); linkPanel.className = 'tour-panel tour-link';
+    const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
+    linkRow.append(link.label, linkActions); linkPanel.append(linkRow, listing.label);
+    deck.add('link', 'Link', linkPanel);
+    const sayLink = rowSay(tour, linkPanel);
+    qrKit(tour, tagged(page, 'qr'), name, deck);
 
-    // Add to your website: the builder's own steps, then the one code. It is
-    // a disclosure, so a desk of live walkthroughs stays a list of links.
-    const web = document.createElement('details'); web.className = 'account-details tour-website';
-    const heading = document.createElement('summary'); heading.textContent = 'Add to your website';
+    // Website: the builder's own steps, then the one code.
+    const web = document.createElement('div'); web.className = 'tour-panel tour-website';
     const chooser = document.createElement('fieldset'); chooser.className = 'tour-builder';
     const legend = document.createElement('legend'); legend.textContent = 'Your website builder'; chooser.append(legend);
     const steps = document.createElement('ol'); steps.className = 'tour-builder-steps';
@@ -974,14 +1067,14 @@
       const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
       codeActions.append(guidePage);
     }
-    web.append(heading, chooser, steps, embed.label, codeActions);
-    item.append(web);
+    web.append(chooser, steps, embed.label, codeActions);
+    deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
   }
-  function manageSharing(item) {
-    const details = document.createElement('details'); details.className = 'account-details tour-manage';
-    const summary = document.createElement('summary'); summary.textContent = 'Manage sharing';
-    details.append(summary); item.append(details); return details;
+  // Manage: pause, turn off sharing and withdraw approval, behind the row's last disclosure.
+  function manageSharing(deck) {
+    const details = document.createElement('div'); details.className = 'tour-panel tour-manage';
+    deck.add('manage', 'Manage', details); return details;
   }
   // A backend without the function answers PGRST202 ("Could not find the function").
   function missingFunction(result) {
@@ -1021,7 +1114,7 @@
   }
   // A paused walkthrough's one filled action. `gate` is what the listing's sharing waits
   // for (its question or the tenant's consent): that fix comes first, Resume beside it.
-  function resumeSharing(tour, item, supabase, ticket, gate = null) {
+  function resumeSharing(tour, item, supabase, ticket, gate = null, deck = null) {
     const blocked = reason => {
       say(shareWords(reason));
       if (fixed || !gateCanOpen(tour.property_id)) return;
@@ -1054,7 +1147,7 @@
     resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'resume-share';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(resume);
     if (gate) message(item, shareWords(gate), 'tour-state-help tour-share-problem');
-    item.append(actions);
+    if (deck) deck.place(actions); else item.append(actions);
     const say = rowSay(tour, item);
     if (gate && gateCanOpen(tour.property_id)) {
       const fix = button(gateFixLabel(gate), () => gateOpen(tour.property_id, gate));
@@ -1275,8 +1368,10 @@
   }
   /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
   function tourHeat(tour, panel, supabase, ticket) {
+    // Asked once: opening the panel again leaves what it drew as it is.
+    if (panel.dataset.asked === 'true') return;
     panel.className = 'tour-heat'; panel.hidden = true;
-    if (!heatAvailable || !supabase || panel.dataset.asked === 'true') return;
+    if (!heatAvailable || !supabase) return;
     panel.dataset.asked = 'true';
     void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))).then(reply => {
       if (ticket !== deskVersion) return;
@@ -1286,19 +1381,18 @@
       if (heat) renderHeat(panel, heat);
     });
   }
-  function tourInsights(tour, row, title, box, lastDate, supabase, ticket) {
-    if (!box) return;
+  // `entry` is the card's Insights disclosure: shown once there are opens to report.
+  function tourInsights(tour, row, title, entry, lastDate, supabase, ticket) {
+    if (!entry) return;
     const opens = viewCount(row?.opens);
-    if (!opens || opens <= 0) { box.hidden = true; return; }
-    box.className = 'account-details tour-insights';
-    const summary = document.createElement('summary');
-    summary.textContent = 'Walkthrough insights & vendor report';
+    if (!opens || opens <= 0) { entry.show(false); return; }
+    const box = entry.panel;
     const body = document.createElement('div');
     body.className = 'tour-insights-body';
-    body.hidden = !box.open;
     const heat = document.createElement('section');
     heat.setAttribute('aria-label', 'Where viewers looked');
-    box.addEventListener('toggle', () => { body.hidden = !box.open; if (box.open) tourHeat(tour, heat, supabase, ticket); });
+    // Where viewers looked is asked for when the panel first opens, not before.
+    entry.opened = () => tourHeat(tour, heat, supabase, ticket);
     const days = viewCount(row?.days_with_opens);
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
@@ -1351,7 +1445,7 @@
     }
     heat.className = 'tour-heat'; heat.hidden = true;
     body.append(heat);
-    if (box.open) tourHeat(tour, heat, supabase, ticket);
+    if (entry.open) tourHeat(tour, heat, supabase, ticket);
     const reportText = vendorReportText(title, row, lastDate);
     const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
     const copyBtn = button('Copy vendor report', async () => {
@@ -1376,14 +1470,15 @@
     actions.className = 'tour-actions-row';
     actions.append(copyBtn, downloadBtn);
     body.append(actions);
-    box.replaceChildren(summary, body);
+    box.replaceChildren(body);
     const sayInsights = rowSay(tour, box);
-    box.hidden = false;
+    entry.show(true);
   }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
-  function tourViews(tour, host, supabase, ticket, title, insightsBox) {
+  // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".
+  function tourViews(tour, host, supabase, ticket, title, insights) {
     host.className = 'tour-views'; host.hidden = true;
-    if (insightsBox) insightsBox.hidden = true;
+    if (insights) insights.show(false);
     if (!viewsAvailable) return;
     void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
       if (ticket !== deskVersion) return;
@@ -1393,16 +1488,12 @@
       const opens = viewCount(row?.opens), calls = viewCount(row?.call_taps), emails = viewCount(row?.email_taps);
       if (opens === null) return;
       const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
-      const opened = document.createElement('p'); opened.className = 'tour-views-opens';
-      opened.textContent = opens === 0 ? 'Not opened yet.' : 'Opened ' + opens + (opens === 1 ? ' time' : ' times') + (last ? ' · last ' + last : '');
-      const parts = [opened];
-      if (calls !== null && emails !== null && opens > 0) {
-        const taps = document.createElement('p'); taps.className = 'tour-views-taps';
-        taps.textContent = 'Call taps ' + calls + ' · Email taps ' + emails;
-        parts.push(taps);
-      }
-      host.replaceChildren(...parts); host.hidden = false;
-      if (opens > 0 && insightsBox) tourInsights(tour, row, title, insightsBox, last, supabase, ticket);
+      const count = (number, one, many) => number + ' ' + (number === 1 ? one : many);
+      const bits = opens === 0 ? ['Not opened yet.'] : [count(opens, 'open', 'opens')];
+      if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call', 'calls'), count(emails, 'email', 'emails'));
+      if (last) bits.push('last ' + last);
+      host.textContent = bits.join(' · '); host.hidden = false;
+      if (opens > 0 && insights) tourInsights(tour, row, title, insights, last, supabase, ticket);
     });
   }
   function stopSharing(tour, supabase, ticket, parent) {
@@ -1503,6 +1594,7 @@
   const EXPORT_FILES = Object.freeze({ video_16x9: 'Download listing video (16:9)', video_9x16: 'Download social video (9:16)', stills: 'Download stills (ZIP)' });
   const EXPORT_WORDS = Object.freeze({
     heading: 'Videos and stills for your listing',
+    short: 'Videos',
     what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room. Listing videos and stills are included in your plan.',
     // realestate.com.au's residential rules (launch plan §4): no web address, QR code
     // or call to action in the frame, and an AI or rendering disclosure. It shows the
@@ -1572,21 +1664,23 @@
    * (the request's own roles). Hidden until get_listing_exports answers; a ready
    * export puts its state on the summary so it is seen without opening it.
    */
-  function listingExports(tour, item, supabase, ticket) {
+  function listingExports(tour, item, supabase, ticket, deck) {
     if (!exportsAvailable) return;
-    const box = document.createElement('details'); box.className = 'account-details tour-exports'; box.hidden = true;
-    const summary = document.createElement('summary');
-    const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.heading;
+    const box = document.createElement('div'); box.className = 'tour-panel tour-exports';
+    const entry = deck.add('exports', '', box); entry.show(false);
+    const summary = entry.toggle;
+    const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.short;
     summary.append(summaryText);
+    const heading = document.createElement('p'); heading.className = 'tour-exports-heading'; heading.textContent = EXPORT_WORDS.heading;
     const body = document.createElement('div'); body.className = 'tour-exports-body';
     message(body, EXPORT_WORDS.what, 'tour-state-help tour-exports-what');
     message(body, EXPORT_WORDS.where, 'tour-state-help tour-exports-where');
     // Where the export stands: focused after a press, so the result is where the reader is.
     const state = document.createElement('p'); state.className = 'tour-exports-state'; state.tabIndex = -1; state.hidden = true;
     const slot = document.createElement('div'); slot.className = 'tour-exports-slot';
-    body.append(state, slot); box.append(summary, body); item.append(box);
+    body.append(state, slot); box.append(heading, body);
     const say = rowSay(tour, body);
-    const gone = () => { exportsAvailable = false; box.hidden = true; say(''); };
+    const gone = () => { exportsAvailable = false; entry.show(false); say(''); };
     const actions = (...controls) => { const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(...controls); slot.append(row); return row; };
     const show = (words, focus) => {
       state.textContent = words; state.hidden = !words;
@@ -1606,19 +1700,19 @@
       if (missingFunction(reply)) { gone(); return; }
       if (sessionGone(reply)) {
         if (focus) showSignedOut('Your sign-in has expired. Sign in to check your listing videos.');
-        else box.hidden = true;
+        else entry.show(false);
         return;
       }
       if (failed(reply)) {
-        box.hidden = false; chip(''); slot.replaceChildren(); say('');
+        entry.show(true); chip(''); slot.replaceChildren(); say('');
         show(EXPORT_WORDS.readFailed, focus);
         const retry = button(EXPORT_WORDS.again, () => read(true)); retry.dataset.control = 'exports-retry';
         actions(retry);
         return;
       }
       const row = exportAnswer(tour, reply.value?.data);
-      if (!row) { box.hidden = true; return; }
-      box.hidden = false;
+      if (!row) { entry.show(false); return; }
+      entry.show(true);
       say('');
       draw(row, focus);
     }
@@ -2149,19 +2243,24 @@
         if (ticket !== deskVersion) { if (pending) sharePending.set(tour.id, pending); return; }
       }
       const gate = canShare && (!live || paused) ? gateBlock(tour.property_id) : null;
-      let hostingFix = null;
+      // The card in three rows: its chip, date and views; one state sentence; its buttons
+      // and quiet disclosures, with the one open panel under them.
+      const deck = cardDeck(tour, item);
       if (paused) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = PAUSED_LINE;
       } else if (live) {
         status.className = 'tour-state-help tour-hosting';
-        status.textContent = hostingWords(hosting || null, true);
         if (hosting) {
-          hostingFix = canShare ? hostingFixRow(tour) : null;
-          const entry = { tour, hosting, line: status, fix: hostingFix };
+          // The sentence, then an ended plan's quiet fixes on the same line.
+          const words = document.createElement('span'); words.className = 'tour-hosting-words';
+          const fix = canShare ? hostingFixRow(tour) : null;
+          status.textContent = ''; status.append(words);
+          if (fix) status.append(fix.row);
+          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null };
           hostingFixSync(entry);
           hostingCards.set(tour.id, entry);
-        }
+        } else status.textContent = hostingWords(null, true);
         // Approved and shared in one press, whatever the first answer said: it is live.
         if (pending) say(LIVE_SAID);
       } else {
@@ -2174,30 +2273,27 @@
         if (pending && problem) setStatus(shareWords(problem));
       }
       if (render?.answers) renderDraw();
-      // Its views sit under the state line, on a live or paused link.
+      // Its views end the first row, on a live or paused link; its insights wait behind a disclosure.
       if (live) {
-        const views = document.createElement('div');
-        const insights = document.createElement('details');
-        insights.className = 'account-details tour-insights';
-        insights.hidden = true;
-        item.append(views, insights);
-        tourViews(tour, views, supabase, ticket, title, insights);
+        const views = document.createElement('span');
+        (tourChips.get(tour.id)?.row || item).append(views);
+        const insights = document.createElement('div'); insights.className = 'tour-panel tour-insights';
+        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights));
       }
-      // An ended plan's fix (Restart your plan, and the hosting extension request) follows, before the link controls.
-      if (hostingFix) item.append(hostingFix);
       if (canShare) {
-        if (paused) resumeSharing(tour, item, supabase, ticket, gate);
-        else if (live) liveSharing(tour, item, title);
+        if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);
+        else if (live) liveSharing(tour, item, title, deck);
         else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
           withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
-          problem: pending ? pending.reason || 'unknown' : gate });
+          problem: pending ? pending.reason || 'unknown' : gate, deck });
       }
       // Videos and stills: an approved version, for whoever may share it (the request's roles).
-      if (canShare) listingExports(tour, item, supabase, ticket);
-      const manage = (canShare && live) || canReview ? manageSharing(item) : null;
+      if (canShare) listingExports(tour, item, supabase, ticket, deck);
+      const manage = (canShare && live) || canReview ? manageSharing(deck) : null;
       if (manage && canShare && live && !paused) pauseSharing(tour, supabase, ticket, manage);
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
       if (manage && canReview) withdrawApproval(tour, supabase, ticket, manage);
+      deck.finish();
       return;
     }
     // Not approved: "Ready for your review" to whoever reviews; anyone else reads whose it is.
@@ -2631,8 +2727,7 @@
     deskPlanEndedAt = day;
     // The map is cleared with each desk, so every entry is on the page drawn now.
     for (const entry of hostingCards.values()) {
-      const { tour, hosting, line } = entry;
-      line.textContent = hostingWords(hosting, true);
+      const { tour, hosting } = entry;
       hostingFixSync(entry);
       const chip = tourChips.get(tour.id)?.chip?.textContent;
       const next = hostingChip(hosting);
@@ -2681,7 +2776,8 @@
     planBody.replaceChildren(...parts);
   }
   async function renderPlan(supabase, ticket, props, members, live = 0) {
-    if (!planPanel || !planBody) return;
+    // No plan panel on this page: no restart at the top, so a card keeps its own.
+    if (!planPanel || !planBody) { planFixKnown(null); return; }
     planCapacityRefresh = null;
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
@@ -2839,6 +2935,7 @@
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
+    planFixKnown(view.status === 'ended' ? workspaceID : null);
     // The free-months card, walkthrough packs and the share link read their
     // own answers; none of them ever holds up the plan.
     void renderTrial(supabase, ticket, workspaceID, row);
@@ -5725,9 +5822,11 @@
   // line says whose office it is, from workspaces.name (no name, no label).
   const officeNames = new Map();
   const officeOfProperty = new Map();
+  // Every property's workspace, named or not: whose plan a card's hosting follows.
+  const officeIdOfProperty = new Map();
   let deskMultiOffice = false;
   function deskOffices(members, offices, props) {
-    officeNames.clear(); officeOfProperty.clear();
+    officeNames.clear(); officeOfProperty.clear(); officeIdOfProperty.clear();
     for (const row of !failed(offices) && Array.isArray(offices.value?.data) ? offices.value.data : []) {
       const name = row && typeof row.name === 'string' ? row.name.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
       if (row?.id && name) officeNames.set(row.id, name);
@@ -5736,6 +5835,7 @@
     deskMultiOffice = rows.length > 1;
     for (const row of !failed(props) && Array.isArray(props.value?.data) ? props.value.data : []) {
       // Only a real office name labels a space; a space's own title would name the wrong thing.
+      if (row?.id && row.workspace_id) officeIdOfProperty.set(row.id, row.workspace_id);
       if (row?.id && row.workspace_id && officeNames.has(row.workspace_id)) officeOfProperty.set(row.id, officeNames.get(row.workspace_id));
     }
   }
@@ -5780,6 +5880,7 @@
   function deskReset() {
     const ticket = ++deskVersion;
     deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
+    planAnswered = false; planRestartOffice = null;
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget

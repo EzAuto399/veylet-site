@@ -1785,8 +1785,8 @@
     if (location.pathname === '/__qa/account/' && params.get('insights-open') === '1') {
       let tries = 0;
       const open = setInterval(() => {
-        const block = document.querySelector('.tour-insights:not([hidden])');
-        if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
+        const block = document.querySelector('.dash-tour [data-disclosure="insights"]:not([hidden])');
+        if (block) { if (block.getAttribute('aria-expanded') !== 'true') block.click(); block.scrollIntoView({ block: 'start' }); }
         if (block || ++tries > 40) clearInterval(open);
       }, 100);
     }
@@ -1795,8 +1795,8 @@
     if (['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && params.get('exports-open') === '1') {
       let tries = 0;
       const open = setInterval(() => {
-        const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] .tour-exports:not([hidden])');
-        if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
+        const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] [data-disclosure="exports"]:not([hidden])');
+        if (block) { if (block.getAttribute('aria-expanded') !== 'true') block.click(); block.scrollIntoView({ block: 'start' }); }
         if (block || ++tries > 40) clearInterval(open);
       }, 100);
     }

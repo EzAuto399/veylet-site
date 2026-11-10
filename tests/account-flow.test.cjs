@@ -1654,7 +1654,8 @@ const hostingFor = (overrides = {}) => ({ tour_id: 't1', property_id: 'p1', stat
   hosted_until: '2027-09-23T04:00:00Z', plan_active: true, ...overrides });
 const withHosting = (rows, options = {}) => load({ approved: true, ...options,
   rpc: { ...options.rpc, get_tour_hosting: async () => ({ data: rows }) } });
-const hostingText = h => (h.all().find(el => (el.className || '').includes('tour-hosting')) || {}).textContent;
+// The card's state sentence: its own span on a live card (an ended plan's quiet fixes follow it), else the line itself.
+const hostingText = h => (h.all().find(el => el.className === 'tour-hosting-words') || h.all().find(el => (el.className || '').includes('tour-hosting')) || {}).textContent;
 const byText = (h, text) => h.all().find(el => el.textContent === text);
 const radios = h => h.all().filter(el => el.tagName === 'INPUT' && el.type === 'radio');
 const stepsShown = h => h.all().filter(el => el.className === 'tour-builder-steps').flatMap(el => el.children.map(step => step.textContent));
@@ -1672,7 +1673,7 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.equal(link.readOnly, true);
   assert.ok(byText(h, 'Copy link'));
   assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN));
-  assert.ok(byText(h, 'Add to your website'));
+  assert.equal(byText(h, 'Website').dataset.disclosure, 'website');
   assert.deepEqual(radios(h).map(el => el.value), ['wordpress', 'squarespace', 'wix', 'webflow', 'other']);
   assert.deepEqual(radios(h).filter(el => el.checked).map(el => el.value), ['wordpress']);
   assert.ok(radios(h).every(el => el.name === 'builder-t1'));
@@ -1682,9 +1683,12 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.equal(code.readOnly, true);
   assert.ok(byText(h, 'Copy embed code'));
   assert.equal(byText(h, 'Full website guide').href, '/website-guide');
-  // Stopping lives in a closed Manage sharing section, not beside Copy link.
-  const manage = h.all().find(el => el.tagName === 'DETAILS' && el.children[0]?.textContent === 'Manage sharing');
-  assert.ok(!manage.open, 'Manage sharing starts closed');
+  // Stopping lives in the closed Manage panel, not beside Copy link.
+  const manage = h.all().find(el => el.className === 'tour-panel tour-manage');
+  assert.equal(manage.hidden, true, 'Manage starts closed');
+  assert.equal(byText(h, 'Manage').attributes['aria-expanded'], 'false');
+  // One filled button on the card: Copy link.
+  assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '')).map(el => el.textContent), ['Copy link']);
   assert.ok(manage.all().some(el => el.textContent === 'Turn off sharing'));
   assert.ok(manage.all().some(el => el.textContent === 'Withdraw approval'));
   assert.equal(h.all().some(el => el.textContent === 'Approve and share' || el.textContent === 'Turn sharing on'), false);
@@ -1699,32 +1703,40 @@ test('each hosting situation reads its own line on the card', async () => {
   const rpc = row => ({ get_tour_hosting: async () => ({ data: [row] }) });
   // Without the member hosting read, the plan panel's end day decides once it answers.
   const grace = await withPlan({ status: 'ended', current_period_ends_at: recent, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
-  assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.');
+  assert.equal(hostingText(grace), 'Goes offline on ' + offlineDay(recent) + ' unless the plan restarts.', 'the card keeps the date and what happens; the plan panel says the rest once');
   assert.ok(planText(grace).includes('Your plan has ended. 1 live walkthrough goes offline on ' + offlineDay(recent) + '. Restart your plan to keep it live.'));
   // An ended plan never shows a green Live: the chip names the offline day once it is known.
   assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on ' + offlineDay(recent)), 'the chip follows once the plan answers');
   assert.equal(grace.all().some(el => el.className === 'pill pill-good' && el.textContent === 'Live'), false);
-  // Once the plan's answer says the plan ended, the card's fix shows: the filled restart and the extension request.
+  // Once the plan's answer says the plan ended, the card's line ends with the extension request. The restart is
+  // the plan panel's one filled button, so the card's own stays hidden.
   assert.equal(extensionFix(grace).hidden, false);
+  assert.equal(extensionFix(grace).children[0].hidden, true, 'no second Restart your plan while the plan panel offers it');
+  assert.ok(grace.ids['account-plan-body'].all().some(el => el.tagName === 'A' && el.textContent === 'Restart your plan'));
   const offline = await withPlan({ status: 'ended', current_period_ends_at: long, source: 'web' }, { approved: true, tours: [liveTour], rpc: rpc(hostingFor({ plan_active: false })) });
-  assert.equal(hostingText(offline), 'Offline since ' + offlineDay(long) + '. Restart your plan and this link works again — same link, embed and QR.');
+  assert.equal(hostingText(offline), 'Offline since ' + offlineDay(long) + '. The same link, embed and QR work again when the plan restarts.');
   assert.ok(offline.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'), 'the chip follows once the plan answers');
   // The member hosting read, when get_tour_hosting carries it, wins.
   for (const [extra, line, ended] of [
     [{ hosting_state: 'live_with_plan', offline_on: null }, 'Live while your plan is active.', false],
-    [{ hosting_state: 'offline_on', offline_on: '2027-10-10' }, 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.', true],
-    [{ hosting_state: 'offline', offline_on: '2026-09-12' }, 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.', true],
+    // No ended plan in the plan panel here (it could not be read), so the card carries its own quiet restart.
+    [{ hosting_state: 'offline_on', offline_on: '2027-10-10' }, 'Goes offline on 10 Oct 2027.', true],
+    [{ hosting_state: 'offline', offline_on: '2026-09-12' }, 'Offline since 12 Sep 2026. The same link, embed and QR work again when the plan restarts.', true],
     [{ hosting_state: 'live_with_extension', offline_on: '2027-10-01', extended_until: '2027-10-01T00:00:00Z' }, 'Live until 1 Oct 2027 with a hosting extension.', false],
   ]) {
     const h = await withHosting([hostingFor({ plan_active: false, ...extra })], { tours: [liveTour] });
     assert.equal(hostingText(h), line);
     assert.ok(byText(h, 'Copy link'), 'the card keeps its controls');
     assert.doesNotMatch(h.text(), /12 months|Guaranteed/);
-    // Offer 2026-09-26.2: an ended plan's card offers the filled restart and, beside it, the extension request by email.
+    // Offer 2026-09-26.2: an ended plan's line ends with a quiet restart (only while the plan panel has none) and
+    // the extension request by email. Neither is filled: the card's one filled button is Copy link.
     const fix = extensionFix(h);
     assert.equal(fix.hidden, !ended, line);
-    assert.deepEqual(fix.children.map(el => [el.textContent, el.className]), [['Restart your plan', 'tour-action tour-action-primary'],
+    assert.deepEqual(fix.children.map(el => [el.textContent, el.className]), [['Restart your plan', 'text-link tour-plan-restart'],
       ['Keep this walkthrough online (A$49 a year)', 'text-link tour-extension-request']]);
+    assert.equal(fix.children[0].hidden, !ended, line);
+    assert.equal(fix.children[0].dataset.control, 'share-fix-plan');
+    assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '')).map(el => el.textContent), ['Copy link'], line);
     const mail = decodeURIComponent(fix.children[1].href);
     assert.ok(mail.startsWith('mailto:support@veylet.com?subject=Veylet hosting extension · walkthrough t1'), mail);
     assert.match(mail, /Tour ID: t1\n/);
@@ -1738,25 +1750,29 @@ test('with two offices, each space and each hosting line says whose office it is
   const two = { data: [{ workspace_id: 'w1', role: 'owner', status: 'active' }, { workspace_id: 'w2', role: 'owner', status: 'active' }] };
   const props = { data: [{ id: 'p1', title: 'Sample space', workspace_id: 'w1' }, { id: 'p2', title: 'Other hall', workspace_id: 'w2' }] };
   const workspaces = { data: [{ id: 'w1', name: 'Harbour Realty' }, { id: 'w2', name: 'Hill Office' }] };
-  const h = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })],
-    { tours: [liveTour], tables: { memberships: two, properties: props, workspaces } });
+  const h = await withHosting([hostingFor()], { tours: [liveTour], tables: { memberships: two, properties: props, workspaces } });
   const metas = h.all().filter(el => el.className === 'dash-space-meta').map(el => el.textContent);
   assert.ok(metas.includes('Harbour Realty') && metas.includes('Hill Office'), metas.join(' | '));
-  assert.equal(hostingText(h), 'Harbour Realty’s plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.equal(hostingText(h), 'Live while Harbour Realty’s plan is active.');
   assert.match(planText(h), /Showing Harbour Realty\./, 'the plan panel names the office, not a space');
-  const one = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })], { tours: [liveTour], tables: { workspaces } });
-  assert.equal(hostingText(one), 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  // An ended plan's card keeps the date and what happens; whose office it is stays on the space's own line.
+  const ended = await withHosting([hostingFor({ plan_active: false, hosting_state: 'offline_on', offline_on: '2027-10-10' })],
+    { tours: [liveTour], tables: { memberships: two, properties: props, workspaces } });
+  assert.equal(hostingText(ended), 'Goes offline on 10 Oct 2027.');
+  assert.ok(ended.all().some(el => el.className === 'dash-space-meta' && el.textContent === 'Harbour Realty'));
+  const one = await withHosting([hostingFor()], { tours: [liveTour], tables: { workspaces } });
+  assert.equal(hostingText(one), 'Live while your plan is active.');
   assert.equal(one.all().some(el => el.className === 'dash-space-meta' && /Harbour Realty/.test(el.textContent)), false);
 });
-const extensionFix = h => h.all().find(el => el.className === 'tour-actions-row tour-hosting-fix');
+const extensionFix = h => h.all().find(el => el.className === 'tour-hosting-fix');
 
 test('the member hosting read (get_tour_hosting_states) chooses the words when the backend has it', async () => {
   const states = rows => ({ get_tour_hosting_states: async () => ({ data: rows }) });
   const grace = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', property_id: 'p1', state: 'offline_on', offline_at: '2027-10-10T00:00:00Z', sharing_on: true, share_paused: false, plan_active: false }]) });
-  assert.equal(hostingText(grace), 'Your plan has ended. This walkthrough goes offline on 10 Oct 2027. Restart your plan to keep it live.');
+  assert.equal(hostingText(grace), 'Goes offline on 10 Oct 2027.');
   assert.ok(grace.all().some(el => el.className === 'pill pill-busy' && el.textContent === 'Offline on 10 Oct 2027'), 'offline_on: the chip names the day, never a green Live');
   const off = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'offline', offline_at: '2026-09-12T00:00:00Z', plan_active: false }]) });
-  assert.equal(hostingText(off), 'Offline since 12 Sep 2026. Restart your plan and this link works again — same link, embed and QR.');
+  assert.equal(hostingText(off), 'Offline since 12 Sep 2026. The same link, embed and QR work again when the plan restarts.');
   assert.ok(off.all().some(el => el.className === 'pill pill-quiet' && el.textContent === 'Offline'));
   // live_with_extension (offer 2026-09-26.2): no plan, a paid extension keeps this one online until extended_until.
   const extended = await withHosting([hostingFor()], { tours: [liveTour], rpc: states([{ tour_id: 't1', state: 'live_with_extension', offline_at: '2027-11-02T00:00:00Z', extended_until: '2027-11-03T00:00:00Z', plan_active: false }]) });
@@ -2424,7 +2440,7 @@ test('the tour list asks for each tour’s walkthrough and version, and lists no
   }
   const items = tourItems(h);
   assert.equal(items.length, 1, 'the replaced version is not listed');
-  assert.deepEqual(items[0].children[0].children.map(el => el.textContent), ['Live', 'Correction']);
+  assert.deepEqual(items[0].children[0].children.filter(el => /^pill\b/.test(el.className)).map(el => el.textContent), ['Live', 'Correction']);
   assert.match(itemText(items[0]), /^Version 2 of walkthrough 1a2b3c4d\.$/m);
   assert.ok(items[0].all().some(el => el.textContent === 'Copy link'), 'the current version carries the link');
   // The records file still lists the replaced version, marked as replaced.
