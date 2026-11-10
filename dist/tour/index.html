@@ -29,11 +29,11 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=20a0fc82dc9ee2c2" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=6d207a9ffbae539e" as="script" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=f7cfefb265096c73"></script>
-    <script src="/client-page.js?v=1ae099e78ef93e37"></script>
+    <script src="/tour-player.js?v=6ff7f6e06f55b68f"></script>
+    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
@@ -170,6 +170,24 @@
         outline: 3px solid #c6dcc9;
         outline-offset: 4px;
       }
+      /* A short frame (a 240 px embed slot, a phone on its side): the title and Report share one row, and
+         the walkthrough gets the rest. Its own label carries the truth line. */
+      @media (max-height: 500px) {
+        /* One column no wider than the frame: a long title on one line would otherwise set the column's
+           width, and the walkthrough under it would run off the right edge of a 320 px frame. */
+        .tour-page { grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); position: relative; }
+        .tour-head {
+          display: flex;
+          align-items: center;
+          min-height: 44px;
+          box-sizing: border-box;
+          padding-block: max(0px, env(safe-area-inset-top, 0px)) 0;
+        }
+        .tour-head h1 { min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tour-truth { display: none; }
+        .tour-foot:not([hidden]) { position: absolute; top: env(safe-area-inset-top, 0px); right: 0; padding-bottom: 0; background: #10231d; }
+        .tour-page:has(.tour-foot:not([hidden])) .tour-head { padding-right: 170px; }
+      }
     </style>
   </head>
   <body>
@@ -181,7 +199,7 @@
       <div class="tour-body">
         <iframe
           id="tour-frame"
-          title="Reconstructed walkthrough"
+          title="3D walkthrough"
           allow="fullscreen *"
           allowfullscreen
           sandbox="allow-scripts allow-pointer-lock"
@@ -240,14 +258,11 @@
         page?.mountReport?.(document.getElementById('tour-report'), token, document.getElementById('tour-foot'));
         if (!player) {
           els.title.textContent = 'This walkthrough isn’t available right now.';
-          els.body.textContent = 'The player files did not load on this device. Check the connection and reload.';
+          els.body.textContent = 'The walkthrough couldn’t be loaded just now. Check your connection and reload the page.';
           return;
         }
         if (!link.complete) {
-          player.showFailure(
-            { ...els, actions: null, retry: null },
-            { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' }
-          );
+          player.showIncomplete({ ...els, actions: null, retry: null });
           plainTitle();
           return;
         }
@@ -284,9 +299,8 @@
               footer: '',
             };
           },
-          missingHeading: 'This walkthrough isn’t available right now.',
-          missingBody: 'It may have been paused or turned off.',
-          transientBody: 'The walkthrough couldn’t be reached just now. Check your connection and try again.',
+          // The shared words for "not available" and "could not be reached", and Try again on both.
+          client: true,
         }).then(() => {
           // A definitive miss: another browser will not help.
           if (unavailable && help) help.hidden = true;

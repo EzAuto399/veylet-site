@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { createDocument } = require('./fake-dom.cjs');
+const { WORDS, withClientHelpers } = require('./client-words.cjs');
 
 // The client's page (/handoff) and the embed invitation (journey D4, §5.2):
 // the agent card, Share, the buyer's words and the missing-function rule.
@@ -47,11 +48,11 @@ function handoffPage({ search = '?t=' + TOKEN, nav = {} } = {}) {
   }
   const calls = [];
   let bootOptions = null, finishBoot = null;
-  const player = {
+  const player = withClientHelpers({
     TourFailure,
     showFailure(els, options) { calls.push({ failure: options }); els.title.textContent = options.heading; els.body.textContent = options.body; },
     boot(options) { bootOptions = options; return new Promise(resolve => { finishBoot = resolve; }); },
-  };
+  });
   const window = { VeyletPlayer: player };
   const location = { origin: 'https://veylet.com', pathname: '/handoff', search };
   document.documentElement = document.createElement('html');
@@ -243,7 +244,7 @@ test('a streamed walkthrough gets the movement help under the stage', async () =
   failed.finishBoot(); await settle();
   assert.deepEqual([failed.id('tour-frame-wrap').hidden, failed.id('client-help').hidden], [true, true]);
   assert.equal(failed.id('agent-card').hidden, false, 'the agent stays reachable when 3D does not');
-  assert.match(handoff, /<summary>How to move around<\/summary>\s*<p>Drag to look around\. Tap the floor or a numbered circle to walk\. Use the arrows to go room to room\.<\/p>/);
+  assert.match(handoff, /<summary>How to move around<\/summary>\s*<p>Drag to look around\. Tap the floor to move\. Use Next for the next stop\.<\/p>/);
 });
 
 test('Share opens the system sheet with the title and the bare link; cancelling says nothing', async () => {
@@ -292,9 +293,12 @@ test('the three failure states read as §5.2 says, in the page’s own TourFailu
   assert.deepEqual({ ...incomplete.calls[0].failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
 
   const h = handoffPage();
-  assert.equal(h.bootOptions.missingHeading, 'This walkthrough isn’t available right now.');
-  assert.equal(h.bootOptions.missingBody, 'The agent may have turned it off or not shared it yet.');
-  assert.equal(h.bootOptions.transientBody, 'The walkthrough couldn’t be reached just now. Check your connection and try again.');
+  // The page asks for the shared client words (tour-player.js WORDS) and passes none of its own.
+  assert.equal(h.bootOptions.client, true);
+  assert.deepEqual([h.bootOptions.missingHeading, h.bootOptions.missingBody, h.bootOptions.transientBody], [undefined, undefined, undefined]);
+  assert.equal(WORDS.missingHeading, 'This walkthrough isn’t available right now.');
+  assert.equal(WORDS.missingBody, 'It may have been paused or turned off. Ask the person who sent it for a new link.');
+  assert.equal(WORDS.transientBody, 'The walkthrough couldn’t be reached just now. Check your connection and try again.');
   const miss = await h.bootOptions.resolve(fakeClient({ share: { data: [] } })).catch(error => error);
   assert.equal(miss.message, 'share-not-found');
   assert.equal(miss.transient, false);
@@ -339,13 +343,14 @@ test('the phone bar respects the safe area, never shows above 768px and moves on
   assert.match(phone, /position: fixed;/);
   assert.match(phone, /env\(safe-area-inset-bottom, 0px\)/);
   assert.match(phone, /body\.has-agent-bar \{\s*padding-bottom: calc\(72px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-  // While the bar shows, the inline card keeps name, agency and details but not a second Call and Email.
-  assert.match(phone, /body\.has-agent-bar \.agent-card \.agent-actions \{\s*display: none;\s*\}/);
-  assert.doesNotMatch(phone, /\.agent-(?:name|agency|details)[^{]*\{\s*display: none/);
+  // While the bar shows it names the agent and carries Call and Email, so the card above the walkthrough
+  // steps aside and the room gets its space (10 November 2026, audit finding 6). No place is held for it.
+  assert.match(phone, /body\.has-agent-bar \.agent-card \{\s*display: none;\s*\}/);
+  assert.match(phone, /html\.client-contact-pending \.agent-card\[hidden\] \{\s*display: none !important;\s*\}/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.agent-bar:not\(\[hidden\]\) \{\s*animation: none;/);
   assert.match(css, /min-height: 44px;/);
   assert.match(css, /:focus-visible/);
-  for (const token of css.match(/var\(--[\w-]+\)/g)) assert.match(token, /var\(--(ink|paper|sage|muted|line|accent|panel|danger)\)/, token);
+  for (const token of css.match(/var\(--[\w-]+\)/g)) assert.match(token, /var\(--(ink|paper|sage|muted|line|accent|panel|danger|tour-stage-height)\)/, token); // colours are the site's tokens; the one other variable is the stage's height
 });
 
 test('from 1080px Help and Share move under the agent card in the document, and back below it', () => {
@@ -396,14 +401,19 @@ test('the stage, the truth and date lines and the agent card hold their places f
   assert.match(css, /\.client-pending \.tour-frame-wrap\[hidden\] \{\s*display: block !important;\s*\}/);
   assert.match(css, /\.client-pending \.client-truth\[hidden\],\s*\.client-pending \.client-page \.tour-meta\[hidden\]:not\(\.tour-meta-none\) \{\s*display: block !important;\s*visibility: hidden;\s*\}/);
   assert.match(css, /\.client-pending \.client-page \.tour-meta\[hidden\]:empty::before \{\s*content: "\\00a0";\s*\}/, 'the empty date line holds one line');
-  // The shell holds the stage's height as tour-stage.css sets it.
-  assert.match(stageCss, /\.tour-stage \{[^}]*height: min\(74vh, 680px\);/);
-  assert.match(css, /\.client-pending \.tour-frame-shell::before \{\s*content: "";\s*display: block;\s*height: min\(74vh, 680px\);/);
-  assert.match(stageCss, /\.client-page \.tour-stage \{\s*--tour-stage-above: 330px;[\s\S]*?62svh\);/);
-  assert.match(stageCss, /--tour-stage-below: calc\(64px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-  const narrow = css.match(/@media \(max-width: 800px\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(narrow, /\.client-pending \.tour-frame-shell::before \{\s*height: clamp\(300px, calc\(100vh - 330px\), 62vh\);\s*height: clamp\(300px, calc\(100svh - 330px\), 62svh\);/);
-  assert.match(narrow, /\.client-pending\.client-contact-pending \.tour-frame-shell::before,\s*\.client-pending body\.has-agent-bar \.tour-frame-shell::before \{\s*height: clamp\(300px, calc\(100vh - 330px - 64px - env\(safe-area-inset-bottom, 0px\)\), 62vh\);\s*height: clamp\(300px, calc\(100svh - 330px - 64px - env\(safe-area-inset-bottom, 0px\)\), 62svh\);/);
+  // The shell holds the stage's height as tour-stage.css sets it: both read the one variable, set on the
+  // page that contains them, so they cannot disagree at any width.
+  assert.match(stageCss, /\.tour-stage \{[^}]*height: min\(74vh, 680px\);/, 'the stage outside the client page (/play) is as it was');
+  assert.match(stageCss, /\.client-page \.tour-stage \{\s*height: var\(--tour-stage-height\);/);
+  assert.match(css, /\.client-pending \.tour-frame-shell::before \{\s*content: "";\s*display: block;[^}]*height: var\(--tour-stage-height\);/);
+  assert.equal((css.match(/tour-frame-shell::before \{[^}]*height:/g) || []).length, 1, 'the held place has no height of its own at any width');
+  assert.match(stageCss, /\.client-page \{\s*--tour-vh: 100vh;[^}]*--tour-stage-height:/);
+  assert.match(stageCss, /@supports \(height: 100svh\) \{\s*\.client-page \{\s*--tour-vh: 100svh;/);
+  // One column: under about 330px of title, truth line and card, clear of the phone bar, never under 300px.
+  assert.match(stageCss, /@media \(max-width: 800px\) \{\s*\.client-page \{\s*--tour-stage-height: clamp\(300px, calc\(var\(--tour-vh\) - var\(--tour-stage-above\) - var\(--tour-stage-below\)\), calc\(var\(--tour-vh\) \* 0\.62\)\);/);
+  assert.match(stageCss, /--tour-stage-above: 330px;/);
+  // The bar's place is reserved while the contact is still being looked up, and once it shows.
+  assert.match(stageCss, /body\.has-agent-bar \.client-page,\s*\.client-pending\.client-contact-pending \.client-page \{\s*--tour-stage-below: calc\(64px \+ env\(safe-area-inset-bottom, 0px\)\);/);
   // The card's measured heights: two columns 105px, a phone 101px, the 1080px side column 161px.
   assert.match(css, /\.client-contact-pending \.agent-card\[hidden\] \{\s*display: block !important;\s*visibility: hidden;\s*min-height: 105px;\s*\}/);
   assert.match(css, /@media \(max-width: 560px\) \{\s*\.client-contact-pending \.agent-card\[hidden\] \{\s*min-height: 101px;/);
@@ -493,11 +503,11 @@ function embedPage({ withSdk = true, contact = { data: [CONTACT] }, fetch } = {}
   }
   const client = fakeClient({ contact });
   let bootCalls = 0;
-  const player = {
+  const player = withClientHelpers({
     boot: () => { bootCalls++; return new Promise(() => {}); },
     showFailure: () => {},
     clientFor: () => client,
-  };
+  });
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' } };
   if (withSdk) window.supabase = { createClient() {} };
   const context = { window, document: { getElementById: id => ids[id] }, location: { search: '?t=' + TOKEN }, URLSearchParams, setTimeout, clearTimeout, fetch };

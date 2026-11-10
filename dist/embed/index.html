@@ -33,8 +33,8 @@
     <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
-    <script src="/tour-player.js?v=f7cfefb265096c73"></script>
-    <script src="/client-page.js?v=1ae099e78ef93e37"></script>
+    <script src="/tour-player.js?v=6ff7f6e06f55b68f"></script>
+    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
     <style>
       html,
       body {
@@ -96,6 +96,8 @@
            shorter than this iframe (Wix, agency listing templates) crops the
            bottom, and a centred block puts Explore inside the cropped band. */
         justify-content: flex-start;
+        /* A long word (a translated page, a long agency name) wraps instead of scrolling the frame sideways. */
+        overflow-wrap: anywhere;
         gap: 8px;
         padding: clamp(16px, 9vh, 40px) clamp(16px, 4vw, 32px);
         background: #10231d;
@@ -154,10 +156,21 @@
       /* Quiet on purpose: a small underlined line under the invitation, still a 44px target. */
       .embed-fallback a.embed-report { align-self: flex-start; justify-content: flex-start; padding: 0 2px; border: 0; color: rgba(244, 241, 233, 0.72); font-size: 13px; font-weight: 400; text-decoration: underline; text-underline-offset: 3px; }
       @media (max-width: 380px), (max-height: 380px) { .embed-fallback { padding: 16px; } }
+      /* A 240 px slot: the invitation is its heading, who shared it, and one row with Explore, Open and
+         Report. The sentence about downloading waits for a taller frame. */
+      @media (max-height: 280px) {
+        .embed-fallback[data-invite] { flex-flow: row wrap; align-content: flex-start; align-items: center; column-gap: 12px; padding: 12px 16px; }
+        .embed-fallback[data-invite] > h1,
+        .embed-fallback[data-invite] > p { flex: 0 0 100%; }
+        .embed-fallback[data-invite] > h1 { font-size: 20px; }
+        .embed-fallback[data-invite] #embed-body { display: none; }
+        .embed-fallback[data-invite] a.embed-report { align-self: center; }
+      }
       /* The walkthrough's own poster behind the invitation (the manifest's poster only; no 3D before Explore),
          darkened so the words stay readable. */
       .embed-fallback[data-poster="shown"] {
-        background: linear-gradient(rgba(16, 35, 29, 0.62), rgba(16, 35, 29, 0.9)), var(--embed-poster) center / cover no-repeat, #10231d;
+        /* From 78 % ink: over a white poster the heading reads 7.1 to 1 and the body text 5.1 to 1. */
+        background: linear-gradient(rgba(16, 35, 29, 0.78), rgba(16, 35, 29, 0.9)), var(--embed-poster) center / cover no-repeat, #10231d;
       }
       .embed-fallback[data-poster="shown"][data-mode="loading"] { background: transparent; }
     </style>
@@ -180,7 +193,7 @@
     </main>
     <iframe
       id="tour-frame"
-      title="Reconstructed walkthrough"
+      title="3D walkthrough"
       allow="fullscreen *"
         allowfullscreen
       sandbox="allow-scripts allow-pointer-lock"
@@ -216,15 +229,9 @@
         if (typeof window.VeyletPlayer === 'undefined') {
           els.title.textContent = 'This walkthrough is not available.';
           els.body.textContent =
-            'The player files did not load on this device. Check the connection and reload.';
+            'The walkthrough couldn’t be loaded just now. Check your connection and reload the page.';
         } else if (!link.complete) {
-          window.VeyletPlayer.showFailure(
-            { ...els, actions: null, retry: null },
-            {
-              heading: 'This link looks incomplete.',
-              body: 'Check you copied all of it, or ask the person who sent it.',
-            }
-          );
+          window.VeyletPlayer.showIncomplete({ ...els, actions: null, retry: null });
         } else {
           open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
           // Report shows for any complete-looking token, whatever the lookup says.
@@ -233,11 +240,12 @@
           // offered: a dead or unknown link reads as the handoff page does, with nothing
           // to press and no download. An error or no answer offers Explore as before:
           // starting looks the share up again and explains its own failure.
-          const offer = () => { open.hidden = false; start.hidden = false; els.status.textContent = ''; };
+          const offer = () => { open.hidden = false; start.hidden = false; els.status.textContent = ''; fallback.dataset.invite = 'shown'; };
+          // The same words, and the same Try again, as /handoff and /tour (tour-player.js WORDS).
           const dead = () => {
             start.hidden = true; open.hidden = true; els.status.textContent = '';
-            els.title.textContent = 'This walkthrough isn’t available right now.';
-            els.body.textContent = 'The agent may have turned it off or not shared it yet.';
+            delete fallback.dataset.invite;
+            window.VeyletPlayer.showMissing(els);
           };
           const shareClient = window.VeyletClientPage?.restClient?.(window.VEYLET_SUPABASE) || null;
           if (shareClient) {
@@ -283,6 +291,7 @@
             if (start.hidden) return;
             start.disabled = true;
             start.hidden = true;
+            delete fallback.dataset.invite;
             // Keep the whole panel while the viewport is still empty; drop to
             // the compact notice the moment the viewer is on screen.
             fallback.dataset.mode = 'preparing';
@@ -321,10 +330,8 @@
                 intro: '',
               };
             },
-            missingHeading: 'This walkthrough isn’t available right now.',
-            missingBody: 'The agent may have turned it off or not shared it yet.',
-            transientBody:
-              'The walkthrough service did not answer. Check the connection and try again.',
+            // The shared words for "not available" and "could not be reached", and Try again on both.
+            client: true,
           }).catch(() => window.VeyletPlayer.showFailure(
             { ...els, actions: document.getElementById('tour-actions'), retry: document.getElementById('tour-retry') },
             { body: 'The walkthrough could not start. Check the connection and try again.', retry: true }

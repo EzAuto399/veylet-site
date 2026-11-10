@@ -293,7 +293,7 @@ test('no WebGL2 or WebGPU: no engine download, the rendered poster stays, and th
   const root = byClass(x.stage, 'v2');
   assert.equal(root.dataset.state, 'fallback');
   assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
-  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This still is rendered from the walkthrough/);
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This picture is from the walkthrough\. Try opening this link in Safari or Chrome\./);
   assert.equal(byClass(x.stage, 'v2-bar').hidden, true);
   assert.equal(byClass(x.stage, 'v2-poster').src, 'https://veylet.com/pkg/poster-portrait.webp');
   assert.equal(x.stage.hidden, false);
@@ -448,9 +448,9 @@ test('without the Fullscreen API (iPhone Safari) Full screen fills the window, a
   assert.equal(x.document.documentElement.style.overflow, '');
 });
 
-test('a frame under 320 px keeps Full screen and drops the map toggle instead', async () => {
+test('a frame under 288 px keeps Full screen and drops the map toggle instead', async () => {
   const narrow = load({ files: { 'manifest.json': manifest() } });
-  narrow.stage.clientWidth = 304;
+  narrow.stage.clientWidth = 280;
   const engine = fakeEngine(narrow.log);
   const pending = narrow.player.start(narrow.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
   for (let i = 0; i < 12; i++) await tick();
@@ -458,6 +458,10 @@ test('a frame under 320 px keeps Full screen and drops the map toggle instead', 
   await pending;
   assert.equal(byClass(narrow.stage, 'v2-fullscreen').hidden, false);
   assert.equal(byClass(narrow.stage, 'v2-map-toggle').hidden, true);
+  // A 320, 360 or 375 px phone (stage 288 to 343 px wide) keeps both.
+  const phone = await readyPlayer({ size: [288, 300] });
+  assert.equal(byClass(phone.stage, 'v2-fullscreen').hidden, false);
+  assert.equal(byClass(phone.stage, 'v2-map-toggle').hidden, false);
 });
 
 test('in someone else’s page the map starts closed and a pinch zooms only after the visitor uses the player', async () => {
@@ -761,7 +765,8 @@ test('a phone-sized stage (334 x 300) still gets a one-line movement hint, and N
   assert.ok(hint.className.includes('v2-hint-short'));
   // A roomy stage keeps the full sentence.
   const roomy = await readyPlayer();
-  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor or a circle to move.');
+  // This package has no floor to walk on, so the sentence names only what is there: dragging and Next.
+  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Use Next for the next stop.');
   // Next: named for assistive technology, and "Next" stays on screen down to 300 px.
   const next = byClass(x.stage, 'v2-next');
   assert.equal(next.getAttribute('aria-label'), 'Next stop');
@@ -939,7 +944,8 @@ test('F07: a non-retryable failure replaces the focused loading action with a fo
   fallback.querySelector('button').focus();
   finishDevice(null);
   assert.equal((await pending).reason, 'no-graphics');
-  assert.equal(fallback.querySelector('button'), null);
+  // No Try again: the one action left is the link to take to another browser.
+  assert.deepEqual(fallback.querySelectorAll('button').map(button => button.textContent), ['Copy link']);
   const title = fallback.querySelector('h2');
   assert.equal(title.getAttribute('tabindex'), '-1');
   assert.equal(x.document.activeElement, title);
@@ -1300,7 +1306,10 @@ test('the player stays analytics-free: stop events and view() add no request, be
   // Statically: nothing in the player can post anywhere, and it does not know the view function or a visit.
   const code = playerSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(code, /sendBeacon|XMLHttpRequest|WebSocket|EventSource|record_tour_view|rest\/v1|supabase|method:\s*['"]POST/);
-  assert.equal((code.match(/\bfetch\(/g) || []).length, 1, 'one fetch call site: the package reader');
+  // Two fetch call sites, both plain GETs of package files: the manifest reader, and the first level fetched
+  // beside the engine (10 November 2026). Neither carries a body, a method or credentials.
+  assert.equal((code.match(/\bfetch\(/g) || []).length, 2, 'two fetch call sites: the package reader and the first files');
+  for (const call of code.match(/\bfetch\([^\n]*/g)) assert.match(call, /credentials: 'omit'/, call);
   assert.doesNotMatch(code, /setInterval/);
   // At run time: walking every stop and reading the view asks the network for nothing but the package.
   const stored = [];
@@ -1316,4 +1325,220 @@ test('the player stays analytics-free: stop events and view() add no request, be
   assert.equal(requests().length, before, 'no request for a stop or a look');
   assert.ok(requests().every(line => line.startsWith('fetch:https://veylet.com/pkg/')), 'only package files, ever');
   assert.deepEqual([...new Set(stored)], ['veylet:stop'], 'what it says goes to the page as a DOM event only');
+});
+
+// ---------- client build, 10 November 2026, phase 1 ----------
+
+test('a package that is not there costs no engine download; a good one starts the engine as soon as its manifest is read', async () => {
+  const gone = load({ files: {} });
+  let asked = 0;
+  const failure = await gone.player.start(gone.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
+    loadEngine: () => { asked++; return new Promise(() => {}); } }).catch(error => error);
+  for (let i = 0; i < 12; i++) await tick();
+  assert.equal(failure.message, 'package-unavailable');
+  assert.equal(asked, 0, 'a paused, expired or mistyped link never downloads the 3D engine');
+  const good = await started({ slowEngine: true });
+  assert.equal(good.requested(), 1);
+  assert.ok(good.log.indexOf('engine:import') > good.log.indexOf('fetch:https://veylet.com/pkg/manifest.json'), 'after the manifest answered');
+});
+
+test('on our own page the wheel scrolls the page until the visitor is using the walkthrough', async () => {
+  const x = await readyPlayer();
+  const root = x.document.documentElement || (x.document.documentElement = {});
+  Object.assign(root, { scrollHeight: 2400, clientHeight: 700 });
+  const wheel = values => Boolean(x.canvas.dispatch('wheel', { deltaY: 40, ...values }).defaultPrevented);
+  assert.equal(wheel(), false, 'passing over the walkthrough, the page scrolls');
+  assert.equal(wheel({ ctrlKey: true }), true, 'a trackpad pinch always zooms');
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 5, clientY: 5 });
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 5, clientY: 5 });
+  assert.equal(wheel(), true, 'after a press the wheel zooms');
+  x.stage.dispatch('pointerleave');
+  assert.equal(wheel(), false, 'until the pointer leaves');
+  x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
+  assert.equal(wheel(), true, 'a key on the walkthrough holds it too');
+  x.canvas.dispatch('blur');
+  assert.equal(wheel(), false);
+  // A page with nothing to scroll (/tour, the embed opened on its own) has no other use for the wheel.
+  Object.assign(root, { scrollHeight: 700, clientHeight: 700 });
+  assert.equal(wheel(), true);
+});
+
+test('the movement hint counts as seen only when the visitor presses or moves, not when it times out', async () => {
+  const run = async () => {
+    const timers = manualTimers(), kept = new Map();
+    const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout,
+      localStorage: { getItem: k => kept.get(k) ?? null, setItem: (k, v) => kept.set(k, String(v)) } } });
+    return { x, timers, kept, hint: byClass(x.stage, 'v2-hint') };
+  };
+  const away = await run();
+  assert.equal(away.hint.hidden, false);
+  away.timers.fire(9000);
+  assert.equal(away.hint.hidden, true);
+  assert.equal(away.kept.get('veylet-player-hint-seen'), undefined, 'someone who looked away sees it next time');
+  const used = await run();
+  used.x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 5, clientY: 5 });
+  assert.equal(used.hint.hidden, true);
+  assert.equal(used.kept.get('veylet-player-hint-seen'), '1');
+  assert.match(read('tour-player-v2.css'), /\.v2-hint \{[^}]*width: max-content;/, 'one line wherever it fits');
+});
+
+test('a scene file that does not arrive ends the player after the engine has finished reporting it', async () => {
+  const log = [], assets = [];
+  const engine = fakeEngine(log);
+  const Base = engine.Asset;
+  engine.Asset = class extends Base { constructor(...args) { super(...args); assets.push(this); } };
+  const x = await started({ startOptions: { loadEngine: async () => engine } });
+  assert.ok(assets.length > 0);
+  // The engine calls every failure callback in one loop and goes on using the app afterwards.
+  for (const asset of assets) asset.fire('error', 'synthetic');
+  assert.equal(log.includes('app.destroy'), false, 'nothing is torn down inside the engine’s own loop');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(log.filter(line => line === 'app.destroy').length, 1);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, false, 'and the visitor is told, with Try again');
+});
+
+// ---------- client build, 10 November 2026, phase 2 ----------
+
+test('stops are numbered in the order of the visit: a package that opens on its second stop reads "Stop 1"', async () => {
+  const opened = manifest({ start_stop: 1 });
+  const x = await readyPlayer({ manifest: opened });
+  assert.equal(x.stopLine(), 'Stop 1 of 5');
+  assert.equal(byClass(x.stage, 'v2-stops-text').textContent, '1 of 5');
+  // The list counts up from the opening stop, and a number key means the number on screen.
+  assert.deepEqual(x.stage.querySelectorAll('.v2-stop-button').map(button => [button.textContent, button.dataset.stop]),
+    [['Stop 1', '1'], ['Stop 2', '2'], ['Stop 3', '3'], ['Stop 4', '4'], ['Stop 5', '0']]);
+  x.canvas.dispatch('keydown', { key: '3' });
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  assert.equal(x.player.visitNumber({ stops: [1, 2, 3], start: 1 }, 0), 3);
+  assert.equal(x.player.stopAtNumber({ stops: [1, 2, 3], start: 1 }, 3), 0);
+  // Events for the page still carry the package's own index (the agent's desk counts by it).
+  assert.equal(x.player.stopLabel(x.player.validateManifest(opened), 0).stop, 'Stop 5 of 5');
+});
+
+test('the last stop is an end: Next reads Start again, and a short card offers Share and the agent', async () => {
+  const pressed = [], told = [];
+  const visit = {
+    onStop: (number, count) => told.push(number + '/' + count),
+    share: async () => { pressed.push('share'); return 'Link copied.'; },
+    contact: Promise.resolve({ name: 'Alex Example', actions: [
+      { label: 'Call', href: 'tel:+61400000000', press: () => pressed.push('call') },
+      { label: 'Email', href: 'mailto:alex@example.invalid', hrefNow: () => 'mailto:alex@example.invalid?body=stop', press: () => pressed.push('email') },
+      { label: 'Run', href: 'javascript:alert(1)' },
+    ] }),
+  };
+  const x = await readyPlayer({ manifest: manifest({ stops: manifest().stops.slice(0, 3) }), startOptions: { visit } });
+  const next = byClass(x.stage, 'v2-next'), end = byClass(x.stage, 'v2-end');
+  assert.deepEqual(told, ['1/3'], 'the page hears the opening stop once there is something to look at');
+  assert.equal(end.hidden, true);
+  assert.equal(next.getAttribute('aria-label'), 'Next stop');
+  next.click(); next.click();
+  assert.equal(x.stopLine(), 'Stop 3 of 3');
+  assert.deepEqual(told, ['1/3', '2/3', '3/3']);
+  assert.equal(next.getAttribute('aria-label'), 'Start again from the first stop');
+  assert.equal(byClass(x.stage, 'v2-label-again').hidden, false);
+  assert.equal(next.querySelector('.v2-label').hidden, true, '“Next” steps aside');
+  assert.equal(end.hidden, false);
+  assert.equal(byClass(end, 'v2-end-title').textContent, 'That’s the last stop.');
+  const labels = end.querySelectorAll('button, a').map(node => node.textContent);
+  assert.deepEqual(labels, ['Look around again', 'Share', 'Call', 'Email'], 'only tel, mailto and https links are taken');
+  const [stay, share, call, email] = end.querySelectorAll('button, a');
+  assert.equal(call.getAttribute('aria-label'), 'Call Alex Example');
+  email.dispatch('click');
+  assert.equal(email.getAttribute('href'), 'mailto:alex@example.invalid?body=stop', 'the address is read at the press');
+  share.click();
+  await tick();
+  assert.deepEqual(pressed, ['email', 'share']);
+  assert.equal(x.status(), 'Link copied.');
+  // About carries the agent too, for full screen.
+  assert.equal(byClass(x.stage, 'v2-contact-name').textContent, 'Contact Alex Example');
+  // Look around again puts the card away and stays on the stop; Start again goes to the first.
+  stay.click();
+  assert.equal(end.hidden, true);
+  assert.equal(x.stopLine(), 'Stop 3 of 3');
+  next.click();
+  assert.equal(x.stopLine(), 'Stop 1 of 3');
+  assert.equal(next.getAttribute('aria-label'), 'Next stop');
+  assert.equal(end.hidden, true);
+});
+
+test('a link to a stop opens there, and says so once: no arrival is announced for a stop that was not seen', async () => {
+  const events = [];
+  const x = await readyPlayer({ startOptions: { visit: { startAt: 3 } },
+    context: { CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } } });
+  x.document.dispatchEvent = event => { events.push(event.type + ':' + event.detail.stop); };
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  assert.equal(byClass(x.stage, 'v2-end').hidden, true, 'opening on a stop is not arriving at the end');
+  // Out of range or not a number: the opening stop.
+  for (const startAt of [0, 9, '2', 1.5, null]) assert.equal((await readyPlayer({ startOptions: { visit: { startAt } } })).stopLine(), 'Stop 1 of 5');
+});
+
+test('one bar for the whole wait: the first level downloads beside the engine and moves the bar', async () => {
+  const files = [{ path: 'lod/lod-meta.json', bytes: 100 }, { path: 'lod/3_0/means.webp', bytes: 600 }, { path: 'lod/3_0/sh0.webp', bytes: 300 },
+    { path: 'lod/0_0/means.webp', bytes: 9000 }, { path: '../escape.webp', bytes: 5 }];
+  const x = await started({ manifest: manifest({ files }), files: { 'lod/lod-meta.json': {}, 'lod/3_0/means.webp': {}, 'lod/3_0/sh0.webp': {} }, slowEngine: true });
+  const fetched = x.log.filter(line => line.startsWith('fetch:')).map(line => line.replace('fetch:https://veylet.com/pkg/', ''));
+  assert.deepEqual(fetched.sort(), ['lod/3_0/means.webp', 'lod/3_0/sh0.webp', 'lod/lod-meta.json', 'manifest.json'], 'the coarsest level and its index, nothing finer');
+  const progress = byClass(x.stage, 'v2-progress');
+  assert.equal(progress.hidden, false, 'the bar shows from the start');
+  assert.equal(progress.firstChild.style.transform, 'scaleX(0.600)', 'the files are in; the engine is still to come');
+  // With the engine: further along, and nothing was asked for before Explore in a portal's frame.
+  const both = await started({ manifest: manifest({ files }), files: { 'lod/lod-meta.json': {}, 'lod/3_0/means.webp': {}, 'lod/3_0/sh0.webp': {} } });
+  assert.equal(byClass(both.stage, 'v2-progress').firstChild.style.transform, 'scaleX(0.850)');
+  const framed = await started({ manifest: manifest({ files }), startOptions: { waitForTap: true } });
+  assert.deepEqual(framed.log.filter(line => line.startsWith('fetch:') && !line.endsWith('manifest.json')), []);
+});
+
+test('a first-level file that is missing is tried once more, then the visitor is told', async () => {
+  const timers = manualTimers();
+  const files = [{ path: 'lod/3_0/means.webp', bytes: 600 }];
+  const x = await started({ manifest: manifest({ files }), slowEngine: true, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const tries = () => x.log.filter(line => line === 'fetch:https://veylet.com/pkg/lod/3_0/means.webp').length;
+  assert.equal(tries(), 1);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, true);
+  timers.fire(1500);
+  for (let i = 0; i < 6; i++) await tick();
+  assert.equal(tries(), 2);
+  timers.fire(0);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D didn’t load\./);
+});
+
+// ---------- client pages, 10 November 2026, phase 3 ----------
+
+test('no 3D in this browser: the panel names Safari or Chrome and offers the link to take there', async () => {
+  const copied = [];
+  const x = await started({ env: { ...phoneWebgl2, webgl2: false, webgpu: false },
+    context: { navigator: { clipboard: { writeText: async text => { copied.push(text); } } } } });
+  await x.pending;
+  const fallback = byClass(x.stage, 'v2-fallback');
+  assert.match(fallback.textContent, /Try opening this link in Safari or Chrome\./);
+  assert.doesNotMatch(fallback.textContent, /hardware acceleration/);
+  const copy = fallback.querySelectorAll('button').find(button => button.textContent === 'Copy link');
+  assert.ok(copy, 'a Copy link button');
+  copy.click();
+  for (let i = 0; i < 4; i++) await tick();
+  assert.equal(copied.length, 1);
+  assert.equal(byClass(x.stage, 'v2-copy-note').textContent, 'Link copied.');
+});
+
+test('About keeps the engine credit behind Credits, marks the keys line, and the map dots take a finger', async () => {
+  const x = await readyPlayer();
+  const about = byClass(x.stage, 'v2-about');
+  const credits = byClass(about, 'v2-credits');
+  assert.equal(credits.tagName.toLowerCase(), 'details');
+  assert.equal(credits.querySelector('summary').textContent, 'Credits');
+  assert.match(credits.textContent, /PlayCanvas engine/);
+  assert.match(byClass(about, 'v2-keys').textContent, /^Keys/);
+  const hits = byClass(x.stage, 'v2-map').querySelectorAll('.v2-map-hit');
+  assert.equal(hits.length, byClass(x.stage, 'v2-map').querySelectorAll('.v2-map-stop').length);
+  // A named room marks the stage so a narrow one can drop the third line of the label.
+  assert.equal(byClass(x.stage, 'v2').classList.contains('v2-has-room'), true);
+  assert.match(read('tour-player-v2.css'), /\.v2-has-room:not\(\.v2-research\) \.v2-truth \{ display: none; \}/);
+});
+
+test('the hint names the floor only where the walkthrough has one to walk on', async () => {
+  const floor = await readyPlayer({ manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
+  assert.equal(byClass(floor.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor to move. Use Next for the next stop.');
+  const none = await readyPlayer();
+  assert.equal(byClass(none.stage, 'v2-hint').textContent, 'Drag to look around. Use Next for the next stop.');
 });

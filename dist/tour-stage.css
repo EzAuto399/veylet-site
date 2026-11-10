@@ -25,17 +25,79 @@
   .tour-frame-shell .tour-stage {
     border-radius: 8px;
   }
-  /* The client page on a phone: the whole player, its controls included, on
-     the first screen under the title, truth line and agent card (about
-     330px), and clear of the fixed Call/Email bar when the page shows one.
-     A page can set either reserve to match its own layout. */
-  .client-page .tour-stage {
-    --tour-stage-above: 330px;
-    height: clamp(300px, calc(100vh - var(--tour-stage-above) - var(--tour-stage-below, 0px)), 62vh);
-    height: clamp(300px, calc(100svh - var(--tour-stage-above) - var(--tour-stage-below, 0px)), 62svh);
-    min-height: 0;
+}
+
+/* The client page (/handoff). One height, --tour-stage-height, set on the page
+   so the stage and the place held for it before it loads (client-page.css,
+   "Held places") can never disagree. The whole player, its controls included,
+   stays on the first screen at every size:
+   - two columns (from 1080px): under the title and truth line (about 230px);
+   - one column (to 1079px): under the title, truth line and agent card (about
+     330px), and clear of the fixed Call/Email bar when the page shows one;
+   - a phone on its side: the stage takes the screen, less the bar. The page
+     hides the lines above it and brings it to the top (client-page.js). */
+.client-page {
+  --tour-vh: 100vh;
+  --tour-stage-above: 230px;
+  --tour-stage-below: 0px;
+  --tour-stage-height: max(340px, min(74vh, 680px, calc(var(--tour-vh) - var(--tour-stage-above))));
+}
+@supports (height: 100svh) {
+  .client-page {
+    --tour-vh: 100svh;
   }
-  body.has-agent-bar .client-page .tour-stage {
+}
+.client-page .tour-stage {
+  height: var(--tour-stage-height);
+  min-height: 0;
+}
+@media (max-width: 1079px) {
+  .client-page {
+    --tour-stage-above: 330px;
+    --tour-stage-height: clamp(300px, calc(var(--tour-vh) - var(--tour-stage-above) - var(--tour-stage-below)), min(74vh, 680px));
+  }
+}
+@media (max-width: 800px) {
+  .client-page {
+    --tour-stage-height: clamp(300px, calc(var(--tour-vh) - var(--tour-stage-above) - var(--tour-stage-below)), calc(var(--tour-vh) * 0.62));
+  }
+}
+/* Said once: the page's own line under the title carries "Captured on site …
+   Not to scale", so the player's label keeps the room and the stop. Where the
+   page's line cannot be seen (full screen, a phone on its side) the label says
+   it. A research sample's label says something the page's line does not. */
+.client-page .v2:not(.v2-research) .v2-truth {
+  display: none;
+}
+.client-page .v2-stage:is(.v2-filled, :fullscreen) .v2-truth {
+  display: block;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .client-page .v2:not(.v2-research) .v2-truth {
+    display: block;
+  }
+}
+@media (max-width: 768px) {
+  /* The Call/Email bar is on screen under the stage, so the end card does not
+     repeat it; in full screen, where the bar is out of reach, it does. */
+  body.has-agent-bar .client-page .v2-stage:not(.v2-filled, :fullscreen) .v2-end-contact,
+  body.has-agent-bar .client-page .v2-stage:not(.v2-filled, :fullscreen) .v2-contact {
+    display: none;
+  }
+  /* Phones: the title, the truth line and the date sit above the stage; the
+     agent is in the bar below it, not in a card above. */
+  .client-page {
+    --tour-stage-above: 215px;
+  }
+  /* A found contact brings the phone bar (and while the contact is still being
+     looked up, its place is assumed), so the stage makes room for it. */
+  body.has-agent-bar .client-page,
+  .client-pending.client-contact-pending .client-page {
     --tour-stage-below: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .client-page {
+    --tour-stage-height: max(200px, calc(var(--tour-vh) - var(--tour-stage-below) - 8px));
   }
 }

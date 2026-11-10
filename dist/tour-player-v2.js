@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=25009fa272a71592';
+  const STYLE_URL = '/tour-player-v2.css?v=b3e2ecd4d34f975c';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -115,6 +115,11 @@
       posters,
       walkable: json.walkable ? json.walkable.path : null,
       rooms, stops, start: json.start_stop,
+      // What the package lists, for sizes shown to the visitor and the first files to fetch. A list that is
+      // missing or odd is no list; the scene's own loader still decides what loads.
+      files: (Array.isArray(json.files) ? json.files : [])
+        .filter(file => file && typeof file.path === 'string' && SAFE_PATH.test(file.path) && Number.isFinite(file.bytes) && file.bytes >= 0)
+        .map(file => ({ path: file.path, bytes: file.bytes })),
     };
   }
 
@@ -320,10 +325,22 @@
     return index < 0 ? counts.length - 1 : index;
   }
 
+  /**
+   * Stops are numbered in the order of the visit, from the opening stop: the first view reads "Stop 1", and
+   * Next counts up to the last one. (A package's own order may open on any stop.)
+   */
+  function visitNumber(manifest, index) {
+    const count = manifest.stops.length, start = Number.isInteger(manifest.start) ? manifest.start : 0;
+    return ((index - start) % count + count) % count + 1;
+  }
+  function stopAtNumber(manifest, number) {
+    const count = manifest.stops.length, start = Number.isInteger(manifest.start) ? manifest.start : 0;
+    return (start + number - 1) % count;
+  }
   function stopLabel(manifest, index) {
     const stop = manifest.stops[index];
     const room = manifest.rooms.find(item => item.id === stop.room);
-    return { room: room && room.name ? room.name : '', stop: 'Stop ' + (index + 1) + ' of ' + manifest.stops.length };
+    return { room: room && room.name ? room.name : '', stop: 'Stop ' + visitNumber(manifest, index) + ' of ' + manifest.stops.length };
   }
 
   /**
@@ -737,13 +754,17 @@
     const progress = el('div', { class: 'v2-progress', hidden: true });
     progress.append(el('span'));
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
-    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor or a circle to move.');
+    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor to move. Use Next for the next stop.');
     const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
     // "Next stop" on screen; "Next" on a phone (the stylesheet drops " stop"); the arrow alone under 300 px.
     const next = iconButton('next', 'Next stop', 'v2-primary v2-next');
     const nextLabel = el('span', { class: 'v2-label', 'aria-hidden': 'true' }, 'Next');
     nextLabel.append(el('span', { class: 'v2-label-more' }, ' stop'));
-    next.append(nextLabel);
+    // On the last stop of the visit the same button reads "Start again".
+    // ("Restart", without the arrow, where a phone's bar has no room for more.)
+    const againLabel = el('span', { class: 'v2-label v2-label-again', 'aria-hidden': 'true', hidden: true }, 'Start again');
+    const restartLabel = el('span', { class: 'v2-label v2-label-restart', 'aria-hidden': 'true', hidden: true }, 'Restart');
+    next.append(nextLabel, againLabel, restartLabel);
     const stopsToggle = el('button', { type: 'button', class: 'v2-stops-toggle', 'aria-expanded': 'false', 'aria-haspopup': 'true' });
     stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
     const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
@@ -762,17 +783,19 @@
     const map = el('figure', { class: 'v2-map', hidden: true });
     const aboutPanel = el('div', { class: 'v2-panel v2-about', role: 'dialog', 'aria-label': 'About this walkthrough', hidden: true });
     const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
-    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, bar, fallback, announce);
+    // The end of the visit: a short card over the last stop (see showEnd).
+    const end = el('section', { class: 'v2-end', hidden: true, 'aria-label': 'End of the walkthrough' });
+    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
     stage.append(root);
     return { root, preview, poster, canvas, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
-      prev, next, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, fallback };
+      prev, next, nextLabel, againLabel, restartLabel, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
   }
 
   const FALLBACK_WORDS = {
-    'no-graphics': ['3D can’t open in this browser.', 'This still is rendered from the walkthrough. Open the link in a current browser, such as Safari or Chrome with hardware acceleration on, to walk through it.'],
-    'engine-unavailable': ['3D didn’t load.', 'The 3D player files didn’t arrive. Check the connection and try again. This still is rendered from the walkthrough.'],
-    'context-lost': ['3D stopped on this device.', 'The graphics memory was reclaimed, which can happen on phones with many tabs open. Try again, or close other tabs first.'],
-    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this still is from it.'],
+    'no-graphics': ['3D can’t open in this browser.', 'This picture is from the walkthrough. Try opening this link in Safari or Chrome.'],
+    'engine-unavailable': ['3D didn’t load.', 'Check your connection and try again. This picture is from the walkthrough.'],
+    'context-lost': ['3D stopped on this device.', 'This can happen when many tabs are open. Try again, or close other tabs first.'],
+    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this picture is from it.'],
   };
 
   // ---------- the player ----------
@@ -802,18 +825,18 @@
     let framed = Boolean(options.framed);
     if (options.framed === undefined) { try { framed = window.top !== window.self; } catch { framed = true; } }
     const waitForTap = Boolean(options.waitForTap && profile.api);
-    // The engine download starts now, in parallel with the manifest, unless
-    // the visitor is first asked to press Explore.
+    // The engine download starts as soon as the package's manifest has answered and reads as a walkthrough
+    // (a few KB), unless the visitor is first asked to press Explore. A link whose package is gone costs
+    // nobody the engine.
     const loadEngine = options.loadEngine || (() => import(ENGINE_URL));
     let enginePromise = null;
     const requestEngine = () => (enginePromise ||= Promise.resolve().then(loadEngine).catch(() => null));
-    if (profile.api && !waitForTap) requestEngine();
-    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal);
-    manifestPromise.catch(() => {}); // handled below, after the styles
+    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal).then(validateManifest);
+    manifestPromise.then(() => { if (profile.api && !waitForTap && !signal?.aborted) requestEngine(); }, () => {}); // a refusal is handled below, after the styles
     await ensureStyle();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
+    const manifest = await manifestPromise;
     const ui = buildInterface(stage);
-    const manifest = validateManifest(await manifestPromise);
     mark('manifest');
     const walkablePromise = manifest.walkable
       ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal).then(decodeWalkable).catch(() => null)
@@ -841,12 +864,22 @@
       const label = stopLabel(manifest, index);
       ui.room.textContent = label.room;
       ui.room.hidden = !label.room;
+      // A named room makes the label three lines; a narrow stage drops the third (tour-player-v2.css).
+      if (label.room) ui.root.classList.add('v2-has-room'); else ui.root.classList.remove('v2-has-room');
       ui.stopLine.textContent = label.stop;
       return label;
     };
-    labels(manifest.start);
+    // What the page asks of the visit (all optional): where to open (a link to a stop), a word when the stop
+    // changes, Share, and who to contact. The player itself still sends nothing anywhere.
+    const visit = options.visit && typeof options.visit === 'object' ? options.visit : {};
+    const lastStop = stopAtNumber(manifest, manifest.stops.length);
+    const asked = Number.isInteger(visit.startAt) && visit.startAt >= 1 && visit.startAt <= manifest.stops.length ? stopAtNumber(manifest, visit.startAt) : manifest.start;
+    // A chunked home opens on the chunk its package names, and walks to the asked stop once it is drawn.
+    const opening = manifest.scene.chunked ? manifest.start : asked;
+    if (manifest.researchSample) ui.root.classList.add('v2-research');
+    labels(opening);
 
-    const state = { stop: manifest.start, position: [...manifest.stops[manifest.start].position], zoom: 1, ...lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target) };
+    const state = { stop: opening, position: [...manifest.stops[opening].position], zoom: 1, ...lookAngles(manifest.stops[opening].position, manifest.stops[opening].target) };
     let viewer = null, torndown = false, settled = false;
     let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
     let resolveReady;
@@ -869,6 +902,17 @@
         retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
         ui.fallback.append(retry);
         recovery = retry;
+      }
+      if (kind === 'no-graphics') {
+        // The next step is another browser, so the link goes with the visitor.
+        const copy = el('button', { type: 'button', class: 'v2-primary' }, 'Copy link');
+        const note = el('p', { class: 'v2-copy-note', role: 'status' });
+        copy.addEventListener('click', async () => {
+          let copied = false;
+          try { await navigator.clipboard.writeText(String(location.href)); copied = true; } catch { copied = false; }
+          note.textContent = copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.';
+        });
+        ui.fallback.append(copy, note);
       }
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
@@ -900,6 +944,11 @@
       slowShown = true;
       becomeVisible();
     }
+    // A scene file did not arrive. The engine reports it from inside its own loader, which goes on using what
+    // teardown destroys, so the panel and the teardown wait for the engine to finish that step.
+    function sceneFailed() {
+      setTimeout(() => { if (!torndown) fail('engine-unavailable'); }, 0);
+    }
     function hideSlow() {
       if (!slowShown) return;
       slowShown = false;
@@ -912,6 +961,53 @@
       try { viewer?.destroy(); } catch { /* already gone */ }
     }
     signal?.addEventListener('abort', () => { teardown(); ui.root.remove(); }, { once: true });
+
+    // ----- the first files, fetched beside the engine, and one bar for the whole wait -----
+    // The coarsest level is what the first 3D frame is made of. Fetching it while the engine downloads warms
+    // the browser's cache, so the engine finds it there; its bytes also drive the bar from the first second.
+    const first = { started: false, total: 0, loaded: 0, engine: false };
+    let progressShown = 0;
+    function setProgress(value) {
+      progressShown = Math.max(progressShown, Math.min(1, value));
+      ui.progress.firstChild.style.transform = `scaleX(${progressShown.toFixed(3)})`;
+    }
+    function loadProgress() {
+      if (ready || torndown) return;
+      setProgress(first.total ? 0.6 * Math.min(1, first.loaded / first.total) + (first.engine ? 0.25 : 0) : (first.engine ? 0.5 : 0));
+    }
+    async function fetchFirst(file, attempt) {
+      let got = 0;
+      const count = bytes => { const add = Math.min(bytes, file.bytes - got); got += add; first.loaded += add; loadProgress(); };
+      try {
+        const response = await fetch(base + file.path, { signal, credentials: 'omit' });
+        if (!response.ok) throw new Error('status');
+        const reader = response.body && typeof response.body.getReader === 'function' ? response.body.getReader() : null;
+        if (reader) for (;;) { const part = await reader.read(); if (part.done) break; count(part.value ? part.value.byteLength : 0); }
+        else if (typeof response.arrayBuffer === 'function') await response.arrayBuffer();
+        count(file.bytes);
+      } catch {
+        first.loaded -= got;
+        if (signal?.aborted || torndown || ready) return;
+        // Once more after a moment; a file that is still missing means no 3D, and the visitor is told now
+        // rather than after the long deadline.
+        if (attempt < 1) setTimeout(() => { if (!torndown && !ready) fetchFirst(file, attempt + 1); }, 1500);
+        else sceneFailed();
+      }
+    }
+    function startFirstFiles() {
+      if (first.started) return;
+      first.started = true;
+      const scene = manifest.scene;
+      const folder = scene.lodMeta.slice(0, scene.lodMeta.lastIndexOf('/') + 1);
+      const files = scene.chunked ? [] : manifest.files.filter(file => file.bytes > 0 && (file.path === scene.lodMeta || file.path.startsWith(folder + (scene.levels - 1) + '_')));
+      first.total = files.reduce((sum, file) => sum + file.bytes, 0);
+      ui.progress.hidden = false;
+      // No list to count: the bar still moves, slowly, so the wait is seen to be alive.
+      if (!first.total) ui.progress.classList.add('v2-progress-wait');
+      loadProgress();
+      for (const file of files) fetchFirst(file, 0);
+    }
+    if (profile.api && !waitForTap) startFirstFiles();
 
     if (!profile.api) {
       await Promise.race([new Promise(resolve => ui.poster.addEventListener('load', resolve, { once: true })), new Promise(resolve => setTimeout(resolve, 4000))]);
@@ -935,6 +1031,7 @@
       mark('explore');
     }
     ui.status.textContent = 'Loading 3D…';
+    startFirstFiles();
     // One deadline for the first 3D frame, from the start of the 3D download: 45 s of visible time (a hidden tab
     // keeps its allowance), then Keep waiting or Try again over the poster. The page adds none of its own.
     cancelDeadline = visibleDeadline(tooSlow, 45000);
@@ -943,6 +1040,8 @@
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
     if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');
     mark('engine');
+    first.engine = true;
+    loadProgress();
     const walkable = await walkablePromise;
     becomeVisible();
 
@@ -1032,11 +1131,11 @@
     // A home on more than one level: one level at a time, on the map and on the floor discs.
     const storeys = storeysOf(manifest.stops);
     const levelOf = storeys ? manifest.stops.map((_, index) => storeys.findIndex(level => level.stops.includes(index))) : null;
-    let viewerLevel = storeys ? levelOf[manifest.start] : 0;
+    let viewerLevel = storeys ? levelOf[opening] : 0;
     const hotspotButtons = manifest.stops.map((stop, index) => {
       // Hidden until placeHotspots puts it on its floor point (after the first frame), not in the corner.
       const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1', hidden: true });
-      button.append(el('span', {}, String(index + 1)));
+      button.append(el('span', {}, String(visitNumber(manifest, index))));
       button.addEventListener('click', event => { event.stopPropagation(); goToStop(index); });
       ui.hotspots.append(button);
       return button;
@@ -1069,7 +1168,7 @@
         if (stop.room !== currentRoomId && label.room) button.dataset.roomLabel = label.room;
         else if (index === nextStopIndex && manifest.stops.length > 1) button.dataset.roomLabel = 'Next';
         else delete button.dataset.roomLabel;
-        button.title = [label.room, 'Stop ' + (index + 1)].filter(Boolean).join(' · ');
+        button.title = [label.room, 'Stop ' + visitNumber(manifest, index)].filter(Boolean).join(' · ');
         world.set(...stop.floor);
         camera.camera.worldToScreen(world, screen);
         // A disc half off the edge is still worth a tap.
@@ -1099,6 +1198,13 @@
         ui.roomsBar.append(pill);
       }
       ui.roomsBar.hidden = ui.roomsBar.children.length < 2;
+      ui.roomsBar.addEventListener('scroll', pillsMore, { passive: true });
+    }
+    // More room names than fit: the row fades at its right edge until it is scrolled to the end.
+    function pillsMore() {
+      const row = ui.roomsBar;
+      if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 4) row.dataset.more = 'true';
+      else delete row.dataset.more;
     }
 
     function buildStopsPanel() {
@@ -1113,10 +1219,12 @@
         const group = el('section', { class: 'v2-room-group' });
         if (manifest.rooms.length > 1 || room.name) group.append(el('h3', {}, room.name || 'Other stops'));
         const list = el('ol');
-        manifest.stops.forEach((stop, index) => {
+        // In the order of the visit, so the list counts up.
+        manifest.stops.map((_, place) => stopAtNumber(manifest, place + 1)).forEach(index => {
+          const stop = manifest.stops[index];
           if (stop.room !== room.id) return;
           const item = el('li');
-          const button = el('button', { type: 'button', class: 'v2-stop-button', 'data-stop': String(index) }, 'Stop ' + (index + 1));
+          const button = el('button', { type: 'button', class: 'v2-stop-button', 'data-stop': String(index) }, 'Stop ' + visitNumber(manifest, index));
           button.addEventListener('click', () => { togglePanel(ui.stopsPanel, ui.stopsToggle, false); goToStop(index); });
           item.append(button);
           list.append(item);
@@ -1136,8 +1244,16 @@
         if (pill.dataset.room === activeRoomId) pill.setAttribute('aria-current', 'true');
         else pill.removeAttribute('aria-current');
       }
-      ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? (state.stop + 1) : '–') + ' of ' + manifest.stops.length;
-      ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? state.stop + 1 : 'none') + ' of ' + manifest.stops.length);
+      ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? visitNumber(manifest, state.stop) : '–') + ' of ' + manifest.stops.length;
+      ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? visitNumber(manifest, state.stop) : 'none') + ' of ' + manifest.stops.length);
+      // The last stop of the visit: Next offers the start again, and says so.
+      const atEnd = manifest.stops.length > 1 && state.stop === lastStop;
+      ui.nextLabel.hidden = atEnd;
+      ui.againLabel.hidden = !atEnd;
+      ui.restartLabel.hidden = !atEnd;
+      if (atEnd) ui.next.dataset.end = 'true'; else delete ui.next.dataset.end;
+      ui.next.setAttribute('aria-label', atEnd ? 'Start again from the first stop' : 'Next stop');
+      ui.next.title = atEnd ? 'Start again' : 'Next stop';
     }
     function aboutContents() {
       ui.aboutPanel.replaceChildren();
@@ -1150,12 +1266,25 @@
       for (const line of [
         'Drag to look around. Pinch, or use + and −, to zoom.',
         walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
-        'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
       ]) controls.append(el('li', {}, line));
-      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
-      const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
-      credits.append(licence);
-      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
+      // For a keyboard; a touch screen does not show it (tour-player-v2.css).
+      controls.append(el('li', { class: 'v2-keys' }, 'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.'));
+      // The engine's credit and licence, one press away rather than in every visitor's way.
+      const credits = el('details', { class: 'v2-credits' });
+      const credit = el('p', {}, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
+      credit.append(el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence'));
+      credits.append(el('summary', {}, 'Credits'), credit);
+      ui.aboutPanel.append(heading);
+      if (contact) {
+        // One tap away in full screen too, where the page's own Call and Email are out of reach. First in
+        // the panel, so it shows without scrolling on a phone.
+        const row = el('div', { class: 'v2-contact' });
+        const links = el('div', { class: 'v2-actions' });
+        links.append(...contactLinks('v2-quiet'));
+        row.append(el('p', { class: 'v2-contact-name' }, 'Contact ' + contact.name), links);
+        ui.aboutPanel.append(row);
+      }
+      ui.aboutPanel.append(el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
       if (saveData) {
         // Data Saver is on: low detail stays unless the visitor asks for more.
         const more = el('button', { type: 'button', class: 'v2-primary' }, 'Load full detail');
@@ -1239,8 +1368,12 @@
         label.setAttribute('transform', `rotate(${-mapTurn})`);
         label.setAttribute('font-size', String(half * 0.12));
         label.setAttribute('dy', String(half * 0.042));
-        label.textContent = String(index + 1);
-        dot.append(circle, label);
+        label.textContent = String(visitNumber(manifest, index));
+        // A finger needs more than the dot: an unseen circle about 24 px across takes the press.
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('class', 'v2-map-hit');
+        hit.setAttribute('r', String(half * 0.14));
+        dot.append(hit, circle, label);
         dot.addEventListener('click', () => goToStop(index));
         mapGroup.append(dot);
         if (storeys) mapParts.push([dot, levelOf[index]]);
@@ -1273,6 +1406,7 @@
       for (const [other, button] of [[ui.stopsPanel, ui.stopsToggle], [ui.aboutPanel, ui.about]]) {
         if (other !== panel && !other.hidden) { other.hidden = true; button.setAttribute('aria-expanded', 'false'); }
       }
+      if (show) hideEnd();
       panel.hidden = !show;
       toggle.setAttribute('aria-expanded', String(show));
       // One overlay at a time: the map steps aside while a panel is open.
@@ -1339,7 +1473,7 @@
     const maskLevel = storeys ? levelOf[manifest.start] : 0;
     const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
     const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
-    let lastRoomVisited = stopLabel(manifest, manifest.start).room || '';
+    let lastRoomVisited = stopLabel(manifest, opening).room || '';
     // What the viewer did, said to the page as a DOM event and nothing more: the player itself sends nothing anywhere.
     function announceActivity(type, detail) {
       try {
@@ -1358,10 +1492,81 @@
         announceActivity('veylet:room', { room: label.room });
       }
       if (index >= 0) announceActivity('veylet:stop', { stop: index, room: label.room || null });
+      tellStop(index);
+      if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }
-    function goToStop(index) {
+    /** The page hears which stop this is (its number in the visit), for its own address and Share. */
+    function tellStop(index) {
+      if (index < 0) return;
+      try { visit.onStop?.(visitNumber(manifest, index), manifest.stops.length); } catch { /* optional */ }
+    }
+
+    // ----- who to contact, Share, and the end of the visit -----
+    let contact = null;
+    const linkOk = href => typeof href === 'string' && /^(?:tel:|mailto:|https:\/\/)/.test(href);
+    Promise.resolve(visit.contact).then(value => {
+      if (torndown || !value || typeof value.name !== 'string' || !value.name || !Array.isArray(value.actions)) return;
+      const actions = value.actions.filter(item => item && typeof item.label === 'string' && linkOk(item.href)).slice(0, 3);
+      if (!actions.length) return;
+      contact = { name: value.name.slice(0, 80), actions };
+      aboutContents();
+      if (!ui.end.hidden) showEnd(false);
+    }, () => {});
+    function contactLinks(className) {
+      return contact.actions.map(action => {
+        const link = el('a', { class: className, href: action.href, 'aria-label': action.label + ' ' + contact.name }, action.label);
+        if (action.external) { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer'); }
+        link.addEventListener('click', () => {
+          // The address as it is now (the stop the visitor is on), then the page's own note of the press.
+          try { const now = action.hrefNow?.(); if (linkOk(now)) link.setAttribute('href', now); } catch { /* the first address stands */ }
+          try { action.press?.(); } catch { /* optional */ }
+        });
+        return link;
+      });
+    }
+    function shareButton(className) {
+      if (typeof visit.share !== 'function') return null;
+      const button = el('button', { type: 'button', class: className }, 'Share');
+      button.addEventListener('click', async () => {
+        let said = '';
+        try { said = await visit.share(); } catch { said = ''; }
+        if (typeof said === 'string' && said && !torndown) say(said);
+      });
+      return button;
+    }
+    function showEnd(announce = true) {
       if (!ready) return;
-      dismissHint();
+      const stay = el('button', { type: 'button', class: 'v2-primary' }, 'Look around again');
+      stay.addEventListener('click', () => { hideEnd(); ui.canvas.focus?.(); });
+      const actions = el('div', { class: 'v2-actions' });
+      actions.append(stay);
+      const share = shareButton('v2-quiet');
+      if (share) actions.append(share);
+      if (contact) {
+        // A page that already shows Call and Email beside the stage hides these until full screen (tour-stage.css).
+        const reach = el('span', { class: 'v2-end-contact' });
+        reach.append(...contactLinks('v2-quiet'));
+        actions.append(reach);
+      }
+      ui.end.replaceChildren(el('p', { class: 'v2-end-title' }, 'That’s the last stop.'), actions);
+      // Above the controls, whatever their height (a row of room names makes them taller).
+      const barHeight = ui.bar.offsetHeight || ui.bar.clientHeight || 0;
+      if (barHeight) ui.end.style.setProperty('--v2-bar', barHeight + 'px');
+      ui.end.hidden = false;
+      ui.root.dataset.end = 'shown';
+      if (announce) ui.announce.textContent = [ui.announce.textContent, 'That’s the last stop.'].filter(Boolean).join('. ');
+    }
+    function hideEnd() {
+      if (ui.end.hidden) return;
+      const held = ui.end.contains(document.activeElement);
+      ui.end.hidden = true;
+      delete ui.root.dataset.end;
+      if (held) ui.next.focus?.();
+    }
+    function goToStop(index, byUser = true) {
+      if (!ready) return;
+      dismissHint(byUser);
+      hideEnd();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
       // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
@@ -1457,7 +1662,9 @@
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
       engaged = true;
-      dismissHint();
+      wheelHeld = true;
+      dismissHint(true);
+      hideEnd();
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
@@ -1500,10 +1707,20 @@
     };
     ui.canvas.addEventListener('pointerup', release);
     ui.canvas.addEventListener('pointercancel', release);
-    // A listing page scrolls with the wheel; zoom on a trackpad pinch or on a
-    // standalone / fullscreen walkthrough, and inside someone else's page only once engaged.
+    // The wheel belongs to the page until the visitor is using the walkthrough. Inside someone else's page:
+    // a trackpad pinch only, once engaged. On our own pages: a pinch, full screen, a page with nothing to
+    // scroll, or after a press or key on the walkthrough, until the pointer leaves it or focus moves on.
+    let wheelHeld = false;
+    const releaseWheel = () => { wheelHeld = false; };
+    stage.addEventListener('pointerleave', releaseWheel);
+    ui.canvas.addEventListener('blur', releaseWheel);
+    const pageScrolls = () => {
+      const root = document.documentElement;
+      return Boolean(root && root.scrollHeight > root.clientHeight + 1);
+    };
     ui.canvas.addEventListener('wheel', event => {
-      if (!ready || (framed && (!event.ctrlKey || !engaged))) return;
+      if (!ready) return;
+      if (framed ? (!event.ctrlKey || !engaged) : (!event.ctrlKey && !wheelHeld && !isFull() && pageScrolls())) return;
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
@@ -1512,7 +1729,7 @@
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
       engaged = true;
       const key = event.key;
-      const handled = () => { event.preventDefault(); dismissHint(); };
+      const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
         cancelFlight();
@@ -1528,17 +1745,18 @@
       else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
-      else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(Number(key) - 1); }
+      else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(stopAtNumber(manifest, Number(key))); }
       else if (key === 'Home' || key === '0') { handled(); state.zoom = 1; goToStop(manifest.start); }
       else if (key === '+' || key === '=') { handled(); state.zoom = clamp(state.zoom * 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
     });
     // Any press anywhere in the player means the visitor has found the controls.
-    ui.root.addEventListener('pointerdown', () => dismissHint(), true);
+    ui.root.addEventListener('pointerdown', () => dismissHint(true), true);
     ui.root.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
-      if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
+      if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
+      else if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
     const escapeFull = event => {
@@ -1658,21 +1876,25 @@
       ui.full.title = ui.full.getAttribute('aria-label');
       fitBar();
     }
-    // Under 320 px the bar has room for five controls, not six: the map (which
-    // would cover most of so small a view) gives way to Full screen.
+    // Under 288 px (a frame narrower than a 320 px phone's own page) the bar has room for five controls,
+    // not six: the map, which would cover most of so small a view, gives way to Full screen.
     function fitBar() {
-      const narrow = stage.clientWidth > 0 && stage.clientWidth < 320 && !isFull();
+      const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
+      pillsMore();
     }
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
 
     let hintTimer = null;
-    function dismissHint() {
+    // The hint goes after nine seconds or on the first move. Only a real press, drag or key marks it as
+    // seen: someone who looked away while it timed out sees it again next time.
+    function dismissHint(byUser = false) {
       if (ui.hint.hidden) return;
       ui.hint.hidden = true;
       clearTimeout(hintTimer);
+      if (!byUser) return;
       try { localStorage.setItem(HINT_KEY, '1'); } catch { /* per-viewer convenience only */ }
     }
     function offerHint() {
@@ -1686,8 +1908,10 @@
         ui.hint.textContent = 'Drag to look. Tap to move.';
         ui.hint.classList.add('v2-hint-short');
       }
+      // Only what is on screen is named: the floor (where this walkthrough has one to walk on) and Next.
+      else if (!walkable) ui.hint.textContent = 'Drag to look around. Use Next for the next stop.';
       ui.hint.hidden = false;
-      hintTimer = setTimeout(dismissHint, 9000);
+      hintTimer = setTimeout(() => dismissHint(false), 9000);
     }
 
     // ----- rendering, loading phases and frame pacing -----
@@ -1708,7 +1932,7 @@
     }
     function addChunk(id) {
       const item = holdChunk(id);
-      item.asset.on('error', () => fail('engine-unavailable'));
+      item.asset.on('error', sceneFailed);
       app.assets.load(item.asset);
       return item;
     }
@@ -1788,7 +2012,9 @@
         if (loadingCount > 0) {
           maxLoading = Math.max(maxLoading, loadingCount);
           ui.progress.hidden = false;
-          ui.progress.firstChild.style.transform = `scaleX(${((maxLoading - loadingCount) / maxLoading).toFixed(3)})`;
+          // The last part of the one bar: the engine reading what was fetched.
+          ui.progress.classList.remove('v2-progress-wait');
+          setProgress(0.85 + 0.15 * (maxLoading - loadingCount) / maxLoading);
         }
         if (!frameReady || loadingCount > 0) return;
         // Data served from cache may never show as loading; a settled second of frames will do.
@@ -1798,6 +2024,7 @@
         ready = true;
         // The opening stop is an arrival too, once there is something to look at.
         if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
+        tellStop(state.stop);
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
@@ -1806,6 +2033,7 @@
         ui.bar.hidden = false;
         ui.status.textContent = saveData ? '' : 'Sharpening detail…';
         ui.progress.hidden = saveData;
+        ui.progress.classList.remove('v2-progress-wait');
         ui.progress.firstChild.style.transform = 'scaleX(0)';
         // Finer levels now stream under the budget, over what is already on screen.
         if (chunked) {
@@ -1824,7 +2052,8 @@
         offerHint();
         settle({ readiness: 'viewer-ready', marks, stats });
         // Back where the visitor was before the graphics context was lost.
-        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop);
+        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop, false);
+        else if (asked !== state.stop) goToStop(asked, false);
         return;
       }
       if (phase === 'detail') {
@@ -1923,8 +2152,8 @@
     if (chunked) for (const item of held.values()) app.assets.load(item.asset);
     else app.assets.load(asset);
     app.start();
-    if (chunked) for (const item of held.values()) item.asset.on('error', () => fail('engine-unavailable'));
-    else asset.on('error', () => fail('engine-unavailable'));
+    if (chunked) for (const item of held.values()) item.asset.on('error', sceneFailed);
+    else asset.on('error', sceneFailed);
     // A wide screen has room for the map from the start; phones, and frames on
     // someone else's page, open it on request.
     toggleMap(stage.clientWidth >= 900 && !framed);
@@ -1986,7 +2215,7 @@
 
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
-    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, roomFootprint, stepStop, lookAngles, forwardOf,
+    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
     fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     start, mount, current: null,

@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=20a0fc82dc9ee2c2" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=6d207a9ffbae539e" as="script" />
     <link rel="stylesheet" href="/style.css?v=a55dc82d81c1fb55" />
-    <link rel="stylesheet" href="/tour-stage.css?v=6800a56190b61207" />
-    <link rel="stylesheet" href="/client-page.css?v=86b52db17ca6b659" />
+    <link rel="stylesheet" href="/tour-stage.css?v=a91aa260a248fb09" />
+    <link rel="stylesheet" href="/client-page.css?v=8f674aaacaaa46b0" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
          nothing is held and the page reads as it always has. The rule is
@@ -52,13 +52,16 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=1ae099e78ef93e37"></script>
+    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=f7cfefb265096c73"></script>
+    <script src="/tour-player.js?v=6ff7f6e06f55b68f"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
+    <!-- The agent's Call and Email, fixed to the foot of a phone's screen. First in the page so a keyboard
+         and a screen reader reach them before the walkthrough, not after the footer. -->
+    <aside class="agent-bar" id="agent-bar" hidden></aside>
     <main id="main" class="form-page wrap client-page">
       <h1 id="handoff-title">Private walkthrough</h1>
       <p class="client-truth" id="client-truth" hidden>Captured on site with an iPhone. Not to scale.</p>
@@ -76,7 +79,7 @@
               <iframe
                 id="tour-frame"
                 class="tour-frame"
-                title="Reconstructed walkthrough"
+                title="3D walkthrough"
                 hidden
                 allow="fullscreen *"
                 allowfullscreen
@@ -104,7 +107,7 @@
             <div class="client-extras" id="client-extras">
               <details class="client-help" id="client-help" hidden>
                 <summary>How to move around</summary>
-                <p>Drag to look around. Tap the floor or a numbered circle to walk. Use the arrows to go room to room.</p>
+                <p>Drag to look around. Tap the floor to move. Use Next for the next stop.</p>
               </details>
               <div class="client-tools">
                 <button class="button button-ghost client-share" type="button" id="client-share" hidden>Share</button>
@@ -126,7 +129,6 @@
         <a class="client-report" id="client-report" hidden>Report this walkthrough</a>
       </nav>
     </footer>
-    <aside class="agent-bar" id="agent-bar" hidden></aside>
     <script type="module">
       const els = {
         title: document.getElementById('handoff-title'),
@@ -159,6 +161,9 @@
         host: null,
       });
 
+      // A link to a stop (#stop=N), Share and the agent inside the player (client-page.js visitLink).
+      const visit = link.complete ? page?.visitLink?.({ window, document, location, navigator, token, beacon }) : undefined;
+
       function sharedLabel(value) {
         if (!value) return '';
         const when = new Date(value);
@@ -172,17 +177,8 @@
 
       if (!link.complete) {
         releaseHeld();
-        window.VeyletPlayer.showFailure(
-          {
-            ...els,
-            actions: document.getElementById('tour-actions'),
-            retry: document.getElementById('tour-retry'),
-          },
-          {
-            heading: 'This link looks incomplete.',
-            body: 'Check you copied all of it, or ask the person who sent it.',
-          }
-        );
+        // The words for a dead or broken link are the player's, shared with /tour and /embed.
+        window.VeyletPlayer.showIncomplete(els);
       } else {
         // A definitive miss: another browser will not help, so the trouble line goes.
         let unavailable = false;
@@ -235,6 +231,7 @@
               streamed: row.package_format_version === 2,
               beacon,
               contact,
+              visit,
             });
             return {
               storagePath: row.storage_path,
@@ -245,21 +242,31 @@
               footer: '',
             };
           },
-          missingHeading: 'This walkthrough isn’t available right now.',
-          missingBody: 'The agent may have turned it off or not shared it yet.',
-          transientBody:
-            'The walkthrough couldn’t be reached just now. Check your connection and try again.',
-          // Called in the same step that reveals the frame or the stage.
-          onVisible: releaseHeld,
-        }).then(() => {
+          // The shared words for "not available" and "could not be reached", and Try again on both.
+          client: true,
+          visit,
+          // Called in the same step that reveals the frame or the stage. A phone
+          // on its side brings the walkthrough to the top of its short screen.
+          onVisible: () => {
+            releaseHeld();
+            page?.settleStage?.(window, els.stage);
+          },
+        }).then((result) => {
           releaseHeld();
-          if (unavailable && trouble) trouble.hidden = true;
+          const missing = unavailable || result?.outcome === 'missing';
+          if (missing && trouble) trouble.hidden = true;
           // Nothing left on the stage (a failure the player explained above):
-          // no empty shell, and no help for controls that are not there.
+          // no empty shell, and nothing that says a walkthrough is here. The
+          // truth line, the date, Share and the help for controls all go; the
+          // agent's card and bar stay, because the agent is the next step.
           if (els.frame.hidden && els.stage.hidden) {
             if (wrap) wrap.hidden = true;
-            const help = document.getElementById('client-help');
-            if (help) help.hidden = true;
+            for (const id of ['client-help', 'client-share', 'client-truth', 'handoff-meta']) {
+              const node = document.getElementById(id);
+              if (node) node.hidden = true;
+            }
+            const shared = document.getElementById('client-share-status');
+            if (shared) shared.textContent = '';
           }
         });
       }
