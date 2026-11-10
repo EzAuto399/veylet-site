@@ -220,7 +220,7 @@ test('the videos and stills block shows the same block, and maps the same refusa
     get_listing_sharing_readiness: readiness({ occupancy: 'tenanted', blocked_reason: 'tenant_consent_required', grandfathered: true }),
     get_listing_exports: exportsNothing,
   } });
-  // The block is the panel behind the card's "Videos" disclosure: offered, then opened.
+  // The block is the panel behind the card's "Videos and stills" disclosure: offered, then opened.
   const videos = card => card.all().find(el => el.dataset?.disclosure === 'exports');
   const box = blocked.card().all().find(el => String(el.className).split(' ').includes('tour-exports'));
   assert.equal(videos(blocked.card()).hidden, false);

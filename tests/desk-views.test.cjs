@@ -243,7 +243,9 @@ test('the bar, the page and the desk footer share one width, and the views read 
 });
 
 test('one filled button on the Walkthroughs view: card actions are outlines; Add a space leads only on a desk with nothing waiting and no walkthrough', async () => {
-  assert.match(css, /#view-walkthroughs \.dash-tour \.tour-action-primary:not\(\.tour-panel \*, form \*\) \{ background: transparent; color: var\(--ink\); border-color: var\(--field-line\); \}/);
+  // A space's render status (Review walkthrough, Recapture {room}, Resume sharing) is an outline too: the same
+  // press lower on the page never competes with the Needs you row that owns it.
+  assert.match(css, /#view-walkthroughs :is\(\.dash-tour, \.render-block\) \.tour-action-primary:not\(\.tour-panel \*, form \*\) \{ background: transparent; color: var\(--ink\); border-color: var\(--field-line\); \}/);
   // Something waits: the Needs you row is the filled one, and Add a space is an outline.
   const busy = await loadDesk();
   assert.equal(busy.ids['account-needs'].hidden, false);

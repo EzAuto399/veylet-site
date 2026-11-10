@@ -701,13 +701,19 @@
 /* The two report buttons share one row at every width; a long label wraps inside its button. */
 .desk .dash-tour .tour-insights-report { flex-wrap: nowrap; align-items: stretch; }
 .tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding: 6px 12px; text-align: left; overflow-wrap: anywhere; }
-/* The headline row: two by two on a narrow card, four across from the card's own step. */
+/* The headline row: two across on a narrow card, three across from the card's own step. */
 .tour-insights-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tour-insights-figures > div { min-width: 0; }
 .tour-insights-figures dt { font-size: 13px; line-height: 1.5; color: var(--muted); }
 .tour-insights-figures dd { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.015em; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.tour-insights-figures dd.tour-insights-period { font-size: 13px; font-weight: 400; line-height: 1.5; letter-spacing: 0; color: var(--muted); }
-@container (min-width: 561px) { .tour-insights-figures { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tour-insights-figures dd.tour-insights-detail { font-size: 13px; font-weight: 400; line-height: 1.5; letter-spacing: 0; color: var(--muted); }
+@container (min-width: 561px) { .tour-insights-figures { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Each group's period, said once at its head: all time, the last 90 days, this version. */
+.tour-insights-body p.tour-insights-scope, .tour-insights-version > p.tour-heat-scope { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.tour-insights-roomlist > p.tour-insights-dwell { font-size: 14px; color: var(--ink); }
+/* The all-time period heads the figure row inside its rule, not under the report buttons. */
+.tour-insights-body > p.tour-insights-scope { padding-top: 12px; border-top: 1px solid var(--line); }
+.tour-insights-body > p.tour-insights-scope + .tour-insights-figures { padding-top: 0; border-top: 0; }
 .tour-insights-body > p:not(.tour-insights-lead, .tour-actions-row),
 .tour-insights-roomlist > p,
 .tour-heat p:not(.tour-actions-row),
@@ -717,9 +723,12 @@
 .tour-heat p.tour-heat-problem,
 .tour-heat p.tour-heat-empty { max-width: 64ch; font-size: 14px; color: var(--ink); }
 .tour-insights-body > p.tour-insights-note { max-width: 64ch; font-size: 14px; }
-/* Time per room, where viewers stood, time per stop: three blocks, each under its own rule. */
-.tour-insights-roomlist, .tour-heat, .tour-heat-list { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; min-width: 0; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
-.tour-heat[hidden], .tour-heat-list[hidden] { display: none; }
+/* The last 90 days (time per room), then this version (where viewers stood, time per stop): each group under its own rule. */
+.tour-insights-roomlist, .tour-insights-version, .tour-heat, .tour-heat-list { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; min-width: 0; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.tour-insights-version { gap: 16px; }
+.tour-insights-version > :is(.tour-heat, .tour-heat-list) { margin-top: 0; padding-top: 0; border-top: 0; }
+.tour-heat[hidden], .tour-heat-list[hidden], .tour-heat-scope[hidden] { display: none; }
+.tour-insights-version:not(:has(> :not([hidden]))) { display: none; }
 .tour-insights-title, .tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
 /*
  * Both tables are grids of rows at every width: the name takes the room that is left, the
@@ -786,11 +795,13 @@
 p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.4; }
 @media (min-width: 720px) {
   @container (min-width: 600px) {
-    .tour-insights-body:has(> .tour-heat:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); grid-auto-flow: row dense; column-gap: 32px; }
-    .tour-insights-body:has(> .tour-heat:not([hidden])) > * { grid-column: 1 / -1; }
-    .tour-insights-body:has(> .tour-heat:not([hidden])) > :is(.tour-insights-roomlist, .tour-heat-list) { grid-column: 1; }
-    /* The plan keeps to the top of the screen while its long table is read. */
-    .tour-insights-body:has(> .tour-heat:not([hidden])) > .tour-heat { grid-column: 2; grid-row: span 2; position: sticky; top: 12px; align-self: start; }
+    /* Time per room keeps the width of the stop table under it. */
+    .tour-insights-body:has(> .tour-insights-version > .tour-heat:not([hidden])) > .tour-insights-roomlist { width: calc(58% - 32px); }
+    .tour-insights-version:has(> .tour-heat:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); column-gap: 32px; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])) > * { grid-column: 1 / -1; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])) > .tour-heat-list { grid-column: 1; grid-row: 2; }
+    /* The plan stands beside the stops it maps and keeps to the top of the screen while their long table is read. */
+    .tour-insights-version:has(> .tour-heat:not([hidden])) > .tour-heat { grid-column: 2; grid-row: 2; position: sticky; top: 12px; align-self: start; }
   }
 }
 .space-prep { margin: 12px 0 0; }
@@ -933,11 +944,12 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .deletion-which { color: var(--ink); font-weight: 500; }
 
 /* ---- Polish: say each thing once, and line things up ------------------------ */
-/* A card's own actions are outlines: the one filled button of the view is the first
-   Needs you row (or Add a space on an empty desk). Inside an opened panel or form the
-   submit keeps its fill. */
-#view-walkthroughs .dash-tour .tour-action-primary:not(.tour-panel *, form *) { background: transparent; color: var(--ink); border-color: var(--field-line); }
-#view-walkthroughs .dash-tour .tour-action-primary:not(.tour-panel *, form *):hover { border-color: var(--ink); }
+/* A card's own actions, and a space's render status above them, are outlines: the one
+   filled button of the view is the first Needs you row, or the next step when nothing
+   waits (Add a space on an empty desk). Inside an opened panel or form the submit keeps
+   its fill. */
+#view-walkthroughs :is(.dash-tour, .render-block) .tour-action-primary:not(.tour-panel *, form *) { background: transparent; color: var(--ink); border-color: var(--field-line); }
+#view-walkthroughs :is(.dash-tour, .render-block) .tour-action-primary:not(.tour-panel *, form *):hover { border-color: var(--ink); }
 /* Review this walkthrough: the same hairline disclosure as everything else, no box. */
 .desk-view .tour-review { margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
 .desk-view .tour-review[open] { padding-bottom: 16px; }

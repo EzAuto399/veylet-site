@@ -103,7 +103,7 @@ async function load(options = {}) {
   await settle();
   const h = {
     ids, calls, fetches, clicks,
-    // The block is a panel under the card's row, behind its quiet "Videos" disclosure (shown once the backend answers).
+    // The block is a panel under the card's row, behind its quiet "Videos and stills" disclosure (shown once the backend answers).
     block: (tourId = 't1') => ids['account-properties'].all().find(el => el.dataset?.tour === tourId)?.all().find(el => String(el.className).split(' ').includes('tour-exports')) || null,
     toggle: (tourId = 't1') => ids['account-properties'].all().find(el => el.dataset?.tour === tourId)?.all().find(el => el.dataset?.disclosure === 'exports') || null,
     offered: () => Boolean(h.toggle()) && !h.toggle().hidden,
@@ -118,7 +118,7 @@ async function load(options = {}) {
     status: () => ids['account-status'].textContent,
     requests: () => calls.filter(([name]) => name === 'request_listing_exports').map(([, args]) => args),
   };
-  // As a person would: open Videos once it is offered, so the block's words and buttons are on screen.
+  // As a person would: open Videos and stills once it is offered, so the block's words and buttons are on screen.
   await h.open();
   return h;
 }
@@ -230,7 +230,8 @@ test('listing exports: every state reads in the contract’s words, with only wh
   }
   // Ready is on the summary, so it reads without opening the block; only the listing video is filled.
   const ready = await load({ exports: row('ready') });
-  assert.equal(ready.toggle().children[0].textContent, 'Videos');
+  // The tab says both kinds of file it holds (it read "Videos" before, hiding the stills).
+  assert.equal(ready.toggle().children[0].textContent, 'Videos and stills');
   const chip = ready.toggle().children.find(el => /\btour-exports-chip\b/.test(el.className));
   assert.equal(chip.textContent, 'Ready to download');
   assert.deepEqual(ready.buttons().map(el => /\btour-action-primary\b/.test(el.className)), [true, false, false]);

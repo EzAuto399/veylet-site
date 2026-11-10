@@ -241,6 +241,8 @@
   // The contract's words after review, said once each.
   const LIVE_SAID = 'Live. Anyone with the link can open it.';
   const LIVE_LINE = 'Anyone with the link can open it.';
+  // Approved and never shared: what turning sharing on does, never said as if it were already on.
+  const UNSHARED_LINE = 'Turning sharing on makes a link, QR code and embed code that anyone can open.';
   const READY_TITLE = 'Ready for your review';
   const SHARE_UNCONFIRMED = 'Approved. Sharing didn’t turn on. Try again.';
   // Paused sharing keeps the link (pause_tour_share / resume_tour_share). The tours
@@ -972,7 +974,8 @@
   function tourPreview(tour, item, revision) {
     const preview = document.createElement('a'); preview.className = 'tour-action';
     preview.href = '/play/?id=' + encodeURIComponent(tour.id) + (revision ? '&review_revision=' + encodeURIComponent(revision) : '') + (APP_MODE ? '&from=app' : '');
-    preview.textContent = revision ? 'Open review preview' : 'Preview';
+    // One name for the private preview, whichever version it opens (it read "Open review preview" while in review).
+    preview.textContent = 'Preview';
     if (revision) { preview.target = '_blank'; preview.rel = 'noopener noreferrer'; }
     item.append(preview); return preview;
   }
@@ -1595,9 +1598,8 @@
         binned += amount;
       }
       cells.sort((a, b) => b.seconds - a.seconds || a.yaw - b.yaw || a.pitch - b.pitch);
-      const byPitch = [0, 1, 2].map(pitch => cells.filter(cell => cell.pitch === pitch).reduce((sum, cell) => sum + cell.seconds, 0));
       const room = typeof item.room === 'string' && item.room.trim() ? item.room.trim().slice(0, 60) : '';
-      stops.push({ stop: item.stop, room, visits, seconds, cells, binned, byPitch });
+      stops.push({ stop: item.stop, room, visits, seconds, cells, binned });
     }
     stops.sort((a, b) => b.seconds - a.seconds || a.stop - b.stop);
     return { stops, visits: viewCount(answer.visits), since: typeof answer.since === 'string' ? answer.since : '' };
@@ -1652,11 +1654,6 @@
       return { words: 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 90 };
     }
     return { words: 'Looked all around' };
-  }
-  // The share of the stop's time spent looking level, down and up (pitch bins 1, 0, 2); nothing under five visits.
-  function heatPitchWords(row) {
-    return row.binned > 0 && row.visits >= HEAT_MIN_VISITS
-      ? 'Level ' + heatShare(row.byPitch[1], row.binned) + '% · down ' + heatShare(row.byPitch[0], row.binned) + '% · up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
   }
   /*
    * The shade scale: three steps of one hue, light to dark, by the total time looked
@@ -1844,13 +1841,15 @@
     return list;
   }
   /*
-   * Every stop as a row: its number, name, visits and time, then how people looked
-   * around and level / down / up in words. It is the plan's other reading, so nothing
+   * Every stop as a row: its number, name, visits and total time, then how people
+   * looked around, in words. (A level / down / up split was dropped on 11 November:
+   * no decision an agent makes turns on it.) It is the plan's other reading, so nothing
    * is said by a mark alone. Rows are a grid at every width (the words run under the
    * name), so the roles a table loses to that are set by hand. Under five visits the
-   * two look columns are left out. It never scrolls sideways.
+   * look column is left out. It never scrolls sideways.
    */
-  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Time', 'How they looked around', 'Level / down / up'];
+  // "Total time": the stop's time over all its visits, where the room table gives the average per visit.
+  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Total time', 'How they looked around'];
   function gridTable(className, captionText, columns) {
     const table = document.createElement('table'); table.className = className; table.setAttribute('role', 'table');
     const caption = document.createElement('caption'); caption.textContent = captionText;
@@ -1875,11 +1874,11 @@
   }
   function heatTable(heat, names, sparse) {
     const columns = [[HEAT_COLUMNS[0], 'key'], [HEAT_COLUMNS[1], 'name'], [HEAT_COLUMNS[2], 'number'], [HEAT_COLUMNS[3], 'number']];
-    if (!sparse) columns.push([HEAT_COLUMNS[4], 'words'], [HEAT_COLUMNS[5], 'words']);
-    const made = gridTable('tour-heat-table', 'This version of the walkthrough, most time first.', columns);
+    if (!sparse) columns.push([HEAT_COLUMNS[4], 'words']);
+    const made = gridTable('tour-heat-table', 'Most time first.', columns);
     heat.stops.forEach((row, index) => {
       const cells = [[String(row.stop + 1), 'key'], [names.get(row), 'name', true], [String(row.visits), 'number'], [formatDurationSeconds(row.seconds) || 'Under 1s', 'number']];
-      if (!sparse) cells.push([heatLook(row).words, 'words'], [heatPitchWords(row), 'words']);
+      if (!sparse) cells.push([heatLook(row).words, 'words']);
       const line = made.row('tour-heat-row', cells);
       line.hidden = index >= HEAT_ROWS_SHOWN;
     });
@@ -1908,9 +1907,10 @@
     panel.removeAttribute('aria-busy'); panel.hidden = false;
     list.replaceChildren(); list.hidden = true;
   }
-  function renderHeat(panel, list, heat, floor) {
+  function renderHeat(panel, list, heat, floor, scope = null) {
     panel.removeAttribute('aria-busy');
     const title = heatTitle('Where viewers stood and looked');
+    if (scope) scope.hidden = true;
     if (!heat.stops.length) {
       const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
       empty.textContent = 'No visits yet. Time at each stop and where people look fills in as the link is walked through.';
@@ -1920,9 +1920,10 @@
     }
     const sparse = heat.visits !== null && heat.visits < HEAT_MIN_VISITS;
     const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
-    const lead = document.createElement('p'); lead.className = 'tour-heat-lead';
-    lead.textContent = (heat.visits !== null ? heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? 'Since ' + since : 'Visits so far') + '.';
-    const parts = [title, lead];
+    // The group's one period line: this version only, its visits, from its oldest one counted.
+    const said = PERIOD_VERSION + (heat.visits !== null ? ': ' + heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? ', since ' + since : '') + '.';
+    if (scope) { scope.textContent = said; scope.hidden = false; }
+    const parts = [title];
     if (sparse) {
       const few = document.createElement('p'); few.className = 'tour-heat-few';
       few.textContent = 'Fewer than ' + HEAT_MIN_VISITS + ' visits so far, so only counts are shown. Shades and look directions appear from ' + HEAT_MIN_VISITS + ' visits.';
@@ -1963,7 +1964,7 @@
     list.replaceChildren(...rows); list.hidden = false;
   }
   /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
-  function tourHeat(tour, panel, list, supabase, ticket) {
+  function tourHeat(tour, panel, list, supabase, ticket, scope = null) {
     // Asked once: opening the panel again leaves what it drew as it is.
     if (panel.dataset.asked === 'true') return;
     panel.className = 'tour-heat'; panel.hidden = true; list.hidden = true;
@@ -1978,12 +1979,12 @@
     void reads.then(([reply, floor]) => {
       answered = true;
       if (ticket !== deskVersion) return;
-      const clear = () => { panel.replaceChildren(); panel.removeAttribute('aria-busy'); panel.hidden = true; list.replaceChildren(); list.hidden = true; };
+      const clear = () => { panel.replaceChildren(); panel.removeAttribute('aria-busy'); panel.hidden = true; list.replaceChildren(); list.hidden = true; if (scope) scope.hidden = true; };
       if (missingFunction(reply)) { heatAvailable = false; clear(); return; }
       const heat = failed(reply) ? null : heatmapFrom(reply.value?.data);
       // A failed read or an answer that is not the contract's shape: said, with the one way on.
-      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket); }); return; }
-      renderHeat(panel, list, heat, floor);
+      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket, scope); }); return; }
+      renderHeat(panel, list, heat, floor, scope);
     });
   }
   /*
@@ -1991,7 +1992,7 @@
    * it covers. Opens, days and taps are counted over every stored record (the first
    * nine columns of get_tour_view_stats); the average comes from the last 90 days.
    */
-  const PERIOD_ALL = 'All time', PERIOD_RECENT = 'Last 90 days';
+  const PERIOD_ALL = 'All time, every version', PERIOD_RECENT = 'Last 90 days, every version', PERIOD_VERSION = 'This version of the walkthrough';
   // The card's own share button (Share, or Copy link where there is no share sheet), for the panel that sends people to it.
   const cardShare = new WeakMap();
   const STOPPED_WORDS = Object.freeze({
@@ -2041,8 +2042,9 @@
     const heat = document.createElement('section');
     heat.setAttribute('aria-label', 'Where viewers stood and looked');
     const stops = document.createElement('div'); stops.className = 'tour-heat-list'; stops.hidden = true;
+    const scope = insightsNote('tour-heat-scope', ''); scope.hidden = true;
     // Where viewers stood is asked for when the panel first opens, not before.
-    entry.opened = () => tourHeat(tour, heat, stops, supabase, ticket);
+    entry.opened = () => tourHeat(tour, heat, stops, supabase, ticket, scope);
     const days = viewCount(row?.days_with_opens);
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
@@ -2079,19 +2081,22 @@
     actions.className = 'tour-actions-row tour-insights-report';
     actions.append(copyBtn, downloadBtn);
     body.append(actions);
+    // The answers cover three periods (contract-gaps 4 and 6): opens, days and taps every
+    // stored record of every version; time and rooms the last 90 days of every version;
+    // where viewers stood this version only. Each group says its period once, first.
+    body.append(insightsNote('tour-insights-scope', PERIOD_ALL + (lastDate ? ' · last opened ' + lastDate : '')));
     const figures = document.createElement('dl'); figures.className = 'tour-insights-figures';
-    const figure = (term, value, period) => {
+    const figure = (term, value, detail = '') => {
       const group = document.createElement('div');
       const dt = document.createElement('dt'); dt.textContent = term;
       const dd = document.createElement('dd'); dd.textContent = value;
-      const note = document.createElement('dd'); note.className = 'tour-insights-period'; note.textContent = period;
-      group.append(dt, dd, note); figures.append(group);
+      group.append(dt, dd);
+      if (detail) { const more = document.createElement('dd'); more.className = 'tour-insights-detail'; more.textContent = detail; group.append(more); }
+      figures.append(group);
     };
-    figure('Opens', String(opens), PERIOD_ALL + (lastDate ? ' · last ' + lastDate : ''));
-    if (days !== null) figure('Days active', String(days), PERIOD_ALL);
-    if (dwell) figure('Average time', dwell, PERIOD_RECENT);
-    figure('Enquiries', String(calls + emails), calls + emails > 0
-      ? calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + ' · ' + PERIOD_ALL.toLowerCase() : PERIOD_ALL);
+    figure('Opens', String(opens));
+    if (days !== null) figure('Days active', String(days));
+    figure('Enquiries', String(calls + emails), calls + emails > 0 ? calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') : '');
     body.append(figures);
     const channels = channelWords(row);
     if (channels.length) body.append(insightsNote('tour-insights-channels', 'Opened from: ' + channels.join(' · ')));
@@ -2107,13 +2112,20 @@
     const sparse = insightsSparse(row);
     const rooms = sparse ? [] : roomTimes(row);
     const visited = rooms.length ? [] : positiveEntries(row?.by_room);
+    const recent = dwell || rooms.length || visited.length ? document.createElement('div') : null;
+    if (recent) {
+      recent.className = 'tour-insights-roomlist';
+      recent.append(insightsNote('tour-insights-scope', PERIOD_RECENT));
+      if (dwell) recent.append(insightsNote('tour-insights-dwell', 'Average time per visit: ' + dwell));
+      body.append(recent);
+    }
     if (rooms.length || visited.length) {
-      const block = document.createElement('div'); block.className = 'tour-insights-roomlist';
+      const block = recent;
       const heading = document.createElement('h4'); heading.className = 'tour-insights-title';
       heading.textContent = rooms.length ? 'Time per room' : 'Rooms by visits';
       const columns = [['Room', 'name'], ['Visits', 'number']];
       if (rooms.length) columns.push(['Avg per visit', 'number'], ['Share', 'number']);
-      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', PERIOD_RECENT + (rooms.length ? ', most time first.' : ', most visits first.'), columns);
+      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', rooms.length ? 'Most time first.' : 'Most visits first.', columns);
       const longest = rooms.length ? rooms[0].seconds : 0;
       for (const room of rooms) {
         const line = made.row('tour-insights-room', [[room.name, 'name', true], [room.visits !== null ? String(room.visits) : '–', 'number'],
@@ -2130,11 +2142,13 @@
         const visits = viewCount(row?.visits), short = visits !== null && visits < INSIGHTS_MIN_OPENS ? 'visits' : 'opens';
         block.append(insightsNote('tour-insights-few', 'Fewer than ' + INSIGHTS_MIN_OPENS + ' ' + short + ' so far, so only counts are shown. Time and shares appear from ' + INSIGHTS_MIN_OPENS + ' ' + short + '.'));
       }
-      body.append(block);
     }
     heat.className = 'tour-heat'; heat.hidden = true;
-    body.append(heat, stops);
-    if (entry.open) tourHeat(tour, heat, stops, supabase, ticket);
+    // This version's group: its period (said once the answer names it), the plan and the stops.
+    const version = document.createElement('div'); version.className = 'tour-insights-version';
+    version.append(scope, heat, stops);
+    body.append(version);
+    if (entry.open) tourHeat(tour, heat, stops, supabase, ticket, scope);
     box.replaceChildren(body);
     const sayInsights = rowSay(tour, box);
     entry.show(true);
@@ -2261,7 +2275,8 @@
   const EXPORT_FILES = Object.freeze({ video_16x9: 'Download listing video (16:9)', video_9x16: 'Download social video (9:16)', stills: 'Download stills (ZIP)' });
   const EXPORT_WORDS = Object.freeze({
     heading: 'Videos and stills for your listing',
-    short: 'Videos',
+    // The card's tab names both kinds of file it holds: the heading's own words, without "for your listing".
+    short: 'Videos and stills',
     what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room. Listing videos and stills are included in your plan.',
     // realestate.com.au's residential rules (launch plan §4): no web address, QR code
     // or call to action in the frame, and an AI or rendering disclosure. It shows the
@@ -2956,7 +2971,7 @@
         if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);
         else if (live) liveSharing(tour, item, title, deck);
         else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
-          withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
+          withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : UNSHARED_LINE,
           problem: pending ? pending.reason || 'unknown' : gate, deck });
       }
       // Videos and stills: an approved version, for whoever may share it (the request's roles).

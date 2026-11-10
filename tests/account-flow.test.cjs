@@ -187,7 +187,7 @@ test('capture handoff selects the exact authorized tour among multiple drafts wi
   assert.ok(selected?.wasFocused && selected.wasScrolled);
   assert.equal(selected.scrollOptions.block, 'start');
   assert.equal(selected.expandedAtScroll, true);
-  assert.equal(selected.all().find(el => el.textContent === 'Open review preview').href,
+  assert.equal(selected.all().find(el => el.textContent === 'Preview').href,
     '/play/?id=' + requestedID + '&review_revision=' + 'a'.repeat(64));
   assert.equal(selected.all().find(el => el.tagName === 'DETAILS').open, true);
   const details = h.all().filter(el => el.tagName === 'DETAILS' && el.className === 'tour-review');
@@ -399,7 +399,7 @@ test('review preview and checks wait for the original opaque target snapshot', a
   assert.equal(h.all().some(el => el.textContent === 'Approve and share'), false);
   finish({ data: [{ tour_id: tour.id, storage_path: tour.storage_path, package_revision: 'c'.repeat(64) }] });
   await new Promise(resolve => setImmediate(resolve));
-  const preview = h.all().find(el => el.textContent === 'Open review preview');
+  const preview = h.all().find(el => el.textContent === 'Preview');
   assert.equal(preview.href, '/play/?id=t1&review_revision=' + 'c'.repeat(64));
   assert.equal(preview.target, '_blank');
   assert.equal(preview.href.includes(tour.storage_path), false);
@@ -414,7 +414,7 @@ test('missing, malformed, stale-path and failed target snapshots cannot create a
   ]) {
     const h = await load({ tours: [tour], rpc: { get_tour_review_target: async () => reply } });
     assert.equal(h.all().some(el => el.textContent === 'Approve and share'), false);
-    assert.equal(h.all().some(el => el.textContent === 'Open review preview'), false);
+    assert.equal(h.all().some(el => el.textContent === 'Preview'), false);
     assert.match(h.text(), /package version could not be confirmed/);
   }
 });
@@ -442,7 +442,7 @@ test('same-path replacement cannot approve from stale answers or silently refres
   await new Promise(resolve => setImmediate(resolve));
   const fresh = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
   assert.ok(fresh.all().filter(el => el.type === 'checkbox').every(el => !el.checked));
-  assert.match(h.all().find(el => el.textContent === 'Open review preview').href, new RegExp(revision));
+  assert.match(h.all().find(el => el.textContent === 'Preview').href, new RegExp(revision));
   fresh.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
   await fresh.fire('submit');
   assert.equal(h.calls.filter(call => call[0] === 'review_tour_versioned')[1][1].p_expected_package_revision, revision);
@@ -1815,7 +1815,9 @@ test('an approved walkthrough that was never shared offers one primary action an
   const h = await withHosting([hostingFor({ share_token: null, sharing_on: false, released_at: null, guaranteed_until: null, hosted_until: null })], { tours: [tour] });
   assert.ok(byText(h, 'Turn sharing on'));
   assert.match(h.text(), /Approved\. Sharing isn’t on yet\./);
-  assert.match(h.text(), /Anyone with the link can open it\./);
+  // What turning sharing on does, never "Anyone with the link can open it." while there is no link to open.
+  assert.match(h.text(), /^Turning sharing on makes a link, QR code and embed code that anyone can open\.$/m);
+  assert.doesNotMatch(h.text(), /Anyone with the link can open it\./);
   assert.equal(hostingText(h), undefined);
   assert.doesNotMatch(h.text(), /Sharing is off|Hosting dates/);
   assert.equal(byText(h, 'Copy link'), undefined);
