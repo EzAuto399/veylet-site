@@ -385,7 +385,7 @@
 .v2-end-title { font-size: 14px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
 .v2[data-end="shown"] .v2-map,
 .v2[data-end="shown"] .v2-hint { display: none; }
-/* A second action beside the filled one: Share, Call, Email. */
+/* A quiet action: Look around again, Share, Call, Email on the end card; the bar keeps the filled one. */
 .v2-quiet {
   display: inline-flex;
   align-items: center;

@@ -1442,6 +1442,9 @@ test('the last stop is an end: Next reads Start again, and a short card offers S
   const labels = end.querySelectorAll('button, a').map(node => node.textContent);
   assert.deepEqual(labels, ['Look around again', 'Share', 'Call', 'Email'], 'only tel, mailto and https links are taken');
   const [stay, share, call, email] = end.querySelectorAll('button, a');
+  // One filled action in the player at the end: the bar's Start again. Look around again only puts the card away.
+  assert.deepEqual(end.querySelectorAll('button, a').map(node => node.className), ['v2-quiet', 'v2-quiet', 'v2-quiet', 'v2-quiet']);
+  assert.match(next.className, /\bv2-primary\b/);
   assert.equal(call.getAttribute('aria-label'), 'Call Alex Example');
   email.dispatch('click');
   assert.equal(email.getAttribute('href'), 'mailto:alex@example.invalid?body=stop', 'the address is read at the press');

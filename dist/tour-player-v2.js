@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=b3e2ecd4d34f975c';
+  const STYLE_URL = '/tour-player-v2.css?v=78523e0602ea8289';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1536,7 +1536,9 @@
     }
     function showEnd(announce = true) {
       if (!ready) return;
-      const stay = el('button', { type: 'button', class: 'v2-primary' }, 'Look around again');
+      // Only puts the card away: a quiet press. The bar's Restart is the player's one filled
+      // action here, and the page's own Call stays the filled way on.
+      const stay = el('button', { type: 'button', class: 'v2-quiet' }, 'Look around again');
       stay.addEventListener('click', () => { hideEnd(); ui.canvas.focus?.(); });
       const actions = el('div', { class: 'v2-actions' });
       actions.append(stay);
