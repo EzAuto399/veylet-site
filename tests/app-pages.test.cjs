@@ -93,7 +93,7 @@ test('/app/privacy is the public notice word for word; only its account link sta
   const app = mainOf(read('app/privacy/index.html'));
   // The public notice carries one paragraph marked DRAFT (shared walkthrough usage, 10 Nov 2026) that waits for
   // the owner's legal review; the app copy takes it once it is approved. It is the only difference allowed here.
-  const DRAFT = /\s*<!-- DRAFT 2026-11-10: owner legal review required before release -->\s*<p>[\s\S]*?<\/p>\s*<!-- \/DRAFT 2026-11-10 -->/g;
+  const DRAFT = /\s*<!-- DRAFT 2026-11-10: owner legal review required before release -->\s*<h2>[^<]*<\/h2>\s*<p>[\s\S]*?<\/p>\s*<!-- \/DRAFT 2026-11-10 -->/g;
   const marked = read('privacy/index.html').match(DRAFT) || [];
   assert.equal(marked.length, 1, 'exactly one marked draft paragraph');
   assert.equal((marked[0].match(/<p>/g) || []).length, 1, 'and it is one paragraph');
@@ -102,7 +102,13 @@ test('/app/privacy is the public notice word for word; only its account link sta
   const site = mainOf(read('privacy/index.html').replace(DRAFT, ''));
   assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
   assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
-  assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site.replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
+  // The public notice opens each section with a real heading (site audit 10 Nov 2026, finding 10); the app copy
+  // still runs the same words in as bold leads. Words, links, comments and order must match exactly; only that
+  // heading element and whitespace may differ.
+  const flat = html => html.replace(/\s+/g, ' ');
+  const asRunIn = html => flat(html).replace(/<h2>([^<]+)<\/h2> <p>/g, '<p> <strong>$1</strong>');
+  assert.equal((flat(site).match(/<h2>/g) || []).length, (flat(app).match(/<p> <strong>/g) || []).length, 'one heading per run-in lead');
+  assert.equal(flat(app).replace('<a href="/app/account">', '<a href="/account">'), asRunIn(site).replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
 });
 
 test('/app/terms is the public terms word for word, less the sentences that name an amount or a purchase the app does not sell', () => {

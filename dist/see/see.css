@@ -58,7 +58,6 @@ html {
 .see-hero h1 em {
   font-style: normal;
   color: var(--accent);
-  white-space: nowrap;
 }
 /* Where the hairline starts: just after "One capture." */
 .see-node {

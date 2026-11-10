@@ -308,7 +308,7 @@ test('attribution is the stored first touch, else this page\'s own link, else no
 test('both privacy notices say waitlist sign-ups and /request enquiries are stored with Supabase and Resend emails us a copy and you a confirmation; no FormSubmit', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
-    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
+    const enquiries = /(?:<strong>Enquiries\.<\/strong>|<h2>Enquiries\.<\/h2>\s*<p>)([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
     assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: enquiry storage and notification -->Walkthrough enquiries from /request are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend emails us a copy and emails you a confirmation. <!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
     assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
     assert.doesNotMatch(privacy, /formsubmit|yodalai/i, file);
@@ -366,7 +366,7 @@ test('sharing uses the share sheet, else copies the link, else shows it; a dismi
 test('both privacy notices say campaign labels, ad source and landing page travel with a sign-up, and click identifiers are not kept', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
-    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1];
+    const enquiries = /(?:<strong>Enquiries\.<\/strong>|<h2>Enquiries\.<\/h2>\s*<p>)([\s\S]*?)<\/p>/.exec(privacy)[1];
     assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-29: campaign labels on waitlist sign-ups -->When you arrive from a campaign link, this browser keeps that link’s campaign labels (such as utm_source=instagram), whether it came from a Meta or Google ad, and the Veylet page you arrived on, for the visit; a waitlist sign-up includes them so we know which link brought you. The click identifiers Meta and Google add to links are not kept.'), file);
   }
 });

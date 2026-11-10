@@ -22,4 +22,13 @@ body:has(.analytics-consent:not([hidden])) { padding-bottom: 300px !important; }
 @media (max-width: 600px) {
   .conversion-home .analytics-preferences, .see-page .analytics-preferences { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .analytics-consent { left: 0; right: 0; width: auto; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-inline: 0; border-radius: 0; }
+  /* A phone keeps the page's own action in view: one sentence with the notice link, then the three
+     choices on one 44px row. The title still names the region; the rest of the copy returns with Customize. */
+  .analytics-consent h2 { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .analytics-consent > p:not(.analytics-status) { display: inline; margin: 0; }
+  .analytics-consent > p a { display: inline; min-height: 0; min-width: 0; }
+  .analytics-consent:not(:has(.analytics-options:not([hidden]))) .analytics-more { display: none; }
+  .analytics-actions { flex-wrap: nowrap; margin-top: 8px; }
+  .analytics-actions button { flex: 1 1 0; padding-inline: 4px; }
+  body:has(.analytics-consent:not([hidden])) { padding-bottom: 160px !important; }
 }

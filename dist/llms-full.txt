@@ -1351,7 +1351,7 @@ A live walkthrough has one link and four ways to hand it out. Use the one that s
 Share or Copy link
 - Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.
 QR code
-- Show QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
+- Open QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
 Embed code
 - Copy embed code and paste it into your website’s custom HTML block. See put it on your website.
 Listing URL (portals, CRM)
@@ -1377,7 +1377,7 @@ All help topics
 ## Pause or turn off sharing — Veylet help
 Source: https://veylet.com/help/pause-or-turn-off
 
-Pause keeps the same link for later. Turn off ends the link for good. Both are under Manage sharing on the walkthrough’s card in your account.
+Pause keeps the same link for later. Turn off ends the link for good. Both are under Manage on the walkthrough’s card in your account.
 Pause sharing
 - Within a minute, the link, embed and QR code show "not available". The link stays the same, so printed QR codes work again when you resume.
 Resume sharing
@@ -1385,7 +1385,7 @@ Resume sharing
 Turn off sharing
 - Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.
 - Open your Veylet account and find the walkthrough’s card.
-- Open Manage sharing.
+- Open Manage.
 - Choose Pause sharing for a break, or Turn off sharing to end the link.
 
 ### If it doesn’t work
@@ -1418,7 +1418,7 @@ Your client opens a page with the listing’s name, the walkthrough and your con
 In your Veylet account, under What your clients see, enter your name, agency, phone and email, and turn on Show on shared walkthroughs. Only what you enter is shown.
 
 ### Views and taps
-Each live walkthrough’s card in your account shows how often it was opened, for example "Opened 3 times", when it was last opened, and how many times people tapped Call and Email. "Not opened yet." means no one has opened it.
+Each live walkthrough’s card in your account shows how often it was opened, how many times people tapped Call and Email, and when it was last opened, on one line: for example "14 opens · 3 calls · 1 email · last 9 Nov 2026". "Not opened yet." means no one has opened it.
 
 ### If it doesn’t work
 If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See pause or turn off sharing.

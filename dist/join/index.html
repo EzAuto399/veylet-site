@@ -9,7 +9,7 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/studio-avatar.png" />
-    <link rel="stylesheet" href="/style.css?v=0f8ce30ac915c26f" />
+    <link rel="stylesheet" href="/style.css?v=0ce5f36ceb45a282" />
     <style>
       .join-page h1:focus { outline: none; }
       .join-page .intro { max-width: 58ch; }
@@ -26,6 +26,9 @@
       .join-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
       .join-actions .button[disabled] { opacity: 0.5; cursor: not-allowed; }
       .join-actions [hidden] { display: none; }
+      /* An invite that cannot be used still leaves somewhere to go. */
+      .join-next { display: flex; flex-wrap: wrap; gap: 0 28px; margin: 0; }
+      .join-page:not([data-state="invalid"], [data-state="expired"]) .join-next { display: none; }
     </style>
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
@@ -50,6 +53,7 @@
         <a class="button" id="join-primary" href="/account" hidden>Open your account</a>
         <button type="button" class="button" id="join-retry" hidden>Try again</button>
       </div>
+      <p class="join-next"><a class="text-link" href="/account">Sign in</a><a class="text-link" href="/waitlist">Join the waitlist</a></p>
     </main>
     <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <script defer src="/join/join.js?v=d681fcefdd148523"></script>

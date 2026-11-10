@@ -384,7 +384,7 @@ const ARTICLES = [
     lead: 'A live walkthrough has one link and four ways to hand it out. Use the one that suits where your client will see it.',
     body: [{ terms: [
       ['Share or Copy link', 'Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.'],
-      ['QR code', '**Show QR code** for someone beside you to scan. In your account, **Download QR code (PNG)** for a window card or brochure.'],
+      ['QR code', 'Open **QR code** for someone beside you to scan. In your account, **Download QR code (PNG)** for a window card or brochure.'],
       ['Embed code', '**Copy embed code** and paste it into your website’s custom HTML block. See [put it on your website](help:website).'],
       ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
@@ -399,14 +399,14 @@ const ARTICLES = [
   {
     slug: 'pause-or-turn-off', group: 'sharing', title: 'Pause or turn off sharing', short: 'Pause or turn off',
     description: 'The difference between pausing sharing, which keeps the same link, and turning it off, which ends the link for good.',
-    lead: 'Pause keeps the same link for later. Turn off ends the link for good. Both are under **Manage sharing** on the walkthrough’s card in your account.',
+    lead: 'Pause keeps the same link for later. Turn off ends the link for good. Both are under **Manage** on the walkthrough’s card in your account.',
     body: [{ terms: [
       ['Pause sharing', 'Within a minute, the link, embed and QR code show "not available". The link stays the same, so printed QR codes work again when you resume.'],
       ['Resume sharing', 'Within a minute, the same link, embed and QR code open the walkthrough again.'],
       ['Turn off sharing', 'Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.'],
     ] }, { steps: [
       'Open [your Veylet account](account) and find the walkthrough’s card.',
-      'Open **Manage sharing**.',
+      'Open **Manage**.',
       'Choose **Pause sharing** for a break, or **Turn off sharing** to end the link.',
     ] }],
     notWorking: [
@@ -426,7 +426,7 @@ const ARTICLES = [
     ] }, { title: 'Your contact card', paras: [
       'In [your Veylet account](account), under **What your clients see**, enter your name, agency, phone and email, and turn on **Show on shared walkthroughs**. Only what you enter is shown.',
     ] }, { title: 'Views and taps', paras: [
-      'Each live walkthrough’s card in your account shows how often it was opened, for example "Opened 3 times", when it was last opened, and how many times people tapped Call and Email. "Not opened yet." means no one has opened it.',
+      'Each live walkthrough’s card in your account shows how often it was opened, how many times people tapped Call and Email, and when it was last opened, on one line: for example "14 opens · 3 calls · 1 email · last 9 Nov 2026". "Not opened yet." means no one has opened it.',
     ] }],
     notWorking: [
       'If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See [pause or turn off sharing](help:pause-or-turn-off).',

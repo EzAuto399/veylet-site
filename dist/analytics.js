@@ -330,7 +330,7 @@
     panel.innerHTML = '<h2 id="analytics-consent-title" tabindex="-1">Your privacy choices</h2>' +
       '<p>' + (analyticsEnabled ? 'Optional analytics helps us understand public website visits. ' : '') +
       (adsEnabled ? 'Optional advertising cookies help us measure ads. ' : '') +
-      'Optional measurement stays off until you choose. These choices are separate from email tips and offers.</p>' +
+      '<span class="analytics-more">Optional measurement stays off until you choose. These choices are separate from email tips and offers.</span></p>' +
       '<p><a href="/privacy">Read our privacy notice</a></p>' +
       '<div class="analytics-options" hidden>' +
       (analyticsEnabled ? '<label><input type="checkbox" name="analytics"> Website analytics (Google Analytics)</label>' : '') +

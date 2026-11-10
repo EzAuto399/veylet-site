@@ -158,3 +158,9 @@ test('a missing, malformed or day-old invite reads as one that can’t be used, 
   assert.equal(p.view().state, 'invalid');
   assert.equal(p.calls.length, 0);
 });
+
+test('an invite that can’t be used or has expired still offers Sign in and the waitlist; other states do not', () => {
+  // Site audit 10 Nov 2026, finding 24: the invalid state was a dead end. The links are static and shown by state.
+  assert.match(markup, /<p class="join-next"><a class="text-link" href="\/account">Sign in<\/a><a class="text-link" href="\/waitlist">Join the waitlist<\/a><\/p>/);
+  assert.match(markup, /\.join-page:not\(\[data-state="invalid"\], \[data-state="expired"\]\) \.join-next \{ display: none; \}/);
+});
