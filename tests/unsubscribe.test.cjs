@@ -157,7 +157,9 @@ test('the page matches the site shell: noindex, no referrer, versioned assets, l
   assert.match(markup, /id="unsubscribe-message" role="status" aria-live="polite"/);
   assert.match(markup, /<button type="button" class="button" id="unsubscribe-retry" hidden>Try again<\/button>/);
   assert.match(markup, /<a class="button button-ghost" href="\/account">Sign in to change email preferences<\/a>/);
-  assert.match(markup, /min-height: 44px/);
+  // The 44px target comes from the site's one button box (style.css), not a rule on this page.
+  assert.match(markup, /<body class="site">/);
+  assert.ok(Number(fs.readFileSync(path.join(dist, 'style.css'), 'utf8').match(/\.site \.button \{\s*min-height: (\d+)px;/)[1]) >= 44);
   const hash = file => createHash('sha256').update(fs.readFileSync(path.join(dist, file))).digest('hex').slice(0, 16);
   for (const file of ['style.css', 'brand-host.js', 'supabase-public.js', 'unsubscribe.js']) {
     assert.ok(markup.includes(`/${file}?v=${hash(file)}`), `${file} is versioned by its bytes`);

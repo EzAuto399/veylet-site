@@ -2,7 +2,7 @@
 .conversion-home .hero-note { max-width: 48ch; }
 .conversion-home .hero-note a { display: block; margin-top: 8px; }
 .conversion-summary { padding-block: 44px 56px; border-top: 1px solid var(--line); }
-.conversion-heading h2 { font-size: clamp(28px, 4vw, 46px); line-height: 1.12; margin-top: 14px; }
+.conversion-heading h2 { line-height: 1.12; margin-top: 14px; }
 /* The heading and pilot status sit left; the three commitments stack right.
    One asymmetric spread instead of three equal columns. */
 .conversion-summary { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(36px, 7vw, 112px); align-items: start; }
@@ -21,13 +21,10 @@
 .form-summary { padding: 16px 0; margin: -16px 0 26px; border-block: 1px solid var(--line); font-size: 14px; line-height: 1.6; }
 .form-page { padding-top: 44px; }
 .veylet-form small { color: var(--muted); font-size: 13px; line-height: 1.5; }
-.veylet-form input:focus-visible, .veylet-form textarea:focus-visible, .veylet-form select:focus-visible,
-.optional-brief summary:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
 .optional-brief { border-block: 1px solid var(--line); }
-.optional-brief summary { cursor: pointer; min-height: 48px; padding: 16px 0; font-size: 15px; line-height: 1.5; }
 .optional-fields { display: grid; gap: 18px; padding: 4px 0 24px; }
 .reply-preview { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 28px; }
-.reply-preview h2 { font-size: 26px; line-height: 1.2; margin: 14px 0; }
+.reply-preview h2 { line-height: 1.2; margin: 14px 0; }
 .reply-preview p:not(.eyebrow) { margin: 14px 0; color: var(--muted); line-height: 1.65; }
 .reply-preview > a { display: inline-block; padding-block: 8px; }
 .journey-note { margin-top: 22px; padding: 18px 20px; border: 1px solid var(--line); background: #eaece3; font-size: 15px; line-height: 1.6; }
@@ -76,7 +73,6 @@
 }
 
 /* ---- Offer page: a statement, not a pricing grid ---- */
-.offer-page .guide-page { padding-top: 40px; }
 .offer-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr); gap: 40px clamp(36px, 6vw, 96px); align-items: start; }
 .offer-intro { margin-bottom: 0; min-width: 0; overflow-wrap: anywhere; }
 .offer-intro h1 em { font-family: Outfit, Arial, sans-serif; font-style: normal; font-weight: 400; color: var(--accent); }
@@ -89,14 +85,12 @@
 .statement h2 { font-size: clamp(22px, 2.4vw, 27px); margin: 0 0 18px; letter-spacing: -0.02em; }
 .statement-date { display: grid; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
 .statement-date label { font-size: 14px; }
-.statement-date input { font: inherit; font-size: 16px; color: var(--ink); background: transparent; border: 1px solid var(--field-line); padding: 10px 12px; min-height: 44px; max-width: 220px; border-radius: 0; }
+.statement-date input { font: inherit; font-size: 16px; max-width: 220px; }
 .statement-date input:hover { border-color: var(--ink); }
-.statement-date input:focus-within { outline: 3px solid #897033; outline-offset: 3px; }
 .offer-contents { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 26px 0 0; padding: 0; list-style: none; font-size: 14px; }
 .offer-contents a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; color: var(--muted); }
 .offer-contents a:hover { color: var(--ink); }
 .statement-date input::-webkit-calendar-picker-indicator { width: 18px; height: 18px; margin-left: 8px; cursor: pointer; background: currentColor; -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5'><rect x='2.75' y='4.75' width='14.5' height='12.5'/><path d='M2.75 8.75h14.5M6.5 2.75v3.5M13.5 2.75v3.5'/></svg>") center / contain no-repeat; mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5'><rect x='2.75' y='4.75' width='14.5' height='12.5'/><path d='M2.75 8.75h14.5M6.5 2.75v3.5M13.5 2.75v3.5'/></svg>") center / contain no-repeat; opacity: 1; }
-.statement-date input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
 .statement-hint { font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0; }
 .statement-lines { margin: 0; display: grid; min-width: 0; }
 .statement-lines > div { display: grid; grid-template-columns: minmax(6.5rem, 1fr) fit-content(45%); gap: 4px 20px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid var(--line); min-width: 0; }
@@ -209,11 +203,6 @@
 /* An amount inside an answer is set like every other amount on the page. */
 .offer-page .guide-section details [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 /* Disclosures on this page use the site's drawn plus that settles to a minus. */
-.offer-page .guide-section summary { list-style: none; position: relative; padding-right: 40px; }
-.offer-page .guide-section summary::-webkit-details-marker { display: none; }
-.offer-page .guide-section summary::after { content: ""; position: absolute; right: 6px; top: 50%; width: 13px; height: 13px; transform: translateY(-50%); background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat, linear-gradient(currentColor, currentColor) center / 1px 13px no-repeat; transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.offer-page .guide-section details[open] > summary::after { background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat; transform: translateY(-50%) rotate(180deg); }
-@media (prefers-reduced-motion: reduce) { .offer-page .guide-section summary::after { transition: none; } }
 /* The close: the incumbent deep-green surface */
 .offer-close { margin-top: 56px; background: var(--ink); color: var(--paper); padding: 64px 56px; }
 .offer-close-inner { max-width: 62ch; }
@@ -230,7 +219,6 @@
   .offer-terms-free > div:first-child { border-top: 0; }
 }
 @media (max-width: 800px) {
-  .offer-page .guide-page { padding-top: 28px; }
   .offer-list > div { grid-template-columns: 1fr; grid-template-areas: "name" "price" "scope"; }
   .offer-list dd:first-of-type { justify-items: start; text-align: left; }
   .amount { font-size: 26px; }
@@ -242,8 +230,7 @@
 }
 
 /* The cost illustration uses native controls and the established ledger. */
-.statement-date select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line); min-height: 44px; padding: 10px 12px; width: 100%; border-radius: 0; }
-.statement-date select:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.statement-date select { font: inherit; width: 100%; }
 
 @media (max-width: 400px) { .statement-lines > .line-total { grid-template-columns: minmax(0, 1fr); } .statement-lines > .line-total dd { padding-top: 4px; } }
 

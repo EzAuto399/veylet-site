@@ -53,9 +53,6 @@ html {
   position: relative;
   z-index: 1;
   margin: 0;
-  font-size: clamp(40px, 3.8vw, 56px);
-  line-height: 1.06;
-  letter-spacing: -0.04em;
   text-wrap: initial;
 }
 .see-hero h1 em {
@@ -187,7 +184,7 @@ html {
   width: 20px;
   height: 20px;
 }
-.refined-marketing .see-player-start .button:focus-visible {
+.site .see-player-start .button:focus-visible {
   outline-color: var(--paper);
   outline-offset: 3px;
 }
@@ -426,8 +423,6 @@ html {
   }
   .see-hero h1 {
     margin-bottom: 18px;
-    font-size: clamp(26px, 8.2vw, 56px);
-    line-height: 1.08;
   }
   .see-intro {
     font-size: 16px;
@@ -440,8 +435,6 @@ html {
   }
   .see-actions .button {
     width: 100%;
-    min-height: 54px;
-    font-size: 15px;
   }
   .see-actions-more {
     display: none;

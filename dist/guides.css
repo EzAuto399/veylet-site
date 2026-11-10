@@ -3,9 +3,11 @@
    operated: the answer comes first, the measure stays near 68ch, and structure
    is headings, hairlines and one tinted note — never cards. */
 
-.article-page { padding-top: 40px; padding-bottom: 88px; }
+.article-page { padding-bottom: 88px; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin: 0 0 20px; font-size: 13px; color: var(--muted); }
-.crumbs a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.crumbs a { display: inline-flex; align-items: center; justify-content: flex-start; min-width: 0; min-height: 44px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+/* The first crumb hangs on the h1's left edge; its 44px hit area extends over the separator instead. */
+.crumbs a:first-child { padding-right: 18px; margin-right: -18px; }
 /* The site's nav underlines its last link as a rule; a breadcrumb is not that nav. */
 .crumbs a:last-child { border-bottom: 0; padding-bottom: 0; }
 .crumbs a:hover { text-decoration-thickness: 2px; }
@@ -13,15 +15,15 @@
 
 /* The head: the question, then its answer in two or three sentences. The
    site's <header> rule lays out the brand bar; an article head is a block. */
-.article-head { display: block; max-width: 820px; padding: 0; }
-.article-head h1 { margin: 0 0 24px; font-size: clamp(38px, 5.2vw, 64px); line-height: 1.06; letter-spacing: -0.04em; }
+.article-head { display: block; padding: 0; }
+.article-head h1 { margin: 0 0 24px; font-size: var(--display-1); line-height: 1.07; letter-spacing: -0.03em; }
 .article-answer { max-width: 60ch; margin: 0; font-size: 19px; line-height: 1.6; color: var(--ink); }
 .article-meta { margin: 18px 0 0; font-size: 13px; color: var(--muted); }
 
 /* The body: one reading column, sections ruled off by a hairline. */
-.article-body { max-width: 720px; margin-top: 56px; }
+.article-body { margin-top: 56px; }
 .article-body > section + section { margin-top: 52px; padding-top: 36px; border-top: 1px solid var(--line); }
-.article-body h2 { margin: 0 0 18px; font-size: clamp(26px, 3vw, 34px); line-height: 1.15; letter-spacing: -0.03em; }
+.article-body h2 { margin: 0 0 18px; font-size: var(--h2); line-height: 1.15; letter-spacing: -0.03em; }
 .article-body h3 { margin: 28px 0 10px; font-size: 19px; font-weight: 500; line-height: 1.35; letter-spacing: -0.01em; }
 .article-body p,
 .article-body li { font-size: 17px; line-height: 1.7; }
@@ -51,24 +53,23 @@
 .article-note p { font-size: 15px; }
 
 /* Questions, as the site's other FAQs: hairline rows, answers in muted body. */
-.article-faq { max-width: 720px; margin-top: 56px; }
-.article-faq details p { font-size: 16px; line-height: 1.65; }
+.article-faq { margin-top: 56px; }
 
 /* Sources are part of the answer: listed, dated, quiet. */
-.article-sources { max-width: 720px; margin-top: 48px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.article-sources { margin-top: 48px; font-size: 13px; line-height: 1.55; color: var(--muted); }
 .article-sources h2 { margin: 0 0 12px; font-size: 17px; font-weight: 500; letter-spacing: -0.01em; color: var(--ink); }
 .article-sources ol { margin: 0; padding-left: 1.2rem; }
 .article-sources li { margin: 6px 0; overflow-wrap: anywhere; }
 .article-sources a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 
 /* The next step closes the page on a 2px ink rule, like a statement's total. */
-.article-next { max-width: 720px; margin-top: 56px; padding-top: 28px; border-top: 2px solid var(--ink); }
-.article-next h2 { margin: 0; font-size: clamp(26px, 3vw, 34px); line-height: 1.15; letter-spacing: -0.03em; }
+.article-next { margin-top: 56px; padding-top: 28px; border-top: 2px solid var(--ink); }
+.article-next h2 { margin: 0; font-size: var(--h2); line-height: 1.15; letter-spacing: -0.03em; }
 .article-next > p { max-width: 56ch; margin: 12px 0 0; font-size: 17px; line-height: 1.6; color: var(--muted); }
 .article-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; margin: 24px 0 0; }
 
 /* Related guides and the guides index share one hairline list. */
-.article-related { max-width: 720px; margin-top: 48px; }
+.article-related { margin-top: 48px; }
 .article-related h2 { margin: 0 0 8px; font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
 .guide-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .guide-list li { border-bottom: 1px solid var(--line); }
@@ -78,10 +79,9 @@ main .guide-list li > a:not(.button):not(.text-link):not(.tour-action) { text-de
 .guide-list a:hover .guide-list-title { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
 .guide-list-title { font-size: 19px; font-weight: 500; line-height: 1.35; letter-spacing: -0.01em; color: var(--ink); }
 .guide-list-summary { max-width: 68ch; font-size: 15px; line-height: 1.6; color: var(--muted); }
-.guides-index .guide-list { max-width: 820px; margin-top: 48px; }
+.guides-index .guide-list { margin-top: 48px; }
 
 @media (max-width: 640px) {
-  .article-page { padding-top: 24px; }
   .article-answer { font-size: 17px; }
   .article-body { margin-top: 40px; }
   .article-body p,
@@ -90,7 +90,7 @@ main .guide-list li > a:not(.button):not(.text-link):not(.tour-action) { text-de
 }
 
 /* Guide illustrations: one figure under the answer, and a thumbnail per guide in the hub. */
-.article-figure { max-width: 820px; margin: 40px 0 0; }
+.article-figure { margin: 40px 0 0; }
 .article-figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #d9d6cb; }
 .article-figure figcaption { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
 .guide-list a { grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 28px; align-items: start; }

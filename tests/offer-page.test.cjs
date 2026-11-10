@@ -255,11 +255,14 @@ test('the calculator reads every amount and count from the record, with a native
   const order = ['billing-cadence', 'billing-channel', 'billing-pack', 'accepted-on'].map((id) => form.indexOf(`for="${id}"`));
   assert.ok(order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), `control order ${order}`);
   assert.doesNotMatch(form, /<option[^>]*>[^<]*A\$/, 'no amount inside an option');
-  // Native controls, set at the 44px target by the shared statement rule.
+  // Native controls, set above the 44px target and given the gold focus ring by the site's one field rule (style.css).
   const css = read('conversion.css');
-  const selectRule = css.slice(css.indexOf('.statement-date select {'), css.indexOf('}', css.indexOf('.statement-date select {')));
-  assert.match(selectRule, /min-height: 44px/);
-  assert.match(css, /\.statement-date select:focus-visible \{ outline: 3px solid/);
+  const shared = read('style.css');
+  assert.match(body, /<body class="site offer-page">|<body class="site[^"]*">/, 'the page opts in to the shared field');
+  const fieldRule = shared.match(/\.site main :is\(input:not\(\[type="checkbox"\], \[type="radio"\], \[type="hidden"\]\), select, textarea\) \{[^}]*\}/);
+  assert.ok(fieldRule && Number(fieldRule[0].match(/min-height: (\d+)px/)[1]) >= 44, 'selects keep at least a 44px target');
+  assert.match(shared, /\.site :is\(a, button, summary, video, input, select, textarea, \[role="region"\]\):focus-visible \{\s*outline: 3px solid var\(--focus\);/);
+  assert.doesNotMatch(css, /\.statement-date (?:select|input)[^{]*\{[^}]*(?:min-height|outline)/, 'the statement does not restate the field box or the ring');
 });
 
 test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and the first twelve months', () => {

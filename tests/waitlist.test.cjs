@@ -328,7 +328,7 @@ test('the success state lists what happens next, offers /see and sharing, and na
   assert.match(done, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
   assert.doesNotMatch(done, /See a result/);
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
-  assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
+  assert.ok(/<body class="site">/.test(markup) && Number(fs.readFileSync(path.join(dist, 'style.css'), 'utf8').match(/\.site \.button \{\s*min-height: (\d+)px;/)[1]) >= 44, 'the share button keeps a 44px target, from the shared button box');
   assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);
   assert.match(markup, /id="waitlist-done-device" hidden>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Any phone can view a walkthrough\.</);
   const api = load();

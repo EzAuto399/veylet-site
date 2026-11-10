@@ -14,7 +14,7 @@
   --ink: #10231d;
   --paper: #f4f1e9;
   --sage: #c6dcc9;
-  --muted: #627166;
+  --muted: #536557;
   --line: #ccd2c5;
   font-family: Outfit, Arial, sans-serif;
   color: var(--ink);
@@ -1021,9 +1021,6 @@ dialog::backdrop {
   }
 }
 
-:root {
-  --muted: #536557;
-}
 /* [hidden] must win over component display rules, or signed-in and signed-out
    states stack on top of each other. */
 [hidden] {
@@ -2344,6 +2341,189 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
    The account desk and the app pages do not carry .site and keep the rules above.
    ========================================================================== */
 
+/* Tokens. Type: two display sizes, one h2, one h3, lead / body / small / label.
+   Space: 4 8 12 16 20 24 32 40 56 72 104. Columns: wide and reading, both centred. */
+:root {
+  --focus: #897033;
+  --display-1: clamp(38px, 5.3vw, 68px);
+  --display-2: clamp(32px, 4.4vw, 48px);
+  --h2: clamp(27px, 3vw, 36px);
+  --h3: 21px;
+  --lead: 17px;
+  --body: 16px;
+  --small: 13px;
+  --label: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+  --space-10: 72px;
+  --space-11: 104px;
+  --col-wide: 1160px;
+  --col-reading: 720px;
+  --gutter: 20px;
+}
+@media (min-width: 820px) {
+  :root {
+    --gutter: 36px;
+  }
+}
+@media (min-width: 1100px) {
+  :root {
+    --gutter: 56px;
+  }
+}
+
+/* Columns: one gutter rule; a page is full width, wide or reading. */
+.site .wrap {
+  padding-inline: var(--gutter);
+}
+.site .guide-page {
+  max-width: var(--col-wide);
+}
+.site .form-page,
+.site .article-page {
+  max-width: var(--col-reading);
+}
+.site :is(.form-page, .guide-page, .article-page) {
+  padding-top: var(--space-8);
+}
+@media (max-width: 640px) {
+  .site :is(.form-page, .guide-page, .article-page) {
+    padding-top: var(--space-6);
+  }
+}
+
+/* Type. Templates choose display-1 or display-2 for the h1; nothing else sets a size. */
+.site h1 {
+  font-size: var(--display-2);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+.site :is(.hero, .guide-intro) h1 {
+  font-size: var(--display-1);
+  line-height: 1.07;
+}
+.site h2 {
+  font-size: var(--h2);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+.site h3 {
+  font-size: var(--h3);
+  line-height: 1.25;
+}
+.site strong,
+.site b {
+  font-weight: 500;
+}
+.site .contact-note,
+.site .fine {
+  max-width: 68ch;
+}
+
+/* Focus: the gold ring, on everything. Fields and rows sit closer to their edge. */
+.site :is(a, button, summary, video, input, select, textarea, [role="region"]):focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 6px;
+}
+.site :is(summary, input, select, textarea):focus-visible {
+  outline-offset: 3px;
+}
+
+/* Button: one box. Ghost and paper change colour only; compact is the 44px chip. */
+.site .button {
+  min-height: 52px;
+  padding: 8px 24px;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.site .button-compact {
+  min-height: 44px;
+  padding: 6px 18px;
+}
+
+/* Field: one control height for inputs and selects, radius 2, white fill. */
+.site main :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), select, textarea) {
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid var(--field-line);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--ink);
+}
+.site main textarea {
+  min-height: 96px;
+}
+.site main :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.site .field-problem {
+  padding-left: 0;
+  border-left: 0;
+  color: var(--danger);
+}
+
+/* Accordion: hairline rows, the drawn plus that settles to a minus, never the native triangle. */
+.site main details {
+  padding: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+}
+.site main details:last-of-type {
+  border-bottom: 1px solid var(--line);
+}
+.site main summary {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-height: 56px;
+  padding: 18px 40px 18px 0;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.3;
+  list-style: none;
+  cursor: pointer;
+}
+.site main summary::-webkit-details-marker {
+  display: none;
+}
+.site main summary::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  margin-top: -6.5px;
+  transform: none;
+  background:
+    linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat,
+    linear-gradient(currentColor, currentColor) center / 1px 13px no-repeat;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.site main details[open] > summary::after {
+  background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat;
+  transform: rotate(180deg);
+}
+.site main details > p {
+  max-width: 68ch;
+  padding: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site main summary::after {
+    transition: none;
+  }
+}
+
 /* Header: brand left, the same five links right; one row whenever it fits. */
 .site > header {
   min-height: 0;
@@ -2392,12 +2572,13 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 
 /* Footer: brand and line, one nav in one order, copyright last. */
 .site > footer {
-  padding-block: 36px;
+  padding-block: 28px;
   gap: 8px 40px;
   font-size: 13px;
 }
 .site > footer nav {
-  width: 100%;
+  order: 1;
+  flex: 1 1 60%;
   margin: 0;
   gap: 0 20px;
   font-size: 13px;
@@ -2412,5 +2593,5 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
   color: var(--muted);
 }
 .site > footer > span {
-  width: 100%;
+  order: 2;
 }
