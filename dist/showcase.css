@@ -1045,11 +1045,3 @@
     order: -1;
   }
 }
-/* Five header links wrap at 320-380 px; keep the second row short and left-aligned. */
-@media (max-width: 380px) {
-  .refined-marketing > header nav {
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 0 16px;
-  }
-}

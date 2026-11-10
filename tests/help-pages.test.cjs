@@ -234,11 +234,12 @@ test('the index lists every article once, in at most seven groups, and each brea
   }
 });
 
-test('only the public index links to /offer, and only from its footer', () => {
+test('public help pages link to /offer only from the shared header and footer; app pages never do', () => {
   for (const page of pages) {
     const offers = hrefs(page.html).filter(link => /\/offer\b/.test(link));
-    if (page.edition === 'public' && page.kind === 'index') {
-      assert.deepEqual(offers, ['/offer'], page.file);
+    if (page.edition === 'public' && page.kind !== 'redirect' && /<footer\b/.test(page.html)) {
+      assert.deepEqual(offers, ['/offer', '/offer'], page.file);
+      assert.ok(/<header class="wrap">[\s\S]*?href="\/offer"[\s\S]*?<\/header>/.test(page.html), page.file);
       assert.ok(/<footer\b[\s\S]*href="\/offer"[\s\S]*<\/footer>/.test(page.html) && !main(page.html).includes('/offer'), page.file);
     } else {
       assert.deepEqual(offers, [], page.file);

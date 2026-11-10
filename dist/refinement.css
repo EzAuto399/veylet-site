@@ -7,15 +7,6 @@
   max-width: 1456px;
   padding-inline: var(--page-gutter);
 }
-.refined-marketing > header {
-  min-height: 104px;
-  padding-top: 24px;
-  padding-bottom: 24px;
-}
-.refined-marketing > header nav {
-  gap: clamp(18px, 2.3vw, 34px);
-  font-size: 14px;
-}
 .refined-marketing .button {
   min-height: 52px;
   padding: 15px 22px;
@@ -373,20 +364,6 @@
   background: var(--sage);
   border-color: var(--sage);
 }
-.refined-marketing > footer {
-  gap: 24px 40px;
-  padding-top: 36px;
-  padding-bottom: 36px;
-  flex-wrap: wrap;
-}
-.refined-marketing > footer nav {
-  margin-left: auto;
-  font-size: 13px;
-}
-.refined-marketing > footer > span {
-  width: 100%;
-  color: var(--muted);
-}
 .intake-page {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -489,22 +466,6 @@
   }
 }
 @media (max-width: 800px) {
-  .refined-marketing > header {
-    min-height: 0;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding-top: 18px;
-    padding-bottom: 14px;
-  }
-  .refined-marketing > header nav {
-    width: 100%;
-    justify-content: space-between;
-    gap: 8px 18px;
-    font-size: 13px;
-  }
-  .refined-marketing > header .brand {
-    font-size: 12px;
-  }
   .refined-home .hero {
     display: grid;
     grid-template-columns: 1fr;
@@ -591,11 +552,6 @@
   }
   .refined-home .closing-inner h2 {
     max-width: 18ch;
-  }
-  .refined-marketing > footer nav {
-    width: 100%;
-    margin-left: 0;
-    gap: 8px 24px;
   }
   .refined-home > footer {
     padding-bottom: 104px;
@@ -708,12 +664,6 @@
   }
   .refined-home .study-rail > li {
     scroll-snap-align: start;
-  }
-}
-@media (max-width: 380px) {
-  .refined-marketing > header nav {
-    gap: 8px;
-    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

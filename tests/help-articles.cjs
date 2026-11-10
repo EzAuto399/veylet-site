@@ -565,21 +565,22 @@ function mailto(subject) {
 function header(edition) {
   if (edition === 'app') return '<header class="wrap app-header"><span class="brand"><span class="portal" aria-hidden="true"></span>VEYLET</span></header>';
   return '<header class="wrap"><a class="brand" href="/" aria-label="Veylet Studio home"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a>'
-    + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
+    + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" data-analytics-cta="see" data-analytics-placement="header">See a result</a>'
+    + '<a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
 }
 
-// The index pages alone link to the service status page (/status, /app/status), from their footers.
-// The public index alone may link to /offer, and only from its footer.
+// The app index alone links to its service status page (/app/status), from its footer.
+// Public pages share the site's one header and footer; app pages carry no sales link.
 function footer(edition, index = false) {
   if (edition === 'app') {
     const status = index ? '<a href="/app/status">Service status</a>' : '';
     return '<footer class="wrap app-footer"><nav aria-label="Account and help"><a href="/app/account">Account</a><a href="/app/help">Help</a>'
       + `<a href="/app/support">Support</a>${status}<a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav></footer>`;
   }
-  const offer = index ? '<a href="/offer">Offer</a>' : '';
-  const status = index ? '<a href="/status">Service status</a>' : '';
+  // One footer on every public page, in one order (tests/site-chrome.test.cjs).
   return '<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p>'
-    + `<nav aria-label="Footer"><a href="/help">Help</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a>${offer}<a href="/support">Support</a>${status}<a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>`
+    + '<nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a>'
+    + '<a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>'
     + '<span>© 2026 Veylet Studio</span></footer>';
 }
 
@@ -640,7 +641,7 @@ function renderArticle(article, edition) {
   const siblings = ARTICLES.filter(other => other.group === article.group && other.slug !== article.slug);
   const subject = 'Veylet help: ' + plain(article.short);
   const body = [
-    `<body class="help-page">`,
+    `<body class="${edition === 'app' ? '' : 'site '}help-page">`,
     '<a class="skip" href="#main">Skip to content</a>',
     header(edition),
     '<main id="main" class="wrap article-page help-article">',
@@ -684,7 +685,7 @@ function renderIndex(edition) {
       + '</ul></section>';
   }).join('\n');
   const body = [
-    '<body class="help-page help-index">',
+    `<body class="${edition === 'app' ? '' : 'site '}help-page help-index">`,
     '<a class="skip" href="#main">Skip to content</a>',
     header(edition),
     '<main id="main" class="wrap article-page">',

@@ -2336,3 +2336,81 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 .hero-film figcaption strong {
   letter-spacing: -0.02em;
 }
+
+/* ==========================================================================
+   Shared patterns for the public pages (body.site).
+   One definition of each: header, footer, type, columns, button, field,
+   accordion, focus ring. Templates add layout only; they do not restate these.
+   The account desk and the app pages do not carry .site and keep the rules above.
+   ========================================================================== */
+
+/* Header: brand left, the same five links right; one row whenever it fits. */
+.site > header {
+  min-height: 0;
+  padding-block: 34px;
+  gap: 0 24px;
+}
+.site > header nav {
+  width: auto;
+  justify-content: flex-start;
+  gap: 0 30px;
+  font-size: 14px;
+}
+.site > header nav a {
+  min-height: 44px;
+}
+.site > header nav a:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+  text-decoration: underline;
+  text-decoration-color: var(--field-line);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+}
+.site > header nav a[aria-current="page"] {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 6px;
+}
+@media (max-width: 700px) {
+  .site > header {
+    padding-block: 20px 12px;
+  }
+  .site > header nav {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0 4px;
+  }
+}
+/* Five links need 301px; narrower phones get a short second row instead of a squeeze. */
+@media (max-width: 344px) {
+  .site > header nav {
+    justify-content: flex-start;
+    gap: 0 16px;
+  }
+}
+
+/* Footer: brand and line, one nav in one order, copyright last. */
+.site > footer {
+  padding-block: 36px;
+  gap: 8px 40px;
+  font-size: 13px;
+}
+.site > footer nav {
+  width: 100%;
+  margin: 0;
+  gap: 0 20px;
+  font-size: 13px;
+}
+.site > footer nav a {
+  min-height: 44px;
+  justify-content: flex-start;
+}
+.site > footer > p,
+.site > footer > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.site > footer > span {
+  width: 100%;
+}
