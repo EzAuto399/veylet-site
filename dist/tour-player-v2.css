@@ -240,6 +240,9 @@
   transform-origin: left center;
   transition: transform 0.2s linear;
 }
+/* With nothing to count, the bar creeps to its half over the usual wait, so it never sits still. */
+.v2-progress-wait span { animation: v2-wait 14s cubic-bezier(0.1, 0.6, 0.3, 1) forwards; }
+@keyframes v2-wait { from { transform: scaleX(0); } to { transform: scaleX(0.5); } }
 .v2-hint {
   position: absolute;
   top: 50%;
@@ -353,6 +356,49 @@
   user-select: text;
   -webkit-user-select: text;
 }
+/* The end of the visit: a short card above the controls on the last stop. A press on the room puts it away. */
+.v2-end {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(20px + var(--v2-bar, 44px));
+  max-width: 460px;
+  padding: 12px;
+  border: 1px solid var(--v2-edge);
+  border-radius: 2px;
+  background: rgba(16, 35, 29, 0.95);
+  display: grid;
+  gap: 8px;
+}
+.v2-end[hidden] { display: none; }
+.v2-end-title { font-size: 14px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.v2[data-end="shown"] .v2-map,
+.v2[data-end="shown"] .v2-hint { display: none; }
+/* A second action beside the filled one: Share, Call, Email. */
+.v2-quiet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--v2-edge);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--v2-paper);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.v2-quiet:hover { border-color: var(--v2-sage); }
+.v2-quiet:focus-visible { outline: 3px solid var(--v2-sage); outline-offset: 2px; }
+.v2-contact { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(244, 241, 233, 0.12); display: grid; gap: 8px; }
+.v2-contact-name { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.v2-next .v2-label-restart { display: none; }
+.v2-end-contact { display: contents; }
+
 .v2-fallback h2 { font-size: 18px; font-weight: 500; line-height: 1.3; }
 .v2-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .v2-fallback p { color: var(--v2-muted); font-size: 14px; line-height: 1.5; }
@@ -373,6 +419,11 @@
 @container (max-width: 430px) {
   .v2-next .v2-label-more { display: none; }
   .v2-next { padding: 0 8px 0 12px; }
+  /* The last stop on a phone: "Restart", and no arrow, so the map and full screen keep their place on the row. */
+  .v2-next .v2-label-again { display: none; }
+  .v2-next .v2-label-restart:not([hidden]) { display: inline; }
+  .v2-next[data-end] { padding: 0 12px; }
+  .v2-next[data-end] svg { display: none; }
   .v2-where { max-width: calc(100% - 56px); }
   .v2-map { top: auto; bottom: 68px; width: min(56%, 210px); }
   .v2-panel { left: 12px; right: 12px; width: auto; }
@@ -384,7 +435,10 @@
 }
 @container (max-width: 299px) {
   .v2-next .v2-label { display: none; }
-  .v2-next { padding: 0 10px; }
+  .v2-next .v2-label-restart:not([hidden]) { display: none; }
+  .v2-next,
+  .v2-next[data-end] { padding: 0 10px; }
+  .v2-next[data-end] svg { display: block; }
 }
 
 /* Full screen on an iPhone (the stage fills the window) or through the
@@ -402,6 +456,11 @@
 }
 .v2-stage:is(.v2-filled, :fullscreen) .v2-fallback {
   bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+.v2-stage:is(.v2-filled, :fullscreen) .v2-end {
+  bottom: calc(8px + var(--v2-bar, 44px) + max(12px, env(safe-area-inset-bottom, 0px)));
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
 }
 .v2-stage:is(.v2-filled, :fullscreen) .v2-status,
 .v2-stage:is(.v2-filled, :fullscreen) .v2-panel:not(.v2-about) {

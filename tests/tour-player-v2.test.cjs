@@ -1304,7 +1304,10 @@ test('the player stays analytics-free: stop events and view() add no request, be
   // Statically: nothing in the player can post anywhere, and it does not know the view function or a visit.
   const code = playerSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(code, /sendBeacon|XMLHttpRequest|WebSocket|EventSource|record_tour_view|rest\/v1|supabase|method:\s*['"]POST/);
-  assert.equal((code.match(/\bfetch\(/g) || []).length, 1, 'one fetch call site: the package reader');
+  // Two fetch call sites, both plain GETs of package files: the manifest reader, and the first level fetched
+  // beside the engine (10 November 2026). Neither carries a body, a method or credentials.
+  assert.equal((code.match(/\bfetch\(/g) || []).length, 2, 'two fetch call sites: the package reader and the first files');
+  for (const call of code.match(/\bfetch\([^\n]*/g)) assert.match(call, /credentials: 'omit'/, call);
   assert.doesNotMatch(code, /setInterval/);
   // At run time: walking every stop and reading the view asks the network for nothing but the package.
   const stored = [];
@@ -1390,4 +1393,110 @@ test('a scene file that does not arrive ends the player after the engine has fin
   await new Promise(resolve => setTimeout(resolve, 5));
   assert.equal(log.filter(line => line === 'app.destroy').length, 1);
   assert.equal(byClass(x.stage, 'v2-fallback').hidden, false, 'and the visitor is told, with Try again');
+});
+
+// ---------- client build, 10 November 2026, phase 2 ----------
+
+test('stops are numbered in the order of the visit: a package that opens on its second stop reads "Stop 1"', async () => {
+  const opened = manifest({ start_stop: 1 });
+  const x = await readyPlayer({ manifest: opened });
+  assert.equal(x.stopLine(), 'Stop 1 of 5');
+  assert.equal(byClass(x.stage, 'v2-stops-text').textContent, '1 of 5');
+  // The list counts up from the opening stop, and a number key means the number on screen.
+  assert.deepEqual(x.stage.querySelectorAll('.v2-stop-button').map(button => [button.textContent, button.dataset.stop]),
+    [['Stop 1', '1'], ['Stop 2', '2'], ['Stop 3', '3'], ['Stop 4', '4'], ['Stop 5', '0']]);
+  x.canvas.dispatch('keydown', { key: '3' });
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  assert.equal(x.player.visitNumber({ stops: [1, 2, 3], start: 1 }, 0), 3);
+  assert.equal(x.player.stopAtNumber({ stops: [1, 2, 3], start: 1 }, 3), 0);
+  // Events for the page still carry the package's own index (the agent's desk counts by it).
+  assert.equal(x.player.stopLabel(x.player.validateManifest(opened), 0).stop, 'Stop 5 of 5');
+});
+
+test('the last stop is an end: Next reads Start again, and a short card offers Share and the agent', async () => {
+  const pressed = [], told = [];
+  const visit = {
+    onStop: (number, count) => told.push(number + '/' + count),
+    share: async () => { pressed.push('share'); return 'Link copied.'; },
+    contact: Promise.resolve({ name: 'Alex Example', actions: [
+      { label: 'Call', href: 'tel:+61400000000', press: () => pressed.push('call') },
+      { label: 'Email', href: 'mailto:alex@example.invalid', hrefNow: () => 'mailto:alex@example.invalid?body=stop', press: () => pressed.push('email') },
+      { label: 'Run', href: 'javascript:alert(1)' },
+    ] }),
+  };
+  const x = await readyPlayer({ manifest: manifest({ stops: manifest().stops.slice(0, 3) }), startOptions: { visit } });
+  const next = byClass(x.stage, 'v2-next'), end = byClass(x.stage, 'v2-end');
+  assert.deepEqual(told, ['1/3'], 'the page hears the opening stop once there is something to look at');
+  assert.equal(end.hidden, true);
+  assert.equal(next.getAttribute('aria-label'), 'Next stop');
+  next.click(); next.click();
+  assert.equal(x.stopLine(), 'Stop 3 of 3');
+  assert.deepEqual(told, ['1/3', '2/3', '3/3']);
+  assert.equal(next.getAttribute('aria-label'), 'Start again from the first stop');
+  assert.equal(byClass(x.stage, 'v2-label-again').hidden, false);
+  assert.equal(next.querySelector('.v2-label').hidden, true, '“Next” steps aside');
+  assert.equal(end.hidden, false);
+  assert.equal(byClass(end, 'v2-end-title').textContent, 'That’s the last stop.');
+  const labels = end.querySelectorAll('button, a').map(node => node.textContent);
+  assert.deepEqual(labels, ['Look around again', 'Share', 'Call', 'Email'], 'only tel, mailto and https links are taken');
+  const [stay, share, call, email] = end.querySelectorAll('button, a');
+  assert.equal(call.getAttribute('aria-label'), 'Call Alex Example');
+  email.dispatch('click');
+  assert.equal(email.getAttribute('href'), 'mailto:alex@example.invalid?body=stop', 'the address is read at the press');
+  share.click();
+  await tick();
+  assert.deepEqual(pressed, ['email', 'share']);
+  assert.equal(x.status(), 'Link copied.');
+  // About carries the agent too, for full screen.
+  assert.equal(byClass(x.stage, 'v2-contact-name').textContent, 'Contact Alex Example');
+  // Look around again puts the card away and stays on the stop; Start again goes to the first.
+  stay.click();
+  assert.equal(end.hidden, true);
+  assert.equal(x.stopLine(), 'Stop 3 of 3');
+  next.click();
+  assert.equal(x.stopLine(), 'Stop 1 of 3');
+  assert.equal(next.getAttribute('aria-label'), 'Next stop');
+  assert.equal(end.hidden, true);
+});
+
+test('a link to a stop opens there, and says so once: no arrival is announced for a stop that was not seen', async () => {
+  const events = [];
+  const x = await readyPlayer({ startOptions: { visit: { startAt: 3 } },
+    context: { CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } } });
+  x.document.dispatchEvent = event => { events.push(event.type + ':' + event.detail.stop); };
+  assert.equal(x.stopLine(), 'Stop 3 of 5');
+  assert.equal(byClass(x.stage, 'v2-end').hidden, true, 'opening on a stop is not arriving at the end');
+  // Out of range or not a number: the opening stop.
+  for (const startAt of [0, 9, '2', 1.5, null]) assert.equal((await readyPlayer({ startOptions: { visit: { startAt } } })).stopLine(), 'Stop 1 of 5');
+});
+
+test('one bar for the whole wait: the first level downloads beside the engine and moves the bar', async () => {
+  const files = [{ path: 'lod/lod-meta.json', bytes: 100 }, { path: 'lod/3_0/means.webp', bytes: 600 }, { path: 'lod/3_0/sh0.webp', bytes: 300 },
+    { path: 'lod/0_0/means.webp', bytes: 9000 }, { path: '../escape.webp', bytes: 5 }];
+  const x = await started({ manifest: manifest({ files }), files: { 'lod/lod-meta.json': {}, 'lod/3_0/means.webp': {}, 'lod/3_0/sh0.webp': {} }, slowEngine: true });
+  const fetched = x.log.filter(line => line.startsWith('fetch:')).map(line => line.replace('fetch:https://veylet.com/pkg/', ''));
+  assert.deepEqual(fetched.sort(), ['lod/3_0/means.webp', 'lod/3_0/sh0.webp', 'lod/lod-meta.json', 'manifest.json'], 'the coarsest level and its index, nothing finer');
+  const progress = byClass(x.stage, 'v2-progress');
+  assert.equal(progress.hidden, false, 'the bar shows from the start');
+  assert.equal(progress.firstChild.style.transform, 'scaleX(0.600)', 'the files are in; the engine is still to come');
+  // With the engine: further along, and nothing was asked for before Explore in a portal's frame.
+  const both = await started({ manifest: manifest({ files }), files: { 'lod/lod-meta.json': {}, 'lod/3_0/means.webp': {}, 'lod/3_0/sh0.webp': {} } });
+  assert.equal(byClass(both.stage, 'v2-progress').firstChild.style.transform, 'scaleX(0.850)');
+  const framed = await started({ manifest: manifest({ files }), startOptions: { waitForTap: true } });
+  assert.deepEqual(framed.log.filter(line => line.startsWith('fetch:') && !line.endsWith('manifest.json')), []);
+});
+
+test('a first-level file that is missing is tried once more, then the visitor is told', async () => {
+  const timers = manualTimers();
+  const files = [{ path: 'lod/3_0/means.webp', bytes: 600 }];
+  const x = await started({ manifest: manifest({ files }), slowEngine: true, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const tries = () => x.log.filter(line => line === 'fetch:https://veylet.com/pkg/lod/3_0/means.webp').length;
+  assert.equal(tries(), 1);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, true);
+  timers.fire(1500);
+  for (let i = 0; i < 6; i++) await tick();
+  assert.equal(tries(), 2);
+  timers.fire(0);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D didn’t load\./);
 });

@@ -453,7 +453,7 @@
     if (!stage) { failed(PACKAGE_BODY, false); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=fb9d05d90d55e478');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=409b7f0cb1c130e0');
     } catch {
       failed(OFFLINE_BODY, true);
       return;
@@ -476,8 +476,12 @@
       waitForTap,
       // Where Full screen goes when this frame cannot fill the screen (iPhone).
       fullscreenUrl: options.fullscreenUrl,
+      // What a client's page asks of the visit: a stop to open on, Share, who to contact (client-page.js).
+      visit: options.visit,
       onVisible: () => {
         if (surface.frame) surface.frame.hidden = true;
+        // The player says how the loading goes from here; the page's own line would say it twice.
+        player.showProgress(surface, '');
         try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }
       },
       onRetry: () => location.reload(),

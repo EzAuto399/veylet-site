@@ -343,9 +343,10 @@ test('the phone bar respects the safe area, never shows above 768px and moves on
   assert.match(phone, /position: fixed;/);
   assert.match(phone, /env\(safe-area-inset-bottom, 0px\)/);
   assert.match(phone, /body\.has-agent-bar \{\s*padding-bottom: calc\(72px \+ env\(safe-area-inset-bottom, 0px\)\);/);
-  // While the bar shows, the inline card keeps name, agency and details but not a second Call and Email.
-  assert.match(phone, /body\.has-agent-bar \.agent-card \.agent-actions \{\s*display: none;\s*\}/);
-  assert.doesNotMatch(phone, /\.agent-(?:name|agency|details)[^{]*\{\s*display: none/);
+  // While the bar shows it names the agent and carries Call and Email, so the card above the walkthrough
+  // steps aside and the room gets its space (10 November 2026, audit finding 6). No place is held for it.
+  assert.match(phone, /body\.has-agent-bar \.agent-card \{\s*display: none;\s*\}/);
+  assert.match(phone, /html\.client-contact-pending \.agent-card\[hidden\] \{\s*display: none !important;\s*\}/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.agent-bar:not\(\[hidden\]\) \{\s*animation: none;/);
   assert.match(css, /min-height: 44px;/);
   assert.match(css, /:focus-visible/);

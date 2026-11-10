@@ -249,12 +249,6 @@
     order: 2;
   }
 }
-@media (orientation: landscape) and (max-height: 500px) and (max-width: 768px) {
-  /* The bar already names the agent and carries Call and Email. */
-  body.has-agent-bar .agent-card {
-    display: none;
-  }
-}
 @media (max-width: 560px) {
   .client-contact-pending .agent-card[hidden] {
     min-height: 101px;
@@ -344,12 +338,14 @@
   body.has-agent-bar {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
-  /* The bar carries Call and Email; the card keeps who shared it (name, agency, details). */
+  /* The bar names the agent and carries Call and Email, so the card above the
+     walkthrough would say it twice: on a phone the room gets that space. No
+     place is held for a card that will not show. */
   body.has-agent-bar .agent-card {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  body.has-agent-bar .agent-card .agent-actions {
     display: none;
+  }
+  html.client-contact-pending .agent-card[hidden] {
+    display: none !important;
   }
 }
 .agent-bar-name {

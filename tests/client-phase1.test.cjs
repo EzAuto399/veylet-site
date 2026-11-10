@@ -90,9 +90,8 @@ test('a phone on its side brings the walkthrough to the top once, and never afte
 
 test('the stage fits a short or sideways screen, and the page gets out of its way', () => {
   const stageCss = read('tour-stage.css'), css = read('client-page.css');
-  const short = stageCss.match(/@media \(orientation: landscape\) and \(max-height: 500px\) \{([\s\S]*?)\n\}/);
-  assert.ok(short, 'tour-stage.css has a rule for a phone on its side');
-  assert.match(short[1], /--tour-stage-height: max\(200px, calc\(var\(--tour-vh\) - var\(--tour-stage-below\) - 8px\)\);/);
+  // A phone on its side: the stage takes the screen, less the Call/Email bar.
+  assert.match(stageCss, /@media \(orientation: landscape\) and \(max-height: 500px\) \{\s*\.client-page \{\s*--tour-stage-height: max\(200px, calc\(var\(--tour-vh\) - var\(--tour-stage-below\) - 8px\)\);/);
   // Wide but short (a 1366 x 768 laptop): the stage leaves room for the title above it.
   assert.match(stageCss, /--tour-stage-height: max\(340px, min\(74vh, 680px, calc\(var\(--tour-vh\) - var\(--tour-stage-above\)\)\)\);/);
   // On a phone the walkthrough runs the width of the column: no padded, rounded shell around it.

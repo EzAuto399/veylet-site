@@ -1,6 +1,6 @@
 {
  "screens": [
-  "opening | opening | Loading 3D… | Stop 1 of 5 | progress hidden",
+  "opening | opening | Loading 3D… | Stop 1 of 5 | progress scaleX(0.500)",
   "first-3d | ready | Sharpening detail… | Stop 1 of 5 | progress scaleX(0)",
   "streaming | ready | Sharpening detail… | Stop 1 of 5 | progress scaleX(0.000)",
   "detail | ready |  | Stop 1 of 5 | progress hidden",

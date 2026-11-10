@@ -62,7 +62,33 @@
     --tour-stage-height: clamp(300px, calc(var(--tour-vh) - var(--tour-stage-above) - var(--tour-stage-below)), calc(var(--tour-vh) * 0.62));
   }
 }
+/* Said once: the page's own line under the title carries "Captured on site …
+   Not to scale", so the player's label keeps the room and the stop. Where the
+   page's line cannot be seen (full screen, a phone on its side) the label says
+   it. A research sample's label says something the page's line does not. */
+.client-page .v2:not(.v2-research) .v2-truth {
+  display: none;
+}
+.client-page .v2-stage:is(.v2-filled, :fullscreen) .v2-truth {
+  display: block;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .client-page .v2:not(.v2-research) .v2-truth {
+    display: block;
+  }
+}
 @media (max-width: 768px) {
+  /* The Call/Email bar is on screen under the stage, so the end card does not
+     repeat it; in full screen, where the bar is out of reach, it does. */
+  body.has-agent-bar .client-page .v2-stage:not(.v2-filled, :fullscreen) .v2-end-contact,
+  body.has-agent-bar .client-page .v2-stage:not(.v2-filled, :fullscreen) .v2-contact {
+    display: none;
+  }
+  /* Phones: the title, the truth line and the date sit above the stage; the
+     agent is in the bar below it, not in a card above. */
+  .client-page {
+    --tour-stage-above: 215px;
+  }
   /* A found contact brings the phone bar (and while the contact is still being
      looked up, its place is assumed), so the stage makes room for it. */
   body.has-agent-bar .client-page,

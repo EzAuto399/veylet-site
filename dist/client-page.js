@@ -32,12 +32,25 @@
     return number ? 'tel:' + number : '';
   }
 
-  function mailtoHref(email, title) {
+  /** `where` (optional): the stop the visitor is on, so the agent knows which room they mean. */
+  function mailtoHref(email, title, where) {
     const address = clean(email, 254);
     if (!EMAIL.test(address)) return '';
     const at = address.lastIndexOf('@');
     const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
-    return 'mailto:' + encoded + '?subject=' + encodeURIComponent('Walkthrough: ' + (title || 'Shared space'));
+    const subject = '?subject=' + encodeURIComponent('Walkthrough: ' + (title || 'Shared space'));
+    if (!where || !where.url) return 'mailto:' + encoded + subject;
+    const body = 'I’m at stop ' + where.number + ' of ' + where.count + ' in the walkthrough.\n' + where.url + '\n\n';
+    return 'mailto:' + encoded + subject + '&body=' + encodeURIComponent(body);
+  }
+
+  // Where the visitor is in the walkthrough, once the player has said so (visitLink): the page's
+  // address, Share and the Email to the agent all point at that stop. One page, one visit.
+  let place = null;
+  function stopFromHash(hash) {
+    const match = /^#stop=(\d{1,2})$/.exec(hash || '');
+    const number = match ? Number(match[1]) : 0;
+    return number >= 1 ? number : null;
   }
 
   /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
@@ -448,6 +461,10 @@
         link.setAttribute('target', '_blank');
         link.setAttribute('rel', 'noopener noreferrer');
       }
+      if (kind === 'email_tap' && detail === undefined && typeof link.addEventListener === 'function') {
+        // At the press: the stop the visitor is on goes into the message.
+        link.addEventListener('click', () => { if (place) link.setAttribute('href', mailtoHref(contact.email, title, place)); });
+      }
       if (beacon && typeof link.addEventListener === 'function') {
         link.addEventListener('click', () => (detail === undefined ? beacon.send(kind) : beacon.send(kind, detail)));
       }
@@ -540,32 +557,79 @@
    */
   function mountShare(button, options) {
     if (!button) return;
-    const nav = options.navigator;
-    const doc = options.document;
-    const native = Boolean(nav && typeof nav.share === 'function');
+    const native = Boolean(options.navigator && typeof options.navigator.share === 'function');
     button.textContent = native ? 'Share' : 'Copy link';
     button.hidden = false;
     let busy = false;
     button.addEventListener('click', async () => {
       if (busy) return;
       busy = true;
-      if (options.beacon) options.beacon.send('share_tap');
       try {
-        if (native) {
-          try {
-            await nav.share({ title: options.title, url: options.url });
-            say(options.status, '');
-            return;
-          } catch (error) {
-            if (error && error.name === 'AbortError') return;
-          }
-        }
-        const copied = await copyText(options.url, nav, doc);
-        say(options.status, copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.');
+        const said = await shareNow(options);
+        if (said !== null) say(options.status, said);
       } finally {
         busy = false;
       }
     });
+  }
+
+  /**
+   * One share: the tap is counted, then the system sheet or a copy. Answers what to tell the
+   * visitor ('' after the sheet), or null when they closed the sheet. `options.url` may be a
+   * function, read at the press, so the link carries the stop the visitor is on.
+   */
+  async function shareNow(options) {
+    const nav = options.navigator;
+    const url = typeof options.url === 'function' ? options.url() : options.url;
+    if (options.beacon) options.beacon.send('share_tap');
+    if (nav && typeof nav.share === 'function') {
+      try {
+        await nav.share({ title: options.title, url });
+        return '';
+      } catch (error) {
+        if (error && error.name === 'AbortError') return null;
+      }
+    }
+    const copied = await copyText(url, nav, options.document);
+    return copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.';
+  }
+
+  /**
+   * What the page asks of the player for this visit (tour-player-v2.js `visit`): open on the
+   * stop the link names (#stop=N), keep the address on the stop the visitor is at, and offer
+   * Share and the agent's Call and Email inside the player (its end card and About panel), where
+   * the page's own are out of reach in full screen. The player sends nothing; presses are counted
+   * here, as the page's own buttons count them.
+   */
+  function visitLink(options) {
+    const win = options.window, loc = options.location;
+    let title = '', giveContact = () => {};
+    const contact = new Promise(resolve => { giveContact = resolve; });
+    const url = () => (place ? place.url : shareUrl(loc, options.token));
+    return {
+      startAt: stopFromHash(loc.hash),
+      onStop(number, count) {
+        const hash = number > 1 ? '#stop=' + number : '';
+        place = { number, count, url: shareUrl(loc, options.token) + hash };
+        try {
+          if ((loc.hash || '') !== hash) win.history.replaceState(win.history.state, '', loc.pathname + loc.search + hash);
+        } catch { /* the address stays; Share still carries the stop */ }
+      },
+      share: () => shareNow({ navigator: options.navigator, document: options.document, beacon: options.beacon, title, url }),
+      contact,
+      url,
+      setTitle(value) { title = value || ''; },
+      setContact(found) {
+        if (!found) { giveContact(null); return; }
+        const beacon = options.beacon;
+        const actions = [];
+        const tel = telHref(found.phone);
+        if (tel) actions.push({ label: 'Call', href: tel, press: () => { if (beacon) beacon.send('call_tap'); } });
+        const mail = mailtoHref(found.email, title);
+        if (mail) actions.push({ label: 'Email', href: mail, hrefNow: () => mailtoHref(found.email, title, place), press: () => { if (beacon) beacon.send('email_tap'); } });
+        giveContact(actions.length ? { name: found.name, actions } : null);
+      },
+    };
   }
 
   // How long after the walkthrough is found the agent card's held place waits
@@ -588,9 +652,12 @@
     if (truth) truth.hidden = false;
     const help = doc.getElementById('client-help');
     if (help) help.hidden = !options.streamed;
+    const visit = options.visit || null;
+    if (visit) visit.setTitle(options.title);
     mountShare(doc.getElementById('client-share'), {
       title: options.title,
-      url: shareUrl(options.location, options.token),
+      // With a visit: the stop the visitor is on, read at the press.
+      url: visit ? visit.url : shareUrl(options.location, options.token),
       status: doc.getElementById('client-share-status'),
       navigator: options.navigator,
       document: doc,
@@ -604,6 +671,7 @@
       clearTimeout(grace);
       const late = Boolean(held) && !held.contains('client-contact-pending');
       const shown = showContact(doc, contact, options.title, options.beacon, late);
+      if (visit) visit.setContact(contact);
       // The held place goes in the same step the card fills it, or not.
       release();
       return shown;
@@ -750,7 +818,7 @@
     dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
     channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
-    shareUrl, copyText, mountShare, showWalkthrough, settleStage, placeExtras, mountColumns,
+    shareUrl, copyText, mountShare, shareNow, visitLink, stopFromHash, showWalkthrough, settleStage, placeExtras, mountColumns,
     reportHref, mountReport, linkToken, invitationPoster, watchFailures,
   };
 })();
