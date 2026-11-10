@@ -259,7 +259,7 @@ test('one filled button on the Walkthroughs view: card actions are outlines; Add
 
 test('disclosures are hairlines, never boxes, and a closed one leaves no box behind', () => {
   assert.match(css, /\.desk-view \.tour-review \{ margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var\(--line\); border-radius: 0; background: none; \}/);
-  assert.match(css, /\.desk-view \.account-details:not\(\[open\]\) > :not\(summary\) \{ display: none; \}/);
+  assert.match(css, /\.desk-view \.account-details:not\(\[open\]\) > :not\(summary\) \{ display: none !important; \}/);
   assert.match(css, /\.tour-hosting-fix \{ display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 16px;/, 'an ended plan’s two links wrap; they cannot overlap');
   // Prepare a capture is a quiet link in the space head on desktop, in the flow under the meta line on a phone.
   assert.match(css, /@media \(min-width: 720px\) \{\s*\.desk-view \.account-details\.space-prep > summary \{ position: absolute; top: 8px; right: 0; \}/);

@@ -852,7 +852,7 @@
 /* The plan in one line. */
 .plan-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px; min-height: 44px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
 .plan-line-words { flex: 1 1 260px; min-width: 0; padding-block: 6px; }
-.plan-line .text-link { flex: none; font-size: 14px; color: var(--ink); }
+.plan-line .text-link { flex: 0 1 auto; min-width: 0; font-size: 14px; color: var(--ink); }
 .desk-view .account-list > .dash-space:first-child { border-top-color: var(--ink); }
 .desk-view .dash-space { padding: 18px 0 8px; }
 .desk-view .dash-tours { margin-top: 12px; }
@@ -889,7 +889,7 @@
   .desk-view .dash-space-title, .desk-view .dash-space-meta { padding-right: 176px; }
 }
 /* A closed disclosure's content has no box at all, so nothing can sit over the next row. */
-.desk-view .account-details:not([open]) > :not(summary) { display: none; }
+.desk-view .account-details:not([open]) > :not(summary) { display: none !important; }
 /* An ended plan's two links sit on one line and wrap, never overlap. */
 .tour-hosting-words:empty { display: none; }
 .tour-hosting-fix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 16px; vertical-align: top; }
