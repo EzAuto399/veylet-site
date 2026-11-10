@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=9c3927a2346192d4';
+  const STYLE_URL = '/tour-player-v2.css?v=b3e2ecd4d34f975c';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -754,7 +754,7 @@
     const progress = el('div', { class: 'v2-progress', hidden: true });
     progress.append(el('span'));
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
-    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor or a circle to move.');
+    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor to move. Use Next for the next stop.');
     const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
     // "Next stop" on screen; "Next" on a phone (the stylesheet drops " stop"); the arrow alone under 300 px.
     const next = iconButton('next', 'Next stop', 'v2-primary v2-next');
@@ -792,10 +792,10 @@
   }
 
   const FALLBACK_WORDS = {
-    'no-graphics': ['3D can’t open in this browser.', 'This still is rendered from the walkthrough. Open the link in a current browser, such as Safari or Chrome with hardware acceleration on, to walk through it.'],
-    'engine-unavailable': ['3D didn’t load.', 'The 3D player files didn’t arrive. Check the connection and try again. This still is rendered from the walkthrough.'],
-    'context-lost': ['3D stopped on this device.', 'The graphics memory was reclaimed, which can happen on phones with many tabs open. Try again, or close other tabs first.'],
-    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this still is from it.'],
+    'no-graphics': ['3D can’t open in this browser.', 'This picture is from the walkthrough. Try opening this link in Safari or Chrome.'],
+    'engine-unavailable': ['3D didn’t load.', 'Check your connection and try again. This picture is from the walkthrough.'],
+    'context-lost': ['3D stopped on this device.', 'This can happen when many tabs are open. Try again, or close other tabs first.'],
+    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this picture is from it.'],
   };
 
   // ---------- the player ----------
@@ -864,6 +864,8 @@
       const label = stopLabel(manifest, index);
       ui.room.textContent = label.room;
       ui.room.hidden = !label.room;
+      // A named room makes the label three lines; a narrow stage drops the third (tour-player-v2.css).
+      if (label.room) ui.root.classList.add('v2-has-room'); else ui.root.classList.remove('v2-has-room');
       ui.stopLine.textContent = label.stop;
       return label;
     };
@@ -900,6 +902,17 @@
         retry.addEventListener('click', () => (options.onRetry ? options.onRetry() : location.reload()));
         ui.fallback.append(retry);
         recovery = retry;
+      }
+      if (kind === 'no-graphics') {
+        // The next step is another browser, so the link goes with the visitor.
+        const copy = el('button', { type: 'button', class: 'v2-primary' }, 'Copy link');
+        const note = el('p', { class: 'v2-copy-note', role: 'status' });
+        copy.addEventListener('click', async () => {
+          let copied = false;
+          try { await navigator.clipboard.writeText(String(location.href)); copied = true; } catch { copied = false; }
+          note.textContent = copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.';
+        });
+        ui.fallback.append(copy, note);
       }
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
@@ -1185,6 +1198,13 @@
         ui.roomsBar.append(pill);
       }
       ui.roomsBar.hidden = ui.roomsBar.children.length < 2;
+      ui.roomsBar.addEventListener('scroll', pillsMore, { passive: true });
+    }
+    // More room names than fit: the row fades at its right edge until it is scrolled to the end.
+    function pillsMore() {
+      const row = ui.roomsBar;
+      if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 4) row.dataset.more = 'true';
+      else delete row.dataset.more;
     }
 
     function buildStopsPanel() {
@@ -1246,11 +1266,14 @@
       for (const line of [
         'Drag to look around. Pinch, or use + and −, to zoom.',
         walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
-        'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
       ]) controls.append(el('li', {}, line));
-      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
-      const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
-      credits.append(licence);
+      // For a keyboard; a touch screen does not show it (tour-player-v2.css).
+      controls.append(el('li', { class: 'v2-keys' }, 'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.'));
+      // The engine's credit and licence, one press away rather than in every visitor's way.
+      const credits = el('details', { class: 'v2-credits' });
+      const credit = el('p', {}, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
+      credit.append(el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence'));
+      credits.append(el('summary', {}, 'Credits'), credit);
       ui.aboutPanel.append(heading);
       if (contact) {
         // One tap away in full screen too, where the page's own Call and Email are out of reach. First in
@@ -1346,7 +1369,11 @@
         label.setAttribute('font-size', String(half * 0.12));
         label.setAttribute('dy', String(half * 0.042));
         label.textContent = String(visitNumber(manifest, index));
-        dot.append(circle, label);
+        // A finger needs more than the dot: an unseen circle about 24 px across takes the press.
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('class', 'v2-map-hit');
+        hit.setAttribute('r', String(half * 0.14));
+        dot.append(hit, circle, label);
         dot.addEventListener('click', () => goToStop(index));
         mapGroup.append(dot);
         if (storeys) mapParts.push([dot, levelOf[index]]);
@@ -1855,6 +1882,7 @@
       const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
+      pillsMore();
     }
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
@@ -1880,6 +1908,8 @@
         ui.hint.textContent = 'Drag to look. Tap to move.';
         ui.hint.classList.add('v2-hint-short');
       }
+      // Only what is on screen is named: the floor (where this walkthrough has one to walk on) and Next.
+      else if (!walkable) ui.hint.textContent = 'Drag to look around. Use Next for the next stop.';
       ui.hint.hidden = false;
       hintTimer = setTimeout(() => dismissHint(false), 9000);
     }

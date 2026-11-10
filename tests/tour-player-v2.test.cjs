@@ -293,7 +293,7 @@ test('no WebGL2 or WebGPU: no engine download, the rendered poster stays, and th
   const root = byClass(x.stage, 'v2');
   assert.equal(root.dataset.state, 'fallback');
   assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
-  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This still is rendered from the walkthrough/);
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This picture is from the walkthrough\. Try opening this link in Safari or Chrome\./);
   assert.equal(byClass(x.stage, 'v2-bar').hidden, true);
   assert.equal(byClass(x.stage, 'v2-poster').src, 'https://veylet.com/pkg/poster-portrait.webp');
   assert.equal(x.stage.hidden, false);
@@ -765,7 +765,8 @@ test('a phone-sized stage (334 x 300) still gets a one-line movement hint, and N
   assert.ok(hint.className.includes('v2-hint-short'));
   // A roomy stage keeps the full sentence.
   const roomy = await readyPlayer();
-  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor or a circle to move.');
+  // This package has no floor to walk on, so the sentence names only what is there: dragging and Next.
+  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Use Next for the next stop.');
   // Next: named for assistive technology, and "Next" stays on screen down to 300 px.
   const next = byClass(x.stage, 'v2-next');
   assert.equal(next.getAttribute('aria-label'), 'Next stop');
@@ -943,7 +944,8 @@ test('F07: a non-retryable failure replaces the focused loading action with a fo
   fallback.querySelector('button').focus();
   finishDevice(null);
   assert.equal((await pending).reason, 'no-graphics');
-  assert.equal(fallback.querySelector('button'), null);
+  // No Try again: the one action left is the link to take to another browser.
+  assert.deepEqual(fallback.querySelectorAll('button').map(button => button.textContent), ['Copy link']);
   const title = fallback.querySelector('h2');
   assert.equal(title.getAttribute('tabindex'), '-1');
   assert.equal(x.document.activeElement, title);
@@ -1499,4 +1501,44 @@ test('a first-level file that is missing is tried once more, then the visitor is
   timers.fire(0);
   assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
   assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D didn’t load\./);
+});
+
+// ---------- client pages, 10 November 2026, phase 3 ----------
+
+test('no 3D in this browser: the panel names Safari or Chrome and offers the link to take there', async () => {
+  const copied = [];
+  const x = await started({ env: { ...phoneWebgl2, webgl2: false, webgpu: false },
+    context: { navigator: { clipboard: { writeText: async text => { copied.push(text); } } } } });
+  await x.pending;
+  const fallback = byClass(x.stage, 'v2-fallback');
+  assert.match(fallback.textContent, /Try opening this link in Safari or Chrome\./);
+  assert.doesNotMatch(fallback.textContent, /hardware acceleration/);
+  const copy = fallback.querySelectorAll('button').find(button => button.textContent === 'Copy link');
+  assert.ok(copy, 'a Copy link button');
+  copy.click();
+  for (let i = 0; i < 4; i++) await tick();
+  assert.equal(copied.length, 1);
+  assert.equal(byClass(x.stage, 'v2-copy-note').textContent, 'Link copied.');
+});
+
+test('About keeps the engine credit behind Credits, marks the keys line, and the map dots take a finger', async () => {
+  const x = await readyPlayer();
+  const about = byClass(x.stage, 'v2-about');
+  const credits = byClass(about, 'v2-credits');
+  assert.equal(credits.tagName.toLowerCase(), 'details');
+  assert.equal(credits.querySelector('summary').textContent, 'Credits');
+  assert.match(credits.textContent, /PlayCanvas engine/);
+  assert.match(byClass(about, 'v2-keys').textContent, /^Keys/);
+  const hits = byClass(x.stage, 'v2-map').querySelectorAll('.v2-map-hit');
+  assert.equal(hits.length, byClass(x.stage, 'v2-map').querySelectorAll('.v2-map-stop').length);
+  // A named room marks the stage so a narrow one can drop the third line of the label.
+  assert.equal(byClass(x.stage, 'v2').classList.contains('v2-has-room'), true);
+  assert.match(read('tour-player-v2.css'), /\.v2-has-room:not\(\.v2-research\) \.v2-truth \{ display: none; \}/);
+});
+
+test('the hint names the floor only where the walkthrough has one to walk on', async () => {
+  const floor = await readyPlayer({ manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
+  assert.equal(byClass(floor.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor to move. Use Next for the next stop.');
+  const none = await readyPlayer();
+  assert.equal(byClass(none.stage, 'v2-hint').textContent, 'Drag to look around. Use Next for the next stop.');
 });

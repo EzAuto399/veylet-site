@@ -15,8 +15,9 @@
   };
 
   const OFFLINE_HEADING = 'This walkthrough is not available.';
-  const OFFLINE_BODY =
-    'The player files did not load on this device. Check the connection and try again.';
+  // No connection at all, and a connection that did not bring the walkthrough: one next step each.
+  const OFFLINE_BODY = 'You seem to be offline. Reconnect and try again.';
+  const LOAD_BODY = 'The walkthrough couldn’t be loaded just now. Check your connection and try again.';
   const STORAGE_BODY =
     'The tour file could not be opened. Ask the agent who sent it to send the link again.';
   const PACKAGE_BODY = 'This package is not a playable reconstructed tour.';
@@ -327,12 +328,12 @@
     try {
       if (!window.supabase?.createClient) await player.loadScript('/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd');
     } catch {
-      player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
+      player.showFailure(surface, { body: LOAD_BODY, retry: true });
       return;
     }
     const client = player.clientFor(options.auth || {});
     if (!client) {
-      player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
+      player.showFailure(surface, { body: LOAD_BODY, retry: true });
       return;
     }
 
@@ -376,7 +377,7 @@
       const transient = looked.error.transient !== false;
       player.showFailure(surface, {
         heading: options.missingHeading || OFFLINE_HEADING,
-        body: transient ? options.transientBody || OFFLINE_BODY : options.missingBody || STORAGE_BODY,
+        body: transient ? options.transientBody || LOAD_BODY : options.missingBody || STORAGE_BODY,
         retry: transient || Boolean(options.client),
         definitive: !transient,
       });
@@ -431,12 +432,15 @@
         if (surface.actions) surface.actions.hidden = false;
         if (surface.retry) surface.retry.hidden = false;
       } else {
-        player.showProgress(surface, playback.value?.readiness === 'document-loaded' ? 'Viewer document opened. If the scene stays blank, try a current browser or ask the agent who sent it for a compatible tour.' : resolved.footer || '');
+        player.showProgress(surface, playback.value?.readiness === 'document-loaded' ? 'If the walkthrough stays blank, try another browser, or ask the person who sent it.' : resolved.footer || '');
       }
     } catch (error) {
-      player.showFailure(surface, {
+      const slow = ['viewer-not-ready', 'frame-not-loaded'].includes(error?.message);
+      // A file that is not a walkthrough reads, on a client's page, as any other link that cannot open.
+      if (!slow && options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
+      else player.showFailure(surface, {
         heading: resolved.title || OFFLINE_HEADING,
-        body: ['viewer-not-ready', 'frame-not-loaded'].includes(error?.message) ? 'The 3D view did not start in time. Try a current browser with graphics enabled, or ask the person who sent this tour for photographs and help.' : PACKAGE_BODY,
+        body: slow ? 'The walkthrough did not start in time. Try another browser, or ask the person who sent it.' : PACKAGE_BODY,
         retry: true,
       });
     }
@@ -450,12 +454,17 @@
   player.bootV2 = async (surface, resolved, options) => {
     const stage = surface.stage;
     const failed = (body, retry) => player.showFailure(surface, { heading: resolved.title || OFFLINE_HEADING, body, retry });
-    if (!stage) { failed(PACKAGE_BODY, false); return; }
+    // A package that is not a walkthrough reads, on a client's page, as any other link that cannot open.
+    const unusable = () => {
+      if (options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
+      else failed(PACKAGE_BODY, false);
+    };
+    if (!stage) { unusable(); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=409b7f0cb1c130e0');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=6d207a9ffbae539e');
     } catch {
-      failed(OFFLINE_BODY, true);
+      failed(LOAD_BODY, true);
       return;
     }
     const controller = new AbortController();
@@ -498,8 +507,8 @@
         } else failed(options.missingBody || 'The link is missing, revoked, or the tour is not ready.', false);
         return { outcome: 'missing' };
       }
-      if (code.startsWith('manifest-invalid') || code === 'package-location-invalid' || code === 'package-oversized') { failed(PACKAGE_BODY, false); return { outcome: 'missing' }; }
-      failed(options.transientBody || OFFLINE_BODY, true);
+      if (code.startsWith('manifest-invalid') || code === 'package-location-invalid' || code === 'package-oversized') { unusable(); return { outcome: 'missing' }; }
+      failed(options.transientBody || LOAD_BODY, true);
       return { outcome: 'unreachable' };
     }
     if (playback.value?.readiness === 'viewer-failed') {
