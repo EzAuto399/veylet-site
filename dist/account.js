@@ -3704,7 +3704,7 @@
   }
   function packsHead(refs) {
     const head = annualNode('div', 'annual-head');
-    const title = annualNode('h3', 'annual-title', 'Walkthrough packs');
+    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Walkthrough packs');
     title.id = 'account-packs-title'; title.tabIndex = -1;
     if (refs) refs.title = title;
     head.append(title);
@@ -4406,7 +4406,7 @@
       count(answer?.bonus_walkthroughs, ' bonus walkthrough received', ' bonus walkthroughs received')].filter(Boolean).join(' · ');
   }
   function referralHead() {
-    const title = annualNode('h3', 'annual-title', 'Refer an office');
+    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Refer an office');
     title.id = 'account-referral-title';
     const head = annualNode('div', 'annual-head'); head.append(title);
     return head;
@@ -6535,7 +6535,7 @@
       // A space is a section of this page, so it is a heading: jumping between
       // spaces by heading is how a screen reader reads a list like this one.
       // The name is the heading; what kind of space and where are its details.
-      const title = document.createElement('h3'); title.className = 'dash-space-title';
+      const title = document.createElement(deskBar ? 'h2' : 'h3'); title.className = 'dash-space-title';
       title.textContent = row.title || 'Untitled space'; li.append(title);
       const where = [officeLabel(row.id), row.category, row.location_general].filter(Boolean).join(' · ');
       if (where) { const meta = document.createElement('p'); meta.className = 'dash-space-meta'; meta.textContent = where; li.append(meta); }

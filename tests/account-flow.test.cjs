@@ -2050,7 +2050,7 @@ test('walkthrough packs read their own answer for the plan’s workspace and sit
   assert.deepEqual({ ...h.calls.find(call => call[0] === 'get_pack_offer')[1] }, { p_workspace_id: 'w1' });
   assert.equal(packsCard(h).hidden, false);
   assert.equal(packsCard(h).attributes['aria-busy'], 'false');
-  assert.equal(packClass(h, 'annual-title').tagName, 'H3');
+  assert.equal(packClass(h, 'annual-title').tagName, 'H2');
   assert.equal(packClass(h, 'annual-title').textContent, 'Walkthrough packs');
   assert.match(markup, /<section id="account-packs" class="packs-offer" aria-labelledby="account-packs-title" hidden><\/section>/);
   assert.equal(h.scripts.length, 0, 'Square’s SDK is not loaded just to show the card');
@@ -2739,7 +2739,7 @@ test('refer an office: the rule, the link built from the account’s own code, a
   assert.equal(block.hidden, false);
   assert.equal(block.attributes['aria-busy'], 'false');
   assert.match(markup, /<section id="account-referral" class="referral-offer" aria-labelledby="account-referral-title" hidden><\/section>/);
-  const title = referralNodes(h).find(el => el.tagName === 'H3');
+  const title = referralNodes(h).find(el => el.tagName === 'H2');
   assert.deepEqual([title.textContent, title.id], ['Refer an office', 'account-referral-title']);
   assert.ok(referralText(h).includes(REFERRAL_RULE));
   const field = referralNodes(h).find(el => el.tagName === 'INPUT');
