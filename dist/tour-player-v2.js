@@ -1340,6 +1340,12 @@
     const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
     const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
     let lastRoomVisited = stopLabel(manifest, manifest.start).room || '';
+    // What the viewer did, said to the page as a DOM event and nothing more: the player itself sends nothing anywhere.
+    function announceActivity(type, detail) {
+      try {
+        if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent(type, { detail }));
+      } catch { /* optional: a page that is not listening changes nothing */ }
+    }
     function arrived(index) {
       state.stop = index;
       const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
@@ -1349,12 +1355,9 @@
       ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
       if (label.room && label.room !== lastRoomVisited) {
         lastRoomVisited = label.room;
-        try {
-          if (typeof CustomEvent === 'function') {
-            document.dispatchEvent?.(new CustomEvent('veylet:room', { detail: { room: label.room } }));
-          }
-        } catch { /* optional telemetry event */ }
+        announceActivity('veylet:room', { room: label.room });
       }
+      if (index >= 0) announceActivity('veylet:stop', { stop: index, room: label.room || null });
     }
     function goToStop(index) {
       if (!ready) return;
@@ -1793,6 +1796,8 @@
         phase = 'detail';
         mark('first-3d');
         ready = true;
+        // The opening stop is an arrival too, once there is something to look at.
+        if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
@@ -1941,6 +1946,15 @@
       stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames),
         ...(chunked ? { chunk: currentChunk, chunks: [...held].map(([id, item]) => ({ id, level: item.level, settled: item.settled })) } : {}) }),
       goToStop, tapAt,
+      /*
+       * Where the viewer stands and looks, read by the page when it wants it (no timer and no network here).
+       * null until the first 3D frame. stop: the stop stood on (0-based), or -1 while moving or between stops.
+       * Angles are degrees in the tour package's own frame (right-handed, Y up), exactly as lookAngles() gives them:
+       * yaw 0 looks along -Z (up on the floor map before its turn); yaw grows turning LEFT, anticlockwise seen
+       * from above, so yaw 90 looks along -X, 180 along +Z and 270 along +X. Given here as 0 <= yaw < 360.
+       * pitch 0 is level, positive looks up, negative down (-80..80).
+       */
+      view: () => (ready ? { stop: flight ? -1 : state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
       // For QA: whether a tap here aims at open floor on the walkable mask.
       probe: (clientX, clientY) => {
         const aim = walkable && aimFor(clientX, clientY);

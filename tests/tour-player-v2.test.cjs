@@ -1221,3 +1221,99 @@ test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, co
 });
 
 
+
+// ---------- walkthrough insights (10 Nov 2026): the player says where the viewer is, and sends nothing ----------
+
+test('veylet:stop is announced at the first 3D frame and on each arrival; view() reads the stop and look direction', async () => {
+  const raw = manifest({
+    rooms: [{ id: 'r1', name: 'Living' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: null }],
+    stops: [
+      { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, 0, -2], floor: [0, -1.4, 0], floor_measured: true },      // looks along -Z
+      { id: 's2', room: 'r2', position: [0, 0, -2], target: [-3, 0, -2], floor: [0, -1.4, -2], floor_measured: true },    // looks along -X
+      { id: 's3', room: 'r3', position: [2, 0, -2], target: [2, 0, 1], floor: [2, -1.4, -2], floor_measured: true },      // looks along +Z
+      { id: 's4', room: 'r1', position: [2, 0, 0], target: [5, 3, 0], floor: [2, -1.4, 0], floor_measured: true },        // looks along +X, 45° up
+    ],
+  });
+  const events = [];
+  const x = await started({ manifest: raw, context: { CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } } });
+  x.document.dispatchEvent = event => { events.push([event.type, { ...event.detail }]); };
+  const controller = () => x.window.VeyletPlayerV2.current;
+  // Until a 3D frame is drawn there is no view and no stop.
+  assert.equal(controller() ? controller().view() : null, null);
+  assert.deepEqual(events, []);
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  assert.equal(typeof controller().view, 'function');
+  assert.deepEqual(events, [['veylet:stop', { stop: 0, room: 'Living' }]], 'the opening stop is an arrival, once there is a frame');
+  // Tour frame: yaw 0 looks along -Z; it grows turning left, so -X is 90, +Z is 180 and +X is 270.
+  const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} ≈ ${expected}`);
+  let view = controller().view();
+  assert.deepEqual(Object.keys(view).sort(), ['pitch', 'stop', 'yaw']);
+  assert.equal(view.stop, 0); near(view.yaw, 0); near(view.pitch, 0);
+  byClass(x.stage, 'v2-next').click();
+  view = controller().view();
+  assert.equal(view.stop, 1); near(view.yaw, 90); near(view.pitch, 0);
+  byClass(x.stage, 'v2-next').click();
+  view = controller().view();
+  assert.equal(view.stop, 2); near(view.yaw, 180);
+  byClass(x.stage, 'v2-next').click();
+  view = controller().view();
+  assert.equal(view.stop, 3); near(view.yaw, 270); near(view.pitch, 45);
+  assert.ok(view.yaw >= 0 && view.yaw < 360, 'never negative, whatever the player holds inside');
+  assert.deepEqual(events, [
+    ['veylet:stop', { stop: 0, room: 'Living' }],
+    ['veylet:room', { room: 'Kitchen' }], ['veylet:stop', { stop: 1, room: 'Kitchen' }],
+    ['veylet:stop', { stop: 2, room: null }],
+    ['veylet:room', { room: 'Living' }], ['veylet:stop', { stop: 3, room: 'Living' }],
+  ]);
+  // A drag to the right turns the yaw down through 0 into the 300s; view() keeps it in 0..360.
+  const canvas = byClass(x.stage, 'v2-canvas');
+  canvas.dispatch('keydown', { key: '1' });
+  canvas.dispatch('keydown', { key: 'ArrowRight' });
+  view = controller().view();
+  assert.equal(view.stop, 0); near(view.yaw, 350);
+  // Reading the view changes nothing and costs no event.
+  const before = events.length;
+  for (let i = 0; i < 50; i++) controller().view();
+  assert.equal(events.length, before);
+  // A page that does not listen, or a browser without CustomEvent, changes nothing.
+  x.document.dispatchEvent = () => { throw new Error('a listener failed'); };
+  assert.doesNotThrow(() => byClass(x.stage, 'v2-next').click());
+  assert.equal(controller().view().stop, 1);
+});
+
+test('view() answers stop -1 while a move is under way, so no look is counted against a stop in passing', async () => {
+  const time = clock();
+  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
+  const controller = x.window.VeyletPlayerV2.current;
+  assert.equal(controller.view().stop, 0);
+  byClass(x.stage, 'v2-next').click();
+  assert.equal(controller.view().stop, -1, 'in flight');
+  time.t += 60000;
+  x.app.fire('update');
+  assert.equal(controller.view().stop, 1, 'arrived');
+});
+
+test('the player stays analytics-free: stop events and view() add no request, beacon, storage key or timer of their own', async () => {
+  // Statically: nothing in the player can post anywhere, and it does not know the view function or a visit.
+  const code = playerSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /sendBeacon|XMLHttpRequest|WebSocket|EventSource|record_tour_view|rest\/v1|supabase|method:\s*['"]POST/);
+  assert.equal((code.match(/\bfetch\(/g) || []).length, 1, 'one fetch call site: the package reader');
+  assert.doesNotMatch(code, /setInterval/);
+  // At run time: walking every stop and reading the view asks the network for nothing but the package.
+  const stored = [];
+  const x = await readyPlayer({ context: {
+    CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
+    navigator: { sendBeacon() { throw new Error('the player sent a beacon'); } },
+  } });
+  const original = x.document.dispatchEvent;
+  x.document.dispatchEvent = event => { stored.push(event.type); return original?.call(x.document, event); };
+  const requests = () => x.log.filter(line => line.startsWith('fetch:'));
+  const before = requests().length;
+  for (let i = 0; i < 6; i++) { byClass(x.stage, 'v2-next').click(); x.window.VeyletPlayerV2.current.view(); }
+  assert.equal(requests().length, before, 'no request for a stop or a look');
+  assert.ok(requests().every(line => line.startsWith('fetch:https://veylet.com/pkg/')), 'only package files, ever');
+  assert.deepEqual([...new Set(stored)], ['veylet:stop'], 'what it says goes to the page as a DOM event only');
+});
