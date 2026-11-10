@@ -651,6 +651,31 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+/* Where viewers looked: one ring per stop (12 sectors, 3 bands), its words beside it, and a table. */
+.tour-heat { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.tour-heat[hidden] { display: none; }
+.tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+.tour-heat p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tour-heat .tour-heat-empty { font-size: 14px; }
+.tour-heat-stops { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 248px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tour-heat-stop { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 4px; }
+.tour-heat-words { min-width: 0; }
+.tour-heat .tour-heat-stop-name { font-size: 14px; color: var(--ink); }
+.tour-heat .tour-heat-stop-figures { color: var(--ink); }
+.tour-heat-ring { flex: none; width: 72px; height: 72px; }
+.tour-heat-wedge { fill: #fff; stroke: var(--field-line, #8f978c); stroke-width: 0.5; }
+.tour-heat-wedge-seen { fill: var(--ink); stroke: #fdfcfa; }
+.tour-heat-zero { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.tour-heat-more > summary { font-size: 13px; color: var(--ink); }
+.tour-heat-scroll { overflow-x: auto; }
+.tour-heat-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; color: var(--ink); }
+.tour-heat-table caption { padding: 0 0 6px; text-align: left; color: var(--muted); }
+.tour-heat-table th,
+.tour-heat-table td { padding: 6px 12px 6px 0; border-top: 1px solid var(--line); text-align: left; vertical-align: top; font-weight: 400; }
+.tour-heat-table thead th { border-top: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.tour-heat-table tbody th { min-width: 104px; overflow-wrap: normal; word-break: normal; }
+.tour-heat-table td:nth-child(2),
+.tour-heat-table td:nth-child(3) { white-space: nowrap; }
 .space-prep { margin: 12px 0 0; }
 .space-prep-lead { margin: 0; }
 .space-prep-list {

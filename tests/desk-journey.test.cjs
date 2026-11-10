@@ -122,6 +122,7 @@ function harness(options = {}) {
     addEventListener: (name, handler) => { windowEvents[name] = handler; } };
   Object.assign(documentStub, {
     getElementById: id => ids[id], createElement: tag => new Element(tag),
+    createElementNS: (namespace, tag) => Object.assign(new Element(tag), { namespace }),
     addEventListener: (name, handler) => { documentStub.listeners[name] = handler; }, head: { append() {} },
   });
   const FakeURL = function (...args) { return new URL(...args); };
@@ -1356,4 +1357,148 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   const icsAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
   assert.equal(icsAnchor.download, '12-rue-cafe-co-capture.ics');
   assert.equal(rowLine(prep), 'Calendar slot saved as 12-rue-cafe-co-capture.ics.');
+});
+
+/* ---- Where viewers looked (get_tour_view_heatmap, 10 November 2026) ----------- */
+
+const VIEW_STATS = { opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 14 }, by_host: {},
+  last_opened_at: '2026-09-24T02:00:00Z', explores: 9, avg_dwell_seconds: 96, visits: 11,
+  by_room: { Kitchen: 7, Lounge: 9 }, by_room_seconds: { Kitchen: 272, Lounge: 61 } };
+// The contract's shape: stops in stop order, whole seconds, bins that need not add up to seconds.
+const HEATMAP = { visits: 11, since: '2026-11-01T01:00:10+00:00', stops: [
+  { stop: 0, room: 'Lounge', visits: 11, seconds: 61, bins: { '0_1': 30, '11_1': 20, '6_0': 10 } },
+  { stop: 1, room: 'Kitchen', visits: 9, seconds: 272, bins: { '2_1': 136, '3_1': 68, '2_0': 34, '8_2': 34 } },
+  { stop: 2, room: null, visits: 1, seconds: 0, bins: {} },
+] };
+async function heatDesk(heatmap, extra = {}) {
+  const h = await load({ tours: [liveTour()], approved: true, hosting: [released()],
+    rpc: { get_tour_view_stats: async () => ({ data: [extra.stats || VIEW_STATS] }), ...(heatmap === undefined ? {} : { get_tour_view_heatmap: heatmap }) } });
+  await settle();
+  const insights = h.card('t1').all().find(el => el.className === 'account-details tour-insights');
+  const open = async () => { insights.open = true; await insights.fire('toggle'); await settle(); };
+  const panel = () => insights.all().find(el => /^tour-heat$/.test(el.className));
+  const texts = className => insights.all().filter(el => el.className === className).map(el => el.textContent);
+  return { h, insights, open, panel, texts };
+}
+
+test('the extended stats fill the time and room lines: average time, rooms by visits, time by room, and the vendor report', async () => {
+  const x = await heatDesk(async () => ({ data: HEATMAP }));
+  await x.open();
+  assert.equal(x.texts('tour-insights-summary')[0], 'Active days: 5 · Direct enquiries: 4 · Link shares: 2 · Avg. time: 1m 36s');
+  assert.equal(x.texts('tour-insights-rooms')[0], 'Most explored rooms: Lounge (9) · Kitchen (7)');
+  assert.equal(x.texts('tour-insights-rooms tour-insights-room-time')[0], 'Time by room: Kitchen 4m 32s · Lounge 1m 1s');
+  await x.insights.all().find(el => el.dataset.control === 'copy-vendor-report').fire('click');
+  await settle();
+  assert.match(x.h.copied.at(-1), /· Avg\. time 1m 36s\n/);
+  assert.match(x.h.copied.at(-1), /Most explored rooms: Lounge \(9\) · Kitchen \(7\)\nTime by room: Kitchen 4m 32s · Lounge 1m 1s$/);
+  // PostgREST may hand a numeric over as a number with a fraction or as text; an average is still said, rounded.
+  for (const [value, said] of [[96.4, '1m 36s'], ['104.6', '1m 45s']]) {
+    const odd = await heatDesk(undefined, { stats: { ...VIEW_STATS, avg_dwell_seconds: value } });
+    assert.match(odd.texts('tour-insights-summary')[0], new RegExp('Avg\\. time: ' + said + '$'));
+  }
+  // A database from before these columns: the lines are simply not there.
+  const before = await heatDesk(undefined, { stats: { opens: 3, days_with_opens: 1, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: '2026-09-24T02:00:00Z' } });
+  assert.equal(before.texts('tour-insights-summary')[0], 'Active days: 1 · Direct enquiries: 0 · Link shares: 0');
+  assert.deepEqual([before.texts('tour-insights-rooms'), before.texts('tour-insights-rooms tour-insights-room-time')], [[], []]);
+});
+
+test('Where viewers looked: asked once when the insights are opened, a ring and its words per stop ranked by time, and a table', async () => {
+  const x = await heatDesk(async () => ({ data: HEATMAP }));
+  assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'not asked for until the insights are opened');
+  assert.equal(x.panel().hidden, true);
+  await x.open();
+  assert.deepEqual(JSON.parse(JSON.stringify(x.h.calls.filter(([name]) => name === 'get_tour_view_heatmap'))), [['get_tour_view_heatmap', { p_tour_id: 't1' }]]);
+  const panel = x.panel();
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.getAttribute('aria-label'), 'Where viewers looked');
+  assert.equal(panel.children[0].tagName, 'H4');
+  assert.equal(panel.children[0].textContent, 'Where viewers looked');
+  assert.equal(x.texts('tour-heat-lead')[0], '11 visits since 1 Nov 2026. Stops are ranked by viewing time.');
+  // Ranked by time, not stop order; the stop with no time read at it is still listed, in words.
+  assert.deepEqual(x.texts('tour-heat-stop-name'), ['Stop 2 · Kitchen', 'Stop 1 · Lounge', 'Stop 3']);
+  assert.deepEqual(x.texts('tour-heat-stop-figures'), ['4m 32s · 9 visits', '1m 1s · 11 visits', 'Under 1s · 1 visit']);
+  assert.deepEqual(x.texts('tour-heat-stop-top'), ['Looked most towards 60–90°, level (50%)', 'Looked most towards 0–30°, level (50%)', 'No look direction recorded']);
+  assert.deepEqual(x.texts('tour-heat-stop-pitch'), ['Down 13% · Level 75% · Up 13%', 'Down 17% · Level 83% · Up 0%']);
+  // The ring: 12 sectors by 3 bands, hidden from assistive technology because the words beside it say it.
+  const rings = panel.all().filter(el => el.tagName === 'SVG');
+  assert.equal(rings.length, 3);
+  for (const ring of rings) {
+    assert.equal(ring.namespace, 'http://www.w3.org/2000/svg');
+    assert.equal(ring.getAttribute('aria-hidden'), 'true');
+    const wedges = ring.children.filter(el => el.getAttribute('data-bin'));
+    assert.equal(wedges.length, 36);
+    assert.equal(new Set(wedges.map(el => el.getAttribute('data-bin'))).size, 36);
+    for (const wedge of wedges) assert.match(wedge.getAttribute('d'), /^M[\d.]+ [\d.]+A\d+ \d+ 0 0 0 [\d.]+ [\d.]+L[\d.]+ [\d.]+A\d+ \d+ 0 0 1 [\d.]+ [\d.]+Z$/);
+  }
+  const seen = ring => Object.fromEntries(ring.children.filter(el => /tour-heat-wedge-seen/.test(el.getAttribute('class') || '')).map(el => [el.getAttribute('data-bin'), el.getAttribute('fill-opacity')]));
+  assert.deepEqual(seen(rings[0]), { '2_0': '0.37', '2_1': '1.00', '3_1': '0.58', '8_2': '0.37' }, 'the busiest wedge is full; the rest in proportion');
+  assert.deepEqual(seen(rings[2]), {});
+  // Sector 0 starts at the top of the ring and runs anticlockwise (to the left), as yaw does seen from above.
+  const first = rings[0].children.find(el => el.getAttribute('data-bin') === '0_2').getAttribute('d');
+  assert.match(first, /^M36\.00 1\.00A35 35 0 0 0 18\.50 5\.69L/);
+  assert.match(x.texts('tour-heat-key')[0], /0° at the top of the ring, turning anticlockwise\. Inner band: looking down\. Middle: level\. Outer: up\./);
+  // The table says everything the rings do, for every stop.
+  const table = panel.all().find(el => el.tagName === 'TABLE');
+  assert.equal(table.all().find(el => el.tagName === 'CAPTION').textContent, 'Viewing time by stop, most first');
+  assert.deepEqual(table.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'col').map(el => el.textContent), ['Stop', 'Time', 'Visits', 'Looked most', 'Down / level / up']);
+  assert.deepEqual(table.all().filter(el => el.tagName === 'TR').slice(1).map(row => row.children.map(cell => cell.textContent)), [
+    ['Stop 2 · Kitchen', '4m 32s', '9', '60–90°, level (50%)', '13% / 75% / 13%'],
+    ['Stop 1 · Lounge', '1m 1s', '11', '0–30°, level (50%)', '17% / 83% / 0%'],
+    ['Stop 3', 'Under 1s', '1', '–', '–'],
+  ]);
+  assert.ok(table.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'row').length === 3);
+  // Closing and opening again does not ask again.
+  x.insights.open = false; await x.insights.fire('toggle');
+  await x.open();
+  assert.equal(x.h.count('get_tour_view_heatmap'), 1);
+  // More than five stops: five rings, and the table carries them all.
+  const many = { visits: 4, since: null, stops: Array.from({ length: 9 }, (_, stop) => ({ stop, room: null, visits: 1, seconds: 10 + stop, bins: { '0_1': 10 + stop } })) };
+  const long = await heatDesk(async () => ({ data: many }));
+  await long.open();
+  assert.deepEqual(long.texts('tour-heat-stop-name'), ['Stop 9', 'Stop 8', 'Stop 7', 'Stop 6', 'Stop 5']);
+  assert.equal(long.texts('tour-heat-lead')[0], '4 visits. Stops are ranked by viewing time.');
+  assert.equal(long.panel().all().find(el => el.tagName === 'SUMMARY').textContent, 'All 9 stops as a table');
+  assert.equal(long.panel().all().filter(el => el.tagName === 'TR').length, 10);
+});
+
+test('Where viewers looked: "No visits yet" for an empty answer; no panel for a missing function, an error or an odd answer', async () => {
+  const empty = await heatDesk(async () => ({ data: { stops: [], visits: 0, since: null } }));
+  await empty.open();
+  assert.equal(empty.panel().hidden, false);
+  assert.deepEqual(empty.panel().children.map(el => el.textContent),
+    ['Where viewers looked', 'No visits yet. Time at each stop and where people look fills in as the link is walked through.']);
+  assert.equal(empty.panel().all().filter(el => el.tagName === 'SVG' || el.tagName === 'TABLE').length, 0);
+  // An older backend (PGRST202): nothing is shown, nothing is said, and no other walkthrough asks again.
+  const missing = await load({ tours: [liveTour(), liveTour({ id: 't2' })], approved: true, hosting: [released(), released({ tour_id: 't2' })],
+    rpc: { get_tour_view_stats: async () => ({ data: [VIEW_STATS] }),
+      get_tour_view_heatmap: async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_view_heatmap(p_tour_id) in the schema cache' } }) } });
+  await settle();
+  const status = missing.status();
+  for (const id of ['t1', 't2']) {
+    const insights = missing.card(id).all().find(el => el.className === 'account-details tour-insights');
+    insights.open = true; await insights.fire('toggle'); await settle();
+    const panel = insights.all().find(el => el.className === 'tour-heat');
+    assert.equal(panel.hidden, true, id);
+    assert.equal(panel.children.length, 0);
+    assert.equal(insights.all().find(el => el.className === 'tour-insights-summary').textContent.startsWith('Active days: 5'), true, 'the rest of the insights stay');
+  }
+  assert.equal(missing.count('get_tour_view_heatmap'), 1, 'asked once; the second walkthrough does not ask a backend known not to have it');
+  assert.equal(missing.status(), status, 'silently');
+  // A failed read, a thrown one, and answers that are not the contract's shape: no panel, no words, no throw.
+  const odd = [async () => ({ data: null, error: { message: 'boom' } }), async () => { throw new TypeError('Failed to fetch'); }, async () => ({ data: null }),
+    async () => ({ data: 'yes' }), async () => ({ data: { visits: 3 } }), async () => ({ data: { stops: [{ stop: 64, room: null, visits: 1, seconds: 3, bins: {} }], visits: 1, since: null } }),
+    async () => ({ data: { stops: [{ stop: 0, room: null, visits: -1, seconds: 3, bins: {} }], visits: 1, since: null } }),
+    async () => ({ data: { stops: [{ stop: 0, room: null, visits: 1, seconds: 'long', bins: {} }], visits: 1, since: null } })];
+  for (const answer of odd) {
+    const x = await heatDesk(answer);
+    await x.open();
+    assert.equal(x.panel().hidden, true);
+    assert.equal(x.panel().children.length, 0);
+  }
+  // Bin keys outside the 36, and amounts that are not positive numbers, are ignored rather than drawn.
+  const stray = await heatDesk(async () => ({ data: { visits: 1, since: null, stops: [{ stop: 0, room: '<b>Hall</b>', visits: 1, seconds: 9,
+    bins: { '0_1': 6, '12_1': 50, '1_3': 50, '01_1': 50, '2_1': -4, '3_1': '7', north: 9 } }] } }));
+  await stray.open();
+  assert.deepEqual(stray.texts('tour-heat-stop-top'), ['Looked most towards 0–30°, level (100%)']);
+  assert.deepEqual(stray.texts('tour-heat-stop-name'), ['Stop 1 · <b>Hall</b>'], 'a room name is text, never markup');
 });

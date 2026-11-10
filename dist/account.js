@@ -1081,6 +1081,11 @@
     const mins = Math.floor(seconds / 60), rem = seconds % 60;
     return rem ? mins + 'm ' + rem + 's' : mins + 'm';
   }
+  /** Seconds as a whole number: a database average arrives as 104.6 (or "104.6"), a total as an integer. */
+  function wholeSeconds(value) {
+    const number = typeof value === 'string' && /^\d+(\.\d+)?$/.test(value) ? Number(value) : value;
+    return typeof number === 'number' && Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+  }
   function positiveEntries(map) {
     if (!map || typeof map !== 'object') return [];
     return Object.entries(map).filter(([, v]) => Number.isInteger(v) && v > 0).sort((a, b) => b[1] - a[1]);
@@ -1092,7 +1097,7 @@
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
     const shares = viewCount(row?.share_taps) || 0;
-    const dwell = formatDurationSeconds(viewCount(row?.avg_dwell_seconds));
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const lines = [
       'Walkthrough campaign report — ' + name,
       'Total opens: ' + opens + (days !== null ? ' (' + days + (days === 1 ? ' active day' : ' active days') + (lastDate ? ' · last opened ' + lastDate : '') + ')' : (lastDate ? ' (last opened ' + lastDate + ')' : '')),
@@ -1110,9 +1115,178 @@
     if (rooms.length) {
       lines.push('Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · '));
     }
+    const roomTimes = positiveEntries(row?.by_room_seconds);
+    if (roomTimes.length) {
+      lines.push('Time by room: ' + roomTimes.map(([r, s]) => r + ' ' + formatDurationSeconds(s)).join(' · '));
+    }
     return lines.join('\n');
   }
-  function tourInsights(tour, row, title, box, lastDate) {
+  /*
+   * Where viewers looked, from get_tour_view_heatmap(p_tour_id):
+   *   { stops: [{ stop, room, visits, seconds, bins: { "<yaw 0..11>_<pitch 0..2>": seconds } }], visits, since }
+   * The viewer's page fills it (dist/client-page.js, kinds stop and look): yaw bin k is the
+   * 30-degree sector 30k..30k+30 of the walkthrough's own compass, where 0 degrees looks along
+   * the package's -Z axis and the angle grows turning left (anticlockwise seen from above);
+   * pitch 0 is down, 1 level, 2 up. A ring is that stop seen from above: 0 degrees at the top,
+   * angles running anticlockwise, the inner band down, the middle level, the outer up. Darker
+   * means more of that stop's viewing time. Every ring has its words beside it and the whole
+   * panel has a table, so nothing is said by shade alone. Seconds and bins are whole seconds; a
+   * bin under half a second is left out, so shares are of the binned time. It answers for this
+   * version of the walkthrough only. A backend without the function
+   * (PGRST202) shows no panel at all, as the view counts do; so does any error or odd answer.
+   */
+  const HEAT_PITCH_NAMES = ['down', 'level', 'up'];
+  // The top stops get a ring; the table carries every stop.
+  const HEAT_STOPS_SHOWN = 5;
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function heatSector(yawBin) { return (yawBin * 30) + '–' + (yawBin * 30 + 30) + '°'; }
+  /** The answer as clean rows ranked by time, or null when it is not the shape above. */
+  function heatmapFrom(data) {
+    const answer = firstRow(data);
+    if (!answer || typeof answer !== 'object' || !Array.isArray(answer.stops)) return null;
+    const stops = [];
+    for (const item of answer.stops) {
+      if (!item || typeof item !== 'object' || !Number.isInteger(item.stop) || item.stop < 0 || item.stop > 63) return null;
+      const seconds = wholeSeconds(item.seconds), visits = viewCount(item.visits);
+      if (seconds === null || visits === null) return null;
+      const cells = [];
+      let binned = 0;
+      for (const [key, value] of Object.entries(item.bins && typeof item.bins === 'object' ? item.bins : {})) {
+        const match = /^(\d|1[01])_([0-2])$/.exec(key);
+        const amount = typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+        if (!match || !amount) continue;
+        cells.push({ yaw: Number(match[1]), pitch: Number(match[2]), seconds: amount });
+        binned += amount;
+      }
+      cells.sort((a, b) => b.seconds - a.seconds || a.yaw - b.yaw || a.pitch - b.pitch);
+      const byPitch = [0, 1, 2].map(pitch => cells.filter(cell => cell.pitch === pitch).reduce((sum, cell) => sum + cell.seconds, 0));
+      const room = typeof item.room === 'string' && item.room.trim() ? item.room.trim().slice(0, 60) : '';
+      stops.push({ stop: item.stop, room, visits, seconds, cells, binned, byPitch });
+    }
+    stops.sort((a, b) => b.seconds - a.seconds || a.stop - b.stop);
+    return { stops, visits: viewCount(answer.visits), since: typeof answer.since === 'string' ? answer.since : '' };
+  }
+  const heatShare = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+  function heatStopName(row) { return 'Stop ' + (row.stop + 1) + (row.room ? ' · ' + row.room : ''); }
+  function heatFigures(row) {
+    return (formatDurationSeconds(row.seconds) || 'Under 1s') + ' · ' + row.visits + (row.visits === 1 ? ' visit' : ' visits');
+  }
+  /** "Looked most towards 60–90°, level (41%)", in words. */
+  function heatTopWords(row) {
+    const top = row.cells[0];
+    return top ? 'Looked most towards ' + heatSector(top.yaw) + ', ' + HEAT_PITCH_NAMES[top.pitch] + ' (' + heatShare(top.seconds, row.binned) + '%)' : 'No look direction recorded';
+  }
+  function heatPitchWords(row) {
+    return row.binned > 0 ? 'Down ' + heatShare(row.byPitch[0], row.binned) + '% · Level ' + heatShare(row.byPitch[1], row.binned) + '% · Up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
+  }
+  /** One stop from above: 12 sectors by 3 bands (36 wedges). Decorative: the words beside it say the same. */
+  function heatRing(row) {
+    if (typeof document.createElementNS !== 'function') return null;
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'tour-heat-ring'); svg.setAttribute('viewBox', '0 0 72 72');
+    svg.setAttribute('width', '72'); svg.setAttribute('height', '72');
+    svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
+    const most = row.cells.length ? row.cells[0].seconds : 0;
+    const amount = new Map(row.cells.map(cell => [cell.yaw + '_' + cell.pitch, cell.seconds]));
+    const radii = [8, 17, 26, 35];
+    // An angle anticlockwise from the top of the ring: 90 degrees is its left.
+    const point = (radius, degrees) => {
+      const angle = degrees * Math.PI / 180;
+      return (36 - radius * Math.sin(angle)).toFixed(2) + ' ' + (36 - radius * Math.cos(angle)).toFixed(2);
+    };
+    for (let pitch = 0; pitch < 3; pitch++) {
+      for (let yaw = 0; yaw < 12; yaw++) {
+        const inner = radii[pitch], outer = radii[pitch + 1], from = yaw * 30, to = from + 30;
+        const wedge = document.createElementNS(SVG_NS, 'path');
+        wedge.setAttribute('d', 'M' + point(outer, from) + 'A' + outer + ' ' + outer + ' 0 0 0 ' + point(outer, to) +
+          'L' + point(inner, to) + 'A' + inner + ' ' + inner + ' 0 0 1 ' + point(inner, from) + 'Z');
+        const seconds = amount.get(yaw + '_' + pitch) || 0;
+        wedge.setAttribute('class', seconds ? 'tour-heat-wedge tour-heat-wedge-seen' : 'tour-heat-wedge');
+        wedge.setAttribute('data-bin', yaw + '_' + pitch);
+        if (seconds) wedge.setAttribute('fill-opacity', (0.16 + 0.84 * (seconds / most)).toFixed(2));
+        svg.append(wedge);
+      }
+    }
+    // The 0 degree mark at the top.
+    const mark = document.createElementNS(SVG_NS, 'path');
+    mark.setAttribute('class', 'tour-heat-zero'); mark.setAttribute('d', 'M36 0v5');
+    svg.append(mark);
+    return svg;
+  }
+  function heatTable(rows) {
+    const details = document.createElement('details'); details.className = 'tour-heat-more';
+    const summary = document.createElement('summary'); summary.textContent = rows.length > HEAT_STOPS_SHOWN ? 'All ' + rows.length + ' stops as a table' : 'Show as a table';
+    const scroll = document.createElement('div'); scroll.className = 'tour-heat-scroll';
+    // On a phone the table scrolls sideways inside its own box, which a keyboard must be able to reach.
+    scroll.setAttribute('tabindex', '0'); scroll.setAttribute('role', 'group'); scroll.setAttribute('aria-label', 'Viewing time by stop, table');
+    const table = document.createElement('table'); table.className = 'tour-heat-table';
+    const caption = document.createElement('caption'); caption.textContent = 'Viewing time by stop, most first';
+    const head = document.createElement('thead'), headRow = document.createElement('tr');
+    for (const text of ['Stop', 'Time', 'Visits', 'Looked most', 'Down / level / up']) {
+      const cell = document.createElement('th'); cell.setAttribute('scope', 'col'); cell.textContent = text; headRow.append(cell);
+    }
+    head.append(headRow);
+    const body = document.createElement('tbody');
+    for (const row of rows) {
+      const line = document.createElement('tr');
+      const name = document.createElement('th'); name.setAttribute('scope', 'row'); name.textContent = heatStopName(row);
+      const top = row.cells[0];
+      const cells = [formatDurationSeconds(row.seconds) || 'Under 1s', String(row.visits),
+        top ? heatSector(top.yaw) + ', ' + HEAT_PITCH_NAMES[top.pitch] + ' (' + heatShare(top.seconds, row.binned) + '%)' : '–',
+        row.binned > 0 ? row.byPitch.map(part => heatShare(part, row.binned) + '%').join(' / ') : '–'];
+      line.append(name, ...cells.map(text => { const cell = document.createElement('td'); cell.textContent = text; return cell; }));
+      body.append(line);
+    }
+    table.append(caption, head, body); scroll.append(table); details.append(summary, scroll);
+    return details;
+  }
+  function renderHeat(panel, heat) {
+    const title = document.createElement('h4'); title.className = 'tour-heat-title'; title.textContent = 'Where viewers looked';
+    if (!heat.stops.length) {
+      const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
+      empty.textContent = 'No visits yet. Time at each stop and where people look fills in as the link is walked through.';
+      panel.replaceChildren(title, empty); panel.hidden = false;
+      return;
+    }
+    const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
+    const lead = document.createElement('p'); lead.className = 'tour-heat-lead';
+    lead.textContent = [heat.visits !== null ? heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : (since ? 'Since ' + since : ''),
+      'Stops are ranked by viewing time.'].filter(Boolean).join('. ');
+    const parts = [title, lead];
+    const list = document.createElement('ol'); list.className = 'tour-heat-stops';
+    for (const row of heat.stops.slice(0, HEAT_STOPS_SHOWN)) {
+      const item = document.createElement('li'); item.className = 'tour-heat-stop';
+      const words = document.createElement('div'); words.className = 'tour-heat-words';
+      const lines = [['tour-heat-stop-name', heatStopName(row)], ['tour-heat-stop-figures', heatFigures(row)],
+        ['tour-heat-stop-top', heatTopWords(row)], ['tour-heat-stop-pitch', heatPitchWords(row)]];
+      for (const [className, text] of lines) {
+        if (!text) continue;
+        const line = document.createElement('p'); line.className = className; line.textContent = text; words.append(line);
+      }
+      const ring = heatRing(row);
+      if (ring) item.append(ring);
+      item.append(words); list.append(item);
+    }
+    parts.push(list);
+    const key = document.createElement('p'); key.className = 'tour-heat-key';
+    key.textContent = 'Each ring is a stop seen from above. Angles use the walkthrough’s own compass: 0° at the top of the ring, turning anticlockwise. Inner band: looking down. Middle: level. Outer: up. Darker means more of that stop’s time.';
+    parts.push(key, heatTable(heat.stops));
+    panel.replaceChildren(...parts); panel.hidden = false;
+  }
+  /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
+  function tourHeat(tour, panel, supabase, ticket) {
+    panel.className = 'tour-heat'; panel.hidden = true;
+    if (!heatAvailable || !supabase || panel.dataset.asked === 'true') return;
+    panel.dataset.asked = 'true';
+    void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))).then(reply => {
+      if (ticket !== deskVersion) return;
+      if (missingFunction(reply)) { heatAvailable = false; return; }
+      if (failed(reply)) return;
+      const heat = heatmapFrom(reply.value?.data);
+      if (heat) renderHeat(panel, heat);
+    });
+  }
+  function tourInsights(tour, row, title, box, lastDate, supabase, ticket) {
     if (!box) return;
     const opens = viewCount(row?.opens);
     if (!opens || opens <= 0) { box.hidden = true; return; }
@@ -1122,12 +1296,14 @@
     const body = document.createElement('div');
     body.className = 'tour-insights-body';
     body.hidden = !box.open;
-    box.addEventListener('toggle', () => { body.hidden = !box.open; });
+    const heat = document.createElement('section');
+    heat.setAttribute('aria-label', 'Where viewers looked');
+    box.addEventListener('toggle', () => { body.hidden = !box.open; if (box.open) tourHeat(tour, heat, supabase, ticket); });
     const days = viewCount(row?.days_with_opens);
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
     const shares = viewCount(row?.share_taps);
-    const dwell = formatDurationSeconds(viewCount(row?.avg_dwell_seconds));
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const summaryBits = [];
     if (days !== null) summaryBits.push('Active days: ' + days);
     summaryBits.push('Direct enquiries: ' + (calls + emails));
@@ -1165,6 +1341,17 @@
       roomLine.textContent = 'Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · ');
       body.append(roomLine);
     }
+    // Seconds looked from each room's stops (by_room_seconds: a flat map of room to whole seconds).
+    const roomTimes = positiveEntries(row?.by_room_seconds);
+    if (roomTimes.length) {
+      const timeLine = document.createElement('p');
+      timeLine.className = 'tour-insights-rooms tour-insights-room-time';
+      timeLine.textContent = 'Time by room: ' + roomTimes.map(([r, s]) => r + ' ' + formatDurationSeconds(s)).join(' · ');
+      body.append(timeLine);
+    }
+    heat.className = 'tour-heat'; heat.hidden = true;
+    body.append(heat);
+    if (box.open) tourHeat(tour, heat, supabase, ticket);
     const reportText = vendorReportText(title, row, lastDate);
     const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
     const copyBtn = button('Copy vendor report', async () => {
@@ -1215,7 +1402,7 @@
         parts.push(taps);
       }
       host.replaceChildren(...parts); host.hidden = false;
-      if (opens > 0 && insightsBox) tourInsights(tour, row, title, insightsBox, last);
+      if (opens > 0 && insightsBox) tourInsights(tour, row, title, insightsBox, last, supabase, ticket);
     });
   }
   function stopSharing(tour, supabase, ticket, parent) {
@@ -5483,6 +5670,8 @@
   let pauseAvailable = false;
   // get_tour_view_stats, until an answer says the backend does not have it.
   let viewsAvailable = true;
+  // get_tour_view_heatmap, until an answer says the backend does not have it (PGRST202).
+  let heatAvailable = true;
   // get_listing_exports, until an answer says the backend does not have it (PGRST202).
   let exportsAvailable = true;
   // A read that named a column this database does not have: which group it was.

@@ -51,7 +51,16 @@
    * opens on 5 days, 3 Call taps, 1 Email tap, 2 Share taps, by channel (link 8,
    * qr 4, embed 2) and by site (example-agency.invalid 2), last opened yesterday.
    * `?views=zero` answers no opens yet, `missing` answers PGRST202 to both functions
-   * (the desk shows no views, the beacon stops), `error` fails both. */
+   * (the desk shows no views, the beacon stops), `error` fails both. With views, the
+   * stats also carry what the insights release adds (the sibling repository's
+   * docs/analytics-insights-contract-20261110.md): avg_dwell_seconds 96, visits 11,
+   * by_room (visits: Living area 9, Kitchen 7, Main bedroom 4) and by_room_seconds.
+   * get_tour_view_heatmap(p_tour_id) answers "Where viewers looked" inside Walkthrough
+   * insights: by default eight fictional stops in three rooms over 11 visits.
+   * `?heat=empty` answers no visits yet ("No visits yet"), `missing` answers PGRST202 as
+   * a backend from before the function does (no panel), `error` fails the read (no
+   * panel). `&insights-open=1` opens the live walkthrough's insights once they are
+   * shown, so a capture can include the panel. It changes nothing. */
   /* Email preferences: the tips-and-offers box of the sibling repository's
    * docs/lifecycle-email.md and its draft 20260926114000_lifecycle_email.sql (not yet
    * released). `?email=` answers get_email_preferences: by default `missing`
@@ -77,6 +86,18 @@
     : { tips_opt_in: false, wording_version: null, changed_at: null };
   const pauseCase = params.get('pause');
   const viewsCase = params.get('views');
+  const heatCase = params.get('heat');
+  // Synthetic look times (seconds) by "<yaw 0..11>_<pitch 0..2>": no real visitor is in here.
+  const HEAT_STOPS = [
+    { stop: 2, room: 'Kitchen', visits: 9, seconds: 214, bins: { '2_1': 88, '3_1': 52, '2_0': 21, '8_1': 19, '3_2': 14, '9_1': 11, '5_1': 9 } },
+    { stop: 0, room: 'Living area', visits: 11, seconds: 187, bins: { '0_1': 61, '11_1': 44, '1_1': 30, '6_1': 22, '0_2': 12, '5_0': 10, '7_1': 8 } },
+    { stop: 4, room: 'Main bedroom', visits: 6, seconds: 96, bins: { '7_1': 41, '6_1': 23, '7_2': 15, '1_1': 9, '8_0': 8 } },
+    { stop: 1, room: 'Living area', visits: 8, seconds: 71, bins: { '4_1': 30, '5_1': 18, '10_1': 12, '4_0': 6, '3_1': 5 } },
+    { stop: 3, room: 'Kitchen', visits: 7, seconds: 58, bins: { '9_1': 26, '10_1': 17, '9_0': 9, '2_1': 6 } },
+    { stop: 5, room: 'Main bedroom', visits: 4, seconds: 33, bins: { '0_1': 14, '1_1': 9, '11_2': 6, '6_1': 4 } },
+    { stop: 6, room: null, visits: 3, seconds: 12, bins: { '3_1': 7, '4_1': 5 } },
+    { stop: 7, room: 'Balcony', visits: 2, seconds: 5, bins: { '6_2': 5 } },
+  ];
   const pausedAt = new Map();
   const viewsMissing = { data: null, error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' } };
   /* Sharing and the connection on /__qa/account/ (the desk's S1 states).
@@ -1672,7 +1693,15 @@
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
         if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null }] };
         return { data: [{ opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 8, qr: 4, embed: 2 },
-          by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1) }] };
+          by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1),
+          explores: 9, avg_dwell_seconds: 96, visits: 11, by_room: { 'Living area': 9, Kitchen: 7, 'Main bedroom': 4 },
+          by_room_seconds: { Kitchen: 272, 'Living area': 258, 'Main bedroom': 129, Balcony: 5 } }] };
+      }
+      if (name === 'get_tour_view_heatmap') {
+        if (heatCase === 'missing' || viewsCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_view_heatmap(p_tour_id) in the schema cache' } };
+        if (heatCase === 'error') return { data: null, error: { message: 'Synthetic heat map failure' } };
+        if (heatCase === 'empty') return { data: { stops: [], visits: 0, since: null } };
+        return { data: { stops: HEAT_STOPS, visits: 11, since: ago(6) } };
       }
       if (name === 'lookup_tour_share' && pauseCase === 'paused') return { data: [] };
       if (name === 'lookup_tour_share') return scenario === 'missing' ? { data: [] } : scenario === 'errors' ? { error: { message: 'Synthetic service failure' } }
@@ -1749,6 +1778,16 @@
         const email = document.getElementById('account-email');
         if (email && !email.hidden) { email.open = true; email.scrollIntoView({ block: 'center' }); }
         if ((email && !email.hidden) || ++tries > 40) clearInterval(open);
+      }, 100);
+    }
+    // Review affordance only: `&insights-open=1` opens the live walkthrough's insights once
+    // they are shown, so a capture can include "Where viewers looked". It changes nothing.
+    if (location.pathname === '/__qa/account/' && params.get('insights-open') === '1') {
+      let tries = 0;
+      const open = setInterval(() => {
+        const block = document.querySelector('.tour-insights:not([hidden])');
+        if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
+        if (block || ++tries > 40) clearInterval(open);
       }, 100);
     }
     // Review affordance only: `&exports-open=1` opens the live walkthrough's Videos and
