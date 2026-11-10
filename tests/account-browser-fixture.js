@@ -54,13 +54,28 @@
    * (the desk shows no views, the beacon stops), `error` fails both. With views, the
    * stats also carry what the insights release adds (the sibling repository's
    * docs/analytics-insights-contract-20261110.md): avg_dwell_seconds 96, visits 11,
-   * by_room (visits: Living area 9, Kitchen 7, Main bedroom 4) and by_room_seconds.
-   * get_tour_view_heatmap(p_tour_id) answers "Where viewers looked" inside Walkthrough
-   * insights: by default eight fictional stops in three rooms over 11 visits.
-   * `?heat=empty` answers no visits yet ("No visits yet"), `missing` answers PGRST202 as
-   * a backend from before the function does (no panel), `error` fails the read (no
-   * panel). `&insights-open=1` opens the live walkthrough's insights once they are
-   * shown, so a capture can include the panel. It changes nothing. */
+   * by_room (visits: Living area 11, Kitchen 9, Main bedroom 6, Balcony 2) and
+   * by_room_seconds, which is the heat map's seconds added up by room, as the draft
+   * supabase/drafts/release-4/20261110100000_tour_insights.sql computes both. Every
+   * answer has exactly the draft's columns: `?views=zero` carries all thirteen too.
+   * `?views=few` answers 3 opens and 3 visits (under the desk's five: counts only),
+   * `slow` answers after 1.5 s.
+   * get_tour_view_heatmap(p_tour_id) answers "Where viewers stood and looked" inside
+   * Walkthrough insights: by default eight fictional stops in four rooms over 11
+   * visits, in stop order as the draft returns them.
+   * `?heat=empty` answers no visits yet ("No visits yet"), `few` three visits (counts only), `missing` answers
+   * PGRST202 as a backend from before the function does (no panel), `error` fails the
+   * read (said, with Try again), `slow` answers after 1.5 s and `loading` never
+   * answers (the placeholder). `&insights-open=1` opens the live walkthrough's
+   * insights once they are shown, so a capture can include the panel.
+   * The floor plan under the stops comes from the walkthrough's own streamed package
+   * (manifest.json stops and walkable.json, the shapes dist/tour-player-v2.js reads):
+   * on the desk pages the live walkthrough is such a package, found through
+   * get_tour_package_base at /__qa/insights-plan/ and answered here, never fetched.
+   * It is a fictional flat of nine stops; the ninth has no visits. `?floor=stops`
+   * is a package without a walkable floor (the stops alone), `none` a zipped package
+   * (no plan), `fail` a package whose manifest cannot be read (no plan), and
+   * `levels` a home on two levels (no plan: one drawing cannot hold both). */
   /* Email preferences: the tips-and-offers box of the sibling repository's
    * docs/lifecycle-email.md and its draft 20260926114000_lifecycle_email.sql (not yet
    * released). `?email=` answers get_email_preferences: by default `missing`
@@ -89,15 +104,55 @@
   const heatCase = params.get('heat');
   // Synthetic look times (seconds) by "<yaw 0..11>_<pitch 0..2>": no real visitor is in here.
   const HEAT_STOPS = [
-    { stop: 2, room: 'Kitchen', visits: 9, seconds: 214, bins: { '2_1': 88, '3_1': 52, '2_0': 21, '8_1': 19, '3_2': 14, '9_1': 11, '5_1': 9 } },
     { stop: 0, room: 'Living area', visits: 11, seconds: 187, bins: { '0_1': 61, '11_1': 44, '1_1': 30, '6_1': 22, '0_2': 12, '5_0': 10, '7_1': 8 } },
-    { stop: 4, room: 'Main bedroom', visits: 6, seconds: 96, bins: { '7_1': 41, '6_1': 23, '7_2': 15, '1_1': 9, '8_0': 8 } },
     { stop: 1, room: 'Living area', visits: 8, seconds: 71, bins: { '4_1': 30, '5_1': 18, '10_1': 12, '4_0': 6, '3_1': 5 } },
+    { stop: 2, room: 'Kitchen', visits: 9, seconds: 214, bins: { '2_1': 88, '3_1': 52, '2_0': 21, '8_1': 19, '3_2': 14, '9_1': 11, '5_1': 9 } },
     { stop: 3, room: 'Kitchen', visits: 7, seconds: 58, bins: { '9_1': 26, '10_1': 17, '9_0': 9, '2_1': 6 } },
+    { stop: 4, room: 'Main bedroom', visits: 6, seconds: 96, bins: { '7_1': 41, '6_1': 23, '7_2': 15, '1_1': 9, '8_0': 8 } },
     { stop: 5, room: 'Main bedroom', visits: 4, seconds: 33, bins: { '0_1': 14, '1_1': 9, '11_2': 6, '6_1': 4 } },
     { stop: 6, room: null, visits: 3, seconds: 12, bins: { '3_1': 7, '4_1': 5 } },
     { stop: 7, room: 'Balcony', visits: 2, seconds: 5, bins: { '6_2': 5 } },
   ];
+  const HEAT_FEW = [
+    { stop: 0, room: 'Living area', visits: 3, seconds: 64, bins: { '0_1': 40, '11_1': 24 } },
+    { stop: 2, room: 'Kitchen', visits: 2, seconds: 41, bins: { '2_1': 41 } },
+    { stop: 4, room: 'Main bedroom', visits: 1, seconds: 9, bins: { '7_1': 9 } },
+  ];
+  /* The fictional flat the plan is drawn from: 9 m by 7 m, one level, a 0.25 m floor
+   * grid. Living area top left, kitchen top right, main bedroom bottom left, a hall
+   * between, a balcony bottom right. Coordinates are the package's own (x right, z
+   * towards the viewer, y up), with the floor at y = -1.4, like a real package. */
+  const floorCase = params.get('floor') || 'plan';
+  const PLAN_BASE = '/__qa/insights-plan/';
+  const PLAN_DESK = ['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && floorCase !== 'none';
+  const PLAN_ORIGIN = [-4.5, -3.5], PLAN_CELL = 0.25, PLAN_COLUMNS = 36, PLAN_ROWS = 28;
+  // [x, z, width, depth] in metres from the flat's top left corner.
+  const PLAN_FLOOR = [[0, 0, 5, 4], [5, 0, 4, 3.5], [0, 4.25, 4, 2.75], [3, 4, 0.75, 0.25], [4.25, 3.5, 1.25, 3.5], [5.5, 4, 0.25, 0.75], [5.75, 4, 3.25, 1.5]];
+  const PLAN_SPOTS = [[1.5, 1.2, 'r1'], [3.8, 2.8, 'r1'], [6.2, 1.0, 'r2'], [8.0, 2.4, 'r2'], [1.2, 5.6, 'r3'], [3.0, 6.2, 'r3'], [4.9, 5.0, 'r4'], [7.4, 4.8, 'r5'], [4.9, 6.5, 'r4']];
+  function planManifest() {
+    const upstairs = floorCase === 'levels' ? 2.8 : 0;
+    return {
+      format: 'veylet.tour-package', package_format_version: 2, generated_at: '2026-11-01T00:00:00Z', synthetic: true, captured_on: null,
+      truth_label: 'Fictional practice space. Not to scale.', generative_model_used: false,
+      walkable: floorCase === 'stops' ? null : { path: 'walkable.json' },
+      rooms: [{ id: 'r1', name: 'Living area' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }, { id: 'r4', name: null }, { id: 'r5', name: 'Balcony' }],
+      stops: PLAN_SPOTS.map(([x, z, room], index) => {
+        const at = [PLAN_ORIGIN[0] + x, 0, PLAN_ORIGIN[1] + z], lift = index >= 4 ? upstairs : 0;
+        return { id: 's' + (index + 1), room, position: [at[0], lift, at[2]], target: [at[0], lift - 0.16, at[2] - 2], floor: [at[0], lift - 1.4, at[2]], floor_measured: true };
+      }),
+      start_stop: 0,
+    };
+  }
+  function planWalkable() {
+    const bits = new Uint8Array(Math.ceil(PLAN_COLUMNS * PLAN_ROWS / 8));
+    for (const [x, z, width, depth] of PLAN_FLOOR) {
+      for (let r = Math.round(z / PLAN_CELL); r < Math.round((z + depth) / PLAN_CELL); r++) {
+        for (let c = Math.round(x / PLAN_CELL); c < Math.round((x + width) / PLAN_CELL); c++) bits[(r * PLAN_COLUMNS + c) >> 3] |= 1 << ((r * PLAN_COLUMNS + c) & 7);
+      }
+    }
+    return { version: 1, cell_metres: PLAN_CELL, origin: PLAN_ORIGIN, columns: PLAN_COLUMNS, rows: PLAN_ROWS, floor_y: -1.4, eye_height: 1.4, area_m2: 44.9,
+      mask: btoa(String.fromCharCode(...bits)) };
+  }
   const pausedAt = new Map();
   const viewsMissing = { data: null, error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' } };
   /* Sharing and the connection on /__qa/account/ (the desk's S1 states).
@@ -931,6 +986,12 @@
       const status = answer?.error ? (answer.error.code === 'PGRST202' ? 404 : 400) : answer?.data === null || answer?.data === undefined ? 204 : 200;
       return new Response(status === 204 ? null : JSON.stringify(answer?.error || answer.data), { status, headers: { 'Content-Type': 'application/json' } });
     }
+    // The floor plan's package: its manifest and walkable floor, answered here and never fetched.
+    if (url.startsWith(PLAN_BASE)) {
+      const file = url.slice(PLAN_BASE.length);
+      const body = floorCase === 'fail' ? null : file === 'manifest.json' ? planManifest() : file === 'walkable.json' && floorCase !== 'stops' ? planWalkable() : null;
+      return new Response(body ? JSON.stringify(body) : 'Not found', { status: body ? 200 : 404, headers: { 'Content-Type': body ? 'application/json' : 'text/plain' } });
+    }
     if (!url.startsWith(HOOKS + '/')) return realFetch ? realFetch(input, init) : Promise.reject(new TypeError('fetch unavailable'));
     const path = url.slice(HOOKS.length);
     const method = String(init.method || 'GET').toUpperCase();
@@ -1113,7 +1174,8 @@
         if (scenario === 'errors') return { error: { message: 'Synthetic unavailable tour service' } };
         if (params.get('lineage') === 'missing' && /walkthrough_id/.test(columns)) return { error: { code: '42703', message: 'column tours.walkthrough_id does not exist' } };
         if (pauseCase === 'missing' && /share_paused_at/.test(columns)) return { error: { code: '42703', message: 'column tours.share_paused_at does not exist' } };
-        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' } : {}), share_token: tokens.get(tour.id) || null, share_paused_at: pausedAt.get(tour.id) || null })).filter(row => only === null || row.id === only);
+        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' }
+          : PLAN_DESK && tour.id === 'synthetic-live-active' ? { storage_path: 'synthetic/live-active/manifest.json' } : {}), share_token: tokens.get(tour.id) || null, share_paused_at: pausedAt.get(tour.id) || null })).filter(row => only === null || row.id === only);
         // Only the columns asked for, as PostgREST answers: a read without the lineage
         // columns sees no walkthrough, version or replacement.
         const names = columns.split(',').map(name => name.trim()).filter(Boolean);
@@ -1691,16 +1753,23 @@
       if (name === 'get_tour_view_stats') {
         if (viewsCase === 'missing') return viewsMissing;
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
-        if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null }] };
+        if (viewsCase === 'slow') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null,
+          explores: 0, avg_dwell_seconds: null, visits: 0, by_room: {}, by_room_seconds: {} }] };
+        if (viewsCase === 'few') return { data: [{ opens: 3, days_with_opens: 2, call_taps: 0, email_taps: 0, share_taps: 1, by_src: { link: 3 }, by_host: {}, last_opened_at: ago(1),
+          explores: 3, avg_dwell_seconds: 48, visits: 3, by_room: { 'Living area': 3, Kitchen: 2, 'Main bedroom': 1 }, by_room_seconds: { 'Living area': 64, Kitchen: 41, 'Main bedroom': 9 } }] };
         return { data: [{ opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 8, qr: 4, embed: 2 },
           by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1),
-          explores: 9, avg_dwell_seconds: 96, visits: 11, by_room: { 'Living area': 9, Kitchen: 7, 'Main bedroom': 4 },
+          explores: 9, avg_dwell_seconds: 96, visits: 11, by_room: { 'Living area': 11, Kitchen: 9, 'Main bedroom': 6, Balcony: 2 },
           by_room_seconds: { Kitchen: 272, 'Living area': 258, 'Main bedroom': 129, Balcony: 5 } }] };
       }
       if (name === 'get_tour_view_heatmap') {
         if (heatCase === 'missing' || viewsCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_view_heatmap(p_tour_id) in the schema cache' } };
         if (heatCase === 'error') return { data: null, error: { message: 'Synthetic heat map failure' } };
-        if (heatCase === 'empty') return { data: { stops: [], visits: 0, since: null } };
+        if (heatCase === 'loading') return new Promise(() => {});
+        if (heatCase === 'slow') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (heatCase === 'empty' || viewsCase === 'zero') return { data: { stops: [], visits: 0, since: null } };
+        if (heatCase === 'few' || viewsCase === 'few') return { data: { stops: HEAT_FEW, visits: 3, since: ago(2) } };
         return { data: { stops: HEAT_STOPS, visits: 11, since: ago(6) } };
       }
       if (name === 'lookup_tour_share' && pauseCase === 'paused') return { data: [] };
@@ -1745,6 +1814,7 @@
           phone: contactCase === 'email' ? null : '+61 400 000 000', email: contactCase === 'phone' ? null : 'alex@example.invalid' }] };
       }
       // Proposed owner-preview locator for version 2 packages (not a live function).
+      if (name === 'get_tour_package_base' && !streamed && PLAN_DESK && args.p_tour_id === 'synthetic-live-active') return { data: [{ package_base_url: PLAN_BASE }] };
       if (name === 'get_tour_package_base') return streamed ? { data: [{ package_base_url: V2_BASE }] } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_package_base' } };
       return { error: { message: 'This QA fixture does not change properties.' } };
     },

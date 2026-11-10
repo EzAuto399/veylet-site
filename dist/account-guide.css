@@ -673,67 +673,99 @@
   border-radius: 6px;
   background: #fdfcfa;
 }
-/* Insights read top down: the sentence, the report it opens, the figures, the rooms. */
+/*
+ * Insights read top down, in the order the questions come: the sentence for the vendor and
+ * its report, the headline figures, where the opens came from, time per room, then where
+ * viewers stood (the plan) and time per stop. One column at every width up to the desk
+ * bar's own step (720px); from there the plan stands beside the two tables. Nothing in
+ * here changes layout at any other width, so the page below it never jumps on its own.
+ */
+.tour-insights-body { grid-template-columns: minmax(0, 1fr); --heat-floor: #fdfcfa; }
 .tour-insights-body > * { min-width: 0; }
 .tour-insights-lead, .desk .dash-tour p.tour-insights-lead { overflow-wrap: anywhere; margin: 0; max-width: 64ch; font-size: 16px; line-height: 1.5; color: var(--ink); font-variant-numeric: tabular-nums; }
-.tour-insights-figures { display: flex; flex-wrap: wrap; gap: 0 28px; margin: 0; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.tour-insights-figures > div { min-width: 0; padding: 2px 0; }
-.tour-insights-figures dt { font-size: 12px; line-height: 1.4; color: var(--muted); }
-.tour-insights-figures dd { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums; }
-.tour-insights-title { margin: 4px 0 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
-.tour-insights-rooms { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: 0; list-style: none; }
-.tour-insights-room > * { min-width: 0; }
-.tour-insights-room {
-  display: grid; grid-template-columns: minmax(96px, 1.1fr) minmax(0, 2fr) 9.5em 40px; align-items: center; gap: 4px 12px;
-  min-height: 32px; font-size: 14px; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums;
-}
-.tour-insights-room-name { min-width: 0; overflow-wrap: anywhere; }
-.tour-insights-room-bar { height: 6px; background: linear-gradient(var(--ink), var(--ink)) left / var(--share, 0%) 100% no-repeat, var(--line); }
-.tour-insights-room-figures { color: var(--muted); text-align: right; overflow-wrap: anywhere; }
-.tour-insights-room-share { text-align: right; }
-.tour-insights-channels,
-.tour-insights-hosts { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-/* Where viewers looked: each stop's words first, a small ring from above beside them, the table behind a disclosure. */
-.tour-heat { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; padding-top: 12px; border-top: 1px solid var(--line); }
-.tour-heat[hidden] { display: none; }
-.tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
-.tour-heat p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.tour-heat .tour-heat-empty { font-size: 14px; }
-.tour-heat-stops { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 264px), 1fr)); gap: 0 28px; margin: 0; padding: 0; list-style: none; }
-.tour-heat-stop { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 8px 0; border-top: 1px solid var(--line); }
-.tour-heat-words { min-width: 0; }
-.tour-heat .tour-heat-stop-name { font-size: 14px; color: var(--ink); }
-.tour-heat .tour-heat-stop-top { color: var(--ink); }
-.tour-heat-ring { flex: none; width: 48px; height: 48px; }
-.tour-heat-wedge { fill: #fff; stroke: var(--field-line, #8f978c); stroke-width: 0.5; }
-.tour-heat-wedge-seen { fill: var(--ink); stroke: #fdfcfa; }
-.tour-heat-zero { fill: none; stroke: var(--ink); stroke-width: 1.5; }
-/* The table's disclosure keeps the desk's summary: 44px, the plus at its end. */
-.tour-heat-more > summary { position: relative; min-height: 44px; padding: 10px 40px 10px 0; align-content: center; list-style: none; cursor: pointer; font-size: 13px; color: var(--ink); }
-.tour-heat-more > summary::-webkit-details-marker { display: none; }
-.tour-heat-more > summary::after {
-  content: ""; position: absolute; right: 6px; top: 50%; width: 13px; height: 13px; margin-top: -6.5px;
-  background: linear-gradient(currentColor, currentColor) center / 13px 1px no-repeat, linear-gradient(currentColor, currentColor) center / 1px 13px no-repeat;
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.tour-heat-more[open] > summary::after { transform: rotate(45deg); }
-.tour-heat-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; font-variant-numeric: tabular-nums; color: var(--ink); }
-.tour-heat-table caption { padding: 0 0 6px; text-align: left; color: var(--muted); }
-.tour-heat-table th,
-.tour-heat-table td { padding: 6px 12px 6px 0; border-top: 1px solid var(--line); text-align: left; vertical-align: top; font-weight: 400; overflow-wrap: anywhere; }
-.tour-heat-table thead th { border-top: 0; font-size: 12px; font-weight: 500; color: var(--muted); }
-/* Narrow card: a room's bar drops under its name; each table row becomes a labelled stack. Nothing scrolls sideways. */
-@container (max-width: 560px) {
-  .tour-insights-room { grid-template-columns: minmax(0, 1fr) 40px; gap: 2px 12px; padding: 6px 0; }
-  .tour-insights-room-share { grid-column: 2; grid-row: 1; }
-  .tour-insights-room-figures { grid-column: 1 / -1; grid-row: 2; text-align: left; }
-  .tour-insights-room-bar { grid-column: 1 / -1; grid-row: 3; }
-  .tour-heat-table, .tour-heat-table tbody, .tour-heat-table tr, .tour-heat-table th, .tour-heat-table td, .tour-heat-table caption { display: block; }
-  .tour-heat-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .tour-heat-table tbody tr { padding: 8px 0; border-top: 1px solid var(--line); }
-  .tour-heat-table tbody th { padding: 0 0 2px; border: 0; font-size: 14px; }
-  .tour-heat-table td { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 12px; padding: 2px 0; border: 0; }
-  .tour-heat-table td::before { content: attr(data-label); color: var(--muted); }
+/* While its insights are open, the card's one-line count gives way to the headline figures: each number once. */
+.desk .dash-tour:has(> .tour-insights:not([hidden])) .tour-views { display: none; }
+/* The two report buttons share one row at every width; a long label wraps inside its button. */
+.desk .dash-tour .tour-insights-report { flex-wrap: nowrap; align-items: stretch; }
+.tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding-block: 6px; text-align: left; overflow-wrap: anywhere; }
+/* The headline row: two by two on a narrow card, four across from the card's own step. */
+.tour-insights-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tour-insights-figures > div { min-width: 0; }
+.tour-insights-figures dt { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.tour-insights-figures dd { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.015em; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tour-insights-figures dd.tour-insights-period { font-size: 13px; font-weight: 400; line-height: 1.5; letter-spacing: 0; color: var(--muted); }
+@container (min-width: 561px) { .tour-insights-figures { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.tour-insights-body > p:not(.tour-insights-lead, .tour-actions-row),
+.tour-insights-roomlist > p,
+.tour-heat p:not(.tour-actions-row),
+.tour-heat-list > p:not(.tour-actions-row) { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tour-insights-body > p.tour-insights-stopped,
+.tour-insights-body > p.tour-insights-problem,
+.tour-heat p.tour-heat-problem,
+.tour-heat p.tour-heat-empty { max-width: 64ch; font-size: 14px; color: var(--ink); }
+.tour-insights-body > p.tour-insights-note { max-width: 64ch; font-size: 14px; }
+/* Time per room, where viewers stood, time per stop: three blocks, each under its own rule. */
+.tour-insights-roomlist, .tour-heat, .tour-heat-list { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; min-width: 0; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.tour-heat[hidden], .tour-heat-list[hidden] { display: none; }
+.tour-insights-title, .tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+/*
+ * Both tables are grids of rows at every width: the name takes the room that is left, the
+ * numbers sit right-aligned in fixed columns of tabular figures, and a stop's words run
+ * under its name. No column is ever dropped and nothing scrolls sideways.
+ */
+.tour-insights-rooms, .tour-heat-table { display: block; width: 100%; margin: 0; border-collapse: collapse; font-size: 14px; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums; }
+:is(.tour-insights-rooms, .tour-heat-table) :is(caption, thead, tbody) { display: block; }
+:is(.tour-insights-rooms, .tour-heat-table) caption { padding: 0 0 4px; text-align: left; font-size: 13px; line-height: 1.5; color: var(--muted); }
+:is(.tour-insights-rooms, .tour-heat-table) tr { display: grid; column-gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); }
+:is(.tour-insights-rooms, .tour-heat-table) tr[hidden] { display: none; }
+:is(.tour-insights-rooms, .tour-heat-table) thead tr { align-items: end; padding: 4px 0; border-top: 0; }
+:is(.tour-insights-rooms, .tour-heat-table) :is(th, td) { display: block; min-width: 0; padding: 0; font-weight: 400; text-align: left; overflow-wrap: anywhere; }
+:is(.tour-insights-rooms, .tour-heat-table) thead th { font-size: 13px; color: var(--muted); }
+:is(.tour-insights-rooms, .tour-heat-table) .tour-cell-number { text-align: right; }
+.tour-insights-rooms tr { grid-template-columns: minmax(0, 1fr) 3em 4.5em 3em; }
+.tour-insights-rooms-counts tr { grid-template-columns: minmax(0, 1fr) 3em; }
+.tour-insights-rooms td.tour-insights-room-bar { grid-column: 1 / -1; height: 4px; margin-top: 6px; background: linear-gradient(var(--ink), var(--ink)) left / var(--share, 0%) 100% no-repeat, var(--line); }
+.tour-heat-table tr { grid-template-columns: 1.75em minmax(0, 1fr) 3em 4.5em; }
+.tour-heat-table .tour-cell-key { color: var(--muted); }
+.tour-heat-table td.tour-cell-words { grid-column: 2 / -1; padding-top: 2px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.tour-heat-table td.tour-cell-words:empty { display: none; }
+.tour-heat-table thead th.tour-cell-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/*
+ * The plan. Its floor is the lightest ground so every mark clears 3:1 against it. The three
+ * shade steps are one grey-green, light to dark, from the desk's own line, accent and ink;
+ * the lightest is too pale to stand alone, so it wears a field-line edge. A darker circle
+ * wears a ring of the floor colour so two that overlap stay two; a stop nobody visited is a
+ * small open ring; under five visits a circle is an outline. Numbers are ink with a floor halo.
+ */
+.tour-heat-map { display: grid; gap: 10px; min-width: 0; margin: 0; }
+.tour-heat-plan { display: block; width: 100%; max-width: 400px; height: auto; }
+.tour-heat-floor { fill: var(--heat-floor); }
+.tour-heat-floor-edge { fill: none; stroke: var(--field-line); stroke-width: 2; stroke-linejoin: round; }
+.tour-heat-spot { stroke: var(--heat-floor); stroke-width: 1.5; }
+.tour-heat-spot[data-level="1"] { fill: var(--line); stroke: var(--field-line); }
+.tour-heat-spot[data-level="2"] { fill: var(--accent); }
+.tour-heat-spot[data-level="3"] { fill: var(--ink); }
+.tour-heat-spot[data-level="count"] { fill: var(--heat-floor); stroke: var(--ink); }
+.tour-heat-spot-unvisited { fill: var(--heat-floor); stroke: var(--field-line); stroke-width: 1.25; }
+.tour-heat-look { fill: var(--ink); }
+.tour-heat-number { font-size: 12px; font-weight: 500; fill: var(--ink); stroke: var(--heat-floor); stroke-width: 3px; stroke-linejoin: round; paint-order: stroke; font-variant-numeric: tabular-nums; }
+.tour-heat-legend { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tour-heat-legend li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-width: 0; }
+.tour-heat-legend-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.tour-heat-key { flex: none; }
+/* The three steps of the shade read as one row under their label. */
+.tour-heat-legend-shade > :first-child { flex-basis: 100%; }
+/* Waiting, once it has lasted: the plan's box and its key, then three rows, where the answer will stand. */
+.tour-heat-skeleton .tour-heat-plan { aspect-ratio: 4 / 3; }
+p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.4; }
+@media (min-width: 720px) {
+  @container (min-width: 600px) {
+    .tour-insights-body:has(> .tour-heat:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); grid-auto-flow: row dense; column-gap: 32px; }
+    .tour-insights-body:has(> .tour-heat:not([hidden])) > * { grid-column: 1 / -1; }
+    .tour-insights-body:has(> .tour-heat:not([hidden])) > :is(.tour-insights-roomlist, .tour-heat-list) { grid-column: 1; }
+    /* The plan keeps to the top of the screen while its long table is read. */
+    .tour-insights-body:has(> .tour-heat:not([hidden])) > .tour-heat { grid-column: 2; grid-row: span 2; position: sticky; top: 12px; align-self: start; }
+  }
 }
 .space-prep { margin: 12px 0 0; }
 .space-prep-lead { margin: 0; }

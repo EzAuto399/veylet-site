@@ -1317,6 +1317,7 @@
       send.className = 'tour-action tour-action-primary'; send.dataset.control = 'share';
       actions.append(send); linkActions.append(copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
+    cardShare.set(item, sheet ? actions.children[0] : copyLink);
     linkActions.append(copyListing);
     const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
     actions.append(open);
@@ -1491,8 +1492,13 @@
     return rooms.map(([name, seconds]) => ({ name, seconds, share: total > 0 ? Math.round((seconds / total) * 100) : 0,
       visits: viewCount(visits[name]) }));
   }
-  // Under this many opens a ranking of rooms is noise, and the sentence says so instead.
+  // Under this many opens a ranking of rooms is noise, and the sentence says so instead. Once the
+  // backend counts visits (the last 90 days, the period the room times cover), the same line holds for them.
   const INSIGHTS_MIN_OPENS = 5;
+  function insightsSparse(row) {
+    const visits = viewCount(row?.visits);
+    return (viewCount(row?.opens) || 0) < INSIGHTS_MIN_OPENS || (visits !== null && visits < INSIGHTS_MIN_OPENS);
+  }
   function insightsLead(row) {
     const opens = viewCount(row?.opens) || 0;
     const days = viewCount(row?.days_with_opens);
@@ -1500,7 +1506,7 @@
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const parts = ['Opened ' + countTimes(opens) + (days !== null && days > 0 ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (dwell ? ', for ' + dwell + ' on average' : '') + '.'];
     const rooms = roomTimes(row).slice(0, 3);
-    if (rooms.length && opens < INSIGHTS_MIN_OPENS) parts.push('It is too early to say which rooms hold attention.');
+    if (rooms.length && insightsSparse(row)) parts.push('It is too early to say which rooms hold attention.');
     else if (rooms.length) {
       const said = rooms.map((room, index) => room.name + ' (' + room.share + '%' + (index === 0 ? ' of viewing time' : '') + ')');
       parts.push('Viewers spent longest in ' + said[0] + (said[1] ? ', followed by ' + said.slice(1).join(' and ') : '') + '.');
@@ -1546,21 +1552,29 @@
     return lines.join('\n');
   }
   /*
-   * Where viewers looked, from get_tour_view_heatmap(p_tour_id):
+   * Where viewers stood and looked, from get_tour_view_heatmap(p_tour_id):
    *   { stops: [{ stop, room, visits, seconds, bins: { "<yaw 0..11>_<pitch 0..2>": seconds } }], visits, since }
    * The viewer's page fills it (dist/client-page.js, kinds stop and look): yaw bin k is the
    * 30-degree sector 30k..30k+30 of the walkthrough's own compass, where 0 degrees looks along
    * the package's -Z axis and the angle grows turning left (anticlockwise seen from above);
-   * pitch 0 is down, 1 level, 2 up. A ring is that stop seen from above: 0 degrees at the top,
-   * angles running anticlockwise, the inner band down, the middle level, the outer up. Darker
-   * means more of that stop's viewing time. Every ring has its words beside it and the whole
-   * panel has a table, so nothing is said by shade alone. Seconds and bins are whole seconds; a
-   * bin under half a second is left out, so shares are of the binned time. It answers for this
-   * version of the walkthrough only. A backend without the function
-   * (PGRST202) shows no panel at all, as the view counts do; so does any error or odd answer.
+   * pitch 0 is down, 1 level, 2 up. Seconds and bins are whole seconds; a bin under half a
+   * second is left out, so shares are of the binned time. It answers for this version of the
+   * walkthrough only, over the last 90 days, in totals: never a visit or a viewer.
+   * The desk draws it twice: a floor plan with a circle per stop, and a table with a row per
+   * stop, so nothing is said by a mark alone. A backend without the function (PGRST202)
+   * shows no panel at all, as the view counts do. A failed read says so and offers to try again.
    */
-  // The top standing spots get a ring; the table carries every one.
-  const HEAT_STOPS_SHOWN = 5;
+  /*
+   * Under this many visits a pattern is one or two people, so the desk shows counts
+   * only: no share, no shade and no look direction, for the walkthrough as a whole
+   * and for any one stop. The database draft enforces no minimum of its own
+   * (get_tour_view_heatmap answers for a single visit), so the line is held here.
+   */
+  const HEAT_MIN_VISITS = 5;
+  // The table opens on its busiest stops; a button shows the rest.
+  const HEAT_ROWS_SHOWN = 8;
+  // Waiting is drawn only once it has lasted this long, so a quick answer never flashes a placeholder.
+  const HEAT_SKELETON_MS = 300;
   const SVG_NS = 'http://www.w3.org/2000/svg';
   /** The answer as clean rows ranked by time, or null when it is not the shape above. */
   function heatmapFrom(data) {
@@ -1611,151 +1625,424 @@
     }
     return names;
   }
-  function heatFigures(row) {
-    return (formatDurationSeconds(row.seconds) || 'Under 1s') + ' · ' + row.visits + (row.visits === 1 ? ' visit' : ' visits');
-  }
   /*
    * How people looked around at a stop, from its yaw bins (12 sectors of 30 degrees,
    * summed over down, level and up). The data says how concentrated the looking was,
-   * never what was looked at, so the words stop there: under 15 seconds at the stop is
-   * too brief to say; 40% or more of the time in one sector is mostly one direction;
-   * else 70% or more inside three neighbouring sectors is mostly one side; else all around.
+   * never what was looked at, so the words stop there: fewer than five visits to the
+   * stop is too few to say; under 15 seconds at the stop is too brief; 40% or more of
+   * the time in one sector is mostly one direction; else 70% or more inside three
+   * neighbouring sectors is mostly one side; else all around. `from` and `to` are the
+   * sector's edges in degrees, anticlockwise from the package's -Z axis, for the plan.
    */
   const HEAT_MIN_SECONDS = 15;
-  function heatSpreadWords(row) {
-    if (!(row.binned > 0)) return 'No look direction recorded';
-    if (row.seconds < HEAT_MIN_SECONDS) return 'Too brief to say where they looked';
+  function heatLook(row) {
+    if (!(row.binned > 0)) return { words: 'No look direction recorded' };
+    if (row.visits < HEAT_MIN_VISITS) return { words: 'Too few visits to say where they looked' };
+    if (row.seconds < HEAT_MIN_SECONDS) return { words: 'Too brief to say where they looked' };
     const yaw = Array.from({ length: 12 }, (_, sector) => row.cells.filter(cell => cell.yaw === sector).reduce((sum, cell) => sum + cell.seconds, 0));
     const top = Math.max(...yaw);
-    if (top / row.binned >= 0.4) return 'Mostly one direction (' + heatShare(top, row.binned) + '% of the time)';
-    const side = Math.max(...yaw.map((_, sector) => yaw[sector] + yaw[(sector + 1) % 12] + yaw[(sector + 2) % 12]));
-    return side / row.binned >= 0.7 ? 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)' : 'Looked all around';
+    if (top / row.binned >= 0.4) {
+      const sector = yaw.indexOf(top);
+      return { words: 'Mostly one direction (' + heatShare(top, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 30 };
+    }
+    const sides = yaw.map((_, sector) => yaw[sector] + yaw[(sector + 1) % 12] + yaw[(sector + 2) % 12]);
+    const side = Math.max(...sides);
+    if (side / row.binned >= 0.7) {
+      const sector = sides.indexOf(side);
+      return { words: 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 90 };
+    }
+    return { words: 'Looked all around' };
   }
-  // The share of the stop's time spent looking level, down and up (pitch bins 1, 0, 2).
+  // The share of the stop's time spent looking level, down and up (pitch bins 1, 0, 2); nothing under five visits.
   function heatPitchWords(row) {
-    return row.binned > 0 ? 'Level ' + heatShare(row.byPitch[1], row.binned) + '% · down ' + heatShare(row.byPitch[0], row.binned) + '% · up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
+    return row.binned > 0 && row.visits >= HEAT_MIN_VISITS
+      ? 'Level ' + heatShare(row.byPitch[1], row.binned) + '% · down ' + heatShare(row.byPitch[0], row.binned) + '% · up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
   }
-  /** One stop from above: 12 sectors by 3 bands (36 wedges). Decorative: the words beside it say the same. */
-  function heatRing(row) {
-    if (typeof document.createElementNS !== 'function') return null;
-    const svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('class', 'tour-heat-ring'); svg.setAttribute('viewBox', '0 0 72 72');
-    svg.setAttribute('width', '48'); svg.setAttribute('height', '48');
-    svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
-    const most = row.cells.length ? row.cells[0].seconds : 0;
-    const amount = new Map(row.cells.map(cell => [cell.yaw + '_' + cell.pitch, cell.seconds]));
-    const radii = [8, 17, 26, 35];
-    // An angle anticlockwise from the top of the ring: 90 degrees is its left.
-    const point = (radius, degrees) => {
-      const angle = degrees * Math.PI / 180;
-      return (36 - radius * Math.sin(angle)).toFixed(2) + ' ' + (36 - radius * Math.cos(angle)).toFixed(2);
-    };
-    for (let pitch = 0; pitch < 3; pitch++) {
-      for (let yaw = 0; yaw < 12; yaw++) {
-        const inner = radii[pitch], outer = radii[pitch + 1], from = yaw * 30, to = from + 30;
-        const wedge = document.createElementNS(SVG_NS, 'path');
-        wedge.setAttribute('d', 'M' + point(outer, from) + 'A' + outer + ' ' + outer + ' 0 0 0 ' + point(outer, to) +
-          'L' + point(inner, to) + 'A' + inner + ' ' + inner + ' 0 0 1 ' + point(inner, from) + 'Z');
-        const seconds = amount.get(yaw + '_' + pitch) || 0;
-        wedge.setAttribute('class', seconds ? 'tour-heat-wedge tour-heat-wedge-seen' : 'tour-heat-wedge');
-        wedge.setAttribute('data-bin', yaw + '_' + pitch);
-        if (seconds) wedge.setAttribute('fill-opacity', (0.16 + 0.84 * (seconds / most)).toFixed(2));
-        svg.append(wedge);
+  /*
+   * The shade scale: three steps of one hue, light to dark, by the total time looked
+   * from the stop. The steps are round durations chosen so the busiest stop lands in
+   * the darkest one, and the legend names each step's range.
+   */
+  const HEAT_BREAKS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 600, 900, 1200, 1800, 3600, 7200, 14400, 36000];
+  function heatScale(stops) {
+    const most = Math.max(0, ...stops.map(row => row.seconds));
+    const step = HEAT_BREAKS.find(value => value * 3 >= most) || HEAT_BREAKS[HEAT_BREAKS.length - 1];
+    return { level: seconds => (seconds >= step * 2 ? 3 : seconds >= step ? 2 : 1),
+      labels: ['Under ' + formatDurationSeconds(step), formatDurationSeconds(step) + ' to ' + formatDurationSeconds(step * 2), formatDurationSeconds(step * 2) + ' and over'] };
+  }
+  /*
+   * Where the stops stand, from the walkthrough's own streamed package: manifest.json
+   * lists each stop's floor point (x, y, z in the package's frame, in stop order, so
+   * stop n of the heat map is stops[n]) and names walkable.json, the floor a viewer
+   * can walk on (a grid of cells; bit c + r * columns of the base64 mask, least
+   * significant bit first, as dist/tour-player-v2.js reads it). The signed-in owner
+   * finds the package through get_tour_package_base, as the preview does. A zipped
+   * package, a home on more than one level, a backend without the function or any
+   * unreadable answer has no plan: the table still lists every stop.
+   */
+  const FLOOR_READ_MS = 8000;
+  const FLOOR_CELLS_MAX = 400000;
+  const FLOOR_RUNS_MAX = 6000;
+  // get_tour_package_base, until an answer says the backend does not have it (PGRST202).
+  let floorAvailable = true;
+  function floorMask(json) {
+    if (!json || json.version !== 1 || !(json.cell_metres > 0) || json.cell_metres > 1
+        || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
+        || !Number.isInteger(json.columns) || !Number.isInteger(json.rows) || json.columns < 1 || json.rows < 1
+        || json.columns * json.rows > FLOOR_CELLS_MAX || typeof json.mask !== 'string' || typeof atob !== 'function') return null;
+    let binary = '';
+    try { binary = atob(json.mask); } catch { return null; }
+    const { columns, rows } = json;
+    if (binary.length !== Math.ceil(columns * rows / 8)) return null;
+    const on = (c, r) => ((binary.charCodeAt((r * columns + c) >> 3) >> ((r * columns + c) & 7)) & 1) === 1;
+    // Each row's lit cells as runs [first column, row, length], so the floor is a few hundred boxes, not thousands.
+    const runs = [];
+    for (let r = 0; r < rows; r++) {
+      let start = -1;
+      for (let c = 0; c <= columns; c++) {
+        const lit = c < columns && on(c, r);
+        if (lit && start < 0) start = c;
+        if (!lit && start >= 0) { runs.push([start, r, c - start]); start = -1; }
       }
+      if (runs.length > FLOOR_RUNS_MAX) return null;
     }
-    // The 0 degree mark at the top.
-    const mark = document.createElementNS(SVG_NS, 'path');
-    mark.setAttribute('class', 'tour-heat-zero'); mark.setAttribute('d', 'M36 0v5');
-    svg.append(mark);
-    return svg;
+    return runs.length ? { cell: json.cell_metres, x0: json.origin[0], z0: json.origin[1], runs } : null;
   }
-  const HEAT_COLUMNS = ['Stop', 'Time', 'Visits', 'How they looked around', 'Level / down / up'];
-  function heatTable(rows, names) {
-    const details = document.createElement('details'); details.className = 'tour-heat-more';
-    const summary = document.createElement('summary'); summary.textContent = rows.length > HEAT_STOPS_SHOWN ? 'All ' + rows.length + ' stops as a table' : 'Show as a table';
-    // On a phone each row stacks, every value under its own label: nothing scrolls sideways.
-    const table = document.createElement('table'); table.className = 'tour-heat-table';
-    const caption = document.createElement('caption'); caption.textContent = 'Viewing time by stop, most first';
-    const head = document.createElement('thead'), headRow = document.createElement('tr');
-    for (const text of HEAT_COLUMNS) {
-      const cell = document.createElement('th'); cell.setAttribute('scope', 'col'); cell.textContent = text; headRow.append(cell);
+  function floorFrom(manifest, walkable) {
+    if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.stops) || !manifest.stops.length || manifest.stops.length > 64) return null;
+    const stops = [];
+    for (const stop of manifest.stops) {
+      const at = stop && Array.isArray(stop.floor) && stop.floor.length === 3 && stop.floor.every(Number.isFinite) ? stop.floor : null;
+      if (!at) return null;
+      stops.push({ x: at[0], y: at[1], z: at[2], level: typeof stop.floor_id === 'string' ? stop.floor_id : '' });
     }
-    head.append(headRow);
-    const body = document.createElement('tbody');
-    for (const row of rows) {
-      const line = document.createElement('tr');
-      const name = document.createElement('th'); name.setAttribute('scope', 'row'); name.textContent = names.get(row);
-      const cells = [formatDurationSeconds(row.seconds) || 'Under 1s', String(row.visits),
-        row.binned > 0 ? heatSpreadWords(row) : '–',
-        row.binned > 0 ? [1, 0, 2].map(pitch => heatShare(row.byPitch[pitch], row.binned) + '%').join(' / ') : '–'];
-      line.append(name, ...cells.map((text, index) => { const cell = document.createElement('td'); cell.textContent = text; cell.dataset.label = HEAT_COLUMNS[index + 1]; return cell; }));
-      body.append(line);
-    }
-    table.append(caption, head, body); details.append(summary, table);
-    return details;
+    // One plan cannot hold two storeys: a home on more than one level keeps to the table.
+    const heights = stops.map(stop => stop.y);
+    if (new Set(stops.map(stop => stop.level)).size > 1 || Math.max(...heights) - Math.min(...heights) > 1.5) return null;
+    return { stops, mask: floorMask(walkable) };
   }
-  function renderHeat(panel, heat) {
-    const title = document.createElement('h4'); title.className = 'tour-heat-title'; title.textContent = 'Where viewers looked';
+  async function floorRead(url, limit) {
+    if (typeof window.fetch !== 'function') return null;
+    const reply = await window.fetch(url, { credentials: 'omit' });
+    if (!reply || !reply.ok) return null;
+    const text = await reply.text();
+    return text.length > limit ? null : JSON.parse(text);
+  }
+  async function tourFloor(tour, supabase) {
+    if (!floorAvailable || !supabase || !/\/manifest\.json$/.test(tour.storage_path || '')) return null;
+    const located = await settled(Promise.resolve().then(() => supabase.rpc('get_tour_package_base', { p_tour_id: tour.id })), FLOOR_READ_MS);
+    if (missingFunction(located)) { floorAvailable = false; return null; }
+    if (failed(located)) return null;
+    const base = firstRow(located.value?.data)?.package_base_url;
+    if (typeof base !== 'string' || !/^(https:\/\/|\/(?!\/))\S*\/$/.test(base)) return null;
+    const manifest = (await settled(floorRead(base + 'manifest.json', 600000), FLOOR_READ_MS)).value || null;
+    const path = manifest?.walkable && typeof manifest.walkable.path === 'string' && /^[\w.-]+(\/[\w.-]+)*\.json$/.test(manifest.walkable.path)
+      && !manifest.walkable.path.includes('..') ? manifest.walkable.path : '';
+    const walkable = manifest && path ? (await settled(floorRead(base + path, 2000000), FLOOR_READ_MS)).value || null : null;
+    return floorFrom(manifest, walkable);
+  }
+  const svgNode = (tag, attributes = {}) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+    return node;
+  };
+  /*
+   * The plan: the walkable floor seen from above with every stop where it stands, in
+   * the package's own proportions (one scale for both axes; the package itself says
+   * "Not to scale", so no distance is claimed). -Z is up and +X is right, so a look
+   * direction of 0 degrees points up and angles turn anticlockwise, as yaw does.
+   * A circle's size is its visits; its shade is its step of the time scale; a wedge
+   * points where most of the looking went, when heatLook can say. Each circle wears
+   * its stop number, the same number as its table row and its circle in the
+   * walkthrough. Under five visits the circles are outlines sized by visits and
+   * nothing else. The plan is a picture: every stop is a row of the table beside it.
+   */
+  const PLAN_WIDTH = 320;
+  const PLAN_PAD = 30;
+  function heatPlan(heat, floor, names, scale, sparse) {
+    if (!floor || typeof document.createElementNS !== 'function') return null;
+    const placed = heat.stops.filter(row => floor.stops[row.stop]);
+    if (!placed.length) return null;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    const extend = (x, z) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
+    for (const stop of floor.stops) extend(stop.x, stop.z);
+    const mask = floor.mask;
+    if (mask) for (const [c, r, length] of mask.runs) { extend(mask.x0 + c * mask.cell, mask.z0 + r * mask.cell); extend(mask.x0 + (c + length) * mask.cell, mask.z0 + (r + 1) * mask.cell); }
+    const wide = Math.max(maxX - minX, 1), deep = Math.max(maxZ - minZ, 1);
+    const room = PLAN_WIDTH - PLAN_PAD * 2;
+    const height = Math.round(Math.min(380, Math.max(180, PLAN_PAD * 2 + room * deep / wide)));
+    const k = Math.min(room / wide, (height - PLAN_PAD * 2) / deep);
+    const left = (PLAN_WIDTH - (maxX - minX) * k) / 2, top = (height - (maxZ - minZ) * k) / 2;
+    const px = x => Math.round((left + (x - minX) * k) * 10) / 10;
+    const pz = z => Math.round((top + (z - minZ) * k) * 10) / 10;
+    const svg = svgNode('svg', { class: 'tour-heat-plan', viewBox: '0 0 ' + PLAN_WIDTH + ' ' + height, role: 'img' });
+    const busiest = heat.stops[0];
+    svg.setAttribute('aria-label', 'Floor plan from above with ' + placed.length + (placed.length === 1 ? ' stop' : ' stops') + ' marked'
+      + (sparse || !busiest || !busiest.seconds ? '' : ', most time at ' + names.get(busiest)) + '. The table lists every stop.');
+    if (mask) {
+      const d = mask.runs.map(([c, r, length]) => 'M' + px(mask.x0 + c * mask.cell) + ' ' + pz(mask.z0 + r * mask.cell)
+        + 'h' + (Math.round(length * mask.cell * k * 10) / 10) + 'v' + (Math.round(mask.cell * k * 10) / 10 + 0.4) + 'h-' + (Math.round(length * mask.cell * k * 10) / 10) + 'Z').join('');
+      // Drawn twice: the outline first, then the fill over its inner edges, so only the floor's outer edge shows.
+      svg.append(svgNode('path', { class: 'tour-heat-floor-edge', d }), svgNode('path', { class: 'tour-heat-floor', d }));
+    }
+    const seen = new Map(heat.stops.map(row => [row.stop, row]));
+    floor.stops.forEach((stop, index) => {
+      if (!seen.has(index)) svg.append(svgNode('circle', { class: 'tour-heat-spot-unvisited', cx: px(stop.x), cy: pz(stop.z), r: 3.5, 'data-stop': index }));
+    });
+    const most = Math.max(1, ...placed.map(row => row.visits));
+    const radius = row => Math.round((5 + 9 * Math.sqrt(row.visits / most)) * 10) / 10;
+    // Wedges under the circles; big circles under small ones, so none is hidden.
+    const drawn = [...placed].sort((a, b) => radius(b) - radius(a) || a.stop - b.stop);
+    if (!sparse) for (const row of drawn) {
+      const look = heatLook(row);
+      if (look.from === undefined) continue;
+      const cx = px(floor.stops[row.stop].x), cy = pz(floor.stops[row.stop].z), reach = radius(row) + 10;
+      const point = degrees => { const angle = degrees * Math.PI / 180; return (cx - reach * Math.sin(angle)).toFixed(1) + ' ' + (cy - reach * Math.cos(angle)).toFixed(1); };
+      svg.append(svgNode('path', { class: 'tour-heat-look', 'data-stop': row.stop, 'data-from': look.from, 'data-to': look.to,
+        d: 'M' + cx + ' ' + cy + 'L' + point(look.from) + 'A' + reach + ' ' + reach + ' 0 0 0 ' + point(look.to) + 'Z' }));
+    }
+    for (const row of drawn) {
+      svg.append(svgNode('circle', { class: 'tour-heat-spot', cx: px(floor.stops[row.stop].x), cy: pz(floor.stops[row.stop].z), r: radius(row),
+        'data-stop': row.stop, 'data-level': sparse ? 'count' : scale.level(row.seconds) }));
+    }
+    for (const row of drawn) {
+      const reach = radius(row) * 0.72 + 3;
+      const x = Math.min(PLAN_WIDTH - 16, px(floor.stops[row.stop].x) + reach), y = Math.max(12, pz(floor.stops[row.stop].z) - reach);
+      const label = svgNode('text', { class: 'tour-heat-number', x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, 'aria-hidden': 'true' });
+      label.textContent = String(row.stop + 1);
+      svg.append(label);
+    }
+    return { svg, unvisited: floor.stops.length - floor.stops.filter((_, index) => seen.has(index)).length, missing: heat.stops.length - placed.length,
+      looks: sparse ? 0 : drawn.filter(row => heatLook(row).from !== undefined).length };
+  }
+  // The plan's key, under the plan: one line per thing a mark can say, each with its unit.
+  function heatLegend(heat, plan, scale, sparse) {
+    const list = document.createElement('ul'); list.className = 'tour-heat-legend';
+    const part = (text, ...marks) => {
+      const item = document.createElement('span'); item.className = 'tour-heat-legend-item';
+      const words = document.createElement('span'); words.textContent = text;
+      item.append(...marks, words); return item;
+    };
+    const line = (className, ...parts) => { const item = document.createElement('li'); item.className = className; item.append(...parts); list.append(item); };
+    const key = () => svgNode('svg', { class: 'tour-heat-key', viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': 'true', focusable: 'false' });
+    const swatch = (level, r = 5) => {
+      const icon = key();
+      icon.append(svgNode('circle', { class: level === 'none' ? 'tour-heat-spot-unvisited' : 'tour-heat-spot', cx: 8, cy: 8, r, ...(level === 'none' ? {} : { 'data-level': level }) }));
+      return icon;
+    };
+    const visits = heat.stops.map(row => row.visits);
+    const least = Math.min(...visits), most = Math.max(...visits);
+    line('tour-heat-legend-size', part('Circle size: visits, ' + (least === most ? most + ' at each stop' : least + ' to ' + most), swatch(sparse ? 'count' : 2, 3), swatch(sparse ? 'count' : 2, 6.5)));
+    if (!sparse) line('tour-heat-legend-shade', part('Shade: time at the stop'), ...scale.labels.map((label, index) => part(label, swatch(index + 1))));
+    if (plan.looks) {
+      const icon = key();
+      icon.append(svgNode('path', { class: 'tour-heat-look', d: 'M8 13L2.5 3.5A11 11 0 0 1 13.5 3.5Z' }));
+      line('tour-heat-legend-look', part('Wedge: where most of the looking went', icon));
+    }
+    if (plan.unvisited) line('tour-heat-legend-none', part('Small ring: a stop with no visits', swatch('none', 3.5)));
+    line('tour-heat-legend-note', part('Seen from above, numbered as in the walkthrough. Not to scale.'));
+    return list;
+  }
+  /*
+   * Every stop as a row: its number, name, visits and time, then how people looked
+   * around and level / down / up in words. It is the plan's other reading, so nothing
+   * is said by a mark alone. Rows are a grid at every width (the words run under the
+   * name), so the roles a table loses to that are set by hand. Under five visits the
+   * two look columns are left out. It never scrolls sideways.
+   */
+  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Time', 'How they looked around', 'Level / down / up'];
+  function gridTable(className, captionText, columns) {
+    const table = document.createElement('table'); table.className = className; table.setAttribute('role', 'table');
+    const caption = document.createElement('caption'); caption.textContent = captionText;
+    const head = document.createElement('thead'), headRow = document.createElement('tr'), body = document.createElement('tbody');
+    head.setAttribute('role', 'rowgroup'); body.setAttribute('role', 'rowgroup'); headRow.setAttribute('role', 'row');
+    for (const [text, kind] of columns) {
+      const cell = document.createElement('th'); cell.setAttribute('scope', 'col'); cell.setAttribute('role', 'columnheader');
+      cell.className = 'tour-cell-' + kind; cell.textContent = text; headRow.append(cell);
+    }
+    head.append(headRow); table.append(caption, head, body);
+    const row = (className, cells) => {
+      const line = document.createElement('tr'); line.className = className; line.setAttribute('role', 'row');
+      cells.forEach(([text, kind, header], index) => {
+        const cell = document.createElement(header ? 'th' : 'td');
+        if (header) cell.setAttribute('scope', 'row');
+        cell.setAttribute('role', header ? 'rowheader' : 'cell');
+        cell.className = 'tour-cell-' + kind; cell.dataset.label = columns[index][0]; cell.textContent = text; line.append(cell);
+      });
+      body.append(line); return line;
+    };
+    return { table, body, row };
+  }
+  function heatTable(heat, names, sparse) {
+    const columns = [[HEAT_COLUMNS[0], 'key'], [HEAT_COLUMNS[1], 'name'], [HEAT_COLUMNS[2], 'number'], [HEAT_COLUMNS[3], 'number']];
+    if (!sparse) columns.push([HEAT_COLUMNS[4], 'words'], [HEAT_COLUMNS[5], 'words']);
+    const made = gridTable('tour-heat-table', 'This version of the walkthrough, most time first.', columns);
+    heat.stops.forEach((row, index) => {
+      const cells = [[String(row.stop + 1), 'key'], [names.get(row), 'name', true], [String(row.visits), 'number'], [formatDurationSeconds(row.seconds) || 'Under 1s', 'number']];
+      if (!sparse) cells.push([heatLook(row).words, 'words'], [heatPitchWords(row), 'words']);
+      const line = made.row('tour-heat-row', cells);
+      line.hidden = index >= HEAT_ROWS_SHOWN;
+    });
+    return made;
+  }
+  function heatTitle(text, className = 'tour-heat-title') {
+    const title = document.createElement('h4'); title.className = className; title.textContent = text; return title;
+  }
+  // The placeholder has the answer's shape: the plan's box and its key, then three rows.
+  function heatWaiting(panel, list) {
+    const plan = document.createElement('div'); plan.className = 'tour-heat-map tour-heat-skeleton';
+    const box = document.createElement('div'); box.className = 'tour-heat-plan plan-skeleton'; box.setAttribute('aria-hidden', 'true');
+    plan.append(box, skeletonLine('p', 'tour-heat-legend', 30), skeletonLine('p', 'tour-heat-legend', 44));
+    const busy = document.createElement('p'); busy.className = 'tour-heat-busy'; busy.textContent = 'Loading where viewers stood…';
+    panel.replaceChildren(heatTitle('Where viewers stood and looked'), busy, plan);
+    panel.setAttribute('aria-busy', 'true'); panel.hidden = false;
+    const rows = [0, 1, 2].map(() => skeletonLine('p', 'tour-heat-row tour-heat-skeleton', 40));
+    list.replaceChildren(heatTitle('Time per stop'), ...rows); list.hidden = false;
+  }
+  function heatProblem(panel, list, retry) {
+    const words = document.createElement('p'); words.className = 'tour-heat-problem';
+    words.textContent = 'Where viewers stood couldn’t be loaded. The counts above are complete.';
+    const again = button('Try again', retry); again.dataset.control = 'heat-retry';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(again);
+    panel.replaceChildren(heatTitle('Where viewers stood and looked'), words, actions);
+    panel.removeAttribute('aria-busy'); panel.hidden = false;
+    list.replaceChildren(); list.hidden = true;
+  }
+  function renderHeat(panel, list, heat, floor) {
+    panel.removeAttribute('aria-busy');
+    const title = heatTitle('Where viewers stood and looked');
     if (!heat.stops.length) {
       const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
       empty.textContent = 'No visits yet. Time at each stop and where people look fills in as the link is walked through.';
       panel.replaceChildren(title, empty); panel.hidden = false;
+      list.replaceChildren(); list.hidden = true;
       return;
     }
+    const sparse = heat.visits !== null && heat.visits < HEAT_MIN_VISITS;
     const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
     const lead = document.createElement('p'); lead.className = 'tour-heat-lead';
-    lead.textContent = [heat.visits !== null ? heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : (since ? 'Since ' + since : ''),
-      'Stops are ranked by viewing time.'].filter(Boolean).join('. ');
+    lead.textContent = (heat.visits !== null ? heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? 'Since ' + since : 'Visits so far') + '.';
     const parts = [title, lead];
-    const names = heatNames(heat.stops);
-    const list = document.createElement('ol'); list.className = 'tour-heat-stops';
-    for (const row of heat.stops.slice(0, HEAT_STOPS_SHOWN)) {
-      const item = document.createElement('li'); item.className = 'tour-heat-stop';
-      const words = document.createElement('div'); words.className = 'tour-heat-words';
-      const lines = [['tour-heat-stop-name', names.get(row)], ['tour-heat-stop-figures', heatFigures(row)],
-        ['tour-heat-stop-top', heatSpreadWords(row)], ['tour-heat-stop-pitch', heatPitchWords(row)]];
-      for (const [className, text] of lines) {
-        if (!text) continue;
-        const line = document.createElement('p'); line.className = className; line.textContent = text; words.append(line);
-      }
-      item.append(words);
-      const ring = heatRing(row);
-      if (ring) item.append(ring);
-      list.append(item);
+    if (sparse) {
+      const few = document.createElement('p'); few.className = 'tour-heat-few';
+      few.textContent = 'Fewer than ' + HEAT_MIN_VISITS + ' visits so far, so only counts are shown. Shades and look directions appear from ' + HEAT_MIN_VISITS + ' visits.';
+      parts.push(few);
     }
-    parts.push(list);
-    const key = document.createElement('p'); key.className = 'tour-heat-key';
-    key.textContent = 'Each ring is a stop seen from above: darker means people looked that way longer.';
-    parts.push(key, heatTable(heat.stops, names));
+    const names = heatNames(heat.stops);
+    const scale = heatScale(heat.stops);
+    const plan = heatPlan(heat, floor, names, scale, sparse);
+    if (plan) {
+      const figure = document.createElement('figure'); figure.className = 'tour-heat-map';
+      const key = document.createElement('figcaption'); key.append(heatLegend(heat, plan, scale, sparse));
+      figure.append(plan.svg, key);
+      parts.push(figure);
+      if (plan.missing) {
+        const off = document.createElement('p'); off.className = 'tour-heat-off';
+        off.textContent = plan.missing + (plan.missing === 1 ? ' stop is' : ' stops are') + ' not on this plan. The table lists ' + (plan.missing === 1 ? 'it.' : 'them.');
+        parts.push(off);
+      }
+    } else {
+      const none = document.createElement('p'); none.className = 'tour-heat-noplan';
+      none.textContent = 'There is no floor plan for this walkthrough here. The table lists every stop.';
+      parts.push(none);
+    }
     panel.replaceChildren(...parts); panel.hidden = false;
+    const made = heatTable(heat, names, sparse);
+    const rows = [heatTitle('Time per stop'), made.table];
+    if (heat.stops.length > HEAT_ROWS_SHOWN) {
+      const all = 'Show all ' + heat.stops.length + ' stops', fewer = 'Show the top ' + HEAT_ROWS_SHOWN;
+      const more = button(all, () => {
+        const open = more.getAttribute('aria-expanded') !== 'true';
+        Array.from(made.body.children).forEach((line, index) => { line.hidden = !open && index >= HEAT_ROWS_SHOWN; });
+        more.setAttribute('aria-expanded', open ? 'true' : 'false'); more.textContent = open ? fewer : all;
+      });
+      more.dataset.control = 'heat-all'; more.setAttribute('aria-expanded', 'false');
+      const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(more);
+      rows.push(actions);
+    }
+    list.replaceChildren(...rows); list.hidden = false;
   }
   /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
-  function tourHeat(tour, panel, supabase, ticket) {
+  function tourHeat(tour, panel, list, supabase, ticket) {
     // Asked once: opening the panel again leaves what it drew as it is.
     if (panel.dataset.asked === 'true') return;
-    panel.className = 'tour-heat'; panel.hidden = true;
+    panel.className = 'tour-heat'; panel.hidden = true; list.hidden = true;
     if (!heatAvailable || !supabase) return;
     panel.dataset.asked = 'true';
-    void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))).then(reply => {
+    let answered = false;
+    setTimeout(() => { if (!answered && ticket === deskVersion) heatWaiting(panel, list); }, HEAT_SKELETON_MS);
+    const reads = Promise.all([
+      settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))),
+      tourFloor(tour, supabase).catch(() => null),
+    ]);
+    void reads.then(([reply, floor]) => {
+      answered = true;
       if (ticket !== deskVersion) return;
-      if (missingFunction(reply)) { heatAvailable = false; return; }
-      if (failed(reply)) return;
-      const heat = heatmapFrom(reply.value?.data);
-      if (heat) renderHeat(panel, heat);
+      const clear = () => { panel.replaceChildren(); panel.removeAttribute('aria-busy'); panel.hidden = true; list.replaceChildren(); list.hidden = true; };
+      if (missingFunction(reply)) { heatAvailable = false; clear(); return; }
+      const heat = failed(reply) ? null : heatmapFrom(reply.value?.data);
+      // A failed read or an answer that is not the contract's shape: said, with the one way on.
+      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket); }); return; }
+      renderHeat(panel, list, heat, floor);
     });
   }
-  // `entry` is the card's Insights disclosure: shown once there are opens to report.
-  function tourInsights(tour, row, title, entry, lastDate, supabase, ticket) {
+  /*
+   * The headline row: at most four figures, each with what it counts and the period
+   * it covers. Opens, days and taps are counted over every stored record (the first
+   * nine columns of get_tour_view_stats); the average comes from the last 90 days.
+   */
+  const PERIOD_ALL = 'All time', PERIOD_RECENT = 'Last 90 days';
+  // The card's own share button (Share, or Copy link where there is no share sheet), for the panel that sends people to it.
+  const cardShare = new WeakMap();
+  const STOPPED_WORDS = Object.freeze({
+    paused: 'Sharing is paused, so nobody can open the link and these counts stay as they are until you resume sharing.',
+    offline: 'This walkthrough is offline, so nobody can open the link and these counts stay as they are. Restarting your plan brings the same link back.',
+  });
+  function insightsNote(className, text) {
+    const note = document.createElement('p'); note.className = className; note.textContent = text; return note;
+  }
+  // The counts could not be read: said in the panel, with the one way on. A missing count is never shown as zero.
+  function insightsProblem(entry, retry) {
+    if (!entry) return;
+    const body = document.createElement('div'); body.className = 'tour-insights-body';
+    const again = button('Try again', () => { again.disabled = true; again.textContent = 'Trying…'; retry(); });
+    again.dataset.control = 'insights-retry';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(again);
+    body.append(insightsNote('tour-insights-problem', 'The view counts couldn’t be loaded. Nothing is lost.'), actions);
+    entry.panel.replaceChildren(body);
+    entry.show(true);
+  }
+  // `entry` is the card's Insights disclosure. `stopped` is 'paused' or 'offline' while nobody can open the link.
+  function tourInsights(tour, row, title, entry, lastDate, supabase, ticket, item = null, stopped = '') {
     if (!entry) return;
     const opens = viewCount(row?.opens);
-    if (!opens || opens <= 0) { entry.show(false); return; }
+    if (opens === null) { entry.show(false); return; }
     const box = entry.panel;
     const body = document.createElement('div');
     body.className = 'tour-insights-body';
+    if (opens === 0) {
+      // Nothing to count yet: say so, say what will appear, and point at the one thing that changes it.
+      body.append(insightsNote('tour-insights-lead', 'Not opened yet.'));
+      body.append(insightsNote('tour-insights-note', stopped === 'paused' ? 'Sharing is paused, so nobody can open the link. Opens are counted once you resume sharing.'
+        : stopped === 'offline' ? 'This walkthrough is offline, so nobody can open the link. Restarting your plan brings the same link back.'
+        : 'When someone opens the link, this shows how often it was opened, which rooms held attention and where viewers stood.'));
+      const share = !stopped && item ? cardShare.get(item) : null;
+      if (share) {
+        const send = button(share.textContent, () => share.click());
+        send.dataset.control = 'insights-share';
+        const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(send);
+        body.append(actions);
+      }
+      entry.opened = null;
+      box.replaceChildren(body);
+      entry.show(true);
+      return;
+    }
     const heat = document.createElement('section');
-    heat.setAttribute('aria-label', 'Where viewers looked');
-    // Where viewers looked is asked for when the panel first opens, not before.
-    entry.opened = () => tourHeat(tour, heat, supabase, ticket);
+    heat.setAttribute('aria-label', 'Where viewers stood and looked');
+    const stops = document.createElement('div'); stops.className = 'tour-heat-list'; stops.hidden = true;
+    // Where viewers stood is asked for when the panel first opens, not before.
+    entry.opened = () => tourHeat(tour, heat, stops, supabase, ticket);
     const days = viewCount(row?.days_with_opens);
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
@@ -1765,6 +2052,8 @@
     const leadLine = document.createElement('p');
     leadLine.className = 'tour-insights-lead';
     leadLine.textContent = insightsLead(row);
+    // While nobody can open the link, that comes first: the counts under it have stopped.
+    if (STOPPED_WORDS[stopped]) body.append(insightsNote('tour-insights-stopped', STOPPED_WORDS[stopped]));
     body.append(leadLine);
     const reportText = vendorReportText(title, row, lastDate);
     const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
@@ -1787,89 +2076,92 @@
     });
     downloadBtn.dataset.control = 'download-vendor-report';
     const actions = document.createElement('p');
-    actions.className = 'tour-actions-row';
+    actions.className = 'tour-actions-row tour-insights-report';
     actions.append(copyBtn, downloadBtn);
     body.append(actions);
     const figures = document.createElement('dl'); figures.className = 'tour-insights-figures';
-    const figure = (term, value) => {
+    const figure = (term, value, period) => {
       const group = document.createElement('div');
       const dt = document.createElement('dt'); dt.textContent = term;
       const dd = document.createElement('dd'); dd.textContent = value;
-      group.append(dt, dd); figures.append(group);
+      const note = document.createElement('dd'); note.className = 'tour-insights-period'; note.textContent = period;
+      group.append(dt, dd, note); figures.append(group);
     };
-    figure('Opens', String(opens));
-    if (days !== null) figure('Days active', String(days));
-    if (dwell) figure('Average time', dwell);
-    figure('Enquiries', (calls + emails) + (calls + emails > 0 ? ' (' + calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + ')' : ''));
-    if (shares !== null) figure('Link shares', String(shares));
+    figure('Opens', String(opens), PERIOD_ALL + (lastDate ? ' · last ' + lastDate : ''));
+    if (days !== null) figure('Days active', String(days), PERIOD_ALL);
+    if (dwell) figure('Average time', dwell, PERIOD_RECENT);
+    figure('Enquiries', String(calls + emails), calls + emails > 0
+      ? calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + ' · ' + PERIOD_ALL.toLowerCase() : PERIOD_ALL);
     body.append(figures);
-    // Rooms ranked by viewing time, each with a bar scaled to the longest; before the
-    // time columns exist, ranked by visits and saying so.
-    const rooms = roomTimes(row);
+    const channels = channelWords(row);
+    if (channels.length) body.append(insightsNote('tour-insights-channels', 'Opened from: ' + channels.join(' · ')));
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) body.append(insightsNote('tour-insights-hosts', 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ')));
+    if (shares !== null) body.append(insightsNote('tour-insights-shares', 'Link shares: ' + shares));
+    /*
+     * Time per room: rooms ranked by viewing time, each with its visits, its average
+     * per visit (seconds over visits; the answer carries no median) and its share of
+     * all rooms' time, with a bar scaled to the longest. Before the time columns
+     * exist, or under five visits, rooms are ranked by visits and only counts show.
+     */
+    const sparse = insightsSparse(row);
+    const rooms = sparse ? [] : roomTimes(row);
     const visited = rooms.length ? [] : positiveEntries(row?.by_room);
     if (rooms.length || visited.length) {
+      const block = document.createElement('div'); block.className = 'tour-insights-roomlist';
       const heading = document.createElement('h4'); heading.className = 'tour-insights-title';
-      heading.textContent = rooms.length ? 'Rooms by viewing time' : 'Rooms by visits';
-      const roomList = document.createElement('ol'); roomList.className = 'tour-insights-rooms';
-      const longest = rooms.length ? rooms[0].seconds : visited[0][1];
-      const entries = rooms.length ? rooms.map(room => ({ name: room.name, amount: room.seconds,
-        said: formatDurationSeconds(room.seconds) + (room.visits !== null ? ' · ' + room.visits + (room.visits === 1 ? ' visit' : ' visits') : ''), share: room.share + '%' }))
-        : visited.map(([name, count]) => ({ name, amount: count, said: count + (count === 1 ? ' visit' : ' visits'), share: '' }));
-      for (const entry of entries) {
-        const item = document.createElement('li'); item.className = 'tour-insights-room';
-        const name = document.createElement('span'); name.className = 'tour-insights-room-name'; name.textContent = entry.name;
-        const bar = document.createElement('span'); bar.className = 'tour-insights-room-bar'; bar.setAttribute('aria-hidden', 'true');
-        bar.dataset.share = String(Math.max(1, Math.round((entry.amount / longest) * 100)));
+      heading.textContent = rooms.length ? 'Time per room' : 'Rooms by visits';
+      const columns = [['Room', 'name'], ['Visits', 'number']];
+      if (rooms.length) columns.push(['Avg time', 'number'], ['Share', 'number']);
+      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', PERIOD_RECENT + (rooms.length ? ', most time first. Average time is per visit to the room.' : ', most visits first.'), columns);
+      const longest = rooms.length ? rooms[0].seconds : 0;
+      for (const room of rooms) {
+        const line = made.row('tour-insights-room', [[room.name, 'name', true], [room.visits !== null ? String(room.visits) : '–', 'number'],
+          [room.visits ? formatDurationSeconds(Math.max(1, Math.round(room.seconds / room.visits))) : '–', 'number'], [room.share + '%', 'number']]);
+        const bar = document.createElement('td'); bar.className = 'tour-insights-room-bar'; bar.setAttribute('aria-hidden', 'true'); bar.setAttribute('role', 'presentation');
+        bar.dataset.share = String(Math.max(1, Math.round((room.seconds / longest) * 100)));
         bar.style?.setProperty?.('--share', bar.dataset.share + '%');
-        const said = document.createElement('span'); said.className = 'tour-insights-room-figures'; said.textContent = entry.said;
-        const share = document.createElement('span'); share.className = 'tour-insights-room-share'; share.textContent = entry.share;
-        item.append(name, bar, said, share); roomList.append(item);
+        line.append(bar);
       }
-      body.append(heading, roomList);
-    }
-    const channels = channelWords(row);
-    if (channels.length) {
-      const line = document.createElement('p');
-      line.className = 'tour-insights-channels';
-      line.textContent = 'Opened from: ' + channels.join(' · ');
-      body.append(line);
-    }
-    const hosts = positiveEntries(row?.by_host);
-    if (hosts.length) {
-      const hostLine = document.createElement('p');
-      hostLine.className = 'tour-insights-hosts';
-      hostLine.textContent = 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ');
-      body.append(hostLine);
+      for (const [name, count] of visited) made.row('tour-insights-room', [[name, 'name', true], [String(count), 'number']]);
+      block.append(heading, made.table);
+      if (sparse && positiveEntries(row?.by_room_seconds).length) {
+        // Named for the count that is short: visits when the answer carries them, else opens.
+        const visits = viewCount(row?.visits), short = visits !== null && visits < INSIGHTS_MIN_OPENS ? 'visits' : 'opens';
+        block.append(insightsNote('tour-insights-few', 'Fewer than ' + INSIGHTS_MIN_OPENS + ' ' + short + ' so far, so only counts are shown. Time and shares appear from ' + INSIGHTS_MIN_OPENS + ' ' + short + '.'));
+      }
+      body.append(block);
     }
     heat.className = 'tour-heat'; heat.hidden = true;
-    body.append(heat);
-    if (entry.open) tourHeat(tour, heat, supabase, ticket);
+    body.append(heat, stops);
+    if (entry.open) tourHeat(tour, heat, stops, supabase, ticket);
     box.replaceChildren(body);
     const sayInsights = rowSay(tour, box);
     entry.show(true);
   }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
   // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".
-  function tourViews(tour, host, supabase, ticket, title, insights, item = null) {
+  function tourViews(tour, host, supabase, ticket, title, insights, item = null, stopped = '') {
     host.className = 'tour-views'; host.hidden = true;
     if (insights) insights.show(false);
     if (!viewsAvailable) return;
-    whenNear(item, () => void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+    const ask = () => void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
       if (!viewsAvailable) return;
       if (ticket !== deskVersion) return;
       if (missingFunction(reply)) { viewsAvailable = false; return; }
-      if (failed(reply)) return;
-      const row = firstRow(reply.value?.data);
+      if (sessionGone(reply)) return;
+      const row = failed(reply) ? null : firstRow(reply.value?.data);
       const opens = viewCount(row?.opens), calls = viewCount(row?.call_taps), emails = viewCount(row?.email_taps);
-      if (opens === null) return;
+      if (opens === null) { host.hidden = true; insightsProblem(insights, ask); return; }
       const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
       const count = (number, one, many) => number + ' ' + (number === 1 ? one : many);
       const bits = opens === 0 ? ['Not opened yet.'] : [count(opens, 'open', 'opens')];
       if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call', 'calls'), count(emails, 'email', 'emails'));
       if (last) bits.push('last ' + last);
       host.textContent = bits.join(' · '); host.hidden = false;
-      if (opens > 0 && insights) tourInsights(tour, row, title, insights, last, supabase, ticket);
-    }), deckWanted.has(tour.id));
+      if (insights) tourInsights(tour, row, title, insights, last, supabase, ticket, item, stopped);
+    });
+    whenNear(item, ask, deckWanted.has(tour.id));
   }
   function stopSharing(tour, supabase, ticket, parent) {
     let armed = false;
@@ -2656,7 +2948,9 @@
         const views = document.createElement('span');
         (tourChips.get(tour.id)?.row || item).append(views);
         const insights = document.createElement('div'); insights.className = 'tour-panel tour-insights';
-        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights), item);
+        // While nobody can open the link, its counts stand still, and the panel says why.
+        const stopped = paused ? 'paused' : hostingChip(hosting).label === 'Offline' ? 'offline' : '';
+        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights), item, stopped);
       }
       if (canShare) {
         if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);

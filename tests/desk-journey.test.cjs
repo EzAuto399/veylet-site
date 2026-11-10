@@ -18,6 +18,9 @@ const account = read('dist/account.js');
 const sharing = read('dist/tour-sharing.js');
 const qrcode = read('dist/vendor/qrcode-1.5.4.min.js');
 const markup = read('dist/account/index.html');
+const guideCss = read('dist/account-guide.css');
+// The stylesheet's block for the insights panel, the plan and its tables.
+const insightsCss = guideCss.slice(guideCss.indexOf('/* ---- Walkthrough insights, vendor report'), guideCss.indexOf('.space-prep { margin: 12px 0 0; }'));
 
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 const TOKEN = 'abcdefghijklmnop';
@@ -62,10 +65,11 @@ function harness(options = {}) {
   const page = options.markup || markup;
   for (const match of page.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) { ids[match[2]] = new Element(match[1]); ids[match[2]].hidden = /\bhidden\b/.test(match[0]); }
   documentStub.documentElement = { dataset: /<html\b[^>]*\bdata-app-mode="true"/.test(page) ? { appMode: 'true' } : {} };
-  const timers = { render: new Set(), desk: new Set(), skeleton: new Set() };
+  // `heat` holds the 300 ms wait before the stops' placeholder is drawn.
+  const timers = { render: new Set(), desk: new Set(), skeleton: new Set(), heat: new Set() };
   const scheduleTimeout = (fn, ms) => {
     const timer = { fire: fn, ms };
-    if (ms === 10000) timers.render.add(timer); else if (ms === 45000) timers.desk.add(timer); else if (ms === 400) timers.skeleton.add(timer);
+    if (ms === 10000) timers.render.add(timer); else if (ms === 45000) timers.desk.add(timer); else if (ms === 400) timers.skeleton.add(timer); else if (ms === 300) timers.heat.add(timer);
     else if (ms === 0) setImmediate(fn);
     return timer;
   };
@@ -120,6 +124,8 @@ function harness(options = {}) {
   const window = { VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' }, supabase: { createClient: () => supabase },
     VeyletPlace: { generalLocationProblem: () => '' }, VEYLET_HOOKS: { url: 'https://hooks.example.invalid' },
     addEventListener: (name, handler) => { windowEvents[name] = handler; } };
+  // `options.fetch` answers the package files the floor plan reads.
+  if (options.fetch) window.fetch = options.fetch;
   Object.assign(documentStub, {
     getElementById: id => ids[id], createElement: tag => new Element(tag),
     createElementNS: (namespace, tag) => Object.assign(new Element(tag), { namespace }),
@@ -128,7 +134,7 @@ function harness(options = {}) {
   const FakeURL = function (...args) { return new URL(...args); };
   FakeURL.createObjectURL = blob => { downloads.push(blob); return 'blob:veylet-' + downloads.length; };
   FakeURL.revokeObjectURL = () => {};
-  const context = { window, document: documentStub, navigator, Date, URL: FakeURL, URLSearchParams, TextEncoder, Blob: class {},
+  const context = { window, document: documentStub, navigator, Date, URL: FakeURL, URLSearchParams, TextEncoder, atob, Blob: class {},
     location: { pathname: '/account', search: '', replace() {}, assign() {} },
     setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { get() { return ''; } } };
@@ -1315,7 +1321,7 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
 
   // 1. Walkthrough insights & vendor report disclosure.
   assert.equal(toggleOf(card, 'insights').textContent, 'Insights');
-  assert.equal(toggleOf(card, 'insights').hidden, false, 'offered once there are opens');
+  assert.equal(toggleOf(card, 'insights').hidden, false, 'offered once the counts are read');
   const insights = await openPanel(card, 'insights');
   assert.equal(insights.hidden, false);
   // One sentence to repeat to a vendor leads; the figures, rooms and channels follow it.
@@ -1323,15 +1329,18 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   assert.equal(insights.children[0].children[0].className, 'tour-insights-lead', 'the sentence comes first');
   assert.deepEqual(insightTexts('tour-insights-lead'),
     ['Opened 14 times on 5 days, for 1m 45s on average. The call button was tapped 3 times and the email button once.']);
+  // Four figures, each with the period it covers; the calls and emails behind Enquiries are said under it, link shares under the row.
   assert.deepEqual(insights.all().find(el => el.className === 'tour-insights-figures').children.map(group => group.children.map(el => el.textContent)),
-    [['Opens', '14'], ['Days active', '5'], ['Average time', '1m 45s'], ['Enquiries', '4 (3 calls, 1 email)'], ['Link shares', '2']]);
+    [['Opens', '14', 'All time · last 24 Sep 2026'], ['Days active', '5', 'All time'], ['Average time', '1m 45s', 'Last 90 days'], ['Enquiries', '4', '3 calls, 1 email · all time']]);
+  assert.deepEqual(insightTexts('tour-insights-shares'), ['Link shares: 2']);
   assert.deepEqual(insightTexts('tour-insights-channels'), ['Opened from: Direct link 8 (57%) · QR code 4 (29%) · Website embed 2 (14%)']);
   assert.equal(insights.all().find(el => el.className === 'tour-insights-hosts').textContent,
     'Embedded on: harbourrealty.com.au (2)');
   // No viewing time by room in this answer: the rooms are ranked by visits, and say so.
   assert.deepEqual(insightTexts('tour-insights-title'), ['Rooms by visits']);
+  assert.deepEqual(insights.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'col').map(el => el.textContent), ['Room', 'Visits']);
   assert.deepEqual(insights.all().filter(el => el.className === 'tour-insights-room').map(row => row.children.map(el => el.textContent)),
-    [['Kitchen', '', '9 visits', ''], ['Living room', '', '7 visits', '']]);
+    [['Kitchen', '9'], ['Living room', '7']]);
 
   const copyReport = insights.all().find(el => el.dataset.control === 'copy-vendor-report');
   await copyReport.fire('click');
@@ -1383,7 +1392,7 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   assert.equal(rowLine(prep), 'Calendar slot saved as 12-rue-cafe-co-capture.ics.');
 });
 
-/* ---- Where viewers looked (get_tour_view_heatmap, 10 November 2026) ----------- */
+/* ---- Where viewers stood and looked (get_tour_view_heatmap, 10 November 2026) ----------- */
 
 const VIEW_STATS = { opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 14 }, by_host: {},
   last_opened_at: '2026-09-24T02:00:00Z', explores: 9, avg_dwell_seconds: 96, visits: 11,
@@ -1395,28 +1404,42 @@ const HEATMAP = { visits: 11, since: '2026-11-01T01:00:10+00:00', stops: [
   { stop: 2, room: null, visits: 1, seconds: 0, bins: {} },
 ] };
 async function heatDesk(heatmap, extra = {}) {
-  const h = await load({ tours: [liveTour()], approved: true, hosting: [released()],
-    rpc: { get_tour_view_stats: async () => ({ data: [extra.stats || VIEW_STATS] }), ...(heatmap === undefined ? {} : { get_tour_view_heatmap: heatmap }) } });
+  const h = await load({ tours: [liveTour(extra.tour || {})], approved: true, hosting: extra.hosting || [released()], fetch: extra.fetch, share: extra.share,
+    rpc: { get_tour_view_stats: extra.statsRpc || (async () => ({ data: [extra.stats || VIEW_STATS] })), ...(heatmap === undefined ? {} : { get_tour_view_heatmap: heatmap }), ...(extra.rpc || {}) } });
   await settle();
   const insights = panelOf(h.card('t1'), 'insights');
   const toggle = toggleOf(h.card('t1'), 'insights');
   const open = async () => { await openPanel(h.card('t1'), 'insights'); await settle(); };
   const panel = () => insights.all().find(el => /^tour-heat$/.test(el.className));
+  const list = () => insights.all().find(el => el.className === 'tour-heat-list');
   const texts = className => insights.all().filter(el => el.className === className).map(el => el.textContent);
-  return { h, insights, toggle, open, panel, texts };
+  const control = name => insights.all().find(el => el.dataset.control === name);
+  // A table as people read it: its column headers, then each row's cells.
+  const table = className => { const found = insights.all().find(el => el.tagName === 'TABLE' && el.className.split(' ')[0] === className);
+    return found ? { el: found, caption: found.all().find(el => el.tagName === 'CAPTION').textContent,
+      head: found.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'col').map(el => el.textContent),
+      lines: found.all().filter(el => el.tagName === 'TR' && el.parent.tagName === 'TBODY'),
+      rows: found.all().filter(el => el.tagName === 'TR' && el.parent.tagName === 'TBODY').map(row => row.children.map(cell => cell.textContent)) } : null; };
+  const figures = () => insights.all().find(el => el.className === 'tour-insights-figures')?.children.map(group => group.children.map(el => el.textContent));
+  return { h, insights, toggle, open, panel, list, texts, control, table, figures };
 }
 
-test('the extended stats fill the sentence and the room rows: average time, rooms ranked by viewing time with their visits, and the vendor report', async () => {
+test('the extended stats fill the sentence and the room table: average time, rooms ranked by viewing time with visits, average per visit and share, and the vendor report', async () => {
   const x = await heatDesk(async () => ({ data: HEATMAP }));
   await x.open();
   const LEAD = 'Opened 14 times on 5 days, for 1m 36s on average. Viewers spent longest in Kitchen (82% of viewing time), followed by Lounge (18%). The call button was tapped 3 times and the email button once.';
   assert.deepEqual(x.texts('tour-insights-lead'), [LEAD]);
-  assert.deepEqual(x.texts('tour-insights-title'), ['Rooms by viewing time']);
-  const rooms = x.insights.all().filter(el => el.className === 'tour-insights-room');
-  assert.deepEqual(rooms.map(row => row.children.map(el => el.textContent)), [['Kitchen', '', '4m 32s · 7 visits', '82%'], ['Lounge', '', '1m 1s · 9 visits', '18%']], 'by time, not by visits');
-  // The bar is scaled to the longest room and hidden from assistive technology: the words beside it say it.
-  assert.deepEqual(rooms.map(row => [row.children[1].getAttribute('aria-hidden'), row.children[1].dataset.share]), [['true', '100'], ['true', '22']]);
-  await x.insights.all().find(el => el.dataset.control === 'copy-vendor-report').fire('click');
+  assert.deepEqual(x.texts('tour-insights-title'), ['Time per room']);
+  // The same data as the map, as a ranked table: room, visits, the average per visit (seconds over visits) and the share of all rooms' time.
+  const rooms = x.table('tour-insights-rooms');
+  assert.equal(rooms.caption, 'Last 90 days, most time first. Average time is per visit to the room.');
+  assert.deepEqual(rooms.head, ['Room', 'Visits', 'Avg time', 'Share']);
+  assert.deepEqual(rooms.rows, [['Kitchen', '7', '39s', '82%', ''], ['Lounge', '9', '7s', '18%', '']], 'by time, not by visits');
+  assert.deepEqual(rooms.lines.map(row => row.children.map(cell => cell.className)), Array(2).fill(['tour-cell-name', 'tour-cell-number', 'tour-cell-number', 'tour-cell-number', 'tour-insights-room-bar']), 'numbers are their own right-aligned cells');
+  assert.deepEqual(rooms.lines.map(row => [row.children[0].tagName, row.children[0].getAttribute('scope')]), [['TH', 'row'], ['TH', 'row']]);
+  // The bar is scaled to the longest room and hidden from assistive technology: the cells beside it say it.
+  assert.deepEqual(rooms.lines.map(row => [row.children[4].getAttribute('aria-hidden'), row.children[4].dataset.share]), [['true', '100'], ['true', '22']]);
+  await x.control('copy-vendor-report').fire('click');
   await settle();
   assert.equal(x.h.copied.at(-1).split('\n')[1], LEAD);
   assert.match(x.h.copied.at(-1), /\nAverage time: 1m 36s\n/);
@@ -1425,22 +1448,71 @@ test('the extended stats fill the sentence and the room rows: average time, room
   for (const [value, said] of [[96.4, '1m 36s'], ['104.6', '1m 45s']]) {
     const odd = await heatDesk(undefined, { stats: { ...VIEW_STATS, avg_dwell_seconds: value } });
     assert.match(odd.texts('tour-insights-lead')[0], new RegExp('^Opened 14 times on 5 days, for ' + said + ' on average\\.'));
+    assert.deepEqual(odd.figures()[2], ['Average time', said, 'Last 90 days']);
   }
-  // Under five opens a ranking of rooms is noise: the sentence says so, the rows still show.
+  // Under five opens a ranking of rooms is noise: the sentence says so, the rows still show, as counts only.
   const few = await heatDesk(undefined, { stats: { ...VIEW_STATS, opens: 4, days_with_opens: 1, call_taps: 0, email_taps: 2 } });
   assert.deepEqual(few.texts('tour-insights-lead'), ['Opened 4 times on 1 day, for 1m 36s on average. It is too early to say which rooms hold attention. The email button was tapped twice.']);
   assert.equal(few.insights.all().filter(el => el.className === 'tour-insights-room').length, 2);
   // A database from before these columns: the lines are simply not there.
   const before = await heatDesk(undefined, { stats: { opens: 3, days_with_opens: 1, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: '2026-09-24T02:00:00Z' } });
   assert.deepEqual(before.texts('tour-insights-lead'), ['Opened 3 times on 1 day. Nobody has tapped call or email yet.']);
-  assert.deepEqual(before.insights.all().find(el => el.className === 'tour-insights-figures').children.map(group => group.children.map(el => el.textContent)),
-    [['Opens', '3'], ['Days active', '1'], ['Enquiries', '0'], ['Link shares', '0']]);
+  assert.deepEqual(before.figures(), [['Opens', '3', 'All time · last 24 Sep 2026'], ['Days active', '1', 'All time'], ['Enquiries', '0', 'All time']]);
+  assert.deepEqual(before.texts('tour-insights-shares'), ['Link shares: 0']);
   assert.deepEqual([before.texts('tour-insights-room'), before.texts('tour-insights-title'), before.texts('tour-insights-channels')], [[], [], []]);
   // Counts are of opens and taps, never of people.
   assert.doesNotMatch(x.insights.textContent + x.h.copied.at(-1), /buyers?|people who|visitors? who/i);
 });
 
-test('Where viewers looked: asked once when the insights are opened, a ring and its words per stop ranked by time, and a table', async () => {
+test('the headline row is at most four figures, each said once with its unit and the period it covers', async () => {
+  const x = await heatDesk(async () => ({ data: HEATMAP }));
+  await x.open();
+  assert.deepEqual(x.figures(), [['Opens', '14', 'All time · last 24 Sep 2026'], ['Days active', '5', 'All time'], ['Average time', '1m 36s', 'Last 90 days'], ['Enquiries', '4', '3 calls, 1 email · all time']]);
+  const groups = x.insights.all().find(el => el.className === 'tour-insights-figures').children;
+  assert.ok(groups.length <= 4);
+  for (const group of groups) assert.deepEqual(group.children.map(el => [el.tagName, el.className]), [['DT', ''], ['DD', ''], ['DD', 'tour-insights-period']], 'a label, a value, a period');
+  // Link shares are a line under the row, not a fifth figure.
+  assert.deepEqual(x.texts('tour-insights-shares'), ['Link shares: 2']);
+  // The card's one-line count gives way while the panel is open, so no figure is on screen twice.
+  assert.match(guideCss, /\.desk \.dash-tour:has\(> \.tour-insights:not\(\[hidden\]\)\) \.tour-views \{ display: none; \}/);
+  // One enquiry kind tapped once reads in the singular.
+  const one = await heatDesk(undefined, { stats: { ...VIEW_STATS, call_taps: 1, email_taps: 0 } });
+  assert.deepEqual(one.figures()[3], ['Enquiries', '1', '1 call, 0 emails · all time']);
+});
+
+test('too few visits: rooms and stops show counts only; time, shares, shades and look directions are withheld and the panel says from when', async () => {
+  // Three visits in the last 90 days, though the link was opened 14 times: the room times are of those three.
+  const stats = { ...VIEW_STATS, visits: 3, by_room: { Kitchen: 2, Lounge: 3 }, by_room_seconds: { Kitchen: 60, Lounge: 20 } };
+  const heat = { visits: 3, since: '2026-11-08T01:00:00+00:00', stops: [
+    { stop: 0, room: 'Lounge', visits: 3, seconds: 20, bins: { '0_1': 20 } }, { stop: 1, room: 'Kitchen', visits: 2, seconds: 60, bins: { '4_1': 60 } }] };
+  const x = await heatDesk(async () => ({ data: heat }), { stats });
+  await x.open();
+  assert.match(x.texts('tour-insights-lead')[0], /It is too early to say which rooms hold attention\./);
+  assert.deepEqual(x.texts('tour-insights-title'), ['Rooms by visits']);
+  const rooms = x.table('tour-insights-rooms');
+  assert.equal(rooms.el.className, 'tour-insights-rooms tour-insights-rooms-counts');
+  assert.deepEqual([rooms.head, rooms.rows], [['Room', 'Visits'], [['Lounge', '3'], ['Kitchen', '2']]], 'counts, most visits first; no time, no share, no bar');
+  assert.deepEqual(x.texts('tour-insights-few'), ['Fewer than 5 visits so far, so only counts are shown. Time and shares appear from 5 visits.']);
+  // The stops: visits and time per stop, and nothing about where anyone looked.
+  assert.deepEqual(x.texts('tour-heat-lead'), ['3 visits since 8 Nov 2026.']);
+  assert.deepEqual(x.texts('tour-heat-few'), ['Fewer than 5 visits so far, so only counts are shown. Shades and look directions appear from 5 visits.']);
+  const stops = x.table('tour-heat-table');
+  assert.deepEqual(stops.head, ['No.', 'Stop', 'Visits', 'Time']);
+  assert.deepEqual(stops.rows, [['2', 'Kitchen', '2', '1m'], ['1', 'Lounge', '3', '20s']]);
+  const said = [x.insights.all().find(el => el.className === 'tour-insights-roomlist'), x.panel(), x.list()].flatMap(el => el.all().map(node => node.textContent)).join(' ');
+  assert.doesNotMatch(said, /%|Mostly|Looked|Level|down|\bup\b/, 'no share of time and no look direction in the rooms or the stops');
+  // Opens short but visits known and enough is named for what is short.
+  const opens = await heatDesk(undefined, { stats: { ...VIEW_STATS, opens: 4 } });
+  assert.deepEqual(opens.texts('tour-insights-few'), ['Fewer than 5 opens so far, so only counts are shown. Time and shares appear from 5 opens.']);
+  // A walkthrough with enough visits still withholds the look of a stop only one or two people reached.
+  const mixed = await heatDesk(async () => ({ data: { visits: 9, since: null, stops: [
+    { stop: 0, room: 'Hall', visits: 9, seconds: 90, bins: { '1_1': 90 } }, { stop: 1, room: 'Attic', visits: 2, seconds: 80, bins: { '5_2': 80 } }] } }));
+  await mixed.open();
+  assert.deepEqual(mixed.table('tour-heat-table').rows, [['1', 'Hall', '9', '1m 30s', 'Mostly one direction (100% of the time)', 'Level 100% · down 0% · up 0%'],
+    ['2', 'Attic', '2', '1m 20s', 'Too few visits to say where they looked', '']]);
+});
+
+test('Where viewers stood: asked once when the insights are opened, and every stop is a row of the table with its number, visits, time and how people looked', async () => {
   const x = await heatDesk(async () => ({ data: HEATMAP }));
   assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'not asked for until the insights are opened');
   assert.equal(x.panel().hidden, true);
@@ -1448,52 +1520,34 @@ test('Where viewers looked: asked once when the insights are opened, a ring and 
   assert.deepEqual(JSON.parse(JSON.stringify(x.h.calls.filter(([name]) => name === 'get_tour_view_heatmap'))), [['get_tour_view_heatmap', { p_tour_id: 't1' }]]);
   const panel = x.panel();
   assert.equal(panel.hidden, false);
-  assert.equal(panel.getAttribute('aria-label'), 'Where viewers looked');
+  assert.equal(panel.getAttribute('aria-label'), 'Where viewers stood and looked');
   assert.equal(panel.children[0].tagName, 'H4');
-  assert.equal(panel.children[0].textContent, 'Where viewers looked');
-  assert.equal(x.texts('tour-heat-lead')[0], '11 visits since 1 Nov 2026. Stops are ranked by viewing time.');
+  assert.equal(panel.children[0].textContent, 'Where viewers stood and looked');
+  assert.equal(x.texts('tour-heat-lead')[0], '11 visits since 1 Nov 2026.');
+  // A zipped package has no floor to draw: the panel says so and asks for nothing more.
+  assert.deepEqual(x.texts('tour-heat-noplan'), ['There is no floor plan for this walkthrough here. The table lists every stop.']);
+  assert.equal(x.h.count('get_tour_package_base'), 0);
+  assert.equal(panel.all().filter(el => el.tagName === 'SVG').length, 0);
   // Ranked by time, not stop order; the stop with no time read at it is still listed, in words.
-  // A stop is named by its room, never by a bare number when the room is known.
-  assert.deepEqual(x.texts('tour-heat-stop-name'), ['Kitchen', 'Lounge', 'Stop 3 (room not named)']);
-  assert.deepEqual(x.texts('tour-heat-stop-figures'), ['4m 32s · 9 visits', '1m 1s · 11 visits', 'Under 1s · 1 visit']);
+  // A stop is named by its room, never by a bare number when the room is known; its number is the walkthrough's own.
+  const stops = x.table('tour-heat-table');
+  assert.equal(x.list().children[0].textContent, 'Time per stop');
+  assert.equal(stops.caption, 'This version of the walkthrough, most time first.');
+  assert.deepEqual(stops.head, ['No.', 'Stop', 'Visits', 'Time', 'How they looked around', 'Level / down / up']);
   // In words the bins support: how concentrated the looking was (never what was looked at), and level / down / up.
-  assert.deepEqual(x.texts('tour-heat-stop-top'), ['Mostly one direction (63% of the time)', 'Mostly one direction (50% of the time)', 'No look direction recorded']);
-  assert.deepEqual(x.texts('tour-heat-stop-pitch'), ['Level 75% · down 13% · up 13%', 'Level 83% · down 17% · up 0%']);
-  assert.doesNotMatch(panel.textContent, /°|anticlockwise/, 'no degrees');
-  // The ring: 12 sectors by 3 bands, hidden from assistive technology because the words beside it say it.
-  const rings = panel.all().filter(el => el.tagName === 'SVG');
-  assert.equal(rings.length, 3);
-  for (const ring of rings) {
-    assert.equal(ring.namespace, 'http://www.w3.org/2000/svg');
-    assert.equal(ring.getAttribute('aria-hidden'), 'true');
-    const wedges = ring.children.filter(el => el.getAttribute('data-bin'));
-    assert.equal(wedges.length, 36);
-    assert.equal(new Set(wedges.map(el => el.getAttribute('data-bin'))).size, 36);
-    for (const wedge of wedges) assert.match(wedge.getAttribute('d'), /^M[\d.]+ [\d.]+A\d+ \d+ 0 0 0 [\d.]+ [\d.]+L[\d.]+ [\d.]+A\d+ \d+ 0 0 1 [\d.]+ [\d.]+Z$/);
-  }
-  const seen = ring => Object.fromEntries(ring.children.filter(el => /tour-heat-wedge-seen/.test(el.getAttribute('class') || '')).map(el => [el.getAttribute('data-bin'), el.getAttribute('fill-opacity')]));
-  assert.deepEqual(seen(rings[0]), { '2_0': '0.37', '2_1': '1.00', '3_1': '0.58', '8_2': '0.37' }, 'the busiest wedge is full; the rest in proportion');
-  assert.deepEqual(seen(rings[2]), {});
-  // Sector 0 starts at the top of the ring and runs anticlockwise (to the left), as yaw does seen from above.
-  const first = rings[0].children.find(el => el.getAttribute('data-bin') === '0_2').getAttribute('d');
-  assert.match(first, /^M36\.00 1\.00A35 35 0 0 0 18\.50 5\.69L/);
-  assert.deepEqual(x.texts('tour-heat-key'), ['Each ring is a stop seen from above: darker means people looked that way longer.'], 'a one-line legend');
-  for (const ring of rings) assert.deepEqual([ring.getAttribute('width'), ring.getAttribute('height')], ['48', '48'], 'small, beside the words');
-  // The table says everything the rings do, for every stop, behind a disclosure; each cell carries its
-  // column's label so a phone can stack the row instead of scrolling it sideways.
-  const more = panel.all().find(el => el.tagName === 'DETAILS');
-  assert.equal(more.children[0].textContent, 'Show as a table');
-  const table = more.all().find(el => el.tagName === 'TABLE');
-  assert.equal(panel.all().some(el => /tour-heat-scroll/.test(el.className || '')), false, 'no sideways scroller');
-  assert.equal(table.all().find(el => el.tagName === 'CAPTION').textContent, 'Viewing time by stop, most first');
-  assert.deepEqual(table.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'col').map(el => el.textContent), ['Stop', 'Time', 'Visits', 'How they looked around', 'Level / down / up']);
-  assert.deepEqual(table.all().filter(el => el.tagName === 'TR').slice(1).map(row => row.children.map(cell => cell.textContent)), [
-    ['Kitchen', '4m 32s', '9', 'Mostly one direction (63% of the time)', '75% / 13% / 13%'],
-    ['Lounge', '1m 1s', '11', 'Mostly one direction (50% of the time)', '83% / 17% / 0%'],
-    ['Stop 3 (room not named)', 'Under 1s', '1', '–', '–'],
+  assert.deepEqual(stops.rows, [
+    ['2', 'Kitchen', '9', '4m 32s', 'Mostly one direction (63% of the time)', 'Level 75% · down 13% · up 13%'],
+    ['1', 'Lounge', '11', '1m 1s', 'Mostly one direction (50% of the time)', 'Level 83% · down 17% · up 0%'],
+    ['3', 'Stop 3 (room not named)', '1', 'Under 1s', 'No look direction recorded', ''],
   ]);
-  assert.deepEqual(table.all().filter(el => el.tagName === 'TR')[1].children.slice(1).map(cell => cell.dataset.label), ['Time', 'Visits', 'How they looked around', 'Level / down / up']);
-  assert.ok(table.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'row').length === 3);
+  assert.doesNotMatch(panel.textContent + stops.rows.join(' '), /°|anticlockwise/, 'no degrees');
+  // Each cell carries its column's label and a role, because the rows are laid out as a grid, never scrolled sideways.
+  assert.deepEqual(stops.lines[0].children.map(cell => cell.dataset.label), ['No.', 'Stop', 'Visits', 'Time', 'How they looked around', 'Level / down / up']);
+  assert.deepEqual(stops.lines[0].children.map(cell => cell.getAttribute('role')), ['cell', 'rowheader', 'cell', 'cell', 'cell', 'cell']);
+  assert.deepEqual(stops.lines[0].children.map(cell => cell.className), ['tour-cell-key', 'tour-cell-name', 'tour-cell-number', 'tour-cell-number', 'tour-cell-words', 'tour-cell-words']);
+  assert.equal(stops.el.getAttribute('role'), 'table');
+  assert.equal(stops.el.all().filter(el => el.tagName === 'TH' && el.getAttribute('scope') === 'row').length, 3);
+  assert.equal(x.insights.all().some(el => /scroll/.test(el.className || '')), false, 'no sideways scroller');
   // Closing and opening again does not ask again.
   await x.toggle.fire('click');
   assert.equal(x.insights.hidden, true);
@@ -1505,24 +1559,31 @@ test('Where viewers looked: asked once when the insights are opened, a ring and 
   assert.equal(x.insights.hidden, true);
   assert.equal(x.toggle.attributes['aria-expanded'], 'false');
   assert.equal(x.h.documentStub.activeElement, x.toggle);
-  // More than five stops: five rings, and the table carries them all.
-  const many = { visits: 4, since: null, stops: Array.from({ length: 9 }, (_, stop) => ({ stop, room: null, visits: 1, seconds: 10 + stop, bins: { '0_1': 10 + stop } })) };
+  // More than eight stops: the table opens on the eight with most time and one button shows the rest.
+  const many = { visits: 6, since: null, stops: Array.from({ length: 9 }, (_, stop) => ({ stop, room: null, visits: 6, seconds: 10 + stop, bins: { '0_1': 10 + stop } })) };
   const long = await heatDesk(async () => ({ data: many }));
   await long.open();
-  assert.deepEqual(long.texts('tour-heat-stop-name'), [9, 8, 7, 6, 5].map(n => 'Stop ' + n + ' (room not named)'));
-  assert.deepEqual([...new Set(long.texts('tour-heat-stop-top'))], ['Mostly one direction (100% of the time)', 'Too brief to say where they looked'], 'under 15 seconds at a stop is too brief to say');
-  assert.equal(long.texts('tour-heat-lead')[0], '4 visits. Stops are ranked by viewing time.');
-  assert.equal(long.panel().all().find(el => el.tagName === 'SUMMARY').textContent, 'All 9 stops as a table');
-  assert.equal(long.panel().all().filter(el => el.tagName === 'TR').length, 10);
+  const all = long.table('tour-heat-table');
+  assert.deepEqual(all.rows.map(row => row[1]), [9, 8, 7, 6, 5, 4, 3, 2, 1].map(n => 'Stop ' + n + ' (room not named)'));
+  assert.deepEqual(all.lines.map(row => row.hidden), [false, false, false, false, false, false, false, false, true]);
+  assert.deepEqual([...new Set(all.rows.map(row => row[4]))], ['Mostly one direction (100% of the time)', 'Too brief to say where they looked'], 'under 15 seconds at a stop is too brief to say');
+  assert.equal(long.texts('tour-heat-lead')[0], '6 visits.');
+  const more = long.control('heat-all');
+  assert.deepEqual([more.textContent, more.getAttribute('aria-expanded')], ['Show all 9 stops', 'false']);
+  await more.fire('click');
+  assert.deepEqual([more.textContent, more.getAttribute('aria-expanded'), all.lines.some(row => row.hidden)], ['Show the top 8', 'true', false]);
+  await more.fire('click');
+  assert.deepEqual([more.textContent, all.lines.filter(row => row.hidden).length], ['Show all 9 stops', 1]);
 });
 
-test('Where viewers looked: "No visits yet" for an empty answer; no panel for a missing function, an error or an odd answer', async () => {
+test('Where viewers stood: "No visits yet" for an empty answer; no panel for a missing function; a failed or odd answer says so and offers Try again', async () => {
   const empty = await heatDesk(async () => ({ data: { stops: [], visits: 0, since: null } }));
   await empty.open();
   assert.equal(empty.panel().hidden, false);
   assert.deepEqual(empty.panel().children.map(el => el.textContent),
-    ['Where viewers looked', 'No visits yet. Time at each stop and where people look fills in as the link is walked through.']);
-  assert.equal(empty.panel().all().filter(el => el.tagName === 'SVG' || el.tagName === 'TABLE').length, 0);
+    ['Where viewers stood and looked', 'No visits yet. Time at each stop and where people look fills in as the link is walked through.']);
+  assert.equal(empty.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);
+  assert.equal(empty.list().hidden, true);
   // An older backend (PGRST202): nothing is shown, nothing is said, and no other walkthrough asks again.
   const missing = await load({ tours: [liveTour(), liveTour({ id: 't2' })], approved: true, hosting: [released(), released({ tour_id: 't2' })],
     rpc: { get_tour_view_stats: async () => ({ data: [VIEW_STATS] }),
@@ -1534,11 +1595,13 @@ test('Where viewers looked: "No visits yet" for an empty answer; no panel for a 
     const panel = insights.all().find(el => el.className === 'tour-heat');
     assert.equal(panel.hidden, true, id);
     assert.equal(panel.children.length, 0);
+    assert.equal(insights.all().find(el => el.className === 'tour-heat-list').hidden, true);
     assert.equal(insights.all().find(el => el.className === 'tour-insights-lead').textContent.startsWith('Opened 14 times on 5 days'), true, 'the rest of the insights stay');
   }
   assert.equal(missing.count('get_tour_view_heatmap'), 1, 'asked once; the second walkthrough does not ask a backend known not to have it');
   assert.equal(missing.status(), status, 'silently');
-  // A failed read, a thrown one, and answers that are not the contract's shape: no panel, no words, no throw.
+  // A failed read, a thrown one, and answers that are not the contract's shape: nothing is drawn from them, the
+  // panel says the stops could not be loaded and that the counts above are whole, and the one button asks again.
   const odd = [async () => ({ data: null, error: { message: 'boom' } }), async () => { throw new TypeError('Failed to fetch'); }, async () => ({ data: null }),
     async () => ({ data: 'yes' }), async () => ({ data: { visits: 3 } }), async () => ({ data: { stops: [{ stop: 64, room: null, visits: 1, seconds: 3, bins: {} }], visits: 1, since: null } }),
     async () => ({ data: { stops: [{ stop: 0, room: null, visits: -1, seconds: 3, bins: {} }], visits: 1, since: null } }),
@@ -1546,31 +1609,323 @@ test('Where viewers looked: "No visits yet" for an empty answer; no panel for a 
   for (const answer of odd) {
     const x = await heatDesk(answer);
     await x.open();
-    assert.equal(x.panel().hidden, true);
-    assert.equal(x.panel().children.length, 0);
+    assert.equal(x.panel().hidden, false);
+    assert.deepEqual(x.panel().children.map(el => el.textContent), ['Where viewers stood and looked', 'Where viewers stood couldn’t be loaded. The counts above are complete.', '']);
+    assert.equal(x.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);
+    assert.equal(x.list().hidden, true);
+    assert.equal(x.control('heat-retry').textContent, 'Try again');
+    assert.equal(x.texts('tour-insights-lead').length, 1, 'the counts stay');
   }
+  // Try again asks once more and draws the answer when it comes.
+  let asked = 0;
+  const flaky = await heatDesk(async () => (++asked === 1 ? { data: null, error: { message: 'boom' } } : { data: HEATMAP }));
+  await flaky.open();
+  await flaky.control('heat-retry').fire('click');
+  await settle();
+  assert.equal(asked, 2);
+  assert.equal(flaky.control('heat-retry'), undefined);
+  assert.equal(flaky.table('tour-heat-table').rows.length, 3);
   // Bin keys outside the 36, and amounts that are not positive numbers, are ignored rather than drawn.
-  const stray = await heatDesk(async () => ({ data: { visits: 1, since: null, stops: [{ stop: 0, room: '<b>Hall</b>', visits: 1, seconds: 20,
+  const stray = await heatDesk(async () => ({ data: { visits: 5, since: null, stops: [{ stop: 0, room: '<b>Hall</b>', visits: 5, seconds: 20,
     bins: { '0_1': 6, '12_1': 50, '1_3': 50, '01_1': 50, '2_1': -4, '3_1': '7', north: 9 } }] } }));
   await stray.open();
-  assert.deepEqual(stray.texts('tour-heat-stop-top'), ['Mostly one direction (100% of the time)']);
-  assert.deepEqual(stray.texts('tour-heat-stop-pitch'), ['Level 100% · down 0% · up 0%']);
-  assert.deepEqual(stray.texts('tour-heat-stop-name'), ['<b>Hall</b>'], 'a room name is text, never markup');
+  assert.deepEqual(stray.table('tour-heat-table').rows, [['1', '<b>Hall</b>', '5', '20s', 'Mostly one direction (100% of the time)', 'Level 100% · down 0% · up 0%']], 'a room name is text, never markup');
 });
 
-test('Where viewers looked: stops in one room are told apart by their order, and the words follow how spread the looking was', async () => {
+test('Where viewers stood: stops in one room are told apart by their order, and the words follow how spread the looking was', async () => {
   const spread = Object.fromEntries(Array.from({ length: 12 }, (_, sector) => [sector + '_1', 10]));
   const x = await heatDesk(async () => ({ data: { visits: 6, since: null, stops: [
     { stop: 0, room: 'Kitchen', visits: 6, seconds: 40, bins: { '0_1': 12, '1_1': 10, '2_1': 10, '7_1': 8 } },
     { stop: 1, room: 'Hall', visits: 6, seconds: 30, bins: { '4_1': 30 } },
     { stop: 2, room: 'Kitchen', visits: 5, seconds: 120, bins: spread },
-    { stop: 3, room: 'Kitchen', visits: 2, seconds: 8, bins: { '5_2': 8 } },
+    { stop: 3, room: 'Kitchen', visits: 5, seconds: 8, bins: { '5_2': 8 } },
   ] } }));
   await x.open();
+  const rows = x.table('tour-heat-table').rows;
   // Ranked by time; the ordinal is the stop's place in its room along the walkthrough, not its rank.
-  assert.deepEqual(x.texts('tour-heat-stop-name'), ['Kitchen, second stop', 'Kitchen, first stop', 'Hall', 'Kitchen, third stop']);
-  assert.deepEqual(x.texts('tour-heat-stop-top'), ['Looked all around', 'Mostly one side of the room (80% of the time)', 'Mostly one direction (100% of the time)', 'Too brief to say where they looked']);
-  assert.deepEqual(x.texts('tour-heat-stop-pitch').at(-1), 'Level 0% · down 0% · up 100%');
+  assert.deepEqual(rows.map(row => [row[0], row[1]]), [['3', 'Kitchen, second stop'], ['1', 'Kitchen, first stop'], ['2', 'Hall'], ['4', 'Kitchen, third stop']]);
+  assert.deepEqual(rows.map(row => row[4]), ['Looked all around', 'Mostly one side of the room (80% of the time)', 'Mostly one direction (100% of the time)', 'Too brief to say where they looked']);
+  assert.deepEqual(rows.at(-1)[5], 'Level 0% · down 0% · up 100%');
+});
+
+/* ---- The floor plan: stops where they stand, from the walkthrough's own package ---------- */
+
+const PLAN_BASE = 'https://packages.example.invalid/w1/t1/';
+// A 4 m by 2 m floor in half-metre cells with one cell missing (a pillar); bit c + r * columns, least significant first.
+const PLAN_HOLE = [3, 1];
+function planFloor() {
+  const columns = 8, rows = 4, bits = Buffer.alloc(Math.ceil(columns * rows / 8));
+  for (let r = 0; r < rows; r++) for (let c = 0; c < columns; c++) if (c !== PLAN_HOLE[0] || r !== PLAN_HOLE[1]) bits[(r * columns + c) >> 3] |= 1 << ((r * columns + c) & 7);
+  return { version: 1, cell_metres: 0.5, origin: [0, 0], columns, rows, floor_y: -1.4, eye_height: 1.4, area_m2: 7.75, mask: bits.toString('base64') };
+}
+const planStops = (lift = [0, 0, 0], ids = []) => [[1, 0.5], [3, 1.5], [3.5, 0.5]].map(([x, z], index) =>
+  ({ id: 's' + (index + 1), room: 'r1', position: [x, lift[index], z], target: [x, lift[index] - 0.3, z - 2], floor: [x, lift[index] - 1.4, z], floor_measured: true, ...(ids[index] ? { floor_id: ids[index] } : {}) }));
+const planManifest = (overrides = {}) => ({ format: 'veylet.tour-package', package_format_version: 2, walkable: { path: 'walkable.json' },
+  truth_label: 'Built only from photos and depth captured on site. Not to scale.', rooms: [{ id: 'r1', name: 'Lounge' }], stops: planStops(), ...overrides });
+// The two visited stops of HEATMAP stand on the plan; the third of the package was never reached.
+const PLAN_HEAT = { ...HEATMAP, stops: HEATMAP.stops.slice(0, 2) };
+async function planDesk(options = {}) {
+  const fetched = [];
+  const files = { 'manifest.json': options.manifest === undefined ? planManifest() : options.manifest, 'walkable.json': options.walkable === undefined ? planFloor() : options.walkable };
+  const base = options.base === undefined ? PLAN_BASE : options.base;
+  const fetch = async (url, init) => {
+    // The desk's own service lookups also use fetch; only package reads are of interest here.
+    if (url.startsWith('https://hooks.example.invalid/')) return { ok: false, status: 404, text: async () => '', json: async () => ({}) };
+    fetched.push([url, init]);
+    const body = url.startsWith(base) ? files[url.slice(base.length)] : null;
+    return body ? { ok: true, status: 200, text: async () => JSON.stringify(body) } : { ok: false, status: 404, text: async () => '' };
+  };
+  const x = await heatDesk(async () => ({ data: options.heat || PLAN_HEAT }), { tour: { storage_path: options.path || 'w1/t1/manifest.json' }, fetch, stats: options.stats,
+    rpc: { get_tour_package_base: options.locate || (async () => ({ data: [{ package_base_url: base }] })) } });
+  await x.open();
+  const svg = x.panel().all().find(el => el.tagName === 'SVG' && el.getAttribute('class') === 'tour-heat-plan') || null;
+  const marks = name => (svg ? svg.children.filter(el => el.getAttribute('class') === name) : []);
+  const legend = () => x.panel().all().filter(el => el.tagName === 'LI').map(line => [line.className, ...line.all().filter(el => el.tagName === 'SPAN' && !el.children.length).map(el => el.textContent)]);
+  return { ...x, fetched, svg, marks, legend };
+}
+const attrs = (el, ...names) => names.map(name => el.getAttribute(name));
+
+test('the floor plan draws the walkable floor from the package and every stop where it stands: size by visits, shade by time, a wedge where they looked', async () => {
+  const x = await planDesk();
+  // The owner's package is found through the function the preview uses, and read without credentials.
+  assert.deepEqual(JSON.parse(JSON.stringify(x.h.calls.filter(([name]) => name === 'get_tour_package_base'))), [['get_tour_package_base', { p_tour_id: 't1' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(x.fetched)), [[PLAN_BASE + 'manifest.json', { credentials: 'omit' }], [PLAN_BASE + 'walkable.json', { credentials: 'omit' }]]);
+  assert.ok(x.svg, 'a plan is drawn');
+  assert.equal(x.svg.namespace, 'http://www.w3.org/2000/svg');
+  assert.equal(x.svg.parent.tagName, 'FIGURE');
+  // One scale for both axes: 4 m by 2 m of floor in a 320-wide picture with a 30 px margin is 65 px to the metre.
+  assert.equal(x.svg.getAttribute('viewBox'), '0 0 320 190');
+  assert.deepEqual(attrs(x.svg, 'role', 'aria-label'), ['img', 'Floor plan from above with 2 stops marked, most time at Kitchen. The table lists every stop.']);
+  // The floor is the package's own mask, read as the player reads it: every cell agrees with decodeWalkable.
+  const floors = x.svg.children.filter(el => /^tour-heat-floor/.test(el.getAttribute('class')));
+  assert.deepEqual(floors.map(el => el.getAttribute('class')), ['tour-heat-floor-edge', 'tour-heat-floor']);
+  assert.equal(floors[0].getAttribute('d'), floors[1].getAttribute('d'));
+  const lit = new Set();
+  for (const [, px, pz, width] of floors[1].getAttribute('d').matchAll(/M([\d.]+) ([\d.]+)h([\d.]+)v[\d.]+h-[\d.]+Z/g)) {
+    const c = (Number(px) - 30) / 32.5, r = (Number(pz) - 30) / 32.5;
+    for (let i = 0; i < Number(width) / 32.5; i++) lit.add((c + i) + ',' + r);
+  }
+  const window = {};
+  vm.runInNewContext(read('dist/tour-player-v2.js'), { window, atob, Uint8Array, document: {}, navigator: {}, location: {}, URL, console });
+  const walkable = window.VeyletPlayerV2.decodeWalkable(planFloor());
+  let cells = 0;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) { cells += 1; assert.equal(lit.has(c + ',' + r), walkable.walkable(c * 0.5 + 0.25, r * 0.5 + 0.25), 'cell ' + c + ',' + r); }
+  assert.deepEqual([cells, lit.size, lit.has(PLAN_HOLE.join(','))], [32, 31, false]);
+  // Stops in the package's own frame: +X to the right, -Z up. Stop n of the answer is stops[n] of the manifest.
+  const spots = x.marks('tour-heat-spot').map(el => attrs(el, 'data-stop', 'cx', 'cy', 'r', 'data-level'));
+  // Size is visits (area grows with the count: 5 + 9 * sqrt(visits / most)); shade is the step of time (61 s is the lightest, 4m 32s the darkest).
+  assert.deepEqual(spots, [['0', '95', '62.5', '14', '1'], ['1', '225', '127.5', '13.1', '3']]);
+  // A stop of the package nobody reached is a small ring, so the plan shows the whole walkthrough.
+  assert.deepEqual(x.marks('tour-heat-spot-unvisited').map(el => attrs(el, 'data-stop', 'cx', 'cy', 'r')), [['2', '257.5', '62.5', '3.5']]);
+  // The wedge points where most of the looking went: 0 degrees is up the plan (-Z) and angles turn anticlockwise, as yaw does.
+  const looks = x.marks('tour-heat-look');
+  assert.deepEqual(looks.map(el => attrs(el, 'data-stop', 'data-from', 'data-to')), [['0', '0', '30'], ['1', '60', '90']]);
+  assert.equal(looks[0].getAttribute('d'), 'M95 62.5L95.0 38.5A24 24 0 0 0 83.0 41.7Z', 'from straight up, sweeping to the left');
+  // Marks are layered so none hides another: floor, rings, wedges, circles, then numbers.
+  const order = x.svg.children.map(el => el.getAttribute('class'));
+  assert.deepEqual(order, ['tour-heat-floor-edge', 'tour-heat-floor', 'tour-heat-spot-unvisited', 'tour-heat-look', 'tour-heat-look', 'tour-heat-spot', 'tour-heat-spot', 'tour-heat-number', 'tour-heat-number']);
+  // Each circle wears the walkthrough's own stop number, the same as its table row; the picture's text is said by the table.
+  assert.deepEqual(x.marks('tour-heat-number').map(el => [el.textContent, el.getAttribute('aria-hidden')]), [['1', 'true'], ['2', 'true']]);
+  assert.deepEqual(x.table('tour-heat-table').rows.map(row => row.slice(0, 4)), [['2', 'Kitchen', '9', '4m 32s'], ['1', 'Lounge', '11', '1m 1s']]);
+  // The legend names every encoding with its unit: one hue in three steps of time, and the package's own "Not to scale".
+  assert.deepEqual(x.legend(), [
+    ['tour-heat-legend-size', 'Circle size: visits, 9 to 11'],
+    ['tour-heat-legend-shade', 'Shade: time at the stop', 'Under 2m', '2m to 4m', '4m and over'],
+    ['tour-heat-legend-look', 'Wedge: where most of the looking went'],
+    ['tour-heat-legend-none', 'Small ring: a stop with no visits'],
+    ['tour-heat-legend-note', 'Seen from above, numbered as in the walkthrough. Not to scale.'],
+  ]);
+  assert.deepEqual(x.texts('tour-heat-noplan'), []);
+  // Nothing in the plan is a control: no stop is reachable only by pointing at it.
+  assert.equal(x.svg.all().some(el => el.events.click || el.events.mouseenter || el.events.pointerenter || el.getAttribute('tabindex') !== null), false);
+});
+
+test('the floor plan under five visits: outlined circles sized by visits, with no shade, no wedge and no shade line in the legend', async () => {
+  const x = await planDesk({ heat: { visits: 3, since: null, stops: [{ stop: 0, room: 'Lounge', visits: 3, seconds: 61, bins: { '0_1': 60 } }, { stop: 1, room: 'Kitchen', visits: 1, seconds: 200, bins: { '2_1': 200 } }] } });
+  assert.deepEqual(x.marks('tour-heat-spot').map(el => attrs(el, 'data-stop', 'r', 'data-level')), [['0', '14', 'count'], ['1', '10.2', 'count']]);
+  assert.equal(x.marks('tour-heat-look').length, 0);
+  assert.equal(x.svg.getAttribute('aria-label'), 'Floor plan from above with 2 stops marked. The table lists every stop.');
+  assert.deepEqual(x.legend().map(line => line[0]), ['tour-heat-legend-size', 'tour-heat-legend-none', 'tour-heat-legend-note']);
+  assert.deepEqual(x.legend()[0], ['tour-heat-legend-size', 'Circle size: visits, 1 to 3']);
+});
+
+test('no floor to draw: a zipped package, two storeys, an unreadable package or an untrusted address leaves the table, says so and invents nothing', async () => {
+  const NOPLAN = ['There is no floor plan for this walkthrough here. The table lists every stop.'];
+  const none = async (label, options, reads) => {
+    const x = await planDesk(options);
+    assert.equal(x.svg, null, label);
+    assert.deepEqual(x.texts('tour-heat-noplan'), NOPLAN, label);
+    assert.equal(x.table('tour-heat-table').rows.length, 2, label + ': the table still lists every stop');
+    if (reads !== undefined) assert.equal(x.fetched.length, reads, label + ': reads');
+    return x;
+  };
+  // A zipped (v1) package has no manifest to read: nothing is asked for at all.
+  const zip = await none('zip', { path: 'w1/t1/package.zip' }, 0);
+  assert.equal(zip.h.count('get_tour_package_base'), 0);
+  // One picture cannot hold two storeys: by the package's floor ids, or by stops more than 1.5 m apart in height.
+  await none('floor ids', { manifest: planManifest({ stops: planStops([0, 0, 0], ['ground', 'upper', 'ground']) }) });
+  await none('heights', { manifest: planManifest({ stops: planStops([0, 2.8, 0]) }) });
+  // The package cannot be found or read: a refused lookup, an address that is not https or this site, a missing or malformed manifest.
+  await none('refused', { locate: async () => ({ data: null, error: { message: 'tour unavailable' } }) }, 0);
+  await none('http', { base: 'http://packages.example.invalid/w1/t1/' }, 0);
+  await none('other host by scheme-relative address', { base: '//packages.example.invalid/w1/t1/' }, 0);
+  await none('no trailing slash', { base: 'https://packages.example.invalid/w1/t1' }, 0);
+  await none('missing manifest', { manifest: null }, 1);
+  await none('no stops', { manifest: planManifest({ stops: [] }) });
+  await none('a stop without a floor point', { manifest: planManifest({ stops: [{ id: 's1', room: 'r1' }] }) });
+  // An older backend without the lookup is asked once, then never again for any walkthrough.
+  const older = await none('no lookup', { locate: async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_package_base' } }) }, 0);
+  assert.equal(older.h.count('get_tour_package_base'), 1);
+});
+
+test('a package without a walkable floor still gets a stop map in the same proportions; a floor path outside the package is never read', async () => {
+  for (const [label, manifest] of [['no walkable', planManifest({ walkable: null })], ['a path that climbs out', planManifest({ walkable: { path: '../other/walkable.json' } })],
+    ['an absolute address', planManifest({ walkable: { path: 'https://elsewhere.example.invalid/walkable.json' } })]]) {
+    const x = await planDesk({ manifest });
+    assert.deepEqual(x.fetched.map(([url]) => url), [PLAN_BASE + 'manifest.json'], label);
+    assert.ok(x.svg, label);
+    assert.equal(x.svg.children.some(el => /^tour-heat-floor/.test(el.getAttribute('class'))), false, label);
+    // The stops alone span 2.5 m by 1 m: still one scale for both axes.
+    const [[ax, ay], [bx, by]] = x.marks('tour-heat-spot').map(el => [Number(el.getAttribute('cx')), Number(el.getAttribute('cy'))]);
+    assert.ok(Math.abs((bx - ax) / (by - ay) - 2 / 1) < 0.01, label);
+  }
+  // A mask that is not the stated size is not drawn; the stops still are.
+  const bad = await planDesk({ walkable: { ...planFloor(), columns: 9 } });
+  assert.ok(bad.svg);
+  assert.equal(bad.svg.children.some(el => /^tour-heat-floor/.test(el.getAttribute('class'))), false);
+  // A stop of the answer the package does not have is said, not placed.
+  const extra = await planDesk({ heat: { ...PLAN_HEAT, stops: [...PLAN_HEAT.stops, { stop: 7, room: 'Shed', visits: 5, seconds: 30, bins: {} }] } });
+  assert.deepEqual(extra.texts('tour-heat-off'), ['1 stop is not on this plan. The table lists it.']);
+  assert.equal(extra.table('tour-heat-table').rows.length, 3);
+});
+
+/* ---- States: loading, error, not opened yet, paused and offline ------------------------- */
+
+test('waiting for the stops shows a placeholder in the answer’s shape only after 300 ms; a quick answer never flashes one', async () => {
+  let answer;
+  const slow = await heatDesk(() => new Promise(resolve => { answer = resolve; }));
+  await slow.open();
+  assert.equal(slow.panel().hidden, true, 'nothing yet');
+  assert.equal(slow.h.timers.heat.size, 1, 'one 300 ms timer');
+  for (const timer of slow.h.timers.heat) timer.fire();
+  assert.equal(slow.panel().hidden, false);
+  assert.equal(slow.panel().getAttribute('aria-busy'), 'true');
+  assert.deepEqual(slow.panel().children.map(el => [el.tagName, el.className, el.textContent]),
+    [['H4', 'tour-heat-title', 'Where viewers stood and looked'], ['P', 'tour-heat-busy', 'Loading where viewers stood…'], ['DIV', 'tour-heat-map tour-heat-skeleton', '']]);
+  // The placeholder has the answer's shape: the plan's box and key, then the stops' heading and rows.
+  assert.deepEqual(slow.list().children.map(el => el.className), ['tour-heat-title', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton']);
+  assert.equal(slow.list().hidden, false);
+  answer({ data: HEATMAP });
+  await settle();
+  assert.equal(slow.panel().getAttribute('aria-busy'), null);
+  assert.equal(slow.insights.all().some(el => /skeleton/.test(el.className || '')), false, 'the placeholder is gone');
+  assert.equal(slow.table('tour-heat-table').rows.length, 3);
+  // Answered before the timer: the timer finds nothing to do.
+  const quick = await heatDesk(async () => ({ data: HEATMAP }));
+  await quick.open();
+  for (const timer of quick.h.timers.heat) timer.fire();
+  assert.equal(quick.panel().getAttribute('aria-busy'), null);
+  assert.equal(quick.insights.all().some(el => /skeleton/.test(el.className || '')), false);
+  // An empty answer is said in words, never left as a placeholder.
+  const empty = await heatDesk(async () => ({ data: { stops: [], visits: 0, since: null } }));
+  await empty.open();
+  for (const timer of empty.h.timers.heat) timer.fire();
+  assert.equal(empty.insights.all().some(el => /skeleton/.test(el.className || '')), false);
+  // The placeholder, the plan and the tables hold still: this block of the stylesheet moves nothing, so there is nothing for reduced motion to switch off.
+  assert.doesNotMatch(insightsCss, /animation|transition|@keyframes/);
+});
+
+test('the view counts could not be read: Insights says so with Try again, shows no figure, and the retry draws the answer', async () => {
+  let asked = 0;
+  const x = await heatDesk(async () => ({ data: HEATMAP }), { statsRpc: async () => (++asked === 1 ? { data: null, error: { message: 'boom' } } : { data: [VIEW_STATS] }) });
+  assert.equal(x.toggle.hidden, false, 'the disclosure is offered, so the failure is not silent');
+  await x.open();
+  assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-problem', 'The view counts couldn’t be loaded. Nothing is lost.'], ['tour-actions-row', '']]);
+  assert.equal(x.figures(), undefined, 'a missing count is never shown as zero');
+  assert.doesNotMatch(x.h.visible(), /Not opened yet|0 opens/);
+  const again = x.control('insights-retry');
+  assert.equal(again.textContent, 'Try again');
+  await again.fire('click');
+  await settle();
+  assert.equal(asked, 2);
+  assert.deepEqual(x.figures()[0], ['Opens', '14', 'All time · last 24 Sep 2026']);
+  assert.equal(x.control('insights-retry'), undefined);
+  // An answer that is not the contract's shape is the same failure, not an empty walkthrough.
+  for (const data of [null, [], [{}], [{ opens: '14' }], [{ opens: -1 }]]) {
+    const odd = await heatDesk(undefined, { statsRpc: async () => ({ data }) });
+    await odd.open();
+    assert.deepEqual(odd.texts('tour-insights-problem'), ['The view counts couldn’t be loaded. Nothing is lost.'], JSON.stringify(data));
+  }
+  // A backend without the function says nothing at all, as before.
+  const older = await heatDesk(undefined, { statsRpc: async () => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function' } }) });
+  assert.equal(older.toggle.hidden, true);
+});
+
+test('not opened yet: Insights explains what will appear and offers the card’s own share control; no figure, table or map is drawn', async () => {
+  const ZERO = { opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null,
+    explores: 0, avg_dwell_seconds: null, visits: 0, by_room: {}, by_room_seconds: {} };
+  const x = await heatDesk(async () => ({ data: { stops: [], visits: 0, since: null } }), { stats: ZERO });
+  assert.equal(x.toggle.hidden, false, 'offered before the first open, so the agent learns what it will hold');
+  await x.open();
+  assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-lead', 'Not opened yet.'],
+    ['tour-insights-note', 'When someone opens the link, this shows how often it was opened, which rooms held attention and where viewers stood.'], ['tour-actions-row', '']]);
+  assert.equal(x.figures(), undefined);
+  assert.equal(x.insights.all().some(el => el.tagName === 'TABLE' || el.tagName === 'SVG' || /skeleton/.test(el.className || '')), false, 'an empty result is words, never a placeholder');
+  assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'nothing to ask the stops for');
+  // The one next action is the card's own: Copy link here, where there is no share sheet.
+  const send = x.control('insights-share');
+  const copyLink = x.h.card('t1').all().find(el => el.dataset.control === 'copy-link');
+  assert.equal(send.textContent, 'Copy link');
+  await send.fire('click');
+  assert.equal(copyLink.clicked, 1, 'it presses the card’s button rather than doing the job a second way');
+  // With a share sheet it reads Share and presses Share.
+  const sheet = await heatDesk(undefined, { stats: ZERO, share: async () => {} });
+  await sheet.open();
+  assert.equal(sheet.control('insights-share').textContent, 'Share');
+  await sheet.control('insights-share').fire('click');
+  assert.equal(sheet.h.card('t1').all().find(el => el.dataset.control === 'share').clicked, 1);
+});
+
+test('paused or offline: Insights says first that nobody can open the link and the counts stand still; with no opens it offers no share', async () => {
+  const past = '2026-09-01';
+  const paused = await heatDesk(async () => ({ data: HEATMAP }), { tour: { share_paused_at: '2026-09-24T00:00:00Z' } });
+  await paused.open();
+  assert.deepEqual(paused.insights.children[0].children.slice(0, 3).map(el => el.className), ['tour-insights-stopped', 'tour-insights-lead', 'tour-actions-row tour-insights-report'], 'why the counts stand still comes before them');
+  assert.deepEqual(paused.texts('tour-insights-stopped'), ['Sharing is paused, so nobody can open the link and these counts stay as they are until you resume sharing.']);
+  assert.ok(paused.control('copy-vendor-report'), 'the vendor report still works');
+  const offline = await heatDesk(async () => ({ data: HEATMAP }), { hosting: [released({ plan_active: false, hosting_state: 'offline', offline_on: past })] });
+  await offline.open();
+  assert.deepEqual(offline.texts('tour-insights-stopped'), ['This walkthrough is offline, so nobody can open the link and these counts stay as they are. Restarting your plan brings the same link back.']);
+  // Live: no such line.
+  const live = await heatDesk(async () => ({ data: HEATMAP }));
+  await live.open();
+  assert.deepEqual(live.texts('tour-insights-stopped'), []);
+  // Never opened and paused: the reason, and no share button to press.
+  const ZERO = { ...VIEW_STATS, opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, last_opened_at: null, visits: 0, by_room: {}, by_room_seconds: {}, avg_dwell_seconds: null };
+  const idle = await heatDesk(undefined, { stats: ZERO, tour: { share_paused_at: '2026-09-24T00:00:00Z' } });
+  await idle.open();
+  assert.deepEqual(idle.texts('tour-insights-note'), ['Sharing is paused, so nobody can open the link. Opens are counted once you resume sharing.']);
+  assert.equal(idle.control('insights-share'), undefined);
+});
+
+test('the insights panel is one column that changes layout at two widths only, both steps the card and the desk already have, and its tables never scroll sideways', () => {
+  // What made the page jump (craft-check F-stable, 10 November): a grid of stop cards that re-flowed by itself, room rows that
+  // restacked, and report buttons that wrapped, each at its own width. Now: four figures across from the card's 560 px step,
+  // the plan beside the tables from the desk bar's 720 px step, and nothing else.
+  assert.deepEqual(insightsCss.match(/@(media|container)[^{]*/g).map(rule => rule.trim()), ['@container (min-width: 561px)', '@media (min-width: 720px)', '@container (min-width: 600px)']);
+  assert.match(guideCss, /@container \(max-width: 560px\) \{\s*\.desk \.tour-views/, 'the card’s own step is 560 px');
+  assert.doesNotMatch(insightsCss, /auto-fill|auto-fit|flex-wrap: wrap-reverse|overflow-x|overflow: (auto|scroll)/);
+  assert.match(insightsCss, /\.desk \.dash-tour \.tour-insights-report \{ flex-wrap: nowrap; align-items: stretch; \}/, 'the two report buttons never take a second row');
+  // Tables: a grid of rows at every width, the name flexible, numbers right-aligned in tabular figures in fixed columns.
+  assert.match(insightsCss, /\.tour-insights-rooms, \.tour-heat-table \{ display: block; width: 100%;[^}]*font-variant-numeric: tabular-nums; \}/);
+  assert.match(insightsCss, /:is\(\.tour-insights-rooms, \.tour-heat-table\) \.tour-cell-number \{ text-align: right; \}/);
+  assert.match(insightsCss, /\.tour-insights-rooms tr \{ grid-template-columns: minmax\(0, 1fr\) 3em 4\.5em 3em; \}/);
+  assert.match(insightsCss, /\.tour-heat-table tr \{ grid-template-columns: 1\.75em minmax\(0, 1fr\) 3em 4\.5em; \}/);
+  assert.match(insightsCss, /\.tour-heat-table td\.tour-cell-words \{ grid-column: 2 \/ -1;/, 'a stop’s words run under its name instead of adding columns');
+  // The scale is one hue in three steps, light to dark, from the desk's own tokens; no colour of its own beyond the floor.
+  assert.deepEqual([1, 2, 3].map(level => insightsCss.match(new RegExp('\\.tour-heat-spot\\[data-level="' + level + '"\\] \\{ fill: (var\\(--[\\w-]+\\));'))[1]), ['var(--line)', 'var(--accent)', 'var(--ink)']);
+  assert.match(insightsCss, /\.tour-heat-spot\[data-level="1"\] \{ fill: var\(--line\); stroke: var\(--field-line\); \}/, 'the palest step keeps a 3:1 edge against the floor');
+  assert.deepEqual([...new Set(insightsCss.match(/#[0-9a-fA-F]{3,8}\b/g))], ['#fdfcfa']);
 });
 
 test('Refresh keeps the reader’s place: the panel that was open on a card is open again, and a closed one stays closed', async () => {
