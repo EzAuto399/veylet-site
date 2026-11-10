@@ -1432,8 +1432,8 @@ test('the extended stats fill the sentence and the room table: average time, roo
   assert.deepEqual(x.texts('tour-insights-title'), ['Time per room']);
   // The same data as the map, as a ranked table: room, visits, the average per visit (seconds over visits) and the share of all rooms' time.
   const rooms = x.table('tour-insights-rooms');
-  assert.equal(rooms.caption, 'Last 90 days, most time first. Average time is per visit to the room.');
-  assert.deepEqual(rooms.head, ['Room', 'Visits', 'Avg time', 'Share']);
+  assert.equal(rooms.caption, 'Last 90 days, most time first.');
+  assert.deepEqual(rooms.head, ['Room', 'Visits', 'Avg per visit', 'Share']);
   assert.deepEqual(rooms.rows, [['Kitchen', '7', '39s', '82%', ''], ['Lounge', '9', '7s', '18%', '']], 'by time, not by visits');
   assert.deepEqual(rooms.lines.map(row => row.children.map(cell => cell.className)), Array(2).fill(['tour-cell-name', 'tour-cell-number', 'tour-cell-number', 'tour-cell-number', 'tour-insights-room-bar']), 'numbers are their own right-aligned cells');
   assert.deepEqual(rooms.lines.map(row => [row.children[0].tagName, row.children[0].getAttribute('scope')]), [['TH', 'row'], ['TH', 'row']]);
@@ -1919,8 +1919,22 @@ test('the insights panel is one column that changes layout at two widths only, b
   // Tables: a grid of rows at every width, the name flexible, numbers right-aligned in tabular figures in fixed columns.
   assert.match(insightsCss, /\.tour-insights-rooms, \.tour-heat-table \{ display: block; width: 100%;[^}]*font-variant-numeric: tabular-nums; \}/);
   assert.match(insightsCss, /:is\(\.tour-insights-rooms, \.tour-heat-table\) \.tour-cell-number \{ text-align: right; \}/);
-  assert.match(insightsCss, /\.tour-insights-rooms tr \{ grid-template-columns: minmax\(0, 1fr\) 3em 4\.5em 3em; \}/);
+  // Each number column is as wide as its longest value or header (one grid shared by every row); the name keeps at least 6.5em.
+  assert.match(insightsCss, /@supports \(grid-template-columns: subgrid\) \{\s*\.tour-insights-rooms, \.tour-heat-table \{ display: grid; column-gap: 12px; \}\s*\.tour-insights-rooms \{ grid-template-columns: minmax\(6\.5em, 1fr\) auto auto auto; \}/);
+  assert.match(insightsCss, /\.tour-heat-table \{ grid-template-columns: auto minmax\(6\.5em, 1fr\) auto auto; \}/);
+  assert.match(insightsCss, /:is\(\.tour-insights-rooms, \.tour-heat-table\) tr \{ grid-template-columns: subgrid; \}/);
+  // A header never squeezes into a column of letters: one line, ending in an ellipsis if a translation outgrows it.
+  assert.match(insightsCss, /thead th \{ font-size: 13px; color: var\(--muted\); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; \}/);
+  // Without subgrid the same rows keep fixed columns.
+  assert.match(insightsCss, /\.tour-insights-rooms tr \{ grid-template-columns: minmax\(0, 1fr\) 3em 6em 3em; \}/);
   assert.match(insightsCss, /\.tour-heat-table tr \{ grid-template-columns: 1\.75em minmax\(0, 1fr\) 3em 4\.5em; \}/);
+  // Outside the panel, the two wraps that cost a control's height on every card or row happen at the card's step, not at widths of their own.
+  assert.match(guideCss, /@media \(pointer: coarse\) \{\s*@container \(max-width: 560px\) \{\s*\.dash-tour \.tour-hosting-fix \{ display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; \}/);
+  // The buttons and the five toggles share a line only from the desk's 720px step (a 672px card);
+  // below it they are two rows, so no card loses a row at a width of its own.
+  assert.match(guideCss, /@container \(max-width: 671px\) \{\s*\.desk \.dash-tour \.tour-card-row > \.tour-actions-row \{ flex: 1 1 100%; \}[^}]*\s*\.tour-disclosures \{ flex: 1 1 100%; margin-left: 0; gap: 0 4px; \}/);
+  assert.doesNotMatch(guideCss, /@container \(max-width: 560px\) \{[^@]*\.tour-disclosures \{/);
+  assert.match(guideCss, /@media \(max-width: 608px\) \{\s*\.desk \.needs-list > li\.needs-row \{ flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; \}\s*\.needs-row > \.needs-words \{ flex: 0 1 auto; \}/);
   assert.match(insightsCss, /\.tour-heat-table td\.tour-cell-words \{ grid-column: 2 \/ -1;/, 'a stop’s words run under its name instead of adding columns');
   // The scale is one hue in three steps, light to dark, from the desk's own tokens; no colour of its own beyond the floor.
   assert.deepEqual([1, 2, 3].map(level => insightsCss.match(new RegExp('\\.tour-heat-spot\\[data-level="' + level + '"\\] \\{ fill: (var\\(--[\\w-]+\\));'))[1]), ['var(--line)', 'var(--accent)', 'var(--ink)']);

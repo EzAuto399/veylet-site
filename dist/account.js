@@ -2112,8 +2112,8 @@
       const heading = document.createElement('h4'); heading.className = 'tour-insights-title';
       heading.textContent = rooms.length ? 'Time per room' : 'Rooms by visits';
       const columns = [['Room', 'name'], ['Visits', 'number']];
-      if (rooms.length) columns.push(['Avg time', 'number'], ['Share', 'number']);
-      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', PERIOD_RECENT + (rooms.length ? ', most time first. Average time is per visit to the room.' : ', most visits first.'), columns);
+      if (rooms.length) columns.push(['Avg per visit', 'number'], ['Share', 'number']);
+      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', PERIOD_RECENT + (rooms.length ? ', most time first.' : ', most visits first.'), columns);
       const longest = rooms.length ? rooms[0].seconds : 0;
       for (const room of rooms) {
         const line = made.row('tour-insights-room', [[room.name, 'name', true], [room.visits !== null ? String(room.visits) : '–', 'number'],

@@ -1851,11 +1851,16 @@
       }, 100);
     }
     // Review affordance only: `&insights-open=1` opens the live walkthrough's insights once
-    // they are shown, so a capture can include "Where viewers looked". It changes nothing.
+    // they are shown, so a capture can include "Where viewers stood and looked". It changes nothing.
+    // The desk reads a card's counts when the card nears the screen, so on a short or narrow
+    // window the live card is brought into view first; otherwise the panel would open at some
+    // widths and not at others.
     if (location.pathname === '/__qa/account/' && params.get('insights-open') === '1') {
       let tries = 0;
       const open = setInterval(() => {
-        const block = document.querySelector('.dash-tour [data-disclosure="insights"]:not([hidden])');
+        const card = document.querySelector('[data-tour="synthetic-live-active"]');
+        if (card && !card.querySelector('[data-disclosure="insights"]:not([hidden])')) card.scrollIntoView({ block: 'start' });
+        const block = (card || document).querySelector('.dash-tour [data-disclosure="insights"]:not([hidden])');
         if (block) { if (block.getAttribute('aria-expanded') !== 'true') block.click(); block.scrollIntoView({ block: 'start' }); }
         if (block || ++tries > 40) clearInterval(open);
       }, 100);

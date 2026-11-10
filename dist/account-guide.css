@@ -132,11 +132,24 @@
 .desk .dash-tour .tour-panel > :first-child { margin-top: 0; }
 @container (max-width: 560px) {
   .desk .tour-views { flex: 1 1 100%; margin-left: 0; }
-  .desk .dash-tour .tour-card-row > .tour-actions-row { flex: 1 1 100%; }
   .desk .dash-tour .tour-card-row > .tour-actions-row > .tour-action { flex: 1 1 auto; }
+}
+/* The buttons and five toggles need 601px to share a line. Left to wrap where they happened
+   to fit, a card lost a row at 649px, one width after its own step. They stay two rows until
+   the card is 672px wide, which is the desk's 720px step, so that change happens once. */
+@container (max-width: 671px) {
+  .desk .dash-tour .tour-card-row > .tour-actions-row { flex: 1 1 100%; }
   /* The quiet toggles hang on the card's left keyline, under its buttons. */
   .tour-disclosures { flex: 1 1 100%; margin-left: 0; gap: 0 4px; }
   .tour-disclosures .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
+}
+/* An ended plan's two links are 44px each to a finger. Left to wrap where they happened to
+   fit, every such card grew or shrank by a row at one width of its own; on a narrow card
+   they are a column, so that change happens once, at the card's step. */
+@media (pointer: coarse) {
+  @container (max-width: 560px) {
+    .dash-tour .tour-hosting-fix { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; }
+  }
 }
 @media (prefers-reduced-motion: reduce) { .tour-disclosure { transition: none; } }
 /* One walkthrough, two versions: each says which it is, and the version a waiting
@@ -687,7 +700,7 @@
 .desk .dash-tour:has(> .tour-insights:not([hidden])) .tour-views { display: none; }
 /* The two report buttons share one row at every width; a long label wraps inside its button. */
 .desk .dash-tour .tour-insights-report { flex-wrap: nowrap; align-items: stretch; }
-.tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding-block: 6px; text-align: left; overflow-wrap: anywhere; }
+.tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding: 6px 12px; text-align: left; overflow-wrap: anywhere; }
 /* The headline row: two by two on a narrow card, four across from the card's own step. */
 .tour-insights-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tour-insights-figures > div { min-width: 0; }
@@ -710,8 +723,10 @@
 .tour-insights-title, .tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
 /*
  * Both tables are grids of rows at every width: the name takes the room that is left, the
- * numbers sit right-aligned in fixed columns of tabular figures, and a stop's words run
- * under its name. No column is ever dropped and nothing scrolls sideways.
+ * numbers sit right-aligned in columns of tabular figures, and a stop's words run under its
+ * name. No column is ever dropped and nothing scrolls sideways. The columns below are the
+ * fallback; where subgrid is supported each number column is as wide as its longest value
+ * or its header, whichever is longer, and a header too long for its column ends in an ellipsis.
  */
 .tour-insights-rooms, .tour-heat-table { display: block; width: 100%; margin: 0; border-collapse: collapse; font-size: 14px; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums; }
 :is(.tour-insights-rooms, .tour-heat-table) :is(caption, thead, tbody) { display: block; }
@@ -720,9 +735,9 @@
 :is(.tour-insights-rooms, .tour-heat-table) tr[hidden] { display: none; }
 :is(.tour-insights-rooms, .tour-heat-table) thead tr { align-items: end; padding: 4px 0; border-top: 0; }
 :is(.tour-insights-rooms, .tour-heat-table) :is(th, td) { display: block; min-width: 0; padding: 0; font-weight: 400; text-align: left; overflow-wrap: anywhere; }
-:is(.tour-insights-rooms, .tour-heat-table) thead th { font-size: 13px; color: var(--muted); }
+:is(.tour-insights-rooms, .tour-heat-table) thead th { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :is(.tour-insights-rooms, .tour-heat-table) .tour-cell-number { text-align: right; }
-.tour-insights-rooms tr { grid-template-columns: minmax(0, 1fr) 3em 4.5em 3em; }
+.tour-insights-rooms tr { grid-template-columns: minmax(0, 1fr) 3em 6em 3em; }
 .tour-insights-rooms-counts tr { grid-template-columns: minmax(0, 1fr) 3em; }
 .tour-insights-rooms td.tour-insights-room-bar { grid-column: 1 / -1; height: 4px; margin-top: 6px; background: linear-gradient(var(--ink), var(--ink)) left / var(--share, 0%) 100% no-repeat, var(--line); }
 .tour-heat-table tr { grid-template-columns: 1.75em minmax(0, 1fr) 3em 4.5em; }
@@ -730,6 +745,17 @@
 .tour-heat-table td.tour-cell-words { grid-column: 2 / -1; padding-top: 2px; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .tour-heat-table td.tour-cell-words:empty { display: none; }
 .tour-heat-table thead th.tour-cell-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@supports (grid-template-columns: subgrid) {
+  .tour-insights-rooms, .tour-heat-table { display: grid; column-gap: 12px; }
+  .tour-insights-rooms { grid-template-columns: minmax(6.5em, 1fr) auto auto auto; }
+  .tour-insights-rooms-counts { grid-template-columns: minmax(6.5em, 1fr) auto; }
+  .tour-heat-table { grid-template-columns: auto minmax(6.5em, 1fr) auto auto; }
+  :is(.tour-insights-rooms, .tour-heat-table) :is(caption, thead, tbody, tr) { grid-column: 1 / -1; }
+  :is(.tour-insights-rooms, .tour-heat-table) :is(thead, tbody) { display: grid; grid-template-columns: subgrid; }
+  :is(.tour-insights-rooms, .tour-heat-table) tr { grid-template-columns: subgrid; }
+  /* A figure stays on one line in a column sized to hold it; only a value no real count reaches would end in an ellipsis. */
+  :is(.tour-insights-rooms, .tour-heat-table) td:is(.tour-cell-number, .tour-cell-key) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
 /*
  * The plan. Its floor is the lightest ground so every mark clears 3:1 against it. The three
  * shade steps are one grey-green, light to dark, from the desk's own line, accent and ink;
@@ -867,6 +893,13 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk .needs-list > li:last-child { border-bottom: 1px solid var(--line); }
 .needs-words { flex: 1 1 280px; min-width: 0; margin: 0; font-size: 15px; line-height: 1.45; color: var(--muted); }
 .needs-words strong { font-weight: 500; color: var(--ink); }
+/* Below the cards' own step (a 560px card is a 608px page) a row is its words, then its
+   action under them. Left to wrap where each label happened to fit, every row lost a
+   button's height within a few pixels of the others, and the page under them jumped. */
+@media (max-width: 608px) {
+  .desk .needs-list > li.needs-row { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; }
+  .needs-row > .needs-words { flex: 0 1 auto; }
+}
 .desk .needs-list > .needs-more { min-height: 44px; padding: 0; justify-content: flex-start; }
 .desk .needs-list > .needs-more .tour-disclosure { margin-left: -6px; }
 /* The next step, when nothing waits on the reader: one quiet row with its one action. */
