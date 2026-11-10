@@ -80,3 +80,31 @@ test('every header and footer target is a page that exists', () => {
 test('every public page opts in to the shared patterns in style.css', () => {
   for (const { file, html } of pages) assert.match(html, /<body\b[^>]*class="site(?: [^"]*)?"/, file);
 });
+
+test('every public page preloads both font files at the versioned URL style.css names, and the version is the file’s hash', () => {
+  // Site audit finding 19: one cached copy per weight, fetched with the HTML, and safe to cache for a year.
+  const { createHash } = require('node:crypto');
+  const css = fs.readFileSync(path.join(dist, 'style.css'), 'utf8');
+  const fonts = [...css.matchAll(/url\("(media\/Outfit-\d+\.woff2)\?v=([0-9a-f]{16})"\)/g)];
+  assert.equal(fonts.length, 2);
+  for (const [, file, version] of fonts) {
+    assert.equal(version, createHash('sha256').update(fs.readFileSync(path.join(dist, file))).digest('hex').slice(0, 16), file);
+  }
+  for (const { file, html } of pages) {
+    const head = html.slice(0, html.indexOf('</head>'));
+    for (const [, font, version] of fonts) {
+      assert.ok(head.includes(`<link rel="preload" href="/${font}?v=${version}" as="font" type="font/woff2" crossorigin>`), `${file} preloads ${font}`);
+    }
+    assert.ok(head.indexOf('rel="preload"') < head.indexOf('rel="stylesheet"'), `${file} preloads before its stylesheets`);
+  }
+  assert.match(css, /font-family: "Outfit Fallback";[^}]*size-adjust: [\d.]+%/, 'a metric-matched fallback face stands in while Outfit loads');
+});
+
+test('no public page blocks its first paint on a script in the head, except the enquiry form’s field helper', () => {
+  // Finding 20. /request's inline script reads window.VeyletPlace as it runs, so place-fields.js stays in order there.
+  for (const { file, html } of pages) {
+    const head = html.slice(0, html.indexOf('</head>'));
+    const blocking = [...head.matchAll(/<script\b[^>]*\bsrc="([^"?]+)[^"]*"[^>]*>/g)].filter(match => !/\b(?:defer|async)\b|type="module"/.test(match[0])).map(match => match[1]);
+    assert.deepEqual(blocking, file === 'request/index.html' ? ['/place-fields.js'] : [], file);
+  }
+});

@@ -1,14 +1,23 @@
 @font-face {
   font-family: Outfit;
-  src: url("media/Outfit-400.woff2") format("woff2");
+  src: url("media/Outfit-400.woff2?v=71f028fd2349990b") format("woff2");
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: Outfit;
-  src: url("media/Outfit-500.woff2") format("woff2");
+  src: url("media/Outfit-500.woff2?v=fc9bff941def6d92") format("woff2");
   font-weight: 500;
   font-display: swap;
+}
+/* A metric-matched stand-in while Outfit loads, so lines do not re-wrap on the swap. */
+@font-face {
+  font-family: "Outfit Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  size-adjust: 98.8%;
+  ascent-override: 101.2%;
+  descent-override: 26.3%;
+  line-gap-override: 0%;
 }
 :root {
   --ink: #10231d;
@@ -16,7 +25,7 @@
   --sage: #c6dcc9;
   --muted: #536557;
   --line: #ccd2c5;
-  font-family: Outfit, Arial, sans-serif;
+  font-family: Outfit, "Outfit Fallback", Arial, sans-serif;
   color: var(--ink);
   background: var(--paper);
   font-synthesis: none;

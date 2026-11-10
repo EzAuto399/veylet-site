@@ -553,6 +553,12 @@ function block(section, edition, level = 'h2') {
   return `<section${labelled}>${parts.join('')}</section>`;
 }
 
+function fontPreloads() {
+  const css = fs.readFileSync(path.join(DIST, 'style.css'), 'utf8');
+  return [...css.matchAll(/url\("(media\/Outfit-\d+\.woff2\?v=[0-9a-f]+)"\)/g)]
+    .map(match => `<link rel="preload" href="/${match[1]}" as="font" type="font/woff2" crossorigin>`).join('');
+}
+
 function stylesheets(prefix = '') {
   const version = file => assetHash(fs.readFileSync(path.join(DIST, file)));
   return ['style.css', 'guides.css', 'help/help.css'].map(file => `${prefix}<link rel="stylesheet" href="/${file}?v=${version(file)}">`).join('\n');
@@ -609,7 +615,10 @@ function head({ title, description, canonical, edition, jsonLd, extra = '', card
       `<meta property="og:url" content="${canonical}">`, ...shareImage(card),
       '<meta name="twitter:card" content="summary_large_image">');
   }
-  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/studio-avatar.png">', stylesheets());
+  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/studio-avatar.png">');
+  // Public pages fetch both weights with the HTML, at the same versioned URL style.css names (one cached copy).
+  if (edition === 'public') lines.push(fontPreloads());
+  lines.push(stylesheets());
   if (extra) lines.push(extra);
   if (jsonLd) lines.push('<script type="application/ld+json">\n' + JSON.stringify(jsonLd, null, 2) + '\n</script>');
   // Cookieless page counts on the public edition only (dist/insights.js); never in the app edition.

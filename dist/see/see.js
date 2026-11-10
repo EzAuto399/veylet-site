@@ -47,6 +47,9 @@
     // Under reduced motion nothing starts by itself; the visitor presses Play.
     let held = reduce.matches;
     let onScreen = !('IntersectionObserver' in window);
+    // The clip is 1.1 MB and in view at load on a wide screen: it waits for the visitor's first
+    // scroll, pointer move, key or touch, or for the page to finish loading and sit idle.
+    let awake = false;
     const current = () => cuts[cut];
     const chosen = () => !(narrow.matches && stage && stage.dataset.show === 'explore');
     const label = () => {
@@ -58,7 +61,7 @@
     };
     const sync = () => {
       const clip = current();
-      if (onScreen && chosen() && !document.hidden && !held) {
+      if (awake && onScreen && chosen() && !document.hidden && !held) {
         const playing = clip.play();
         if (playing && playing.catch) playing.catch(label);
       } else if (!clip.paused) {
@@ -97,6 +100,17 @@
       new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }, { threshold: 0.35 }).observe(phoneBox);
     }
     document.addEventListener('visibilitychange', sync);
+    const WAKE = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
+    const wake = () => {
+      if (awake) return;
+      awake = true;
+      for (const type of WAKE) window.removeEventListener(type, wake);
+      sync();
+    };
+    for (const type of WAKE) window.addEventListener(type, wake, { passive: true });
+    const whenIdle = () => (window.requestIdleCallback ? window.requestIdleCallback(wake, { timeout: 4000 }) : setTimeout(wake, 2500));
+    if (document.readyState === 'complete') whenIdle();
+    else window.addEventListener('load', whenIdle, { once: true });
     if (reduce.addEventListener) reduce.addEventListener('change', () => { if (reduce.matches) held = true; sync(); });
     label();
     return { sync };
