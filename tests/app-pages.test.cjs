@@ -91,7 +91,15 @@ const mainOf = html => html.match(/<main\b[\s\S]*?<\/main>/)[0];
 const GOOGLE_POLICY_LINK = '<a href="https://policies.google.com/privacy">Privacy Policy</a>';
 test('/app/privacy is the public notice word for word; only its account link stays in the app', () => {
   const app = mainOf(read('app/privacy/index.html'));
-  const site = mainOf(read('privacy/index.html'));
+  // The public notice carries one paragraph marked DRAFT (shared walkthrough usage, 10 Nov 2026) that waits for
+  // the owner's legal review; the app copy takes it once it is approved. It is the only difference allowed here.
+  const DRAFT = /\s*<!-- DRAFT 2026-11-10: owner legal review required before release -->\s*<p>[\s\S]*?<\/p>\s*<!-- \/DRAFT 2026-11-10 -->/g;
+  const marked = read('privacy/index.html').match(DRAFT) || [];
+  assert.equal(marked.length, 1, 'exactly one marked draft paragraph');
+  assert.equal((marked[0].match(/<p>/g) || []).length, 1, 'and it is one paragraph');
+  for (const word of [/anonymous usage/, /opened/, /how long/, /rooms and stops/, /direction looked/, /Call, Email or Share/, /hostname of a website that embeds/, /no cookies/, /identifies the viewer/]) assert.match(marked[0].replace(/\s+/g, ' '), word);
+  assert.ok(read('privacy/index.html').indexOf('Client handoff links.') < read('privacy/index.html').indexOf(marked[0].trim()), 'after Client handoff links');
+  const site = mainOf(read('privacy/index.html').replace(DRAFT, ''));
   assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
   assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
   assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site.replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
