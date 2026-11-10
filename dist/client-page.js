@@ -503,6 +503,8 @@
     host.setAttribute('aria-label', 'Contact ' + contact.name);
     host.hidden = false;
     doc.body?.classList.add('has-agent-bar');
+    // Focus that scrolls into view stops above the bar, not under it (client-page.css).
+    doc.documentElement?.classList?.add('client-has-bar');
   }
 
   /** The card, the phone bar and the two lines that name the agent. */

@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=409b7f0cb1c130e0" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=6d207a9ffbae539e" as="script" />
     <link rel="stylesheet" href="/style.css?v=a55dc82d81c1fb55" />
     <link rel="stylesheet" href="/tour-stage.css?v=a91aa260a248fb09" />
-    <link rel="stylesheet" href="/client-page.css?v=b2ce5e40fdba6d48" />
+    <link rel="stylesheet" href="/client-page.css?v=f331254a2571ba0c" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
          nothing is held and the page reads as it always has. The rule is
@@ -52,13 +52,16 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=57ec07b9aaa18b45"></script>
+    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=58bd70e1b11488d8"></script>
+    <script src="/tour-player.js?v=6ff7f6e06f55b68f"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
+    <!-- The agent's Call and Email, fixed to the foot of a phone's screen. First in the page so a keyboard
+         and a screen reader reach them before the walkthrough, not after the footer. -->
+    <aside class="agent-bar" id="agent-bar" hidden></aside>
     <main id="main" class="form-page wrap client-page">
       <h1 id="handoff-title">Private walkthrough</h1>
       <p class="client-truth" id="client-truth" hidden>Captured on site with an iPhone. Not to scale.</p>
@@ -76,7 +79,7 @@
               <iframe
                 id="tour-frame"
                 class="tour-frame"
-                title="Reconstructed walkthrough"
+                title="3D walkthrough"
                 hidden
                 allow="fullscreen *"
                 allowfullscreen
@@ -104,7 +107,7 @@
             <div class="client-extras" id="client-extras">
               <details class="client-help" id="client-help" hidden>
                 <summary>How to move around</summary>
-                <p>Drag to look around. Tap the floor or a numbered circle to walk. Use the arrows to go room to room.</p>
+                <p>Drag to look around. Tap the floor to move. Use Next for the next stop.</p>
               </details>
               <div class="client-tools">
                 <button class="button button-ghost client-share" type="button" id="client-share" hidden>Share</button>
@@ -126,7 +129,6 @@
         <a class="client-report" id="client-report" hidden>Report this walkthrough</a>
       </nav>
     </footer>
-    <aside class="agent-bar" id="agent-bar" hidden></aside>
     <script type="module">
       const els = {
         title: document.getElementById('handoff-title'),

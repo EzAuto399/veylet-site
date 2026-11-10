@@ -338,6 +338,10 @@
   body.has-agent-bar {
     padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
+  /* A control that takes focus is scrolled clear of the bar. */
+  html.client-has-bar {
+    scroll-padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
   /* The bar names the agent and carries Call and Email, so the card above the
      walkthrough would say it twice: on a phone the room gets that space. No
      place is held for a card that will not show. */
