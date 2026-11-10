@@ -167,20 +167,18 @@ const hallHosting = [{ tour_id: 't2', property_id: 'p2', status: 'ready', approv
 const twoOffices = (rpc = {}) => loadDesk({ tables: { memberships: two, properties: props, workspaces, tours: { data: [hallTour] } },
   rpc: { get_tour_hosting: async () => ({ data: hallHosting }), get_workspace_plan: async () => ({ data: [planRow] }), ...rpc } });
 
-test('a walkthrough of an office the Plan view does not show: its card says so and Restart your plan opens the offer', async () => {
+test('a walkthrough of an office the Plan view does not show: Needs you says so once and Restart your plan opens the offer', async () => {
   const h = await twoOffices();
   const card = h.card('t2');
   const restart = h.control(card, 'share-fix-plan');
   assert.equal(restart.hidden, false);
-  const where = h.find(card, el => /tour-plan-where/.test(el.className));
-  assert.equal(where.hidden, false);
-  assert.equal(where.textContent, 'The Plan view shows Harbour Realty, not this office. Restart your plan opens the offer instead.');
+  assert.equal(h.find(card, el => /tour-plan-where/.test(el.className || '')) || null, null, 'the explanation is not repeated on each card');
   await restart.fire('click');
   assert.deepEqual(h.assigned, ['/offer'], 'the same route the Plan view’s own restart uses; no billing call is made');
   assert.deepEqual(shownViews(h), ['view-walkthroughs'], 'not a jump to a panel with no restart for this office');
   // Needs you names the count, the day and whose plan ended, with the same route.
   const row = h.ids['account-needs-list'].children[0];
-  assert.equal(row.children[0].text(), 'Other hall  goes offline on 10 Oct 2027: Hill Venues’ plan has ended.');
+  assert.equal(row.children[0].text(), 'Other hall  goes offline on 10 Oct 2027: Hill Venues’ plan has ended.  The Plan view shows Harbour Realty, not this office. Restart plan opens the offer instead.');
   assert.equal(row.children[1].textContent, 'Restart plan');
   await row.children[1].fire('click');
   assert.deepEqual(h.assigned, ['/offer', '/offer']);
@@ -189,8 +187,7 @@ test('a walkthrough of an office the Plan view does not show: its card says so a
 test('where the main office can be changed, Restart your plan opens Plan on "Make this my main office" for that office', async () => {
   const h = await twoOffices({ get_primary_workspace: async () => ({ data: 'w1' }) });
   const card = h.card('t2');
-  const where = h.find(card, el => /tour-plan-where/.test(el.className));
-  assert.equal(where.textContent, 'The Plan view shows Harbour Realty, not this office. Restart your plan opens it so you can make this your main office.');
+  assert.equal(h.ids['account-needs-list'].children[0].children[0].text(), 'Other hall  goes offline on 10 Oct 2027: Hill Venues’ plan has ended.  The Plan view shows Harbour Realty, not this office. Restart plan opens it so you can make this your main office.');
   await h.control(card, 'share-fix-plan').fire('click');
   assert.deepEqual(h.assigned, []);
   assert.deepEqual(shownViews(h), ['view-plan']);
@@ -234,4 +231,44 @@ test('the page the app opens has no bar and no views, and still reads as one des
   assert.equal(app.ids['account-home'].hidden, false);
   assert.equal(app.ids['account-title'].hidden, false);
   assert.equal(app.ids['account-next-step'].hidden, false, 'no Needs you list there: the next step still speaks');
+});
+
+/* ---- Polish: say each thing once, and line things up ------------------------- */
+
+test('the bar, the page and the desk footer share one width, and the views read in one column under an edge-to-edge title rule', () => {
+  assert.match(css, /:root \{ --desk-width: 1152px; \}/);
+  assert.match(css, /\.desk-bar-inner, \.desk-footer, \.form-page:has\(> \.desk:not\(\[hidden\]\) > \.desk-view\) \{ max-width: var\(--desk-width\); \}/);
+  assert.doesNotMatch(css, /#view-walkthroughs \{ max-width: 1040px; \}|\.desk-view \{ min-width: 0; max-width: 720px; \}/, 'no view carries a width of its own');
+  assert.match(css, /\.desk-view:not\(#view-walkthroughs\) > \.desk-section > :not\(\.view-title\) \{ max-width: 720px; \}/);
+});
+
+test('one filled button on the Walkthroughs view: card actions are outlines; Add a space leads only on a desk with nothing waiting and no walkthrough', async () => {
+  assert.match(css, /#view-walkthroughs \.dash-tour \.tour-action-primary:not\(\.tour-panel \*, form \*\) \{ background: transparent; color: var\(--ink\); border-color: var\(--field-line\); \}/);
+  // Something waits: the Needs you row is the filled one, and Add a space is an outline.
+  const busy = await loadDesk();
+  assert.equal(busy.ids['account-needs'].hidden, false);
+  assert.equal(busy.ids['account-add-open'].className, 'tour-action');
+  // A space saved, no walkthrough yet, nothing waiting: Add a space is the filled one.
+  const quiet = await loadDesk({ tables: { tours: { data: [] } } });
+  assert.equal(quiet.ids['account-needs'].hidden, true);
+  assert.equal(quiet.ids['account-add-open'].className, 'tour-action tour-action-primary');
+  // Its form open, the form's own Save is the filled one.
+  await quiet.ids['account-add-open'].fire('click');
+  assert.equal(quiet.ids['account-add-open'].className, 'tour-action');
+});
+
+test('disclosures are hairlines, never boxes, and a closed one leaves no box behind', () => {
+  assert.match(css, /\.desk-view \.tour-review \{ margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var\(--line\); border-radius: 0; background: none; \}/);
+  assert.match(css, /\.desk-view \.account-details:not\(\[open\]\) > :not\(summary\) \{ display: none; \}/);
+  assert.match(css, /\.tour-hosting-fix \{ display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 16px;/, 'an ended plan’s two links wrap; they cannot overlap');
+  // Prepare a capture is a quiet link in the space head on desktop, in the flow under the meta line on a phone.
+  assert.match(css, /@media \(min-width: 720px\) \{\s*\.desk-view \.account-details\.space-prep > summary \{ position: absolute; top: 8px; right: 0; \}/);
+});
+
+test('pack options sit on the paper: transparent with a hairline, sage when chosen, and the radio shows the site’s focus ring', () => {
+  assert.match(css, /\.desk-view \.annual-option \{ background: transparent; border-color: var\(--line\); \}/);
+  assert.match(css, /\.desk-view \.annual-option:has\(input:checked\) \{ border-color: var\(--ink\); background: #eef1e8; \}/);
+  assert.match(css, /\.desk-view \.annual-option input:focus-visible \{ outline: 3px solid #897033; outline-offset: 3px; \}/);
+  // "No extra walkthroughs available." is not said again under the table row that says "0 available".
+  assert.match(css, /#view-plan:has\(\[data-extra-said="true"\]\) \[data-none="true"\] \{ display: none; \}/);
 });

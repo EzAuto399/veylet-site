@@ -113,8 +113,13 @@
     try { if (typeof history !== 'undefined' && history.pushState && location.hash !== '#' + name) history.pushState(null, '', '#' + name); } catch { /* the view still shows */ }
     return viewShow(name, options);
   }
+  let addSpaceLeads = false;
   function addSpaceSync() {
-    if (addSpaceOpen && addSpaceEl) addSpaceOpen.setAttribute('aria-expanded', addSpaceEl.open ? 'true' : 'false');
+    if (!addSpaceOpen || !addSpaceEl) return;
+    addSpaceOpen.setAttribute('aria-expanded', addSpaceEl.open ? 'true' : 'false');
+    // The one filled button of the view when nothing waits and no walkthrough exists yet
+    // (and its form, which has its own filled Save, is closed).
+    addSpaceOpen.className = 'tour-action' + (addSpaceLeads && !addSpaceEl.open ? ' tour-action-primary' : '');
   }
   // The session check has answered (or cannot): the page may paint the form or the desk.
   function sessionChecked() {
@@ -674,7 +679,12 @@
       const officeName = group.office && officeNames.has(group.office) ? officeNames.get(group.office) : '';
       const when = group.phase === 'offline' ? (many ? 'have been' : 'has been') + ' offline' + (group.day ? ' since ' + group.day : '')
         : group.day ? (many ? 'go' : 'goes') + ' offline on ' + group.day : (many ? 'go' : 'goes') + ' offline soon';
+      // Where Restart plan lands when the Plan view shows another office: said here, once.
+      const route = APP_MODE || !planAnswered ? 'panel' : restartRoute(group.rows[0]);
+      const shown = planShownOffice ? officeNames.get(planShownOffice) || 'another office' : '';
       out.push({ kind: 'plan', name: many ? group.rows.length + ' walkthroughs' : named(group.rows[0]),
+        note: route === 'switch' ? 'The Plan view shows ' + shown + ', not this office. Restart plan opens it so you can make this your main office.'
+          : route === 'offer' ? 'The Plan view shows ' + shown + ', not this office. Restart plan opens the offer instead.' : '',
         words: when + ': ' + (officeName ? possessive(officeName) + ' plan has ended' : 'the plan has ended'),
         label: APP_MODE ? 'Open its card' : 'Restart plan', run: APP_MODE ? openCard(group.rows[0]) : () => restartPlanFor(group.rows[0]) });
     }
@@ -698,6 +708,7 @@
     if (!needsEl || !needsList) return;
     const rows = needsRows();
     needsEl.hidden = rows.length === 0;
+    addSpaceLeads = Boolean(needsCtx) && rows.length === 0 && needsCtx.rows.length === 0; addSpaceSync();
     // One place says what is next: the rows when something waits, else the next step.
     if (nextStep) nextStep.hidden = rows.length > 0;
     if (rows.length <= NEEDS_SHOWN) needsMore = false;
@@ -708,6 +719,7 @@
       const name = document.createElement('strong'); name.textContent = row.name;
       const rest = document.createElement('span'); rest.textContent = ' ' + row.words + '.';
       words.append(name, rest);
+      if (row.note) { const note = document.createElement('span'); note.className = 'needs-note'; note.textContent = ' ' + row.note; words.append(note); }
       const act = button(row.label, row.run);
       act.className = index === 0 ? 'tour-action tour-action-primary' : 'tour-action'; act.dataset.control = 'needs-' + row.kind;
       item.append(words, act);
@@ -1052,9 +1064,7 @@
     const restart = button('Restart your plan', () => restartPlanFor(tour)); restart.className = 'text-link tour-plan-restart';
     restart.dataset.control = 'share-fix-plan'; restart.hidden = true;
     row.append(restart, extensionLinkNode(extensionRequest(tour)));
-    // Said only when the Plan view shows another office: where this one's restart is.
-    const where = document.createElement('p'); where.className = 'tour-state-help tour-plan-where'; where.hidden = true;
-    return { row, restart, where };
+    return { row, restart };
   }
   // The card's own words for an ended plan: the date and what happens, not whose plan
   // it is or what to press (the plan panel and the space's own line say those once).
@@ -1065,6 +1075,8 @@
     const date = window.VeyletSharing.hostingState(row, Date.now(), deskPlanEndedAt)?.date;
     const day = date ? window.VeyletSharing.hostingDate(date) : '';
     if (phase === 'offline') return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + 'The same link, embed and QR work again when the plan restarts.';
+    // On the web desk the chip already says "Offline on {day}": the line does not say the day again.
+    if (deskBar && day) return own ? '' : 'Stays live if the plan restarts.';
     if (own) return day ? 'Goes offline on ' + day + '.' : 'The plan has ended.';
     return day ? 'Goes offline on ' + day + ' unless the plan restarts.' : 'The plan has ended. Restart it to keep this walkthrough live.';
   }
@@ -1078,12 +1090,6 @@
     entry.line.textContent = cardHostingWords(entry.hosting, own);
     if (!entry.fix) return;
     entry.fix.hidden = !ended; entry.restart.hidden = !own;
-    if (!entry.where) return;
-    const route = own ? restartRoute(entry.tour) : 'panel';
-    const shown = planShownOffice ? officeNames.get(planShownOffice) || 'another office' : '';
-    entry.where.textContent = route === 'switch' ? 'The Plan view shows ' + shown + ', not this office. Restart your plan opens it so you can make this your main office.'
-      : route === 'offer' ? 'The Plan view shows ' + shown + ', not this office. Restart your plan opens the offer instead.' : '';
-    entry.where.hidden = !entry.where.textContent;
   }
   // The plan panel is drawn: `office` is the one whose ended plan it offers to restart, or null.
   function planFixKnown(office) {
@@ -2625,8 +2631,8 @@
           const words = document.createElement('span'); words.className = 'tour-hosting-words';
           const fix = canShare ? hostingFixRow(tour) : null;
           status.textContent = ''; status.append(words);
-          if (fix) { status.append(fix.row); item.append(fix.where); }
-          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null, where: fix ? fix.where : null };
+          if (fix) status.append(fix.row);
+          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null };
           hostingFixSync(entry);
           hostingCards.set(tour.id, entry);
         } else status.textContent = hostingWords(null, true);
@@ -2634,10 +2640,13 @@
         if (pending) say(LIVE_SAID);
       } else {
         const off = hostingWords(hosting || null, false);
-        tourChip(tour, off ? 'Sharing off' : '', 'quiet');
+        tourChip(tour, off ? 'Sharing off' : deskBar ? 'Approved, not shared' : '', 'quiet');
         const problem = pending && canShare ? pending.reason || 'unknown' : gate;
-        status.textContent = problem ? shareWords(problem) : off || (canShare
-          ? 'Approved. Sharing isn’t on yet.' : 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
+        // On the web desk the chip says it is approved and not shared; the line only adds who can share it.
+        status.textContent = problem ? shareWords(problem) : off || (deskBar
+          ? (canShare ? '' : 'The workspace owner or this walkthrough’s creator can turn sharing on.')
+          : canShare ? 'Approved. Sharing isn’t on yet.' : 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
+        status.hidden = !status.textContent;
         if (problem) status.className = 'tour-state-help tour-share-problem';
         if (pending && problem) setStatus(shareWords(problem));
       }
@@ -3358,9 +3367,12 @@
       // banked walkthroughs): the cell and the sentence say the same numbers.
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
       if (pool && usageTerm) usageTerm.textContent = 'Plan year';
-      if (extraCell) extraCell.textContent = cap.extra_credits_available + ' available';
+      if (extraCell) { extraCell.textContent = cap.extra_credits_available + ' available'; extraCell.dataset.extraSaid = 'true'; }
       planLineDraw();
-      if (cap.plan_status === 'trial') body.textContent = view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
+      // The table's row is the count. On the web desk the sentence keeps only what the table
+      // cannot say: what happens on the renewal date.
+      if (cap.plan_status === 'trial') body.textContent = deskBar && usageCell ? view.body.replace(/^.*?free walkthroughs used\.\s*/, '')
+        : view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
       if (pool) body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this plan year.');
       else if (cap.plan_status === 'active' && planInterval(row) === 'monthly') {
         const perMonth = Number.isInteger(row.included_per_month) ? row.included_per_month : cap.included_limit - (banked || 0);
@@ -3387,6 +3399,19 @@
         // The packs card follows, so an open allowance needs no link of its own.
         capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
           'Each new accepted capture uses one walkthrough, regardless of room count. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
+        if (deskBar) {
+          // The counts are the table's rows; the remaining line is kept only for what they do not
+          // say (bonus, banked or yearly-pool walkthroughs). The counting rule waits, word for word, behind a disclosure.
+          const lead = cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first.' : '';
+          const rule = document.createElement('p'); rule.className = 'plan-scope'; rule.textContent = capacityNote.textContent.slice(lead ? lead.length + 1 : 0);
+          const how = document.createElement('details'); how.className = 'account-details plan-counting';
+          const summary = document.createElement('summary'); summary.textContent = 'How walkthroughs are counted';
+          how.append(summary, rule);
+          capacityNote.textContent = lead;
+          const repeats = Boolean(usageCell && extraCell) && !bonus && !pool && !(banked > 0);
+          capacity.replaceChildren(...(repeats ? [] : [balance]), ...(lead ? [capacityNote] : []), how);
+          return;
+        }
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
@@ -3675,6 +3700,9 @@
     const pack = packChosen(state);
     return packTest(state) + (state.problem ? 'Try again' : state.card ? 'Pay ' + planMoney(pack.price_cents) : 'Buy ' + packWords(pack.walkthroughs));
   }
+  // On the web desk the plan table's "Extra walkthroughs" row already says there are none.
+  // (Marked here; the stylesheet hides it while that row is on the page.)
+  function packBalanceSync(node, offer) { if (node?.dataset) node.dataset.none = offer?.credits_available ? 'false' : 'true'; }
   function packBalance(offer) {
     const count = offer.credits_available;
     if (!count) return 'No extra walkthroughs available.';
@@ -3769,6 +3797,7 @@
     }
     say('annual-lead', 'More walkthroughs for a busy month, used after your included ones.');
     refs.balance = say('packs-balance', packBalance(offer));
+    packBalanceSync(refs.balance, offer);
     if (kind === 'lane-closed') {
       parts.push(packList(state));
       say('annual-lead annual-soon', 'Card payment for packs opens soon.');
@@ -3863,7 +3892,7 @@
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
     if (!packsValid(offer)) return;
     state.offer = { ...state.offer, credits_available: offer.credits_available, next_expiry: offer.next_expiry ?? null };
-    if (state.refs?.balance) state.refs.balance.textContent = packBalance(state.offer);
+    if (state.refs?.balance) { state.refs.balance.textContent = packBalance(state.offer); packBalanceSync(state.refs.balance, state.offer); }
     void planCapacityRefresh?.();
   }
   // "Buy" (the chosen pack's walkthroughs): load Square's SDK once, open its card field in the card, and move focus into it.
@@ -6329,7 +6358,8 @@
     const details = document.createElement('details');
     details.className = 'account-details space-prep';
     const summary = document.createElement('summary');
-    summary.textContent = 'Prepare or schedule capture';
+    // Nothing is booked with Veylet here: a checklist to send and a calendar file for your own diary.
+    summary.textContent = deskBar ? 'Prepare a capture' : 'Prepare or schedule capture';
     const body = document.createElement('div');
     body.className = 'space-prep-body';
     body.hidden = !details.open;
@@ -6539,6 +6569,7 @@
       title.textContent = row.title || 'Untitled space'; li.append(title);
       const where = [officeLabel(row.id), row.category, row.location_general].filter(Boolean).join(' · ');
       if (where) { const meta = document.createElement('p'); meta.className = 'dash-space-meta'; meta.textContent = where; li.append(meta); }
+      if (deskBar) li.append(spacePrepKit(row));
       // Where this space's capture is now, drawn when the render status answer arrives.
       const renderSlot = document.createElement('div'); renderSlot.className = 'dash-render'; renderSlot.hidden = true;
       li.append(renderSlot); renderSlots.set(row.id, renderSlot);
@@ -6591,7 +6622,9 @@
         else if (tour.status === 'revoked') message(item, 'This walkthrough is unavailable for new access. Remove any old links or embeds from your listing, and contact Veylet support about the next step.');
         ul.append(item);
       }
-      li.append(ul, spacePrepKit(row)); list.append(li);
+      // On the web desk the kit's link sits in the space head and its panel opens under it.
+      if (deskBar) li.append(ul); else li.append(ul, spacePrepKit(row));
+      list.append(li);
     }
     // A ready walkthrough's next step waits for its review answer, then says it once.
     updateGuide(reviewLoads.length > 0);

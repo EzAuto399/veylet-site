@@ -28,7 +28,7 @@ test('a backend without the functions shows no question, and sharing reads as be
   assert.equal(h.gate().hidden, true);
   assert.equal(h.gate().children.length, 0);
   const card = h.card();
-  assert.ok(h.words(card).includes('Approved. Sharing isn’t on yet.'));
+  assert.ok(h.words(card).includes('Approved, not shared'), h.words(card).join(' | '));
   assert.ok(h.button(card, 'Turn sharing on'));
   assert.equal(h.control(card, 'share-fix-occupancy'), null);
 });

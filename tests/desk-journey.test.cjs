@@ -221,7 +221,8 @@ test('Approve and share: a refusal keeps the approval and says what sharing wait
     assert.equal(h.status(), words, message);
     assert.equal(reviewForm(card), undefined, 'the approval stands: no second review');
     assert.ok(byText(card, 'Withdraw approval'), 'and it can still be withdrawn');
-    assert.equal(chipOf(card), null, 'never shared: no state chip claims one');
+    assert.equal(chipOf(card).textContent, 'Approved, not shared', 'never shared: its chip says so, like every other walkthrough’s');
+    assert.equal(chipOf(card).className, 'pill pill-quiet');
     assert.equal(shownIn(card).some(el => el.textContent === 'Anyone with the link can open it.'), false, 'the reason replaces the usual line');
     if (fix) {
       assert.deepEqual(filled(card), [fix], message);
@@ -337,7 +338,8 @@ test('sharing turned off after release reads Sharing off, and Turn sharing back 
   assert.equal(rowLine(h.card('t1')), 'Live. Anyone with the link can open it.');
   // Approved before this desk shared on approval, and never shared: one line, one press.
   const never = await load({ tours: [readyTour()], approved: true });
-  assert.equal(stateLine(never.card('t1')), 'Approved. Sharing isn’t on yet.');
+  assert.equal(chipOf(never.card('t1')).textContent, 'Approved, not shared', 'the chip says it once');
+  assert.equal(shownIn(never.card('t1')).some(el => /Sharing isn’t on yet/.test(el.textContent)), false, 'and no sentence repeats it');
   assert.deepEqual(filled(never.card('t1')), ['Turn sharing on']);
   assert.ok(byText(never.card('t1'), 'Anyone with the link can open it.'));
   // A refusal on the press itself is said in place, with its fix, and nothing reloads.
@@ -349,7 +351,8 @@ test('sharing turned off after release reads Sharing off, and Turn sharing back 
   assert.ok(shownIn(refused.card('t1')).some(el => el.textContent === 'Ask the workspace owner to turn sharing on.'));
   // Someone who may not share reads whose press it is, never a disabled button.
   const reviewerOnly = await load({ tours: [readyTour({ created_by: 'someone-else' })], approved: true, role: 'operator' });
-  assert.equal(stateLine(reviewerOnly.card('t1')), 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
+  assert.equal(chipOf(reviewerOnly.card('t1')).textContent, 'Approved, not shared');
+  assert.equal(stateLine(reviewerOnly.card('t1')), 'The workspace owner or this walkthrough’s creator can turn sharing on.');
   assert.equal(shownIn(reviewerOnly.card('t1')).some(el => el.tagName === 'BUTTON'), false);
 });
 
@@ -1362,7 +1365,8 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   const space = h.ids['account-properties'].children[0];
   const prep = space.all().find(el => el.className === 'account-details space-prep');
   assert.ok(prep);
-  assert.equal(prep.children[0].textContent, 'Prepare or schedule capture');
+  assert.equal(prep.children[0].textContent, 'Prepare a capture', 'named for what it does: nothing is scheduled with Veylet here');
+  assert.ok(space.children.indexOf(prep) < space.children.findIndex(el => el.tagName === 'UL'), 'in the space head, before its walkthroughs');
   prep.open = true;
   await prep.fire('toggle');
   const copyPrep = prep.all().find(el => el.dataset.control === 'copy-prep-note');

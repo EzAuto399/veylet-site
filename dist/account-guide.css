@@ -795,10 +795,18 @@
 }
 @media (prefers-reduced-motion: reduce) { .desk-views a, .desk-menu > summary::after { transition: none; } }
 
-.form-page:has(> .desk:not([hidden]) > .desk-view) { max-width: 1456px; padding-block: 0 64px; }
+:root { --desk-width: 1152px; }
+/* One width for the bar, the page and the desk footer, so their left and right edges line up on every view. */
+.desk-bar-inner, .desk-footer, .form-page:has(> .desk:not([hidden]) > .desk-view) { max-width: var(--desk-width); }
+.form-page:has(> .desk:not([hidden]) > .desk-view) { padding-block: 0; }
+/* The footer's hairline is the page content's own bottom edge, so it shares the content's width. */
+.form-page > .desk:has(> .desk-view) { padding-bottom: 40px; border-bottom: 1px solid var(--line); }
+.desk-footer { border-top: 0; }
 .form-page:has(> .desk:not([hidden]) > .desk-view) > #account-status:not(:empty) { margin: 16px 0 0; }
-.desk-view { min-width: 0; max-width: 720px; }
-#view-walkthroughs { max-width: 1040px; }
+.desk-view { min-width: 0; }
+/* Plan, Your team and Account read in one column; the rule under each view's title still runs edge to edge. */
+.desk-view:not(#view-walkthroughs) > :not(.view-title):not(.desk-section),
+.desk-view:not(#view-walkthroughs) > .desk-section > :not(.view-title) { max-width: 720px; }
 .desk .view-title { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; overflow-wrap: anywhere; }
 .desk .view-title:focus { outline: none; }
 .desk .view-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
@@ -849,10 +857,6 @@
 .desk-view .dash-space { padding: 18px 0 8px; }
 .desk-view .dash-tours { margin-top: 12px; }
 .desk-view .dash-tour { padding: 14px 0; }
-.desk-view .space-prep { margin: 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 0; }
-.desk-view .space-prep > summary { min-height: 44px; padding-block: 10px; font-size: 14px; color: var(--muted); }
-.desk-view .space-prep[open] { padding-bottom: 16px; }
-.desk .dash-tour .tour-plan-where { margin-top: 6px; font-size: 13px; color: var(--muted); }
 #account-team-empty:has(~ .desk-section:not([hidden])) { display: none; }
 .desk-footer { padding-block: 6px; gap: 4px 24px; }
 .desk-footer nav { gap: 0 24px; font-size: 12px; }
@@ -862,3 +866,43 @@
 
 /* The deletion confirmation names the account first, in ink. */
 .deletion-which { color: var(--ink); font-weight: 500; }
+
+/* ---- Polish: say each thing once, and line things up ------------------------ */
+/* A card's own actions are outlines: the one filled button of the view is the first
+   Needs you row (or Add a space on an empty desk). Inside an opened panel or form the
+   submit keeps its fill. */
+#view-walkthroughs .dash-tour .tour-action-primary:not(.tour-panel *, form *) { background: transparent; color: var(--ink); border-color: var(--field-line); }
+#view-walkthroughs .dash-tour .tour-action-primary:not(.tour-panel *, form *):hover { border-color: var(--ink); }
+/* Review this walkthrough: the same hairline disclosure as everything else, no box. */
+.desk-view .tour-review { margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+.desk-view .tour-review[open] { padding-bottom: 16px; }
+.desk-view .tour-review > summary { padding-block: 10px; font-size: 15px; }
+/* Prepare a capture: one quiet link in the space head; its panel opens under the head. */
+.desk-view .dash-space { position: relative; }
+.desk-view .account-details.space-prep { margin: 0; padding: 0; border: 0; }
+.desk-view .account-details.space-prep > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0; font-size: 14px; font-weight: 400; color: var(--muted); text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px; }
+.desk-view .account-details.space-prep > summary:hover { color: var(--ink); text-decoration-color: currentColor; }
+.desk-view .account-details.space-prep > summary::after { content: none; }
+.desk-view .account-details.space-prep[open] { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+@media (min-width: 720px) {
+  .desk-view .account-details.space-prep > summary { position: absolute; top: 8px; right: 0; }
+  .desk-view .dash-space-title, .desk-view .dash-space-meta { padding-right: 176px; }
+}
+/* A closed disclosure's content has no box at all, so nothing can sit over the next row. */
+.desk-view .account-details:not([open]) > :not(summary) { display: none; }
+/* An ended plan's two links sit on one line and wrap, never overlap. */
+.tour-hosting-words:empty { display: none; }
+.tour-hosting-fix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 16px; vertical-align: top; }
+.tour-hosting-fix .text-link { margin: 0; }
+.tour-hosting-fix [hidden] { display: none; }
+.needs-note { display: block; font-size: 13px; }
+/* Plan: the counting rule behind a hairline disclosure; pack options on paper, not white. */
+.desk-view .plan-capacity:empty { display: none; }
+.desk-view .account-details.plan-counting { margin-top: 12px; border-top: 1px solid var(--line); }
+.desk-view .plan-counting > .plan-scope { margin: 0; }
+#view-plan:has([data-extra-said="true"]) [data-none="true"] { display: none; }
+.desk-view .annual-option { background: transparent; border-color: var(--line); }
+.desk-view .annual-option:hover { border-color: var(--field-line); }
+.desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
+.desk-view .annual-option:has(input:focus-visible) { outline: none; }
+.desk-view .annual-option input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
