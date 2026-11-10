@@ -48,6 +48,96 @@
   const signOut = document.getElementById('account-sign-out');
   const targetStatus = document.getElementById('account-target-status');
   const nextStep = document.getElementById('account-next-step');
+  /*
+   * Signed in, the desk has its own bar and four views (Walkthroughs, Plan, Team,
+   * Account) chosen by the URL hash, so a reload and Back/Forward keep the view. A
+   * view is a region of this page: showing one hides the others and changes no data.
+   * The page the app opens has neither the bar nor the views; everything here is
+   * then a no-op and that page reads as one column, as before.
+   */
+  const siteHeader = document.getElementById('site-header');
+  const deskBar = document.getElementById('desk-bar');
+  const deskMenu = document.getElementById('desk-menu');
+  const deskOfficeEl = document.getElementById('desk-office');
+  const openingEl = document.getElementById('account-opening');
+  const needsEl = document.getElementById('account-needs');
+  const needsList = document.getElementById('account-needs-list');
+  const planLine = document.getElementById('account-plan-line');
+  const addSpaceEl = document.getElementById('account-add-space');
+  const addSpaceOpen = document.getElementById('account-add-open');
+  const VIEWS = ['walkthroughs', 'plan', 'team', 'account'];
+  const VIEW_HEADINGS = { walkthroughs: 'account-work-title', plan: 'account-plan-title', team: 'view-team-title', account: 'account-self-title' };
+  const VIEW_TITLES = { walkthroughs: 'Walkthroughs', plan: 'Plan', team: 'Your team', account: 'Account' };
+  // Anchors from before the views (and the ids this page links to itself): each opens its view.
+  const VIEW_OF_ANCHOR = { 'account-home': 'walkthroughs', 'account-properties': 'walkthroughs', 'account-add-space': 'walkthroughs', 'requested-tour': 'walkthroughs',
+    'account-plan': 'plan', 'account-trial': 'plan', 'account-packs': 'plan', 'account-referral': 'plan',
+    'account-team': 'team', 'account-contact': 'team',
+    'account-methods': 'account', 'account-email': 'account', 'account-leaving': 'account', 'account-deletion': 'account', 'account-export': 'account', 'account-gate': 'account' };
+  const viewEls = new Map(VIEWS.map(name => [name, document.getElementById('view-' + name)]).filter(([, el]) => el));
+  let currentView = 'walkthroughs';
+  function viewFromHash() {
+    let raw = '';
+    try { raw = decodeURIComponent(String(location.hash || '').replace(/^#/, '')); } catch { return null; }
+    if (VIEWS.includes(raw)) return { view: raw, anchor: null };
+    return Object.prototype.hasOwnProperty.call(VIEW_OF_ANCHOR, raw) ? { view: VIEW_OF_ANCHOR[raw], anchor: raw } : null;
+  }
+  // `focus`: the view was chosen by the person, so its heading takes focus and the page starts at its top.
+  function viewShow(name, { focus = false, anchor = null } = {}) {
+    if (!viewEls.has(name)) return false;
+    currentView = name;
+    for (const [key, el] of viewEls) el.hidden = key !== name;
+    for (const key of VIEWS) {
+      const link = document.getElementById('desk-link-' + key);
+      if (!link) continue;
+      if (key === name) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+    }
+    if (deskMenu) deskMenu.open = false;
+    try { if (typeof document.title === 'string') document.title = VIEW_TITLES[name] + ' — Veylet'; } catch { /* a title is a courtesy */ }
+    const target = anchor ? document.getElementById(anchor) : null;
+    if (target) {
+      // A disclosure asked for by name is opened; its summary is where the keyboard lands.
+      if (target.tagName === 'DETAILS') target.open = true;
+      const land = (target.tagName === 'DETAILS' && target.querySelector?.('summary')) || target;
+      if (land === target && !/^(BUTTON|A|INPUT|SUMMARY)$/.test(target.tagName)) target.tabIndex = -1;
+      land.focus?.({ preventScroll: true }); target.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+    } else if (focus) {
+      const heading = document.getElementById(VIEW_HEADINGS[name]);
+      try { window.scrollTo?.(0, 0); } catch { /* nothing to scroll */ }
+      heading?.focus?.({ preventScroll: true });
+    }
+    return true;
+  }
+  // Go to a view from a control on this page: the hash changes, so Back returns.
+  function viewGo(name, options = {}) {
+    if (!viewEls.has(name)) return false;
+    try { if (typeof history !== 'undefined' && history.pushState && location.hash !== '#' + name) history.pushState(null, '', '#' + name); } catch { /* the view still shows */ }
+    return viewShow(name, options);
+  }
+  function addSpaceSync() {
+    if (addSpaceOpen && addSpaceEl) addSpaceOpen.setAttribute('aria-expanded', addSpaceEl.open ? 'true' : 'false');
+  }
+  // The session check has answered (or cannot): the page may paint the form or the desk.
+  function sessionChecked() {
+    try { document.body?.classList?.remove('session-checking'); } catch { /* no body in a stand-in */ }
+    if (openingEl) openingEl.hidden = true;
+  }
+  function deskChrome(signedIn) {
+    if (!deskBar) return;
+    deskBar.hidden = !signedIn;
+    if (siteHeader) siteHeader.hidden = signedIn;
+    // The marketing footer after it gives way in the stylesheet.
+    const deskFooter = document.getElementById('desk-footer');
+    if (deskFooter) deskFooter.hidden = !signedIn;
+    if (!signedIn && deskMenu) deskMenu.open = false;
+  }
+  // A stored sign-in on this browser is only a hint for which header to paint while the
+  // real check runs; it shows no account data and grants nothing. The check decides.
+  try {
+    const storage = window.localStorage;
+    let stored = false;
+    for (let index = 0; storage && index < storage.length; index += 1) if (/^sb-[a-z0-9]+-auth-token$/.test(storage.key(index) || '')) stored = true;
+    if (stored && !location.pathname.startsWith('/auth/')) deskChrome(true);
+  } catch { /* no storage: the header waits for the check */ }
   // The URL selects an already-authorized row; it never grants access or
   // supplies a storage path, review revision, or publication permission.
   const tourTargets = new URLSearchParams(location.search || '').getAll('tour');
@@ -372,6 +462,10 @@
     if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
       : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same sign-in on the website and capture app: Apple, or the same email.';
     if (access) access.hidden = signedIn;
+    // On the desk each view has its own heading; the page heading is for the sign-in screen.
+    deskChrome(signedIn);
+    if (deskBar) { if (title) title.hidden = signedIn; if (intro) intro.hidden = signedIn; }
+    if (!signedIn) { try { if (typeof document.title === 'string' && viewEls.size) document.title = 'Account — Veylet'; } catch { /* a title is a courtesy */ } }
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
     const referred = document.getElementById('account-referred');
     if (referred) {
@@ -381,6 +475,8 @@
     }
   }
   function showSignedOut(message) {
+    sessionChecked();
+    needsCtx = null; needsDraw(); planLineSay('');
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
     listingGates.clear(); gateNotices.clear(); gateFocus = null;
@@ -521,6 +617,120 @@
   }
   function failed(result) { return result.timedOut || result.error || result.value?.error; }
   function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
+  /*
+   * Needs you: what waits on the reader, one line each with its one action, from the
+   * same records as the cards below (a review answer, a hosting state, a status). Up
+   * to three rows show; the rest sit behind "n more". Only the first row's button is
+   * filled. With nothing waiting, the next step below speaks instead. A row never
+   * approves, shares or buys: it opens the place where that is done.
+   */
+  const NEEDS_SHOWN = 3;
+  let needsCtx = null, needsMore = false;
+  const possessive = name => name + (/s$/i.test(name) ? '’' : '’s');
+  function needsRows() {
+    if (!needsCtx || needsCtx.pending) return [];
+    const { properties, rows, items, roles, hosting } = needsCtx;
+    const visible = rows.filter(row => items.has(row.id));
+    const spaceOf = row => properties.find(space => space.id === row.property_id) || null;
+    const nameOf = row => { const title = spaceOf(row)?.title; return typeof title === 'string' && title.trim() ? title.trim() : 'A walkthrough'; };
+    // Two walkthroughs of one space are told apart by the day they were added.
+    const named = row => {
+      const twin = visible.some(other => other !== row && other.property_id === row.property_id);
+      const added = twin ? window.VeyletSharing?.hostingDate?.(row.created_at) : '';
+      return nameOf(row) + (added ? ' (added ' + added + ')' : '');
+    };
+    const openCard = (row, control) => () => {
+      viewGo('walkthroughs');
+      const item = items.get(row.id);
+      const inner = control ? item.querySelector?.('[data-control="' + control + '"]:not([hidden])') : null;
+      if (!inner) item.tabIndex = -1;
+      (inner || item).focus({ preventScroll: true }); item.scrollIntoView({ block: 'start', behavior: 'auto' });
+    };
+    const waiting = row => row.status === 'ready' && !row.share_token;
+    const out = [];
+    for (const row of visible) {
+      if (!waiting(row) || !tourApproval.has(row.id) || tourApproval.get(row.id) === true) continue;
+      const reviews = ['owner', 'reviewer'].includes(roles?.get(spaceOf(row)?.workspace_id));
+      out.push(reviews ? { kind: 'review', name: named(row), words: 'is ready for your review', label: 'Review walkthrough',
+        run: () => { openCard(row)(); reviewOpeners.get(row.id)?.(); } }
+        : { kind: 'review', name: named(row), words: 'is ready for the workspace owner’s review', label: 'Open its card', run: openCard(row) });
+    }
+    // An ended plan: its live walkthroughs, counted per office and day.
+    const ending = new Map();
+    for (const row of visible) {
+      if (row.status !== 'ready' || !row.share_token) continue;
+      const state = hosting ? hosting.get(row.id) || null : null;
+      const phase = hostingPhase(state);
+      if (phase !== 'offline' && phase !== 'offline_on') continue;
+      const date = window.VeyletSharing.hostingState(state, Date.now(), deskPlanEndedAt)?.date;
+      const day = date ? window.VeyletSharing.hostingDate(date) : '';
+      const office = officeIdOfProperty.get(row.property_id) || '';
+      const key = [office, phase, day].join('|');
+      if (!ending.has(key)) ending.set(key, { phase, day, office, rows: [] });
+      ending.get(key).rows.push(row);
+    }
+    for (const group of ending.values()) {
+      const many = group.rows.length > 1;
+      const officeName = group.office && officeNames.has(group.office) ? officeNames.get(group.office) : '';
+      const when = group.phase === 'offline' ? (many ? 'have been' : 'has been') + ' offline' + (group.day ? ' since ' + group.day : '')
+        : group.day ? (many ? 'go' : 'goes') + ' offline on ' + group.day : (many ? 'go' : 'goes') + ' offline soon';
+      out.push({ kind: 'plan', name: many ? group.rows.length + ' walkthroughs' : named(group.rows[0]),
+        words: when + ': ' + (officeName ? possessive(officeName) + ' plan has ended' : 'the plan has ended'),
+        label: APP_MODE ? 'Open its card' : 'Restart plan', run: APP_MODE ? openCard(group.rows[0]) : () => restartPlanFor(group.rows[0]) });
+    }
+    // Approved and never shared. Sharing that was turned off on purpose is not a job waiting.
+    for (const row of visible) {
+      if (!waiting(row) || tourApproval.get(row.id) !== true) continue;
+      const gate = gateBlock(row.property_id);
+      if (gate && gateCanOpen(row.property_id)) {
+        out.push({ kind: 'share', name: named(row), words: 'is approved; sharing waits for ' + (SHARE_WAITS[gate] || 'one more answer'),
+          label: gateFixLabel(gate), run: () => { viewGo('walkthroughs'); gateOpen(row.property_id, gate); } });
+      } else if (!(hosting && hosting.get(row.id)?.released_at)) {
+        out.push({ kind: 'share', name: named(row), words: 'is approved, not shared yet', label: 'Go to sharing', run: openCard(row, 'share-on') });
+      }
+    }
+    for (const row of visible) {
+      if (row.status === 'revoked') out.push({ kind: 'problem', name: named(row), words: 'is unavailable for new access', label: 'Open its card', run: openCard(row) });
+    }
+    return out;
+  }
+  function needsDraw() {
+    if (!needsEl || !needsList) return;
+    const rows = needsRows();
+    needsEl.hidden = rows.length === 0;
+    // One place says what is next: the rows when something waits, else the next step.
+    if (nextStep) nextStep.hidden = rows.length > 0;
+    if (rows.length <= NEEDS_SHOWN) needsMore = false;
+    const nodes = rows.map((row, index) => {
+      const item = document.createElement('li'); item.className = 'needs-row'; item.dataset.need = row.kind;
+      item.hidden = index >= NEEDS_SHOWN && !needsMore;
+      const words = document.createElement('p'); words.className = 'needs-words';
+      const name = document.createElement('strong'); name.textContent = row.name;
+      const rest = document.createElement('span'); rest.textContent = ' ' + row.words + '.';
+      words.append(name, rest);
+      const act = button(row.label, row.run);
+      act.className = index === 0 ? 'tour-action tour-action-primary' : 'tour-action'; act.dataset.control = 'needs-' + row.kind;
+      item.append(words, act);
+      return item;
+    });
+    if (rows.length > NEEDS_SHOWN) {
+      const rest = rows.length - NEEDS_SHOWN;
+      const item = document.createElement('li'); item.className = 'needs-more';
+      const toggle = button(needsMore ? 'Show fewer' : rest + ' more', () => { needsMore = !needsMore; needsDraw(); needsList.querySelector?.('.needs-more button')?.focus?.({ preventScroll: true }); });
+      toggle.className = 'tour-disclosure'; toggle.dataset.control = 'needs-more';
+      toggle.setAttribute('aria-expanded', needsMore ? 'true' : 'false');
+      item.append(toggle); nodes.push(item);
+    }
+    needsList.replaceChildren(...nodes);
+  }
+  // The plan in one line above the list, in the Plan view's own words, with the way there.
+  function planLineSay(text) {
+    if (!planLine) return;
+    if (!text) { planLine.replaceChildren(); planLine.hidden = true; return; }
+    const words = document.createElement('span'); words.className = 'plan-line-words'; words.textContent = text;
+    const link = document.createElement('a'); link.className = 'text-link'; link.href = '#plan'; link.textContent = 'Plan details';
+    planLine.replaceChildren(words, link); planLine.hidden = false;
+  }
   // `extra`: a secondary link beside the action ({ label, href, control }), never filled.
   function guide(title, body, label, action, extra = null) {
     if (!nextStep) return;
@@ -546,7 +756,7 @@
     if (!properties.length) {
       if (APP_MODE) { guide('Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
       guide('Start with one space.', 'Save a name and general location. This prepares your desk for its first capture.', 'Add your first space', () => {
-        document.getElementById('account-add-space').open = true;
+        document.getElementById('account-add-space').open = true; addSpaceSync();
         spaceForm?.querySelector('input[name="title"]')?.focus();
       });
       return;
@@ -572,7 +782,7 @@
         // pages name no purchase path, so there the line itself says where.
         if (phase === 'offline' || phase === 'offline_on') {
           guide(phase === 'offline' ? 'Your walkthrough is offline.' : 'Your plan has ended.', hostingWords(hosting, true),
-            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : focusPlan,
+            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : () => restartPlanFor(selected),
             APP_MODE ? null : extensionRequest(selected));
         } else guide('Your walkthrough is live.',
           'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
@@ -740,10 +950,40 @@
   // The plan panel, where an ended plan's filled "Restart your plan" goes to the offer.
   function focusPlan() {
     if (!planPanel) return;
+    viewGo('plan');
     planPanel.tabIndex = -1; planPanel.focus({ preventScroll: true }); planPanel.scrollIntoView({ block: 'start', behavior: 'auto' });
   }
-  function restartPlanButton() {
-    const fix = button('Restart your plan', focusPlan); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
+  /*
+   * "Restart your plan" from a walkthrough lands on something that restarts THAT
+   * walkthrough's office plan. The Plan view shows one office, the main one. When it
+   * is this office and its plan has ended, that is its filled Restart your plan. When
+   * it is another office, the way there is "Make this my main office" (the Plan view
+   * then shows this office's plan and its restart), where the backend supports it;
+   * otherwise the offer, which is where the Plan view's own restart goes too. No
+   * billing call is made here.
+   */
+  const planPrimaryButtons = new Map();
+  let planPrimarySaid = null, planRestartLink = null, planShownOffice = null;
+  function restartRoute(tour) {
+    const office = officeIdOfProperty.get(tour?.property_id) || null;
+    if (!office || !planShownOffice || office === planShownOffice) return 'panel';
+    return planPrimaryButtons.has(office) ? 'switch' : 'offer';
+  }
+  function restartPlanFor(tour) {
+    const route = planPanel ? restartRoute(tour) : 'offer';
+    if (route === 'panel') { focusPlan(); planRestartLink?.focus?.({ preventScroll: true }); return; }
+    if (route === 'switch') {
+      const office = officeIdOfProperty.get(tour.property_id);
+      viewGo('plan');
+      if (planPrimarySaid) planPrimarySaid.textContent = 'To restart ' + possessive(officeNames.get(office) || 'that office') + ' plan, make it your main office. Its plan then shows here.';
+      const make = planPrimaryButtons.get(office);
+      make.focus({ preventScroll: true }); make.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+      return;
+    }
+    location.assign('/offer');
+  }
+  function restartPlanButton(tour) {
+    const fix = button('Restart your plan', () => restartPlanFor(tour)); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
     return fix;
   }
   // Offer 2026-09-26.2: after the plan's 14 days, a paid hosting extension keeps one
@@ -772,10 +1012,12 @@
   function hostingFixRow(tour) {
     if (APP_MODE) return null;
     const row = document.createElement('span'); row.className = 'tour-hosting-fix';
-    const restart = button('Restart your plan', focusPlan); restart.className = 'text-link tour-plan-restart';
+    const restart = button('Restart your plan', () => restartPlanFor(tour)); restart.className = 'text-link tour-plan-restart';
     restart.dataset.control = 'share-fix-plan'; restart.hidden = true;
     row.append(restart, extensionLinkNode(extensionRequest(tour)));
-    return { row, restart };
+    // Said only when the Plan view shows another office: where this one's restart is.
+    const where = document.createElement('p'); where.className = 'tour-state-help tour-plan-where'; where.hidden = true;
+    return { row, restart, where };
   }
   // The card's own words for an ended plan: the date and what happens, not whose plan
   // it is or what to press (the plan panel and the space's own line say those once).
@@ -799,11 +1041,18 @@
     entry.line.textContent = cardHostingWords(entry.hosting, own);
     if (!entry.fix) return;
     entry.fix.hidden = !ended; entry.restart.hidden = !own;
+    if (!entry.where) return;
+    const route = own ? restartRoute(entry.tour) : 'panel';
+    const shown = planShownOffice ? officeNames.get(planShownOffice) || 'another office' : '';
+    entry.where.textContent = route === 'switch' ? 'The Plan view shows ' + shown + ', not this office. Restart your plan opens it so you can make this your main office.'
+      : route === 'offer' ? 'The Plan view shows ' + shown + ', not this office. Restart your plan opens the offer instead.' : '';
+    entry.where.hidden = !entry.where.textContent;
   }
   // The plan panel is drawn: `office` is the one whose ended plan it offers to restart, or null.
   function planFixKnown(office) {
     planAnswered = true; planRestartOffice = office || null;
     for (const entry of hostingCards.values()) hostingFixSync(entry);
+    needsDraw();
   }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
@@ -831,7 +1080,7 @@
         enable.hidden = true;
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
       } else if (reason === 'plan' && !APP_MODE) {
-        fix = restartPlanButton();
+        fix = restartPlanButton(tour);
       } else if ((reason === 'occupancy' || reason === 'consent' || reason === 'business') && gateCanOpen(tour.property_id)) {
         // The listing's question, or its consent form, opened where the person is.
         fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
@@ -1133,7 +1382,7 @@
       const refused = failed(result) && !missingFunction(result) ? shareRefusal(result) : null;
       if (refused === 'plan') {
         resume.disabled = false; say(shareWords('plan'));
-        if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(), resume); fixed = true; }
+        if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(tour), resume); fixed = true; }
         return;
       }
       if (refused === 'occupancy' || refused === 'consent' || refused === 'business') { resume.disabled = false; blocked(refused); return; }
@@ -2256,8 +2505,8 @@
           const words = document.createElement('span'); words.className = 'tour-hosting-words';
           const fix = canShare ? hostingFixRow(tour) : null;
           status.textContent = ''; status.append(words);
-          if (fix) status.append(fix.row);
-          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null };
+          if (fix) { status.append(fix.row); item.append(fix.where); }
+          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null, where: fix ? fix.where : null };
           hostingFixSync(entry);
           hostingCards.set(tour.id, entry);
         } else status.textContent = hostingWords(null, true);
@@ -2681,6 +2930,7 @@
   // The ledger's answers at their usual lengths: state, count, date, hosting, extras, source.
   const PLAN_SKELETON_LENGTHS = [11, 24, 14, 90, 11, 14];
   function planSkeleton() {
+    planLineSay('');
     if (!planPanel || !planBody) return;
     planPanel.setAttribute('aria-busy', 'true');
     if (APP_MODE) {
@@ -2733,6 +2983,7 @@
       const next = hostingChip(hosting);
       if (chip && (chip === 'Live' || chip.startsWith('Offline')) && chip !== next.label) tourChip(tour, next.label, next.tone);
     }
+    needsDraw();
   }
   // The office's line once the plan has ended: how many live walkthroughs go offline, and when.
   function planHostingEnded(row, view, live) {
@@ -2779,9 +3030,11 @@
     // No plan panel on this page: no restart at the top, so a card keeps its own.
     if (!planPanel || !planBody) { planFixKnown(null); return; }
     planCapacityRefresh = null;
+    planPrimaryButtons.clear(); planPrimarySaid = null; planRestartLink = null; planShownOffice = null;
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
+    planShownOffice = workspaceID;
     let row = null;
     let view;
     if (!workspaceID && !failed(members)) {
@@ -2904,7 +3157,7 @@
     // The one fix once the plan has ended, filled and first: the offer, where the plan restarts.
     if (view.status === 'ended') {
       const restart = document.createElement('a'); restart.className = 'button'; restart.href = '/offer'; restart.textContent = 'Restart your plan';
-      actions.append(restart);
+      actions.append(restart); planRestartLink = restart;
     }
     if (source === 'apple') {
       const manage = document.createElement('a'); manage.className = 'text-link';
@@ -2935,6 +3188,15 @@
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
+    // The same facts in one line above the walkthroughs: the title, the count in its
+    // row, and the price that follows the free months, each exactly as drawn above.
+    const planLineDraw = () => {
+      const term = (usageCell?.parentNode || usageCell?.parent)?.children?.[0]?.textContent || 'Walkthroughs';
+      const usage = usageCell && usageCell.textContent && usageCell.textContent !== PLAN_DASH ? term + ': ' + usageCell.textContent : '';
+      const then = view.status === 'trial' && row?.auto_renews === true && planBilling(row) ? 'then ' + planBilling(row) : '';
+      planLineSay([memberships.length > 1 ? planWorkspaceName(workspaceID, props) : '', view.title, usage, then].filter(Boolean).join(' · '));
+    };
+    planLineDraw();
     planFixKnown(view.status === 'ended' ? workspaceID : null);
     // The free-months card, walkthrough packs and the share link read their
     // own answers; none of them ever holds up the plan.
@@ -2955,6 +3217,7 @@
         typeof cap.can_accept === 'boolean' && (cap.reason_code === null || typeof cap.reason_code === 'string') &&
         [...PLAN_STATUSES, 'unavailable'].includes(cap.plan_status) && cap.included_remaining === Math.max(0, cap.included_limit - cap.included_used);
       if (!valid) {
+        planLineDraw();
         if (extraCell) extraCell.textContent = PLAN_DASH;
         capacityNote.textContent = sandboxPlan ? 'Test · this test subscription’s capacity could not be verified. ' + PLAN_TEST_ALLOWANCE
           : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-walkthrough balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
@@ -2976,6 +3239,7 @@
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
       if (pool && usageTerm) usageTerm.textContent = 'Plan year';
       if (extraCell) extraCell.textContent = cap.extra_credits_available + ' available';
+      planLineDraw();
       if (cap.plan_status === 'trial') body.textContent = view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
       if (pool) body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this plan year.');
       else if (cap.plan_status === 'active' && planInterval(row) === 'monthly') {
@@ -5041,7 +5305,7 @@
     if (teamEl && !teamEl.hidden) {
       const open = document.createElement('a'); open.className = 'tour-action'; open.href = '#account-team'; open.textContent = 'Open Your team';
       open.dataset.control = 'deletion-team';
-      open.addEventListener('click', () => { teamEl.tabIndex = -1; teamEl.focus?.({ preventScroll: true }); });
+      open.addEventListener('click', () => { viewShow('team'); teamEl.tabIndex = -1; teamEl.focus?.({ preventScroll: true }); });
       controls.push(open);
     }
     controls.push(button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); }));
@@ -5859,6 +6123,7 @@
     lead.textContent = 'Showing ' + planWorkspaceName(workspaceID, props) + ', your main office. You are an active member of ' + memberships.length + ' workspaces.';
     const others = document.createElement('ul'); others.className = 'plan-primary-list';
     const said = document.createElement('p'); said.className = 'plan-scope'; said.setAttribute('role', 'status');
+    planPrimarySaid = said;
     for (const other of memberships.filter(row => row.workspace_id !== workspaceID)) {
       const item = document.createElement('li');
       const name = document.createElement('span'); name.textContent = planWorkspaceName(other.workspace_id, props);
@@ -5872,6 +6137,7 @@
         await loadDesk(supabase);
       });
       make.className = 'tour-action'; make.dataset.control = 'make-primary';
+      planPrimaryButtons.set(other.workspace_id, make);
       item.append(name, make); others.append(item);
     }
     wrap.append(lead, others, said);
@@ -5881,6 +6147,7 @@
     const ticket = ++deskVersion;
     deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
     planAnswered = false; planRestartOffice = null;
+    needsCtx = null; needsDraw();
     planSkeleton();
     guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
@@ -6026,6 +6293,12 @@
       && (members.value?.data || []).some(row => row?.workspace_id === primaryID));
     members = deskMemberships(members, primarySupported ? primaryID : null);
     deskOffices(members, offices, props);
+    if (deskOfficeEl) {
+      // The bar names the office only when there is one; with several, each space names its own.
+      const mine = failed(members) ? [] : (members.value?.data || []).filter(row => row && row.workspace_id);
+      const said = mine.length > 1 ? mine.length + ' offices' : mine.length === 1 ? officeNames.get(mine[0].workspace_id) || '' : '';
+      deskOfficeEl.textContent = said; deskOfficeEl.hidden = !said;
+    }
     if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
     list.setAttribute('aria-busy', 'false');
     const reads = [props, tours, members];
@@ -6061,6 +6334,7 @@
     const properties = props.value?.data || [];
     const addSpace = document.getElementById('account-add-space');
     if (addSpace) addSpace.open = properties.length === 0;
+    addSpaceSync();
     const allRows = failed(tours) ? [] : tours.value?.data || [];
     // A version that a later approved version replaced is not a walkthrough of its
     // own any more: its link, embed and approval moved on. The records file keeps it.
@@ -6107,6 +6381,8 @@
     if (failed(members)) message(list, 'Workspace permissions could not load. Review and sharing actions are unavailable until you refresh.');
     const items = new Map();
     const updateGuide = (reviewsPending = false) => {
+      needsCtx = failed(tours) || failed(members) ? null : { properties, rows, items, roles, hosting: hostingRows, pending: reviewsPending };
+      needsDraw();
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
       else guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
     };
@@ -6216,12 +6492,14 @@
   }
 
   if (!window.supabase || !window.supabase.createClient) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus(
       'The account service did not load on this device. Check the connection and reload this page.'
     );
     return;
   }
   if (!cfg || !cfg.url || !cfg.anonKey) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus('Account service is not configured.');
     return;
   }
@@ -6235,6 +6513,7 @@
   });
 
   async function showSession(session) {
+    sessionChecked();
     if (!session || !session.user) {
       sessionHeading(false);
       currentUserId = null;
@@ -6274,6 +6553,11 @@
     if (verifyForm) verifyForm.hidden = true;
     if (home) home.hidden = false;
     if (who) who.textContent = session.user.email ? 'Signed in as ' + session.user.email : 'Signed in';
+    const menuWho = document.getElementById('desk-menu-who');
+    if (menuWho) menuWho.textContent = session.user.email || 'Signed in';
+    // The view the address names (or an older anchor into the page); Walkthroughs otherwise.
+    const asked = viewFromHash();
+    viewShow(asked ? asked.view : 'walkthroughs', { anchor: asked ? asked.anchor : null });
     if (gateTitle) gateTitle.textContent = 'Checking capture approval…';
     if (gateBody) {
       gateBody.textContent =
@@ -6302,6 +6586,7 @@
 
   const initialSession = await settled(supabase.auth.getSession());
   if (initialSession.timedOut || initialSession.error || initialSession.value?.error) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus('Sign-in could not be checked. Check the connection and reload.');
   } else {
     await showSession(initialSession.value?.data?.session || null);
@@ -6686,6 +6971,33 @@
   }
 
   document.getElementById('account-refresh')?.addEventListener('click', () => { void loadDesk(supabase); });
+  // "Add a space" is a button in the page head; it opens the form under it.
+  addSpaceOpen?.addEventListener('click', () => {
+    if (!addSpaceEl) return;
+    addSpaceEl.open = !addSpaceEl.open; addSpaceSync();
+    if (addSpaceEl.open) spaceForm?.querySelector?.('input[name="title"]')?.focus?.();
+  });
+  addSpaceEl?.addEventListener('keydown', event => {
+    if (event?.key !== 'Escape' || !addSpaceEl.open) return;
+    addSpaceEl.open = false; addSpaceSync(); addSpaceOpen?.focus?.({ preventScroll: true });
+  });
+  // The views: a link in the bar changes the hash; the hash chooses the view.
+  window.addEventListener?.('hashchange', () => {
+    if (!currentUserId) return;
+    const asked = viewFromHash();
+    if (asked) viewShow(asked.view, { focus: true, anchor: asked.anchor });
+    else if (!String(location.hash || '').replace(/^#/, '')) viewShow('walkthroughs', { focus: true });
+  });
+  // The link for the view already showing changes no hash: it still lands on the heading.
+  for (const name of VIEWS) {
+    document.getElementById('desk-link-' + name)?.addEventListener('click', () => { if (location.hash === '#' + name) viewShow(name, { focus: true }); });
+  }
+  // The account menu closes on Escape (focus back on its button) and on a press outside it.
+  deskMenu?.addEventListener('keydown', event => {
+    if (event?.key !== 'Escape' || !deskMenu.open) return;
+    deskMenu.open = false; document.getElementById('desk-menu-button')?.focus?.({ preventScroll: true });
+  });
+  document.addEventListener?.('click', event => { if (deskMenu?.open && !deskMenu.contains?.(event?.target)) deskMenu.open = false; });
   // Anything typed, ticked or armed in the list marks the desk as in use.
   list?.addEventListener('input', () => { deskDirty = true; });
   list?.addEventListener('click', () => { deskDirty = true; });
@@ -6731,15 +7043,24 @@
     link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     setStatus('Records saved as a file. It lists your spaces and tours; it does not contain the tours themselves.');
   });
-  signOut?.addEventListener('click', async () => {
-    signOut.disabled = true;
+  // Sign out: at the end of the Account view and in the account menu on every view.
+  const menuSignOut = document.getElementById('desk-menu-sign-out');
+  const signOutNow = async control => {
+    if (control.disabled) return;
+    control.disabled = true;
     // This browser only: the global default would also sign the iPhone app out.
     const result = await settled(supabase.auth.signOut({ scope: 'local' }));
-    signOut.disabled = false;
-    if (failed(result)) { setStatus('Sign-out was not confirmed. Check the connection and try again before leaving this shared device.'); return; }
+    control.disabled = false;
+    if (failed(result)) { if (deskMenu) deskMenu.open = false; setStatus('Sign-out was not confirmed. Check the connection and try again before leaving this shared device.'); return; }
     showSignedOut('Signed out on this browser.');
-  });
+    // The page is the sign-in screen now: its heading is where the keyboard continues.
+    const title = document.getElementById('account-title');
+    if (title && deskBar) { title.tabIndex = -1; title.focus?.({ preventScroll: true }); }
+  };
+  signOut?.addEventListener('click', () => signOutNow(signOut));
+  menuSignOut?.addEventListener('click', () => signOutNow(menuSignOut));
 })().catch(() => {
+  try { document.body?.classList?.remove('session-checking'); const opening = document.getElementById('account-opening'); if (opening) opening.hidden = true; } catch { /* nothing to reveal */ }
   const el = document.getElementById('account-status');
   if (el) {
     el.textContent =

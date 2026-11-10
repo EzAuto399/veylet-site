@@ -1121,7 +1121,7 @@ test('the desk first-capture steps follow the app-first flow', () => {
   assert.doesNotMatch(markup, /Save a space\. Suburb or city only/);
   // The walkthroughs come first and the plan follows them; the page still says
   // the heading without JavaScript having to write it.
-  assert.ok(markup.indexOf('>Your walkthroughs<') < markup.indexOf('id="account-plan"'));
+  assert.ok(markup.indexOf('>Walkthroughs</h1>') > 0 && markup.indexOf('>Walkthroughs</h1>') < markup.indexOf('id="account-plan"'));
   assert.equal(markup.match(/id="account-plan-title"/g).length, 1);
   // This desk takes no card, with or without a script.
   assert.doesNotMatch(markup, /autocomplete="cc-|card number|cardholder|cvc/i);
@@ -1338,7 +1338,7 @@ test('the desk replaces the deletion mailto with the flow, and keeps what it can
   assert.doesNotMatch(markup, /Ask for deletion/);
   assert.doesNotMatch(markup, /mailto:[^"]*deletion/i);
   assert.match(markup, /<div id="account-deletion" aria-live="polite"><\/div>/);
-  assert.match(markup, /Deleting your account cannot recall downloaded copies/);
+  assert.match(markup, /copies people already downloaded cannot be\s+recalled/);
   // One statement of the confirmation, written where the confirmation happens.
   assert.equal(account.split(DELETE_CONFIRM).length - 1, 1);
   assert.equal(account.split("'Delete my account'").length - 1, 2, 'the opener and the confirmation, and nothing else');
@@ -1736,7 +1736,8 @@ test('each hosting situation reads its own line on the card', async () => {
       ['Keep this walkthrough online (A$49 a year)', 'text-link tour-extension-request']]);
     assert.equal(fix.children[0].hidden, !ended, line);
     assert.equal(fix.children[0].dataset.control, 'share-fix-plan');
-    assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '')).map(el => el.textContent), ['Copy link'], line);
+    // On the card: the Needs you row above the list has the page's own filled button.
+    assert.deepEqual(h.all().filter(el => /\btour-action-primary\b/.test(el.className || '') && !/^needs-/.test(el.dataset?.control || '')).map(el => el.textContent), ['Copy link'], line);
     const mail = decodeURIComponent(fix.children[1].href);
     assert.ok(mail.startsWith('mailto:support@veylet.com?subject=Veylet hosting extension · walkthrough t1'), mail);
     assert.match(mail, /Tour ID: t1\n/);
@@ -1874,11 +1875,12 @@ test('a creator who may share but not approve gets the live card without Withdra
 
 test('the signed-in desk puts walkthroughs first and leaving last', () => {
   const home = markup.slice(markup.indexOf('id="account-home"'));
-  // Adding a space sits with the list it adds to; the plan, capture help and
-  // the account follow the walkthroughs in source order, so a phone reads the
-  // same sequence the wide two-column desk shows.
-  const order = ['id="account-next-step"', '>Your walkthroughs<', 'id="account-refresh"', 'id="account-add-space"', 'id="account-properties"',
-    'id="account-plan"', '>First capture? See the steps<', 'id="account-gate"', '>Account details<', 'id="account-leaving"', 'id="account-sign-out"'];
+  // Four views in source order: Walkthroughs (its head, adding a space, what needs
+  // you, the next step, the plan in one line, the list), Plan, Your team, Account
+  // (details, leaving, capture help, sign out). A phone reads the same sequence.
+  const order = ['id="view-walkthroughs"', '>Walkthroughs<', 'id="account-refresh"', 'id="account-add-open"', 'id="account-needs"',
+    'id="account-next-step"', 'id="account-add-space"', 'id="account-plan-line"', 'id="account-properties"', 'id="view-plan"', 'id="account-plan"', 'id="view-team"', 'id="account-team"',
+    'id="account-contact"', 'id="view-account"', '>Account details<', 'id="account-leaving"', '>First capture? See the steps<', 'id="account-gate"', 'id="account-sign-out"'];
   const positions = order.map(marker => home.indexOf(marker));
   assert.ok(positions.every(position => position >= 0), 'every section is present');
   assert.deepEqual([...positions].sort((a, b) => a - b), positions);

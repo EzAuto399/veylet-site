@@ -128,10 +128,14 @@ test('an approved walkthrough on an unanswered listing says what sharing waits f
   assert.ok(h.button(card, 'Turn sharing on'), 'turning sharing on stays beside the fix');
   await fix.fire('click');
   assert.equal(radios(h.gate())[0].wasFocused, true);
-  // The next step says the same, with the same fix.
-  const next = h.ids['account-next-step'];
-  assert.ok(h.words(next).includes(WAIT_OCCUPANCY));
-  assert.ok(h.button(next, 'Answer the question'));
+  // Needs you says the same, with the same fix; the next step gives way to it.
+  const needs = h.ids['account-needs-list'];
+  assert.equal(h.ids['account-needs'].hidden, false);
+  assert.equal(h.ids['account-next-step'].hidden, true);
+  assert.equal(needs.text(), 'Harbour loft  is approved; sharing waits for you to say whether anyone lives here. Answer the question');
+  assert.ok(h.button(needs, 'Answer the question'));
+  await h.button(needs, 'Answer the question').fire('click');
+  assert.equal(radios(h.gate())[0].wasFocused, true);
 });
 
 test('enable_tour_share’s two new refusals read in the contract’s words, each with its own fix', async () => {

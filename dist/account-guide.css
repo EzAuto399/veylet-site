@@ -28,7 +28,8 @@
   /* As wide as the studio desk and left-aligned under the brand; signed out,
      the page stays the narrow sign-in column. */
   .form-page:has(> .desk:not([hidden])) { max-width: 1456px; }
-  .desk:not([hidden]) {
+  /* The two-column desk is the page the app opens; the website's desk is views. */
+  .desk:not([hidden]):has(> .desk-side) {
     display: grid;
     grid-template-columns: minmax(0, 760px) minmax(296px, 360px);
     justify-content: space-between;
@@ -42,7 +43,8 @@
 /* Every desk section opens the same way: its heading on a 1px ink rule. */
 .desk .dash-heading { margin: 0; font-size: 22px; line-height: 1.25; letter-spacing: -0.02em; }
 .desk-section-head,
-.desk-side .dash-heading { padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+.desk-side .dash-heading,
+.desk-view .dash-heading { padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .desk-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
 .desk-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0; }
 .desk #account-updated { margin: 0; flex-basis: auto; font-size: 13px; letter-spacing: 0; }
@@ -132,7 +134,9 @@
   .desk .tour-views { flex: 1 1 100%; margin-left: 0; }
   .desk .dash-tour .tour-card-row > .tour-actions-row { flex: 1 1 100%; }
   .desk .dash-tour .tour-card-row > .tour-actions-row > .tour-action { flex: 1 1 auto; }
-  .tour-disclosures { flex: 1 1 100%; margin-left: -6px; }
+  /* The quiet toggles hang on the card's left keyline, under its buttons. */
+  .tour-disclosures { flex: 1 1 100%; margin-left: 0; gap: 0 4px; }
+  .tour-disclosures .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
 }
 @media (prefers-reduced-motion: reduce) { .tour-disclosure { transition: none; } }
 /* One walkthrough, two versions: each says which it is, and the version a waiting
@@ -493,11 +497,17 @@
 
 /* The side column: capture help and the account, as hairline disclosures. */
 .desk-side .account-details,
-.desk-side .gate-note { margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.desk-view .account-details,
+.desk-side .gate-note,
+.desk-view .gate-note { margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
 .desk-side .account-details[open],
-.desk-side .gate-note[open] { padding-bottom: 18px; }
+.desk-view .account-details[open],
+.desk-side .gate-note[open],
+.desk-view .gate-note[open] { padding-bottom: 18px; }
 .desk-side .account-details > summary,
-.desk-side .gate-note > summary {
+.desk-view .account-details > summary,
+.desk-side .gate-note > summary,
+.desk-view .gate-note > summary {
   padding-block: 12px;
   font-size: 15px;
   font-weight: 500;
@@ -505,8 +515,11 @@
   transition: color 0.16s, background-color 0.16s;
 }
 .desk-side .account-details > summary:hover,
-.desk-side .gate-note > summary:hover { color: #2c4939; }
-.desk-side .gate-note-title { margin: 0; font-size: 15px; font-weight: 500; }
+.desk-view .account-details > summary:hover,
+.desk-side .gate-note > summary:hover,
+.desk-view .gate-note > summary:hover { color: #2c4939; }
+.desk-side .gate-note-title,
+.desk-view .gate-note-title { margin: 0; font-size: 15px; font-weight: 500; }
 .desk .dash-flow { margin: 4px 0 0; }
 .desk-links { margin: 12px 0 0; }
 .desk #account-id { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
@@ -514,8 +527,10 @@
 @media (min-width: 1080px) {
   /* In the narrow column the plan keeps term and value side by side; the
      longer leaving answers read better under their questions. */
-  .desk-side .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 2px 16px; padding: 11px 0; }
-  .desk-side .leaving-list:not(.plan-list) > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .desk-side .plan-list > div,
+  .desk-view .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 2px 16px; padding: 11px 0; }
+  .desk-side .leaving-list:not(.plan-list) > div,
+  .desk-view .leaving-list:not(.plan-list) > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }
 
 /* Signed out: the status line is a message and the form is a task. */
@@ -732,3 +747,115 @@
   line-height: 1.5;
   color: var(--ink);
 }
+
+/* ---- The desk as views ----------------------------------------------------
+   Signed in, the website's desk has its own bar (brand, views, office, account
+   menu) and four views chosen by the URL hash. One reading column per view; the
+   walkthroughs take the wide one. Rules sit under .desk-bar and .desk-view so the
+   page the app opens, which has neither, is untouched. */
+.session-checking #site-header nav { visibility: hidden; }
+.session-checking #main { min-height: calc(100vh - 220px); }
+.session-checking #main > * { display: none; }
+.session-checking #main > #account-opening,
+.session-checking #main > #account-status { display: block; }
+.desk-opening { margin: 0; color: var(--muted); }
+.desk-bar { border-bottom: 1px solid var(--line); }
+.desk-bar-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 0 32px; min-height: 56px; }
+.desk-bar .brand { min-height: 44px; }
+.desk-views { flex: 1 1 auto; flex-wrap: nowrap; gap: 0 24px; min-width: 0; font-size: 14px; }
+.desk-views a { flex: none; min-height: 44px; color: var(--muted); border-bottom: 0; padding-bottom: 0; text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 6px; transition: color 0.17s, text-decoration-color 0.17s; }
+.desk-views a:last-child { border-bottom: 0; padding-bottom: 0; }
+.desk-views a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.desk-views a[aria-current='page'] { color: var(--ink); text-decoration-color: currentColor; text-decoration-thickness: 2px; }
+.desk-office { flex: 0 1 auto; min-width: 0; margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desk-menu { position: relative; flex: none; margin-left: auto; }
+.desk-office:not([hidden]) + .desk-menu { margin-left: 0; }
+.desk-views + .desk-office { margin-left: auto; }
+.desk-menu > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; padding: 0 2px; list-style: none; cursor: pointer; font-size: 14px; line-height: 1.3; color: var(--ink); }
+.desk-menu > summary::-webkit-details-marker { display: none; }
+.desk-menu > summary::after { content: ""; width: 7px; height: 7px; margin-top: -4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); transition: transform 0.2s; }
+.desk-menu[open] > summary::after { margin-top: 3px; transform: rotate(225deg); }
+.desk-menu > summary:focus-visible { outline: 3px solid #897033; outline-offset: 2px; }
+.desk-menu-list { position: absolute; z-index: 5; top: 100%; right: 0; display: grid; min-width: 232px; max-width: min(320px, calc(100vw - 32px)); padding: 6px 0; border: 1px solid var(--field-line); background: var(--paper); }
+.desk-menu-who { margin: 0; padding: 8px 16px 10px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.desk-menu-list > a,
+.desk-menu-list > button { display: flex; align-items: center; min-height: 44px; margin: 0; padding: 0 16px; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.3; text-align: left; cursor: pointer; }
+.desk-menu-list > a:hover,
+.desk-menu-list > button:hover { background: rgba(16, 35, 29, 0.06); }
+.desk-menu-list > a:focus-visible,
+.desk-menu-list > button:focus-visible { outline-offset: -3px; }
+.desk-menu-list > a[aria-current='page'] { font-weight: 500; }
+@media (max-width: 719px) {
+  /* A phone: brand and the account menu, then the views as one row that scrolls. */
+  .desk-bar-inner { gap: 0 16px; min-height: 52px; }
+  .desk-views { order: 3; flex: 1 1 100%; gap: 0 20px; overflow-x: auto; border-top: 1px solid var(--line); scrollbar-width: none; }
+  .desk-views::-webkit-scrollbar { display: none; }
+  .desk-office { display: none; }
+  .desk-bar .desk-menu { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .desk-views a, .desk-menu > summary::after { transition: none; } }
+
+.form-page:has(> .desk:not([hidden]) > .desk-view) { max-width: 1456px; padding-block: 0 64px; }
+.form-page:has(> .desk:not([hidden]) > .desk-view) > #account-status:not(:empty) { margin: 16px 0 0; }
+.desk-view { min-width: 0; max-width: 720px; }
+#view-walkthroughs { max-width: 1040px; }
+.desk .view-title { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.desk .view-title:focus { outline: none; }
+.desk .view-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.view-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--ink); }
+.desk-view > .view-title,
+.desk-view > .desk-section > .view-title { display: flex; align-items: center; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--ink); }
+.view-head .desk-refresh { gap: 8px 12px; }
+.view-head .desk-refresh .tour-action { padding-inline: 14px; }
+.desk-view > .desk-section + .desk-section,
+.desk-view > .contact-note + .desk-section { margin-top: 40px; }
+.desk-view .dash-heading { padding-bottom: 10px; border-bottom: 1px solid var(--ink); font-size: 19px; font-weight: 500; letter-spacing: -0.015em; }
+.desk-view > .contact-note { margin-top: 16px; }
+.desk-view .desk-who { margin: 14px 0 6px; }
+.desk-view .desk-sign-out { width: auto; margin-top: 32px; }
+.desk-view .plan-title { margin-top: 18px; }
+.desk-view .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 2px 16px; padding: 11px 0; }
+/* Add a space: the button in the page head opens the form under it. */
+.desk-view .desk-add > summary { display: none; }
+.desk-view .desk-add[open] { padding: 20px 0 24px; border-bottom: 1px solid var(--line); }
+
+/* Needs you: hairline rows, one action each, the first one filled. */
+.needs { margin: 0; }
+.needs-title { margin: 0; padding: 16px 0 6px; font-size: 14px; font-weight: 500; line-height: 1.4; letter-spacing: 0; color: var(--ink); }
+.desk .needs-list { margin: 0; padding: 0; list-style: none; }
+.desk .needs-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; min-height: 56px; margin: 0; padding: 6px 0; border-top: 1px solid var(--line); }
+.desk .needs-list > li:last-child { border-bottom: 1px solid var(--line); }
+.needs-words { flex: 1 1 280px; min-width: 0; margin: 0; font-size: 15px; line-height: 1.45; color: var(--muted); }
+.needs-words strong { font-weight: 500; color: var(--ink); }
+.desk .needs-list > .needs-more { min-height: 44px; padding: 0; justify-content: flex-start; }
+.desk .needs-list > .needs-more .tour-disclosure { margin-left: -6px; }
+/* The next step, when nothing waits on the reader: one quiet row with its one action. */
+.desk-view .account-next { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--line); background: none; }
+.desk-view .account-next h2 { grid-column: 1; margin: 0; font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: -0.01em; }
+.desk-view .account-next > p:not(.eyebrow) { grid-column: 1; margin: 0; max-width: 72ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.desk-view .account-next > .tour-action,
+.desk-view .account-next > .button { grid-column: 2; grid-row: 1 / span 2; }
+.desk-view .account-next > .text-link { grid-column: 1; font-size: 14px; }
+@media (max-width: 599px) {
+  .desk-view .account-next { grid-template-columns: minmax(0, 1fr); }
+  .desk-view .account-next > .tour-action,
+  .desk-view .account-next > .button { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 8px; }
+}
+/* The plan in one line. */
+.plan-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px; min-height: 44px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.plan-line-words { flex: 1 1 260px; min-width: 0; padding-block: 6px; }
+.plan-line .text-link { flex: none; font-size: 14px; color: var(--ink); }
+.desk-view .account-list > .dash-space:first-child { border-top-color: var(--ink); }
+.desk-view .dash-space { padding: 18px 0 8px; }
+.desk-view .dash-tours { margin-top: 12px; }
+.desk-view .dash-tour { padding: 14px 0; }
+.desk-view .space-prep { margin: 0; padding: 0; border-top: 1px solid var(--line); border-bottom: 0; }
+.desk-view .space-prep > summary { min-height: 44px; padding-block: 10px; font-size: 14px; color: var(--muted); }
+.desk-view .space-prep[open] { padding-bottom: 16px; }
+.desk .dash-tour .tour-plan-where { margin-top: 6px; font-size: 13px; color: var(--muted); }
+#account-team-empty:has(~ .desk-section:not([hidden])) { display: none; }
+.desk-footer { padding-block: 6px; gap: 4px 24px; }
+.desk-footer nav { gap: 0 24px; font-size: 12px; }
+.desk-footer:not([hidden]) + footer { display: none; }
+/* The view's own heading says "Your team"; the section's twin only names the region. */
+#view-team #account-team-title { display: none; }
