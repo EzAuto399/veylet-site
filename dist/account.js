@@ -862,6 +862,36 @@
    * it opened still waits for that.
    */
   const DECK_ORDER = ['link', 'qr', 'website', 'insights', 'exports', 'manage'];
+  /*
+   * Keeping place. A refresh redraws every card, so which panel was open on which
+   * walkthrough is remembered here (and for this tab, so a reload keeps it too) and
+   * opened again as soon as its button is back. Closing a panel forgets it.
+   */
+  const DECK_KEY = 'veylet-desk-open';
+  const deckWanted = new Map();
+  try {
+    const kept = JSON.parse(window.sessionStorage?.getItem(DECK_KEY) || 'null');
+    if (kept && typeof kept === 'object') for (const [id, key] of Object.entries(kept)) if (DECK_ORDER.includes(key)) deckWanted.set(id, key);
+  } catch { /* nothing kept */ }
+  const deckKeep = () => { try { window.sessionStorage?.setItem(DECK_KEY, JSON.stringify(Object.fromEntries(deckWanted))); } catch { /* this page load still has it */ } };
+  // The control that had keyboard focus when the desk was redrawn, by id; it is focused again when it returns.
+  let deskFocusWanted = '';
+  function deskFocusBack(control) {
+    if (!deskFocusWanted || !control || control.id !== deskFocusWanted || control.hidden) return;
+    deskFocusWanted = ''; control.focus?.({ preventScroll: true });
+  }
+  /*
+   * A read that only feeds a card far down the list waits until the card is near the
+   * screen (or its view is shown). Without IntersectionObserver it runs at once.
+   */
+  function whenNear(item, run, now = false) {
+    if (now || typeof IntersectionObserver !== 'function' || !item) { run(); return; }
+    const watch = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      watch.disconnect(); run();
+    }, { rootMargin: '600px 0px' });
+    watch.observe(item);
+  }
   function cardDeck(tour, item) {
     const row = document.createElement('div'); row.className = 'tour-card-row'; row.hidden = true;
     const nav = document.createElement('div'); nav.className = 'tour-disclosures'; nav.hidden = true;
@@ -876,7 +906,14 @@
     const set = (entry, open) => {
       entry.open = open; entry.panel.hidden = !open;
       entry.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) deckWanted.set(tour.id, entry.key); else if (deckWanted.get(tour.id) === entry.key) deckWanted.delete(tour.id);
+      deckKeep();
       if (open && entry.opened) entry.opened();
+    };
+    // The panel that was open before a refresh or reload opens again once its button is offered.
+    const again = entry => {
+      if (!entry.toggle.hidden && !entry.open && deckWanted.get(tour.id) === entry.key && !entries.some(each => each.open)) set(entry, true);
+      deskFocusBack(entry.toggle);
     };
     const mount = () => { if (!placed) { placed = true; item.append(row); } };
     return {
@@ -904,7 +941,7 @@
         toggle.addEventListener('keydown', escape); panel.addEventListener('keydown', escape);
         entry.toggle = toggle;
         // Shown only once there is something behind it; hiding an open one closes it.
-        entry.show = visible => { toggle.hidden = !visible; if (!visible && entry.open) set(entry, false); sync(); };
+        entry.show = visible => { toggle.hidden = !visible; if (!visible && entry.open) set(entry, false); sync(); if (visible && placed) again(entry); };
         entries.push(entry);
         entries.sort((a, b) => DECK_ORDER.indexOf(a.key) - DECK_ORDER.indexOf(b.key));
         nav.replaceChildren(...entries.map(each => each.toggle));
@@ -912,7 +949,7 @@
         return entry;
       },
       // Once the card is drawn: the row (even without buttons), then its panels in order.
-      finish() { mount(); item.append(...entries.map(entry => entry.panel)); sync(); },
+      finish() { mount(); item.append(...entries.map(entry => entry.panel)); sync(); for (const entry of entries) again(entry); },
     };
   }
   function targetMessage(value) {
@@ -1807,11 +1844,12 @@
   }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
   // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".
-  function tourViews(tour, host, supabase, ticket, title, insights) {
+  function tourViews(tour, host, supabase, ticket, title, insights, item = null) {
     host.className = 'tour-views'; host.hidden = true;
     if (insights) insights.show(false);
     if (!viewsAvailable) return;
-    void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+    whenNear(item, () => void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+      if (!viewsAvailable) return;
       if (ticket !== deskVersion) return;
       if (missingFunction(reply)) { viewsAvailable = false; return; }
       if (failed(reply)) return;
@@ -1825,7 +1863,7 @@
       if (last) bits.push('last ' + last);
       host.textContent = bits.join(' · '); host.hidden = false;
       if (opens > 0 && insights) tourInsights(tour, row, title, insights, last, supabase, ticket);
-    });
+    }), deckWanted.has(tour.id));
   }
   function stopSharing(tour, supabase, ticket, parent) {
     let armed = false;
@@ -2176,7 +2214,7 @@
       else if (row.state === 'failed') { show(EXPORT_WORDS.failed, focus); requestForm(row, EXPORT_WORDS.again, false); }
       else { show(EXPORT_WORDS.preparing, focus); checkAgain(); }
     }
-    void read(false);
+    whenNear(item, () => void read(false), deckWanted.has(tour.id));
   }
 
   /* ---- Is anyone living here? --------------------------------------------
@@ -2609,7 +2647,7 @@
         const views = document.createElement('span');
         (tourChips.get(tour.id)?.row || item).append(views);
         const insights = document.createElement('div'); insights.className = 'tour-panel tour-insights';
-        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights));
+        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights), item);
       }
       if (canShare) {
         if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);
@@ -5321,6 +5359,7 @@
     emailSay(state.optIn ? 'Saved. We’ll email you tips and offers.' : 'Saved. We won’t email you tips or offers.');
   }
   /** Read once per signed-in account; a failed or odd answer shows nothing and the next desk load asks again. */
+  let emailWatched = false;
   async function emailRender(client) {
     if (!emailPanel || !emailBox || APP_MODE || !currentUserId) return;
     if (emailPrefs && emailPrefs.userId === currentUserId) return;
@@ -5360,7 +5399,7 @@
   // lane's draft 20260926131000_account_deletion_followups), word for word.
   const DELETION_TEAM_FIRST = 'Transfer ownership or remove your teammates first.';
   const DELETION_KEEP = 'Keep my account';
-  const DELETION_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
+  const DELETION_CONFIRM = 'Your account, its spaces and its walkthroughs will be deleted within 30 days, and we confirm when it is done. You can cancel until removal starts; after that nothing can be restored. When deletion completes, every handoff link and embed stops working. A subscription billed by Apple is cancelled with Apple, not here.';
   let deletionBusy = false;
 
   function deletionShow(...parts) {
@@ -5440,7 +5479,10 @@
     remove.classList.add('tour-action-danger');
     remove.dataset.armed = 'true';
     const keep = button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); });
-    deletionShow(deletionNote(DELETION_CONFIRM), field, deletionRow(remove, keep));
+    // The confirmation names what is being deleted before it says what follows.
+    const parts = [deletionNote(DELETION_CONFIRM), field, deletionRow(remove, keep)];
+    if (currentUserEmail) parts.unshift(deletionNote('Delete the account for ' + currentUserEmail + '?', 'contact-note deletion-which'));
+    deletionShow(...parts);
   }
   function deletionRequested(supabase, when) {
     const ticket = deskVersion;
@@ -6394,7 +6436,23 @@
       renderSay(offlineWords(0));
       return;
     }
-    if (shown) ticket = deskReset();
+    if (shown) {
+      // Keep the reader's place through the redraw: the page's scroll, the height the
+      // list had (so the page cannot collapse under them) and the control in focus.
+      const active = document.activeElement;
+      const inList = Boolean(active && active !== list && list.contains?.(active));
+      const panel = inList && !active.id ? active.closest?.('.tour-panel') : null;
+      deskFocusWanted = inList ? active.id || (panel?.id ? panel.id + '-toggle' : '') : '';
+      const top = window.scrollY, wanted = deskFocusWanted;
+      if (list.style && list.offsetHeight) list.style.minHeight = list.offsetHeight + 'px';
+      setTimeout(() => {
+        if (typeof top === 'number' && window.scrollY !== top) window.scrollTo?.(0, top);
+        if (inList && !wanted) document.getElementById('account-work-title')?.focus?.({ preventScroll: true });
+        else if (wanted) deskFocusBack(document.getElementById(wanted));
+      }, 0);
+      setTimeout(() => { if (list.style) list.style.minHeight = ''; if (deskFocusWanted === wanted) deskFocusWanted = ''; }, 1500);
+      ticket = deskReset();
+    }
     list.setAttribute('aria-busy', 'false');
     if (statusEl?.textContent === 'Signed in. Loading your spaces…') setStatus('');
     if ([props, tours, members].some(sessionGone)) { showSignedOut('Your sign-in has expired. Sign in again to refresh your spaces.'); return; }
@@ -6407,7 +6465,8 @@
     // what the list is allowed to show.
     void renderDeletion(supabase, ticket);
     // The email preferences read their own record, once per account.
-    void emailRender(supabase);
+    // (Asked when the Account view is first near the screen, not on every desk load.)
+    if (!emailWatched) { emailWatched = true; whenNear(viewEls.get('account'), () => { emailWatched = false; void emailRender(supabase); }); }
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
     if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
@@ -7115,7 +7174,7 @@
     if (typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) { setStatus('This browser cannot save the file. Try a current desktop browser.'); return; }
     const records = {
       exported_at: new Date().toISOString(), format: 'veylet-desk-records-1',
-      note: 'Space and tour records visible to this account. No link secrets, storage paths, imagery or scene files are included.',
+      note: 'Space and walkthrough records visible to this account. No link secrets, storage paths, imagery or scene files are included.',
       spaces: lastDesk.properties.map(row => ({ id: row.id, title: row.title, category: row.category || null, general_location: row.location_general || null, created_at: row.created_at || null,
         tours: lastDesk.rows.filter(tour => tour.property_id === row.id).map(tour => ({ id: tour.id, status: tour.status, created_at: tour.created_at || null, has_active_link: Boolean(tour.share_token) && !tour.share_paused_at,
           walkthrough_id: walkthroughOf(tour), version: revisionOf(tour), replaced_at: tour.superseded_at || null })) })),
@@ -7123,7 +7182,11 @@
     const url = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a'); link.href = url; link.download = 'veylet-records-' + records.exported_at.slice(0, 10) + '.json';
     link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setStatus('Records saved as a file. It lists your spaces and tours; it does not contain the tours themselves.');
+    const saved = 'Records saved as a file. It lists your spaces and walkthroughs; it does not contain the walkthroughs themselves.';
+    setStatus(saved);
+    // Said next to the button too: the page's own status line is a screen away from it.
+    const beside = document.getElementById('account-export-status');
+    if (beside) beside.textContent = saved;
   });
   // Sign out: at the end of the Account view and in the account menu on every view.
   const menuSignOut = document.getElementById('desk-menu-sign-out');

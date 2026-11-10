@@ -1568,3 +1568,24 @@ test('Where viewers looked: stops in one room are told apart by their order, and
   assert.deepEqual(x.texts('tour-heat-stop-top'), ['Looked all around', 'Mostly one side of the room (80% of the time)', 'Mostly one direction (100% of the time)', 'Too brief to say where they looked']);
   assert.deepEqual(x.texts('tour-heat-stop-pitch').at(-1), 'Level 0% · down 0% · up 100%');
 });
+
+test('Refresh keeps the reader’s place: the panel that was open on a card is open again, and a closed one stays closed', async () => {
+  const x = await heatDesk(async () => ({ data: HEATMAP }));
+  await x.open();
+  const before = x.h.card('t1');
+  x.toggle.focus();
+  await x.h.ids['account-refresh'].fire('click');
+  await settle(); await settle();
+  const card = x.h.card('t1');
+  assert.notEqual(card, before, 'the card was redrawn');
+  assert.equal(panelOf(card, 'insights').hidden, false, 'Insights is open again');
+  assert.equal(toggleOf(card, 'insights').attributes['aria-expanded'], 'true');
+  assert.equal(x.h.documentStub.activeElement, toggleOf(card, 'insights'), 'focus returns to the same control on the new card');
+  assert.equal(panelOf(card, 'insights').all().filter(el => el.className === 'tour-insights-lead').length, 1);
+  // Only one panel per card comes back, and closing it is remembered too.
+  assert.equal(panelOf(card, 'link').hidden, true);
+  await toggleOf(card, 'insights').fire('click');
+  await x.h.ids['account-refresh'].fire('click');
+  await settle(); await settle();
+  assert.equal(panelOf(x.h.card('t1'), 'insights').hidden, true);
+});

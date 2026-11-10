@@ -854,3 +854,6 @@
 .desk-footer:not([hidden]) + footer { display: none; }
 /* The view's own heading says "Your team"; the section's twin only names the region. */
 #view-team #account-team-title { display: none; }
+
+/* The deletion confirmation names the account first, in ink. */
+.deletion-which { color: var(--ink); font-weight: 500; }

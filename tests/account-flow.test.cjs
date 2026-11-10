@@ -762,7 +762,8 @@ test('the records file lists spaces and tours without link secrets or storage pa
   const records = JSON.parse(text);
   assert.equal(records.spaces[0].tours[0].has_active_link, true);
   assert.doesNotMatch(text, /abcdefghijklmnop|original\.zip|share_token|storage_path/);
-  assert.match(h.ids['account-status'].textContent, /does not contain the tours themselves/);
+  assert.match(h.ids['account-status'].textContent, /does not contain the walkthroughs themselves/);
+  assert.equal(h.ids['account-export-status'].textContent, h.ids['account-status'].textContent, 'said beside the button too');
 });
 test('the records file is unavailable while tour status could not load', async () => {
   const h = await load({ tables: { tours: { error: { message: 'unavailable' } } } });
@@ -1192,7 +1193,7 @@ test('the panel leads with the vocabulary title, then the rows, then the sentenc
  * unanswered check is unavailable — never a safe account and never a deletion
  * already under way — and nothing is written without the named confirmation.
  */
-const DELETE_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
+const DELETE_CONFIRM = 'Your account, its spaces and its walkthroughs will be deleted within 30 days, and we confirm when it is done. You can cancel until removal starts; after that nothing can be restored. When deletion completes, every handoff link and embed stops working. A subscription billed by Apple is cancelled with Apple, not here.';
 const deletionText = h => h.ids['account-deletion'].all().map(el => el.textContent).join('\n');
 const deletionAction = (h, label) => h.ids['account-deletion'].all()
   .find(el => el.tagName === 'BUTTON' && el.textContent === label);
@@ -1243,6 +1244,8 @@ test('deleting is confirmed in its own words, and keeping the account writes not
   const h = await load();
   await deletionAction(h, 'Delete my account').fire('click');
   assert.match(deletionText(h), new RegExp(DELETE_CONFIRM.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(deletionText(h), /Delete the account for \S+@\S+\?/, 'the confirmation names the account');
+  assert.doesNotMatch(deletionText(h), /cannot be undone/, 'it can be cancelled until removal starts, so it never says otherwise');
   assert.ok(h.ids['account-deletion'].all().some(el => el.tagName === 'TEXTAREA'), 'the reason is offered, not demanded');
   assert.ok(deletionAction(h, 'Keep my account'));
   assert.equal(h.calls.some(call => call[0] === 'request_account_deletion'), false);
