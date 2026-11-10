@@ -25,11 +25,14 @@
   box-sizing: border-box;
 }
 html {
-  scroll-behavior: smooth;
   scroll-padding-top: 30px;
 }
 body {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+details:not([open]) > :not(summary) {
+  display: none;
 }
 a {
   color: inherit;
@@ -104,13 +107,15 @@ p {
 header {
   padding-block: 34px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 24px;
+  gap: 12px 24px;
 }
 nav {
   display: flex;
-  gap: 30px;
+  flex-wrap: wrap;
+  gap: 12px 30px;
   font-size: 12px;
 }
 nav a:last-child {
@@ -583,6 +588,7 @@ h2 {
 footer {
   padding-block: 30px 35px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 28px;
@@ -597,12 +603,18 @@ footer > span {
   position: absolute;
   top: -100px;
   left: 20px;
+  max-width: calc(100% - 40px);
   background: var(--paper);
   padding: 15px;
   z-index: 10;
+  opacity: 0;
+  pointer-events: none;
 }
-.skip:focus {
+.skip:focus,
+.skip:focus-visible {
   top: 15px;
+  opacity: 1;
+  pointer-events: auto;
 }
 dialog {
   border: 0;
@@ -1032,6 +1044,12 @@ nav a,
   min-height: 44px;
   align-content: center;
 }
+nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+}
 .button,
 .text-link,
 .enquiry-route-link {
@@ -1277,7 +1295,7 @@ footer > span {
     font-size: 21px;
   }
 }
-@media (max-width: 750px) {
+@media (max-width: 800px) {
   header {
     flex-wrap: wrap;
     gap: 12px;
@@ -1450,7 +1468,7 @@ footer > span {
   min-width: 0;
 }
 .veylet-form .check {
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
 }
@@ -1458,6 +1476,7 @@ footer > span {
 .veylet-form textarea,
 .veylet-form select {
   font: inherit;
+  font-size: 16px;
   color: var(--ink);
   background: #fff;
   border: 1px solid var(--line);
@@ -1476,12 +1495,15 @@ footer > span {
   min-height: 96px;
   resize: vertical;
 }
-.veylet-form .honey {
+.veylet-form .honey,
+.veylet-form .honey-label {
   position: absolute;
   left: -9999px;
   height: 0;
   width: 0;
   overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 .veylet-form .button {
   justify-self: start;
@@ -2159,7 +2181,7 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
   font-size: 14px;
 }
 .veylet-form .choice {
-  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: start;
   gap: 12px;
   padding: 14px 16px;
@@ -2182,14 +2204,20 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
   outline-offset: 3px;
 }
 .veylet-form .choice input {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   min-height: 0;
   padding: 0;
   margin: 1px 0 0;
 }
 .veylet-form .choice input:focus-visible {
   outline: none;
+}
+.choice > span,
+#account-signup-tips-label {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .choice strong {
   display: block;

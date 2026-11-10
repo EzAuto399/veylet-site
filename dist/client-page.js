@@ -40,6 +40,31 @@
     return 'mailto:' + encoded + '?subject=' + encodeURIComponent('Walkthrough: ' + (title || 'Shared space'));
   }
 
+  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
+  function bookingHref(url) {
+    const raw = clean(url, 240);
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
+  function viewingRequestHref(email, title, agentName) {
+    const address = clean(email, 254);
+    if (!EMAIL.test(address)) return '';
+    const at = address.lastIndexOf('@');
+    const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
+    const space = title || 'Shared space';
+    const greeting = agentName ? 'Hi ' + agentName + ',' : 'Hello,';
+    const subject = 'Book a viewing: ' + space;
+    const body = greeting + '\n\nI just explored the 3D walkthrough of ' + space + ' and would like to arrange an inspection.\n\nPreferred day / time:\nMy phone number:\n';
+    return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  }
+
   /** The one row the server answers, or null unless it names someone reachable. */
   function contactFrom(data) {
     const row = Array.isArray(data) ? data[0] : data;
@@ -48,7 +73,16 @@
     const phone = dialable(row.phone) ? clean(row.phone, 32) : '';
     const email = EMAIL.test(clean(row.email, 254)) ? clean(row.email, 254) : '';
     if (!name || (!phone && !email)) return null;
-    return { name, agency: clean(row.agency, 80), phone, email };
+    const bookingUrl = bookingHref(row.booking_url);
+    const allowViewingRequest = row.allow_viewing_request === true;
+    return {
+      name,
+      agency: clean(row.agency, 80),
+      phone,
+      email,
+      ...(bookingUrl ? { bookingUrl } : {}),
+      ...(allowViewingRequest ? { allowViewingRequest: true } : {}),
+    };
   }
 
   function withTimeout(promise, ms) {
@@ -152,6 +186,7 @@
     let off = !cfg.url || !cfg.anonKey || !request || typeof token !== 'string' || token.length < 16;
     const endpoint = off ? '' : String(cfg.url).replace(/\/+$/, '') + '/rest/v1/rpc/' + VIEW_FUNCTION;
     const said = new Set();
+    const roomsSeen = new Set();
     let openedAt = null, openedMark = null;
 
     function send(kind, detail) {
@@ -177,6 +212,13 @@
       return true;
     }
 
+    function roomVisited(roomName) {
+      const name = clean(roomName, 80);
+      if (!name || roomsSeen.has(name) || roomsSeen.size >= 24) return false;
+      roomsSeen.add(name);
+      return send('room', { room: name });
+    }
+
     function seconds(ms) { return Math.min(DWELL_CAP_SECONDS, Math.max(0, Math.round(ms / 1000))); }
 
     /** The first 3D frame, when the player marks one; nothing when it does not. */
@@ -199,12 +241,19 @@
       src,
       host,
       send,
+      roomVisited,
       /** The walkthrough was found: count the open, then its first frame and, once, the time spent. */
       opened(win) {
         if (!send('open')) return false;
         openedAt = clock();
         try { openedMark = win && win.performance && typeof win.performance.now === 'function' ? win.performance.now() : null; } catch { openedMark = null; }
         watchFirstFrame(win);
+        if (win && win.document && typeof win.document.addEventListener === 'function') {
+          win.document.addEventListener('veylet:room', event => {
+            const name = event && event.detail && event.detail.room;
+            if (name) roomVisited(name);
+          });
+        }
         if (win && typeof win.addEventListener === 'function') {
           win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', seconds(clock() - openedAt)); }, { once: true });
         }
@@ -233,16 +282,27 @@
   /** Call is the filled action when there is a phone; otherwise Email is. A tap is counted for the agent. */
   function contactActions(doc, contact, title, beacon) {
     const actions = element(doc, 'div', 'agent-actions');
-    const add = (href, text, verb, kind) => {
+    const add = (href, text, verb, kind, detail, external) => {
       if (!href) return;
       const link = element(doc, 'a', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', text);
       link.setAttribute('href', href);
       link.setAttribute('aria-label', verb + ' ' + contact.name);
-      if (beacon && typeof link.addEventListener === 'function') link.addEventListener('click', () => beacon.send(kind));
+      if (external) {
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+      }
+      if (beacon && typeof link.addEventListener === 'function') {
+        link.addEventListener('click', () => (detail === undefined ? beacon.send(kind) : beacon.send(kind, detail)));
+      }
       actions.append(link);
     };
     add(telHref(contact.phone), 'Call', 'Call', 'call_tap');
     add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
+    if (contact.bookingUrl) {
+      add(bookingHref(contact.bookingUrl), 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
+    } else if (contact.allowViewingRequest && contact.email) {
+      add(viewingRequestHref(contact.email, title, contact.name), 'Book viewing', 'Book viewing with', 'email_tap', { booking: true }, false);
+    }
     return actions;
   }
 
@@ -507,7 +567,7 @@
   }
 
   window.VeyletClientPage = {
-    dialable, telHref, mailtoHref, contactFrom, lookupContact, restClient,
+    dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
     channelFrom, referrerHost, viewBeacon,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,

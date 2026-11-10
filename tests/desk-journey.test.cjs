@@ -1270,3 +1270,90 @@ test('app mode: the review preview opens /play with from=app, so its links stay 
   const site = await load({ tours: [readyTour()] });
   assert.match(byText(site.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}$/);
 });
+
+test('Walkthrough insights & vendor report, open-home QR sign card and pre-capture readiness kit work on the desk', async () => {
+  const stats = {
+    opens: 14,
+    days_with_opens: 5,
+    call_taps: 3,
+    email_taps: 1,
+    share_taps: 2,
+    avg_dwell_seconds: 105,
+    by_src: { link: 8, qr: 4, embed: 2 },
+    by_host: { 'harbourrealty.com.au': 2 },
+    by_room: { Kitchen: 9, 'Living room': 7 },
+    last_opened_at: '2026-09-24T02:00:00Z',
+  };
+  const h = await load({
+    tours: [liveTour()],
+    approved: true,
+    hosting: [released()],
+    properties: [{ id: 'p1', title: '12 Rue Café & Co.', location_general: 'Paddington QLD', workspace_id: 'w1' }],
+    rpc: { get_tour_view_stats: async () => ({ data: [stats] }) },
+  });
+  await settle();
+  const card = h.card('t1');
+
+  // 1. Walkthrough insights & vendor report disclosure.
+  const insights = card.all().find(el => el.className === 'account-details tour-insights');
+  assert.ok(insights && !insights.hidden);
+  assert.equal(insights.children[0].textContent, 'Walkthrough insights & vendor report');
+  insights.open = true;
+  await insights.fire('toggle');
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-summary').textContent,
+    'Active days: 5 · Direct enquiries: 4 · Link shares: 2 · Avg. time: 1m 45s');
+  assert.deepEqual(insights.all().filter(el => el.className === 'tour-insights-channel').map(el => el.textContent),
+    ['Direct link: 8 (57%)', 'QR code: 4 (29%)', 'Website embed: 2 (14%)']);
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-hosts').textContent,
+    'Embedded on: harbourrealty.com.au (2)');
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-rooms').textContent,
+    'Most explored rooms: Kitchen (9) · Living room (7)');
+
+  const copyReport = insights.all().find(el => el.dataset.control === 'copy-vendor-report');
+  await copyReport.fire('click');
+  await settle();
+  assert.match(h.copied.at(-1), /Walkthrough campaign report — 12 Rue Café & Co\./);
+  assert.match(h.copied.at(-1), /Total opens: 14 \(5 active days · last opened 24 Sep 2026\)/);
+  assert.equal(rowLine(insights), 'Vendor report copied. Paste it into your vendor update.');
+
+  const dlReport = insights.all().find(el => el.dataset.control === 'download-vendor-report');
+  await dlReport.fire('click');
+  await settle();
+  const reportAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(reportAnchor.download, '12-rue-cafe-co-vendor-report.txt');
+  assert.equal(rowLine(insights), 'Vendor report saved as 12-rue-cafe-co-vendor-report.txt.');
+
+  // 2. Open-home QR sign card download.
+  const qr = card.all().find(el => el.className === 'account-details tour-qr');
+  qr.open = true;
+  await qr.fire('toggle');
+  const signDl = qr.all().find(el => el.dataset.control === 'qr-sign-download');
+  assert.equal(signDl.disabled, false);
+  await signDl.fire('click');
+  await settle();
+  const signAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(signAnchor.download, '12-rue-cafe-co-open-home-sign.png');
+  const signCanvas = h.created.filter(el => el.tagName === 'CANVAS').at(-1);
+  assert.deepEqual([signCanvas.width, signCanvas.height], [1200, 1600]);
+  assert.equal(rowLine(qr), 'Open-home sign saved as 12-rue-cafe-co-open-home-sign.png.');
+
+  // 3. Pre-capture readiness kit on the space card.
+  const space = h.ids['account-properties'].children[0];
+  const prep = space.all().find(el => el.className === 'account-details space-prep');
+  assert.ok(prep);
+  assert.equal(prep.children[0].textContent, 'Prepare or schedule capture');
+  prep.open = true;
+  await prep.fire('toggle');
+  const copyPrep = prep.all().find(el => el.dataset.control === 'copy-prep-note');
+  await copyPrep.fire('click');
+  await settle();
+  assert.match(h.copied.at(-1), /we are preparing to capture the 3D walkthrough for 12 Rue Café & Co\./);
+  assert.equal(rowLine(prep), 'Prep checklist copied. Send it to the owner or tenant before capture.');
+
+  const dlIcs = prep.all().find(el => el.dataset.control === 'download-capture-ics');
+  await dlIcs.fire('click');
+  await settle();
+  const icsAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(icsAnchor.download, '12-rue-cafe-co-capture.ics');
+  assert.equal(rowLine(prep), 'Calendar slot saved as 12-rue-cafe-co-capture.ics.');
+});

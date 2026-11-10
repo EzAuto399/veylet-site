@@ -257,9 +257,13 @@ test('the pinned phone is one frame: screens slide over each other on the scroll
   // cannot stack the phones at different heights; only the first frame draws the bezel and lift.
   assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen \{[^}]*translate: 0 calc\(var\(--flow-device\) \* -1\.0864\)/);
   assert.match(css, /\.see-step-screen:not\(\[data-screen="1"\]\) \.device-screen \{[^}]*border-color: transparent;[^}]*box-shadow: none;/);
-  // The screen changes are scrubbed by the pin itself, not faded on a timer.
+  // The screen changes are scrubbed by the pin itself, not faded on a timer, and both screens
+  // stay on-stage across the sheet handoff while parked screens stay hidden.
   assert.match(js, /animation: sheets,\s*scrub: true,/);
   assert.doesNotMatch(css, /\.see-step-screen\[data-shown\] \{\s*opacity: 1;/, 'no whole-frame cross-fade');
+  assert.doesNotMatch(css, /\.see-step-screen:not\(\[data-shown\]\)\s*\.device-screen/, 'outgoing screen is not hidden mid-handoff');
+  assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen:not\(\[data-stage\]\) \.device-screen > \* \{\s*visibility: hidden;/);
+  assert.match(js, /screen\.toggleAttribute\('data-stage', stage\)/);
   // The render bar lives in the drawn (aria-hidden) screen and ends full in the still state.
   assert.match(element('data-ui="render"', 'div'), /<span class="see-ui-bar"><span data-ui-bar><\/span><\/span>/);
   assert.match(js, /setRender\('ready', 5\);\s*setBar\(1\);/);

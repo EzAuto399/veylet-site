@@ -323,9 +323,10 @@ test('the success state lists what happens next, offers /see and sharing, and na
     'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet Capture app.',
     'Your first month is free, with 3 walkthroughs included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
   ]);
-  assert.match(markup, />What happens next</);
-  assert.match(markup, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
-  assert.doesNotMatch(markup, /See a result/);
+  const done = /<section class="waitlist-done"[\s\S]*?<\/section>/.exec(markup)[0];
+  assert.match(done, />What happens next</);
+  assert.match(done, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
+  assert.doesNotMatch(done, /See a result/);
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
   assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
   assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);

@@ -397,3 +397,47 @@ test('the QA fixture records record_tour_view from the beacon’s own POST and a
   assert.equal((await load('?pause=missing').supabase.createClient().rpc('pause_tour_share', { p_tour_id: 'x' })).error.code, 'PGRST202');
   assert.match(source, /`\?pause=paused` starts the live walkthrough on \/__qa\/account\/ paused/);
 });
+
+test('bookingHref, viewingRequestHref, contactActions booking CTA and beacon.roomVisited work first-party without cookies', async () => {
+  const mod = loadModule();
+  assert.equal(mod.bookingHref('https://cal.com/harbour-realty/inspection'), 'https://cal.com/harbour-realty/inspection');
+  assert.equal(mod.bookingHref('http://insecure.example.com'), '');
+  assert.equal(mod.bookingHref('javascript:alert(1)'), '');
+  const mailHref = mod.viewingRequestHref('ari@harbour.example.au', '12 Harbour Loft', 'Ari Lee');
+  assert.match(mailHref, /^mailto:ari@harbour\.example\.au\?subject=Book%20a%20viewing%3A%2012%20Harbour%20Loft&body=/);
+
+  const contactWithUrl = mod.contactFrom([{
+    display_name: 'Ari Lee',
+    agency: 'Harbour Realty',
+    phone: '+61 400 000 000',
+    email: 'ari@harbour.example.au',
+    booking_url: 'https://cal.com/harbour-realty/inspection',
+  }]);
+  assert.equal(contactWithUrl.bookingUrl, 'https://cal.com/harbour-realty/inspection');
+
+  const contactWithRequest = mod.contactFrom([{
+    display_name: 'Ari Lee',
+    agency: 'Harbour Realty',
+    phone: '+61 400 000 000',
+    email: 'ari@harbour.example.au',
+    allow_viewing_request: true,
+  }]);
+  assert.equal(contactWithRequest.allowViewingRequest, true);
+
+  const net = recorder();
+  const docListeners = {};
+  const win = {
+    addEventListener() {},
+    document: {
+      addEventListener(name, fn) { docListeners[name] = fn; },
+    },
+  };
+  const beacon = mod.viewBeacon({ config: CONFIG, token: TOKEN, src: 'link', fetch: net.fetch });
+  beacon.opened(win);
+  docListeners['veylet:room']?.({ detail: { room: 'Kitchen' } });
+  docListeners['veylet:room']?.({ detail: { room: 'Kitchen' } });
+  docListeners['veylet:room']?.({ detail: { room: 'Living Room' } });
+  await settle();
+  const roomEvents = net.sent.filter(item => item.body.p_kind === 'room');
+  assert.deepEqual(roomEvents.map(item => item.body.p_detail), [{ room: 'Kitchen' }, { room: 'Living Room' }]);
+});
