@@ -448,9 +448,9 @@ test('without the Fullscreen API (iPhone Safari) Full screen fills the window, a
   assert.equal(x.document.documentElement.style.overflow, '');
 });
 
-test('a frame under 320 px keeps Full screen and drops the map toggle instead', async () => {
+test('a frame under 288 px keeps Full screen and drops the map toggle instead', async () => {
   const narrow = load({ files: { 'manifest.json': manifest() } });
-  narrow.stage.clientWidth = 304;
+  narrow.stage.clientWidth = 280;
   const engine = fakeEngine(narrow.log);
   const pending = narrow.player.start(narrow.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
   for (let i = 0; i < 12; i++) await tick();
@@ -458,6 +458,10 @@ test('a frame under 320 px keeps Full screen and drops the map toggle instead', 
   await pending;
   assert.equal(byClass(narrow.stage, 'v2-fullscreen').hidden, false);
   assert.equal(byClass(narrow.stage, 'v2-map-toggle').hidden, true);
+  // A 320, 360 or 375 px phone (stage 288 to 343 px wide) keeps both.
+  const phone = await readyPlayer({ size: [288, 300] });
+  assert.equal(byClass(phone.stage, 'v2-fullscreen').hidden, false);
+  assert.equal(byClass(phone.stage, 'v2-map-toggle').hidden, false);
 });
 
 test('in someone else’s page the map starts closed and a pinch zooms only after the visitor uses the player', async () => {
@@ -1316,4 +1320,74 @@ test('the player stays analytics-free: stop events and view() add no request, be
   assert.equal(requests().length, before, 'no request for a stop or a look');
   assert.ok(requests().every(line => line.startsWith('fetch:https://veylet.com/pkg/')), 'only package files, ever');
   assert.deepEqual([...new Set(stored)], ['veylet:stop'], 'what it says goes to the page as a DOM event only');
+});
+
+// ---------- client build, 10 November 2026, phase 1 ----------
+
+test('a package that is not there costs no engine download; a good one starts the engine as soon as its manifest is read', async () => {
+  const gone = load({ files: {} });
+  let asked = 0;
+  const failure = await gone.player.start(gone.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
+    loadEngine: () => { asked++; return new Promise(() => {}); } }).catch(error => error);
+  for (let i = 0; i < 12; i++) await tick();
+  assert.equal(failure.message, 'package-unavailable');
+  assert.equal(asked, 0, 'a paused, expired or mistyped link never downloads the 3D engine');
+  const good = await started({ slowEngine: true });
+  assert.equal(good.requested(), 1);
+  assert.ok(good.log.indexOf('engine:import') > good.log.indexOf('fetch:https://veylet.com/pkg/manifest.json'), 'after the manifest answered');
+});
+
+test('on our own page the wheel scrolls the page until the visitor is using the walkthrough', async () => {
+  const x = await readyPlayer();
+  const root = x.document.documentElement || (x.document.documentElement = {});
+  Object.assign(root, { scrollHeight: 2400, clientHeight: 700 });
+  const wheel = values => Boolean(x.canvas.dispatch('wheel', { deltaY: 40, ...values }).defaultPrevented);
+  assert.equal(wheel(), false, 'passing over the walkthrough, the page scrolls');
+  assert.equal(wheel({ ctrlKey: true }), true, 'a trackpad pinch always zooms');
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 5, clientY: 5 });
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 5, clientY: 5 });
+  assert.equal(wheel(), true, 'after a press the wheel zooms');
+  x.stage.dispatch('pointerleave');
+  assert.equal(wheel(), false, 'until the pointer leaves');
+  x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
+  assert.equal(wheel(), true, 'a key on the walkthrough holds it too');
+  x.canvas.dispatch('blur');
+  assert.equal(wheel(), false);
+  // A page with nothing to scroll (/tour, the embed opened on its own) has no other use for the wheel.
+  Object.assign(root, { scrollHeight: 700, clientHeight: 700 });
+  assert.equal(wheel(), true);
+});
+
+test('the movement hint counts as seen only when the visitor presses or moves, not when it times out', async () => {
+  const run = async () => {
+    const timers = manualTimers(), kept = new Map();
+    const x = await readyPlayer({ context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout,
+      localStorage: { getItem: k => kept.get(k) ?? null, setItem: (k, v) => kept.set(k, String(v)) } } });
+    return { x, timers, kept, hint: byClass(x.stage, 'v2-hint') };
+  };
+  const away = await run();
+  assert.equal(away.hint.hidden, false);
+  away.timers.fire(9000);
+  assert.equal(away.hint.hidden, true);
+  assert.equal(away.kept.get('veylet-player-hint-seen'), undefined, 'someone who looked away sees it next time');
+  const used = await run();
+  used.x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 5, clientY: 5 });
+  assert.equal(used.hint.hidden, true);
+  assert.equal(used.kept.get('veylet-player-hint-seen'), '1');
+  assert.match(read('tour-player-v2.css'), /\.v2-hint \{[^}]*width: max-content;/, 'one line wherever it fits');
+});
+
+test('a scene file that does not arrive ends the player after the engine has finished reporting it', async () => {
+  const log = [], assets = [];
+  const engine = fakeEngine(log);
+  const Base = engine.Asset;
+  engine.Asset = class extends Base { constructor(...args) { super(...args); assets.push(this); } };
+  const x = await started({ startOptions: { loadEngine: async () => engine } });
+  assert.ok(assets.length > 0);
+  // The engine calls every failure callback in one loop and goes on using the app afterwards.
+  for (const asset of assets) asset.fire('error', 'synthetic');
+  assert.equal(log.includes('app.destroy'), false, 'nothing is torn down inside the engine’s own loop');
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal(log.filter(line => line === 'app.destroy').length, 1);
+  assert.equal(byClass(x.stage, 'v2-fallback').hidden, false, 'and the visitor is told, with Try again');
 });

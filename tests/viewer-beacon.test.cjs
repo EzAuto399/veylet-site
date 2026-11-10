@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { createDocument } = require('./fake-dom.cjs');
+const { WORDS, withClientHelpers } = require('./client-words.cjs');
 
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
 const clientSource = read('client-page.js');
@@ -156,7 +157,7 @@ function handoffPage({ search = '?t=' + TOKEN + '&src=qr', nav = {} } = {}) {
     document.body.append(node);
   }
   let bootOptions = null, finishBoot = null;
-  const player = { TourFailure, showFailure(els, options) { els.title.textContent = options.heading; }, boot(options) { bootOptions = options; return new Promise(resolve => { finishBoot = resolve; }); } };
+  const player = withClientHelpers({ TourFailure, showFailure(els, options) { els.title.textContent = options.heading; }, boot(options) { bootOptions = options; return new Promise(resolve => { finishBoot = resolve; }); } });
   const net = recorder();
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: CONFIG, addEventListener() {} };
   const location = { origin: 'https://veylet.com', pathname: '/handoff', search };
@@ -253,11 +254,11 @@ function tourPage({ search = '?t=' + TOKEN + '&src=portal', framed = false, refe
   document.title = 'Property walkthrough';
   const calls = [];
   let bootOptions = null, finishBoot = null;
-  const player = {
+  const player = withClientHelpers({
     TourFailure,
     showFailure(els, options) { calls.push(options); els.title.textContent = options.heading; els.body.textContent = options.body; document.title = options.heading.replace(/\.$/, '') + ' — Veylet'; },
     boot(options) { bootOptions = options; return new Promise(resolve => { finishBoot = resolve; }); },
-  };
+  });
   const net = recorder();
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: CONFIG, addEventListener() {} };
   window.self = window;
@@ -314,9 +315,10 @@ test('/tour opens the walkthrough at once, keeps the truth line, counts a portal
 
 test('/tour failures read plainly, with no agent to ask, and the tab keeps no maker’s name', async () => {
   const h = tourPage();
-  assert.equal(h.bootOptions.missingHeading, 'This walkthrough isn’t available right now.');
-  assert.equal(h.bootOptions.missingBody, 'It may have been paused or turned off.');
-  assert.match(h.bootOptions.transientBody, /Check your connection and try again\.$/);
+  // The shared client words (tour-player.js WORDS), the same on /handoff and /embed; none of its own.
+  assert.equal(h.bootOptions.client, true);
+  assert.deepEqual([h.bootOptions.missingHeading, h.bootOptions.missingBody, h.bootOptions.transientBody], [undefined, undefined, undefined]);
+  assert.equal(WORDS.missingBody, 'It may have been paused or turned off. Ask the person who sent it for a new link.');
   const miss = await h.bootOptions.resolve(client({ data: [] })).catch(error => error);
   assert.equal(miss.message, 'share-not-found');
   assert.equal(miss.transient, false);
@@ -330,7 +332,7 @@ test('/tour failures read plainly, with no agent to ask, and the tab keeps no ma
   assert.equal(failure.transient, true);
   const incomplete = tourPage({ search: '?t=short' });
   assert.equal(incomplete.bootOptions, null);
-  assert.deepEqual(plain(incomplete.calls[0]), { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' });
+  assert.deepEqual(plain(incomplete.calls[0]), { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
   assert.equal(incomplete.document.title, 'This link looks incomplete', 'the player’s “— Veylet” is taken off');
 });
 

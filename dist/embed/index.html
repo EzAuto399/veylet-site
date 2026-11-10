@@ -33,8 +33,8 @@
     <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
-    <script src="/tour-player.js?v=f7cfefb265096c73"></script>
-    <script src="/client-page.js?v=1ae099e78ef93e37"></script>
+    <script src="/tour-player.js?v=796d1c1448396860"></script>
+    <script src="/client-page.js?v=3cc77603765751e1"></script>
     <style>
       html,
       body {
@@ -218,13 +218,7 @@
           els.body.textContent =
             'The player files did not load on this device. Check the connection and reload.';
         } else if (!link.complete) {
-          window.VeyletPlayer.showFailure(
-            { ...els, actions: null, retry: null },
-            {
-              heading: 'This link looks incomplete.',
-              body: 'Check you copied all of it, or ask the person who sent it.',
-            }
-          );
+          window.VeyletPlayer.showIncomplete({ ...els, actions: null, retry: null });
         } else {
           open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
           // Report shows for any complete-looking token, whatever the lookup says.
@@ -234,10 +228,10 @@
           // to press and no download. An error or no answer offers Explore as before:
           // starting looks the share up again and explains its own failure.
           const offer = () => { open.hidden = false; start.hidden = false; els.status.textContent = ''; };
+          // The same words, and the same Try again, as /handoff and /tour (tour-player.js WORDS).
           const dead = () => {
             start.hidden = true; open.hidden = true; els.status.textContent = '';
-            els.title.textContent = 'This walkthrough isn’t available right now.';
-            els.body.textContent = 'The agent may have turned it off or not shared it yet.';
+            window.VeyletPlayer.showMissing(els);
           };
           const shareClient = window.VeyletClientPage?.restClient?.(window.VEYLET_SUPABASE) || null;
           if (shareClient) {
@@ -321,10 +315,8 @@
                 intro: '',
               };
             },
-            missingHeading: 'This walkthrough isn’t available right now.',
-            missingBody: 'The agent may have turned it off or not shared it yet.',
-            transientBody:
-              'The walkthrough service did not answer. Check the connection and try again.',
+            // The shared words for "not available" and "could not be reached", and Try again on both.
+            client: true,
           }).catch(() => window.VeyletPlayer.showFailure(
             { ...els, actions: document.getElementById('tour-actions'), retry: document.getElementById('tour-retry') },
             { body: 'The walkthrough could not start. Check the connection and try again.', retry: true }

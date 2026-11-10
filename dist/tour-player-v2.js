@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=25009fa272a71592';
+  const STYLE_URL = '/tour-player-v2.css?v=fa032975e6db1264';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -802,18 +802,18 @@
     let framed = Boolean(options.framed);
     if (options.framed === undefined) { try { framed = window.top !== window.self; } catch { framed = true; } }
     const waitForTap = Boolean(options.waitForTap && profile.api);
-    // The engine download starts now, in parallel with the manifest, unless
-    // the visitor is first asked to press Explore.
+    // The engine download starts as soon as the package's manifest has answered and reads as a walkthrough
+    // (a few KB), unless the visitor is first asked to press Explore. A link whose package is gone costs
+    // nobody the engine.
     const loadEngine = options.loadEngine || (() => import(ENGINE_URL));
     let enginePromise = null;
     const requestEngine = () => (enginePromise ||= Promise.resolve().then(loadEngine).catch(() => null));
-    if (profile.api && !waitForTap) requestEngine();
-    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal);
-    manifestPromise.catch(() => {}); // handled below, after the styles
+    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal).then(validateManifest);
+    manifestPromise.then(() => { if (profile.api && !waitForTap && !signal?.aborted) requestEngine(); }, () => {}); // a refusal is handled below, after the styles
     await ensureStyle();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
+    const manifest = await manifestPromise;
     const ui = buildInterface(stage);
-    const manifest = validateManifest(await manifestPromise);
     mark('manifest');
     const walkablePromise = manifest.walkable
       ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal).then(decodeWalkable).catch(() => null)
@@ -899,6 +899,11 @@
       ui.fallback.hidden = false;
       slowShown = true;
       becomeVisible();
+    }
+    // A scene file did not arrive. The engine reports it from inside its own loader, which goes on using what
+    // teardown destroys, so the panel and the teardown wait for the engine to finish that step.
+    function sceneFailed() {
+      setTimeout(() => { if (!torndown) fail('engine-unavailable'); }, 0);
     }
     function hideSlow() {
       if (!slowShown) return;
@@ -1359,9 +1364,9 @@
       }
       if (index >= 0) announceActivity('veylet:stop', { stop: index, room: label.room || null });
     }
-    function goToStop(index) {
+    function goToStop(index, byUser = true) {
       if (!ready) return;
-      dismissHint();
+      dismissHint(byUser);
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
       // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
@@ -1457,7 +1462,8 @@
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
       engaged = true;
-      dismissHint();
+      wheelHeld = true;
+      dismissHint(true);
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
@@ -1500,10 +1506,20 @@
     };
     ui.canvas.addEventListener('pointerup', release);
     ui.canvas.addEventListener('pointercancel', release);
-    // A listing page scrolls with the wheel; zoom on a trackpad pinch or on a
-    // standalone / fullscreen walkthrough, and inside someone else's page only once engaged.
+    // The wheel belongs to the page until the visitor is using the walkthrough. Inside someone else's page:
+    // a trackpad pinch only, once engaged. On our own pages: a pinch, full screen, a page with nothing to
+    // scroll, or after a press or key on the walkthrough, until the pointer leaves it or focus moves on.
+    let wheelHeld = false;
+    const releaseWheel = () => { wheelHeld = false; };
+    stage.addEventListener('pointerleave', releaseWheel);
+    ui.canvas.addEventListener('blur', releaseWheel);
+    const pageScrolls = () => {
+      const root = document.documentElement;
+      return Boolean(root && root.scrollHeight > root.clientHeight + 1);
+    };
     ui.canvas.addEventListener('wheel', event => {
-      if (!ready || (framed && (!event.ctrlKey || !engaged))) return;
+      if (!ready) return;
+      if (framed ? (!event.ctrlKey || !engaged) : (!event.ctrlKey && !wheelHeld && !isFull() && pageScrolls())) return;
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
@@ -1512,7 +1528,7 @@
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
       engaged = true;
       const key = event.key;
-      const handled = () => { event.preventDefault(); dismissHint(); };
+      const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
         cancelFlight();
@@ -1535,7 +1551,7 @@
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
     });
     // Any press anywhere in the player means the visitor has found the controls.
-    ui.root.addEventListener('pointerdown', () => dismissHint(), true);
+    ui.root.addEventListener('pointerdown', () => dismissHint(true), true);
     ui.root.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
@@ -1658,10 +1674,10 @@
       ui.full.title = ui.full.getAttribute('aria-label');
       fitBar();
     }
-    // Under 320 px the bar has room for five controls, not six: the map (which
-    // would cover most of so small a view) gives way to Full screen.
+    // Under 288 px (a frame narrower than a 320 px phone's own page) the bar has room for five controls,
+    // not six: the map, which would cover most of so small a view, gives way to Full screen.
     function fitBar() {
-      const narrow = stage.clientWidth > 0 && stage.clientWidth < 320 && !isFull();
+      const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
     }
@@ -1669,10 +1685,13 @@
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
 
     let hintTimer = null;
-    function dismissHint() {
+    // The hint goes after nine seconds or on the first move. Only a real press, drag or key marks it as
+    // seen: someone who looked away while it timed out sees it again next time.
+    function dismissHint(byUser = false) {
       if (ui.hint.hidden) return;
       ui.hint.hidden = true;
       clearTimeout(hintTimer);
+      if (!byUser) return;
       try { localStorage.setItem(HINT_KEY, '1'); } catch { /* per-viewer convenience only */ }
     }
     function offerHint() {
@@ -1687,7 +1706,7 @@
         ui.hint.classList.add('v2-hint-short');
       }
       ui.hint.hidden = false;
-      hintTimer = setTimeout(dismissHint, 9000);
+      hintTimer = setTimeout(() => dismissHint(false), 9000);
     }
 
     // ----- rendering, loading phases and frame pacing -----
@@ -1708,7 +1727,7 @@
     }
     function addChunk(id) {
       const item = holdChunk(id);
-      item.asset.on('error', () => fail('engine-unavailable'));
+      item.asset.on('error', sceneFailed);
       app.assets.load(item.asset);
       return item;
     }
@@ -1824,7 +1843,7 @@
         offerHint();
         settle({ readiness: 'viewer-ready', marks, stats });
         // Back where the visitor was before the graphics context was lost.
-        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop);
+        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop, false);
         return;
       }
       if (phase === 'detail') {
@@ -1923,8 +1942,8 @@
     if (chunked) for (const item of held.values()) app.assets.load(item.asset);
     else app.assets.load(asset);
     app.start();
-    if (chunked) for (const item of held.values()) item.asset.on('error', () => fail('engine-unavailable'));
-    else asset.on('error', () => fail('engine-unavailable'));
+    if (chunked) for (const item of held.values()) item.asset.on('error', sceneFailed);
+    else asset.on('error', sceneFailed);
     // A wide screen has room for the map from the start; phones, and frames on
     // someone else's page, open it on request.
     toggleMap(stage.clientWidth >= 900 && !framed);

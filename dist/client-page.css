@@ -178,7 +178,8 @@
 .client-pending .tour-frame-shell::before {
   content: "";
   display: block;
-  height: min(74vh, 680px);
+  /* The stage's own height (tour-stage.css), so nothing moves when it arrives. */
+  height: var(--tour-stage-height);
   border-radius: 10px;
   background: var(--ink);
 }
@@ -189,15 +190,69 @@
 }
 @media (max-width: 800px) {
   .client-pending .tour-frame-shell::before {
-    height: clamp(300px, calc(100vh - 330px), 62vh);
-    height: clamp(300px, calc(100svh - 330px), 62svh);
     border-radius: 8px;
   }
-  /* A found contact brings the phone bar, and the stage makes room for it. */
-  .client-pending.client-contact-pending .tour-frame-shell::before,
-  .client-pending body.has-agent-bar .tour-frame-shell::before {
-    height: clamp(300px, calc(100vh - 330px - 64px - env(safe-area-inset-bottom, 0px)), 62vh);
-    height: clamp(300px, calc(100svh - 330px - 64px - env(safe-area-inset-bottom, 0px)), 62svh);
+  /* Phones: a 16px gutter and no frame round the stage, so the walkthrough
+     gets the width (328px of a 360px phone) and its bar keeps every control,
+     the map included. */
+  .client-page,
+  .client-footer {
+    padding-inline: 16px;
+  }
+  .client-page .tour-frame-shell {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+}
+
+/* A phone on its side (about 360px of height): the walkthrough is the first
+   screen. The title keeps one line; the truth line, the date and the agent's
+   card step aside (the player's own label carries the truth line, and the bar
+   or the card below the stage carries the agent). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .client-page {
+    padding-block: 12px 24px;
+  }
+  .client-page h1 {
+    margin: 0 0 8px;
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  html .client-page .client-truth,
+  html .client-page .tour-meta {
+    display: none !important;
+  }
+  .client-page .tour-frame-wrap {
+    margin-block: 0 16px;
+  }
+  html .client-side .agent-card[hidden] {
+    display: none !important;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1079px) {
+  /* One column: the card sits under the walkthrough, not above it. */
+  .client-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .client-main {
+    order: 1;
+    min-width: 0;
+  }
+  .client-side {
+    order: 2;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 768px) {
+  /* The bar already names the agent and carries Call and Email. */
+  body.has-agent-bar .agent-card {
+    display: none;
   }
 }
 @media (max-width: 560px) {

@@ -611,6 +611,29 @@
   }
 
   /*
+   * A phone on its side shows about 360px of page. Once the walkthrough is on
+   * screen it is brought to the top, once, so the whole player and its controls
+   * sit above the fixed Call/Email bar (tour-stage.css sizes it to fit). Never
+   * after the visitor has moved the page themselves.
+   */
+  const SHORT_LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
+  const STAGE_GAP = 4; // px of page left above the stage
+  function settleStage(win, stage) {
+    try {
+      if (!win || !stage || stage.hidden || typeof stage.getBoundingClientRect !== 'function' || typeof win.scrollTo !== 'function') return false;
+      if (typeof win.matchMedia !== 'function' || !win.matchMedia(SHORT_LANDSCAPE).matches) return false;
+      if ((win.scrollY || 0) > 4) return false;
+      // Measured, not scrollIntoView: the site keeps 30px of scroll padding for its other pages.
+      const top = Math.round((win.scrollY || 0) + stage.getBoundingClientRect().top - STAGE_GAP);
+      if (top <= 0) return false;
+      win.scrollTo({ top, behavior: 'auto' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /*
    * The link's token (§5.2 "Link incomplete"). A share token is 32 hex characters
    * (lookup_tour_share answers nothing else), so a hex token of any other length is
    * a link cut off or run on, and a token with characters no link carries (a space,
@@ -727,7 +750,7 @@
     dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
     channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
-    shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
+    shareUrl, copyText, mountShare, showWalkthrough, settleStage, placeExtras, mountColumns,
     reportHref, mountReport, linkToken, invitationPoster, watchFailures,
   };
 })();
