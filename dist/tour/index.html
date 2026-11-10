@@ -173,7 +173,9 @@
       /* A short frame (a 240 px embed slot, a phone on its side): the title and Report share one row, and
          the walkthrough gets the rest. Its own label carries the truth line. */
       @media (max-height: 500px) {
-        .tour-page { grid-template-rows: auto minmax(0, 1fr); position: relative; }
+        /* One column no wider than the frame: a long title on one line would otherwise set the column's
+           width, and the walkthrough under it would run off the right edge of a 320 px frame. */
+        .tour-page { grid-template: auto minmax(0, 1fr) / minmax(0, 1fr); position: relative; }
         .tour-head {
           display: flex;
           align-items: center;
@@ -181,7 +183,7 @@
           box-sizing: border-box;
           padding-block: max(0px, env(safe-area-inset-top, 0px)) 0;
         }
-        .tour-head h1 { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tour-head h1 { min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tour-truth { display: none; }
         .tour-foot:not([hidden]) { position: absolute; top: env(safe-area-inset-top, 0px); right: 0; padding-bottom: 0; background: #10231d; }
         .tour-page:has(.tour-foot:not([hidden])) .tour-head { padding-right: 170px; }

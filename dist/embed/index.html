@@ -96,6 +96,8 @@
            shorter than this iframe (Wix, agency listing templates) crops the
            bottom, and a centred block puts Explore inside the cropped band. */
         justify-content: flex-start;
+        /* A long word (a translated page, a long agency name) wraps instead of scrolling the frame sideways. */
+        overflow-wrap: anywhere;
         gap: 8px;
         padding: clamp(16px, 9vh, 40px) clamp(16px, 4vw, 32px);
         background: #10231d;

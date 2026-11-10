@@ -183,6 +183,28 @@
   border-radius: 10px;
   background: var(--ink);
 }
+/* The held place says what it is waiting for: on a phone the status line under
+   it is below the fold, and an unlabelled dark box reads as a broken page. Laid
+   over the held place, so it adds no height. The status line announces the same
+   words, so these are kept from a screen reader (the second declaration; a
+   browser without it keeps the first). */
+.client-pending .tour-frame-shell {
+  position: relative;
+}
+.client-pending .tour-frame-shell::after {
+  content: "Loading the walkthrough\2026";
+  content: "Loading the walkthrough\2026" / "";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: var(--paper);
+  font-size: 16px;
+  text-align: center;
+  pointer-events: none;
+}
 .client-contact-pending .agent-card[hidden] {
   display: block !important;
   visibility: hidden;
