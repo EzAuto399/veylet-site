@@ -1511,7 +1511,10 @@ test('too few visits: rooms and stops show counts only; time, shares, shades and
   const rooms = x.table('tour-insights-rooms');
   assert.equal(rooms.el.className, 'tour-insights-rooms tour-insights-rooms-counts');
   assert.deepEqual([rooms.head, rooms.rows], [['Room', 'Visits'], [['Lounge', '3'], ['Kitchen', '2']]], 'counts, most visits first; no time, no share, no bar');
-  assert.deepEqual(x.texts('tour-insights-few'), ['Fewer than 5 visits so far, so only counts are shown. Time and shares appear from 5 visits.']);
+  // The note is about the rooms only, so it agrees with the average shown above it in the same group; 5 is said once.
+  assert.deepEqual(x.texts('tour-insights-dwell'), ['Average time per visit: 1m 36s']);
+  assert.deepEqual(x.texts('tour-insights-few'), ['Rooms show visit counts only until there are 5 visits; then their time and share appear.']);
+  assert.equal(x.texts('tour-insights-few')[0].match(/\b5\b/g).length, 1);
   // The stops: visits and time per stop, and nothing about where anyone looked.
   assert.deepEqual(x.texts('tour-heat-scope'), ['This version of the walkthrough: 3 visits since 8 Nov 2026.']);
   assert.deepEqual(x.texts('tour-heat-few'), ['Fewer than 5 visits so far, so only counts are shown. Shades and look directions appear from 5 visits.']);
@@ -1522,7 +1525,7 @@ test('too few visits: rooms and stops show counts only; time, shares, shades and
   assert.doesNotMatch(said, /%|Mostly|Looked|Level|down|\bup\b/, 'no share of time and no look direction in the rooms or the stops');
   // Opens short but visits known and enough is named for what is short.
   const opens = await heatDesk(undefined, { stats: { ...VIEW_STATS, opens: 4 } });
-  assert.deepEqual(opens.texts('tour-insights-few'), ['Fewer than 5 opens so far, so only counts are shown. Time and shares appear from 5 opens.']);
+  assert.deepEqual(opens.texts('tour-insights-few'), ['Rooms show visit counts only until there are 5 opens; then their time and share appear.']);
   // A walkthrough with enough visits still withholds the look of a stop only one or two people reached.
   const mixed = await heatDesk(async () => ({ data: { visits: 9, since: null, stops: [
     { stop: 0, room: 'Hall', visits: 9, seconds: 90, bins: { '1_1': 90 } }, { stop: 1, room: 'Attic', visits: 2, seconds: 80, bins: { '5_2': 80 } }] } }));
@@ -1603,7 +1606,9 @@ test('Where viewers stood: "No visits yet" for an empty answer; no panel for a m
   await empty.open();
   assert.equal(empty.panel().hidden, false);
   assert.deepEqual(empty.panel().children.map(el => el.textContent),
-    ['Where viewers stood and looked', 'No visits yet. Time at each stop and where people look fills in as the link is walked through.']);
+    ['Where viewers stood and looked', 'No visits to this version yet. Time at each stop and where people look fills in as the link is walked through.']);
+  // The all-time opens above may come from earlier versions: the group still says which period it is.
+  assert.deepEqual([empty.texts('tour-heat-scope'), empty.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false]);
   assert.equal(empty.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);
   assert.equal(empty.list().hidden, true);
   // An older backend (PGRST202): nothing is shown, nothing is said, and no other walkthrough asks again.
@@ -1637,6 +1642,7 @@ test('Where viewers stood: "No visits yet" for an empty answer; no panel for a m
     assert.equal(x.list().hidden, true);
     assert.equal(x.control('heat-retry').textContent, 'Try again');
     assert.equal(x.texts('tour-insights-lead').length, 1, 'the counts stay');
+    assert.deepEqual([x.texts('tour-heat-scope'), x.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false], 'the failed group still names its period');
   }
   // Try again asks once more and draws the answer when it comes.
   let asked = 0;
@@ -1833,6 +1839,7 @@ test('waiting for the stops shows a placeholder in the answer’s shape only aft
   assert.equal(slow.panel().getAttribute('aria-busy'), 'true');
   assert.deepEqual(slow.panel().children.map(el => [el.tagName, el.className, el.textContent]),
     [['H4', 'tour-heat-title', 'Where viewers stood and looked'], ['P', 'tour-heat-busy', 'Loading where viewers stood…'], ['DIV', 'tour-heat-map tour-heat-skeleton', '']]);
+  assert.deepEqual([slow.texts('tour-heat-scope'), slow.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false], 'waiting, the group already names its period');
   // The placeholder has the answer's shape: the plan's box and key, then the stops' heading and rows.
   assert.deepEqual(slow.list().children.map(el => el.className), ['tour-heat-title', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton']);
   assert.equal(slow.list().hidden, false);
@@ -1933,6 +1940,9 @@ test('the insights panel is one column that changes layout at two widths only, b
   // What made the page jump (craft-check F-stable, 10 November): a grid of stop cards that re-flowed by itself, room rows that
   // restacked, and report buttons that wrapped, each at its own width. Now: four figures across from the card's 560 px step,
   // the plan beside the tables from the desk bar's 720 px step, and nothing else.
+  // The plan stands beside the stop table only when both are shown: no visits or a failed read leaves the plan's message in one column.
+  assert.match(insightsCss, /\.tour-insights-version:has\(> \.tour-heat:not\(\[hidden\]\)\):has\(> \.tour-heat-list:not\(\[hidden\]\)\) \{ grid-template-columns: minmax\(0, 1fr\) minmax\(0, 42%\);/);
+  assert.doesNotMatch(insightsCss, /\.tour-heat:not\(\[hidden\]\)\)(?!:has\(> (\.tour-insights-version > )?\.tour-heat-list)/, 'no two-column rule keys on the plan alone');
   assert.deepEqual(insightsCss.match(/@(media|container)[^{]*/g).map(rule => rule.trim()), ['@container (min-width: 561px)', '@media (min-width: 720px)', '@container (min-width: 600px)']);
   assert.match(guideCss, /@container \(max-width: 560px\) \{\s*\.desk \.tour-views/, 'the card’s own step is 560 px');
   assert.doesNotMatch(insightsCss, /auto-fill|auto-fit|flex-wrap: wrap-reverse|overflow-x|overflow: (auto|scroll)/);

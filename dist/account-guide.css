@@ -796,12 +796,13 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 @media (min-width: 720px) {
   @container (min-width: 600px) {
     /* Time per room keeps the width of the stop table under it. */
-    .tour-insights-body:has(> .tour-insights-version > .tour-heat:not([hidden])) > .tour-insights-roomlist { width: calc(58% - 32px); }
-    .tour-insights-version:has(> .tour-heat:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); column-gap: 32px; }
-    .tour-insights-version:has(> .tour-heat:not([hidden])) > * { grid-column: 1 / -1; }
-    .tour-insights-version:has(> .tour-heat:not([hidden])) > .tour-heat-list { grid-column: 1; grid-row: 2; }
+    .tour-insights-body:has(> .tour-insights-version > .tour-heat:not([hidden])):has(> .tour-insights-version > .tour-heat-list:not([hidden])) > .tour-insights-roomlist { width: calc(58% - 32px); }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); column-gap: 32px; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > * { grid-column: 1 / -1; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > .tour-heat-list { grid-column: 1; grid-row: 2; }
+    /* Only with both shown: a plan without its stop table (no visits, a failed read) stays one column. */
     /* The plan stands beside the stops it maps and keeps to the top of the screen while their long table is read. */
-    .tour-insights-version:has(> .tour-heat:not([hidden])) > .tour-heat { grid-column: 2; grid-row: 2; position: sticky; top: 12px; align-self: start; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > .tour-heat { grid-column: 2; grid-row: 2; position: sticky; top: 12px; align-self: start; }
   }
 }
 .space-prep { margin: 12px 0 0; }

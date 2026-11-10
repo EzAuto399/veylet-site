@@ -1888,7 +1888,10 @@
     const title = document.createElement('h4'); title.className = className; title.textContent = text; return title;
   }
   // The placeholder has the answer's shape: the plan's box and its key, then three rows.
-  function heatWaiting(panel, list) {
+  // The version group's period line, before the answer names its visits: which period this is, always.
+  function heatScope(scope, text = PERIOD_VERSION + '.') { if (scope) { scope.textContent = text; scope.hidden = false; } }
+  function heatWaiting(panel, list, scope = null) {
+    heatScope(scope);
     const plan = document.createElement('div'); plan.className = 'tour-heat-map tour-heat-skeleton';
     const box = document.createElement('div'); box.className = 'tour-heat-plan plan-skeleton'; box.setAttribute('aria-hidden', 'true');
     plan.append(box, skeletonLine('p', 'tour-heat-legend', 30), skeletonLine('p', 'tour-heat-legend', 44));
@@ -1898,7 +1901,8 @@
     const rows = [0, 1, 2].map(() => skeletonLine('p', 'tour-heat-row tour-heat-skeleton', 40));
     list.replaceChildren(heatTitle('Time per stop'), ...rows); list.hidden = false;
   }
-  function heatProblem(panel, list, retry) {
+  function heatProblem(panel, list, retry, scope = null) {
+    heatScope(scope);
     const words = document.createElement('p'); words.className = 'tour-heat-problem';
     words.textContent = 'Where viewers stood couldn’t be loaded. The counts above are complete.';
     const again = button('Try again', retry); again.dataset.control = 'heat-retry';
@@ -1910,10 +1914,10 @@
   function renderHeat(panel, list, heat, floor, scope = null) {
     panel.removeAttribute('aria-busy');
     const title = heatTitle('Where viewers stood and looked');
-    if (scope) scope.hidden = true;
+    heatScope(scope);
     if (!heat.stops.length) {
       const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
-      empty.textContent = 'No visits yet. Time at each stop and where people look fills in as the link is walked through.';
+      empty.textContent = 'No visits to this version yet. Time at each stop and where people look fills in as the link is walked through.';
       panel.replaceChildren(title, empty); panel.hidden = false;
       list.replaceChildren(); list.hidden = true;
       return;
@@ -1922,7 +1926,7 @@
     const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
     // The group's one period line: this version only, its visits, from its oldest one counted.
     const said = PERIOD_VERSION + (heat.visits !== null ? ': ' + heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? ', since ' + since : '') + '.';
-    if (scope) { scope.textContent = said; scope.hidden = false; }
+    heatScope(scope, said);
     const parts = [title];
     if (sparse) {
       const few = document.createElement('p'); few.className = 'tour-heat-few';
@@ -1971,7 +1975,7 @@
     if (!heatAvailable || !supabase) return;
     panel.dataset.asked = 'true';
     let answered = false;
-    setTimeout(() => { if (!answered && ticket === deskVersion) heatWaiting(panel, list); }, HEAT_SKELETON_MS);
+    setTimeout(() => { if (!answered && ticket === deskVersion) heatWaiting(panel, list, scope); }, HEAT_SKELETON_MS);
     const reads = Promise.all([
       settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))),
       tourFloor(tour, supabase).catch(() => null),
@@ -1983,7 +1987,7 @@
       if (missingFunction(reply)) { heatAvailable = false; clear(); return; }
       const heat = failed(reply) ? null : heatmapFrom(reply.value?.data);
       // A failed read or an answer that is not the contract's shape: said, with the one way on.
-      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket, scope); }); return; }
+      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket, scope); }, scope); return; }
       renderHeat(panel, list, heat, floor, scope);
     });
   }
@@ -2140,7 +2144,8 @@
       if (sparse && positiveEntries(row?.by_room_seconds).length) {
         // Named for the count that is short: visits when the answer carries them, else opens.
         const visits = viewCount(row?.visits), short = visits !== null && visits < INSIGHTS_MIN_OPENS ? 'visits' : 'opens';
-        block.append(insightsNote('tour-insights-few', 'Fewer than ' + INSIGHTS_MIN_OPENS + ' ' + short + ' so far, so only counts are shown. Time and shares appear from ' + INSIGHTS_MIN_OPENS + ' ' + short + '.'));
+        // About the rooms only: the average above it is shown, and the threshold is said once.
+        block.append(insightsNote('tour-insights-few', 'Rooms show visit counts only until there are ' + INSIGHTS_MIN_OPENS + ' ' + short + '; then their time and share appear.'));
       }
     }
     heat.className = 'tour-heat'; heat.hidden = true;
