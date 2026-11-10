@@ -239,3 +239,10 @@
    yearly amount stays the largest figure. */
 .offer-plan .pill.offer-save { display: inline-block; max-width: 100%; overflow-wrap: anywhere; margin-left: 8px; vertical-align: 3px; border-color: rgba(16, 35, 29, 0.28); background: var(--sage); color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .offer-plan .pill.offer-save { white-space: normal; } }
+@media (max-width: 700px) {
+  /* offer hero order */
+  /* The action sits straight under the heading on a phone, clear of the consent sheet on a first visit. The markup keeps heading, intro, action. */
+  .offer-intro { display: flex; flex-direction: column; }
+  .offer-intro > h1 { order: -2; }
+  .offer-intro > .offer-actions { order: -1; margin-top: 0; }
+}

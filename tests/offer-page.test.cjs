@@ -1240,3 +1240,20 @@ test('the offer page shows the buyable plan and no unavailable capacity, says wh
     [[plan.appAud.toFixed(2), 'AUD', 'P1M'], [plan.annualAppAud.toFixed(2), 'AUD', 'P1Y']]);
   assert.ok(product.offers.every((o) => o.availability === 'https://schema.org/LimitedAvailability'), 'invitation-only today');
 });
+
+test('on a phone the offer hero shows its action before the long intro, without changing the markup order', () => {
+  const css = read('conversion.css');
+  const phone = css.match(/@media \(max-width: 700px\) \{\s*\/\* offer hero order \*\/([\s\S]*?)\n\}/);
+  assert.ok(phone, 'the offer hero has a phone-only ordering block');
+  assert.match(phone[1], /\.offer-intro \{[^}]*display: flex;[^}]*flex-direction: column;/);
+  assert.match(phone[1], /\.offer-intro > h1 \{ order: -2; \}/);
+  assert.match(phone[1], /\.offer-intro > \.offer-actions \{[^}]*order: -1;/);
+  // No ordering outside that block, so the desktop layout is the markup order.
+  assert.equal(css.replace(phone[0], '').includes('.offer-intro > .offer-actions'), false);
+  // Readers and keyboards still meet heading, intro, action in that order.
+  const intro = body.slice(body.indexOf('class="guide-intro offer-intro"'));
+  const h1 = intro.indexOf('<h1 id="offer-title"');
+  const lead = intro.indexOf('<p class="intro"');
+  const actions = intro.indexOf('offer-actions"');
+  assert.ok(h1 > -1 && h1 < lead && lead < actions);
+});
