@@ -149,9 +149,61 @@
    * keepalive, which survives the page as sendBeacon would and can carry the
    * service's key headers, which sendBeacon cannot. A backend without the
    * function (PGRST202, or a 404) turns the beacon off for the rest of the visit.
+   *
+   * Walkthrough insights (10 Nov 2026): which stops were stood on and, roughly,
+   * which way people looked there. Each page load makes one random "visit"
+   * token (crypto.getRandomValues, 32 hex), held in memory only: no cookie, no
+   * local or session storage, gone with the page, so two loads by one person
+   * are two visits and nothing ties a visit to anyone. Details:
+   *   open         {visit}
+   *   first_frame  <seconds>          a bare number, unchanged, with no visit
+   *   room         {visit, room}
+   *   dwell        {visit, seconds}
+   *   stop         {visit, stop: 0..63, room: text up to 60 chars | null}   on arrival at a stop
+   *   (stop and look are kept by the database only in exactly these keys, as whole numbers.)
+   *   look         {visit, stop, ms: 1..600000, bins: {"<yaw>_<pitch>": ms}} once per stop visit,
+   *                sent on arrival at a different stop, or on pagehide (keepalive)
+   * Look bins. The player's view() gives degrees in the tour package's own frame
+   * (right-handed, Y up): yaw 0 looks along -Z, and yaw grows turning LEFT
+   * (anticlockwise seen from above), so 90 looks along -X, 180 along +Z, 270
+   * along +X. Yaw bin k (0..11) is 30k <= yaw < 30k + 30. Pitch bin 0 is down
+   * (below -15 degrees), 1 is level (-15..+15 inclusive), 2 is up (above +15).
+   * At most 36 keys; a bin with no time is left out; the bins add up to ms.
+   * The view is read about twice a second, only while the page is visible and
+   * the player has drawn a 3D frame; a hidden page is not sampled at all.
    */
   const VIEW_FUNCTION = 'record_tour_view';
-  const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell'];
+  const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell', 'stop', 'look'];
+  // The two kinds an older backend refuses: the first refusal stops them for the visit, and the rest carry on.
+  const INSIGHT_KINDS = ['stop', 'look'];
+  const LOOK_SAMPLE_MS = 500;
+  const LOOK_CAP_MS = 600000;
+  const STOP_LIMIT = 63;
+  // Per visit: at most this many stop events and this many look events, however long someone wanders.
+  const INSIGHT_EVENT_CAP = 32;
+  const ROOM_NAME_MAX = 60;
+
+  /** A random 32-hex visit token for this page load, or null where the browser has no CSPRNG (never Math.random). */
+  function visitToken(source) {
+    try {
+      const random = source || (typeof crypto !== 'undefined' ? crypto : null);
+      if (!random || typeof random.getRandomValues !== 'function') return null;
+      const bytes = random.getRandomValues(new Uint8Array(16));
+      let hex = '';
+      for (let i = 0; i < 16; i++) hex += (bytes[i] & 255).toString(16).padStart(2, '0');
+      return /^[0-9a-f]{32}$/.test(hex) ? hex : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** "<yaw 0..11>_<pitch 0..2>" for a look direction in degrees (see the note above), or null for anything unusable. */
+  function lookBin(yaw, pitch) {
+    if (typeof yaw !== 'number' || typeof pitch !== 'number' || !Number.isFinite(yaw) || !Number.isFinite(pitch)) return null;
+    const turn = ((yaw % 360) + 360) % 360;
+    const sector = Math.min(11, Math.floor(turn / 30));
+    return sector + '_' + (pitch < -15 ? 0 : pitch > 15 ? 2 : 1);
+  }
   const VIEW_ONCE = ['open', 'first_frame', 'dwell'];
   const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown'];
   const DWELL_CAP_SECONDS = 3600;
@@ -188,14 +240,21 @@
     const said = new Set();
     const roomsSeen = new Set();
     let openedAt = null, openedMark = null;
+    const visit = visitToken(options.crypto);
+    let insightsOff = !visit;
+    let standing = null, lastSample = null, sampler = null, stopsSent = 0, looksSent = 0;
+    /** The visit token beside whatever else the event says; without a token, just the rest (or nothing). */
+    const withVisit = fields => (visit ? { visit, ...fields } : fields && Object.keys(fields).length ? fields : null);
 
-    function send(kind, detail) {
+    function send(kind, detail, keepalive) {
       if (off || !VIEW_KINDS.includes(kind)) return false;
+      const insight = INSIGHT_KINDS.includes(kind);
+      if (insight && insightsOff) return false;
       if (VIEW_ONCE.includes(kind)) { if (said.has(kind)) return false; said.add(kind); }
       try {
         const pending = request(endpoint, {
           method: 'POST',
-          keepalive: kind === 'dwell',
+          keepalive: kind === 'dwell' || keepalive === true,
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
           cache: 'no-store',
@@ -207,6 +266,8 @@
           let body = null;
           try { body = await response.json(); } catch { body = null; }
           if (response.status === 404 || (body && body.code === 'PGRST202')) off = true;
+          // A backend from before stops and looks refuses the kind: say no more of them this visit.
+          else if (insight) insightsOff = true;
         }).catch(() => {});
       } catch { /* a view count is never in the way */ }
       return true;
@@ -216,7 +277,95 @@
       const name = clean(roomName, 80);
       if (!name || roomsSeen.has(name) || roomsSeen.size >= 24) return false;
       roomsSeen.add(name);
-      return send('room', { room: name });
+      return send('room', withVisit({ room: name }));
+    }
+
+    const validStop = stop => Number.isInteger(stop) && stop >= 0 && stop <= STOP_LIMIT;
+
+    /** The one look for the stop being left: where the time there went, by direction. */
+    function flushLook(leaving) {
+      const was = standing;
+      if (!was || was.ms <= 0) return false;
+      was.ms = 0;
+      const bins = was.bins;
+      was.bins = {};
+      if (looksSent >= INSIGHT_EVENT_CAP) return false;
+      const total = Object.values(bins).reduce((sum, ms) => sum + ms, 0);
+      if (!send('look', { visit, stop: was.stop, ms: total, bins }, leaving === true)) return false;
+      looksSent++;
+      return true;
+    }
+
+    /** Arrival at a stop (0-based). Arriving again where you already stand is not a new arrival. */
+    function stopArrived(stop, roomName) {
+      if (insightsOff || off || !validStop(stop)) return false;
+      if (standing && standing.stop === stop) return false;
+      flushLook(false);
+      standing = { stop, ms: 0, bins: {} };
+      // Time counts from the arrival while the page is being read; otherwise from the next reading.
+      lastSample = sampler !== null ? clock() : null;
+      if (stopsSent >= INSIGHT_EVENT_CAP) return false;
+      const room = typeof roomName === 'string' ? roomName.replace(/\s+/g, ' ').trim().slice(0, ROOM_NAME_MAX) : '';
+      if (!send('stop', { visit, stop, room: room || null })) return false;
+      stopsSent++;
+      return true;
+    }
+
+    /** One reading of where the viewer looks; the time since the last reading at this stop goes to that direction. */
+    function sampleLook(view) {
+      if (insightsOff || off) return false;
+      const stop = view && view.stop;
+      const bin = view ? lookBin(view.yaw, view.pitch) : null;
+      // Moving, between stops, no 3D frame yet or no reading: that time belongs to no direction.
+      if (!validStop(stop) || !bin) { lastSample = null; return false; }
+      if (!standing || standing.stop !== stop) stopArrived(stop, null);
+      if (!standing || standing.stop !== stop) return false;
+      const at = clock();
+      // A timer the browser held back (a busy or throttled tab) counts as two readings at most.
+      const elapsed = lastSample === null ? 0 : Math.min(2 * LOOK_SAMPLE_MS, Math.max(0, Math.round(at - lastSample)));
+      lastSample = at;
+      const room = Math.min(elapsed, LOOK_CAP_MS - standing.ms);
+      if (room <= 0) return false;
+      standing.bins[bin] = (standing.bins[bin] || 0) + room;
+      standing.ms += room;
+      return true;
+    }
+
+    /** Read the player about twice a second while the page is visible; nothing runs while it is hidden. */
+    function watchLook(win) {
+      const doc = win && win.document;
+      if (insightsOff || !doc || typeof win.setInterval !== 'function' || typeof win.clearInterval !== 'function') return;
+      const hidden = () => doc.hidden === true || doc.visibilityState === 'hidden';
+      const read = () => {
+        if (insightsOff || off) { pause(); return; }
+        if (hidden()) { lastSample = null; return; }
+        let view = null;
+        try {
+          const current = win.VeyletPlayerV2 && win.VeyletPlayerV2.current;
+          view = current && typeof current.view === 'function' ? current.view() : null;
+        } catch { view = null; }
+        sampleLook(view);
+      };
+      function pause() { if (sampler !== null) { win.clearInterval(sampler); sampler = null; } lastSample = null; }
+      function resume() {
+        if (sampler !== null || hidden() || insightsOff || off) return;
+        sampler = win.setInterval(read, LOOK_SAMPLE_MS);
+        // Seen again: time counts from now, and none of the time away.
+        lastSample = standing ? clock() : null;
+      }
+      if (typeof doc.addEventListener === 'function') {
+        doc.addEventListener('veylet:stop', event => {
+          try {
+            const detail = event && event.detail;
+            if (detail) stopArrived(detail.stop, detail.room);
+          } catch { /* never in the player's way */ }
+        });
+        doc.addEventListener('visibilitychange', () => { if (hidden()) pause(); else resume(); });
+      }
+      if (typeof win.addEventListener === 'function') {
+        win.addEventListener('pagehide', () => { pause(); flushLook(true); insightsOff = true; }, { once: true });
+      }
+      resume();
     }
 
     function seconds(ms) { return Math.min(DWELL_CAP_SECONDS, Math.max(0, Math.round(ms / 1000))); }
@@ -230,6 +379,7 @@
           const entry = list.getEntries().find(item => item && item.name === FIRST_FRAME_MARK);
           if (!entry) return;
           observer.disconnect();
+          // A bare number of seconds, as it always was (the database contract leaves first_frame alone: no visit).
           send('first_frame', seconds(openedMark === null ? entry.startTime : entry.startTime - openedMark));
         });
         observer.observe({ type: 'mark', buffered: true });
@@ -240,11 +390,16 @@
       get enabled() { return !off; },
       src,
       host,
+      /** This page load's random token (32 hex), or null; in memory only. */
+      visit,
       send,
       roomVisited,
+      stopArrived,
+      sampleLook,
+      flushLook,
       /** The walkthrough was found: count the open, then its first frame and, once, the time spent. */
       opened(win) {
-        if (!send('open')) return false;
+        if (!send('open', withVisit({}))) return false;
         openedAt = clock();
         try { openedMark = win && win.performance && typeof win.performance.now === 'function' ? win.performance.now() : null; } catch { openedMark = null; }
         watchFirstFrame(win);
@@ -254,8 +409,10 @@
             if (name) roomVisited(name);
           });
         }
+        // The look for the last stop goes first, then the dwell: both keepalive, both once.
+        try { watchLook(win); } catch { /* insights are optional */ }
         if (win && typeof win.addEventListener === 'function') {
-          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', seconds(clock() - openedAt)); }, { once: true });
+          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', withVisit({ seconds: seconds(clock() - openedAt) })); }, { once: true });
         }
         return true;
       },
@@ -568,7 +725,7 @@
 
   window.VeyletClientPage = {
     dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
-    channelFrom, referrerHost, viewBeacon,
+    channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
     reportHref, mountReport, linkToken, invitationPoster, watchFailures,
