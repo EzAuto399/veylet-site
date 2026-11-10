@@ -1432,34 +1432,73 @@
     if (!map || typeof map !== 'object') return [];
     return Object.entries(map).filter(([, v]) => Number.isInteger(v) && v > 0).sort((a, b) => b[1] - a[1]);
   }
+  /*
+   * Insights in plain words. Every sentence is built from one answer and says no more
+   * than it holds (get_tour_view_stats): opens, days_with_opens, avg_dwell_seconds,
+   * call_taps, email_taps, share_taps, by_src, by_host, by_room (visits per room) and
+   * by_room_seconds (viewing seconds per room). A room's share is its seconds over all
+   * rooms' seconds. The counts are of opens and taps, not of people: one person opening
+   * twice is two opens, so nothing here says "buyers" or "viewers who".
+   */
+  const countTimes = count => (count === 1 ? 'once' : count === 2 ? 'twice' : count + ' times');
+  function roomTimes(row) {
+    const rooms = positiveEntries(row?.by_room_seconds);
+    const total = rooms.reduce((sum, [, seconds]) => sum + seconds, 0);
+    const visits = row?.by_room && typeof row.by_room === 'object' ? row.by_room : {};
+    return rooms.map(([name, seconds]) => ({ name, seconds, share: total > 0 ? Math.round((seconds / total) * 100) : 0,
+      visits: viewCount(visits[name]) }));
+  }
+  // Under this many opens a ranking of rooms is noise, and the sentence says so instead.
+  const INSIGHTS_MIN_OPENS = 5;
+  function insightsLead(row) {
+    const opens = viewCount(row?.opens) || 0;
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0, emails = viewCount(row?.email_taps) || 0;
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
+    const parts = ['Opened ' + countTimes(opens) + (days !== null && days > 0 ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (dwell ? ', for ' + dwell + ' on average' : '') + '.'];
+    const rooms = roomTimes(row).slice(0, 3);
+    if (rooms.length && opens < INSIGHTS_MIN_OPENS) parts.push('It is too early to say which rooms hold attention.');
+    else if (rooms.length) {
+      const said = rooms.map((room, index) => room.name + ' (' + room.share + '%' + (index === 0 ? ' of viewing time' : '') + ')');
+      parts.push('Viewers spent longest in ' + said[0] + (said[1] ? ', followed by ' + said.slice(1).join(' and ') : '') + '.');
+    }
+    const taps = [calls ? 'the call button was tapped ' + countTimes(calls) : '', emails ? 'the email button ' + (calls ? '' : 'was tapped ') + countTimes(emails) : ''].filter(Boolean);
+    parts.push(taps.length ? taps.join(' and ').replace(/^t/, 'T') + '.' : 'Nobody has tapped call or email yet.');
+    return parts.join(' ');
+  }
+  function channelWords(row) {
+    const opens = viewCount(row?.opens) || 0;
+    return positiveEntries(row?.by_src).map(([key, count]) => (CHANNEL_NAMES[key] || key) + ' ' + count + ' (' + Math.round((count / Math.max(1, opens)) * 100) + '%)');
+  }
   function vendorReportText(title, row, lastDate) {
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Walkthrough';
     const opens = viewCount(row?.opens) || 0;
     const days = viewCount(row?.days_with_opens);
     const calls = viewCount(row?.call_taps) || 0;
     const emails = viewCount(row?.email_taps) || 0;
-    const shares = viewCount(row?.share_taps) || 0;
+    const shares = viewCount(row?.share_taps);
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const lines = [
-      'Walkthrough campaign report — ' + name,
-      'Total opens: ' + opens + (days !== null ? ' (' + days + (days === 1 ? ' active day' : ' active days') + (lastDate ? ' · last opened ' + lastDate : '') + ')' : (lastDate ? ' (last opened ' + lastDate + ')' : '')),
-      'Direct buyer actions: ' + calls + (calls === 1 ? ' call tap' : ' call taps') + ' · ' + emails + (emails === 1 ? ' email tap' : ' email taps') + ' · ' + shares + (shares === 1 ? ' link share' : ' link shares') + (dwell ? ' · Avg. time ' + dwell : ''),
+      'Walkthrough update: ' + name,
+      insightsLead(row),
+      '',
+      'Opens: ' + opens + (days !== null ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (lastDate ? ', last opened ' + lastDate : ''),
     ];
-    const channels = positiveEntries(row?.by_src);
-    if (channels.length) {
-      lines.push('Where buyers opened from: ' + channels.map(([k, v]) => (CHANNEL_NAMES[k] || k) + ': ' + v + ' (' + Math.round((v / Math.max(1, opens)) * 100) + '%)').join(' · '));
-    }
+    if (dwell) lines.push('Average time: ' + dwell);
+    lines.push('Enquiries: ' + calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + (shares !== null ? ' · Link shares: ' + shares : ''));
+    const channels = channelWords(row);
+    if (channels.length) lines.push('Opened from: ' + channels.join(' · '));
     const hosts = positiveEntries(row?.by_host);
     if (hosts.length) {
       lines.push('Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', '));
     }
-    const rooms = positiveEntries(row?.by_room);
+    const rooms = roomTimes(row);
     if (rooms.length) {
-      lines.push('Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · '));
-    }
-    const roomTimes = positiveEntries(row?.by_room_seconds);
-    if (roomTimes.length) {
-      lines.push('Time by room: ' + roomTimes.map(([r, s]) => r + ' ' + formatDurationSeconds(s)).join(' · '));
+      lines.push('Time by room: ' + rooms.map(room => room.name + ' ' + formatDurationSeconds(room.seconds) + ' (' + room.share + '%' +
+        (room.visits !== null ? ', ' + room.visits + (room.visits === 1 ? ' visit' : ' visits') : '') + ')').join(' · '));
+    } else {
+      const visited = positiveEntries(row?.by_room);
+      if (visited.length) lines.push('Visits by room: ' + visited.map(([r, c]) => r + ' ' + c).join(' · '));
     }
     return lines.join('\n');
   }
@@ -1477,11 +1516,9 @@
    * version of the walkthrough only. A backend without the function
    * (PGRST202) shows no panel at all, as the view counts do; so does any error or odd answer.
    */
-  const HEAT_PITCH_NAMES = ['down', 'level', 'up'];
-  // The top stops get a ring; the table carries every stop.
+  // The top standing spots get a ring; the table carries every one.
   const HEAT_STOPS_SHOWN = 5;
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  function heatSector(yawBin) { return (yawBin * 30) + '–' + (yawBin * 30 + 30) + '°'; }
   /** The answer as clean rows ranked by time, or null when it is not the shape above. */
   function heatmapFrom(data) {
     const answer = firstRow(data);
@@ -1509,24 +1546,58 @@
     return { stops, visits: viewCount(answer.visits), since: typeof answer.since === 'string' ? answer.since : '' };
   }
   const heatShare = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
-  function heatStopName(row) { return 'Stop ' + (row.stop + 1) + (row.room ? ' · ' + row.room : ''); }
+  /*
+   * A standing spot is named by its room and its order in that room ("Kitchen, second
+   * stop"); a room with one stop is just the room. The order is the walkthrough's own
+   * stop order. A stop with no room name keeps its number, which is all there is.
+   */
+  const HEAT_ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+  function heatNames(stops) {
+    const names = new Map();
+    const rooms = new Map();
+    for (const row of [...stops].sort((a, b) => a.stop - b.stop)) {
+      if (!row.room) continue;
+      if (!rooms.has(row.room)) rooms.set(row.room, []);
+      rooms.get(row.room).push(row);
+    }
+    for (const row of stops) {
+      const same = row.room ? rooms.get(row.room) : null;
+      const place = same ? same.indexOf(row) : -1;
+      names.set(row, !row.room ? 'Stop ' + (row.stop + 1) + ' (room not named)'
+        : same.length === 1 ? row.room : row.room + ', ' + (HEAT_ORDINALS[place] || (place + 1) + 'th') + ' stop');
+    }
+    return names;
+  }
   function heatFigures(row) {
     return (formatDurationSeconds(row.seconds) || 'Under 1s') + ' · ' + row.visits + (row.visits === 1 ? ' visit' : ' visits');
   }
-  /** "Looked most towards 60–90°, level (41%)", in words. */
-  function heatTopWords(row) {
-    const top = row.cells[0];
-    return top ? 'Looked most towards ' + heatSector(top.yaw) + ', ' + HEAT_PITCH_NAMES[top.pitch] + ' (' + heatShare(top.seconds, row.binned) + '%)' : 'No look direction recorded';
+  /*
+   * How people looked around at a stop, from its yaw bins (12 sectors of 30 degrees,
+   * summed over down, level and up). The data says how concentrated the looking was,
+   * never what was looked at, so the words stop there: under 15 seconds at the stop is
+   * too brief to say; 40% or more of the time in one sector is mostly one direction;
+   * else 70% or more inside three neighbouring sectors is mostly one side; else all around.
+   */
+  const HEAT_MIN_SECONDS = 15;
+  function heatSpreadWords(row) {
+    if (!(row.binned > 0)) return 'No look direction recorded';
+    if (row.seconds < HEAT_MIN_SECONDS) return 'Too brief to say where they looked';
+    const yaw = Array.from({ length: 12 }, (_, sector) => row.cells.filter(cell => cell.yaw === sector).reduce((sum, cell) => sum + cell.seconds, 0));
+    const top = Math.max(...yaw);
+    if (top / row.binned >= 0.4) return 'Mostly one direction (' + heatShare(top, row.binned) + '% of the time)';
+    const side = Math.max(...yaw.map((_, sector) => yaw[sector] + yaw[(sector + 1) % 12] + yaw[(sector + 2) % 12]));
+    return side / row.binned >= 0.7 ? 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)' : 'Looked all around';
   }
+  // The share of the stop's time spent looking level, down and up (pitch bins 1, 0, 2).
   function heatPitchWords(row) {
-    return row.binned > 0 ? 'Down ' + heatShare(row.byPitch[0], row.binned) + '% · Level ' + heatShare(row.byPitch[1], row.binned) + '% · Up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
+    return row.binned > 0 ? 'Level ' + heatShare(row.byPitch[1], row.binned) + '% · down ' + heatShare(row.byPitch[0], row.binned) + '% · up ' + heatShare(row.byPitch[2], row.binned) + '%' : '';
   }
   /** One stop from above: 12 sectors by 3 bands (36 wedges). Decorative: the words beside it say the same. */
   function heatRing(row) {
     if (typeof document.createElementNS !== 'function') return null;
     const svg = document.createElementNS(SVG_NS, 'svg');
     svg.setAttribute('class', 'tour-heat-ring'); svg.setAttribute('viewBox', '0 0 72 72');
-    svg.setAttribute('width', '72'); svg.setAttribute('height', '72');
+    svg.setAttribute('width', '48'); svg.setAttribute('height', '48');
     svg.setAttribute('aria-hidden', 'true'); svg.setAttribute('focusable', 'false');
     const most = row.cells.length ? row.cells[0].seconds : 0;
     const amount = new Map(row.cells.map(cell => [cell.yaw + '_' + cell.pitch, cell.seconds]));
@@ -1555,31 +1626,29 @@
     svg.append(mark);
     return svg;
   }
-  function heatTable(rows) {
+  const HEAT_COLUMNS = ['Stop', 'Time', 'Visits', 'How they looked around', 'Level / down / up'];
+  function heatTable(rows, names) {
     const details = document.createElement('details'); details.className = 'tour-heat-more';
     const summary = document.createElement('summary'); summary.textContent = rows.length > HEAT_STOPS_SHOWN ? 'All ' + rows.length + ' stops as a table' : 'Show as a table';
-    const scroll = document.createElement('div'); scroll.className = 'tour-heat-scroll';
-    // On a phone the table scrolls sideways inside its own box, which a keyboard must be able to reach.
-    scroll.setAttribute('tabindex', '0'); scroll.setAttribute('role', 'group'); scroll.setAttribute('aria-label', 'Viewing time by stop, table');
+    // On a phone each row stacks, every value under its own label: nothing scrolls sideways.
     const table = document.createElement('table'); table.className = 'tour-heat-table';
     const caption = document.createElement('caption'); caption.textContent = 'Viewing time by stop, most first';
     const head = document.createElement('thead'), headRow = document.createElement('tr');
-    for (const text of ['Stop', 'Time', 'Visits', 'Looked most', 'Down / level / up']) {
+    for (const text of HEAT_COLUMNS) {
       const cell = document.createElement('th'); cell.setAttribute('scope', 'col'); cell.textContent = text; headRow.append(cell);
     }
     head.append(headRow);
     const body = document.createElement('tbody');
     for (const row of rows) {
       const line = document.createElement('tr');
-      const name = document.createElement('th'); name.setAttribute('scope', 'row'); name.textContent = heatStopName(row);
-      const top = row.cells[0];
+      const name = document.createElement('th'); name.setAttribute('scope', 'row'); name.textContent = names.get(row);
       const cells = [formatDurationSeconds(row.seconds) || 'Under 1s', String(row.visits),
-        top ? heatSector(top.yaw) + ', ' + HEAT_PITCH_NAMES[top.pitch] + ' (' + heatShare(top.seconds, row.binned) + '%)' : '–',
-        row.binned > 0 ? row.byPitch.map(part => heatShare(part, row.binned) + '%').join(' / ') : '–'];
-      line.append(name, ...cells.map(text => { const cell = document.createElement('td'); cell.textContent = text; return cell; }));
+        row.binned > 0 ? heatSpreadWords(row) : '–',
+        row.binned > 0 ? [1, 0, 2].map(pitch => heatShare(row.byPitch[pitch], row.binned) + '%').join(' / ') : '–'];
+      line.append(name, ...cells.map((text, index) => { const cell = document.createElement('td'); cell.textContent = text; cell.dataset.label = HEAT_COLUMNS[index + 1]; return cell; }));
       body.append(line);
     }
-    table.append(caption, head, body); scroll.append(table); details.append(summary, scroll);
+    table.append(caption, head, body); details.append(summary, table);
     return details;
   }
   function renderHeat(panel, heat) {
@@ -1595,24 +1664,26 @@
     lead.textContent = [heat.visits !== null ? heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : (since ? 'Since ' + since : ''),
       'Stops are ranked by viewing time.'].filter(Boolean).join('. ');
     const parts = [title, lead];
+    const names = heatNames(heat.stops);
     const list = document.createElement('ol'); list.className = 'tour-heat-stops';
     for (const row of heat.stops.slice(0, HEAT_STOPS_SHOWN)) {
       const item = document.createElement('li'); item.className = 'tour-heat-stop';
       const words = document.createElement('div'); words.className = 'tour-heat-words';
-      const lines = [['tour-heat-stop-name', heatStopName(row)], ['tour-heat-stop-figures', heatFigures(row)],
-        ['tour-heat-stop-top', heatTopWords(row)], ['tour-heat-stop-pitch', heatPitchWords(row)]];
+      const lines = [['tour-heat-stop-name', names.get(row)], ['tour-heat-stop-figures', heatFigures(row)],
+        ['tour-heat-stop-top', heatSpreadWords(row)], ['tour-heat-stop-pitch', heatPitchWords(row)]];
       for (const [className, text] of lines) {
         if (!text) continue;
         const line = document.createElement('p'); line.className = className; line.textContent = text; words.append(line);
       }
+      item.append(words);
       const ring = heatRing(row);
       if (ring) item.append(ring);
-      item.append(words); list.append(item);
+      list.append(item);
     }
     parts.push(list);
     const key = document.createElement('p'); key.className = 'tour-heat-key';
-    key.textContent = 'Each ring is a stop seen from above. Angles use the walkthrough’s own compass: 0° at the top of the ring, turning anticlockwise. Inner band: looking down. Middle: level. Outer: up. Darker means more of that stop’s time.';
-    parts.push(key, heatTable(heat.stops));
+    key.textContent = 'Each ring is a stop seen from above: darker means people looked that way longer.';
+    parts.push(key, heatTable(heat.stops, names));
     panel.replaceChildren(...parts); panel.hidden = false;
   }
   /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
@@ -1647,54 +1718,11 @@
     const emails = viewCount(row?.email_taps) || 0;
     const shares = viewCount(row?.share_taps);
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
-    const summaryBits = [];
-    if (days !== null) summaryBits.push('Active days: ' + days);
-    summaryBits.push('Direct enquiries: ' + (calls + emails));
-    if (shares !== null) summaryBits.push('Link shares: ' + shares);
-    if (dwell) summaryBits.push('Avg. time: ' + dwell);
-    const metrics = document.createElement('p');
-    metrics.className = 'tour-insights-summary';
-    metrics.textContent = summaryBits.join(' · ');
-    body.append(metrics);
-    const channels = positiveEntries(row?.by_src);
-    if (channels.length) {
-      const list = document.createElement('ul');
-      list.className = 'tour-insights-channels';
-      for (const [key, count] of channels) {
-        const pct = Math.round((count / Math.max(1, opens)) * 100);
-        const li = document.createElement('li');
-        li.className = 'tour-insights-channel';
-        li.textContent = (CHANNEL_NAMES[key] || key) + ': ' + count + ' (' + pct + '%)';
-        li.style?.setProperty?.('--share', Math.min(100, pct) + '%');
-        list.append(li);
-      }
-      body.append(list);
-    }
-    const hosts = positiveEntries(row?.by_host);
-    if (hosts.length) {
-      const hostLine = document.createElement('p');
-      hostLine.className = 'tour-insights-hosts';
-      hostLine.textContent = 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ');
-      body.append(hostLine);
-    }
-    const rooms = positiveEntries(row?.by_room);
-    if (rooms.length) {
-      const roomLine = document.createElement('p');
-      roomLine.className = 'tour-insights-rooms';
-      roomLine.textContent = 'Most explored rooms: ' + rooms.map(([r, c]) => r + ' (' + c + ')').join(' · ');
-      body.append(roomLine);
-    }
-    // Seconds looked from each room's stops (by_room_seconds: a flat map of room to whole seconds).
-    const roomTimes = positiveEntries(row?.by_room_seconds);
-    if (roomTimes.length) {
-      const timeLine = document.createElement('p');
-      timeLine.className = 'tour-insights-rooms tour-insights-room-time';
-      timeLine.textContent = 'Time by room: ' + roomTimes.map(([r, s]) => r + ' ' + formatDurationSeconds(s)).join(' · ');
-      body.append(timeLine);
-    }
-    heat.className = 'tour-heat'; heat.hidden = true;
-    body.append(heat);
-    if (entry.open) tourHeat(tour, heat, supabase, ticket);
+    // One sentence to repeat to a vendor, then the report it opens, then the figures behind it.
+    const leadLine = document.createElement('p');
+    leadLine.className = 'tour-insights-lead';
+    leadLine.textContent = insightsLead(row);
+    body.append(leadLine);
     const reportText = vendorReportText(title, row, lastDate);
     const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
     const copyBtn = button('Copy vendor report', async () => {
@@ -1719,6 +1747,60 @@
     actions.className = 'tour-actions-row';
     actions.append(copyBtn, downloadBtn);
     body.append(actions);
+    const figures = document.createElement('dl'); figures.className = 'tour-insights-figures';
+    const figure = (term, value) => {
+      const group = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = term;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      group.append(dt, dd); figures.append(group);
+    };
+    figure('Opens', String(opens));
+    if (days !== null) figure('Days active', String(days));
+    if (dwell) figure('Average time', dwell);
+    figure('Enquiries', (calls + emails) + (calls + emails > 0 ? ' (' + calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + ')' : ''));
+    if (shares !== null) figure('Link shares', String(shares));
+    body.append(figures);
+    // Rooms ranked by viewing time, each with a bar scaled to the longest; before the
+    // time columns exist, ranked by visits and saying so.
+    const rooms = roomTimes(row);
+    const visited = rooms.length ? [] : positiveEntries(row?.by_room);
+    if (rooms.length || visited.length) {
+      const heading = document.createElement('h4'); heading.className = 'tour-insights-title';
+      heading.textContent = rooms.length ? 'Rooms by viewing time' : 'Rooms by visits';
+      const roomList = document.createElement('ol'); roomList.className = 'tour-insights-rooms';
+      const longest = rooms.length ? rooms[0].seconds : visited[0][1];
+      const entries = rooms.length ? rooms.map(room => ({ name: room.name, amount: room.seconds,
+        said: formatDurationSeconds(room.seconds) + (room.visits !== null ? ' · ' + room.visits + (room.visits === 1 ? ' visit' : ' visits') : ''), share: room.share + '%' }))
+        : visited.map(([name, count]) => ({ name, amount: count, said: count + (count === 1 ? ' visit' : ' visits'), share: '' }));
+      for (const entry of entries) {
+        const item = document.createElement('li'); item.className = 'tour-insights-room';
+        const name = document.createElement('span'); name.className = 'tour-insights-room-name'; name.textContent = entry.name;
+        const bar = document.createElement('span'); bar.className = 'tour-insights-room-bar'; bar.setAttribute('aria-hidden', 'true');
+        bar.dataset.share = String(Math.max(1, Math.round((entry.amount / longest) * 100)));
+        bar.style?.setProperty?.('--share', bar.dataset.share + '%');
+        const said = document.createElement('span'); said.className = 'tour-insights-room-figures'; said.textContent = entry.said;
+        const share = document.createElement('span'); share.className = 'tour-insights-room-share'; share.textContent = entry.share;
+        item.append(name, bar, said, share); roomList.append(item);
+      }
+      body.append(heading, roomList);
+    }
+    const channels = channelWords(row);
+    if (channels.length) {
+      const line = document.createElement('p');
+      line.className = 'tour-insights-channels';
+      line.textContent = 'Opened from: ' + channels.join(' · ');
+      body.append(line);
+    }
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) {
+      const hostLine = document.createElement('p');
+      hostLine.className = 'tour-insights-hosts';
+      hostLine.textContent = 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ');
+      body.append(hostLine);
+    }
+    heat.className = 'tour-heat'; heat.hidden = true;
+    body.append(heat);
+    if (entry.open) tourHeat(tour, heat, supabase, ticket);
     box.replaceChildren(body);
     const sayInsights = rowSay(tour, box);
     entry.show(true);
