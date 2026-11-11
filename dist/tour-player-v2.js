@@ -158,7 +158,8 @@
         length += step;
       }
       // length_m must agree with the points (within 25 % or 0.25 m, whichever is larger); the points' length is used.
-      if (!Number.isFinite(length) || !Number.isFinite(leg.length_m) || Math.abs(leg.length_m - length) > Math.max(0.25, 0.25 * length)) return null;
+      if (!Number.isFinite(length) || length < 0.3 || !Number.isFinite(leg.length_m) || leg.length_m <= 0
+          || Math.abs(leg.length_m - length) > Math.max(0.25, 0.25 * length)) return null;
       const fromIndex = indexOf.get(leg.from), toIndex = indexOf.get(leg.to);
       if (!near(points[0], stops[fromIndex].position) || !near(points[points.length - 1], stops[toIndex].position)) return null;
       out.push({ from: leg.from, to: leg.to, fromIndex, toIndex, length, points: points.map(point => [...point]) });
@@ -629,12 +630,14 @@
     const points = [[...stops[from].position]];
     // points.through: the stops the walk passes, from first to last (their rooms are the rooms it walks through).
     points.through = [from];
+    points.throughAt = [0]; // each passed stop's index in points
     for (const { leg, previous } of chain) {
       const walked = leg.fromIndex === previous ? leg.points : [...leg.points].reverse();
       points.push(...walked.slice(1, -1).map(point => [...point]));
       const end = leg.fromIndex === previous ? leg.toIndex : leg.fromIndex;
       points.push([...stops[end].position]);
       points.through.push(end);
+      points.throughAt.push(points.length - 1);
     }
     return points;
   }
@@ -1575,11 +1578,14 @@
     // The last stop-to-stop move, for QA (inspect()): route 'path' (the walked path), 'mask' (over the floor mask) or 'direct' (a cut).
     let lastMove = null;
     // Every flight holds the render loop (continuous) until it lands or is cut short here.
-    function cancelFlight() {
+    // stopped: the visitor stopped it (a drag or a turn), not a new move; a walk then tidies up where it stands.
+    function cancelFlight(stopped = false) {
       if (!flight) return;
+      const left = flight;
       flight = null;
       flightFovOffset = 0;
       continuous = Math.max(0, continuous - 1);
+      if (stopped) left.onStop?.();
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
@@ -1603,13 +1609,13 @@
       continuous++;
     }
     // Along the path walked at capture: the same flight (a drag, a turn or a new move cuts it short the same way).
-    function walkAlong(points, yaw, pitch, onArrive) {
+    function walkAlong(points, yaw, pitch, onArrive, { onProgress, onStop } = {}) {
       const position = [...points[points.length - 1]];
       if (reduced()) { flyTo(position, yaw, pitch, onArrive, false); return 0; }
       cancelFlight();
       const walk = walkPath(points), duration = walkDuration(walk.length);
       if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive };
+      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive, onProgress, onStop };
       continuous++;
       return duration;
     }
@@ -1618,13 +1624,19 @@
       const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
       if (flight.walk) {
         state.position = t >= 1 ? [...flight.position] : flight.walk.at(walkEase(t)).position;
-        // The look swings at no more than WALK_TURN degrees a second, so a leg that doubles back turns, not snaps.
+        // The look swings at no more than WALK_TURN degrees a second (the shorter way round), so a leg that doubles
+        // back turns rather than snaps. Any turn still owed at the stop finishes there at that rate (at most 1 s more,
+        // as no turn the shorter way is over 180 degrees); the move ends when the look is the stop's own.
         const aim = walkLook(flight.walk, t, flight.from, flight.to), most = WALK_TURN * Math.max(0, now - flight.stepped) / 1000;
-        if (t >= 1) Object.assign(state, aim);
-        else Object.assign(state, { yaw: state.yaw + clamp(aim.yaw - state.yaw, -most, most), pitch: state.pitch + clamp(aim.pitch - state.pitch, -most, most) });
+        const turn = wrapDegrees(aim.yaw - state.yaw), tilt = aim.pitch - state.pitch;
+        state.yaw += clamp(turn, -most, most);
+        state.pitch += clamp(tilt, -most, most);
         flight.stepped = now;
         applyCamera();
-        if (t >= 1) { const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); done?.(); }
+        const walking = flight;
+        walking.onProgress?.(walkEase(t) * walking.walk.length);
+        if (flight !== walking) return;
+        if (t >= 1 && Math.abs(turn) <= most && Math.abs(tilt) <= most) { flight = null; continuous = Math.max(0, continuous - 1); walking.onArrive?.(); }
         return;
       }
       if (flight.via) {
@@ -1742,32 +1754,58 @@
       delete ui.root.dataset.end;
       if (held) ui.next.focus?.();
     }
+    /**
+     * Rooms streamed along a walk on a chunked home. In the first half of each leg the camera counts as in the room of
+     * the stop it left, and the next stop's room (one room ahead, never more) starts loading; from halfway it counts as
+     * in the next stop's room. Each change is an ordinary room entry (enterChunk: the device's chunk plan) followed by
+     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk the visitor stops (a drag or a
+     * turn) is tidied the same way from the room the camera is in.
+     */
+    function walkRooms(points) {
+      const run = [0];
+      for (let i = 1; i < points.length; i++) run.push(run[i - 1] + Math.hypot(...points[i].map((v, k) => v - points[i - 1][k])));
+      const marks = points.throughAt.map(i => run[i]);
+      const roomOf = n => chunked.chunkOfRoom[manifest.stops[points.through[n]].room];
+      let last = null;
+      return {
+        onProgress(distance) {
+          let leg = 0;
+          while (leg + 2 < marks.length && distance >= marks[leg + 1]) leg++;
+          const past = distance >= (marks[leg] + marks[leg + 1]) / 2;
+          const here = roomOf(past ? leg + 1 : leg), ahead = past ? null : roomOf(leg + 1);
+          if (last === here + ' ' + ahead) return;
+          last = here + ' ' + ahead;
+          enterChunk(here);
+          releaseFarChunks();
+          if (ahead && !held.has(ahead)) addChunk(ahead);
+        },
+        onStop() {
+          enterChunk(chunkAt(manifest, state.position, currentChunk, sameLevel));
+          releaseFarChunks();
+        },
+      };
+    }
     function goToStop(index, byUser = true) {
       if (!ready) return;
       dismissHint(byUser);
       hideEnd();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
-      // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
-      if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
       // A saved pose is not a walking route. Only interpolate on the mask's measured floor;
       // unknown paths and other storeys jump directly, without passing through walls or floors.
       const from = state.stop >= 0 ? manifest.stops[state.stop] : null;
       const onArrive = () => { arrived(index); if (chunked) releaseFarChunks(); };
       // The way the person walked when capturing, when a leg (or chain of legs) joins the two stops and the
       // camera is still at the stop it left. Otherwise the rules below, as before there were paths.
-      const walked = from && manifest.path ? pathRoute(manifest.path, manifest.stops, state.stop, index) : null;
-      if (walked && Math.hypot(...walked[0].map((v, i) => v - state.position[i])) <= 0.35) {
+      const route0 = from && manifest.path ? pathRoute(manifest.path, manifest.stops, state.stop, index) : null;
+      const walked = route0 && Math.hypot(...route0[0].map((v, i) => v - state.position[i])) <= 0.35 ? route0 : null;
+      // A chunked home starts streaming the room ahead as the move starts; far rooms go once there. A walk instead
+      // streams room by room as it goes (walkRooms).
+      if (chunked && !(walked && !reduced())) enterChunk(chunked.chunkOfRoom[stop.room]);
+      if (walked) {
         walked[0] = [...state.position];
         const origin = state.stop;
-        const duration = walkAlong(walked, look.yaw, look.pitch, onArrive);
-        // A walk through other rooms: their chunks start loading (coarsest) as it starts; arrival lets far ones go as before.
-        if (chunked && duration) {
-          for (const stopIndex of walked.through) {
-            const id = chunked.chunkOfRoom[manifest.stops[stopIndex].room];
-            if (!held.has(id)) addChunk(id);
-          }
-        }
+        const duration = walkAlong(walked, look.yaw, look.pitch, onArrive, chunked ? walkRooms(walked) : {});
         // cut: true when the move did not animate (reduced motion), so it is never read as a walk.
         lastMove = { route: 'path', from: origin, to: index, points: walked.length, duration, cut: !duration };
         return;
@@ -1890,7 +1928,7 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        cancelFlight();
+        cancelFlight(true);
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1933,7 +1971,7 @@
       const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
-        cancelFlight();
+        cancelFlight(true);
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
         state.yaw += left ? 10 : -10;
         applyCamera();

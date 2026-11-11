@@ -1884,31 +1884,107 @@ test('a floor tap beside the walked leg is kept, through the tap handler; withou
   }
 });
 
-test('chunked home: a walk through another room loads that room as it starts; far rooms go on arrival', async () => {
+// Five rooms in a row, one chunk each, a stop in each and a walked leg between neighbours.
+function chunkedWalk() {
   const COUNTS = [480000, 240000, 120000, 48000];
-  const chunk = n => ({ id: 'chunk_' + n, rooms: ['r' + n], adjacent: [n - 1, n + 1].filter(m => m >= 1 && m <= 4).map(m => 'chunk_' + m),
+  const chunk = n => ({ id: 'chunk_' + n, rooms: ['r' + n], adjacent: [n - 1, n + 1].filter(m => m >= 1 && m <= 5).map(m => 'chunk_' + m),
     lod_meta: `lod/chunk_${n}/lod-meta.json`, lod_counts: COUNTS, bounds: { min: [(n - 1) * 4 - 2, -1.5, -3], max: [(n - 1) * 4 + 2.2, 1.5, 3] } });
   const stop = n => ({ id: 's' + n, room: 'r' + n, position: [(n - 1) * 4, 0, 0], target: [(n - 1) * 4, -0.3, -2], floor: [(n - 1) * 4, -1.4, 0], floor_measured: true });
   const leg = n => ({ from: 's' + n, to: 's' + (n + 1), points: [[(n - 1) * 4, 0, 0], [(n - 1) * 4 + 2, 0, 0.3], [n * 4, 0, 0]], length_m: 4.05, max_gap_m: 0.8 });
-  const data = manifest({
+  const rooms = [1, 2, 3, 4, 5];
+  return manifest({
     scene: { lod_meta: 'lod/chunk_1/lod-meta.json', lod_levels: 4, lod_counts: COUNTS, sh_bands: 2, rotation_degrees: [0, 0, 180], background: '#10231d',
-      layout: 'chunked', opening_chunk: 'chunk_1', chunks: [1, 2, 3, 4].map(chunk) },
-    rooms: [1, 2, 3, 4].map(n => ({ id: 'r' + n, name: ['Hall', 'Kitchen', 'Study', 'Bedroom'][n - 1] })),
-    stops: [1, 2, 3, 4].map(stop),
-    path: walkedPath({ legs: [1, 2, 3].map(leg) }),
+      layout: 'chunked', opening_chunk: 'chunk_1', chunks: rooms.map(chunk) },
+    rooms: rooms.map(n => ({ id: 'r' + n, name: ['Hall', 'Kitchen', 'Study', 'Bedroom', 'Bath'][n - 1] })),
+    stops: rooms.map(stop),
+    path: walkedPath({ legs: [1, 2, 3, 4].map(leg) }),
   });
+}
+// Which chunks the engine holds, from what the stand-in engine was asked to add and destroy.
+function heldChunks(log) {
+  const held = new Set();
+  for (const line of log) {
+    const added = line.match(/^gsplat:.*\/(chunk_\d)\//), dropped = line.match(/^destroy:(chunk_\d)$/);
+    if (added) held.add(added[1]);
+    if (dropped) held.delete(dropped[1]);
+  }
+  return held;
+}
+
+test('chunked home: a walk loads one room ahead at a time and lets rooms behind go, never holding more than an arrival plus one', async () => {
   const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
+  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: chunkedWalk() });
   const settle = () => { x.app.systems.gsplat.fire('frame:ready', null, null, false, 2); x.app.systems.gsplat.fire('frame:ready', null, null, true, 0); };
   settle(); settle(); // neighbours, then detail
-  const chunkLoads = lines => lines.filter(line => /^gsplat:.*chunk_\d/.test(line)).map(line => line.match(/chunk_\d/)[0]);
-  assert.deepEqual(chunkLoads(x.log), ['chunk_1', 'chunk_2']);
-  const mark = x.log.length;
-  x.window.VeyletPlayerV2.current.goToStop(3); // Hall → Kitchen → Study → Bedroom
-  assert.equal(x.window.VeyletPlayerV2.current.inspect().move.route, 'path');
-  assert.deepEqual(chunkLoads(x.log.slice(mark)).sort(), ['chunk_3', 'chunk_4'], 'the Study, walked through, loads as the walk starts');
-  time.t += 6000; x.app.fire('update');
-  assert.equal(x.stopLine(), 'Stop 4 of 4');
-  const gone = x.log.slice(mark).filter(line => line.startsWith('destroy:chunk_'));
-  assert.deepEqual(gone.sort(), ['destroy:chunk_1', 'destroy:chunk_2'], 'on arrival, rooms two doorways back are let go as before');
+  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_1', 'chunk_2']);
+  const controller = x.window.VeyletPlayerV2.current;
+  controller.goToStop(4); // Hall → Kitchen → Study → Bedroom → Bath: the Study, Bedroom and Bath are not loaded
+  assert.equal(controller.inspect().move.route, 'path');
+  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_1', 'chunk_2'], 'nothing beyond the next room is asked for at the start');
+  // An arrival in a middle room holds three chunks (the room and its two doorways); a walk may hold one more.
+  let most = 0, frames = 0;
+  while (controller.inspect().move.moving && frames < 1000) {
+    time.t += 50; x.app.fire('update'); frames++;
+    if (frames % 4 === 0) settle();
+    most = Math.max(most, heldChunks(x.log).size);
+  }
+  assert.ok(most <= 4, `held at most ${most} chunks during the walk`);
+  assert.equal(x.stopLine(), 'Stop 5 of 5');
+  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_4', 'chunk_5'], 'arrival holds the room and its doorway, as a normal arrival does');
+});
+
+test('chunked home: a walk stopped by a drag lets go of rooms two doorways from where the camera stands', async () => {
+  const time = clock();
+  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: chunkedWalk() });
+  const settle = () => { x.app.systems.gsplat.fire('frame:ready', null, null, false, 2); x.app.systems.gsplat.fire('frame:ready', null, null, true, 0); };
+  settle(); settle();
+  const controller = x.window.VeyletPlayerV2.current;
+  controller.goToStop(4);
+  while (controller.inspect().state.position[0] < 8.5) { time.t += 50; x.app.fire('update'); settle(); }
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
+  assert.equal(controller.inspect().move.moving, false);
+  const held = [...heldChunks(x.log)].sort();
+  assert.ok(held.includes('chunk_3'), `the Study, where the camera stopped, stays: ${held}`);
+  assert.ok(held.every(id => ['chunk_2', 'chunk_3', 'chunk_4'].includes(id)), `only the Study and its doorways stay held: ${held}`);
+});
+
+test('the turn into the stop\'s look keeps to 180°/s through the arrival frame, taking up to 1 s more if it must', async () => {
+  const time = clock();
+  const data = manifest({ path: walkedPath({ legs: [{ from: 's1', to: 's2', points: [[0, 0, 0], [0.5, 0, 0.05], [1, 0, 0]], length_m: 1.0, max_gap_m: 0.5 }] }) });
+  // Both stops look back the way the walk comes from (-X), so the look turns away and all the way back in 0.9 s.
+  data.stops[0].target = [-2, -0.3, 0];
+  data.stops[1].target = [-1, -0.3, 0];
+  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
+  const controller = x.window.VeyletPlayerV2.current;
+  controller.goToStop(1);
+  assert.equal(controller.inspect().move.duration, 900);
+  let previous = controller.inspect().state, largest = 0, frames = 0;
+  while (controller.view().stop === -1 && frames < 500) {
+    time.t += 16; x.app.fire('update'); frames++;
+    const now = controller.inspect().state; // the arrival frame included
+    largest = Math.max(largest, Math.abs(((now.yaw - previous.yaw) % 360 + 540) % 360 - 180), Math.abs(now.pitch - previous.pitch));
+    previous = now;
+  }
+  assert.ok(largest <= 180 * 0.016 + 1e-9, `largest change in a 16 ms frame: ${largest}°`);
+  assert.ok(frames * 16 > 900 && frames * 16 <= 900 + 1000 + 16, `arrived after ${frames * 16} ms`);
+  const look = x.player.lookAngles(data.stops[1].position, data.stops[1].target);
+  assert.ok(Math.abs(((previous.yaw - look.yaw) % 360 + 540) % 360 - 180) < 1e-6 && Math.abs(previous.pitch - look.pitch) < 1e-9, 'ends exactly on the stop\'s look');
+  assert.deepEqual(plainJson(previous.position), data.stops[1].position);
+  assert.equal(controller.view().stop, 1);
+});
+
+test('a leg needs a positive length_m and at least 0.3 m of points', () => {
+  const { player } = load();
+  const stops = [
+    { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, -0.3, -2], floor: [0, -1.4, 0], floor_measured: true },
+    { id: 's2', room: 'r1', position: [0.2, 0, 0], target: [0.2, -0.3, -2], floor: [0.2, -1.4, 0], floor_measured: true },
+    { id: 's3', room: 'r1', position: [0.6, 0, 0], target: [0.6, -0.3, -2], floor: [0.6, -1.4, 0], floor_measured: true },
+  ];
+  const path = (from, to, end, length_m) => walkedPath({ legs: [{ from, to, points: [[0, 0, 0], [end, 0, 0]], length_m, max_gap_m: 0.2 }] });
+  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's2', 0.2, 0.2) })).path, undefined, '0.2 m of points');
+  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, 0) })).path, undefined, 'length_m 0');
+  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, -0.1) })).path, undefined, 'length_m below 0');
+  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, 0.6) })).path.legs.length, 1);
 });
