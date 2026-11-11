@@ -21,7 +21,7 @@ This file is the full public text of the pages linked from https://veylet.com/ll
 ## 3D virtual tours captured on your iPhone — Veylet
 Source: https://veylet.com/
 
-Veylet makes 3D walkthroughs of homes, businesses and venues that people can walk through on their phone before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
+Veylet makes 3D walkthroughs of homes, businesses and venues that people can look around on their phone, stop by stop, before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
 Open to anyone, admitted weekly
 New accounts are admitted in weekly groups.
 1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
@@ -46,7 +46,7 @@ One space, four steps. You walk it with the phone; Veylet builds and checks the 
 - When it says Ready for your review, check the exact version on your phone and tap Approve and share. You get a link, a QR code and a website embed; viewers need no app or account. Your account shows how often it was opened, and turning off sharing stops new access.
 - Photo match
 - Coverage
-- Walkable paths
+- Paths between stops
 Illustration of the process, not a captured space.
 New accounts are admitted in weekly groups. 1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
 
@@ -175,7 +175,7 @@ Works with recent iPhone Pro and iPad Pro models. One email signs in both the ap
 - Check the exact version, tick “I have the right to share this walkthrough” and press Approve and share: one press puts its link, QR code and website embed live. If rooms need fixing, a permitted whole recapture must include every original room. It replaces the walkthrough on the same link and uses no extra walkthrough once you review and approve it. Only an approved walkthrough counts. Revoking blocks new access immediately.
 - Photo match
 - Coverage
-- Walkable paths
+- Paths between stops
 Illustration of the process, not a captured space.
 
 ### Straight answers.
@@ -853,7 +853,7 @@ Each reason a capture comes back, and the fix. The names match the ones the app 
 ### Reviewing and sharing
 Approving, sharing, your website, and what your client sees.
 - Approve and share your walkthrough Review a ready walkthrough on your phone, inspect any flagged areas, then use one rights confirmation and press Approve and share.
-- Share your walkthrough: link, QR code, embed and listing URL Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the listing URL for portals and your CRM.
+- Share your walkthrough: link, QR code, embed and portal link Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the link for portals and your CRM.
 - Pause or turn off sharing The difference between pausing sharing, which keeps the same link, and turning it off, which ends the link for good.
 - What your client sees, and views and taps The page your client opens: the walkthrough, your contact card with Call and Email, and the views and taps your account shows.
 - Put your walkthrough on your website Paste the embed code into WordPress, Squarespace, Wix or Webflow, with the size and plan each builder needs.
@@ -1338,7 +1338,7 @@ Write to support@veylet.com and a person replies. Say which step you were on, yo
 Email Veylet support
 
 ### More in Reviewing and sharing
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - What your client sees, and views and taps
 - Put your walkthrough on your website
@@ -1354,13 +1354,13 @@ QR code
 - Open QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
 Embed code
 - Copy embed code and paste it into your website’s custom HTML block. See put it on your website.
-Listing URL (portals, CRM)
-- In your Veylet account, Copy listing URL (portals, CRM) and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.
+Link for portals and CRM
+- In your Veylet account, open Website, then Copy link for portals and CRM and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.
 Open as your client shows the page exactly as the person you send it to will see it.
-While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.
+While your plan is active, use the link anywhere: embed it on any website, use the link for portals and CRM in portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.
 
 ### If it doesn’t work
-Listing portals do not accept the embed code. Use the listing URL there instead.
+Listing portals do not accept the embed code. Use the link for portals and CRM there instead.
 If a link shows "not available", sharing is paused or turned off. See pause or turn off sharing.
 
 ### Still stuck? Email Veylet support
@@ -1385,7 +1385,7 @@ Resume sharing
 Turn off sharing
 - Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.
 - Open your Veylet account and find the walkthrough’s card.
-- Open Manage.
+- Open More, then Manage. If the card has no More, Manage is on the card itself.
 - Choose Pause sharing for a break, or Turn off sharing to end the link.
 
 ### If it doesn’t work
@@ -1398,7 +1398,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - What your client sees, and views and taps
 - Put your walkthrough on your website
 All help topics
@@ -1423,7 +1423,7 @@ Each live walkthrough’s card in your account shows how often it was opened, ho
 ### If it doesn’t work
 If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See pause or turn off sharing.
 "This link looks incomplete" means part of the link was lost when it was copied. Send it again.
-The listing URL for portals never shows your contact card.
+The link for portals and CRM never shows your contact card.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1431,7 +1431,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - Put your walkthrough on your website
 All help topics
@@ -1453,7 +1453,7 @@ Any other builder: ask for a custom HTML or raw HTML area and paste the code the
 ### If it doesn’t work
 Blank or cut off? Check the element is at least 320 pixels tall, and check the published page on a phone.
 Shows "not available"? Sharing is paused or turned off for that walkthrough.
-Listing portals do not accept the embed code. Use the listing URL: see share your walkthrough.
+Listing portals do not accept the embed code. Use the link for portals and CRM: see share your walkthrough.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1461,7 +1461,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - What your client sees, and views and taps
 All help topics
