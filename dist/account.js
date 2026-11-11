@@ -799,7 +799,7 @@
             APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : () => restartPlanFor(selected),
             APP_MODE ? null : extensionRequest(selected));
         } else guide('Your walkthrough is live.',
-          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage, stops it working.',
+          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under More then Manage, stops it working.',
           'Open its sharing controls', open);
         return;
       }
@@ -877,6 +877,7 @@
    * it opened still waits for that.
    */
   const DECK_ORDER = ['link', 'qr', 'website', 'insights', 'exports', 'manage'];
+  const MORE_KEYS = ['insights', 'exports', 'manage'];
   /*
    * Keeping place. A refresh redraws every card, so which panel was open on which
    * walkthrough is remembered here (and for this tab, so a reload keeps it too) and
@@ -911,14 +912,33 @@
     const row = document.createElement('div'); row.className = 'tour-card-row'; row.hidden = true;
     const nav = document.createElement('div'); nav.className = 'tour-disclosures'; nav.hidden = true;
     nav.setAttribute('role', 'group'); nav.setAttribute('aria-label', 'More for this walkthrough');
-    row.append(nav);
     const entries = [];
     let actions = null, placed = false;
+    // Insights, Videos and stills and Manage sit behind one More when two or more are
+    // offered; a lone one stays in the row. More shows their buttons, visible at rest.
+    const more = button('More', () => moreSet(more.getAttribute('aria-expanded') !== 'true'));
+    more.className = 'tour-disclosure tour-more'; more.dataset.disclosure = 'more'; more.hidden = true;
+    more.id = 'tour-more-' + tour.id + '-toggle';
+    const moreGroup = document.createElement('div'); moreGroup.className = 'tour-more-group'; moreGroup.hidden = true;
+    moreGroup.id = 'tour-more-' + tour.id; moreGroup.setAttribute('role', 'group'); moreGroup.setAttribute('aria-labelledby', more.id);
+    more.setAttribute('aria-expanded', 'false'); more.setAttribute('aria-controls', moreGroup.id);
+    row.append(nav, moreGroup);
+    const inMore = entry => MORE_KEYS.includes(entry.key) && entries.filter(each => MORE_KEYS.includes(each.key) && !each.toggle.hidden).length > 1;
+    function moreSet(open) {
+      more.setAttribute('aria-expanded', open ? 'true' : 'false'); moreGroup.hidden = !open;
+      if (!open) for (const entry of entries) if (entry.open && inMore(entry)) set(entry, false);
+    }
     const sync = () => {
+      const grouped = entries.filter(inMore);
+      nav.replaceChildren(...entries.filter(each => !grouped.includes(each)).map(each => each.toggle), more);
+      moreGroup.replaceChildren(...grouped.map(each => each.toggle));
+      more.hidden = grouped.length === 0;
+      if (more.hidden) moreSet(false);
       nav.hidden = !entries.some(entry => !entry.toggle.hidden);
       row.hidden = nav.hidden && !actions;
     };
     const set = (entry, open) => {
+      if (open && inMore(entry)) moreSet(true);
       entry.open = open; entry.panel.hidden = !open;
       entry.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) deckWanted.set(tour.id, entry.key); else if (deckWanted.get(tour.id) === entry.key) deckWanted.delete(tour.id);
@@ -934,7 +954,7 @@
     return {
       row,
       // The card's buttons come first in the row; the row joins the card where they would have.
-      place(node) { actions = node; row.replaceChildren(node, nav); mount(); sync(); },
+      place(node) { actions = node; row.replaceChildren(node, nav, moreGroup); mount(); sync(); },
       add(key, label, panel, opened = null) {
         const entry = { key, panel, opened, open: false, toggle: null, show: null };
         const toggle = button(label, () => {
@@ -959,7 +979,6 @@
         entry.show = visible => { toggle.hidden = !visible; if (!visible && entry.open) set(entry, false); sync(); if (visible && placed) again(entry); };
         entries.push(entry);
         entries.sort((a, b) => DECK_ORDER.indexOf(a.key) - DECK_ORDER.indexOf(b.key));
-        nav.replaceChildren(...entries.map(each => each.toggle));
         sync();
         return entry;
       },
@@ -1307,36 +1326,32 @@
     const copyListing = button('Copy link for portals and CRM', async () => {
       listing.label.hidden = false;
       await share.copy(listingUrl, listing.field, statusEl, 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
-      if (statusEl?.textContent) sayLink(statusEl.textContent);
+      if (statusEl?.textContent) sayWeb(statusEl.textContent);
     });
     copyListing.dataset.control = 'copy-listing';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row';
-    const linkActions = document.createElement('p'); linkActions.className = 'tour-actions-row';
     const device = typeof navigator !== 'undefined' ? navigator : null;
     let sheet = false;
     try { sheet = typeof device?.share === 'function' && (typeof device.canShare !== 'function' || device.canShare({ title: name, url }) !== false); } catch { sheet = false; }
-    // The row's one filled button; where that is Share, Copy link sits beside the address.
-    const copyLink = button('Copy link', () => copy(sheet ? sayLink : say)); copyLink.dataset.control = 'copy-link';
+    // The row's one filled button; where that is Share, Copy link sits beside it, quiet.
+    const copyLink = button('Copy link', () => { link.label.hidden = false; return copy(say); }); copyLink.dataset.control = 'copy-link';
     if (sheet) {
       const send = button('Share', async () => {
         try { await device.share({ title: name, url }); }
         catch (error) { if (error?.name !== 'AbortError') await copy(say); }
       });
       send.className = 'tour-action tour-action-primary'; send.dataset.control = 'share';
-      actions.append(send); linkActions.append(copyLink);
+      actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
     cardShare.set(item, sheet ? actions.children[0] : copyLink);
-    linkActions.append(copyListing);
     const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
     actions.append(open);
     deck.place(actions);
+    // The address shows under the row once Copy link is pressed (and to select by hand
+    // where the browser refuses to copy); no Link disclosure for the common case.
+    link.label.hidden = true; link.label.className = 'tour-field tour-link-address';
+    item.append(link.label);
     const say = rowSay(tour, item);
-    // Link: the address and what else to do with it share one row where there is room.
-    const linkPanel = document.createElement('div'); linkPanel.className = 'tour-panel tour-link';
-    const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
-    linkRow.append(link.label, linkActions); linkPanel.append(linkRow, listing.label);
-    deck.add('link', 'Link', linkPanel);
-    const sayLink = rowSay(tour, linkPanel);
     qrKit(tour, tagged(page, 'qr'), name, deck);
 
     // Website: the builder's own steps, then the one code.
@@ -1368,7 +1383,9 @@
       const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
       codeActions.append(guidePage);
     }
-    web.append(chooser, steps, embed.label, codeActions);
+    // Portals and CRM take the unbranded link, not the embed: it sits here, after the code.
+    const portalActions = document.createElement('p'); portalActions.className = 'tour-actions-row tour-portal-row'; portalActions.append(copyListing);
+    web.append(chooser, steps, embed.label, codeActions, portalActions, listing.label);
     deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
   }

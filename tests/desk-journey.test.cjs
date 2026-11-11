@@ -540,10 +540,11 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   const card = h.card('t1');
   assert.deepEqual(filled(card), ['Share']);
   assert.equal(byText(card, 'Open as your client').href, HANDOFF);
-  // The row is the one filled button and Open as your client; Copy link sits beside the address, under Link.
+  // The row is the one filled button, Copy link (quiet) and Open as your client: no Link disclosure.
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Share'));
-  assert.deepEqual(row.children.map(child => child.textContent), ['Share', 'Open as your client']);
-  assert.ok(byText(panelOf(card, 'link'), 'Copy link'));
+  assert.deepEqual(row.children.map(child => child.textContent), ['Share', 'Copy link', 'Open as your client']);
+  assert.equal(row.children[1].className, 'tour-action', 'Copy link is quiet beside Share');
+  assert.equal(toggleOf(card, 'link'), null, 'no Link disclosure');
   assert.equal(byText(card, 'Open as a visitor'), undefined);
   await byText(card, 'Share').fire('click');
   assert.deepEqual(h.shared, [{ title: 'Sample space', url: LINK }]);
@@ -977,18 +978,23 @@ test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour a
   const card = h.card('t1');
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Copy link'));
   assert.deepEqual(row.children.map(child => child.textContent), ['Copy link', 'Open as your client'], 'the row: one filled button and the client view');
-  // The portal and CRM link sits with the address, behind Link.
-  const linkPanel = panelOf(card, 'link');
-  assert.equal(toggleOf(card, 'link').textContent, 'Link');
-  assert.equal(linkPanel.hidden, true);
-  assert.ok(byText(linkPanel, 'Copy link for portals and CRM'));
-  assert.ok(linkPanel.all().some(el => el.tagName === 'INPUT' && el.className === 'copy-field' && el.value === LINK), 'the address itself');
+  // The portal and CRM link sits under Website, after the embed code; the address shows under the row once copied.
+  const web = panelOf(card, 'website');
+  assert.equal(web.hidden, true);
+  assert.ok(byText(web, 'Copy link for portals and CRM'));
+  const address = card.all().find(el => el.tagName === 'INPUT' && el.className === 'copy-field' && el.value === LINK);
+  assert.ok(address, 'the address itself');
+  const addressLabel = card.all().find(el => el.tagName === 'LABEL' && el.children.includes(address));
+  assert.equal(addressLabel.hidden, true, 'shown once Copy link is pressed');
+  await byText(card, 'Copy link').fire('click');
+  assert.equal(addressLabel.hidden, false);
+  h.copied.length = 0;
   const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Link for portals and CRM');
   assert.equal(field.hidden, true, 'the address shows once asked for');
   await byText(card, 'Copy link for portals and CRM').fire('click');
   assert.deepEqual(h.copied, ['https://veylet.com/tour?t=' + TOKEN + '&src=portal']);
   assert.equal(field.hidden, false);
-  assert.equal(rowLine(card), 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
+  assert.equal(rowLine(web), 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
   // The embed code's frame and its direct link carry the embed channel; the rest is VeyletSharing's code.
   const code = card.all().find(el => el.tagName === 'TEXTAREA').value;
   assert.match(code, new RegExp('<iframe src="https://veylet\\.com/embed\\?t=' + TOKEN + '&src=embed" '));
@@ -1989,7 +1995,7 @@ test('Refresh keeps the reader’s place: the panel that was open on a card is o
   assert.equal(x.h.documentStub.activeElement, toggleOf(card, 'insights'), 'focus returns to the same control on the new card');
   assert.equal(panelOf(card, 'insights').all().filter(el => el.className === 'tour-insights-lead').length, 1);
   // Only one panel per card comes back, and closing it is remembered too.
-  assert.equal(panelOf(card, 'link').hidden, true);
+  assert.equal(panelOf(card, 'website').hidden, true);
   await toggleOf(card, 'insights').fire('click');
   await x.h.ids['account-refresh'].fire('click');
   await settle(); await settle();
@@ -2043,4 +2049,35 @@ test('review in place: Preview, the tick and Approve and share are three numbere
   assert.equal(third.children[1].textContent, 'Anyone with the link can open it and forward it while your plan is active.', 'what the press does, beside it');
   await approve(h);
   assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name]) => name), ['review_tour_versioned', 'enable_tour_share'], 'still one press');
+});
+
+test('the Live card: Insights, Videos and stills and Manage sit behind one More; QR code and Website stay in the row', async () => {
+  const h = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released()], share: async () => {} });
+  const card = h.card('t1');
+  const nav = card.all().find(el => el.className === 'tour-disclosures');
+  assert.deepEqual(nav.children.filter(el => !el.hidden).map(el => el.textContent), ['QR code', 'Website', 'More']);
+  const more = toggleOf(card, 'more');
+  const group = card.all().find(el => el.className === 'tour-more-group');
+  assert.equal(more.tagName, 'BUTTON');
+  assert.equal(more.attributes['aria-expanded'], 'false');
+  assert.equal(more.attributes['aria-controls'], group.id);
+  assert.equal(group.hidden, true, 'closed at rest');
+  assert.ok(['insights', 'manage'].every(key => group.children.includes(toggleOf(card, key))), 'Insights and Manage are behind More');
+  await more.fire('click');
+  assert.equal(group.hidden, false);
+  assert.equal(more.attributes['aria-expanded'], 'true');
+  // Opening Manage keeps More open; closing More closes Manage too.
+  await toggleOf(card, 'manage').fire('click');
+  assert.equal(panelOf(card, 'manage').hidden, false);
+  await more.fire('click');
+  assert.equal(group.hidden, true);
+  assert.equal(panelOf(card, 'manage').hidden, true);
+  // A panel behind More opened directly (a kept place after refresh) opens More with it.
+  await toggleOf(card, 'insights').fire('click');
+  assert.equal(group.hidden, false);
+  // A card with only Manage keeps it in the row, without More.
+  const approvedOnly = await load({ tours: [readyTour()], approved: true });
+  const quiet = approvedOnly.card('t1');
+  assert.equal(toggleOf(quiet, 'more').hidden, true);
+  assert.equal(quiet.all().find(el => el.className === 'tour-disclosures').children.includes(toggleOf(quiet, 'manage')), true);
 });

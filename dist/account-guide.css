@@ -152,6 +152,15 @@
   }
 }
 @media (prefers-reduced-motion: reduce) { .tour-disclosure { transition: none; } }
+/* More: Insights, Videos and stills and Manage, one line under the row once opened,
+   right-aligned like the row's toggles and on the left keyline on a narrow card. */
+.desk .tour-more-group { display: flex; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; gap: 0 8px; min-width: 0; }
+@container (max-width: 671px) {
+  .desk .tour-more-group { justify-content: flex-start; gap: 0 4px; }
+  .desk .tour-more-group .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
+}
+/* The link's address, once Copy link is pressed: under the row, never wider than a line. */
+.desk .tour-link-address { display: grid; gap: 6px; max-width: 560px; margin-top: 12px; }
 /* One walkthrough, two versions: each says which it is, and the version a waiting
    correction will replace hangs under it on a hairline, so the pair reads as one job. */
 .desk .dash-tour .tour-lineage { margin: 8px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
