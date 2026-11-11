@@ -99,7 +99,18 @@ test('/app/privacy is the public notice word for word; only its account link sta
   assert.equal((marked[0].match(/<p>/g) || []).length, 1, 'and it is one paragraph');
   for (const word of [/anonymous usage/, /opened/, /how long/, /rooms and stops/, /direction looked/, /Call, Email or Share/, /hostname of a website that embeds/, /no cookies/, /identifies the viewer/]) assert.match(marked[0].replace(/\s+/g, ' '), word);
   assert.ok(read('privacy/index.html').indexOf('Client handoff links.') < read('privacy/index.html').indexOf(marked[0].trim()), 'after Client handoff links');
-  const site = mainOf(read('privacy/index.html').replace(DRAFT, ''));
+  // The 12 Nov 2026 draft (capture records, viewer insights, crash reports, push tokens, practice results, room
+  // names, listing details, retention, deletion) is ten marked sections that wait for the same legal review. Each
+  // opens with its own heading; none of it is in the app copy yet.
+  const DRAFT_1112 = /\s*<!-- DRAFT 2026-11-12: owner legal review required before release -->\s*<h2>[^<]*<\/h2>[\s\S]*?<!-- \/DRAFT 2026-11-12 -->/g;
+  const drafted = read('privacy/index.html').match(DRAFT_1112) || [];
+  assert.equal(drafted.length, 10, 'ten marked 12 Nov draft sections');
+  for (const block of drafted) assert.doesNotMatch(block.replace(/^\s*<!--[^>]*-->/, ''), /<!-- DRAFT/, 'no draft opens inside another');
+  const draftText = drafted.join(' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  for (const word of [/\[effective date — owner sets at release\]/, /never include addresses, names, text you type, photos or your location/,
+    /\?analytics=off/, /no cookie and nothing that identifies the viewer/, /push token/, /crash reports/, /practice room/,
+    /13 months/, /90 days/, /Delete my account/, /support@veylet\.com/, /saved on this iPhone only/]) assert.match(draftText, word);
+  const site = mainOf(read('privacy/index.html').replace(DRAFT, '').replace(DRAFT_1112, ''));
   assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
   assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
   // The public notice opens each section with a real heading (site audit 10 Nov 2026, finding 10); the app copy
