@@ -901,7 +901,7 @@ const pausing = () => ({
   resume_tour_share: async (args, { tours }) => { const row = tours.find(item => item.id === args.p_tour_id); row.share_paused_at = null; return { data: row.share_token }; },
 });
 
-test('Pause sharing sits first under Manage sharing, unconfirmed and secondary; the paused card offers Resume, and the link never changes', async () => {
+test('Pause sharing sits first under Manage, unconfirmed and secondary; the paused card offers Resume, and the link never changes', async () => {
   const h = await load({ tours: [liveTour()], approved: true, hosting: [released()], rpc: pausing() });
   const manage = manageOf(h.card('t1'));
   const controls = manage.all().filter(el => el.tagName === 'BUTTON').map(el => el.textContent);
@@ -972,23 +972,23 @@ test('a paused link reads Paused after a reload, and a render status that says L
   assert.equal(chipOf(failing.card('t1')).textContent, 'Paused');
 });
 
-test('Copy listing URL gives portals and CRMs the unbranded /tour address, tagged as the portal channel', async () => {
+test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour address, tagged as the portal channel', async () => {
   const h = await load({ tours: [liveTour()], approved: true });
   const card = h.card('t1');
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Copy link'));
   assert.deepEqual(row.children.map(child => child.textContent), ['Copy link', 'Open as your client'], 'the row: one filled button and the client view');
-  // Copy listing URL sits with the address, behind Link.
+  // The portal and CRM link sits with the address, behind Link.
   const linkPanel = panelOf(card, 'link');
   assert.equal(toggleOf(card, 'link').textContent, 'Link');
   assert.equal(linkPanel.hidden, true);
-  assert.ok(byText(linkPanel, 'Copy listing URL (portals, CRM)'));
+  assert.ok(byText(linkPanel, 'Copy link for portals and CRM'));
   assert.ok(linkPanel.all().some(el => el.tagName === 'INPUT' && el.className === 'copy-field' && el.value === LINK), 'the address itself');
-  const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Listing URL (portals, CRM)');
+  const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Link for portals and CRM');
   assert.equal(field.hidden, true, 'the address shows once asked for');
-  await byText(card, 'Copy listing URL (portals, CRM)').fire('click');
+  await byText(card, 'Copy link for portals and CRM').fire('click');
   assert.deepEqual(h.copied, ['https://veylet.com/tour?t=' + TOKEN + '&src=portal']);
   assert.equal(field.hidden, false);
-  assert.equal(rowLine(card), 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
+  assert.equal(rowLine(card), 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
   // The embed code's frame and its direct link carry the embed channel; the rest is VeyletSharing's code.
   const code = card.all().find(el => el.tagName === 'TEXTAREA').value;
   assert.match(code, new RegExp('<iframe src="https://veylet\\.com/embed\\?t=' + TOKEN + '&src=embed" '));
@@ -1992,4 +1992,30 @@ test('Refresh keeps the reader’s place: the panel that was open on a card is o
   await x.h.ids['account-refresh'].fire('click');
   await settle(); await settle();
   assert.equal(panelOf(x.h.card('t1'), 'insights').hidden, true);
+});
+
+/* ---- Desk words: walkthrough and space, one name per control, no dead end -------- */
+test('an unavailable walkthrough names its one next step and its button says what it does', async () => {
+  const h = await load({ tours: [readyTour({ status: 'revoked' })] });
+  const next = h.ids['account-next-step'].children;
+  assert.deepEqual(next.map(el => el.textContent), ['This walkthrough is unavailable.',
+    'New access is blocked, so its old links and embeds no longer open it. Email Veylet support for the next step.', 'Email Veylet support']);
+  assert.equal(next[2].tagName, 'A');
+  assert.match(decodeURIComponent(next[2].href), /^mailto:support@veylet\.com\?subject=Unavailable walkthrough · walkthrough t1/);
+  const card = h.card('t1');
+  assert.ok(card.all().some(el => el.textContent === 'This walkthrough is unavailable for new access, so its old links and embeds no longer open it. Email Veylet support for the next step.'));
+  const ask = card.all().find(el => el.dataset?.control === 'unavailable-support');
+  assert.equal(ask.tagName, 'A');
+  assert.equal(ask.textContent, 'Email Veylet support');
+  assert.equal(ask.href, next[2].href, 'the card and the next step send the same email');
+});
+
+test('desk copy says walkthrough and space, and the sharing controls have one name', () => {
+  const strings = [...account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').matchAll(/'((?:[^'\\\n]|\\.)*)'/g)].map(match => match[1])
+    .filter(text => /\s/.test(text) || /^[A-Z]/.test(text)).join('\n');
+  for (const old of [/Open tour details/, /current tour/, /tour package/, /Tour status/, /tour list/, /available tours?\b/i, /reviewed tour/, /first-tour/, /tour progress/,
+    /Every tour/, /Listing URL/i, /Listing portal/, /Manage sharing/, /from your listing/]) assert.doesNotMatch(strings, old, 'account.js still says ' + old);
+  const words = markup.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ').replace(/<[^>]+>/g, ' ');
+  assert.doesNotMatch(words, /first-tour|from your listings?\b/i);
+  assert.match(account, /copyField\('Link for portals and CRM', 'input', listingUrl\)/);
 });

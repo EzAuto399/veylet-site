@@ -339,8 +339,8 @@ test('a failed saved-session lookup is not reported as a signed-out account', as
 });
 test('tour service errors never look like an empty property', async () => {
   const h = await load({ tables: { tours: { error: { message: 'unavailable' } } } });
-  assert.match(h.text(), /Tour status could not load/);
-  assert.doesNotMatch(h.text(), /No tour package yet/);
+  assert.match(h.text(), /Walkthrough status could not load/);
+  assert.doesNotMatch(h.text(), /No walkthrough yet/);
 });
 test('release review checks the exact package, then turns sharing on in the same press', async () => {
   const h = await load({ tours: [tour] });
@@ -2473,7 +2473,7 @@ test('a database without the lineage columns still lists every tour as its own w
   const h = await load({ tours: [], tables: { tours: columns => /walkthrough_id/.test(columns)
     ? { error: { code: '42703', message: 'column tours.walkthrough_id does not exist' } } : { data: [{ ...tour }] } } });
   assert.deepEqual(h.selects.filter(([name]) => name === 'tours').map(([, columns]) => /walkthrough_id/.test(columns)), [true, false]);
-  assert.doesNotMatch(h.text(), /Tour status could not load/);
+  assert.doesNotMatch(h.text(), /Walkthrough status could not load/);
   assert.equal(tourItems(h).length, 1);
   assert.doesNotMatch(h.text(), /Version \d|Correction/);
   assert.ok(h.all().some(el => el.textContent === 'Review this walkthrough'));

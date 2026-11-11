@@ -429,7 +429,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(loading.slot().hidden, true, 'nothing flashes before 400 ms');
   await loading.slow();
   assert.equal(loading.slot().hidden, false);
-  assert.equal(loading.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, true);
+  assert.equal(loading.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, true);
   assert.equal(loading.slot().attributes['aria-busy'], 'true');
   assert.equal(loading.block().className, 'render-block render-loading');
   assert.ok(loading.slot().all().some(el => el.textContent === 'Checking render progress…'));
@@ -439,11 +439,11 @@ test('render status: loading, empty, error and a backend without the function ea
   await slowFail.slow();
   reply({ error: { message: 'offline' } }); await settle();
   assert.equal(slowFail.slot().hidden, true);
-  assert.equal(slowFail.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(slowFail.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   // Empty: a space with no capture and no walkthrough says how one arrives, instead of the older line.
   const empty = await load({ status: [] });
   assert.deepEqual(empty.lines(), ['No capture sent yet. When you send one from Veylet Capture, its progress shows here.']);
-  const older = empty.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent));
+  const older = empty.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent));
   assert.equal(older.hidden, true);
   assert.equal(empty.renderTimers(), 0);
   // A space whose walkthrough is already on the desk and has no capture says nothing extra.
@@ -454,7 +454,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(broken.slot().hidden, true);
   assert.equal(broken.ids['account-render-status'].hidden, false);
   assert.equal(broken.ids['account-render-status'].textContent, 'Render progress couldn’t be checked. Your spaces are below; refresh spaces to try again.');
-  assert.equal(broken.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(broken.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   assert.equal(broken.renderTimers(), 0);
   // Before the backend has the function, the desk reads exactly as it did, and a
   // skeleton timer that fires afterwards draws nothing.
@@ -463,7 +463,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(missing.slot().hidden, true);
   assert.equal(missing.slot().children.length, 0);
   assert.equal(missing.ids['account-render-status'].hidden, true);
-  assert.equal(missing.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(missing.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   assert.equal(missing.renderTimers(), 0);
   // A failed tour read never lets a space read as having sent nothing.
   const h = await load({ status: [] });
@@ -549,7 +549,7 @@ test('render status: a space reads only what the answer said about it', async ()
   // A state this page does not know says nothing rather than a guess.
   const unknown = await load({ status: [job({ state: 'teleporting' })] });
   assert.equal(unknown.slot().hidden, true);
-  assert.equal(unknown.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(unknown.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   // A space the answer did not list reads as it did; another space's capture never lands here.
   const elsewhere = await load({ status: () => ({ data: { active: true, spaces: [{ property_id: 'p-other', job: JOBS.uploading }] } }) });
   assert.equal(elsewhere.slot().hidden, true);

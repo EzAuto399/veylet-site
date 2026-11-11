@@ -466,7 +466,7 @@
     // Signed in, the page is the account; "Your walkthroughs" heads its work
     // section, so the page heading does not repeat it.
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
-    if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
+    if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed walkthrough.')
       : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same sign-in on the website and capture app: Apple, or the same email.';
     if (access) access.hidden = signedIn;
     // On the desk each view has its own heading; the page heading is for the sign-in screen.
@@ -799,7 +799,7 @@
             APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : () => restartPlanFor(selected),
             APP_MODE ? null : extensionRequest(selected));
         } else guide('Your walkthrough is live.',
-          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
+          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage, stops it working.',
           'Open its sharing controls', open);
         return;
       }
@@ -833,16 +833,17 @@
       const actions = {
         draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
         processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. We’ll email you when it’s ready. Refresh to check for an update.', 'Refresh progress'],
-        revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
+        revoked: ['This walkthrough is unavailable.', 'New access is blocked, so its old links and embeds no longer open it. Email Veylet support for the next step.', APP_MODE ? 'Open walkthrough details' : 'Email Veylet support'],
       };
-      const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
-      guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase) : open);
+      const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current walkthrough needs an update from Veylet support before you continue.', 'Open walkthrough details'];
+      guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase)
+        : selected.status === 'revoked' && !APP_MODE ? unavailableMail(selected) : open);
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
       guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#first-session');
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-tour steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-walkthrough steps', '/start');
     }
   }
   function button(label, fn) {
@@ -1100,6 +1101,10 @@
     for (const entry of hostingCards.values()) hostingFixSync(entry);
     needsDraw();
   }
+  // An unavailable walkthrough's one next step: an email to support naming it.
+  function unavailableMail(tour) {
+    return studioMail(tour, 'Unavailable walkthrough', ['This walkthrough shows as unavailable in my account. What is the next step?']);
+  }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
     return 'mailto:support@veylet.com?subject=' + encodeURIComponent(subject + ' · walkthrough ' + reference)
@@ -1297,11 +1302,11 @@
     // One direct, frameable address for a portal's or CRM's virtual tour field: the
     // walkthrough alone, with no agent card, links or QR code (/tour).
     const listingUrl = tagged(LISTING_BASE + encodeURIComponent(tour.share_token), 'portal');
-    const listing = copyField('Listing URL (portals, CRM)', 'input', listingUrl);
+    const listing = copyField('Link for portals and CRM', 'input', listingUrl);
     listing.label.hidden = true;
-    const copyListing = button('Copy listing URL (portals, CRM)', async () => {
+    const copyListing = button('Copy link for portals and CRM', async () => {
       listing.label.hidden = false;
-      await share.copy(listingUrl, listing.field, statusEl, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
+      await share.copy(listingUrl, listing.field, statusEl, 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
       if (statusEl?.textContent) sayLink(statusEl.textContent);
     });
     copyListing.dataset.control = 'copy-listing';
@@ -1460,7 +1465,7 @@
     link: 'Direct link',
     qr: 'QR code',
     embed: 'Website embed',
-    portal: 'Listing portal',
+    portal: 'Portal or CRM',
     video: 'Video',
     unknown: 'Other',
   });
@@ -2202,7 +2207,7 @@
       const current = firstRow(readback.value?.data);
       if (failed(readback) || !current || current.share_token !== null) {
         say('The request completed, but the current sharing state could not be confirmed. Refresh the desk.', true);
-      } else say('Sharing turned off. Remove the link and embed from your listing too.', true);
+      } else say('Sharing turned off. Remove the link and embed from your website and portals too.', true);
       await loadDesk(supabase);
     });
     const cancelRevoke = button('Keep link', () => { armed = false; revoke.textContent = 'Turn off sharing'; revoke.dataset.armed = 'false'; cancelRevoke.hidden = true; say('Link left unchanged.'); });
@@ -6616,9 +6621,9 @@
     planAnswered = false; planRestartOffice = null;
     needsCtx = null; needsDraw();
     planSkeleton();
-    guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
+    guide('Checking your next step…', 'Loading your spaces, walkthrough progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
-      ? 'This review link is incomplete. Use Review again from the app, or choose an available tour below.' : '');
+      ? 'This review link is incomplete. Use Review again from the app, or choose an available walkthrough below.' : '');
     list.replaceChildren(); list.setAttribute('aria-busy', 'true');
     expressHide();
     renderHide();
@@ -6812,10 +6817,10 @@
     // (Asked when the Account view is first near the screen, not on every desk load.)
     if (!emailWatched) { emailWatched = true; whenNear(viewEls.get('account'), () => { emailWatched = false; void emailRender(supabase); }); }
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
-    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
+    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every walkthrough still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
     if (failed(props)) { guide('Reload your spaces.', 'Your saved work could not be checked. Refresh before creating another space or repeating an upload.', 'Refresh spaces', () => loadDesk(supabase)); targetMessage(requestedTour ? 'The requested walkthrough could not be checked. Refresh spaces to try again.' : ''); message(list, 'Spaces could not load. Refresh the desk to try again.'); return; }
-    if (failed(tours)) { message(list, 'Tour status could not load. Your spaces are shown below, but the tour list is unavailable. Refresh to retry.'); }
+    if (failed(tours)) { message(list, 'Walkthrough status could not load. Your spaces are shown below, but the walkthrough list is unavailable. Refresh to retry.'); }
     const properties = props.value?.data || [];
     const addSpace = document.getElementById('account-add-space');
     if (addSpace) addSpace.open = properties.length === 0;
@@ -6845,7 +6850,7 @@
     }
     if (requestedTour) targetMessage(failed(tours)
       ? 'The requested walkthrough could not be checked. Refresh spaces to try again.'
-      : 'This walkthrough is not available in this account. Refresh spaces, sign in with the capture account, or ask the workspace owner. Available tours are shown below.');
+      : 'This walkthrough is not available in this account. Refresh spaces, sign in with the capture account, or ask the workspace owner. Available walkthroughs are shown below.');
     const roles = new Map((failed(members) ? [] : members.value?.data || []).map(row => [row.workspace_id, row.role]));
     // The team: the same workspace the plan panel shows, with or without a space yet.
     const teamWorkspace = failed(members) ? null : (members.value?.data || []).find(row => row && row.workspace_id)?.workspace_id || null;
@@ -6896,7 +6901,7 @@
       const order = [...new Set(spaceTours.map(walkthroughOf))];
       spaceTours.sort((left, right) => (order.indexOf(walkthroughOf(left)) - order.indexOf(walkthroughOf(right)))
         || (revisionOf(right) - revisionOf(left)));
-      if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No tour package yet. Your walkthrough is made automatically from your capture and appears in this space.'));
+      if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No walkthrough yet. It is made automatically from your capture and appears in this space.'));
       // Is anyone living here? Asked once a listing has a walkthrough, before its first share.
       if (spaceTours.length && roles.has(row.workspace_id)) {
         const gateSlot = document.createElement('div'); gateSlot.className = 'dash-occupancy'; gateSlot.hidden = true;
@@ -6933,7 +6938,10 @@
           if (tour.storage_path) tourPreview(tour, item);
         }
         else if (tour.status === 'processing') message(item, 'This walkthrough is being made automatically. You can leave this page and refresh later; leaving does not cancel it.');
-        else if (tour.status === 'revoked') message(item, 'This walkthrough is unavailable for new access. Remove any old links or embeds from your listing, and contact Veylet support about the next step.');
+        else if (tour.status === 'revoked') {
+          message(item, 'This walkthrough is unavailable for new access, so its old links and embeds no longer open it. Email Veylet support for the next step.');
+          if (!APP_MODE) { const ask = document.createElement('p'); ask.className = 'tour-actions-row'; const mail = document.createElement('a'); mail.className = 'tour-action'; mail.href = unavailableMail(tour); mail.textContent = 'Email Veylet support'; mail.dataset.control = 'unavailable-support'; ask.append(mail); item.append(ask); }
+        }
         ul.append(item);
       }
       // On the web desk the kit's link sits in the space head and its panel opens under it.
