@@ -1319,8 +1319,10 @@
       if (statusEl?.textContent) tell(statusEl.textContent);
     };
     // One direct, frameable address for a portal's or CRM's virtual tour field: the
-    // walkthrough alone, with no agent card, links or QR code (/tour).
-    const listingUrl = tagged(LISTING_BASE + encodeURIComponent(tour.share_token), 'portal');
+    // walkthrough alone, with no agent card, links or QR code (/tour). No ?src= tag: portals
+    // and CRMs get a plain https address with the token only, and /tour counts its views as
+    // the portal channel by default (client-page.js channelFrom).
+    const listingUrl = LISTING_BASE + encodeURIComponent(tour.share_token);
     const listing = copyField('Link for portals and CRM', 'input', listingUrl);
     listing.label.hidden = true;
     const copyListing = button('Copy link for portals and CRM', async () => {

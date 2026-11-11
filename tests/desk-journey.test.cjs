@@ -973,7 +973,7 @@ test('a paused link reads Paused after a reload, and a render status that says L
   assert.equal(chipOf(failing.card('t1')).textContent, 'Paused');
 });
 
-test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour address, tagged as the portal channel', async () => {
+test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour address with the token only', async () => {
   const h = await load({ tours: [liveTour()], approved: true });
   const card = h.card('t1');
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Copy link'));
@@ -992,7 +992,9 @@ test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour a
   const field = card.all().find(el => el.tagName === 'LABEL' && el.children[0]?.textContent === 'Link for portals and CRM');
   assert.equal(field.hidden, true, 'the address shows once asked for');
   await byText(card, 'Copy link for portals and CRM').fire('click');
-  assert.deepEqual(h.copied, ['https://veylet.com/tour?t=' + TOKEN + '&src=portal']);
+  // A plain https address for a portal's virtual tour field: no ?src= or other tag (the page counts it as portal).
+  assert.deepEqual(h.copied, ['https://veylet.com/tour?t=' + TOKEN]);
+  assert.deepEqual([...new URL(h.copied[0]).searchParams.keys()], ['t']);
   assert.equal(field.hidden, false);
   assert.equal(rowLine(web), 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
   // The embed code's frame and its direct link carry the embed channel; the rest is VeyletSharing's code.

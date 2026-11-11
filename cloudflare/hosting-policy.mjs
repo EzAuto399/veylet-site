@@ -34,7 +34,7 @@ export function headersFor(file) {
     ['html', 'json', 'xml', 'glb'].includes(extension) || (extension === 'txt' && file !== 'robots.txt') ? revalidate : cacheAssets;
   const headers = Object.fromEntries(headerNames.map(name => [name, null]));
   Object.assign(headers, { 'content-type': type, 'cache-control': cache });
-  if (!/^\/(?:embed|tour$)/.test(route) || route === '/embed' || route === '/tour') {
+  if (!/^\/(?:embed|tour)$/.test(route) || route === '/embed' || route === '/tour') {
     Object.assign(headers, {
       'x-content-type-options': 'nosniff',
       'referrer-policy': route === '/tour' ? 'no-referrer' : 'strict-origin-when-cross-origin',
@@ -42,7 +42,7 @@ export function headersFor(file) {
       'x-dns-prefetch-control': 'off',
     });
   }
-  if (!/^\/(?:embed|tour$)/.test(route)) headers['x-frame-options'] = 'DENY';
+  if (!/^\/(?:embed|tour)$/.test(route)) headers['x-frame-options'] = 'DENY';
   if (route === '/embed' || route === '/tour') headers['content-security-policy'] = 'frame-ancestors *';
   if (route === '/studio' || route === '/tour' || route.startsWith('/app/')) headers['x-robots-tag'] = 'noindex, nofollow';
   return headers;
