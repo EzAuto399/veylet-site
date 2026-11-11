@@ -379,20 +379,20 @@ const ARTICLES = [
     ],
   },
   {
-    slug: 'share-your-walkthrough', group: 'sharing', title: 'Share your walkthrough: link, QR code, embed and listing URL', short: 'Share your walkthrough', pageTitle: 'Share a walkthrough: link, QR code, embed',
-    description: 'Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the listing URL for portals and your CRM.',
+    slug: 'share-your-walkthrough', group: 'sharing', title: 'Share your walkthrough: link, QR code, embed and portal link', short: 'Share your walkthrough', pageTitle: 'Share a walkthrough: link, QR code, embed',
+    description: 'Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the link for portals and your CRM.',
     lead: 'A live walkthrough has one link and four ways to hand it out. Use the one that suits where your client will see it.',
     body: [{ terms: [
       ['Share or Copy link', 'Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.'],
       ['QR code', 'Open **QR code** for someone beside you to scan. In your account, **Download QR code (PNG)** for a window card or brochure.'],
       ['Embed code', '**Copy embed code** and paste it into your website’s custom HTML block. See [put it on your website](help:website).'],
-      ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
+      ['Link for portals and CRM', 'In [your Veylet account](account), open **Website**, then **Copy link for portals and CRM** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
-      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
+      'While your plan is active, use the link anywhere: embed it on any website, use the link for portals and CRM in portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
     ] }],
     notWorking: [
-      'Listing portals do not accept the embed code. Use the listing URL there instead.',
+      'Listing portals do not accept the embed code. Use the link for portals and CRM there instead.',
       'If a link shows "not available", sharing is paused or turned off. See [pause or turn off sharing](help:pause-or-turn-off).',
     ],
   },
@@ -406,7 +406,7 @@ const ARTICLES = [
       ['Turn off sharing', 'Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.'],
     ] }, { steps: [
       'Open [your Veylet account](account) and find the walkthrough’s card.',
-      'Open **Manage**.',
+      'Open **More**, then **Manage**. If the card has no More, **Manage** is on the card itself.',
       'Choose **Pause sharing** for a break, or **Turn off sharing** to end the link.',
     ] }],
     notWorking: [
@@ -431,7 +431,7 @@ const ARTICLES = [
     notWorking: [
       'If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See [pause or turn off sharing](help:pause-or-turn-off).',
       '"This link looks incomplete" means part of the link was lost when it was copied. Send it again.',
-      'The listing URL for portals never shows your contact card.',
+      'The link for portals and CRM never shows your contact card.',
     ],
   },
   {
@@ -449,7 +449,7 @@ const ARTICLES = [
     notWorking: [
       'Blank or cut off? Check the element is at least 320 pixels tall, and check the published page on a phone.',
       'Shows "not available"? Sharing is paused or turned off for that walkthrough.',
-      'Listing portals do not accept the embed code. Use the listing URL: see [share your walkthrough](help:share-your-walkthrough).',
+      'Listing portals do not accept the embed code. Use the link for portals and CRM: see [share your walkthrough](help:share-your-walkthrough).',
     ],
   },
 
