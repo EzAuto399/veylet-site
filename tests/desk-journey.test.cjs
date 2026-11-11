@@ -404,7 +404,7 @@ test('the next step names the listing, then the one press', async () => {
   const h = await load({ tours: [readyTour()] });
   const panel = h.ids['account-next-step'];
   assert.deepEqual(panel.children.map(el => el.textContent), ['Sample space is ready for your review.',
-    'Open it, move through its numbered circles, then approve and share. Nobody else can see it until you do.', 'Review walkthrough']);
+    'Open it, check each stop, then approve and share. Nobody else can see it until you do.', 'Review walkthrough']);
   await panel.children[2].fire('click');
   const review = h.card('t1').all().find(el => el.tagName === 'DETAILS' && el.className === 'tour-review');
   assert.equal(review.open, true);

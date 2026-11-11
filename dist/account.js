@@ -822,7 +822,7 @@
         }
         const reviews = ['owner', 'reviewer'].includes(desk.roles?.get(space?.workspace_id));
         // The same words as the space's render status, for the same press.
-        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, move through its numbered circles, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
+        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, check each stop, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
           open();
           // Where a review is actually available, open it and land on it.
           reviewOpeners.get(selected.id)?.();
@@ -6271,7 +6271,7 @@
         break;
       case 'ready':
         if (canReview) {
-          line('Open it, move through its numbered circles, then approve to share.');
+          line('Open it, check each stop, then approve to share.');
           if (view.tour) {
             const review = button('Review walkthrough', () => renderReview(view.tour));
             review.className = 'tour-action tour-action-primary'; review.dataset.control = 'review';

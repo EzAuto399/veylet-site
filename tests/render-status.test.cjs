@@ -150,7 +150,7 @@ const WORDS = {
   uploading: ['Uploading', 'Sending from your phone', ['Sending from Veylet Capture. Keep Veylet open or plugged in; it continues in the background.']],
   waiting: ['Waiting to render', 'Automatic', ['You’re 2nd in line. Usually starts within 40 minutes.']],
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
-  ready: ['Ready for your review', 'Your turn', ['Open it, move through its numbered circles, then approve to share.']],
+  ready: ['Ready for your review', 'Your turn', ['Open it, check each stop, then approve to share.']],
   live: ['Live', null, ['Anyone with the link can open it.']],
   recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
