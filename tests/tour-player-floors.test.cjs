@@ -214,7 +214,7 @@ function groundMask() {
 test('a tap or an arrow key only ever goes to a stop on the viewer\'s storey: it never drops the viewer to the ground storey (VIEWER-01)', async () => {
   const x = await ready(TWO_FLOORS, { walkable: groundMask() });
   const eye = () => [...x.player.current.inspect().state.position];
-  const HINT = 'Tap a numbered circle to move.';
+  const HINT = 'No circle in view. Tap Next.'; // where the hint shows below, no circle is on screen
   // Ground floor, looking along -Z from stop 1: stop 2 (2 m ahead) and the bedroom's stop 4 (3 m ahead, one storey up)
   // are on the same line. The key goes to stop 2, the one on this storey, and to the stop itself, not a step along.
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });

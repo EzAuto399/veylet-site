@@ -225,6 +225,9 @@
 }
 .v2-status:empty { display: none; }
 .v2[data-state="opening"] .v2-status { bottom: 24px; }
+/* Once the controls show, the player moves the status into them and it hangs from their top edge: it clears the
+   bar whatever the bar's height (one row, a row of room names, or wrapped), with no offset to keep in step. */
+.v2-bar > .v2-status { bottom: calc(100% + 8px); max-width: 100%; }
 .v2-progress {
   position: absolute;
   top: 0;
@@ -480,6 +483,7 @@
 .v2-stage:is(.v2-filled, :fullscreen) .v2-panel:not(.v2-about) {
   bottom: calc(56px + max(12px, env(safe-area-inset-bottom, 0px)));
 }
+.v2-stage:is(.v2-filled, :fullscreen) .v2-bar > .v2-status { bottom: calc(100% + 8px); }
 
 @media (prefers-reduced-motion: reduce) {
   .v2 *,
