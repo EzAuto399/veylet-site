@@ -475,6 +475,7 @@
   }
 
   /**
+   * Not called by the player since tours became point to point (11 Nov 2026); kept for harnesses that import it.
    * Where a tap should take the viewer, on the walkable mask (x, z), or null.
    * The tap's floor point if it is open floor in a straight line from here;
    * else the nearest open cell within `snap` metres of it that is (a tap on a
@@ -509,6 +510,7 @@
   }
 
   /**
+   * Not called by the player since tours became point to point (11 Nov 2026); kept for harnesses that import it.
    * Tethers a free-walk floor point to the verified station corridor (`maxCorridor` metres around
    * captured stops and stop-to-stop segments on the same storey) so a visitor cannot wander into
    * unobserved splat geometry behind furniture, while snapping within `snapRadius` of a stop.
@@ -895,7 +897,7 @@
     const poster = el('img', { class: 'v2-poster', alt: '', decoding: 'async' });
     const canvas = el('canvas', { class: 'v2-canvas', tabindex: '0', role: 'application',
       'aria-roledescription': '3D walkthrough',
-      'aria-label': '3D walkthrough. Arrow keys look and move, N and P go to the next and previous stop, M shows the map.' });
+      'aria-label': '3D walkthrough. Left and right arrows look, up and down go to the stop ahead or behind, N and P go to the next and previous stop, M shows the map.' });
     const hotspots = el('div', { class: 'v2-hotspots', 'aria-hidden': 'true' });
     const where = el('div', { class: 'v2-where' });
     const room = el('p', { class: 'v2-room' });
@@ -910,7 +912,7 @@
     const progress = el('div', { class: 'v2-progress', hidden: true });
     progress.append(el('span'));
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
-    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor to move. Use Next for the next stop.');
+    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap a circle or Next to move.');
     const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
     // "Next stop" on screen; "Next" on a phone (the stylesheet drops " stop"); the arrow alone under 300 px.
     const next = iconButton('next', 'Next stop', 'v2-primary v2-next');
@@ -1297,6 +1299,14 @@
       return button;
     });
     const screen = new pc.Vec3(), world = new pc.Vec3();
+    /** Whether a stop on the viewer's level can be offered from here: the one rule for circles, taps and keys. */
+    function stopReachable(stop, level) {
+      // The mask says nothing about a storey it was not carved for.
+      if (!walkable || (storeys && level !== levelOf[manifest.start])) return true;
+      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === level) : manifest.stops;
+      return walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
+        || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
+    }
     function placeHotspots() {
       if (!ready) return;
       const forward = forwardOf(state.yaw, state.pitch);
@@ -1309,11 +1319,7 @@
         const d = stop.floor.map((v, i) => v - state.position[i]);
         const distance = Math.hypot(d[0], d[2]);
         const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
-        // The mask says nothing about a storey it was not carved for.
-        const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-        const reachable = !walkable || (storeys && viewerLevel !== levelOf[manifest.start])
-          || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
-          || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
+        const reachable = stopReachable(stop, viewerLevel);
         if (index === state.stop && distance < 0.4 || !inFront || !reachable || distance > 12) { button.hidden = true; return; }
         const label = stopLabel(manifest, index);
         const activeStop = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
@@ -1421,10 +1427,10 @@
       const controls = el('ul', { class: 'v2-controls' });
       for (const line of [
         'Drag to look around. Pinch, or use + and −, to zoom.',
-        walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
+        'Tap a numbered circle, or Next stop, to move.',
       ]) controls.append(el('li', {}, line));
       // For a keyboard; a touch screen does not show it (tour-player-v2.css).
-      controls.append(el('li', { class: 'v2-keys' }, 'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.'));
+      controls.append(el('li', { class: 'v2-keys' }, 'Keys: left and right look, up and down go to the stop ahead or behind, N and P change stop, 1 to 9 pick a stop, M shows the map.'));
       // The engine's credit and licence, one press away rather than in every visitor's way.
       const credits = el('details', { class: 'v2-credits' });
       const credit = el('p', {}, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
@@ -1578,14 +1584,21 @@
     // The last stop-to-stop move, for QA (inspect()): route 'path' (the walked path), 'mask' (over the floor mask) or 'direct' (a cut).
     let lastMove = null;
     // Every flight holds the render loop (continuous) until it lands or is cut short here.
-    // stopped: the visitor stopped it (a drag or a turn), not a new move; a walk then tidies up where it stands.
-    function cancelFlight(stopped = false) {
+    function cancelFlight() {
       if (!flight) return;
-      const left = flight;
       flight = null;
       flightFovOffset = 0;
       continuous = Math.max(0, continuous - 1);
-      if (stopped) left.onStop?.();
+    }
+    // Point to point: a drag or a turn mid-move finishes the move at its stop (a cut) and keeps the visitor's own
+    // look, so the viewer never rests between stops. A walk tidies its rooms from where it now stands.
+    function landFlight() {
+      if (!flight) return;
+      const left = flight;
+      cancelFlight();
+      state.position = [...left.position];
+      left.onStop?.();
+      left.onArrive?.();
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
@@ -1608,7 +1621,7 @@
       flight = { from, via, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
       continuous++;
     }
-    // Along the path walked at capture: the same flight (a drag, a turn or a new move cuts it short the same way).
+    // Along the path walked at capture: the same flight (a drag or a turn lands it, a new move replaces it, the same way).
     function walkAlong(points, yaw, pitch, onArrive, { onProgress, onStop } = {}) {
       const position = [...points[points.length - 1]];
       if (reduced()) { flyTo(position, yaw, pitch, onArrive, false); return 0; }
@@ -1658,10 +1671,9 @@
     // On a home with levels, a stop straight above or below is not where you are.
     const sameLevel = storeys ? STOREY_METRES : Infinity;
     // The walkable mask is carved for the opening stop's storey; on any other storey it is the floor below, so
-    // free walking there is refused rather than dropping the viewer through it (per-storey masks: later).
+    // it routes nothing there (per-storey masks: later).
     const maskLevel = storeys ? levelOf[manifest.start] : 0;
     const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
-    const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
     let lastRoomVisited = stopLabel(manifest, opening).room || '';
     // What the viewer did, said to the page as a DOM event and nothing more: the player itself sends nothing anywhere.
     function announceActivity(type, detail) {
@@ -1670,17 +1682,17 @@
       } catch { /* optional: a page that is not listening changes nothing */ }
     }
     function arrived(index) {
+      // Point to point: every move ends at a stop, so index is always one.
       state.stop = index;
-      const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
-      if (index < 0) ui.stopLine.textContent = 'Between stops';
+      const label = labels(index);
       markCurrent();
       placeHotspots();
-      ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
+      ui.announce.textContent = [label.room, label.stop].filter(Boolean).join(', ');
       if (label.room && label.room !== lastRoomVisited) {
         lastRoomVisited = label.room;
         announceActivity('veylet:room', { room: label.room });
       }
-      if (index >= 0) announceActivity('veylet:stop', { stop: index, room: label.room || null });
+      announceActivity('veylet:stop', { stop: index, room: label.room || null });
       tellStop(index);
       if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }
@@ -1758,8 +1770,8 @@
      * Rooms streamed along a walk on a chunked home. In the first half of each leg the camera counts as in the room of
      * the stop it left, and the next stop's room (one room ahead, never more) starts loading; from halfway it counts as
      * in the next stop's room. Each change is an ordinary room entry (enterChunk: the device's chunk plan) followed by
-     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk the visitor stops (a drag or a
-     * turn) is tidied the same way from the room the camera is in.
+     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk the visitor lands (a drag or a
+     * turn: it finishes at its stop) is tidied the same way from the room the camera is then in.
      */
     function walkRooms(points) {
       const run = [0];
@@ -1828,14 +1840,7 @@
       flyTo([...stop.position], look.yaw, look.pitch, onArrive, Boolean(route), route);
       if (flight) Object.assign(lastMove, { duration: flight.duration, cut: false });
     }
-    function walkTo(point) {
-      lastMove = null;
-      const eye = walkable ? walkable.eyeHeight : 1.4;
-      const target = [point[0], point[1] + eye, point[2]];
-      if (chunked) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
-      flyTo(target, state.yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); });
-    }
-    // Where Next and Previous count from: this stop, or between stops the nearest one on this level (as the labels say).
+    // Where Next and Previous count from: the stop the viewer is on (or, mid-move, left).
     const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
     let messageTimer = null;
     function say(message) {
@@ -1843,56 +1848,55 @@
       clearTimeout(messageTimer);
       messageTimer = setTimeout(() => { if (ui.status.textContent === message) ui.status.textContent = ''; }, 3500);
     }
-    function stepForward(sign) {
-      if (!walkable) { say('Use Next stop, or N and P, to move.'); return; }
-      if (offMask()) { say(OFF_MASK); return; }
-      const forward = forwardOf(state.yaw, 0);
-      const from = [state.position[0], state.position[2]];
-      const to = [from[0] + forward[0] * 0.35 * sign, from[1] + forward[2] * 0.35 * sign];
-      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-      if (walkable.clear(from, to)) {
-        const tethered = tetherToStations(walkable, from, to, levelStops, { legs: manifest.path?.legs });
-        walkTo([tethered[0], walkable.floorY, tethered[1]]);
-        return;
-      }
-      const slide = walkTarget(walkable, from, to, { minStep: 0.15, snap: 0.35 });
-      if (slide) {
-        const tethered = tetherToStations(walkable, from, slide, levelStops, { minStep: 0.15, legs: manifest.path?.legs });
-        walkTo([tethered[0], walkable.floorY, tethered[1]]);
-        return;
-      }
-      say('A wall or furniture is in the way.');
+    // ----- point to point: taps and the forward/back keys only ever choose a stop -----
+    // Short enough to fit a 280 px phone frame on one line.
+    const STOP_HINT = 'Tap a numbered circle to move.';
+    // A tap counts for a stop within this of the tapped floor point: the radius the tap fallback already used,
+    // about a stride past the circle and under the usual 1.5 to 3 m between stops, so it goes to the stop it is beside.
+    const TAP_RADIUS = 1.4;
+    // Forward and back: stops within KEY_CONE degrees either side of the heading (four headings cover the room),
+    // no further than the circles are drawn; stops within KEY_TIE degrees of the best aligned count as level, nearest wins.
+    const KEY_CONE = 45, KEY_TIE = 10, KEY_REACH = 12;
+    /** The other stops on the viewer's level that the circles' rule lets it move to. */
+    function stopChoices() {
+      const level = storeys ? levelAt(storeys, state.position) : 0;
+      const here = hereStop();
+      return manifest.stops.map((stop, index) => ({ stop, index }))
+        .filter(({ stop, index }) => index !== here && (!storeys || levelOf[index] === level) && stopReachable(stop, level));
     }
-    function aimFor(clientX, clientY) {
+    /** Forward (1) or back (-1): to the stop best aligned with the heading, or the hint. */
+    function stepForward(sign) {
+      const forward = forwardOf(state.yaw, 0);
+      let best = null;
+      const choices = stopChoices().map(({ stop, index }) => {
+        const dx = stop.position[0] - state.position[0], dz = stop.position[2] - state.position[2], distance = Math.hypot(dx, dz);
+        const angle = distance > 1e-6 ? Math.acos(clamp((dx * forward[0] + dz * forward[2]) * sign / distance, -1, 1)) * 180 / Math.PI : 180;
+        return { index, distance, angle };
+      }).filter(choice => choice.angle <= KEY_CONE && choice.distance <= KEY_REACH);
+      const least = Math.min(...choices.map(choice => choice.angle));
+      for (const choice of choices) if (choice.angle <= least + KEY_TIE && (!best || choice.distance < best.distance)) best = choice;
+      if (best) goToStop(best.index); else say(STOP_HINT);
+    }
+    // The floor a tap is read against: the mask's where the viewer is on it, else the floor of the stop stood on.
+    const floorHere = () => (walkable && !offMask() ? walkable.floorY : manifest.stops[hereStop()].floor[1]);
+    function aimFor(clientX, clientY, floorY = floorHere()) {
       const rect = ui.canvas.getBoundingClientRect();
       const x = clientX - rect.left, y = clientY - rect.top;
       const near = camera.camera.screenToWorld(x, y, camera.camera.nearClip, new pc.Vec3());
       const far = camera.camera.screenToWorld(x, y, camera.camera.farClip, new pc.Vec3());
       const direction = [far.x - near.x, far.y - near.y, far.z - near.z];
       const length = Math.hypot(...direction);
-      return tapAim([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
+      return tapAim([near.x, near.y, near.z], direction.map(v => v / length), floorY);
     }
+    /** A tap on the scene: to the stop nearest the tapped floor point, or the hint. Never to the point itself. */
     function tapAt(clientX, clientY) {
-      if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
-      if (offMask()) { say(OFF_MASK); return; }
       const aim = aimFor(clientX, clientY);
-      const from = [state.position[0], state.position[2]];
-      const raw = aim && walkTarget(walkable, from, aim);
-      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-      const to = raw && tetherToStations(walkable, from, raw, levelStops, { maxCorridor: 0.75, legs: manifest.path?.legs });
-      if (to) {
-        walkTo([to[0], walkable.floorY, to[1]]);
-        return;
+      let best = -1, distance = TAP_RADIUS;
+      if (aim) for (const { stop, index } of stopChoices()) {
+        const d = Math.hypot(stop.floor[0] - aim[0], stop.floor[2] - aim[1]);
+        if (d <= distance) { best = index; distance = d; }
       }
-      if (aim) {
-        const candidateStop = nearestStop(manifest, [aim[0], state.position[1], aim[1]], 1.4, sameLevel);
-        if (candidateStop >= 0 && candidateStop !== state.stop) {
-          goToStop(candidateStop);
-          return;
-        }
-      }
-      // Short enough to fit a 280 px phone frame on one line.
-      say('Can’t walk there. Try open floor.');
+      if (best >= 0) goToStop(best); else say(STOP_HINT);
     }
 
     // ----- input -----
@@ -1928,7 +1932,7 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        cancelFlight(true);
+        landFlight();
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1971,7 +1975,7 @@
       const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
-        cancelFlight(true);
+        landFlight();
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
         state.yaw += left ? 10 : -10;
         applyCamera();
@@ -2144,11 +2148,9 @@
         // A small frame on someone else's page has no room for a hint over the room (About has the controls);
         // a phone's own page gets the one-line version.
         if (framed) return;
-        ui.hint.textContent = 'Drag to look. Tap to move.';
+        ui.hint.textContent = 'Drag to look. Tap a circle to move.';
         ui.hint.classList.add('v2-hint-short');
       }
-      // Only what is on screen is named: the floor (where this walkthrough has one to walk on) and Next.
-      else if (!walkable) ui.hint.textContent = 'Drag to look around. Use Next for the next stop.';
       ui.hint.hidden = false;
       hintTimer = setTimeout(() => dismissHint(false), 9000);
     }
@@ -2413,19 +2415,23 @@
     const controller = {
       stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames),
         ...(chunked ? { chunk: currentChunk, chunks: [...held].map(([id, item]) => ({ id, level: item.level, settled: item.settled })) } : {}) }),
+      // goToStop(index): moves to that stop (along the walked path or the measured floor route when there is one).
+      // tapAt(clientX, clientY): what a tap on the scene does. Point to point: moves to the stop nearest the tapped
+      // floor point (within 1.4 m, on this level, reachable as the circles are), or shows the hint. Never free walking.
       goToStop, tapAt,
       /*
        * Where the viewer stands and looks, read by the page when it wants it (no timer and no network here).
-       * null until the first 3D frame. stop: the stop stood on (0-based), or -1 while moving or between stops.
+       * null until the first 3D frame. stop: the stop stood on (0-based), or -1 while moving.
        * Angles are degrees in the tour package's own frame (right-handed, Y up), exactly as lookAngles() gives them:
        * yaw 0 looks along -Z (up on the floor map before its turn); yaw grows turning LEFT, anticlockwise seen
        * from above, so yaw 90 looks along -X, 180 along +Z and 270 along +X. Given here as 0 <= yaw < 360.
        * pitch 0 is level, positive looks up, negative down (-80..80).
        */
       view: () => (ready ? { stop: flight ? -1 : state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
-      // For QA: whether a tap here aims at open floor on the walkable mask.
+      // For QA: whether a tap here aims at open floor on the walkable mask (the mask still routes moves and draws
+      // the map; a tap no longer goes to the point itself).
       probe: (clientX, clientY) => {
-        const aim = walkable && aimFor(clientX, clientY);
+        const aim = walkable && aimFor(clientX, clientY, walkable.floorY);
         return { aim, openFloor: Boolean(aim && walkable.walkable(aim[0], aim[1])) };
       },
       // For QA and measurement: the camera state and where each stop's floor disc projects.
