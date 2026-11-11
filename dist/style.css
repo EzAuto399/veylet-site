@@ -90,16 +90,9 @@ p {
   position: relative;
   flex-shrink: 0;
   background: currentColor;
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% 100%,
-    67% 88%,
-    67% 25%,
-    24% 17%,
-    24% 100%,
-    0 100%
-  );
+  /* Veylet mark: doorway frame + open door at half strength (master: favicon.svg / studio-avatar.png) */
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='316 240 449 589'%3E%3Cpath d='M316 240H765V829H666V339H415V829H316Z'/%3E%3Cpath fill-opacity='.5' d='M456 395L625 449V746L456 814Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='316 240 449 589'%3E%3Cpath d='M316 240H765V829H666V339H415V829H316Z'/%3E%3Cpath fill-opacity='.5' d='M456 395L625 449V746L456 814Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 header {
   padding-block: 34px;

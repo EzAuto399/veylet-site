@@ -608,7 +608,7 @@ function head({ title, description, canonical, edition, jsonLd, extra = '', card
       `<meta property="og:url" content="${canonical}">`, ...shareImage(card),
       '<meta name="twitter:card" content="summary_large_image">');
   }
-  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/studio-avatar.png">', stylesheets());
+  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/favicon.svg" type="image/svg+xml"><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/media/apple-touch-icon.png">', stylesheets());
   if (extra) lines.push(extra);
   if (jsonLd) lines.push('<script type="application/ld+json">\n' + JSON.stringify(jsonLd, null, 2) + '\n</script>');
   // Cookieless page counts on the public edition only (dist/insights.js); never in the app edition.

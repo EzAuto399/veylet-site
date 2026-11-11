@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="216 160 649 649" width="32" height="32">
+  <!-- Veylet mark, small-size variant (<=32 px): same geometry as veylet-mark.svg, tighter crop and lighter door -->
+  <rect x="216" y="160" width="649" height="649" rx="96" fill="#10231D"/>
+  <path fill="#F4F1E9" d="M316 200H765V789H666V299H415V789H316Z"/>
+  <path fill="#A9B0A9" d="M456 355L625 409V706L456 774Z"/>
+</svg>
