@@ -346,7 +346,7 @@ test('the client’s page, the embed and /tour carry one generic preview card, w
   assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1200, 630]);
   for (const [name, html] of [['handoff', handoff], ['embed', embed], ['tour', tour]]) {
     assert.match(html, /<meta property="og:title" content="Property walkthrough" \/>/, name);
-    assert.match(html, /<meta property="og:description" content="Walk through this property in 3D\." \/>/, name);
+    assert.match(html, /<meta property="og:description" content="Look around this property in 3D, stop by stop\." \/>/, name);
     assert.match(html, /<meta property="og:image" content="https:\/\/veylet\.com\/media\/walkthrough-card\.png" \/>/, name);
     assert.match(html, /<meta property="og:image:width" content="1200" \/>\s*<meta property="og:image:height" content="630" \/>/, name);
     assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/, name);
