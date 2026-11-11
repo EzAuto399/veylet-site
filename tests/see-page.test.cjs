@@ -435,9 +435,8 @@ test('point-to-point copy: no viewer-facing page offers free movement or tapping
     'app/help/what-your-client-sees/index.html', 'embed/index.html', 'index.html', 'offer/index.html'];
   for (const page of pages) {
     const text = words(read(page));
-    // The offer page keeps its own "Walkable paths" chip: only its viewer sentence was in scope (see the report).
     for (const phrase of [/tap the floor/i, /\bwander/i, /move freely/i, /own pace/i, /anywhere they like/i, /clients walk it/i, /tenants walk through/i,
-      ...(page === 'offer/index.html' ? [] : [/walkable paths/i])])
+      /walkable paths/i])
       assert.doesNotMatch(text, phrase, page + ' says ' + phrase);
   }
   assert.match(words(read('see/index.html')), /Drag to look around\. Tap a numbered circle to move\./);
