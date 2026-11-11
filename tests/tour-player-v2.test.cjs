@@ -429,7 +429,7 @@ test('a short wobbly touch still moves, to a stop, and the hint fits a phone fra
   canvas.dispatch('pointerdown', { pointerId: 1, clientX: 200, clientY: 300, pointerType: 'touch' });
   canvas.dispatch('pointerup', { pointerId: 1, clientX: 200, clientY: 300, pointerType: 'touch' });
   const status = byClass(x.stage, 'v2-status').textContent;
-  assert.equal(status, 'Tap a numbered circle to move.');
+  assert.equal(status, 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
   assert.ok(status.length <= 36);
   assert.deepEqual(at(), [1, 0, 0]);
 });
@@ -791,7 +791,7 @@ test('a floor tap ends at the stop nearest it, never between stops, and Next and
   atStop(2);
   // Open floor, but 1.5 m from the nearest stop (over the 1.4 m a tap reaches): the hint, and no move.
   controller.tapAt(200, 150);
-  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
   atStop(2);
   assert.doesNotMatch(x.stage.textContent, /Between stops/);
 });
@@ -816,7 +816,7 @@ test('forward and back keys go to the stop the view is aligned with; no stop wit
   // Turned 90° left the view runs along -X: nothing that way.
   for (let i = 0; i < 9; i++) x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
   atStop(0);
   // Back from there is +X: s2.
   x.canvas.dispatch('keydown', { key: 's' });
@@ -831,7 +831,7 @@ test('a tap or a key never goes to a stop the circles would not offer: behind a 
   controller.tapAt(100, 0);
   assert.equal(x.stopLine(), 'Stop 2 of 5');
   controller.tapAt(200, 0); // right on s3, which is behind the wall
-  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
   assert.deepEqual([...controller.inspect().state.position], data.stops[1].position);
   for (let i = 0; i < 9; i++) x.canvas.dispatch('keydown', { key: 'ArrowRight' }); // now looking along +X, at the wall
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });
@@ -849,6 +849,41 @@ test('a tap or a key never goes to a stop the circles would not offer: behind a 
   y.window.VeyletPlayerV2.current.tapAt(210, 0); // floor point (2.1, 0): s3 is overhead, s4 is 0.9 m away on this level
   assert.equal(y.stopLine(), 'Stop 4 of 5');
   assert.deepEqual([...y.window.VeyletPlayerV2.current.inspect().state.position], levels.stops[3].position);
+});
+
+test('a miss names the circles only when one is on screen; facing away it points to Next, and both fit one line', async () => {
+  const x = await readyPlayer();
+  const controller = x.window.VeyletPlayerV2.current;
+  const shown = () => x.stage.querySelectorAll('.v2-hotspot').filter(button => !button.hidden).length;
+  x.canvas.clientWidth = 390; x.canvas.clientHeight = 700; // the stand-in canvas has a size, so a circle ahead lands on it
+  // The opening view looks across the line of stops: no circle is on screen, so a tap 3 m from any stop, and the
+  // forward key, point to Next instead of to circles the viewer cannot see.
+  assert.equal(shown(), 0);
+  controller.tapAt(200, 300);
+  assert.equal(x.status(), 'No circle in view. Tap Next.');
+  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
+  assert.equal(x.status(), 'No circle in view. Tap Next.');
+  // Turned to face along the stops, their circles show: the same miss now says to tap one.
+  for (let i = 0; i < 9; i++) x.canvas.dispatch('keydown', { key: 'ArrowRight' });
+  assert.ok(shown() > 0);
+  controller.tapAt(200, 300);
+  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  assert.equal(x.stopLine(), 'Stop 1 of 5');
+  for (const message of ['Tap a numbered circle to move.', 'No circle in view. Tap Next.']) assert.ok(message.length <= 30, message);
+});
+
+test('the status hangs from the top of the controls once they show, so room names cannot cover it', async () => {
+  // Before the first frame the controls are hidden and the status is the stage's own (Loading…).
+  const loading = await started();
+  assert.equal(byClass(loading.stage, 'v2-status').parentNode, byClass(loading.stage, 'v2'));
+  const x = await readyPlayer();
+  assert.equal(byClass(x.stage, 'v2-status').parentNode, byClass(x.stage, 'v2-bar'));
+  assert.equal(x.stage.querySelectorAll('.v2-status').length, 1);
+  const css = read('tour-player-v2.css');
+  assert.match(css, /\.v2-bar > \.v2-status \{ bottom: calc\(100% \+ 8px\); max-width: 100%; \}/);
+  // Full screen and the filled window keep it there (their own .v2-status offset would otherwise win).
+  assert.match(css, /\.v2-stage:is\(\.v2-filled, :fullscreen\) \.v2-bar > \.v2-status \{ bottom: calc\(100% \+ 8px\); \}/);
+  assert.match(css, /\.v2-bar \{\s*position: absolute;/, 'the bar is what the status is placed against');
 });
 
 test('a place kept by an older session that was between stops (stop -1) opens at a stop', async () => {
@@ -1328,7 +1363,7 @@ test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, co
   for (let i = 0; i < 5; i++) x.canvas.dispatch('keydown', { key: 'ArrowUp' });
   const pos = x.window.VeyletPlayerV2.current.inspect().state.position;
   assert.deepEqual([...pos], [0, 0, 0], `the forward key leaves the viewer on the stop, got ${pos}`);
-  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
 });
 
 

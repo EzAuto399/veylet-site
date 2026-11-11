@@ -1075,6 +1075,7 @@
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
       ui.bar.hidden = true;
+      ui.root.append(ui.status);
       ui.progress.hidden = true;
       ui.status.textContent = '';
       ui.announce.textContent = `${heading} ${body}`;
@@ -1846,6 +1847,9 @@
     // ----- point to point: taps and the forward/back keys only ever choose a stop -----
     // Short enough to fit a 280 px phone frame on one line.
     const STOP_HINT = 'Tap a numbered circle to move.';
+    // Facing a wall there may be no circle on screen to tap: then the hint names what is, the Next button.
+    const NO_CIRCLE_HINT = 'No circle in view. Tap Next.';
+    const missHint = () => (hotspotButtons.some(button => !button.hidden) ? STOP_HINT : NO_CIRCLE_HINT);
     // A tap counts for a stop within this of the tapped floor point: the radius the tap fallback already used,
     // about a stride past the circle and under the usual 1.5 to 3 m between stops, so it goes to the stop it is beside.
     const TAP_RADIUS = 1.4;
@@ -1870,7 +1874,7 @@
       }).filter(choice => choice.angle <= KEY_CONE && choice.distance <= KEY_REACH);
       const least = Math.min(...choices.map(choice => choice.angle));
       for (const choice of choices) if (choice.angle <= least + KEY_TIE && (!best || choice.distance < best.distance)) best = choice;
-      if (best) goToStop(best.index); else say(STOP_HINT);
+      if (best) goToStop(best.index); else say(missHint());
     }
     // The floor a tap is read against: the mask's where the viewer is on it, else the floor of the stop stood on.
     const floorHere = () => (walkable && !offMask() ? walkable.floorY : manifest.stops[hereStop()].floor[1]);
@@ -1891,7 +1895,7 @@
         const d = Math.hypot(stop.floor[0] - aim[0], stop.floor[2] - aim[1]);
         if (d <= distance) { best = index; distance = d; }
       }
-      if (best >= 0) goToStop(best); else say(STOP_HINT);
+      if (best >= 0) goToStop(best); else say(missHint());
     }
 
     // ----- input -----
@@ -2267,6 +2271,9 @@
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
+        // From here the status hangs from the top edge of the controls (tour-player-v2.css), so no row of room
+        // names, wrapped or not, can cover it.
+        ui.bar.append(ui.status);
         ui.status.textContent = saveData ? '' : 'Sharpening detail…';
         ui.progress.hidden = saveData;
         ui.progress.classList.remove('v2-progress-wait');
