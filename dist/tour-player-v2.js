@@ -136,20 +136,32 @@
     if (!Array.isArray(legs) || legs.length < 1 || legs.length > 59) return null;
     const indexOf = new Map(stops.map((stop, i) => [stop.id, i]));
     const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= 0.05;
+    // Every point within 50 m (each axis) of the box around the stops, so no point can send the camera off to nowhere.
+    const low = [0, 1, 2].map(i => Math.min(...stops.map(stop => stop.position[i])) - 50);
+    const high = [0, 1, 2].map(i => Math.max(...stops.map(stop => stop.position[i])) + 50);
+    const inBox = point => point.every((v, i) => v >= low[i] && v <= high[i]);
     const pairs = new Set();
     const out = [];
     for (const leg of legs) {
       if (!leg || typeof leg !== 'object' || !indexOf.has(leg.from) || !indexOf.has(leg.to) || leg.from === leg.to) return null;
-      const pair = [leg.from, leg.to].sort().join(' ');
+      const pair = JSON.stringify([leg.from, leg.to].sort());
       if (pairs.has(pair)) return null;
       pairs.add(pair);
       const points = leg.points;
-      if (!Array.isArray(points) || points.length < 2 || points.length > 64 || !points.every(finite3)) return null;
-      if (!Number.isFinite(leg.length_m) || leg.length_m <= 0) return null;
-      if (leg.max_gap_m !== undefined && (!Number.isFinite(leg.max_gap_m) || leg.max_gap_m < 0)) return null;
+      if (!Array.isArray(points) || points.length < 2 || points.length > 64 || !points.every(point => finite3(point) && inBox(point))) return null;
+      // The packager never leaves a gap over 1 m; a step over 5 m is not a walk.
+      if (!Number.isFinite(leg.max_gap_m) || leg.max_gap_m < 0 || leg.max_gap_m > 1) return null;
+      let length = 0;
+      for (let i = 1; i < points.length; i++) {
+        const step = Math.hypot(...points[i].map((v, k) => v - points[i - 1][k]));
+        if (!Number.isFinite(step) || step > 5) return null;
+        length += step;
+      }
+      // length_m must agree with the points (within 25 % or 0.25 m, whichever is larger); the points' length is used.
+      if (!Number.isFinite(length) || !Number.isFinite(leg.length_m) || Math.abs(leg.length_m - length) > Math.max(0.25, 0.25 * length)) return null;
       const fromIndex = indexOf.get(leg.from), toIndex = indexOf.get(leg.to);
       if (!near(points[0], stops[fromIndex].position) || !near(points[points.length - 1], stops[toIndex].position)) return null;
-      out.push({ from: leg.from, to: leg.to, fromIndex, toIndex, length: leg.length_m, points: points.map(point => [...point]) });
+      out.push({ from: leg.from, to: leg.to, fromIndex, toIndex, length, points: points.map(point => [...point]) });
     }
     return { version: 1, legs: out };
   }
@@ -587,7 +599,7 @@
   }
 
   // Walking a captured path: about 1.4 m/s, never under 0.9 s or over 5 s (a longer chain walks faster to fit).
-  const WALK_PACE = 1.4, WALK_MIN_MS = 900, WALK_MAX_MS = 5000;
+  const WALK_PACE = 1.4, WALK_MIN_MS = 900, WALK_MAX_MS = 5000, WALK_TURN = 180;
   const wrapDegrees = value => ((value % 360) + 540) % 360 - 180;
 
   /**
@@ -615,11 +627,14 @@
     const chain = [];
     for (let at = to; at !== from; at = via[at].previous) chain.unshift(via[at]);
     const points = [[...stops[from].position]];
+    // points.through: the stops the walk passes, from first to last (their rooms are the rooms it walks through).
+    points.through = [from];
     for (const { leg, previous } of chain) {
       const walked = leg.fromIndex === previous ? leg.points : [...leg.points].reverse();
       points.push(...walked.slice(1, -1).map(point => [...point]));
       const end = leg.fromIndex === previous ? leg.toIndex : leg.fromIndex;
       points.push([...stops[end].position]);
+      points.through.push(end);
     }
     return points;
   }
@@ -1594,7 +1609,7 @@
       cancelFlight();
       const walk = walkPath(points), duration = walkDuration(walk.length);
       if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), onArrive };
+      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive };
       continuous++;
       return duration;
     }
@@ -1603,7 +1618,11 @@
       const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
       if (flight.walk) {
         state.position = t >= 1 ? [...flight.position] : flight.walk.at(walkEase(t)).position;
-        Object.assign(state, walkLook(flight.walk, t, flight.from, flight.to));
+        // The look swings at no more than WALK_TURN degrees a second, so a leg that doubles back turns, not snaps.
+        const aim = walkLook(flight.walk, t, flight.from, flight.to), most = WALK_TURN * Math.max(0, now - flight.stepped) / 1000;
+        if (t >= 1) Object.assign(state, aim);
+        else Object.assign(state, { yaw: state.yaw + clamp(aim.yaw - state.yaw, -most, most), pitch: state.pitch + clamp(aim.pitch - state.pitch, -most, most) });
+        flight.stepped = now;
         applyCamera();
         if (t >= 1) { const done = flight.onArrive; flight = null; continuous = Math.max(0, continuous - 1); done?.(); }
         return;
@@ -1740,8 +1759,17 @@
       const walked = from && manifest.path ? pathRoute(manifest.path, manifest.stops, state.stop, index) : null;
       if (walked && Math.hypot(...walked[0].map((v, i) => v - state.position[i])) <= 0.35) {
         walked[0] = [...state.position];
+        const origin = state.stop;
         const duration = walkAlong(walked, look.yaw, look.pitch, onArrive);
-        lastMove = { route: 'path', from: state.stop, to: index, points: walked.length, duration };
+        // A walk through other rooms: their chunks start loading (coarsest) as it starts; arrival lets far ones go as before.
+        if (chunked && duration) {
+          for (const stopIndex of walked.through) {
+            const id = chunked.chunkOfRoom[manifest.stops[stopIndex].room];
+            if (!held.has(id)) addChunk(id);
+          }
+        }
+        // cut: true when the move did not animate (reduced motion), so it is never read as a walk.
+        lastMove = { route: 'path', from: origin, to: index, points: walked.length, duration, cut: !duration };
         return;
       }
       const onMeasuredFloor = item => Boolean(walkable && item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15);
@@ -1758,9 +1786,9 @@
           route = corridorRoute(walkable, state.position, stop.position, levelStops);
         }
       }
-      lastMove = { route: route ? 'mask' : 'direct', from: state.stop, to: index, points: route ? route.length + 1 : 2, duration: 0 };
+      lastMove = { route: route ? 'mask' : 'direct', from: state.stop, to: index, points: route ? route.length + 1 : 2, duration: 0, cut: true };
       flyTo([...stop.position], look.yaw, look.pitch, onArrive, Boolean(route), route);
-      if (flight) lastMove.duration = flight.duration;
+      if (flight) Object.assign(lastMove, { duration: flight.duration, cut: false });
     }
     function walkTo(point) {
       lastMove = null;
@@ -2389,7 +2417,7 @@
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, pathRoute, walkDuration, walkEase, walkPath, walkLook, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
+    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, readPath, pathRoute, walkDuration, walkEase, walkPath, walkLook, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     start, mount, current: null,
   };
