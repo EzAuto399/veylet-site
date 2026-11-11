@@ -220,3 +220,28 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
     assert.doesNotMatch(read(page), /href="\/request/, `${page} does not link /request`);
   }
 });
+
+test('home: the waitlist is asked for in the hero and the closing band only, one See a result link per section, one stage line', () => {
+  const home = read('index.html');
+  const main = home.match(/<main\b[\s\S]*?<\/main>/)[0];
+  const waitlist = [...main.matchAll(/<a [^>]*href="\/waitlist"[^>]*data-analytics-placement="(\w+)"/g)].map(match => match[1]);
+  assert.deepEqual(waitlist, ['hero', 'body'], 'hero and closing band');
+  assert.match(main.match(/<section class="closing-invitation"[\s\S]*?<\/section>/)[0], /href="\/waitlist"/, 'the body one is the closing band');
+  assert.doesNotMatch(main.match(/<div class="walk-after">[\s\S]*?<\/div>/)[0], /href="\/waitlist"/, 'no mid-page waitlist button');
+  assert.match(home, /data-analytics-placement="sticky">Join the waitlist<\/a>/, 'the mobile sticky bar stays');
+  const see = main.match(/<section class="see-band[\s\S]*?<\/section>/)[0];
+  assert.equal((see.match(/href="\/see"/g) || []).length, 1, 'one See a result link in the section');
+  // The stage label and the weekly-groups note are one line, then the price line, unchanged.
+  assert.doesNotMatch(main, /hero-admit/);
+  assert.equal((main.match(/data-launch-label/g) || []).length, 1);
+  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 3 walkthroughs included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
+  // Shorter copy that keeps what is not yet proven, said once.
+  const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;
+  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Pilot status\.<\/strong>/, '')), 1);
+  const steps = [...main.matchAll(/<li data-walk-step[^>]*>.*?<\/button><p>([\s\S]*?)<\/p><\/li>/g)].map(match => match[1]);
+  assert.equal(sentences(steps[2]), 1, 'step 3 is one sentence');
+  assert.equal(sentences(steps[3]), 1, 'step 4 is one sentence');
+  assert.ok(sentences(main.match(/<div class="closing-action">\s*<p>([\s\S]*?)<\/p>/)[1]) <= 2, 'closing paragraph');
+  assert.match(text, /no client-accepted walkthrough to show yet/);
+});
