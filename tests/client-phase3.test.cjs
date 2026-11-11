@@ -26,10 +26,17 @@ test('offline says so and names reconnecting; a file that did not load names the
   assert.equal(shown[0].retry, true);
 });
 
-test('the help under the stage and the hint in it are one sentence, naming only the floor and Next', () => {
+// Split on 11 November 2026 (tours are point to point): the page's half is unchanged and belongs to the session
+// rewriting that sentence; the player's half names circles and Next, never the floor.
+test('the help under the stage is one sentence, naming only the floor and Next', () => {
   const sentence = 'Drag to look around. Tap the floor to move. Use Next for the next stop.';
   assert.ok(read('handoff/index.html').includes('<p>' + sentence + '</p>'));
-  assert.ok(read('tour-player-v2.js').includes("'" + sentence + "'"));
+});
+
+test('the hint in the player names circles and Next, and no longer the floor', () => {
+  const player = read('tour-player-v2.js');
+  assert.ok(player.includes("'Drag to look around. Tap a circle or Next to move.'"));
+  assert.equal(player.includes('Tap the floor'), false);
 });
 
 test('contrast: a stop circle is paper on 72 % ink, and the embed invitation starts at 78 % ink', () => {

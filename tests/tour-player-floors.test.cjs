@@ -208,25 +208,35 @@ function groundMask() {
   return { version: 1, cell_metres: 0.1, origin: [-2, -7], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
 }
 
-test('upstairs, a tap or an arrow-key walk is refused with a hint: it never drops the viewer to the ground storey (VIEWER-01)', async () => {
+// Point to point (owner decision, 11 November 2026). Was 'upstairs, a tap or an arrow-key walk is refused with a hint':
+// the ground-floor 0.35 m step and the upstairs refusals are now moves to a stop on the viewer's own storey, or the hint.
+// It still protects what VIEWER-01 was for: nothing a viewer does upstairs puts them on, or under, the ground storey.
+test('a tap or an arrow key only ever goes to a stop on the viewer\'s storey: it never drops the viewer to the ground storey (VIEWER-01)', async () => {
   const x = await ready(TWO_FLOORS, { walkable: groundMask() });
-  const eye = () => x.player.current.inspect().state.position;
-  // On the ground floor the mask is the floor you stand on: the arrow keys walk.
+  const eye = () => [...x.player.current.inspect().state.position];
+  const HINT = 'Tap a numbered circle to move.';
+  // Ground floor, looking along -Z from stop 1: stop 2 (2 m ahead) and the bedroom's stop 4 (3 m ahead, one storey up)
+  // are on the same line. The key goes to stop 2, the one on this storey, and to the stop itself, not a step along.
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.ok(Math.abs(eye()[2] + 0.35) < 1e-6, 'ground floor: one step ahead');
-  assert.notEqual(x.status(), 'Use Next stop or a numbered circle on this floor.');
+  assert.deepEqual(eye(), TWO_FLOORS[1].position, 'ground floor: the stop ahead on this storey');
+  assert.deepEqual(x.where(), ['Living room', 'Stop 2 of 5']);
+  assert.notEqual(x.status(), HINT);
   x.canvas.dispatch('keydown', { key: 'Home' });
-  // Upstairs (stop 4), the mask is the floor below: a step or a tap would fall through it.
+  // Upstairs (stop 4), the mask is the floor below: a tap read against it would fall through.
   const next = x.stage.querySelector('.v2-next');
   next.click(); next.click(); next.click();
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
-  const upstairs = [...eye()];
-  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
-  assert.deepEqual([...eye()], upstairs, 'the arrow key does not move the viewer');
+  // The stand-in camera's tap looks down and ahead; read against the bedroom's own floor it meets it beside stop 5.
   x.player.current.tapAt(100, 100);
-  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
-  assert.deepEqual([...eye()], upstairs, 'a tap does not move the viewer');
+  assert.deepEqual(eye(), TWO_FLOORS[4].position, 'a tap goes to the stop on this storey, at its own height');
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 5 of 5']);
+  // Ahead of stop 5 there is no stop on this storey: the hint, and no move.
+  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
+  assert.equal(x.status(), HINT);
+  assert.deepEqual(eye(), TWO_FLOORS[4].position, 'the arrow key does not move the viewer');
+  // Behind it, the ground floor's stop 2 is the better aligned (9° against stop 4's 14°) but it is a storey down.
+  x.canvas.dispatch('keydown', { key: 'ArrowDown' });
+  assert.deepEqual(eye(), TWO_FLOORS[3].position, 'back goes to the stop on this storey, never down a storey');
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
   assert.deepEqual(x.floors(), [['Ground', 'false'], ['Level 1', 'true']]);
   // The next stop upstairs is still offered on the floor, although the ground mask has no say up here.
