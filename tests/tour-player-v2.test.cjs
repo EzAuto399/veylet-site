@@ -715,7 +715,7 @@ async function readyPlayer(options = {}) {
   return { ...x, app, canvas: byClass(x.stage, 'v2-canvas'), stopLine: () => byClass(x.stage, 'v2-stop').textContent, status: () => byClass(x.stage, 'v2-status').textContent };
 }
 
-test('the render loop goes idle after an interrupted flight: a drag, a turn or a new move (VIEWER-08)', async () => {
+test('the render loop goes idle once a flight lands, also after a drag, a turn or a new move during it (VIEWER-08)', async () => {
   const time = clock();
   const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
   x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
@@ -731,11 +731,28 @@ test('the render loop goes idle after an interrupted flight: a drag, a turn or a
   x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
   x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
   x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
-  assert.equal(renders(), false, 'idle again after a drag cut the flight short');
-  // An arrow key turns mid-flight.
+  // Point to point (was: idle again after a drag cut the flight short): the glide carries on to its stop while
+  // the visitor looks, then the loop goes idle there.
+  const controller = x.window.VeyletPlayerV2.current;
+  const facing = controller.inspect().state.yaw;
+  assert.equal(renders(), true, 'the glide carries on after a drag');
+  assert.equal(controller.inspect().state.yaw, facing, 'and no longer steers the look');
+  time.t += 5000;
+  x.app.fire('update');
+  assert.equal(renders(), false, 'idle again once it lands');
+  assert.deepEqual([...controller.inspect().state.position], [1, 0, 0], 'at the stop');
+  assert.equal(controller.inspect().state.yaw, facing, 'facing where the visitor turned');
+  assert.equal(x.stopLine(), 'Stop 2 of 5');
+  // An arrow key turns mid-flight: the same.
   next.click();
   x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
-  assert.equal(renders(), false, 'idle again after a turn cut the flight short');
+  assert.equal(renders(), true, 'the glide carries on after a turn');
+  assert.equal(controller.inspect().state.yaw, facing + 10);
+  time.t += 5000;
+  x.app.fire('update');
+  assert.equal(renders(), false, 'idle again once it lands');
+  assert.deepEqual([...controller.inspect().state.position], [2, 0, 0]);
+  assert.equal(controller.inspect().state.yaw, facing + 10);
   // A second move replaces the first before it lands, and then lands.
   next.click(); next.click();
   time.t += 5000;
@@ -1807,17 +1824,24 @@ test('stop to stop along the walked path, from Next, numbers and goToStop; no le
   assert.equal(controller.inspect().move.route, 'path');
   time.t += 6000; x.app.fire('update');
   assert.equal(x.stopLine(), 'Stop 4 of 5');
-  // Point to point (was: a drag during a walk stops it where it is): a drag during a walk finishes it at its stop.
+  // Point to point (was: a drag during a walk stops it where it is): the walk carries on along its leg to the
+  // stop while the visitor looks; it never leaves the viewer part-way.
   controller.goToStop(0);
   time.t += 500; x.app.fire('update');
   x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
   x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 140, clientY: 100 });
   x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 140, clientY: 100 });
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[0].position, 'the viewer is at the stop, not part-way along the leg');
+  const part = [...controller.inspect().state.position], facing = controller.inspect().state.yaw;
+  assert.equal(controller.inspect().move.moving, true, 'still walking');
+  time.t += 300; x.app.fire('update');
+  const further = controller.inspect().state.position;
+  assert.ok(Math.hypot(...further) < Math.hypot(...part), `nearer stop 1 than at the drag: ${further}`);
+  assert.equal(controller.inspect().state.yaw, facing, 'the walk no longer turns the look');
+  time.t += 6000; x.app.fire('update');
+  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[0].position, 'the walk ends at the stop');
+  assert.equal(controller.inspect().state.yaw, facing, 'facing where the visitor turned');
   assert.equal(x.stopLine(), 'Stop 1 of 5');
   assert.equal(controller.view().stop, 0);
-  time.t += 6000; x.app.fire('update');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[0].position, 'and stays there');
   assert.equal(controller.inspect().move.moving, false);
   // s4 → s5: no leg, so today's move (no floor mask: a cut).
   controller.goToStop(3); time.t += 6000; x.app.fire('update');
@@ -1936,7 +1960,7 @@ test('where a leg doubles back the look swings at no more than 180°/s instead o
   assert.ok(Math.abs(((controller.inspect().state.yaw - look.yaw) % 360 + 360) % 360) < 1e-6, 'still ends on the stop\'s look');
 });
 
-test('a walk cut short by a second move, or landed by a drag, leaves a usable viewer at a stop; a start off the stop falls back', async () => {
+test('a walk cut short by a second move, or looked around in by a drag, leaves a usable viewer at a stop; a start off the stop falls back', async () => {
   const time = clock(), data = manifest({ path: walkedPath() });
   const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
   const controller = x.window.VeyletPlayerV2.current;
@@ -1951,10 +1975,12 @@ test('a walk cut short by a second move, or landed by a drag, leaves a usable vi
   byClass(x.stage, 'v2-prev').click(); // s4 → s3 has a leg
   assert.equal(controller.inspect().move.route, 'path');
   time.t += 300; x.app.fire('update');
-  // Point to point (was: a drag mid-walk stops it where it is): the drag lands the walk at stop 3; Next goes on from there.
+  // Point to point (was: a drag mid-walk stops it where it is): the walk goes on to stop 3; Next goes on from there.
   x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
   x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
   x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
+  assert.equal(controller.inspect().move.moving, true);
+  time.t += 6000; x.app.fire('update');
   assert.equal(controller.inspect().move.moving, false);
   assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[2].position);
   assert.equal(x.stopLine(), 'Stop 3 of 5');
@@ -2030,7 +2056,7 @@ test('chunked home: a walk loads one room ahead at a time and lets rooms behind 
   assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_4', 'chunk_5'], 'arrival holds the room and its doorway, as a normal arrival does');
 });
 
-test('chunked home: a walk landed by a drag (it finishes at its stop) lets go of rooms two doorways from that stop', async () => {
+test('chunked home: a walk a drag looks around in still ends at its stop, and lets go of rooms two doorways from it', async () => {
   const time = clock();
   const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: chunkedWalk() });
   const settle = () => { x.app.systems.gsplat.fire('frame:ready', null, null, false, 2); x.app.systems.gsplat.fire('frame:ready', null, null, true, 0); };
@@ -2041,8 +2067,10 @@ test('chunked home: a walk landed by a drag (it finishes at its stop) lets go of
   x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
   x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
   x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
+  // Point to point (was: the walk stops in the Study and the Study stays): it goes on, room by room, to the Bath's stop.
+  assert.equal(controller.inspect().move.moving, true);
+  for (let i = 0; i < 400 && controller.inspect().move.moving; i++) { time.t += 50; x.app.fire('update'); settle(); }
   assert.equal(controller.inspect().move.moving, false);
-  // Point to point (was: the walk stops in the Study and the Study stays): the camera is at the Bath's stop.
   assert.deepEqual(plainJson(controller.inspect().state.position), [16, 0, 0]);
   assert.equal(controller.view().stop, 4);
   const held = [...heldChunks(x.log)].sort();

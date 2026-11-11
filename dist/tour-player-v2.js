@@ -1590,15 +1590,10 @@
       flightFovOffset = 0;
       continuous = Math.max(0, continuous - 1);
     }
-    // Point to point: a drag or a turn mid-move finishes the move at its stop (a cut) and keeps the visitor's own
-    // look, so the viewer never rests between stops. A walk tidies its rooms from where it now stands.
-    function landFlight() {
-      if (!flight) return;
-      const left = flight;
-      cancelFlight();
-      state.position = [...left.position];
-      left.onStop?.();
-      left.onArrive?.();
+    // Point to point: a drag or a turn mid-move no longer stops it. The move carries on to its stop and from then
+    // on the look is the visitor's own (the move stops steering it), so the viewer never rests between stops.
+    function freeLook() {
+      if (flight) flight.free = true;
     }
     const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
@@ -1621,14 +1616,14 @@
       flight = { from, via, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
       continuous++;
     }
-    // Along the path walked at capture: the same flight (a drag or a turn lands it, a new move replaces it, the same way).
-    function walkAlong(points, yaw, pitch, onArrive, { onProgress, onStop } = {}) {
+    // Along the path walked at capture: the same flight (a drag or a turn frees the look, a new move replaces it, the same way).
+    function walkAlong(points, yaw, pitch, onArrive, { onProgress } = {}) {
       const position = [...points[points.length - 1]];
       if (reduced()) { flyTo(position, yaw, pitch, onArrive, false); return 0; }
       cancelFlight();
       const walk = walkPath(points), duration = walkDuration(walk.length);
       if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive, onProgress, onStop };
+      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive, onProgress };
       continuous++;
       return duration;
     }
@@ -1642,14 +1637,16 @@
         // as no turn the shorter way is over 180 degrees); the move ends when the look is the stop's own.
         const aim = walkLook(flight.walk, t, flight.from, flight.to), most = WALK_TURN * Math.max(0, now - flight.stepped) / 1000;
         const turn = wrapDegrees(aim.yaw - state.yaw), tilt = aim.pitch - state.pitch;
-        state.yaw += clamp(turn, -most, most);
-        state.pitch += clamp(tilt, -most, most);
+        if (!flight.free) {
+          state.yaw += clamp(turn, -most, most);
+          state.pitch += clamp(tilt, -most, most);
+        }
         flight.stepped = now;
         applyCamera();
         const walking = flight;
         walking.onProgress?.(walkEase(t) * walking.walk.length);
         if (flight !== walking) return;
-        if (t >= 1 && Math.abs(turn) <= most && Math.abs(tilt) <= most) { flight = null; continuous = Math.max(0, continuous - 1); walking.onArrive?.(); }
+        if (t >= 1 && (walking.free || (Math.abs(turn) <= most && Math.abs(tilt) <= most))) { flight = null; continuous = Math.max(0, continuous - 1); walking.onArrive?.(); }
         return;
       }
       if (flight.via) {
@@ -1662,8 +1659,10 @@
       } else {
         state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
       }
-      state.yaw = flight.from.yaw + flight.deltaYaw * k;
-      state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
+      if (!flight.free) {
+        state.yaw = flight.from.yaw + flight.deltaYaw * k;
+        state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
+      }
       flightFovOffset = t < 1 ? 3.2 * Math.sin(Math.PI * t) : 0;
       applyCamera();
       if (t >= 1) { const done = flight.onArrive; flight = null; flightFovOffset = 0; continuous = Math.max(0, continuous - 1); done?.(); }
@@ -1770,8 +1769,8 @@
      * Rooms streamed along a walk on a chunked home. In the first half of each leg the camera counts as in the room of
      * the stop it left, and the next stop's room (one room ahead, never more) starts loading; from halfway it counts as
      * in the next stop's room. Each change is an ordinary room entry (enterChunk: the device's chunk plan) followed by
-     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk the visitor lands (a drag or a
-     * turn: it finishes at its stop) is tidied the same way from the room the camera is then in.
+     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk replaced
+     * by another move is tidied by that move's own room entry.
      */
     function walkRooms(points) {
       const run = [0];
@@ -1790,10 +1789,6 @@
           enterChunk(here);
           releaseFarChunks();
           if (ahead && !held.has(ahead)) addChunk(ahead);
-        },
-        onStop() {
-          enterChunk(chunkAt(manifest, state.position, currentChunk, sameLevel));
-          releaseFarChunks();
         },
       };
     }
@@ -1932,7 +1927,7 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        landFlight();
+        freeLook();
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1975,7 +1970,7 @@
       const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
-        landFlight();
+        freeLook();
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
         state.yaw += left ? 10 : -10;
         applyCamera();
@@ -1985,7 +1980,7 @@
         const forward = key === 'ArrowUp' || key === 'w' || key === 'W';
         stepForward(forward ? 1 : -1);
       }
-      else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
+      else if (key === 'PageUp' || key === 'PageDown') { handled(); freeLook(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
       else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(stopAtNumber(manifest, Number(key))); }
