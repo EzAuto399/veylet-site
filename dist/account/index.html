@@ -60,12 +60,7 @@
       <p class="intro" id="account-intro">
         Use the same sign-in on the website and capture app: Apple, or the same email.
       </p>
-      <!-- Arrived through another office's referral link: filled by the script. -->
-      <p class="contact-note" id="account-referred" hidden></p>
-      <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
-      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
       <p id="account-opening" class="contact-note desk-opening">Opening your desk…</p>
-      <p id="account-status" class="contact-note" role="status"></p>
       <noscript><p class="contact-note">Signing in needs JavaScript, so the sign-in form is not shown here. Turn JavaScript on for this site and reload, or read the <a href="/start">first-tour guide</a> or <a href="/waitlist">join the waitlist</a> — neither needs an account.</p></noscript>
       <form id="account-sign-in" class="veylet-form">
         <!-- Sign in with Apple, first as in the capture app: the same account. The button follows
@@ -85,18 +80,23 @@
           Email
           <input name="email" type="email" inputmode="email" required maxlength="200" autocomplete="email" autocapitalize="off" spellcheck="false" />
         </label>
-        <fieldset class="choice-group">
-          <legend>Which describes you?</legend>
-          <label class="choice">
-            <input type="radio" name="role_intent" value="owner" checked />
-            <span><strong>I have a space to show</strong><small>Owners, businesses, venues and property teams.</small></span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="role_intent" value="operator" />
-            <span><strong>I capture spaces for clients</strong><small>Photographers and capture professionals.</small></span>
-          </label>
-          <p class="choice-help">This only tailors your desk. It does not send a walkthrough request.</p>
-        </fieldset>
+        <!-- role_intent goes to the backend as sign-up metadata and only tailors the desk.
+             Owner is the default, so the common path has one field and no decision. -->
+        <details class="role-intent" id="account-role-intent">
+          <summary>I capture spaces for clients</summary>
+          <fieldset class="choice-group">
+            <legend>Which describes you?</legend>
+            <label class="choice">
+              <input type="radio" name="role_intent" value="owner" checked />
+              <span><strong>I have a space to show</strong><small>Owners, businesses, venues and property teams.</small></span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="role_intent" value="operator" />
+              <span><strong>I capture spaces for clients</strong><small>Photographers and capture professionals.</small></span>
+            </label>
+            <p class="choice-help">This only tailors your desk. It does not send a walkthrough request.</p>
+          </fieldset>
+        </details>
         <!-- Tips and offers (Spam Act): never ticked here, separate from everything else on the form,
              and shown only when the backend can record it. The label is the first wording, tips-v1, which is
              the version recorded; the choice is recorded once sign-in completes (dist/account.js). -->
@@ -106,16 +106,14 @@
             <span><span id="account-signup-tips-label">Email me tips and offers from Veylet Studio. I can unsubscribe at any time.</span><small id="account-signup-tips-note">Optional. Service emails about your account and walkthroughs still arrive.</small></span>
           </label>
         </div>
-        <button class="button" type="submit" id="account-sign-in-submit">
+        <button class="button button-ghost" type="submit" id="account-sign-in-submit">
           Email me a sign-in link <span class="icon-arrow" aria-hidden="true"></span>
         </button>
       </form>
       <form id="account-verify" class="veylet-form" hidden>
         <p class="contact-note">
-          Sent to <strong id="account-verify-email"></strong>. Open the link in
-          that email, or type the six-digit code from it below. The link and the
-          code both expire, and each works once. The link only signs in the
-          device you asked from, so open it on this one.
+          We sent a link and a six-digit code to <strong id="account-verify-email"></strong>.
+          Open the link on this device or type the code below; both expire and work once.
         </p>
         <label>
           Six-digit code
@@ -136,6 +134,13 @@
           Send a new link
         </button>
       </form>
+      <!-- Notes and the announced status sit under the forms, so the Apple button
+           follows the lead paragraph. dist/stage.js finds the access note by data-launch-account. -->
+      <p id="account-status" class="contact-note" role="status"></p>
+      <!-- Arrived through another office's referral link: filled by the script. -->
+      <p class="contact-note" id="account-referred" hidden></p>
+      <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
+      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
       <!-- The desk: four views switched from the bar by the URL hash (#walkthroughs,
            #plan, #team, #account). Each view is its own region with its own heading;
            dist/account.js shows one and hides the rest. Source order is reading and
