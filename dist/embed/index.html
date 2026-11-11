@@ -181,7 +181,7 @@
       <p id="embed-agent" hidden></p>
       <!-- True with and without JavaScript. The script adds the sentence about
            starting only once there is a control to start with. -->
-      <p id="embed-body">Walk through the space at your own pace.</p>
+      <p id="embed-body">Tap a numbered circle to move. Drag to look around.</p>
       <p id="embed-status" role="status"></p>
       <div class="embed-actions">
         <button id="embed-start" type="button" hidden>Explore in 3D</button>
@@ -286,7 +286,7 @@
           }
           // Only say what starting costs once there is something to press.
           els.body.textContent =
-            'Walk through the space at your own pace. The walkthrough downloads when you start, so give it a moment on mobile data.';
+            'Tap a numbered circle to move. Drag to look around. The walkthrough downloads when you start, so give it a moment on mobile data.';
           start.addEventListener('click', async () => {
             if (start.hidden) return;
             start.disabled = true;

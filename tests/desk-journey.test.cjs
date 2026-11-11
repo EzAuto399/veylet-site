@@ -404,7 +404,7 @@ test('the next step names the listing, then the one press', async () => {
   const h = await load({ tours: [readyTour()] });
   const panel = h.ids['account-next-step'];
   assert.deepEqual(panel.children.map(el => el.textContent), ['Sample space is ready for your review.',
-    'Open it, walk through, then approve and share. Nobody else can see it until you do.', 'Review walkthrough']);
+    'Open it, move through its numbered circles, then approve and share. Nobody else can see it until you do.', 'Review walkthrough']);
   await panel.children[2].fire('click');
   const review = h.card('t1').all().find(el => el.tagName === 'DETAILS' && el.className === 'tour-review');
   assert.equal(review.open, true);
@@ -1614,7 +1614,7 @@ test('Where viewers stood: "No visits yet" for an empty answer; no panel for a m
   await empty.open();
   assert.equal(empty.panel().hidden, false);
   assert.deepEqual(empty.panel().children.map(el => el.textContent),
-    ['Where viewers stood and looked', 'No visits to this version yet. Time at each stop and where people look fills in as the link is walked through.']);
+    ['Where viewers stood and looked', 'No visits to this version yet. Time at each stop and where people look fills in as people open the link.']);
   // The all-time opens above may come from earlier versions: the group still says which period it is.
   assert.deepEqual([empty.texts('tour-heat-scope'), empty.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false]);
   assert.equal(empty.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);

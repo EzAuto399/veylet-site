@@ -28,9 +28,10 @@ test('offline says so and names reconnecting; a file that did not load names the
 
 // Split on 11 November 2026 (tours are point to point): the page's half is unchanged and belongs to the session
 // rewriting that sentence; the player's half names circles and Next, never the floor.
-test('the help under the stage is one sentence, naming only the floor and Next', () => {
-  const sentence = 'Drag to look around. Tap the floor to move. Use Next for the next stop.';
+test('the help under the stage names the numbered circles and Next stop, never the floor', () => {
+  const sentence = 'Drag to look around. Tap a numbered circle, or Next stop, to move.';
   assert.ok(read('handoff/index.html').includes('<p>' + sentence + '</p>'));
+  assert.equal(read('handoff/index.html').includes('Tap the floor'), false);
 });
 
 test('the hint in the player names circles and Next, and no longer the floor', () => {

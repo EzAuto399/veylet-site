@@ -420,7 +420,7 @@ const ARTICLES = [
     lead: 'Your client opens a page with the listing’s name, the walkthrough and your contact card. They never need an account or an app.',
     body: [{ title: 'The page', list: [
       'The walkthrough, with a short line: "Captured on site with an iPhone. Not to scale."',
-      'Moving around: drag to look, tap the floor or a numbered circle to walk, and use the arrows to go room to room.',
+      'Moving around: drag to look around, and tap a numbered circle, or Next stop, to move.',
       'Your contact card, with **Call** and **Email** buttons that reach you directly.',
       'A **Share** button, so they can forward it to a partner.',
     ] }, { title: 'Your contact card', paras: [

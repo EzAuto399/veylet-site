@@ -244,7 +244,7 @@ test('a streamed walkthrough gets the movement help under the stage', async () =
   failed.finishBoot(); await settle();
   assert.deepEqual([failed.id('tour-frame-wrap').hidden, failed.id('client-help').hidden], [true, true]);
   assert.equal(failed.id('agent-card').hidden, false, 'the agent stays reachable when 3D does not');
-  assert.match(handoff, /<summary>How to move around<\/summary>\s*<p>Drag to look around\. Tap the floor to move\. Use Next for the next stop\.<\/p>/);
+  assert.match(handoff, /<summary>How to move around<\/summary>\s*<p>Drag to look around\. Tap a numbered circle, or Next stop, to move\.<\/p>/);
 });
 
 test('Share opens the system sheet with the title and the bare link; cancelling says nothing', async () => {

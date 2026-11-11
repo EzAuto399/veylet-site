@@ -822,16 +822,16 @@
         }
         const reviews = ['owner', 'reviewer'].includes(desk.roles?.get(space?.workspace_id));
         // The same words as the space's render status, for the same press.
-        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, walk through, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
+        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, move through its numbered circles, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
           open();
           // Where a review is actually available, open it and land on it.
           reviewOpeners.get(selected.id)?.();
         });
-        else guide((listing || 'Your walkthrough') + ' is ready for review.', 'The workspace owner opens it, walks through, then approves and shares it.', 'Open walkthrough details', open);
+        else guide((listing || 'Your walkthrough') + ' is ready for review.', 'The workspace owner opens it, checks it stop by stop, then approves and shares it.', 'Open walkthrough details', open);
         return;
       }
       const actions = {
-        draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
+        draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, check it stop by stop and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
         processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. We’ll email you when it’s ready. Refresh to check for an update.', 'Refresh progress'],
         revoked: ['This walkthrough is unavailable.', 'New access is blocked, so its old links and embeds no longer open it. Email Veylet support for the next step.', APP_MODE ? 'Open walkthrough details' : 'Email Veylet support'],
       };
@@ -1240,7 +1240,7 @@
       context.fillText(String(name || '3D Walkthrough').slice(0, 38), 130, 190);
       context.fillStyle = '#10231d';
       context.font = '700 48px sans-serif';
-      context.fillText('Scan to walk through in 3D', 140, 1340);
+      context.fillText('Scan to see it in 3D', 140, 1340);
       context.font = '400 32px sans-serif';
       context.fillText('Open on your phone — no app needed', 140, 1410);
     }
@@ -1939,7 +1939,7 @@
     heatScope(scope);
     if (!heat.stops.length) {
       const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
-      empty.textContent = 'No visits to this version yet. Time at each stop and where people look fills in as the link is walked through.';
+      empty.textContent = 'No visits to this version yet. Time at each stop and where people look fills in as people open the link.';
       panel.replaceChildren(title, empty); panel.hidden = false;
       list.replaceChildren(); list.hidden = true;
       return;
@@ -3057,7 +3057,7 @@
     const summary = document.createElement('summary'); summary.textContent = 'Review this walkthrough'; details.append(summary);
     const form = document.createElement('form');
     const fields = {};
-    message(form, 'Open the preview and walk through it. If something needs fixing, ask for a correction instead of approving.');
+    message(form, 'Open the preview and tap each numbered circle to move through it. If something needs fixing, ask for a correction instead of approving.');
     // What the one press does, before it is pressed. A correction says its own (the
     // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
@@ -6271,13 +6271,13 @@
         break;
       case 'ready':
         if (canReview) {
-          line('Open it, walk through, then approve to share.');
+          line('Open it, move through its numbered circles, then approve to share.');
           if (view.tour) {
             const review = button('Review walkthrough', () => renderReview(view.tour));
             review.className = 'tour-action tour-action-primary'; review.dataset.control = 'review';
             const actions = annualNode('p', 'render-actions'); actions.append(review); block.append(actions);
           }
-        } else line('The workspace owner opens it, walks through, then approves it to share.');
+        } else line('The workspace owner opens it, checks it stop by stop, then approves it to share.');
         break;
       case 'live':
         line(LIVE_LINE);

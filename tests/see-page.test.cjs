@@ -406,7 +406,7 @@ test('the cue: a centred chip whose icon nudges only when motion is welcome; the
   const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(reduced, /\.see-drag-icon \{\s*animation: none;/, 'reduced motion removes the nudge');
   assert.equal(visible.split('35 MB').length - 1, 1, 'the download size appears once');
-  assert.equal(flat(element('data-see-frame="explore"', 'figure').match(/<span class="see-caption-line">[\s\S]*?<\/span>/)[0]), 'Drag to look around, tap the floor to walk.');
+  assert.equal(flat(element('data-see-frame="explore"', 'figure').match(/<span class="see-caption-line">[\s\S]*?<\/span>/)[0]), 'Drag to look around. Tap a numbered circle to move.');
   const icon = element('class="see-drag-icon"', 'svg');
   assert.doesNotMatch(icon, /fill="#|stroke="#/, 'the icon draws in currentColor');
 });
@@ -424,4 +424,25 @@ test('the iPhone answer is the same in the visible FAQ and the structured data, 
   assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
   assert.equal(offer.freeMonths.months, 1);
   assert.ok(question.acceptedAnswer.text.endsWith('Every walkthrough is checked, and nothing is shared until you approve it.'));
+});
+
+// Owner decision, 11 November 2026: walkthroughs are point to point. A viewer moves between numbered circles;
+// no page says or implies walking anywhere, tapping the floor or free movement.
+test('point-to-point copy: no viewer-facing page offers free movement or tapping the floor', () => {
+  const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
+  const words = html => html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const pages = ['guides/what-is-a-3d-walkthrough/index.html', 'see/index.html', 'handoff/index.html', 'help/what-your-client-sees/index.html',
+    'app/help/what-your-client-sees/index.html', 'embed/index.html', 'index.html', 'offer/index.html'];
+  for (const page of pages) {
+    const text = words(read(page));
+    // The offer page keeps its own "Walkable paths" chip: only its viewer sentence was in scope (see the report).
+    for (const phrase of [/tap the floor/i, /\bwander/i, /move freely/i, /own pace/i, /anywhere they like/i, /clients walk it/i, /tenants walk through/i,
+      ...(page === 'offer/index.html' ? [] : [/walkable paths/i])])
+      assert.doesNotMatch(text, phrase, page + ' says ' + phrase);
+  }
+  assert.match(words(read('see/index.html')), /Drag to look around\. Tap a numbered circle to move\./);
+  assert.match(words(read('embed/index.html')), /Tap a numbered circle to move\. Drag to look around\./);
+  assert.match(words(read('help/what-your-client-sees/index.html')), /tap a numbered circle, or Next stop, to move/);
+  const desk = read('account.js');
+  assert.doesNotMatch(desk, /walks? through(?:,| it)|is walked through|Scan to walk/, 'the desk names stops, not walking');
 });

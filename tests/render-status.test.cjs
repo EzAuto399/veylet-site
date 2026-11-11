@@ -150,7 +150,7 @@ const WORDS = {
   uploading: ['Uploading', 'Sending from your phone', ['Sending from Veylet Capture. Keep Veylet open or plugged in; it continues in the background.']],
   waiting: ['Waiting to render', 'Automatic', ['You’re 2nd in line. Usually starts within 40 minutes.']],
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
-  ready: ['Ready for your review', 'Your turn', ['Open it, walk through, then approve to share.']],
+  ready: ['Ready for your review', 'Your turn', ['Open it, move through its numbered circles, then approve to share.']],
   live: ['Live', null, ['Anyone with the link can open it.']],
   recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
@@ -203,7 +203,7 @@ test('render status: the filled action belongs to whoever acts next', async () =
   const operator = await withState('ready', { role: 'operator' });
   assert.equal(operator.title(), 'Ready for review', '“your review” is said to whoever reviews');
   assert.deepEqual(operator.pills(), ['With the workspace owner']);
-  assert.deepEqual(operator.lines(), ['The workspace owner opens it, walks through, then approves it to share.']);
+  assert.deepEqual(operator.lines(), ['The workspace owner opens it, checks it stop by stop, then approves it to share.']);
   assert.deepEqual(operator.filled(), []);
   assert.equal(operator.controls().length, 0);
   // Waiting, rendering (the quality check included), retrying, stale and live offer nothing to press.

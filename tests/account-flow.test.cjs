@@ -161,7 +161,7 @@ test('F14 draft guidance describes automatic rendering and flagged-area review w
   const target = { ...tour, id: requestedID, status: 'draft' };
   const h = await load({ tours: [tour, target], search: '?tour=' + requestedID });
   const panel = h.ids['account-next-step'];
-  assert.match(panel.all().map(el => el.textContent).join(' '), /Rendering and the quality check are automatic\. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing\./);
+  assert.match(panel.all().map(el => el.textContent).join(' '), /Rendering and the quality check are automatic\. When it’s ready for your review, check it stop by stop and review any flagged areas before approving and sharing\./);
   assert.doesNotMatch(panel.all().map(el => el.textContent).join(' '), /once it passes|step 5 of 5|studio|a person|business day/i);
   await panel.all().find(el => el.tagName === 'BUTTON').fire('click');
   assert.equal(h.all().find(el => el.id === 'requested-tour').wasFocused, true);
