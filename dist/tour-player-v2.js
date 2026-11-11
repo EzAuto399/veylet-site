@@ -1681,6 +1681,35 @@
         if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent(type, { detail }));
       } catch { /* optional: a page that is not listening changes nothing */ }
     }
+    // Viewer insights (docs/data-events-20261111.md): the stops reached and the seconds spent per room TYPE,
+    // said to the page as one 'veylet:visit' summary after every arrival. A room's own name is never in it,
+    // only its preset type (CaptureRoomNames.presets; any other name is Other). The page decides whether
+    // anything is counted; the player itself still sends nothing anywhere.
+    function roomType(name) {
+      const presets = ['Living', 'Kitchen', 'Bedroom', 'Bathroom', 'Hall', 'Stairs', 'Landing', 'Office', 'Reception',
+        'Meeting room', 'Retail floor', 'Studio', 'Garage', 'Outdoor area'];
+      const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return null;
+      if (words.length > 1 && /^[0-9]+$/.test(words[words.length - 1])) words.pop();
+      const base = words.join(' ').toLowerCase();
+      return presets.find(type => type.toLowerCase() === base) || 'Other';
+    }
+    const visitLog = { seen: new Set([opening]), last: visitNumber(manifest, opening), furthest: visitNumber(manifest, opening),
+      room: roomType(stopLabel(manifest, opening).room), since: performance.now(), ms: new Map() };
+    function logVisit(index, room) {
+      const now = performance.now();
+      if (visitLog.room) visitLog.ms.set(visitLog.room, (visitLog.ms.get(visitLog.room) || 0) + Math.max(0, now - visitLog.since));
+      visitLog.since = now;
+      visitLog.room = roomType(room);
+      visitLog.seen.add(index);
+      visitLog.last = visitNumber(manifest, index);
+      visitLog.furthest = Math.max(visitLog.furthest, visitLog.last);
+      const seconds = {};
+      for (const [type, ms] of visitLog.ms) seconds[type] = Math.round(ms / 1000);
+      // `room` is where the visitor is now: the page adds the time from this event to the end of the visit.
+      return { stops: visitLog.seen.size, last_stop: visitLog.last, furthest_stop: visitLog.furthest,
+        total_stops: manifest.stops.length, room: visitLog.room, seconds };
+    }
     function arrived(index) {
       // Point to point: every move ends at a stop, so index is always one.
       state.stop = index;
@@ -1693,6 +1722,7 @@
         announceActivity('veylet:room', { room: label.room });
       }
       announceActivity('veylet:stop', { stop: index, room: label.room || null });
+      announceActivity('veylet:visit', logVisit(index, label.room));
       tellStop(index);
       if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }

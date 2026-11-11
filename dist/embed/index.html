@@ -33,8 +33,8 @@
     <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
-    <script src="/tour-player.js?v=49494eca553cb359"></script>
-    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
+    <script src="/tour-player.js?v=7574dcd2c109893c"></script>
+    <script src="/client-page.js?v=80fa32cdf3f2dee3"></script>
     <style>
       html,
       body {
@@ -225,6 +225,8 @@
           token,
           src: window.VeyletClientPage.channelFrom(location.search, 'embed'),
           host: window.VeyletClientPage.referrerHost(document.referrer),
+          // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
+          analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
         });
         if (typeof window.VeyletPlayer === 'undefined') {
           els.title.textContent = 'This walkthrough is not available.';

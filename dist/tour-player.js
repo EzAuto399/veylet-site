@@ -462,7 +462,7 @@
     if (!stage) { unusable(); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=e44676364b81a448');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=33c55a63831731fc');
     } catch {
       failed(LOAD_BODY, true);
       return;

@@ -497,9 +497,12 @@ main.studio-page noscript p,
     gap: 4px 12px;
     align-items: baseline;
   }
-  /* A qualifier belongs under its value, not under the label. */
+  /* A qualifier belongs under its value, not under the label, and wraps there: the
+     figure cells' inherited nowrap made "2 beyond included; check agreed billing"
+     widen a 320px page by 28px (launch audit, 11 Nov 2026). */
   .studio-table tbody td .studio-sub {
     grid-column: 2;
+    white-space: normal;
   }
   .studio-empty td,
   .studio-table tbody .studio-plan-row > td {

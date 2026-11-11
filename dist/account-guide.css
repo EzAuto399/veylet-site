@@ -143,13 +143,11 @@
   .tour-disclosures { flex: 1 1 100%; margin-left: 0; gap: 0 4px; }
   .tour-disclosures .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
 }
-/* An ended plan's two links are 44px each to a finger. Left to wrap where they happened to
+/* An ended plan's two links are 44px each, with any pointer. Left to wrap where they happened to
    fit, every such card grew or shrank by a row at one width of its own; on a narrow card
    they are a column, so that change happens once, at the card's step. */
-@media (pointer: coarse) {
-  @container (max-width: 560px) {
-    .dash-tour .tour-hosting-fix { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; }
-  }
+@container (max-width: 560px) {
+  .dash-tour .tour-hosting-fix { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) { .tour-disclosure { transition: none; } }
 /* More: Insights, Videos and stills and Manage, one line under the row once opened,
@@ -185,15 +183,12 @@
 .desk .dash-tour .tour-hosting { max-width: none; }
 .tour-hosting-words { margin-right: 10px; }
 .tour-hosting-fix .text-link {
-  /* Inline, and the line keeps its height: 3px above and below make a 24px target, taken back by the margin. */
-  display: inline; min-height: 0; margin: -3px 14px -3px 0; padding: 3px 0; border: 0; background: none;
+  /* 44px to press with any pointer, like every other control on the desk (launch audit, 11 Nov 2026). */
+  display: inline-flex; align-items: center; min-height: 44px; margin: 0 14px 0 0; padding: 0; border: 0; background: none;
   color: var(--ink); font: inherit; cursor: pointer;
   text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px;
 }
 .tour-hosting-fix .text-link:hover { text-decoration-color: currentColor; }
-@media (pointer: coarse) {
-  .tour-hosting-fix .text-link { display: inline-flex; align-items: center; min-height: 44px; }
-}
 .tour-field { display: grid; gap: 6px; margin: 14px 0 0; max-width: 62ch; min-width: 0; }
 .tour-field > span { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .tour-field .copy-field { min-height: 44px; color: var(--ink); border-color: var(--field-line); }
@@ -875,11 +870,15 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-menu-list > button:focus-visible { outline-offset: -3px; }
 .desk-menu-list > a[aria-current='page'] { font-weight: 500; }
 @media (max-width: 719px) {
-  /* A phone: brand and the account menu, then the views as one row that scrolls. */
+  /* A phone: brand and the account menu, then the views as one row. Nothing is hidden past
+     the edge: the gap narrows on the smallest phones, and a longer label wraps to a second row. */
   .desk-bar-inner { gap: 0 16px; min-height: 52px; }
-  .desk-views { order: 3; flex: 1 1 100%; gap: 0 20px; border-top: 1px solid var(--line); }
+  .desk-views { order: 3; flex: 1 1 100%; flex-wrap: wrap; overflow-x: visible; gap: 0 20px; border-top: 1px solid var(--line); }
   .desk-office { display: none; }
   .desk-bar .desk-menu { margin-left: auto; }
+}
+@media (max-width: 400px) {
+  .desk-views { column-gap: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .desk-views a, .desk-menu > summary::after { transition: none; } }
 

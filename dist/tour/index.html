@@ -29,11 +29,11 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=e44676364b81a448" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=33c55a63831731fc" as="script" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=49494eca553cb359"></script>
-    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
+    <script src="/tour-player.js?v=7574dcd2c109893c"></script>
+    <script src="/client-page.js?v=80fa32cdf3f2dee3"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
@@ -253,6 +253,8 @@
           token,
           src: page.channelFrom(location.search, 'portal'),
           host: framed ? page.referrerHost(document.referrer) : null,
+          // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
+          analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
         });
 
         page?.mountReport?.(document.getElementById('tour-report'), token, document.getElementById('tour-foot'));

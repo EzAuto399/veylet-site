@@ -1970,7 +1970,9 @@ test('the insights panel is one column that changes layout at two widths only, b
   assert.match(insightsCss, /\.tour-insights-rooms tr \{ grid-template-columns: minmax\(0, 1fr\) 3em 6em 3em; \}/);
   assert.match(insightsCss, /\.tour-heat-table tr \{ grid-template-columns: 1\.75em minmax\(0, 1fr\) 3em 4\.5em; \}/);
   // Outside the panel, the two wraps that cost a control's height on every card or row happen at the card's step, not at widths of their own.
-  assert.match(guideCss, /@media \(pointer: coarse\) \{\s*@container \(max-width: 560px\) \{\s*\.dash-tour \.tour-hosting-fix \{ display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; \}/);
+  // With any pointer (launch audit, 11 Nov 2026): the two 44px links are a column on a narrow card.
+  assert.match(guideCss, /@container \(max-width: 560px\) \{\s*\.dash-tour \.tour-hosting-fix \{ display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; \}/);
+  assert.doesNotMatch(guideCss, /@media \(pointer: coarse\) \{\s*@container \(max-width: 560px\) \{\s*\.dash-tour \.tour-hosting-fix/, 'not only for a finger');
   // The buttons and the five toggles share a line only from the desk's 720px step (a 672px card);
   // below it they are two rows, so no card loses a row at a width of its own.
   assert.match(guideCss, /@container \(max-width: 671px\) \{\s*\.desk \.dash-tour \.tour-card-row > \.tour-actions-row \{ flex: 1 1 100%; \}[^}]*\s*\.tour-disclosures \{ flex: 1 1 100%; margin-left: 0; gap: 0 4px; \}/);
