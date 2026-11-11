@@ -3028,7 +3028,13 @@
     // during submission: the authoritative RPC rejects a changed object even
     // when its storage path is reused.
     const snapshot = Object.freeze({ path: target.storage_path, revision: target.package_revision });
-    const preview = tourPreview(tour, item, snapshot.revision);
+    // Review in three numbered steps inside the disclosure: 1 Preview (a new tab: /play
+    // sends X-Frame-Options DENY, so it cannot be framed here), 2 the one required tick,
+    // 3 Approve and share, the one filled button, with what it does beside it.
+    const steps = document.createElement('ol'); steps.className = 'review-steps';
+    const step = () => { const li = document.createElement('li'); li.className = 'review-step'; steps.append(li); return li; };
+    const previewStep = step(), tickStep = step(), shareStep = step();
+    const preview = tourPreview(tour, previewStep, snapshot.revision);
     const details = document.createElement('details'); details.className = 'tour-review';
     details.open = tour.id === deskTarget;
     const summary = document.createElement('summary'); summary.textContent = 'Review this walkthrough'; details.append(summary);
@@ -3038,7 +3044,7 @@
     // What the one press does, before it is pressed. A correction says its own (the
     // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
-    if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.', 'tour-state-help tour-share-terms');
+    const terms = !correction && hosting !== undefined && !hosting?.released_at;
     // The quality check's advice first, read, never a block; then what approving uses.
     const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
     reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
@@ -3049,9 +3055,11 @@
       const row = document.createElement('label'); row.className = 'review-right';
       const input = document.createElement('input'); input.type = 'checkbox'; input.required = true; input.name = 'right_to_share'; fields.right_to_share = input;
       const text = document.createElement('span'); text.textContent = RIGHT_TO_SHARE;
-      row.append(input, text); form.append(row);
+      row.append(input, text); tickStep.append(row);
     }
-    const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
+    const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; shareStep.append(save);
+    if (terms) message(shareStep, 'Anyone with the link can open it and forward it while your plan is active.', 'tour-state-help tour-share-terms');
+    form.append(steps);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
     // is sent from this page and no approval is recorded.

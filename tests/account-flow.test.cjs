@@ -345,7 +345,7 @@ test('tour service errors never look like an empty property', async () => {
 test('release review checks the exact package, then turns sharing on in the same press', async () => {
   const h = await load({ tours: [tour] });
   assert.equal(h.all().some(el => el.textContent === 'Turn sharing on'), false);
-  const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+  const form = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
   await form.fire('submit');
   assert.equal(h.calls.some(call => call[0] === 'review_tour_versioned'), false);
   form.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
@@ -376,7 +376,7 @@ test('a server that still wants the five attestations gets the old shape from th
       sent.push(JSON.parse(JSON.stringify(args)));
       return 'right_to_share' in args.p_checks ? refusal : { data: [{ tour_id: 't1', approved: true }] };
     } } });
-    const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+    const form = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
     form.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
     await form.fire('submit'); await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(sent.map(args => args.p_checks), [{ right_to_share: true }, { coverage: true, alignment: true, navigation: true, privacy: true, mobile: true }]);
@@ -387,7 +387,7 @@ test('a server that still wants the five attestations gets the old shape from th
   const other = [];
   const refused = await load({ tours: [tour], rpc: { review_tour_versioned: async args => { other.push(args.p_checks);
     return { error: { message: 'confirm you have the right to share this walkthrough before approval' } }; } } });
-  const form2 = refused.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+  const form2 = refused.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
   form2.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
   await form2.fire('submit'); await new Promise(resolve => setImmediate(resolve));
   assert.equal(other.length, 1);
@@ -428,7 +428,7 @@ test('same-path replacement cannot approve from stale answers or silently refres
       approved = true; return { data: [{ approved: true }] };
     },
   } });
-  const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+  const form = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
   const checks = form.all().filter(el => el.type === 'checkbox'); checks.forEach(el => { el.checked = true; });
   revision = 'b'.repeat(64);
   await form.fire('submit');
@@ -440,7 +440,7 @@ test('same-path replacement cannot approve from stale answers or silently refres
   assert.equal(h.calls.filter(call => call[0] === 'review_tour_versioned').length, 1);
   await h.all().find(el => el.textContent === 'Start a fresh review').fire('click');
   await new Promise(resolve => setImmediate(resolve));
-  const fresh = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+  const fresh = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
   assert.ok(fresh.all().filter(el => el.type === 'checkbox').every(el => !el.checked));
   assert.match(h.all().find(el => el.textContent === 'Preview').href, new RegExp(revision));
   fresh.all().filter(el => el.type === 'checkbox').forEach(el => { el.checked = true; });
@@ -451,7 +451,7 @@ test('same-path replacement cannot approve from stale answers or silently refres
 test('an uncertain approval response clears old checks without automatic resubmission', async () => {
   for (const reply of [{ error: { message: 'network unavailable' } }, { data: [{ approved: 'false' }] }, { data: [] }]) {
     const h = await load({ tours: [tour], rpc: { review_tour_versioned: async () => reply } });
-    const form = h.all().find(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share'));
+    const form = h.all().find(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share'));
     const checks = form.all().filter(el => el.type === 'checkbox'); checks.forEach(el => { el.checked = true; });
     await form.fire('submit');
     assert.ok(checks.every(el => el.checked === false && el.disabled));
@@ -2556,7 +2556,7 @@ test('a version replaced meanwhile is not approved: the desk reloads and says so
 test('a correction the server already reports as replaced offers a reload, not a review form', async () => {
   const h = await load({ tours: [version(W2, 2)], rpc: { get_walkthrough_revision: async () => ({ data: [lineage({ superseded_at: '2026-09-24T01:00:00Z', link_moves_on_approval: false })] }) } });
   assert.match(h.text(), /A newer version of this walkthrough was approved and replaced this one\. Reload to see the current version\./);
-  assert.equal(h.all().some(el => el.tagName === 'FORM' && el.children.some(child => child.textContent === 'Approve and share')), false);
+  assert.equal(h.all().some(el => el.tagName === 'FORM' && el.all().some(child => child.tagName === 'BUTTON' && child.textContent === 'Approve and share')), false);
   const reload = h.all().find(el => el.tagName === 'BUTTON' && el.textContent === 'Reload walkthroughs');
   const before = h.queries.filter(name => name === 'tours').length;
   await reload.fire('click');

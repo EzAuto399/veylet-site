@@ -964,6 +964,15 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-view .tour-review { margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
 .desk-view .tour-review[open] { padding-bottom: 16px; }
 .desk-view .tour-review > summary { padding-block: 10px; font-size: 15px; }
+/* Review in three numbered steps on one row where there is room: Preview, the
+   tick, then Approve and share (the one filled button) with what it does beside it. */
+.desk .tour-review .review-steps { counter-reset: review-step; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin: 16px 0 0; padding: 0; list-style: none; }
+.desk .tour-review .review-step { counter-increment: review-step; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; margin: 0; }
+.desk .tour-review .review-step::before { content: counter(review-step); flex: none; min-width: 1ch; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.desk .tour-review .review-step .button,
+.desk .tour-review .review-step .tour-action { margin: 0; }
+.desk .tour-review .review-step .review-right { margin: 0; }
+.desk .tour-review .review-step .tour-share-terms { flex: 1 1 220px; margin: 0; }
 /* Prepare a capture: one quiet link in the space head; its panel opens under the head. */
 .desk-view .dash-space { position: relative; }
 .desk-view .account-details.space-prep { margin: 0; padding: 0; border: 0; }

@@ -198,7 +198,7 @@ test('Approve and share: one press records the approval, turns sharing on and re
   assert.equal(review.children[0].textContent, 'Review this walkthrough');
   const form = reviewForm(card);
   assert.deepEqual(filled(form), ['Approve and share']);
-  assert.ok(byText(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.'));
+  assert.ok(byText(form, 'Anyone with the link can open it and forward it while your plan is active.'));
   const before = h.tourReads();
   await approve(h);
   assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name, args]) => [name, args.p_tour_id]),
@@ -292,7 +292,7 @@ test('a correction whose link moves is approved in today’s words, without a se
   const fresh = await load({ tours: [version(W2, 2), version(W1, 1)], rpc: { get_walkthrough_revision: lineage(false) } });
   assert.equal(fresh.card(W2).all().find(el => /tour-correction/.test(el.className)).textContent,
     'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
-  assert.equal(byText(reviewForm(fresh.card(W2)), 'Anyone with the link can open it and forward it. It stays online while your plan is active.'), undefined,
+  assert.equal(byText(reviewForm(fresh.card(W2)), 'Anyone with the link can open it and forward it while your plan is active.'), undefined,
     'the consequence line is for a first release only');
   await approve(fresh, W2);
   assert.deepEqual(fresh.calls.filter(([name]) => name === 'enable_tour_share').map(([, args]) => args.p_tour_id), [W2]);
@@ -1276,8 +1276,10 @@ test('the review shows the quality check’s advice as plain lines just above Ap
   // One-press approval: the advice, then what approving uses, then the one tick, then Approve and share.
   const order = form.children.map(el => el.className || el.textContent);
   assert.ok(order.indexOf('tour-flags') < order.indexOf('tour-state-help tour-review-units'), 'advice first');
-  assert.equal(order.indexOf('tour-state-help tour-review-units') + 1, order.indexOf('review-right'), 'then the one tick');
-  assert.equal(order.indexOf('review-right') + 1, order.indexOf('button'), 'right above Approve and share');
+  assert.equal(order.indexOf('tour-state-help tour-review-units') + 1, order.indexOf('review-steps'), 'then the numbered steps');
+  const steps = form.children.find(el => el.className === 'review-steps').children;
+  assert.equal(steps[1].children[0].className, 'review-right', 'the one tick is step 2');
+  assert.equal(steps[2].children[0].textContent, 'Approve and share', 'Approve and share is step 3, right after the tick');
   assert.doesNotMatch(textOf(flags), /Recapture|Needs recapture|failed/i, 'advice, not the recapture words');
   await approve(h);
   assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name]) => name), ['review_tour_versioned', 'enable_tour_share'], 'flags never block');
@@ -2018,4 +2020,27 @@ test('desk copy says walkthrough and space, and the sharing controls have one na
   const words = markup.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ').replace(/<[^>]+>/g, ' ');
   assert.doesNotMatch(words, /first-tour|from your listings?\b/i);
   assert.match(account, /copyField\('Link for portals and CRM', 'input', listingUrl\)/);
+});
+
+test('review in place: Preview, the tick and Approve and share are three numbered steps inside the disclosure', async () => {
+  const h = await load({ tours: [readyTour()], hosting: [] });
+  const card = h.card('t1');
+  const review = card.all().find(el => el.tagName === 'DETAILS' && el.className === 'tour-review');
+  // Nothing about the review sits outside its disclosure: the card shows the state line and the disclosure.
+  assert.equal(card.children.some(el => el.textContent === 'Preview'), false, 'Preview is no longer a separate card button');
+  const steps = review.all().find(el => el.tagName === 'OL' && el.className === 'review-steps');
+  assert.ok(steps, 'one ordered row of steps');
+  assert.deepEqual(steps.children.map(li => li.className), ['review-step', 'review-step', 'review-step']);
+  const [first, second, third] = steps.children;
+  const preview = first.children[0];
+  assert.equal(preview.textContent, 'Preview');
+  assert.match(preview.href, /^\/play\/\?id=t1&review_revision=a{64}$/);
+  assert.equal(preview.target, '_blank', '/play cannot be framed (X-Frame-Options DENY), so it opens in a new tab');
+  assert.equal(second.children[0].children[0].type, 'checkbox');
+  assert.equal(second.children[0].children[0].required, true, 'the server still needs the tick');
+  assert.deepEqual(filled(review), ['Approve and share'], 'the one filled button is the last step');
+  assert.equal(third.children[0].textContent, 'Approve and share');
+  assert.equal(third.children[1].textContent, 'Anyone with the link can open it and forward it while your plan is active.', 'what the press does, beside it');
+  await approve(h);
+  assert.deepEqual(h.calls.filter(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)).map(([name]) => name), ['review_tour_versioned', 'enable_tour_share'], 'still one press');
 });
