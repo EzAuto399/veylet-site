@@ -31,7 +31,7 @@
     },
     reminder: {
       title: 'You’re unsubscribed',
-      message: 'You’re unsubscribed from reminder emails. Your account page still shows when your free months end. ' + SERVICE,
+      message: 'You’re unsubscribed from reminder emails. Your account page still shows when your free month ends. ' + SERVICE,
     },
     used: {
       title: 'Nothing changed',

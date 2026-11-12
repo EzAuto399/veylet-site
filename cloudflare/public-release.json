@@ -515,8 +515,8 @@
     },
     {
       "path": "app/support/index.html",
-      "bytes": 4170,
-      "sha256": "c341635cf2c875071610fa00888eadc0a60daac120f170f387c4c6cd91b74f97",
+      "bytes": 4169,
+      "sha256": "9eecb453d0570b0d376226f059fac5b775c0bf1f9e6e054ac5b3bb121975df4a",
       "headerProfile": 5
     },
     {
@@ -2195,8 +2195,8 @@
     },
     {
       "path": "start/index.html",
-      "bytes": 21339,
-      "sha256": "3644f718a29a3a11652ba254c9514f96ee485a321c381e5637102a353fb7e74b",
+      "bytes": 21337,
+      "sha256": "13e2a33132e90257969658168815b91efd55eb0d3e609bc627a1df80ad59911b",
       "headerProfile": 1
     },
     {
@@ -2249,8 +2249,8 @@
     },
     {
       "path": "support/index.html",
-      "bytes": 6984,
-      "sha256": "02afded788271f62e0d0f1f6b0ee71584b7f1fd46cdad393619b904e79f49bda",
+      "bytes": 6983,
+      "sha256": "b7e4852cfa4de1aaef72ab7fcc11a229d81d0929287e35723126904d3ce27df1",
       "headerProfile": 1
     },
     {
@@ -2304,13 +2304,13 @@
     {
       "path": "unsubscribe.js",
       "bytes": 7033,
-      "sha256": "7f4e1de75803ea5b5fa1c0650c2f1e0540f86ed2a753419c7cb067d0d84517f2",
+      "sha256": "e058c0b388ee508642174499550151ff0df6f285e70259be6d128de312222758",
       "headerProfile": 4
     },
     {
       "path": "unsubscribe/index.html",
       "bytes": 3836,
-      "sha256": "9a3e0a0048b7ddeba59fb1ad7208dee0c7f7335e4453db372c29ae4cb4094f76",
+      "sha256": "0522c0009308ae646d5b44ee2ad97ea174b5069161988204ebfdd1d2219c5b25",
       "headerProfile": 1
     },
     {
