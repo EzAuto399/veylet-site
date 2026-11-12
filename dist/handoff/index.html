@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=e44676364b81a448" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=33c55a63831731fc" as="script" />
     <link rel="stylesheet" href="/style.css?v=77cd95fea06762b2" />
     <link rel="stylesheet" href="/tour-stage.css?v=a91aa260a248fb09" />
     <link rel="stylesheet" href="/client-page.css?v=8f674aaacaaa46b0" />
@@ -52,10 +52,10 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=2062b58b9d8c65d3"></script>
+    <script src="/client-page.js?v=80fa32cdf3f2dee3"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=49494eca553cb359"></script>
+    <script src="/tour-player.js?v=7574dcd2c109893c"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -159,6 +159,8 @@
         token,
         src: page.channelFrom(location.search, 'unknown'),
         host: null,
+        // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
+        analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
       });
 
       // A link to a stop (#stop=N), Share and the agent inside the player (client-page.js visitLink).

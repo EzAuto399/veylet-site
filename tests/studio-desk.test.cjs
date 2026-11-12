@@ -2430,3 +2430,8 @@ test('offer v9: the Super fast band names each job’s account once the accounts
   await h.settle(); await h.settle();
   assert.equal(expressBody(h).children[0].children[0].children[1].textContent, 'Wren & Fielding');
 });
+
+test('a qualifier under a phone row wraps, so a long one never widens a 320px page (launch audit, 11 Nov 2026)', () => {
+  const phone = styles.slice(styles.indexOf('@media (max-width: 720px)'));
+  assert.match(phone, /\.studio-table tbody td \.studio-sub \{\s*grid-column: 2;\s*white-space: normal;\s*\}/);
+});

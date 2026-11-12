@@ -1380,9 +1380,10 @@ test('veylet:stop is announced at the first 3D frame and on each arrival; view()
       { id: 's4', room: 'r1', position: [2, 0, 0], target: [5, 3, 0], floor: [2, -1.4, 0], floor_measured: true },        // looks along +X, 45° up
     ],
   });
-  const events = [];
+  const events = [], visits = [];
   const x = await started({ manifest: raw, context: { CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } } });
-  x.document.dispatchEvent = event => { events.push([event.type, { ...event.detail }]); };
+  // The visit summary (data events, 11 Nov 2026) follows every veylet:stop; it is checked on its own below.
+  x.document.dispatchEvent = event => { (event.type === 'veylet:visit' ? visits : events).push([event.type, { ...event.detail }]); };
   const controller = () => x.window.VeyletPlayerV2.current;
   // Until a 3D frame is drawn there is no view and no stop.
   assert.equal(controller() ? controller().view() : null, null);
@@ -1414,6 +1415,15 @@ test('veylet:stop is announced at the first 3D frame and on each arrival; view()
     ['veylet:stop', { stop: 2, room: null }],
     ['veylet:room', { room: 'Living' }], ['veylet:stop', { stop: 3, room: 'Living' }],
   ]);
+  // One veylet:visit per arrival after the opening stop (which seeds the summary): stops reached, last and
+  // furthest stop (visit numbers), and room TYPES only. The unnamed room (r3) has no type and adds no time.
+  assert.equal(visits.length, 3);
+  assert.deepEqual(visits.map(([, d]) => [d.stops, d.last_stop, d.furthest_stop, d.total_stops, d.room]),
+    [[2, 2, 2, 4, 'Kitchen'], [3, 3, 3, 4, null], [4, 4, 4, 4, 'Living']]);
+  for (const [, d] of visits) {
+    assert.deepEqual(Object.keys(d).sort(), ['furthest_stop', 'last_stop', 'room', 'seconds', 'stops', 'total_stops']);
+    for (const [type, value] of Object.entries(d.seconds)) { assert.ok(['Living', 'Kitchen'].includes(type), type); assert.ok(Number.isInteger(value) && value >= 0); }
+  }
   // A drag to the right turns the yaw down through 0 into the 300s; view() keeps it in 0..360.
   const canvas = byClass(x.stage, 'v2-canvas');
   canvas.dispatch('keydown', { key: '1' });
@@ -1464,7 +1474,7 @@ test('the player stays analytics-free: stop events and view() add no request, be
   for (let i = 0; i < 6; i++) { byClass(x.stage, 'v2-next').click(); x.window.VeyletPlayerV2.current.view(); }
   assert.equal(requests().length, before, 'no request for a stop or a look');
   assert.ok(requests().every(line => line.startsWith('fetch:https://veylet.com/pkg/')), 'only package files, ever');
-  assert.deepEqual([...new Set(stored)], ['veylet:stop'], 'what it says goes to the page as a DOM event only');
+  assert.deepEqual([...new Set(stored)], ['veylet:stop', 'veylet:visit'], 'what it says goes to the page as a DOM event only');
 });
 
 // ---------- client build, 10 November 2026, phase 1 ----------

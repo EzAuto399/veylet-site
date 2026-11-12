@@ -217,6 +217,17 @@
     const sector = Math.min(11, Math.floor(turn / 30));
     return sector + '_' + (pitch < -15 ? 0 : pitch > 15 ? 2 : 1);
   }
+  /*
+   * Viewer insights (data events, 11 Nov 2026): the one dwell a visit already sends may carry
+   * the player's 'veylet:visit' summary, {seconds, stops, last_stop, furthest_stop, total_stops,
+   * rooms: {<room type>: seconds}}. Off until the privacy notice covers it: while this is false
+   * the summary is never listened for, so the dwell stays {visit, seconds}. A tab opened with
+   * ?analytics=off (owner QA; the page passes analyticsOff) never carries it either. Room types
+   * only, from the app's fixed list; a room's own name is never part of it.
+   */
+  const VIEWER_INSIGHTS = false;
+  const ROOM_TYPES = ['Living', 'Kitchen', 'Bedroom', 'Bathroom', 'Hall', 'Stairs', 'Landing', 'Office', 'Reception',
+    'Meeting room', 'Retail floor', 'Studio', 'Garage', 'Outdoor area', 'Other'];
   const VIEW_ONCE = ['open', 'first_frame', 'dwell'];
   const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown'];
   const DWELL_CAP_SECONDS = 3600;
@@ -383,6 +394,24 @@
 
     function seconds(ms) { return Math.min(DWELL_CAP_SECONDS, Math.max(0, Math.round(ms / 1000))); }
 
+    /** The latest 'veylet:visit' summary as the dwell's fields, with the time since it added to its room; null if unusable. */
+    const stopCount = value => (Number.isInteger(value) && value >= 1 && value <= STOP_LIMIT + 1 ? value : null);
+    function visitFields(detail, sinceMs) {
+      if (!detail || typeof detail !== 'object') return null;
+      const fields = { stops: stopCount(detail.stops), last_stop: stopCount(detail.last_stop),
+        furthest_stop: stopCount(detail.furthest_stop), total_stops: stopCount(detail.total_stops) };
+      if (Object.values(fields).some(value => value === null)) return null;
+      const rooms = {};
+      const given = detail.seconds && typeof detail.seconds === 'object' ? detail.seconds : {};
+      for (const type of ROOM_TYPES) {
+        const value = given[type];
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) rooms[type] = Math.min(DWELL_CAP_SECONDS, Math.round(value));
+      }
+      if (ROOM_TYPES.includes(detail.room)) rooms[detail.room] = Math.min(DWELL_CAP_SECONDS, (rooms[detail.room] || 0) + seconds(sinceMs));
+      for (const type of Object.keys(rooms)) if (!rooms[type]) delete rooms[type];
+      return { ...fields, rooms };
+    }
+
     /** The first 3D frame, when the player marks one; nothing when it does not. */
     function watchFirstFrame(win) {
       const Observer = win && win.PerformanceObserver;
@@ -422,10 +451,22 @@
             if (name) roomVisited(name);
           });
         }
+        // The visit summary, only with viewer insights on and analytics not switched off for this tab.
+        let summary = null, summaryAt = null;
+        if (VIEWER_INSIGHTS && options.analyticsOff !== true && win && win.document && typeof win.document.addEventListener === 'function') {
+          win.document.addEventListener('veylet:visit', event => {
+            if (event && event.detail && typeof event.detail === 'object') { summary = event.detail; summaryAt = clock(); }
+          });
+        }
         // The look for the last stop goes first, then the dwell: both keepalive, both once.
         try { watchLook(win); } catch { /* insights are optional */ }
         if (win && typeof win.addEventListener === 'function') {
-          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', withVisit({ seconds: seconds(clock() - openedAt) })); }, { once: true });
+          win.addEventListener('pagehide', () => {
+            if (openedAt === null) return;
+            const now = clock();
+            const visited = summary ? visitFields(summary, now - summaryAt) : null;
+            send('dwell', withVisit({ seconds: seconds(now - openedAt), ...(visited || {}) }));
+          }, { once: true });
         }
         return true;
       },

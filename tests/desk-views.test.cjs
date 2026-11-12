@@ -274,3 +274,28 @@ test('pack options sit on the paper: transparent with a hairline, sage when chos
   // "No extra rooms available." is not said again under the table row that says "0 available".
   assert.match(css, /#view-plan:has\(\[data-extra-said="true"\]\) \[data-none="true"\] \{ display: none; \}/);
 });
+
+/*
+ * Launch audit, 11 Nov 2026: every desk tap target is 44px with any pointer, and the
+ * views bar shows all four views at 320 and 375px with nothing past the edge.
+ * Proven rendered in the launch-fix screenshots; these hold the rules that do it.
+ */
+test('an ended plan’s two links are 44px with a mouse as well as a finger', () => {
+  const rule = css.match(/\n\.tour-hosting-fix \.text-link \{([^}]*)\}/);
+  assert.ok(rule, 'the base rule for the two links');
+  assert.match(rule[1], /display: inline-flex;/);
+  assert.match(rule[1], /min-height: 44px;/);
+  assert.doesNotMatch(rule[1], /min-height: 0|display: inline;/);
+  assert.doesNotMatch(css, /@media \(pointer: coarse\) \{\s*\.tour-hosting-fix \.text-link/, 'the 44px is not a coarse-pointer exception');
+  // The quiet disclosures (Link, QR code, Website, More, Manage) keep their 44px box.
+  assert.match(css, /\.tour-disclosure \{[^}]*min-width: 44px; min-height: 44px;/);
+});
+
+test('on a phone the views bar wraps instead of hiding Help past the edge, and narrows its gap at 400px and under', () => {
+  const phone = css.match(/@media \(max-width: 719px\) \{([\s\S]*?)\n\}/);
+  assert.ok(phone);
+  assert.match(phone[1], /\.desk-views \{[^}]*flex-wrap: wrap;[^}]*overflow-x: visible;/);
+  assert.doesNotMatch(phone[1], /\.desk-views \{[^}]*flex-wrap: nowrap/);
+  // Walkthroughs 86, Plan 44, Your team 63, Help 44 px: 237 + 3 × 12 = 273, inside a 320px phone's 280.
+  assert.match(css, /@media \(max-width: 400px\) \{\s*\.desk-views \{ column-gap: 12px; \}\s*\}/);
+});
