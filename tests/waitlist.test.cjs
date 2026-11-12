@@ -70,7 +70,7 @@ test('the hero says what joining is for, the free month and the prices from offe
   assert.match(markup, /<h1 id="waitlist-title" tabindex="-1">Join the waitlist for 3D walkthroughs\.<\/h1>/);
   const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
   assert.equal(intro, 'Turn your next listing into a 3D walkthrough buyers can explore on any phone. When your weekly group opens, '
-    + `your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
+    + `your first month is free with ${offer.freeMonths.includedRooms} rooms, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
     + 'Capture quality is still being proven. Joining is free.');
   assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
 });
@@ -321,7 +321,7 @@ test('the success state lists what happens next, offers /see and sharing, and na
   assert.deepEqual(steps, [
     'Tell us when your next listing goes live: reply to your confirmation email, or email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a>. A rough date is fine.',
     'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet Capture app.',
-    'Your first month is free, with 3 walkthroughs included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
+    'Your first month is free, with 30 rooms included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
   ]);
   const done = /<section class="waitlist-done"[\s\S]*?<\/section>/.exec(markup)[0];
   assert.match(done, />What happens next</);

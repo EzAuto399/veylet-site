@@ -651,7 +651,7 @@
   const studioTier = params.get('tier') || 'standard';
   // Legacy agreed invoice rates: A$99 a month and A$990 a year (earlier agreements; new subscriptions use the App Store).
   const STUDIO_INVOICE_CENTS = { monthly: 9900, annual: 99000 };
-  const STUDIO_PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
+  const STUDIO_PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
   const studioPackReceipts = new Map(), studioGrantReceipts = new Map(), studioInvoiceReceipts = new Map();
   /* Referrals (studio_grant_referral_bonus). Wren & Fielding (paying) records Northgate
    * as its referrer, from a link; `?studio=referral-granted` has its walkthroughs granted
@@ -810,7 +810,7 @@
    * walkthroughs to the same balance the plan panel's capacity reads. */
   const packsCase = params.get('packs') || (scenario === 'operator' ? 'not-owner'
     : ['pending', 'ended', 'ended-after-active', 'nomembership'].includes(planCase) ? 'not-activated' : 'choose');
-  const PACKS = [{ code: 'pack3', walkthroughs: 3, price_cents: 16900 }, { code: 'pack10', walkthroughs: 10, price_cents: 49900 }];
+  const PACKS = [{ code: 'pack3', walkthroughs: 30, rooms: 30, price_cents: 16900 }, { code: 'pack10', walkthroughs: 100, rooms: 100, price_cents: 49900 }];
   let extraCredits = planCase === 'trial-credits' || packsCase === 'credits' ? 2 : 0;
   let packExpiry = extraCredits ? '2027-03-02' : null;
   const packOffer = () => {
@@ -963,7 +963,7 @@
   /* Refer an office (offer 2026-09-25.1; migration 20260925100000_offer_v8, not yet
    * released). `?referral=` picks the answer of get_referral_code: missing (the
    * default: the function does not exist yet, so the block is words only), link (a
-   * fictional code, 2 offices referred and 1 bonus walkthrough received), sandbox (the
+   * fictional code, 2 offices referred and 1 bonus room received), sandbox (the
    * server refuses a test workspace), invalid (a code that is not 12 hex characters),
    * error, or loading. `?ref=0123456789ab` arrives through another office's link:
    * claim_workspace_referral records it (a repeat answers recorded false);
@@ -1372,7 +1372,7 @@
         if (!Number.isInteger(account.founding_grants_used) || account.founding_grants_used >= 4) return { error: { message: 'Synthetic: no founding grant left.' } };
         account.founding_grants_used += 1;
         account.pack_credits = (account.pack_credits || 0) + 3;
-        const answer = { credited: 3, credits_available: account.pack_credits, grants_used: account.founding_grants_used, expires_on: studioYearOn() };
+        const answer = { credited: 30, credits_available: account.pack_credits, grants_used: account.founding_grants_used, expires_on: studioYearOn() };
         studioGrantReceipts.set(args.p_reference, answer);
         return { data: [answer] };
       }

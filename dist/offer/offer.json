@@ -1,7 +1,9 @@
 {
-  "version": "2026-09-29.2",
+  "version": "2026-11-11.1",
   "status": "accepted prices; source preparation only, with recurring capacity unavailable until billing and release verification",
   "currency": "AUD",
+  "allowanceUnit": "room",
+  "allowanceUnitRule": "from offer 2026-11-11.1 every allowance in this record counts rooms; the keys named for walkthroughs (freeMonths.includedWalkthroughs, packs[].walkthroughs, referral.referrerWalkthroughs, referral.referredWalkthroughs) keep their names for existing readers and carry the same room counts as the keys named for rooms beside them",
   "taxNote": "Totals in Australian dollars; if GST applies it is included and the receipt states the exact treatment.",
   "audience": {
     "who": "anyone: agents, property managers and freelancers",
@@ -10,7 +12,8 @@
   },
   "freeMonths": {
     "months": 1,
-    "includedWalkthroughs": 3,
+    "includedWalkthroughs": 30,
+    "includedRooms": 30,
     "startsOn": "activation",
     "activationMeans": "the App Store subscription is activated; existing signed or invoiced agreements keep their terms",
     "websiteCardPayment": "not offered for new subscriptions",
@@ -31,7 +34,7 @@
       "websiteCard": true,
       "studioInvoice": false
     },
-    "morePacks": "walkthrough packs can be bought during the free months on the website; the free-months end date stays the same",
+    "morePacks": "top-up packs can be bought during the free months on the website; the free-months end date stays the same",
     "earlyPaidSwitchNote": "Using the trial allowance never shortens the free months or starts billing automatically. New subscriptions use the App Store and have no early paid trial switch. The website card and invoice capabilities apply only to existing agreements: a trial may start paid service early with separate consent, and existing card subscriptions retain their agreed automatic renewal.",
     "verification": "one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)",
     "reminderStatus": "planned: reminder email 7 days before the first charge (not yet operational)",
@@ -50,18 +53,23 @@
       "kind": "monthly",
       "webAud": 119.99,
       "appAud": 139.99,
-      "includedPerMonth": 3,
+      "includedPerMonth": 30,
       "seats": "unlimited",
       "hostingIncluded": true,
       "hostingWhileSubscribed": true,
       "whiteLabel": true,
       "freeMonthsEligible": true,
-      "annualRule": "36 walkthroughs to use any time in the paid plan year, the same 3 a month as monthly; A$1,399.99 upfront through the App Store (A$38.89 a walkthrough, against A$46.66 on monthly); no annual rollover; A$279.89 (16.7%) less than 12 monthly payments; never \"2 months free\"",
-      "role": "the one plan: 3 walkthroughs a month with rollover, or annual with a 36-walkthrough yearly pool; the free month carries the same 3",
+      "annualRule": "360 rooms to use any time in the paid plan year, the same 30 a month as monthly; A$1,399.99 upfront through the App Store (A$3.89 a room, against A$4.67 on monthly); no annual rollover; A$279.89 (16.7%) less than 12 monthly payments; never \"2 months free\"",
+      "role": "the one plan: 30 rooms a month with rollover, or annual with a 360-room yearly pool; the free month carries the same 30",
       "hostingRule": "every released walkthrough is live while the office has an active plan (free months, monthly or annual); when the plan ends, its links, embeds and QR codes stay up for 14 days, then go offline; they are not revoked: restarting the plan brings the same links back at once; after that, only a paid hosting extension keeps a single walkthrough online: A$49 a year per walkthrough, on request, until the extension ends",
       "hosting": {
         "liveWhile": "an active plan: free months (trial), monthly or annual",
         "daysAfterPlanEnds": 14,
+        "liveTours": {
+          "cap": null,
+          "fairUsePerAccount": 100,
+          "rule": "No cap on live tours (fair use: 100 per account)."
+        },
         "afterThat": "links, embeds and QR codes go offline; not revoked: restarting the plan brings the same links back at once",
         "extensionSold": true,
         "extension": {
@@ -98,12 +106,14 @@
       },
       "rollover": {
         "enabled": true,
-        "maxBanked": 6,
-        "rule": "unused monthly walkthroughs carry over, up to 6 banked at any time"
+        "maxBanked": 40,
+        "onTopOfMonthly": true,
+        "rule": "unused monthly rooms carry over, up to 40 banked on top of the month's 30",
+        "whenPlanEnds": "banked rooms lapse after the 14 days"
       },
       "annualAud": 1399.99,
       "annualAppAud": 1399.99,
-      "annualIncluded": 36,
+      "annualIncluded": 360,
       "intervals": [
         "monthly",
         "annual"
@@ -113,8 +123,8 @@
       ],
       "annualSavingsPercent": 16.7,
       "annualSavingsAud": 279.89,
-      "annualPerWalkthroughAud": 38.89,
-      "monthlyPerWalkthroughAud": 46.66
+      "annualPerRoomAud": 3.89,
+      "monthlyPerRoomAud": 4.67
     }
   ],
   "programmes": {
@@ -127,7 +137,7 @@
       "freeMonthsEligible": true,
       "perks": [
         "priority rendering",
-        "a free 3-pack for each referred office that becomes a paying account (up to four)",
+        "a free pack of 30 rooms for each referred office that becomes a paying account (up to four)",
         "a direct line to the founder"
       ],
       "accountFlag": "a programme flag on the account, not a plan code; the retired plan code 'founding' only describes older rows"
@@ -169,16 +179,34 @@
   },
   "counting": {
     "acceptedMeans": "the automatic quality check passed and the workspace approved the exact revision for release",
+    "usedWhen": "a tour passes the automatic check and the workspace approves it; rooms are used once, at the first approval",
     "notGoodEnoughCounts": false,
     "rollover": true,
     "freeMonthsAllowanceIsTotal": true,
     "planAllowanceIsMonthly": true,
-    "unit": "accepted_walkthrough",
-    "unitsPerAcceptedWalkthrough": 1,
-    "rolloverRule": "monthly plan: unused included walkthroughs bank, at most 6; annual plan: a 36-walkthrough yearly pool with no rollover between plan years; free months: 3 in total",
+    "unit": "room",
+    "room": "any named space the buyer can stand in, including garage and outdoor area",
+    "roomSize": {
+      "maxStandingSpots": 4,
+      "largerCountsAs": 2,
+      "rule": "a room has up to four standing spots; a larger one counts as two rooms"
+    },
+    "connectingSpace": {
+      "free": true,
+      "maxStandingSpots": 2,
+      "rule": "a hall, stairs, landing, entry or other connecting space is free with up to two standing spots, and counts as a room when larger"
+    },
+    "minimumRoomsPerTour": 1,
+    "withoutRoomList": {
+      "rooms": 10,
+      "rule": "a capture without a room list is charged a fixed 10 rooms (billing contract rule 2.9)"
+    },
+    "failedCaptures": "failed captures cost nothing",
+    "corrections": "corrections are free: redoing rooms in the same tour uses no rooms and keeps the same link",
+    "rolloverRule": "monthly plan: unused included rooms bank, at most 40 on top of the month's 30; annual plan: a 360-room yearly pool with no rollover between plan years; free months: 30 in total",
     "annualAllowanceIsYearlyPool": true,
-    "walkthroughsPerCapture": "one per new accepted capture",
-    "roomsRule": "room count does not change the allowance unit; a correction of the same walkthrough and a permitted whole recapture including every original room use no extra walkthrough"
+    "roomsRule": "a tour uses the rooms counted in it; a correction of the same tour and a permitted whole recapture including every original room use no rooms",
+    "contract": "property-3d-studio/docs/offer-rooms-contract-20261111.md"
   },
   "devices": [
     "iPhone 12 Pro and later Pro or Pro Max models",
@@ -202,14 +230,16 @@
   "packs": [
     {
       "code": "pack3",
-      "walkthroughs": 3,
+      "walkthroughs": 30,
+      "rooms": 30,
       "webAud": 169,
       "appAud": 199.99,
       "validMonths": 12
     },
     {
       "code": "pack10",
-      "walkthroughs": 10,
+      "walkthroughs": 100,
+      "rooms": 100,
       "webAud": 499,
       "appAud": 589.99,
       "validMonths": 12
@@ -217,13 +247,13 @@
   ],
   "packRules": {
     "availableTo": "any activated account: during the free months or on the plan",
-    "usedAfter": "the free-months, monthly (including banked) or annual-pool included walkthroughs",
-    "expires": "12 months after purchase; unused walkthroughs are not refunded after that",
+    "usedAfter": "the free-months, monthly (including banked) or annual-pool included rooms",
+    "expires": "12 months after purchase; unused rooms are not refunded after that",
     "channels": {
       "web": "Square card on /account (Sandbox until the card lane opens) or studio invoice",
       "app": "in-app purchase arrives in a later app version"
     },
-    "unit": "one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none",
+    "unit": "one counted room per pack room; a capture that is not good enough uses none",
     "kind": "one-time purchase, not recurring capacity"
   },
   "earlyAnnualBonus": {
@@ -238,16 +268,17 @@
     "status": "removed from offer 2026-09-28.1: not offered with new agreements; a bonus already granted stays valid under its own terms (owner decision record marketing/acquisition-launch-20260927/operations/offer-2026-09-28-1-decision.md)"
   },
   "referral": {
-    "referrerWalkthroughs": 1,
-    "referredWalkthroughs": 1,
-    "rule": "when a referred office becomes a paying account, both offices get 1 bonus walkthrough; the referrer shares their own link"
+    "referrerWalkthroughs": 10,
+    "referredWalkthroughs": 10,
+    "referrerRooms": 10,
+    "referredRooms": 10,
+    "rule": "when a referred office becomes a paying account, both offices get 10 bonus rooms; the referrer shares their own link"
   },
   "walkthroughScope": {
-    "unit": "one accepted capture",
-    "unitsPerAcceptedCapture": 1,
-    "rule": "One new accepted capture uses one walkthrough, regardless of room count.",
+    "unit": "room",
+    "rule": "A tour uses the rooms counted in it, when it passes the automatic check and the workspace approves it.",
     "countedBy": "the authoritative acceptance ledger after the automatic quality check and workspace approval",
-    "severalCaptures": "a home with more rooms than fit in one capture takes more captures; each is its own walkthrough with its own link",
+    "severalCaptures": "a home with more rooms than fit in one capture takes more captures; each is its own walkthrough with its own link and uses its own counted rooms",
     "usesNone": "a correction of the same walkthrough, and a permitted whole recapture including every original room",
     "link": "one link and one QR code per capture; a correction or a permitted whole recapture including every original room keeps the same link",
     "status": "accepted commercial rule; authoritative server integration and verification required before release; historical usage is unchanged"
@@ -291,9 +322,25 @@
     "items": {
       "walkthroughScope.countsAsTwo": "5 or more bedrooms, a second dwelling, or more than 350 m² of floor area",
       "walkthroughScope.declaredAt": "new listing; the count locks when capture starts",
-      "counting.largeHomeUnits": 2
+      "counting.largeHomeUnits": 2,
+      "counting.unit": "accepted_walkthrough",
+      "walkthroughScope.rule": "One new accepted capture uses one walkthrough, regardless of room count."
     },
-    "rule": "Historical bedroom and room-count rules are superseded for new captures by offer 2026-09-27.1: one accepted capture uses one walkthrough (walkthroughScope). Historical usage and existing signed agreements remain unchanged."
+    "rule": "Historical bedroom and room-count rules are superseded for new captures by offer 2026-09-27.1: one accepted capture uses one walkthrough (walkthroughScope). Historical usage and existing signed agreements remain unchanged. The walkthrough unit itself is superseded by offer 2026-11-11.1 (retiredTerms.walkthroughUnit): the unit is the room.",
+    "walkthroughUnit": {
+      "replacedBy": "2026-11-11.1",
+      "unit": "accepted_walkthrough",
+      "includedPerMonth": 3,
+      "annualIncluded": 36,
+      "maxBanked": 6,
+      "freeMonthIncluded": 3,
+      "packs": [
+        3,
+        10
+      ],
+      "referralBonus": 1,
+      "rule": "Superseded by offer 2026-11-11.1: the unit is the room. A tour accepted before the change stays one walkthrough of the period it was accepted in; existing usage is never recounted."
+    }
   },
   "history": [
     {
@@ -341,9 +388,16 @@
     },
     {
       "version": "2026-09-29.2",
-      "on": "2026-09-29",
+      "replacedBy": "2026-11-11.1",
+      "on": "2026-11-11",
+      "change": "Owner decision, 11 November 2026: the billing unit is the room, was the accepted walkthrough. The Veylet plan includes 30 rooms a month, was 3 walkthroughs, with up to 40 banked on top of the month's 30, was 6; the yearly pool is 360 rooms, was 36 walkthroughs; the free month carries 30 rooms, was 3 walkthroughs; packs are 30 and 100 rooms, were 3 and 10 walkthroughs, at the same A$169 and A$499 and the same codes; the referral bonus is 10 rooms each, was 1 walkthrough. Halls, stairs and connecting spaces are free with up to two standing spots; a room has up to four standing spots and a larger one counts as two. Rooms are used when a tour passes the automatic check and the workspace approves it. New terms: fair use of 100 live tours per account, and banked rooms lapse after the 14 days when the plan ends. Prices, hosting, the hosting extension, the first-tour redo, corrections and Super fast are unchanged.",
       "restated": "owner decision 29 September 2026: the legacy members' annual (A$990) is removed; it is not sold, quoted or started",
       "scope": "version, prices and allowances unchanged; the website annual card and its server read are removed from /account, and any members' annual answer an older server still sends is ignored"
+    },
+    {
+      "version": "2026-11-11.1",
+      "on": "2026-11-11",
+      "status": "accepted by the owner on 11 November 2026; not released"
     }
   ],
   "subscriptionCheckout": {

@@ -13,12 +13,12 @@ const current = Object.fromEntries([
   'dist/offer/index.html', 'dist/start/index.html', 'dist/index.html', 'dist/terms/index.html',
   'dist/account/index.html', 'dist/llms.txt',
 ].map((file) => [file, flat(read(file))]));
-// Packs replace the single extra: their walkthroughs are added only once the pack's payment has settled.
-const PACK_PAID_FIRST = /Pack walkthroughs are added once payment has settled/;
+// Packs replace the single extra: their rooms are added only once the pack's payment has settled.
+const PACK_PAID_FIRST = /Pack rooms are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
-test('the canonical offer is 2026-09-29.2 and separates payment channels and unavailable conversion paths', () => {
+test('the canonical offer is 2026-11-11.1 and separates payment channels and unavailable conversion paths', () => {
   // Offer 2026-09-26.1 changed hosting only (live while a plan is active, offline 14 days after it ends);
   // 2026-09-26.2 keeps the A$49 hosting extension in a new role (owner, 26 September 2026): after the
   // plan's 14 days it keeps one walkthrough online until the extension ends, on request, by studio invoice,
@@ -30,12 +30,20 @@ test('the canonical offer is 2026-09-29.2 and separates payment channels and una
   // its Sydney GPU-start availability gate is green. 2026-09-29.1 (owner, 29 September 2026): the
   // yearly pool is 24, the same 2 a month as monthly, at the same A$1,399.99. 2026-09-29.2 (owner,
   // 29 September 2026): the free month and the paid month carry the same 3, up to 6 banked, and the
-  // yearly pool is 36 at the same A$1,399.99. Every earlier version is history.
-  assert.equal(record.version, '2026-09-29.2');
+  // yearly pool is 36 at the same A$1,399.99. 2026-11-11.1 (owner, 11 November 2026; accepted, not
+  // released): the billing unit is the room, at the same prices: 30 a month, up to 40 banked on top
+  // of the month's 30, a yearly pool of 360, packs of 30 and 100, 10 bonus rooms for a referral.
+  // Every earlier version is history.
+  assert.equal(record.version, '2026-11-11.1');
+  assert.equal(record.allowanceUnit, 'room');
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
-    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2'], ['2026-09-29.2', undefined]]);
-  // The last entry restates the current version (owner decision 29 September 2026): no price moved.
-  assert.match(record.history.at(-1).restated, /members' annual \(A\$990\) is removed; it is not sold, quoted or started/);
+    [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2'], ['2026-09-29.2', '2026-11-11.1'], ['2026-11-11.1', undefined]]);
+  // The last entry is the current version: accepted by the owner, not released.
+  assert.deepEqual(record.history.at(-1), { version: '2026-11-11.1', on: '2026-11-11', status: 'accepted by the owner on 11 November 2026; not released' });
+  assert.match(record.history.at(-2).change, /the billing unit is the room, was the accepted walkthrough/);
+  assert.match(record.history.at(-2).change, /Prices, hosting, the hosting extension, the first-tour redo, corrections and Super fast are unchanged\./);
+  // 2026-09-29.2 was restated on 29 September 2026: no price moved.
+  assert.match(record.history.at(-2).restated, /members' annual \(A\$990\) is removed; it is not sold, quoted or started/);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
     rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
@@ -61,7 +69,8 @@ test('the canonical offer is 2026-09-29.2 and separates payment channels and una
   assert.equal(record.appStore.annualSoldInApp, true);
   assert.deepEqual(record.appStore.introductoryOffer, { type: 'free_trial', months: 1, oncePerAppleId: true });
   assert.equal(record.freeMonths.months, 1);
-  assert.equal(record.freeMonths.includedWalkthroughs, 3);
+  assert.equal(record.freeMonths.includedRooms, 30);
+  assert.equal(record.freeMonths.includedWalkthroughs, record.freeMonths.includedRooms, 'the old key carries the room count for existing readers');
   // Offer 2026-09-25.2: every channel starts with a payment method on file; renewal stays per channel.
   assert.equal(record.freeMonths.cardRequired, true);
   assert.deepEqual(record.freeMonths.cardOnFile, { required: true,
@@ -83,10 +92,10 @@ test('the canonical offer is 2026-09-29.2 and separates payment channels and una
   // The practice-room gate is the app's today, not the server's: the record says so in these words.
   assert.equal(record.freeMonths.verification, 'one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)');
   assert.match(record.freeMonths.paymentSetup, /App Store.*written studio invoice terms/);
-  assert.match(record.freeMonths.morePacks, /walkthrough packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
+  assert.match(record.freeMonths.morePacks, /top-up packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
     annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 119.99, appAud: 139.99, includedPerMonth: 3, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 36, maxBanked: 6 });
+  { webAud: 119.99, appAud: 139.99, includedPerMonth: 30, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 360, maxBanked: 40 });
   assert.deepEqual([bonus, bonusExpress], [4, 4], 'a bonus already granted keeps its terms');
   assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
@@ -99,7 +108,7 @@ test('the canonical offer is 2026-09-29.2 and separates payment channels and una
   assert.equal(record.anchor.checked, '2026-09-29');
   assert.match(record.guarantee.scope, /the account's first accepted walkthrough; the redo is a correction revision \(no unit, same link\); a recapture visit is not included/);
   assert.deepEqual(record.earlyAnnualBonus.channels.sort(), ['appStore', 'invoice', 'web']);
-  assert.deepEqual([record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [1, 1]);
+  assert.deepEqual([record.referral.referrerRooms, record.referral.referredRooms, record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [10, 10, 10, 10]);
   assert.match(record.packRules.channels.web, /Square card on \/account \(Sandbox until the card lane opens\) or studio invoice/);
   assert.match(record.packRules.channels.app, /later app version/);
   assert.match(record.packRules.expires, /12 months after purchase/);
@@ -132,7 +141,7 @@ test('current sales and onboarding copy cannot restore universal trial, a member
       `${file} leaves capture-quality assessment with the automatic check`);
     assert.doesNotMatch(current[file], /studio assess(?:es)? capture quality|(?<!no )person checks|checked by a person/i, `${file} puts a person back in the loop`);
   }
-  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers receive 1 free month with 3 accepted walkthroughs/);
+  assert.match(current['dist/start/index.html'], /Eligible App Store subscribers receive 1 free month with 30 rooms in total/);
   // Only the website annual is stated as months free, and only with the annual named beside it.
   for (const file of ['dist/offer/index.html', 'dist/index.html', 'dist/llms.txt']) {
     for (const match of current[file].matchAll(/[^.]*\b2 months free\b[^.]*/g)) {
@@ -142,18 +151,22 @@ test('current sales and onboarding copy cannot restore universal trial, a member
   }
 });
 
-// Offer 2026-09-27.1 supersedes the former room multiplier for new accepted captures.
-const CAPTURE_RULE = /One new accepted capture uses one walkthrough, regardless of room count(?:\.|, and)/;
+// Offer 2026-11-11.1: a tour uses the rooms counted in it; 2026-09-27.1's one-capture-one-walkthrough rule is retired.
+const CAPTURE_RULE = /A tour uses the rooms counted in it\b/;
+const RETIRED_CAPTURE_RULE = /uses one walkthrough, regardless of room count/;
 const RETIRED_HOME_RULE = /5 or more bedrooms, a second dwelling or more than 350 m² of floor area counts as 2/;
 
-test('service units: one accepted capture is one unit; correction and recapture use none', () => {
-  assert.equal(record.counting.unit, 'accepted_walkthrough');
+test('service units: the unit is the room; correction and recapture use none', () => {
+  assert.equal(record.counting.unit, 'room');
+  assert.equal(record.counting.usedWhen, 'a tour passes the automatic check and the workspace approves it; rooms are used once, at the first approval');
+  assert.deepEqual(record.counting.roomSize, { maxStandingSpots: 4, largerCountsAs: 2, rule: 'a room has up to four standing spots; a larger one counts as two rooms' });
+  assert.deepEqual(record.counting.connectingSpace, { free: true, maxStandingSpots: 2, rule: 'a hall, stairs, landing, entry or other connecting space is free with up to two standing spots, and counts as a room when larger' });
   assert.equal(record.counting.notGoodEnoughCounts, false);
   const scope = record.walkthroughScope;
   assert.equal(scope.roomsPerWalkthrough, undefined);
-  assert.equal(scope.unitsPerAcceptedCapture, 1);
+  assert.equal(scope.unitsPerAcceptedCapture, undefined);
   assert.match(scope.rule, CAPTURE_RULE);
-  assert.equal(scope.unit, 'one accepted capture');
+  assert.equal(scope.unit, 'room');
   assert.match(scope.countedBy, /authoritative acceptance ledger.*quality check and workspace approval/);
   assert.equal(scope.usesNone, 'a correction of the same walkthrough, and a permitted whole recapture including every original room');
   assert.match(scope.link, /one link and one QR code per capture/);
@@ -164,19 +177,26 @@ test('service units: one accepted capture is one unit; correction and recapture 
   assert.match(scope.status, /historical usage is unchanged/);
   assert.match(record.retiredTerms.rule, /room-count rules are superseded for new captures/);
   assert.match(record.retiredTerms.rule, /one accepted capture uses one walkthrough/);
+  assert.match(record.retiredTerms.rule, /The walkthrough unit itself is superseded by offer 2026-11-11\.1 \(retiredTerms\.walkthroughUnit\): the unit is the room\./);
+  assert.equal(record.retiredTerms.items['counting.unit'], 'accepted_walkthrough');
+  assert.match(record.retiredTerms.items['walkthroughScope.rule'], RETIRED_CAPTURE_RULE);
+  assert.deepEqual([record.retiredTerms.walkthroughUnit.includedPerMonth, record.retiredTerms.walkthroughUnit.annualIncluded, record.retiredTerms.walkthroughUnit.maxBanked,
+    record.retiredTerms.walkthroughUnit.freeMonthIncluded, record.retiredTerms.walkthroughUnit.packs, record.retiredTerms.walkthroughUnit.referralBonus], [3, 36, 6, 3, [3, 10], 1]);
   assert.match(record.retiredTerms.rule, /Historical usage and existing signed agreements remain unchanged/);
-  assert.match(record.packRules.unit, /one accepted walkthrough per pack walkthrough; a capture that is not good enough uses none/);
-  assert.match(current['dist/offer/index.html'], CAPTURE_RULE, 'the offer page states the accepted capture rule');
+  assert.match(record.packRules.unit, /one counted room per pack room; a capture that is not good enough uses none/);
+  assert.match(current['dist/offer/index.html'], CAPTURE_RULE, 'the offer page states the room rule');
+  assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_CAPTURE_RULE, 'the offer page drops the one-walkthrough rule');
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
   assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
   assert.doesNotMatch(current['dist/offer/index.html'], /12 render attempts|fair.use cap/i);
   assert.match(current['dist/offer/index.html'], /Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged\./);
-  assert.match(current['dist/llms.txt'], /corrections to the same walkthrough do not use a second unit/i);
+  assert.match(current['dist/llms.txt'], /Corrections are free: redoing rooms in the same tour uses no rooms and keeps the same link/);
 });
 
-test('the accepted-capture rule reaches /start, /terms and llms.txt without room or bedroom multipliers', () => {
+test('the room rule reaches /start, /terms and llms.txt without the retired capture, bedroom or 8-room rules', () => {
   for (const file of ['dist/start/index.html', 'dist/terms/index.html', 'dist/llms.txt']) {
-    assert.match(current[file], CAPTURE_RULE, `${file} states the accepted-capture rule`);
+    assert.match(current[file], CAPTURE_RULE, `${file} states the room rule`);
+    assert.doesNotMatch(current[file], RETIRED_CAPTURE_RULE, `${file} still states the retired one-walkthrough rule`);
     assert.doesNotMatch(current[file], RETIRED_HOME_RULE, `${file} still states the retired bedroom rule`);
     assert.doesNotMatch(current[file], /up to 8 rooms|each further 8 rooms/i, `${file} keeps the superseded room rule`);
   }
@@ -207,10 +227,10 @@ test('the members’ annual is removed from the record; subscription switches st
   assert.deepEqual(record.subscriptionCheckout.newBuyerChannels, ['appStore']);
 });
 
-test('every public page states the free-month walkthrough count from the record', () => {
+test('every public page states the free-month room count from the record', () => {
   // 29 September 2026: /start still said "the 6 included in your free months" (offer 2026-09-27.1)
   // while every other page said 3, and neither the price checker nor these tests read that phrasing.
-  const n = record.freeMonths.includedWalkthroughs;
+  const n = record.freeMonths.includedRooms;
   const files = [];
   const walkDir = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -222,8 +242,8 @@ test('every public page states the free-month walkthrough count from the record'
   walkDir(path.join(__dirname, '../dist'));
   const patterns = [
     /\b(\d+) included in your free months?\b/g,
-    /\bfree months? with (\d+) (?:accepted )?walkthroughs\b/gi,
-    /\b(\d+) accepted walkthroughs (?:in )?total\b/g,
+    /\bfree months? with (\d+) (?:accepted )?(?:walkthroughs|rooms)\b/gi,
+    /\b(\d+) (?:accepted walkthroughs|rooms) (?:in )?total\b/g,
     /\b(\d+) in your free months?\b/g,
   ];
   let seen = 0;
@@ -242,7 +262,7 @@ test('every public page states the free-month walkthrough count from the record'
 test('no page says a partial recapture is free: only a correction or a whole recapture of every original room keeps the link', () => {
   // 29 September 2026: /app/support said "Recapturing a room never uses a walkthrough", the inverse of
   // offer.json counting.roomsRule (a new accepted capture of only some rooms is its own walkthrough).
-  assert.match(record.counting.roomsRule, /a permitted whole recapture including every original room use no extra walkthrough/);
+  assert.match(record.counting.roomsRule, /a permitted whole recapture including every original room use no rooms/);
   const files = [];
   const walkDir = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -257,5 +277,5 @@ test('no page says a partial recapture is free: only a correction or a whole rec
     assert.doesNotMatch(text, /recaptur\w* (?:a|the|these|those|named) rooms? (?:never|does not|doesn’t|doesn't) use|recaptur\w* (?:a|the|these|those|named) rooms? (?:keeps|is free)/i,
       path.relative(path.join(__dirname, '../dist'), file));
   }
-  assert.match(read('dist/app/support/index.html'), /a capture of only some of the rooms is new, and it uses a walkthrough when accepted\./);
+  assert.match(read('dist/app/support/index.html'), /a capture of only some of the rooms is new, and it uses its counted rooms when accepted\./);
 });

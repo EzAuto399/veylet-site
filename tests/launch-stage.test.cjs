@@ -234,7 +234,7 @@ test('home: the waitlist is asked for in the hero and the closing band only, one
   // The stage label and the weekly-groups note are one line, then the price line, unchanged.
   assert.doesNotMatch(main, /hero-admit/);
   assert.equal((main.match(/data-launch-label/g) || []).length, 1);
-  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 3 walkthroughs included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
+  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
   // Shorter copy that keeps what is not yet proven, said once.
   const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;

@@ -31,7 +31,7 @@ const SUPPORT = 'support@veylet.com';
 const RECAPTURE_RULES = ['no_frames', 'no_depth', 'upload_limits', 'phone_budget', 'not_property'];
 const FLAG_RULES = ['photo_match', 'coverage', 'few_views', 'floaters', 'no_floor', 'not_connected', 'ai_visual'];
 const FLAG_ARTICLE = 'fix/worth-a-look';
-const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
 
 const GROUPS = [
   { id: 'getting-started', title: 'Getting started', summary: 'The device you need, signing in, and the practice room.' },
@@ -483,7 +483,7 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
-      'One accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
+      'A tour uses the rooms counted in it when it passes the check and you approve it; the [terms](terms) say how rooms are counted. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no rooms. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
       'Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {

@@ -141,7 +141,7 @@ const JOBS = {
   failed: job({ state: 'failed', status: 'failed' }),
   stale: job({ state: 'rendering', status: 'processing', step: 3, stage: 'train', progress_pct: 64, eta_seconds: 420, heartbeat_at: ago(300), stale: true, attempt: 1 }),
 };
-const RECAPTURE_ALLOWANCE = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+const RECAPTURE_ALLOWANCE = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
 const readyTour = (fields = {}) => ({ id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: null, ...fields });
 const toursFor = state => state === 'ready' ? [readyTour()] : state === 'live' ? [readyTour({ share_token: 'abcdefghijklmnop' })] : [];
 const withState = (state, options = {}) => load({ status: [JOBS[state]], tours: toursFor(state), approved: state === 'live', ...options });
@@ -154,7 +154,7 @@ const WORDS = {
   live: ['Live', null, ['Anyone with the link can open it.']],
   recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
-  failed: ['Failed', 'Veylet support', ['Rendering could not finish. Contact Veylet support; no walkthrough was used.']],
+  failed: ['Failed', 'Veylet support', ['Rendering could not finish. Contact Veylet support; no rooms were used.']],
   stale: ['Still working — checking in', 'Automatic', ['We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.',
     'Last reported: step 3 of 5, Building your 3D walkthrough.']],
 };
@@ -570,7 +570,7 @@ test('render status: the next step says whose turn it is while no walkthrough is
   const rooms = await withState('recapture');
   const next = rooms.ids['account-next-step'];
   assert.equal(next.children[0].textContent, 'Recapture what the quality check found.');
-  assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.');
+  assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no rooms; the complete allowance rule is shown there.');
   assert.equal(next.children[2].textContent, 'Show what to recapture');
   const broken = await withState('failed');
   assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Rendering could not finish.');

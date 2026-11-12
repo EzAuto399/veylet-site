@@ -477,7 +477,7 @@
     const referred = document.getElementById('account-referred');
     if (referred) {
       referred.textContent = referredBy ? 'An office referred you to Veylet. When your office first pays, you and that office each get ' +
-        REFERRAL_WALKTHROUGHS + ' bonus walkthrough.' : '';
+        REFERRAL_ROOMS + ' bonus rooms.' : '';
       referred.hidden = signedIn || !referredBy;
     }
   }
@@ -502,7 +502,7 @@
     nextStep?.replaceChildren();
     planBody?.replaceChildren();
     planPanel?.setAttribute('aria-busy', 'false');
-    planCapacityRefresh = null;
+    planCapacityRefresh = null; planRoomsLimit = null;
     trialHide();
     expressHide();
     renderForget();
@@ -2265,10 +2265,10 @@
     if (!lineage) return lead + ' Whether approving it uses your allowance couldn’t be checked. Refresh to check before you approve it.';
     const moves = lineage.link_moves_on_approval;
     if (!lineage.approval_uses_allowance) {
-      return lead + (moves ? ' Approving it uses no walkthrough from your allowance, and your existing link and embed will show this version.'
-        : ' Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
+      return lead + (moves ? ' Approving it uses no rooms from your allowance, and your existing link and embed will show this version.'
+        : ' Approving it uses no rooms from your allowance. It has no live link now, so approving it also turns sharing on.');
     }
-    return lead + ' That walkthrough hasn’t been accepted yet, so approving this version uses one walkthrough from your allowance' +
+    return lead + ' That walkthrough hasn’t been accepted yet, so approving this version uses its counted rooms from your allowance' +
       (moves ? '. Your existing link and embed will show this version.' : '; later corrections of it use none.');
   }
 
@@ -3083,7 +3083,7 @@
     const corrections = document.createElement('a'); corrections.className = 'tour-action'; corrections.textContent = 'Request corrections by email';
     const correctionsHref = () => {
       // The walkthrough reference lets the studio record the new package against this
-      // walkthrough, so the correction uses no second walkthrough from the allowance.
+      // walkthrough, so the correction uses no rooms from the allowance.
       const reference = String(walkthroughOf(tour)).slice(0, 8);
       const body = ['Walkthrough reference: ' + reference, 'Version: ' + revisionOf(tour), 'Tour reference: ' + String(tour.id).slice(0, 8),
         'Package: ' + snapshot.revision.slice(0, 12), '',
@@ -3116,8 +3116,8 @@
         const changed = reply.value?.error?.details === 'VEYLET_PACKAGE_REVISION_CHANGED';
         const capacityBlocked = ['VEYLET_PLAN_NOT_ACTIVE', 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED'].includes(reply.value?.error?.details);
         const sandboxBlocked = reply.value?.error?.details === 'VEYLET_SANDBOX_TEST_ONLY';
-        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
-          : 'This walkthrough was not accepted. Refresh your plan allowance below; a walkthrough pack adds more, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
+        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use extra rooms.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan does not have enough rooms left for it; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
+          : 'This walkthrough was not accepted. Your plan does not have enough rooms left for it. Refresh your plan allowance below; a pack adds more rooms, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
         for (const field of Object.values(fields)) { field.checked = false; field.disabled = true; }
         preview.removeAttribute('href'); preview.setAttribute('aria-disabled', 'true'); preview.tabIndex = -1;
         status.textContent = explanation; say(explanation);
@@ -3148,11 +3148,12 @@
   }
 
   /* ---- Your plan -------------------------------------------------------
-   * One free month with three walkthroughs in total, started by activating the
+   * One free month with 30 rooms in total, started by activating the
    * plan with a payment method on file, then the Veylet plan unless cancelled
-   * before the first charge on the day it ends (offer 2026-09-29.2): monthly,
-   * the same three walkthroughs a month where unused ones roll over (at most six
-   * banked), or annual, a yearly pool of 36 walkthroughs. This panel only reports what get_workspace_plan
+   * before the first charge on the day it ends (offer 2026-11-11.1, the unit is the room): monthly,
+   * the same 30 rooms a month where unused ones carry over (at most 40
+   * banked), or annual, a yearly pool of 360 rooms. The server's keys keep their walkthrough names and
+   * carry room counts (docs/offer-rooms-contract-20261111.md, rule 5.7). This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
@@ -3162,7 +3163,7 @@
   const planBody = document.getElementById('account-plan-body');
   const deletionPanel = document.getElementById('account-deletion');
   const PLAN_STATUSES = ['pending', 'trial', 'active', 'ended'];
-  const PLAN_TERMS = ['State', 'Free walkthroughs', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
+  const PLAN_TERMS = ['State', 'Free rooms', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
   // The State row says the state in the app's own short words; the date belongs
   // to the Renews row, and the full sentence to the body.
   const PLAN_STATE_WORDS = { pending: 'Not started', trial: 'Free months', active: 'Active', ended: 'Ended' };
@@ -3179,9 +3180,9 @@
   // The App Store sells the Veylet plan monthly and annual (appStore.sold); the
   // two Team IDs stay mapped so an existing verified row still reads correctly.
   const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
-  // offer.json freeMonths: 1 month, 3 walkthroughs in total.
+  // offer.json freeMonths: 1 month, 30 rooms in total.
   const PLAN_DEFAULT_TRIAL_MONTHS = 1;
-  const PLAN_DEFAULT_TRIAL_WALKTHROUGHS = 3;
+  const PLAN_DEFAULT_TRIAL_ROOMS = 30;
   const PLAN_DASH = '—';
   const PLAN_TEST_ALLOWANCE = 'Production walkthroughs are not included in a sandbox subscription.';
   // Sandbox reads the same way on the plan and on both cards: "Test ·", then what is not live.
@@ -3195,6 +3196,11 @@
   function planMonths(value) {
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
+  }
+  // A free-month room allowance: a whole number from 1 to 240, the most the studio desk may set.
+  function planRooms(value) {
+    const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+    return value !== '' && Number.isInteger(count) && count >= 1 && count <= 240 ? String(count) : '';
   }
   function planCount(value) {
     if (value === null || value === undefined || value === '') return PLAN_DASH;
@@ -3292,7 +3298,7 @@
     const when = new Date(value);
     return Number.isNaN(when.getTime()) ? '' : when.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   }
-  // How many unused monthly walkthroughs this account may bank: the plan row's own max_banked
+  // How many unused monthly rooms this account may bank: the plan row's own max_banked
   // (get_workspace_plan), the number the app shows for the same account. Absent, no cap is said.
   function planMaxBanked(row) {
     const value = row && row.max_banked;
@@ -3332,9 +3338,9 @@
     const accepted = planCount(row && row.accepted_this_period) + ' of ' + planCount(row && row.included_per_month);
     if (status === 'pending') {
       const months = planMonths(row.trial_months);
-      const included = planMonths(row.trial_included_walkthroughs);
+      const included = planRooms(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' walkthroughs in total.' } : unavailable;
+        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' rooms in total.' } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -3351,7 +3357,7 @@
           : billing ? free + ', then ' + billing + ' unless you cancel.'
             : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
       return { status, title: free,
-        body: (sandbox ? PLAN_TEST_ALLOWANCE + ' ' : used + ' of ' + allowance + ' free walkthroughs used. ') + renewal };
+        body: (sandbox ? PLAN_TEST_ALLOWANCE + ' ' : used + ' of ' + allowance + ' free rooms used. ') + renewal };
     }
     if (status === 'active') {
       const billing = planBilling(row);
@@ -3362,7 +3368,7 @@
           : 'Current period ends ' + until + '; check your renewal setting.';
       return { status, title: (sandbox ? 'Test · ' : '') + (PLAN_NAMES[planCode(row)] || 'Plan') + ' · ' + (billing || 'confirm billing details'),
         // How an annual allowance counts (a yearly pool) is the capacity answer's to say, below.
-        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' walkthroughs this month. ') + renewal + ' Hosting included.' +
+        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
           (planInterval(row) === 'annual' ? ' Billed annually.' : '') };
     }
     if (status === 'ended') {
@@ -3437,6 +3443,8 @@
   }
   // The current desk's capacity read, so a bought pack can re-read the ledger.
   let planCapacityRefresh = null;
+  // The included limit of the last capacity answer, for "This uses 8 of your 30 rooms."
+  let planRoomsLimit = null;
   // The day an ended plan ended: its paid period, else its free months.
   function planEndDay(row) {
     if (!row || typeof row !== 'object' || row.status !== 'ended') return null;
@@ -3502,7 +3510,7 @@
   async function renderPlan(supabase, ticket, props, members, live = 0) {
     // No plan panel on this page: no restart at the top, so a card keeps its own.
     if (!planPanel || !planBody) { planFixKnown(null); return; }
-    planCapacityRefresh = null;
+    planCapacityRefresh = null; planRoomsLimit = null;
     planPrimaryButtons.clear(); planPrimarySaid = null; planRestartLink = null; planShownOffice = null;
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
@@ -3514,7 +3522,7 @@
       // No workspace yet is not a failed lookup. There is nothing to refresh;
       // the free months start when the plan is activated either way.
       const start = planVocabulary({ status: 'pending', trial_months: PLAN_DEFAULT_TRIAL_MONTHS,
-        trial_included_walkthroughs: PLAN_DEFAULT_TRIAL_WALKTHROUGHS });
+        trial_included_walkthroughs: PLAN_DEFAULT_TRIAL_ROOMS });
       view = { ...start, body: start.body + ' Add a space to prepare your account. Saving a space does not activate the plan.' };
     } else {
       const reply = workspaceID
@@ -3557,21 +3565,21 @@
     let usageTerm = null;
     let extraCell = null;
     if (view.status === 'unavailable' || !row) {
-      planHairline(dl, 'Free walkthroughs', PLAN_DASH, true);
+      planHairline(dl, 'Free rooms', PLAN_DASH, true);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started' : PLAN_DASH, true);
       planHairline(dl, 'Hosting', PLAN_DASH, false);
-      planHairline(dl, 'Extra walkthroughs', PLAN_DASH, true);
+      planHairline(dl, 'Extra rooms', PLAN_DASH, true);
       planHairline(dl, 'Managed in', PLAN_DASH, false);
     } else {
       // On the plan the month is the unit; before it, the free months' total is.
       if (sandboxPlan) {
-        usageCell = planHairline(dl, 'Walkthroughs', 'Test subscription', false);
+        usageCell = planHairline(dl, 'Rooms', 'Test subscription', false);
       } else if (view.status === 'active') {
-        usageCell = planHairline(dl, planInterval(row) === 'once' ? 'Paid service period' : 'This month', planCount(row.accepted_this_period) + ' of ' + planCount(row.included_per_month) + ' accepted', true);
+        usageCell = planHairline(dl, planInterval(row) === 'once' ? 'Paid service period' : 'This month', planCount(row.accepted_this_period) + ' of ' + planCount(row.included_per_month) + ' used', true);
         // An annual pool renames this row in place once the capacity answer says so.
         usageTerm = dl.children[dl.children.length - 1].children[0];
       } else {
-        usageCell = planHairline(dl, 'Free walkthroughs',
+        usageCell = planHairline(dl, 'Free rooms',
           planCount(row.accepted_in_free_months) + ' of ' + planCount(row.trial_included_walkthroughs), true);
       }
       const renewsOn = planDate(view.status === 'active' ? row.current_period_ends_at : row.trial_ends_at);
@@ -3582,7 +3590,7 @@
         : row.hosting_included === false ? 'Not included' : PLAN_DASH, false);
       // Packs and any settled extras, counted by the acceptance ledger below; the
       // single A$ extra price is retired (offer 2026-09-24.2), so no price is stated.
-      extraCell = planHairline(dl, 'Extra walkthroughs', PLAN_DASH, true);
+      extraCell = planHairline(dl, 'Extra rooms', PLAN_DASH, true);
       planHairline(dl, 'Managed in', source ? PLAN_SOURCE_WORDS[source] : PLAN_DASH, false);
     }
     parts.push(dl);
@@ -3606,21 +3614,21 @@
         const remaining = Math.max(0, included - used);
         allowance = document.createElement('p'); allowance.className = 'plan-allowance';
         allowance.textContent = remaining > 0
-          ? remaining + ' included walkthrough' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'across your free months.' : once ? 'in this paid service period.' : 'this month.')
-          : 'Your included walkthroughs are used for ' + (free ? 'these free months.' : once ? 'this paid service period.' : 'this month.');
-        // Whether unused walkthroughs roll over (monthly) or form a yearly pool (annual)
+          ? remaining + ' included room' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'across your free months.' : once ? 'in this paid service period.' : 'this month.')
+          : 'Your included rooms are used for ' + (free ? 'these free months.' : once ? 'this paid service period.' : 'this month.');
+        // Whether unused rooms carry over (monthly) or form a yearly pool (annual)
         // is said only from the capacity answer below; an annual row claims no monthly reset.
         cadence = free ? '' : once ? ' This single walkthrough does not reset monthly.'
           : planInterval(row) === 'annual' ? '' : ' The allowance resets monthly.';
         // A pack is named here only when it is the next step; otherwise its card follows.
-        baseNote = (free ? 'Saving a space or a failed capture does not use one.' : cadence.trim()) + (remaining > 0 ? ''
-          : ' Need more walkthroughs? A walkthrough pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
+        baseNote = (free ? 'Saving a space or a failed capture uses none.' : cadence.trim()) + (remaining > 0 ? ''
+          : ' Need more rooms? A pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
             (free ? ' Your free-months end date stays the same.' : ''));
         capacity.append(allowance);
       }
     }
     if (workspaceID && row) {
-      capacityNote.textContent = 'Checking acceptance capacity and extra walkthroughs…';
+      capacityNote.textContent = 'Checking acceptance capacity and extra rooms…';
       capacity.append(capacityNote);
     }
     if (capacity.children.length) parts.push(capacity);
@@ -3636,7 +3644,7 @@
       const manage = document.createElement('a'); manage.className = 'text-link';
       manage.href = 'https://apps.apple.com/account/subscriptions';
       manage.textContent = 'Manage or cancel in the App Store'; actions.append(manage);
-      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Walkthrough packs are unavailable in this app version. In-app purchase arrives in a later app version.');
+      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Packs are unavailable in this app version. In-app purchase arrives in a later app version.');
     } else if (['pending', 'ended'].includes(view.status) && source !== 'studio' && source !== 'web') {
       manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install Veylet Capture and sign in with this email. ' +
         'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
@@ -3664,7 +3672,7 @@
     // The same facts in one line above the walkthroughs: the title, the count in its
     // row, and the price that follows the free months, each exactly as drawn above.
     const planLineDraw = () => {
-      const term = (usageCell?.parentNode || usageCell?.parent)?.children?.[0]?.textContent || 'Walkthroughs';
+      const term = (usageCell?.parentNode || usageCell?.parent)?.children?.[0]?.textContent || 'Rooms';
       const usage = usageCell && usageCell.textContent && usageCell.textContent !== PLAN_DASH ? term + ': ' + usageCell.textContent : '';
       const then = view.status === 'trial' && row?.auto_renews === true && planBilling(row) ? 'then ' + planBilling(row) : '';
       planLineSay([memberships.length > 1 ? planWorkspaceName(workspaceID, props) : '', view.title, usage, then].filter(Boolean).join(' · '));
@@ -3693,7 +3701,7 @@
         planLineDraw();
         if (extraCell) extraCell.textContent = PLAN_DASH;
         capacityNote.textContent = sandboxPlan ? 'Test · this test subscription’s capacity could not be verified. ' + PLAN_TEST_ALLOWANCE
-          : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-walkthrough balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
+          : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-room balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
         capacity.replaceChildren(...[allowance, capacityNote].filter(Boolean)); return;
       }
       // The acceptance ledger is authoritative. A plan count alone does not
@@ -3701,56 +3709,59 @@
       if (planIsSandbox(row, cap)) {
         if (usageCell) usageCell.textContent = 'Test subscription';
         body.textContent = planVocabulary(row, true).body;
-        capacityNote.textContent = 'Test · real walkthroughs need a live plan. This test subscription cannot accept production work or spend an extra walkthrough.';
+        capacityNote.textContent = 'Test · real walkthroughs need a live plan. This test subscription cannot accept production work or spend extra rooms.';
         capacity.replaceChildren(capacityNote); return;
       }
       // Offer 2026-09-25.1, only where the answer carries it (older servers do not):
       // a monthly plan's banked rollover, and an annual plan's yearly pool.
       const { banked, rollover, maxBanked, pool, poolEnds, bonus } = planAllowance(row, cap);
+      planRoomsLimitSet(['trial', 'active'].includes(cap.plan_status) ? cap.included_limit : null);
       // One count per panel, from the capacity answer (the plan row's per-month figure leaves out
-      // banked walkthroughs): the cell and the sentence say the same numbers.
+      // banked rooms): the cell and the sentence say the same numbers.
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
       if (pool && usageTerm) usageTerm.textContent = 'Plan year';
       if (extraCell) { extraCell.textContent = cap.extra_credits_available + ' available'; extraCell.dataset.extraSaid = 'true'; }
       planLineDraw();
       // The table's row is the count. On the web desk the sentence keeps only what the table
       // cannot say: what happens on the renewal date.
-      if (cap.plan_status === 'trial') body.textContent = deskBar && usageCell ? view.body.replace(/^.*?free walkthroughs used\.\s*/, '')
-        : view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
-      if (pool) body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this plan year.');
+      if (cap.plan_status === 'trial') body.textContent = deskBar && usageCell ? view.body.replace(/^.*?free rooms used\.\s*/, '')
+        : view.body.replace(/^.*?free rooms used\./, cap.included_used + ' of ' + cap.included_limit + ' included free rooms used.');
+      if (pool) body.textContent = view.body.replace(/^.*? rooms this month\./, cap.included_used + ' of ' + cap.included_limit + ' rooms used this plan year.');
       else if (cap.plan_status === 'active' && planInterval(row) === 'monthly') {
         const perMonth = Number.isInteger(row.included_per_month) ? row.included_per_month : cap.included_limit - (banked || 0);
-        body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this month'
+        body.textContent = view.body.replace(/^.*? rooms this month\./, cap.included_used + ' of ' + cap.included_limit + ' rooms used this month'
           + (banked > 0 ? ' (' + perMonth + ' a month + ' + banked + ' banked)' : '') + '.');
       }
-      // Bonus walkthroughs (early annual, referral) are extra walkthroughs too; the line says how many.
-      const extras = cap.extra_credits_available + ' extra walkthrough' + (cap.extra_credits_available === 1 ? '' : 's') + ' available' +
+      // Bonus rooms (referral) are extra rooms too; the line says how many.
+      const extras = cap.extra_credits_available + ' extra room' + (cap.extra_credits_available === 1 ? '' : 's') + ' available' +
         (bonus ? ', including ' + bonus + ' bonus' : '') + '.';
       const balance = allowance || document.createElement('p'); balance.className = 'plan-allowance';
-      balance.textContent = pool ? cap.included_remaining + ' of ' + cap.included_limit + ' walkthroughs left this plan year · ' + extras
-        : cap.included_remaining + ' included walkthrough' + (cap.included_remaining === 1 ? '' : 's') + ' remaining · ' + extras;
-      const counting = pool ? ' Your ' + cap.included_limit + ' walkthroughs are a yearly pool to use any time, with no monthly limit' +
+      balance.textContent = pool ? cap.included_remaining + ' of ' + cap.included_limit + ' rooms left this plan year · ' + extras
+        : cap.included_remaining + ' included room' + (cap.included_remaining === 1 ? '' : 's') + ' remaining · ' + extras;
+      const counting = pool ? ' Your ' + cap.included_limit + ' rooms are a yearly pool to use any time, with no monthly limit' +
           (poolEnds ? '; it resets on ' + poolEnds : '') + '. Unused ones do not carry into the next plan year.'
         : banked !== null && (banked > 0 || rollover)
           ? (banked > 0 ? ' This month’s ' + cap.included_limit + ' include ' + banked + ' banked from earlier months.' : '') +
-            (rollover ? ' Unused monthly walkthroughs roll over' + (maxBanked !== null ? ', up to ' + maxBanked + ' banked.' : '.') : '')
+            (rollover ? ' Unused monthly rooms carry over' + (maxBanked !== null ? ', up to ' + maxBanked + ' banked.' : '.') : '')
           : cadence;
       const resolve = document.createElement('a'); resolve.className = 'text-link';
-      resolve.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity';
-      resolve.textContent = 'Resolve walkthrough capacity with Veylet support';
+      resolve.href = 'mailto:support@veylet.com?subject=Veylet%20room%20capacity';
+      resolve.textContent = 'Resolve room capacity with Veylet support';
       if (cap.can_accept) {
         // Release with the authoritative one-capture counting migration; old usage is immutable.
         // The packs card follows, so an open allowance needs no link of its own.
-        capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new accepted capture uses one walkthrough, regardless of room count. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
+        capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new tour uses your extra rooms, the ones that expire first. ' : '') +
+          'A tour uses the rooms counted in it when it passes the check and you approve it. Halls, stairs and connecting spaces are free with up to 2 standing spots. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
         if (deskBar) {
           // The counts are the table's rows; the remaining line is kept only for what they do not
-          // say (bonus, banked or yearly-pool walkthroughs). The counting rule waits, word for word, behind a disclosure.
-          const lead = cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first.' : '';
+          // say (bonus, banked or yearly-pool rooms). The counting rule waits, word for word, behind a disclosure.
+          const lead = cap.included_remaining === 0 ? 'The next new tour uses your extra rooms, the ones that expire first.' : '';
           const rule = document.createElement('p'); rule.className = 'plan-scope'; rule.textContent = capacityNote.textContent.slice(lead ? lead.length + 1 : 0);
           const how = document.createElement('details'); how.className = 'account-details plan-counting';
-          const summary = document.createElement('summary'); summary.textContent = 'How walkthroughs are counted';
-          how.append(summary, rule);
+          const summary = document.createElement('summary'); summary.textContent = 'How rooms are counted';
+          // The counting rules are stated once, on the offer page; the desk links to them.
+          const rules = document.createElement('a'); rules.className = 'text-link'; rules.href = '/offer#counts-title'; rules.textContent = 'The counting rules';
+          how.append(summary, rule, ...(APP_MODE ? [] : [rules]));
           capacityNote.textContent = lead;
           const repeats = Boolean(usageCell && extraCell) && !bonus && !pool && !(banked > 0);
           capacity.replaceChildren(...(repeats ? [] : [balance]), ...(lead ? [capacityNote] : []), how);
@@ -3760,8 +3771,8 @@
         return;
       }
       capacityNote.textContent = cap.reason_code === 'allowance_exhausted'
-        ? 'Your included walkthroughs are used and no extra walkthrough is available, so another can be accepted once a walkthrough pack adds more. Nothing is charged automatically and no debt is created.' + (cap.plan_status === 'trial' ? ' Your free-months end date stays the same.' : '')
-        : 'New walkthrough acceptance is paused until your plan and paid service dates are confirmed. Contact Veylet support; existing reviewed work is unchanged. A pack or an extra walkthrough does not activate an expired or unverified plan.';
+        ? 'Your included rooms are used and no extra rooms are available, so another tour can be accepted once a pack adds more rooms. Nothing is charged automatically and no debt is created.' + (cap.plan_status === 'trial' ? ' Your free-months end date stays the same.' : '')
+        : 'New walkthrough acceptance is paused until your plan and paid service dates are confirmed. Contact Veylet support; existing reviewed work is unchanged. A pack or extra rooms do not activate an expired or unverified plan.';
       capacity.replaceChildren(balance, capacityNote, resolve);
     };
     planCapacityRefresh = readCapacity;
@@ -3976,9 +3987,9 @@
     return set;
   }
 
-  /* ---- Walkthrough packs ---------------------------------------------------
+  /* ---- Top-up packs --------------------------------------------------------
    * More accepted walkthroughs for a busy month (offer 2026-09-24.2; docs/design/
-   * one-plan-and-packs-20260924.md). A pack's walkthroughs are used after the
+   * one-plan-and-packs-20260924.md). A pack's rooms are used after the
    * free-months or monthly included ones and expire 12 months after purchase.
    * Who may buy, the packs, their prices and the balance are the server's answer
    * (get_pack_offer); whether card payment is open, and whether it is Square
@@ -3989,6 +4000,9 @@
    */
   const packsEl = document.getElementById('account-packs');
   const PACK_CODES = ['pack3', 'pack10'];
+  // offer.json packs[].rooms. The codes keep their names; the server's `walkthroughs` carries the
+  // same room count, with `rooms` beside it (offer 2026-11-11.1).
+  const PACK_ROOMS = { pack3: 30, pack10: 100 };
   const PACK_MISSING = ['not_owner', 'not_activated'];
   // offer.json packs[].validMonths.
   const PACK_VALID_MONTHS = 12;
@@ -4003,7 +4017,7 @@
   };
   // No answer, or checkout_failed: the card may have been charged, and the server
   // adds the walkthroughs once Square confirms it. The balance above is re-read.
-  const PACK_UNCONFIRMED = 'We couldn’t confirm the purchase. If your card was charged, the walkthroughs are added when the payment clears. Check the count above in a few minutes before you try again.';
+  const PACK_UNCONFIRMED = 'We couldn’t confirm the purchase. If your card was charged, the rooms are added when the payment clears. Check the count above in a few minutes before you try again.';
   let packs = null;
   let packsVersion = 0;
 
@@ -4011,7 +4025,7 @@
     return Boolean(pack) && typeof pack === 'object' && PACK_CODES.includes(pack.code)
       && Number.isInteger(pack.walkthroughs) && pack.walkthroughs > 0 && Number.isInteger(pack.price_cents) && pack.price_cents > 0
       // The count is in the code, so the two must agree before either is shown.
-      && pack.code === 'pack' + pack.walkthroughs;
+      && pack.walkthroughs === PACK_ROOMS[pack.code] && (pack.rooms === undefined || pack.rooms === pack.walkthroughs);
   }
   function packsValid(offer) {
     if (!offer || typeof offer !== 'object' || typeof offer.available !== 'boolean' || !Array.isArray(offer.missing)
@@ -4029,7 +4043,7 @@
     if (!lane) return 'error';
     return lane.open ? 'choose' : 'lane-closed';
   }
-  function packWords(count) { return count + (count === 1 ? ' walkthrough' : ' walkthroughs'); }
+  function packWords(count) { return count + (count === 1 ? ' room' : ' rooms'); }
   // Square Sandbox labels every price and payment action, as the Super fast card does.
   function packTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
   function packChosen(state) {
@@ -4044,14 +4058,14 @@
     const pack = packChosen(state);
     return packTest(state) + (state.problem ? 'Try again' : state.card ? 'Pay ' + planMoney(pack.price_cents) : 'Buy ' + packWords(pack.walkthroughs));
   }
-  // On the web desk the plan table's "Extra walkthroughs" row already says there are none.
+  // On the web desk the plan table's "Extra rooms" row already says there are none.
   // (Marked here; the stylesheet hides it while that row is on the page.)
   function packBalanceSync(node, offer) { if (node?.dataset) node.dataset.none = offer?.credits_available ? 'false' : 'true'; }
   function packBalance(offer) {
     const count = offer.credits_available;
-    if (!count) return 'No extra walkthroughs available.';
+    if (!count) return 'No extra rooms available.';
     const next = annualDay(offer.next_expiry);
-    return (count === 1 ? '1 extra walkthrough' : count + ' extra walkthroughs') + ' available' + (next ? '; the next expiry is ' + next + '.' : '.');
+    return (count === 1 ? '1 extra room' : count + ' extra rooms') + ' available' + (next ? '; the next expiry is ' + next + '.' : '.');
   }
   /** Brisbane's today plus the pack's validity, clamped to the month's last day. */
   function packExpiry() {
@@ -4076,7 +4090,7 @@
   }
   function packsHead(refs) {
     const head = annualNode('div', 'annual-head');
-    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Walkthrough packs');
+    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Top-up packs');
     title.id = 'account-packs-title'; title.tabIndex = -1;
     if (refs) refs.title = title;
     head.append(title);
@@ -4117,16 +4131,16 @@
     if (state.notice) parts.push(annualNode('p', 'annual-notice', state.notice));
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     if (kind === 'error') {
-      say('annual-lead', 'Couldn’t check walkthrough packs.');
+      say('annual-lead', 'Couldn’t check packs.');
       say('annual-note', 'Nothing has changed, and your plan above is not affected.');
       const retry = button('Try again', () => { void renderPacks(state.supabase, deskVersion, state.workspaceID, { focus: 'title' }); });
       refs.retry = retry; parts.push(annualRow(retry));
       return parts;
     }
-    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy walkthrough packs.'); return parts; }
+    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy packs.'); return parts; }
     if (kind === 'not-activated') {
       say('annual-lead', 'Packs can be bought once your free months or plan have started.');
-      say('annual-note', 'A pack’s walkthroughs are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
+      say('annual-note', 'A pack’s rooms are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
       return parts;
     }
     if (kind === 'bought') {
@@ -4134,19 +4148,19 @@
       const done = state.done;
       say('annual-lead', packTest(state) + packWords(done.credited) + ' added; ' + done.credits_available + ' available; use by ' + done.useBy + '.');
       say('annual-charge', packTest(state) + planMoney(done.amount_cents) + ' charged today.');
-      say('annual-note', 'They are used after your included walkthroughs, oldest pack first.');
+      say('annual-note', 'They are used after your included rooms, oldest pack first.');
       const again = button('Buy another pack', () => { Object.assign(state, { kind: 'choose', done: null, notice: null, problem: null }); packsDraw('primary'); });
       refs.again = again; parts.push(annualRow(again));
       return parts;
     }
-    say('annual-lead', 'More walkthroughs for a busy month, used after your included ones.');
+    say('annual-lead', 'More rooms for a busy month, used after your included ones.');
     refs.balance = say('packs-balance', packBalance(offer));
     packBalanceSync(refs.balance, offer);
     if (kind === 'lane-closed') {
       parts.push(packList(state));
       say('annual-lead annual-soon', 'Card payment for packs opens soon.');
       const ask = annualNode('a', 'text-link', 'Ask Veylet support to invoice a pack');
-      ask.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20pack'; refs.primary = ask;
+      ask.href = 'mailto:support@veylet.com?subject=Veylet%20pack'; refs.primary = ask;
       parts.push(annualRow(ask));
       return parts;
     }
@@ -4203,7 +4217,7 @@
       choice.append(row);
     }
     const action = annualNode('span', 'plan-skeleton annual-skeleton-action'); action.setAttribute('aria-hidden', 'true');
-    packsEl.replaceChildren(packsHead(), annualNode('p', 'annual-lead', 'Checking walkthrough packs and how many extra walkthroughs you have…'),
+    packsEl.replaceChildren(packsHead(), annualNode('p', 'annual-lead', 'Checking packs and how many extra rooms you have…'),
       skeletonLine('p', 'packs-balance', 32), choice, skeletonLine('p', 'annual-charge', 66), annualRow(action), skeletonLine('p', 'annual-note', 77));
   }
   async function renderPacks(supabase, ticket, workspaceID, options = {}) {
@@ -4218,7 +4232,7 @@
     ]);
     if (ticket !== deskVersion || version !== packsVersion) return;
     packsEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check walkthrough packs.'); return; }
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check packs.'); return; }
     // Before the backend has the function there are no packs to show; that is not an outage.
     if (reply.value?.error?.code === 'PGRST202') { packsHide(); return; }
     const previous = packs && packs.workspaceID === workspaceID ? packs : null;
@@ -4239,7 +4253,7 @@
     if (state.refs?.balance) { state.refs.balance.textContent = packBalance(state.offer); packBalanceSync(state.refs.balance, state.offer); }
     void planCapacityRefresh?.();
   }
-  // "Buy" (the chosen pack's walkthroughs): load Square's SDK once, open its card field in the card, and move focus into it.
+  // "Buy" (the chosen pack's rooms): load Square's SDK once, open its card field in the card, and move focus into it.
   async function packsOpenCard(control) {
     const state = packs;
     if (!state || state.busy || state.card || state.kind !== 'choose') return;
@@ -4741,7 +4755,7 @@
   }
 
   /* ---- Refer an office -----------------------------------------------------
-   * When an office the account refers first pays, both offices get one bonus
+   * When an office the account refers first pays, both offices get ten bonus
    * walkthrough (offer 2026-09-25.1). The workspace's own code is the server's
    * answer (get_referral_code), and the share link is built from it only when it is
    * the 12-character code the server issues. Before that function exists, when it
@@ -4751,11 +4765,11 @@
    * Nothing on this page grants a bonus.
    */
   const referralEl = document.getElementById('account-referral');
-  // offer.json referral.referrerWalkthroughs and referredWalkthroughs.
-  const REFERRAL_WALKTHROUGHS = 1;
-  const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough.';
+  // offer.json referral.referrerRooms and referredRooms.
+  const REFERRAL_ROOMS = 10;
+  const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get ' + REFERRAL_ROOMS + ' bonus rooms.';
   const REFERRAL_WAITING = 'Your share link appears here once referral links open.';
-  const REFERRAL_EACH = 'you and the office that referred you each get ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough';
+  const REFERRAL_EACH = 'you and the office that referred you each get ' + REFERRAL_ROOMS + ' bonus rooms';
   // The server's refusals, by the words it raises. Each is final for this code, so the kept code is let go.
   const REFERRAL_REFUSALS = [
     ['unknown referral link', 'That referral link isn’t recognised, so nothing was recorded. Ask the office that referred you to send its link again.'],
@@ -4772,11 +4786,11 @@
     const code = answer && typeof answer === 'object' && typeof answer.code === 'string' ? answer.code : '';
     return REFERRAL_CODE.test(code) ? 'https://veylet.com/account?ref=' + code : null;
   }
-  // How many offices this one referred, and the bonus walkthroughs it received: a quiet line, only when there are some.
+  // How many offices this one referred, and the bonus rooms it received: a quiet line, only when there are some.
   function referralTally(answer) {
     const count = (value, one, many) => (Number.isInteger(value) && value > 0 ? value + (value === 1 ? one : many) : '');
     return [count(answer?.referred_offices, ' office referred so far', ' offices referred so far'),
-      count(answer?.bonus_walkthroughs, ' bonus walkthrough received', ' bonus walkthroughs received')].filter(Boolean).join(' · ');
+      count(answer?.bonus_walkthroughs, ' bonus room received', ' bonus rooms received')].filter(Boolean).join(' · ');
   }
   function referralHead() {
     const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Refer an office');
@@ -5958,7 +5972,7 @@
   const RENDER_ACTIVE = ['uploading', 'waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_EXPRESS = ['waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_SUPPORT_CONTACT = 'mailto:support@veylet.com';
-  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.
   const renderSlots = new Map(), renderEmpty = new Map();
@@ -6079,17 +6093,28 @@
     slot.replaceChildren(title, list, note); slot.hidden = false;
   }
   /*
-   * Offer 2026-09-26.3 (20260926140000): the rooms the server counted from the capture and the
-   * walkthroughs its approval uses (capture_render_status_json rooms, walkthroughs_used):
-   * "9 rooms · uses 2 walkthroughs". Rooms not counted yet (null) say nothing: approval uses 1.
+   * Offer 2026-11-11.1: what approving this tour uses, before the member approves it: "This uses 8
+   * of your 30 rooms." The count is the server's (capture_render_status_json walkthroughs_used, which
+   * carries the counted rooms under its old name; docs/offer-rooms-contract-20261111.md, section 6),
+   * and "your 30" is the included limit of the last capacity answer; without one the line says only
+   * the count. Rooms not counted yet (null) say nothing.
    */
   function renderRoomsUse(job) {
     const rooms = renderInt(job?.rooms, 0, 1000), used = renderInt(job?.walkthroughs_used, 1, 1000);
     if (rooms === null || used === null) return '';
-    return rooms + (rooms === 1 ? ' room' : ' rooms') + ' · uses ' + used + (used === 1 ? ' walkthrough' : ' walkthroughs');
+    return planRoomsLimit === null ? 'This uses ' + used + (used === 1 ? ' room.' : ' rooms.')
+      : 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.';
   }
   // Per walkthrough: the rooms line from its capture, and the review form's slot for it.
   const reviewUnits = new Map(), reviewUnitSlots = new Map();
+  // A capacity answer that arrives after the lines were drawn restates them with "of your N":
+  // redrawing the render status repaints each capture's line and its review's.
+  function planRoomsLimitSet(limit) {
+    const next = Number.isInteger(limit) && limit > 0 ? limit : null;
+    if (next === planRoomsLimit) return;
+    planRoomsLimit = next;
+    renderDraw();
+  }
   function paintReviewUnits(slot, words) {
     if (slot.textContent === (words || '') && slot.hidden === !words) return;
     slot.textContent = words || ''; slot.hidden = !words;
@@ -6157,7 +6182,7 @@
       case 'waiting': return 'Waiting to render.' + (view.hold ? ' ' + renderHoldWords(view.hold) : view.position ? ' You’re ' + renderOrdinal(view.position) + ' in line.' : '');
       case 'rendering': return view.step ? 'Rendering, step ' + view.step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[view.step - 1] + '.' : 'Rendering.';
       case 'retrying': return 'Retrying' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.');
-      case 'failed': return 'Failed. Contact Veylet support; no walkthrough was used.';
+      case 'failed': return 'Failed. Contact Veylet support; no rooms were used.';
       default: return RENDER_TITLES[view.key] + '.';
     }
   }
@@ -6310,7 +6335,7 @@
         note(RECAPTURE_ALLOWANCE_WORDS);
         break;
       case 'failed': {
-        line('Rendering could not finish. Contact Veylet support; no walkthrough was used.');
+        line('Rendering could not finish. Contact Veylet support; no rooms were used.');
         const actions = annualNode('p', 'render-actions'); actions.append(renderContact(row, false)); block.append(actions);
         break;
       }
@@ -6370,12 +6395,12 @@
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
-      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.', 'Show what to recapture', () => {
+      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no rooms; the complete allowance rule is shown there.', 'Show what to recapture', () => {
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
       });
-    } else if (said === 'failed') guide('Rendering could not finish.', 'No walkthrough was used. Contact Veylet support from ' + broken.title + ' below.');
+    } else if (said === 'failed') guide('Rendering could not finish.', 'No rooms were used. Contact Veylet support from ' + broken.title + ' below.');
     else if (said === 'uploading') guide('Your capture is on its way.', 'Keep Veylet open or plugged in on your phone. How much has arrived shows on ' + moving.title + ' below.');
     else guide('Your walkthrough is being made automatically.', 'Its progress shows on ' + moving.title + ' below and updates by itself. You can leave this page; the render carries on.');
   }

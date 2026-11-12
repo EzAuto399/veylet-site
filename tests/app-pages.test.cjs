@@ -123,7 +123,7 @@ test('/app/terms is the public terms word for word, less the sentences that name
   assert.equal(app.split(REPLACED).length - 1, 5, 'five sentences stand in for amounts (listed for legal review)');
   assert.ok(app.includes(NOTE));
   // What was left out, by heading.
-  for (const heading of ['One-time walkthrough packs.', 'Super fast renders.', 'Other work.']) {
+  for (const heading of ['One-time packs.', 'Super fast renders.', 'Other work.']) {
     assert.ok(site.includes(heading), heading);
     assert.ok(!app.includes(heading), heading + ' is not in the app copy');
   }

@@ -285,13 +285,13 @@ test('a correction whose link moves is approved in today’s words, without a se
     correction_reason: 'requested_change', walkthrough_accepted: true, approval_uses_allowance: false, link_moves_on_approval: moves }] });
   const moving = await load({ tours: [version(W2, 2), version(W1, 1, { share_token: TOKEN })], approved: [W1], rpc: { get_walkthrough_revision: lineage(true) } });
   assert.equal(moving.card(W2).all().find(el => /tour-correction/.test(el.className)).textContent,
-    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance, and your existing link and embed will show this version.');
+    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no rooms from your allowance, and your existing link and embed will show this version.');
   await approve(moving, W2);
   assert.equal(moving.count('enable_tour_share'), 0, 'the link moves by the approval itself');
   assert.match(rowLine(moving.card(W2)), /^Approved\. Your existing link and embed now show this version\.$/);
   const fresh = await load({ tours: [version(W2, 2), version(W1, 1)], rpc: { get_walkthrough_revision: lineage(false) } });
   assert.equal(fresh.card(W2).all().find(el => /tour-correction/.test(el.className)).textContent,
-    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
+    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no rooms from your allowance. It has no live link now, so approving it also turns sharing on.');
   assert.equal(byText(reviewForm(fresh.card(W2)), 'Anyone with the link can open it and forward it while your plan is active.'), undefined,
     'the consequence line is for a first release only');
   await approve(fresh, W2);
@@ -300,7 +300,7 @@ test('a correction whose link moves is approved in today’s words, without a se
 
 test('every guard of the review still stops before sharing is turned on', async () => {
   const refusals = [
-    [{ error: { details: 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED', message: 'Your included walkthroughs are used.' } }, /This walkthrough was not accepted/],
+    [{ error: { details: 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED', message: 'Your included rooms are used.' } }, /This walkthrough was not accepted/],
     [{ error: { details: 'VEYLET_PLAN_NOT_ACTIVE', message: 'Confirm your plan.' } }, /This walkthrough was not accepted/],
     [{ error: { details: 'VEYLET_SANDBOX_TEST_ONLY', message: 'Test purchase.' } }, /^Test purchase · real walkthroughs require a live plan/],
     [{ error: { details: 'VEYLET_PACKAGE_REVISION_CHANGED', message: 'tour package changed' } }, /The package changed/],
@@ -1084,9 +1084,9 @@ test('app mode: the plan is its state in words, and no money function is even as
 });
 
 test('app mode: a refusal at approval, an empty desk and the next-step links stay inside the app', async () => {
-  const blocked = await load({ markup: appMarkup, tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { details: 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED', message: 'Your included walkthroughs are used.' } }) } });
+  const blocked = await load({ markup: appMarkup, tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { details: 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED', message: 'Your included rooms are used.' } }) } });
   await approve(blocked);
-  assert.equal(blocked.status(), 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.');
+  assert.equal(blocked.status(), 'This walkthrough was not accepted. Your plan does not have enough rooms left for it; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.');
   const empty = await load({ markup: appMarkup, properties: [] });
   const next = empty.ids['account-next-step'];
   assert.deepEqual(next.children.map(el => el.textContent), ['Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.']);
@@ -1143,9 +1143,10 @@ test('a held capture stays Waiting to render with the contract’s words for its
 
 /* ---- Offer 2026-09-26.3 (20260926140000): rooms, and the free months' render attempts ---- */
 
-test('each capture and its review say how many rooms it has and the walkthroughs its approval uses; unknown rooms say nothing', async () => {
-  for (const [rooms, used, words] of [[1, 1, '1 room · uses 1 walkthrough'], [8, 1, '8 rooms · uses 1 walkthrough'],
-    [9, 2, '9 rooms · uses 2 walkthroughs'], [17, 3, '17 rooms · uses 3 walkthroughs']]) {
+/* Offer 2026-11-11.1: the unit is the room. walkthroughs_used carries the counted rooms under its old name. */
+test('each capture and its review say how many rooms its approval uses; unknown rooms say nothing', async () => {
+  for (const [rooms, used, words] of [[1, 1, 'This uses 1 room.'], [8, 8, 'This uses 8 rooms.'],
+    [9, 7, 'This uses 7 rooms.'], [3, 10, 'This uses 10 rooms.']]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
@@ -1156,13 +1157,23 @@ test('each capture and its review say how many rooms it has and the walkthroughs
     const waiting = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2, rooms, walkthroughs_used: used }) } });
     assert.equal(renderBlockOf(waiting).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
   }
+  // With the plan's capacity answer, the line says what the tour uses out of the included rooms, before Approve.
+  const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 13999, renewal_price_aud_cents: 13999,
+    current_period_ends_at: '2026-12-11T00:00:00Z', auto_renews: true, included_per_month: 30, accepted_this_period: 0, hosting_included: true };
+  const cap = { plan_status: 'active', included_limit: 30, included_used: 0, included_remaining: 30, extra_credits_available: 0, can_accept: true, reason_code: null };
+  const limited = await load({ tours: [readyTour()], rpc: { get_workspace_plan: async () => ({ data: [plan] }), get_walkthrough_capacity: async () => ({ data: [cap] }),
+    list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms: 8, walkthroughs_used: 8 }) } });
+  await settle();
+  assert.equal(limited.count('get_walkthrough_capacity'), 1);
+  assert.equal(reviewForm(limited.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
+  assert.equal(renderBlockOf(limited).all().find(el => /\brender-units\b/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
   // Rooms not counted yet (null), an odd count or no walkthroughs used: nothing, and approval still works (it uses 1).
   for (const fields of [{ rooms: null, walkthroughs_used: 1 }, { rooms: 9, walkthroughs_used: null }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', ...fields }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, JSON.stringify(fields));
     assert.equal(reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className)).hidden, true);
-    assert.doesNotMatch(textOf(h.card('t1')), /rooms? ·/);
+    assert.doesNotMatch(textOf(h.card('t1')), /This uses \d+/);
   }
   const approving = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms: null, walkthroughs_used: 1 }) } });
   await settle();

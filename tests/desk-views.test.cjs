@@ -147,7 +147,7 @@ test('the plan in one line uses the Plan view’s own title, count and price, an
     get_walkthrough_capacity: async () => ({ data: [{ included_limit: 3, included_used: 2, included_remaining: 1, extra_credits_available: 0, can_accept: true, reason_code: null, plan_status: 'trial' }] }) } });
   const line = h.ids['account-plan-line'];
   assert.equal(line.hidden, false);
-  assert.equal(line.children[0].textContent, 'Free until 1 January 2027 · Free walkthroughs: 2 of 3 used · then A$99 a month');
+  assert.equal(line.children[0].textContent, 'Free until 1 January 2027 · Free rooms: 2 of 3 used · then A$99 a month');
   assert.deepEqual([line.children[1].tagName, line.children[1].href, line.children[1].textContent], ['A', '#plan', 'Plan details']);
   // Every figure in the line is one the Plan view shows.
   const planText = h.ids['account-plan-body'].text();
@@ -271,6 +271,6 @@ test('pack options sit on the paper: transparent with a hairline, sage when chos
   assert.match(css, /\.desk-view \.annual-option \{ background: transparent; border-color: var\(--line\); \}/);
   assert.match(css, /\.desk-view \.annual-option:has\(input:checked\) \{ border-color: var\(--ink\); background: #eef1e8; \}/);
   assert.match(css, /\.desk-view \.annual-option input:focus-visible \{ outline: 3px solid #897033; outline-offset: 3px; \}/);
-  // "No extra walkthroughs available." is not said again under the table row that says "0 available".
+  // "No extra rooms available." is not said again under the table row that says "0 available".
   assert.match(css, /#view-plan:has\(\[data-extra-said="true"\]\) \[data-none="true"\] \{ display: none; \}/);
 });

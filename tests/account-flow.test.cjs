@@ -773,7 +773,7 @@ test('the records file is unavailable while tour status could not load', async (
 });
 
 /* ---- Your plan -------------------------------------------------------
- * Three free months with six walkthroughs in total, started by activating the
+ * Three free months with six rooms in total, started by activating the
  * plan and renewing afterwards unless cancelled; a source that decides which
  * price is true; and a failed lookup that must read as unavailable rather than
  * as started, empty or approved. Nothing in this panel may take a payment.
@@ -815,8 +815,8 @@ const planTitle = h => (h.ids['account-plan-body'].all().find(el => el.className
 const planValues = h => h.ids['account-plan-body'].all().filter(el => el.tagName === 'DD').map(el => el.textContent);
 const planScopes = h => h.ids['account-plan-body'].all().filter(el => el.className === 'plan-scope').map(el => el.textContent);
 const HOSTING_INCLUDED = 'Included while your plan is active';
-const FREE_TERMS = ['State', 'Free walkthroughs', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
-const ACTIVE_TERMS = ['State', 'This month', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
+const FREE_TERMS = ['State', 'Free rooms', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
+const ACTIVE_TERMS = ['State', 'This month', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
 
 test('the plan date format is one day, one month name and one year', () => {
   assert.match(longDate('2026-12-01T12:00:00Z'), /^\d{1,2} [A-Z][a-z]+ \d{4}$/);
@@ -825,14 +825,14 @@ test('the plan date format is one day, one month name and one year', () => {
 test('the pending plan panel states conditional introductory terms in the shared words', async () => {
   const h = await withPlan({ status: 'pending', trial_started_at: null, trial_ends_at: null,
     accepted_this_period: 0, accepted_in_free_months: 0 });
-  assert.match(planText(h), /Review the available plan\. Eligible subscribers can start with 3 free months and 6 walkthroughs in total\./);
+  assert.match(planText(h), /Review the available plan\. Eligible subscribers can start with 3 free months and 6 rooms in total\./);
   assert.deepEqual(planTerms(h), FREE_TERMS);
   assert.deepEqual(planValues(h), ['Not started', '0 of 6', 'Not started', HOSTING_INCLUDED, '—', 'Studio invoice']);
   // An invoiced account cannot start itself, so it is given the studio.
   assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
   const four = await withPlan({ status: 'pending', trial_months: 4, trial_included_walkthroughs: 2,
     trial_started_at: null, trial_ends_at: null });
-  assert.match(planText(four), /Eligible subscribers can start with 4 free months and 2 walkthroughs in total\./);
+  assert.match(planText(four), /Eligible subscribers can start with 4 free months and 2 rooms in total\./);
 });
 
 test('a pending workspace never establishes introductory eligibility or promises free activation', async () => {
@@ -843,7 +843,7 @@ test('a pending workspace never establishes introductory eligibility or promises
     const h = await withPlan({ source, status: 'pending', apple_verified: false,
       trial_started_at: null, trial_ends_at: null, accepted_in_free_months: 0 });
     assert.equal(planTitle(h), 'Plan not started');
-    assert.match(planText(h), /Eligible subscribers can start with 3 free months and 6 walkthroughs in total/);
+    assert.match(planText(h), /Eligible subscribers can start with 3 free months and 6 rooms in total/);
     assert.doesNotMatch(planText(h), /Start your (?:six )?free months|Free until|Renews on|A\$0/);
     if (source === null) {
       assert.match(planScopes(h).join(' '), /Start in the app through the App Store, where Apple checks introductory-offer eligibility/);
@@ -884,7 +884,7 @@ test('the plan panel counts the six free walkthroughs and states the renewal whi
   const h = await withPlan({});
   const until = longDate(planRow.trial_ends_at);
   // The reminder sentence, word for word: the date the free months end, then the price that follows.
-  assert.match(planText(h), new RegExp('2 of 6 free walkthroughs used\\. Free until ' + until +
+  assert.match(planText(h), new RegExp('2 of 6 free rooms used\\. Free until ' + until +
     ', then A\\$99 a month unless you cancel\\.'));
   assert.doesNotMatch(planText(h), /Renews on/);
   assert.deepEqual(planTerms(h), FREE_TERMS);
@@ -903,7 +903,7 @@ test('an App Store account is shown the App Store price, and where to cancel it'
   assert.deepEqual(planValues(h), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'App Store']);
   assert.doesNotMatch(planText(h), /A\$99(?![\d.])/, 'the website price is not shown to an App Store account');
   assert.match(planScopes(h).join(' '), /Manage in Settings › Subscriptions/);
-  assert.match(planScopes(h).join(' '), /Walkthrough packs are unavailable in this app version\. In-app purchase arrives in a later app version\./);
+  assert.match(planScopes(h).join(' '), /Packs are unavailable in this app version\. In-app purchase arrives in a later app version\./);
   // With included walkthroughs left, the packs card below is the pointer; the panel does not repeat it.
   assert.doesNotMatch(planText(h), /Need more walkthroughs\?/);
   const web = await withPlan({ source: 'web' });
@@ -932,7 +932,7 @@ test('an App Store price is read from the published offer each time, and is not 
 test('a cancelled trial says it ends, and never that it renews', async () => {
   const h = await withPlan({ auto_renews: false, cancelled_at: '2026-09-20T00:00:00Z' });
   const until = longDate(planRow.trial_ends_at);
-  assert.match(planText(h), new RegExp('2 of 6 free walkthroughs used\\. It ends on ' + until + ' and will not renew\\.'));
+  assert.match(planText(h), new RegExp('2 of 6 free rooms used\\. It ends on ' + until + ' and will not renew\\.'));
   assert.deepEqual(planValues(h), ['Free months', '2 of 6', 'Does not renew', HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.doesNotMatch(planText(h), /Renews on/);
 });
@@ -940,10 +940,10 @@ test('a cancelled trial says it ends, and never that it renews', async () => {
 test('the plan panel states the plan and its price once it is active', async () => {
   const renews = '2026-10-01T00:00:00Z';
   const h = await withPlan({ status: 'active', accepted_this_period: 1, accepted_total: 11, current_period_ends_at: renews });
-  assert.match(planText(h), new RegExp('1 of 2 walkthroughs this month\\. Next billing date: ' +
+  assert.match(planText(h), new RegExp('1 of 2 rooms this month\\. Next billing date: ' +
     longDate(renews) + '\\. Hosting included\\.'));
   assert.deepEqual(planTerms(h), ACTIVE_TERMS);
-  assert.deepEqual(planValues(h), ['Active', '1 of 2 accepted', longDate(renews), HOSTING_INCLUDED, '—', 'Studio invoice']);
+  assert.deepEqual(planValues(h), ['Active', '1 of 2 used', longDate(renews), HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
   assert.equal(planText(h).split('Veylet plan · A$99 a month').length - 1, 1, 'the price is stated once');
   assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
@@ -956,8 +956,8 @@ test('the plan panel names the Veylet plan from its code, and each retired plan 
   const renews = '2026-10-01T00:00:00Z';
   const plan = await withPlan({ status: 'active', current_period_ends_at: renews });
   assert.equal(planTitle(plan), 'Veylet plan · A$99 a month');
-  assert.match(planText(plan), /0 of 2 walkthroughs this month/);
-  assert.match(planText(plan), /2 included walkthroughs remaining this month/);
+  assert.match(planText(plan), /0 of 2 rooms this month/);
+  assert.match(planText(plan), /2 included rooms remaining this month/);
   const apple = await withPlan({ status: 'active', current_period_ends_at: renews, source: 'apple', apple_verified: true,
     apple_product_id: SOLO_MONTHLY, renewal_price_aud_cents: 11999 });
   assert.equal(planTitle(apple), 'Veylet plan · ' + APP_MONTHLY + ' a month');
@@ -1362,20 +1362,20 @@ const llms = fs.readFileSync(path.join(__dirname, '../dist/llms.txt'), 'utf8');
 test('the terms state the subscription the App Store listing points at', () => {
   const flat = terms.replace(/\s+/g, ' ');
   for (const phrase of [
-    'Last updated 29 September 2026',
+    'Last updated 11 November 2026',
     'New subscriptions start in the app through Apple.',
-    '1 month free with 3 accepted walkthroughs in total',
+    '1 month free with 30 rooms in total',
     'Existing signed App Store, card and invoice agreements retain their agreed dates, prices and allowances.',
     'No new website subscription or automatic transfer from Apple is offered.',
     'A$139.99 a month or A$1,399.99 upfront a year through the App Store',
-    '1 free month with 3 accepted walkthroughs included',
+    '1 free month with 30 rooms included',
     'The first charge is on the day it ends, at the price of the plan you chose; if you cancel before then, nothing is charged.',
     'A reminder email 7 days before the first charge is planned but not running yet',
     'Cancel any time.',
     'Settings › Subscriptions',
     'cancel by email to',
     'Every released walkthrough stays live while your account has a running plan (free months, monthly or annual).',
-    'When the plan ends, its link, embed and QR code keep working for 14 days, then go offline; they are not deleted or revoked, and restarting the plan brings the same links back at once.',
+    'When the plan ends, its link, embed and QR code keep working for 14 days, then go offline, and banked rooms lapse after the 14 days; the links are not deleted or revoked, and restarting the plan brings the same links back at once.',
     'Deleting the Veylet account ends its hosting. It does not cancel an Apple subscription',
     'Apple refunds it under its own policy',
     'within 14 days of that charge and no walkthrough was accepted in the period it paid for',
@@ -1461,8 +1461,8 @@ test('a legacy annual Team App Store row names no price the offer does not publi
   const active = await withPlan({ ...annual, status: 'active', accepted_this_period: 2,
     current_period_ends_at: '2027-09-23T00:00:00Z' });
   assert.equal(planTitle(active), 'Team · confirm billing details');
-  assert.match(planText(active), /2 of 3 walkthroughs this month/);
-  assert.match(planText(active), /1 included walkthrough remaining this month/);
+  assert.match(planText(active), /2 of 3 rooms this month/);
+  assert.match(planText(active), /1 included room remaining this month/);
   assert.match(planText(active), /Hosting included\. Billed annually\./);
   assert.doesNotMatch(planText(active), /allowance resets monthly|do not carry over/);
 });
@@ -1500,14 +1500,14 @@ test('cancelled annual plans and unknown renewal settings never promise another 
 
 test('exhausted trial keeps its end date and points at a walkthrough pack without creating debt', async () => {
   const h = await withPlan({ accepted_in_free_months: 6, extras_in_free_months: 1 });
-  assert.match(planText(h), /included walkthroughs are used for these free months/);
+  assert.match(planText(h), /included rooms are used for these free months/);
   assert.match(planText(h), /free-months end date stays the same/);
-  assert.match(planText(h), /Need more walkthroughs\? A walkthrough pack adds them; they are used after your included ones\./);
+  assert.match(planText(h), /Need more rooms\? A pack adds them; they are used after your included ones\./);
   assert.match(planText(h), /Saving another space does not authorize a charge/);
   assert.doesNotMatch(planText(h), /extra owed|pay now|trial ends early|agree the extra work|each, by agreement/i);
   assert.equal(h.calls.some(([name]) => /purchase|charge|extra|set_plan/.test(name)), false);
   const apple = await withPlan({ source: 'apple', accepted_in_free_months: 6 });
-  assert.match(planText(apple), /Walkthrough packs are unavailable in this app version\. In-app purchase arrives in a later app version\./);
+  assert.match(planText(apple), /Packs are unavailable in this app version\. In-app purchase arrives in a later app version\./);
   assert.doesNotMatch(planText(apple), /A\$99\.99|A\$89(?![\d.])/);
   // A retired Team row's agreed extra price is not offered any more: packs replace it.
   const team = await withPlan({ ...TEAM, accepted_in_free_months: 4 });
@@ -1522,7 +1522,7 @@ test('a sandbox plan is labelled as test billing without granting new access', a
   assert.ok(planValues(h).includes('Test subscription'));
   assert.match(planText(h), /Production walkthroughs are not included in a sandbox subscription\./);
   assert.ok(planText(h).includes(', then ' + APP_MONTHLY + ' a month unless you cancel'), planText(h));
-  assert.doesNotMatch(planText(h), /\d+ of \d+|included walkthroughs remaining|included walkthroughs are used/);
+  assert.doesNotMatch(planText(h), /\d+ of \d+|included rooms remaining|included rooms are used/);
   assert.equal(h.calls.some(([name]) => /grant|activate/.test(name)), false);
 });
 
@@ -1538,41 +1538,41 @@ test('verified acceptance capacity distinguishes included units from pack and ex
   // The table's two rows are the count (one fact, one place); no line under it repeats them.
   assert.ok(planValues(h).includes('2 available'));
   assert.doesNotMatch(capacityText(h), /remaining ·/);
-  assert.match(capacityText(h), /next new walkthrough uses one extra walkthrough, the one that expires first/);
-  assert.match(capacityText(h), /Each new accepted capture uses one walkthrough, regardless of room count\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough\. Saving a space or a failed capture also uses none\. A partial named-room recapture is not a waiver\. Previously accepted usage stays unchanged\./);
+  assert.match(capacityText(h), /next new tour uses your extra rooms, the ones that expire first/);
+  assert.match(capacityText(h), /A tour uses the rooms counted in it when it passes the check and you approve it\. Halls, stairs and connecting spaces are free with up to 2 standing spots\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms\. Saving a space or a failed capture also uses none\. A partial named-room recapture is not a waiver\. Previously accepted usage stays unchanged\./);
   assert.doesNotMatch(capacityText(h), /recapture of the rooms the check names.*uses none/i);
   assert.ok(planValues(h).includes('6 of 6 used'));
   assert.ok(planValues(h).includes('2 available'), 'the Extra walkthroughs row states the ledger’s count');
-  assert.doesNotMatch(planText(h), /6 of 6 included free walkthroughs used/, 'said once, in the table');
-  assert.doesNotMatch(planText(h), /8 of 6 free walkthroughs used/);
+  assert.doesNotMatch(planText(h), /6 of 6 included free rooms used/, 'said once, in the table');
+  assert.doesNotMatch(planText(h), /8 of 6 free rooms used/);
 });
 
 test('exhausted capacity points at a walkthrough pack, never automatic debt', async () => {
   const h = await withCapacity({ ...capacityRow, included_used: 6, included_remaining: 0, can_accept: false, reason_code: 'allowance_exhausted' });
-  assert.match(capacityText(h), /no extra walkthrough is available, so another can be accepted once a walkthrough pack adds more/);
+  assert.match(capacityText(h), /no extra rooms are available, so another tour can be accepted once a pack adds more rooms/);
   assert.match(capacityText(h), /Nothing is charged automatically and no debt is created/);
   assert.match(capacityText(h), /Your free-months end date stays the same/);
-  assert.match(capacityText(h), /Resolve walkthrough capacity with Veylet support/);
+  assert.match(capacityText(h), /Resolve room capacity with Veylet support/);
   assert.doesNotMatch(capacityText(h), /agree and settle an extra/);
 });
 
 test('banked extras do not imply acceptance while the plan is inactive', async () => {
   const h = await withCapacity({ ...capacityRow, plan_status: 'ended', included_limit: 0, included_used: 0, included_remaining: 0,
     extra_credits_available: 1, can_accept: false, reason_code: 'plan_not_active' });
-  assert.match(capacityText(h), /1 extra walkthrough available/);
+  assert.match(capacityText(h), /1 extra room available/);
   assert.match(capacityText(h), /acceptance is paused/);
-  assert.match(capacityText(h), /A pack or an extra walkthrough does not activate an expired or unverified plan/);
+  assert.match(capacityText(h), /A pack or extra rooms do not activate an expired or unverified plan/);
   assert.doesNotMatch(capacityText(h), /Capacity is available for acceptance/);
 });
 
-test('an unavailable or malformed capacity reply never invents an extra-walkthrough balance', async () => {
+test('an unavailable or malformed capacity reply never invents an extra-room balance', async () => {
   for (const reply of [{ error: { code: 'PGRST202' } }, { data: [{ ...capacityRow, extra_credits_available: null }] },
     { data: [{ ...capacityRow, included_remaining: 100 }] }]) {
     const h = await withPlan({}, { rpc: { get_walkthrough_capacity: async () => reply } });
     assert.match(capacityText(h), /could not be verified/);
     assert.doesNotMatch(capacityText(h), /0 extra walkthroughs/);
     assert.equal(planValues(h)[4], '—', 'the Extra walkthroughs row claims nothing');
-    assert.match(planText(h), /4 included walkthroughs remaining across your free months/);
+    assert.match(planText(h), /4 included rooms remaining across your free months/);
   }
 });
 
@@ -1591,7 +1591,7 @@ test('one-time paid service never promises a monthly reset or recurring bill', a
     { status: 'active', billing_interval: 'once', renewal_price_aud_cents: 19900, current_period_ends_at: inDays(90), auto_renews: false, plan_code: 'one', included_per_month: 1 });
   assert.match(planTitle(h), /A\$199 once/);
   assert.match(planText(h), /does not reset monthly/);
-  assert.doesNotMatch(planText(h), /allowance resets monthly|walkthroughs this month|A\$199 a month/);
+  assert.doesNotMatch(planText(h), /allowance resets monthly|rooms this month|A\$199 a month/);
 });
 
 test('processing deletion shows frozen access and no cancellation or repeat delete', async () => {
@@ -1612,9 +1612,9 @@ test('sandbox capacity cannot promise real production even with settled credits'
   assert.match(planText(h), /Production walkthroughs are not included in a sandbox subscription\./);
   assert.match(planText(h), /will not renew/);
   assert.ok(planLinks(h).includes('https://apps.apple.com/account/subscriptions'));
-  assert.doesNotMatch(planText(h), /\d+ of \d+|included walkthroughs remaining|extra walkthroughs? available|Renews on/);
+  assert.doesNotMatch(planText(h), /\d+ of \d+|included rooms remaining|extra walkthroughs? available|Renews on/);
   assert.match(capacityText(h), /^Test · real walkthroughs need a live plan\./);
-  assert.match(capacityText(h), /cannot accept production work or spend an extra walkthrough/);
+  assert.match(capacityText(h), /cannot accept production work or spend extra rooms/);
   assert.doesNotMatch(capacityText(h), /Capacity is available for acceptance/);
 });
 
@@ -1627,7 +1627,7 @@ test('an annual sandbox keeps its end date, names no unpublished price, and has 
       renewal_price_aud_cents: 318999, current_period_ends_at: ends, auto_renews: false });
   assert.equal(planTitle(h), 'Test · Team · confirm billing details');
   assert.match(planText(h), new RegExp('Ends ' + longDate(ends) + '; will not renew'));
-  assert.doesNotMatch(planText(h), /\d+ of \d+|walkthroughs this month|allowance resets monthly|extra walkthroughs? available/);
+  assert.doesNotMatch(planText(h), /\d+ of \d+|rooms this month|allowance resets monthly|extra walkthroughs? available/);
   assert.equal(h.calls.some(([name]) => /grant|activate|purchase|charge/.test(name)), false);
 });
 
@@ -1642,7 +1642,7 @@ test('production subscriptions still show the authoritative monthly included bal
     assert.ok(planValues(h).includes('2 of 3 used'));
     assert.ok(planValues(h).includes('0 available'));
     assert.doesNotMatch(capacityText(h), /remaining ·/, 'the table rows are the one statement of the count');
-    assert.match(planText(h), billing_interval === 'monthly' ? /2 of 3 walkthroughs used this month\./ : /2 of 3 walkthroughs this month/);
+    assert.match(planText(h), billing_interval === 'monthly' ? /2 of 3 rooms used this month\./ : /2 of 3 rooms this month/);
     assert.doesNotMatch(planText(h), /Test subscription|Production walkthroughs are not included/);
   }
 });
@@ -1914,7 +1914,8 @@ const brisbaneToday = () => {
 const HOOKS_URL = 'https://hooks.example.invalid';
 const SQUARE_SDK = 'https://sandbox.web.squarecdn.com/v1/square.js';
 const CARD_FORM = { sdk_url: SQUARE_SDK, application_id: 'sandbox-sq0idb-test-application', location_id: 'LTEST123' };
-const PACKS = [{ code: 'pack3', walkthroughs: 3, price_cents: 16900 }, { code: 'pack10', walkthroughs: 10, price_cents: 49900 }];
+// Offer 2026-11-11.1: the codes keep their names; `walkthroughs` carries the room count, with `rooms` beside it.
+const PACKS = [{ code: 'pack3', walkthroughs: 30, rooms: 30, price_cents: 16900 }, { code: 'pack10', walkthroughs: 100, rooms: 100, price_cents: 49900 }];
 // The server's answers: they fix the walkthroughs added, whatever the page shows.
 const boughtAnswer = (body, overrides = {}) => {
   const pack = PACKS.find(entry => entry.code === body.pack_code);
@@ -2060,7 +2061,7 @@ test('walkthrough packs read their own answer for the plan’s workspace and sit
   assert.equal(packsCard(h).hidden, false);
   assert.equal(packsCard(h).attributes['aria-busy'], 'false');
   assert.equal(packClass(h, 'annual-title').tagName, 'H2');
-  assert.equal(packClass(h, 'annual-title').textContent, 'Walkthrough packs');
+  assert.equal(packClass(h, 'annual-title').textContent, 'Top-up packs');
   assert.match(markup, /<section id="account-packs" class="packs-offer" aria-labelledby="account-packs-title" hidden><\/section>/);
   assert.equal(h.scripts.length, 0, 'Square’s SDK is not loaded just to show the card');
   // One lane read per desk load, and it carries no token.
@@ -2072,7 +2073,7 @@ test('walkthrough packs read their own answer for the plan’s workspace and sit
 test('while the answer is on its way the packs card shows its own rows, not prices', async () => {
   const h = await withPacks(() => new Promise(() => {}));
   assert.equal(packsCard(h).attributes['aria-busy'], 'true');
-  assert.match(packText(h), /Checking walkthrough packs and how many extra walkthroughs you have…/);
+  assert.match(packText(h), /Checking packs and how many extra rooms you have…/);
   assert.equal(packAll(h, 'annual-skeleton-row').length, 2);
   // The two pack rows are the loaded choice rows' own boxes, between the balance and the charge line.
   assert.equal(packAll(h, 'annual-option').length, 2);
@@ -2087,10 +2088,10 @@ test('not available: before the free months or plan start, and for a member who 
   assert.match(packText(pending), /Packs can be bought once your free months or plan have started\./);
   assert.match(packText(pending), /used after your included ones and expire 12 months after purchase/);
   const member = await withPacks(packLocked(['not_owner']));
-  assert.match(packText(member), /Only the workspace owner can buy walkthrough packs\./);
+  assert.match(packText(member), /Only the workspace owner can buy packs\./);
   // Both reasons at once: the owner question is answered first.
   const both = await withPacks(packLocked(['not_owner', 'not_activated']));
-  assert.match(packText(both), /Only the workspace owner can buy walkthrough packs\./);
+  assert.match(packText(both), /Only the workspace owner can buy packs\./);
   for (const h of [pending, member, both]) {
     assert.doesNotMatch(packText(h), /A\$/);
     assert.equal(packNodes(h).some(el => ['A', 'BUTTON', 'INPUT'].includes(el.tagName)), false);
@@ -2099,30 +2100,30 @@ test('not available: before the free months or plan start, and for a member who 
 
 test('choose a pack: prices as statements, the charge beside the one filled button, and choosing changes only those words', async () => {
   const h = await withPacks(packOffer());
-  assert.deepEqual(packAll(h, 'annual-option-name').map(el => el.textContent), ['3 walkthroughs', '10 walkthroughs']);
+  assert.deepEqual(packAll(h, 'annual-option-name').map(el => el.textContent), ['30 rooms', '100 rooms']);
   assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['A$169', 'A$499']);
   assert.deepEqual(packAll(h, 'annual-qualifier').map(el => el.textContent), ['Use within 12 months of purchase', 'Use within 12 months of purchase']);
   assert.equal(packRadio(h, 'pack3').checked, true, 'the smaller pack is chosen first');
-  assert.equal(packClass(h, 'packs-balance').textContent, 'No extra walkthroughs available.');
+  assert.equal(packClass(h, 'packs-balance').textContent, 'No extra rooms available.');
   const charge = packClass(h, 'annual-charge');
-  assert.equal(charge.textContent, 'Charged today: A$169 for 3 walkthroughs, to use within 12 months.');
+  assert.equal(charge.textContent, 'Charged today: A$169 for 30 rooms, to use within 12 months.');
   const [buy] = packFilled(h);
   assert.equal(packFilled(h).length, 1);
-  assert.equal(buy.textContent, 'Buy 3 walkthroughs');
+  assert.equal(buy.textContent, 'Buy 30 rooms');
   assert.equal(buy.attributes['aria-describedby'], charge.id);
   assert.equal(charge.id, 'account-packs-charge');
   assert.doesNotMatch(packText(h), NO_CHARGE_PROMISE);
   await choosePack(h, 'pack10');
-  assert.equal(packButton(h, 'Buy 10 walkthroughs'), buy, 'the card was not redrawn under the choice');
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$499 for 10 walkthroughs, to use within 12 months.');
+  assert.equal(packButton(h, 'Buy 100 rooms'), buy, 'the card was not redrawn under the choice');
+  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$499 for 100 rooms, to use within 12 months.');
   // A balance and its next expiry, from the answer.
   const credits = await withPacks(packOffer({ credits_available: 2, next_expiry: '2027-03-02' }));
-  assert.equal(packClass(credits, 'packs-balance').textContent, '2 extra walkthroughs available; the next expiry is 2 March 2027.');
+  assert.equal(packClass(credits, 'packs-balance').textContent, '2 extra rooms available; the next expiry is 2 March 2027.');
 });
 
 test('Buy loads Square’s SDK once, on demand, opens its labelled card field in the card and moves focus into it', async () => {
   const h = await withPacks(packOffer());
-  await pressPack(h, 'Buy 3 walkthroughs');
+  await pressPack(h, 'Buy 30 rooms');
   assert.equal(h.scripts.length, 1);
   assert.equal(h.scripts[0].src, SQUARE_SDK);
   assert.deepEqual(squareLog(h, 'attach'), [['attach', '#account-packs-card-field']]);
@@ -2132,19 +2133,19 @@ test('Buy loads Square’s SDK once, on demand, opens its labelled card field in
   assert.equal(field.attributes.role, 'group');
   assert.equal(packNodes(h).find(el => el.id === field.attributes['aria-labelledby']).textContent, 'Card details');
   assert.deepEqual(packFilled(h).map(el => el.textContent), ['Pay A$169']);
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$169 for 3 walkthroughs, to use within 12 months.');
+  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$169 for 30 rooms, to use within 12 months.');
   assert.equal(posts(h, '/square/packs/checkout').length, 0, 'opening the form sends nothing');
   await pressPack(h, 'Not now');
   assert.equal(squareLog(h, 'destroy').length, 1);
-  assert.equal(packButton(h, 'Buy 3 walkthroughs').wasFocused, true);
+  assert.equal(packButton(h, 'Buy 30 rooms').wasFocused, true);
   assert.match(h.ids['account-status'].textContent, /Card form closed\. Nothing was charged\./);
-  await pressPack(h, 'Buy 3 walkthroughs');
+  await pressPack(h, 'Buy 30 rooms');
   assert.equal(h.scripts.length, 1, 'the SDK is loaded once');
 });
 
 test('Pay sends only Square’s token and shows what the server added, the balance and the date to use them by', async () => {
-  const h = await withPacks(packOffer(), { capacity: [0, 3] });
-  await pressPack(h, 'Buy 3 walkthroughs');
+  const h = await withPacks(packOffer(), { capacity: [0, 30] });
+  await pressPack(h, 'Buy 30 rooms');
   await pressPack(h, 'Pay A$169');
   const [checkout] = posts(h, '/square/packs/checkout');
   assert.equal(checkout.method, 'POST');
@@ -2153,26 +2154,26 @@ test('Pay sends only Square’s token and shows what the server added, the balan
   const { attempt_id: attemptID, ...rest } = checkout.body;
   assert.deepEqual(rest, { workspace_id: 'w1', pack_code: 'pack3', source_id: 'cnon:card-nonce-ok' });
   assert.match(attemptID, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, 'one attempt id per purchase intent');
-  assert.equal(packClass(h, 'annual-lead').textContent, '3 walkthroughs added; 3 available; use by ' + useBy() + '.');
+  assert.equal(packClass(h, 'annual-lead').textContent, '30 rooms added; 30 available; use by ' + useBy() + '.');
   assert.equal(packClass(h, 'annual-charge').textContent, 'A$169 charged today.');
-  assert.match(packText(h), /They are used after your included walkthroughs, oldest pack first\./);
+  assert.match(packText(h), /They are used after your included rooms, oldest pack first\./);
   assert.equal(packClass(h, 'annual-title').wasFocused, true);
   assert.equal(squareLog(h, 'destroy').length, 1);
   assert.equal(packFilled(h).length, 0, 'done: nothing filled');
-  assert.match(h.ids['account-status'].textContent, /3 walkthroughs added\. A\$169 charged today\./);
+  assert.match(h.ids['account-status'].textContent, /30 rooms added\. A\$169 charged today\./);
   assert.equal(h.reads(), 1, 'the bought state is the answer itself');
   // The plan panel above re-reads the ledger, so both state the same balance.
   assert.equal(h.capacityReads(), 2);
   assert.ok(planValues(h).includes('2 of 6 used'), planValues(h).join(' | '));
-  assert.ok(planValues(h).includes('3 available'));
+  assert.ok(planValues(h).includes('30 available'));
   // Buy another pack goes back to the choice, with the balance the answer stated.
   await pressPack(h, 'Buy another pack');
-  assert.equal(packClass(h, 'packs-balance').textContent, '3 extra walkthroughs available; the next expiry is ' + useBy() + '.');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Buy 3 walkthroughs']);
+  assert.equal(packClass(h, 'packs-balance').textContent, '30 extra rooms available; the next expiry is ' + useBy() + '.');
+  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Buy 30 rooms']);
   assert.equal(packFilled(h)[0].wasFocused, true);
   // The server's own expiry is used when it gives one.
   const dated = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => boughtAnswer(body, { expires_on: '2027-09-30' }) } });
-  await pressPack(dated, 'Buy 3 walkthroughs');
+  await pressPack(dated, 'Buy 30 rooms');
   await pressPack(dated, 'Pay A$169');
   assert.match(packClass(dated, 'annual-lead').textContent, /use by 30 September 2027\.$/);
 });
@@ -2180,7 +2181,7 @@ test('Pay sends only Square’s token and shows what the server added, the balan
 test('a declined card is a plain sentence under the button, the card field kept, and Try again pays with a fresh token', async () => {
   let attempt = 0;
   const h = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => (++attempt === 1 ? [402, { error: 'payment_declined' }] : boughtAnswer(body)) } });
-  await pressPack(h, 'Buy 3 walkthroughs');
+  await pressPack(h, 'Buy 30 rooms');
   const charge = packClass(h, 'annual-charge').textContent;
   await pressPack(h, 'Pay A$169');
   assert.equal(packProblem(h), 'Your card was declined, so nothing was charged. Check the details or use another card, then try again.');
@@ -2198,7 +2199,7 @@ test('a declined card is a plain sentence under the button, the card field kept,
   assert.equal(tries.length, 2);
   assert.ok(tries[0].body.attempt_id, 'the first try names its attempt');
   assert.equal(tries[1].body.attempt_id, tries[0].body.attempt_id, 'Try again keeps the same attempt, so a charge Square already took is never repeated');
-  assert.match(packClass(h, 'annual-lead').textContent, /^3 walkthroughs added; 3 available/);
+  assert.match(packClass(h, 'annual-lead').textContent, /^30 rooms added; 30 available/);
 });
 
 test('each refusal made before a payment says nothing was charged; the card field and Try again stay', async () => {
@@ -2209,7 +2210,7 @@ test('each refusal made before a payment says nothing was charged; the card fiel
   };
   for (const [code, [status, sentence]] of Object.entries(sentences)) {
     const h = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [status, { error: code }] } });
-    await pressPack(h, 'Buy 3 walkthroughs');
+    await pressPack(h, 'Buy 30 rooms');
     await pressPack(h, 'Pay A$169');
     assert.equal(packProblem(h), sentence, code);
     assert.ok(packClass(h, 'annual-card-field'), `${code} keeps the card field`);
@@ -2221,34 +2222,34 @@ test('each refusal made before a payment says nothing was charged; the card fiel
 test('an unconfirmed purchase never claims nothing was charged; it re-reads the balance in place and keeps the card field', async () => {
   for (const route of [() => [502, { error: 'checkout_failed' }], 'reject', () => [200, { receipt: 'unreadable' }], () => [500, { error: 'server_error' }]]) {
     const h = await withPacks([packOffer(), packOffer({ credits_available: 3, next_expiry: '2027-09-24' })], { hooks: { '/square/packs/checkout': route } });
-    await pressPack(h, 'Buy 3 walkthroughs');
+    await pressPack(h, 'Buy 30 rooms');
     const field = packClass(h, 'annual-card-field');
     await pressPack(h, 'Pay A$169');
-    assert.equal(packProblem(h), 'We couldn’t confirm the purchase. If your card was charged, the walkthroughs are added when the payment clears. Check the count above in a few minutes before you try again.');
+    assert.equal(packProblem(h), 'We couldn’t confirm the purchase. If your card was charged, the rooms are added when the payment clears. Check the count above in a few minutes before you try again.');
     assert.doesNotMatch(packText(h), /nothing was charged/i);
     assert.equal(packClass(h, 'annual-card-field'), field, 'Square’s field was not redrawn');
     assert.equal(h.reads(), 2, 'the balance is read again');
-    assert.equal(packClass(h, 'packs-balance').textContent, '3 extra walkthroughs available; the next expiry is 24 September 2027.');
+    assert.equal(packClass(h, 'packs-balance').textContent, '3 extra rooms available; the next expiry is 24 September 2027.');
     assert.deepEqual(packFilled(h).map(el => el.textContent), ['Try again']);
   }
 });
 
 test('card details Square cannot use, an expired session and a missing token send nothing to the checkout', async () => {
   const declined = await withPacks(packOffer(), { squareOptions: { tokenize: () => ({ status: 'Invalid', errors: [{ field: 'cardNumber' }] }) } });
-  await pressPack(declined, 'Buy 3 walkthroughs');
+  await pressPack(declined, 'Buy 30 rooms');
   await pressPack(declined, 'Pay A$169');
   assert.equal(packProblem(declined), 'Square couldn’t use those card details. Check them and try again. Nothing was charged.');
   assert.equal(posts(declined, '/square/packs/checkout').length, 0);
   assert.ok(packClass(declined, 'annual-card-field'));
   const expired = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [401, { error: 'unauthorized' }] } });
-  await pressPack(expired, 'Buy 3 walkthroughs');
+  await pressPack(expired, 'Buy 30 rooms');
   await pressPack(expired, 'Pay A$169');
   assert.equal(expired.ids['account-home'].hidden, true);
   assert.match(expired.ids['account-status'].textContent, /sign-in has expired\. Sign in again to buy a pack\. Nothing was charged\./);
   assert.equal(packsCard(expired).hidden, true);
   assert.equal(squareLog(expired, 'destroy').length, 1, 'Square’s field is let go');
   const tokenless = await withPacks(packOffer(), { accessToken: null });
-  await pressPack(tokenless, 'Buy 3 walkthroughs');
+  await pressPack(tokenless, 'Buy 30 rooms');
   await pressPack(tokenless, 'Pay A$169');
   assert.equal(posts(tokenless, '/square/packs/checkout').length, 0, 'no request without a bearer token');
 });
@@ -2258,23 +2259,25 @@ test('card lane closed: the packs as statements, “opens soon” and the studio
   assert.match(packText(h), /Card payment for packs opens soon\./);
   assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['A$169', 'A$499']);
   assert.deepEqual(packNodes(h).filter(el => el.tagName === 'A').map(link => [link.textContent, link.href]),
-    [['Ask Veylet support to invoice a pack', 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20pack']]);
+    [['Ask Veylet support to invoice a pack', 'mailto:support@veylet.com?subject=Veylet%20pack']]);
   assert.equal(packNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
   assert.equal(packFilled(h).length, 0);
 });
 
 test('an unreadable pack answer or lane is an error with Try again; a missing function or workspace shows no card', async () => {
   const h = await withPacks([() => ({ error: { message: 'offline' } }), packOffer()]);
-  assert.equal(packClass(h, 'annual-lead').textContent, 'Couldn’t check walkthrough packs.');
+  assert.equal(packClass(h, 'annual-lead').textContent, 'Couldn’t check packs.');
   assert.match(packText(h), /Nothing has changed, and your plan above is not affected\./);
   assert.doesNotMatch(packText(h), /A\$/);
   assert.equal(packFilled(h).length, 0);
   await pressPack(h, 'Try again');
   assert.equal(h.reads(), 2);
-  assert.ok(packButton(h, 'Buy 3 walkthroughs'), 'the second answer is shown');
+  assert.ok(packButton(h, 'Buy 30 rooms'), 'the second answer is shown');
   assert.equal(packClass(h, 'annual-title').wasFocused, true);
   const broken = [
     packOffer({ packs: [{ code: 'pack3', walkthroughs: 4, price_cents: 16900 }] }),
+    packOffer({ packs: [{ code: 'pack3', walkthroughs: 3, price_cents: 16900 }] }),
+    packOffer({ packs: [{ ...PACKS[0], rooms: 31 }] }),
     packOffer({ packs: [{ code: 'pack5', walkthroughs: 5, price_cents: 20000 }] }),
     packOffer({ packs: [PACKS[0], PACKS[0]] }),
     packOffer({ packs: [{ ...PACKS[0], price_cents: '169' }] }),
@@ -2288,12 +2291,12 @@ test('an unreadable pack answer or lane is an error with Try again; a missing fu
   ];
   for (const offer of broken) {
     const bad = await withPacks(offer);
-    assert.match(packText(bad), /Couldn’t check walkthrough packs\./, JSON.stringify(offer).slice(0, 90));
+    assert.match(packText(bad), /Couldn’t check packs\./, JSON.stringify(offer).slice(0, 90));
   }
   const noLane = await withPacks(packOffer(), { hooks: { '/square/lane': 'reject' } });
-  assert.match(packText(noLane), /Couldn’t check walkthrough packs\./);
+  assert.match(packText(noLane), /Couldn’t check packs\./);
   const lockedNoLane = await withPacks(packLocked(['not_owner']), { hooks: { '/square/lane': 'reject' } });
-  assert.match(packText(lockedNoLane), /Only the workspace owner can buy walkthrough packs\./);
+  assert.match(packText(lockedNoLane), /Only the workspace owner can buy packs\./);
   const missing = await withPacks(() => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }));
   assert.equal(packsCard(missing).hidden, true);
   const none = await load({ tables: { memberships: { data: [] } } });
@@ -2307,18 +2310,18 @@ test('Square Sandbox labels every pack price and payment action Test, before and
     '/square/packs/checkout': body => boughtAnswer(body, { sandbox: true }) };
   const h = await withPacks(packOffer(), { hooks: sandbox });
   assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['Test · A$169', 'Test · A$499']);
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Test · Charged today: A$169 for 3 walkthroughs, to use within 12 months.');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Test · Buy 3 walkthroughs']);
+  assert.equal(packClass(h, 'annual-charge').textContent, 'Test · Charged today: A$169 for 30 rooms, to use within 12 months.');
+  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Test · Buy 30 rooms']);
   assert.match(packText(h), /Square Sandbox: a test payment, not a live charge\./);
-  await pressPack(h, 'Test · Buy 3 walkthroughs');
+  await pressPack(h, 'Test · Buy 30 rooms');
   assert.deepEqual(packFilled(h).map(el => el.textContent), ['Test · Pay A$169']);
   await pressPack(h, 'Test · Pay A$169');
-  assert.match(packClass(h, 'annual-lead').textContent, /^Test · 3 walkthroughs added;/);
+  assert.match(packClass(h, 'annual-lead').textContent, /^Test · 30 rooms added;/);
   assert.equal(packClass(h, 'annual-charge').textContent, 'Test · A$169 charged today.');
   assert.match(packText(h), /Square Sandbox: a test payment, not a live charge\./);
   // The answer's own sandbox flag labels the result even if the lane said nothing.
   const flagged = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => boughtAnswer(body, { sandbox: true }) } });
-  await pressPack(flagged, 'Buy 3 walkthroughs');
+  await pressPack(flagged, 'Buy 30 rooms');
   await pressPack(flagged, 'Pay A$169');
   assert.match(packClass(flagged, 'annual-lead').textContent, /^Test · /);
   const live = await withPacks(packOffer());
@@ -2339,7 +2342,7 @@ test('every pack state has at most one filled action, and none promises that not
     assert.doesNotMatch(packText(h), NO_CHARGE_PROMISE);
   }
   const open = await withPacks(packOffer());
-  await pressPack(open, 'Buy 3 walkthroughs');
+  await pressPack(open, 'Buy 30 rooms');
   assert.equal(packFilled(open).length, 1, 'the card form has one filled action');
   assert.doesNotMatch(packText(open), NO_CHARGE_PROMISE);
   await pressPack(open, 'Pay A$169');
@@ -2351,36 +2354,36 @@ test('truth check: the pack’s price and walkthrough count read the same in the
     const h = await withPacks(packOffer());
     if (pack.code !== 'pack3') await choosePack(h, pack.code);
     const option = packRadio(h, pack.code).checked && packAll(h, 'annual-option-body')[PACKS.indexOf(pack)];
-    const optionCount = Number(option.all().find(el => el.className === 'annual-option-name').textContent.match(/^(\d+) walkthroughs$/)[1]);
+    const optionCount = Number(option.all().find(el => el.className === 'annual-option-name').textContent.match(/^(\d+) rooms$/)[1]);
     const optionPrice = option.all().find(el => el.className === 'annual-amount').textContent;
-    const buy = packFilled(h)[0].textContent.match(/^Buy (\d+) walkthroughs$/);
-    const before = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) walkthroughs, to use within 12 months\.$/);
+    const buy = packFilled(h)[0].textContent.match(/^Buy (\d+) rooms$/);
+    const before = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) rooms, to use within 12 months\.$/);
     await pressPack(h, buy[0]);
     const pay = packFilled(h)[0].textContent.match(/^Pay (A\$[\d,]+)$/);
-    const beside = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) walkthroughs/);
+    const beside = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) rooms/);
     await pressPack(h, pay[0]);
-    const lead = packClass(h, 'annual-lead').textContent.match(/^(\d+) walkthroughs added; (\d+) available; use by (.+)\.$/);
+    const lead = packClass(h, 'annual-lead').textContent.match(/^(\d+) rooms added; (\d+) available; use by (.+)\.$/);
     const charged = packClass(h, 'annual-charge').textContent.match(/^(A\$[\d,]+) charged today\.$/);
     const price = 'A$' + (pack.price_cents / 100).toLocaleString('en-AU');
     assert.deepEqual([optionPrice, before[1], pay[1], beside[1], charged[1]], [price, price, price, price, price], pack.code + ' price');
     assert.deepEqual([optionCount, Number(buy[1]), Number(before[2]), Number(beside[2]), Number(lead[1])],
-      Array(5).fill(pack.walkthroughs), pack.code + ' walkthroughs');
+      Array(5).fill(pack.rooms), pack.code + ' rooms');
     assert.equal(posts(h, '/square/packs/checkout')[0].body.pack_code, pack.code);
     assert.equal(lead[3], useBy());
     assert.equal(packClass(h, 'annual-notice'), undefined, 'nothing differs, so nothing is flagged');
   }
   // When the server's terms differ from what was shown, its terms are stated, and said to differ.
-  const moved = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [200, { credited: 10, credits_available: 10, amount_cents: 49900, sandbox: false }] } });
-  await pressPack(moved, 'Buy 3 walkthroughs');
+  const moved = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [200, { credited: 100, credits_available: 100, amount_cents: 49900, sandbox: false }] } });
+  await pressPack(moved, 'Buy 30 rooms');
   await pressPack(moved, 'Pay A$169');
-  assert.match(packClass(moved, 'annual-lead').textContent, /^10 walkthroughs added; 10 available;/);
+  assert.match(packClass(moved, 'annual-lead').textContent, /^100 rooms added; 100 available;/);
   assert.equal(packClass(moved, 'annual-charge').textContent, 'A$499 charged today.');
   assert.match(packClass(moved, 'annual-notice').textContent, /they differ from what was shown before you paid/);
 });
 
 test('signing out hides walkthrough packs and lets go of Square’s card field', async () => {
   const h = await withPacks(packOffer());
-  await pressPack(h, 'Buy 3 walkthroughs');
+  await pressPack(h, 'Buy 30 rooms');
   h.supabase.auth.callback('SIGNED_OUT', null);
   await settle();
   assert.equal(packsCard(h).hidden, true);
@@ -2401,20 +2404,22 @@ test('what is left follows the sentence, then how the plan is managed, then its 
   // The count is the table's rows and nothing under them repeats it; the counting rule waits,
   // word for word, behind a disclosure titled in plain words.
   assert.deepEqual(capacity.children.map(el => el.className), ['account-details plan-counting']);
-  assert.deepEqual(capacity.children[0].children.map(el => [el.tagName, el.className || '']), [['SUMMARY', ''], ['P', 'plan-scope']]);
-  assert.equal(capacity.children[0].children[0].textContent, 'How walkthroughs are counted');
-  assert.match(capacity.children[0].children[1].textContent, /^Each new accepted capture uses one walkthrough, regardless of room count\. /);
+  assert.deepEqual(capacity.children[0].children.map(el => [el.tagName, el.className || '']), [['SUMMARY', ''], ['P', 'plan-scope'], ['A', 'text-link']]);
+  // The counting rules are stated once, on the offer page; the desk links to them.
+  assert.deepEqual([capacity.children[0].children[2].href, capacity.children[0].children[2].textContent], ['/offer#counts-title', 'The counting rules']);
+  assert.equal(capacity.children[0].children[0].textContent, 'How rooms are counted');
+  assert.match(capacity.children[0].children[1].textContent, /^A tour uses the rooms counted in it when it passes the check and you approve it\. Halls, stairs and connecting spaces are free with up to 2 standing spots\. /);
   assert.equal(h.ids['account-plan-body'].all().filter(el => el.className === 'plan-allowance').length, 0);
   assert.ok(planValues(h).includes('2 of 6 used') && planValues(h).includes('0 available'), planValues(h).join(' | '));
-  assert.doesNotMatch(parts[2].textContent, /free walkthroughs used/, 'the sentence keeps only what happens on the renewal date');
+  assert.doesNotMatch(parts[2].textContent, /free rooms used/, 'the sentence keeps only what happens on the renewal date');
   // With walkthroughs left, the packs card below is the pointer to packs; the panel does not repeat it.
-  assert.doesNotMatch(planText(h), /Need more walkthroughs|Ask about another walkthrough/);
+  assert.doesNotMatch(planText(h), /Need more (?:walkthroughs|rooms)|Ask about another walkthrough/);
   const prose = h.ids['account-plan-body'].all().filter(el => el.tagName === 'P' && !/plan-title|plan-actions/.test(el.className));
   assert.ok(prose.length <= 4, 'at most four short paragraphs: ' + prose.map(el => el.className).join(', '));
   // Used up: the pack is the next step, so the panel names it and the studio link returns.
   const used = await withCapacity({ ...capacityRow, included_used: 6, included_remaining: 0, can_accept: false, reason_code: 'allowance_exhausted' }, { accepted_in_free_months: 6 });
-  assert.match(capacityText(used), /a walkthrough pack adds more/);
-  assert.ok(planLinks(used).includes('mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity'));
+  assert.match(capacityText(used), /a pack adds more rooms/);
+  assert.ok(planLinks(used).includes('mailto:support@veylet.com?subject=Veylet%20room%20capacity'));
 });
 
 test('existing checkout recovery: Sandbox reads “Test ·” on the plan and on the packs card, said once under each heading', async () => {
@@ -2449,7 +2454,7 @@ const itemOf = (h, id) => h.all().find(el => el.tagName === 'LI' && el.dataset.t
 const tourItems = h => h.all().filter(el => el.tagName === 'LI' && /\bdash-tour\b/.test(el.className || ''));
 const itemText = item => item.all().filter(el => !el.hidden).map(el => el.textContent).filter(Boolean).join('\n');
 const correctionNote = h => (h.all().find(el => (el.className || '').includes('tour-correction')) || {}).textContent;
-const LINEAGE_SENTENCE = 'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance, and your existing link and embed will show this version.';
+const LINEAGE_SENTENCE = 'This is a correction of walkthrough 1a2b3c4d. Approving it uses no rooms from your allowance, and your existing link and embed will show this version.';
 
 test('the tour list asks for each tour’s walkthrough and version, and lists no version a later one replaced', async () => {
   const h = await load({ tours: [version(W2, 2, { share_token: TOKEN }), version(W1, 1, { superseded_at: '2026-09-20T01:00:00Z' })], approved: true });
@@ -2501,9 +2506,9 @@ test('a correction’s review says how approving it counts, from the server’s 
   assert.equal(correctionNote(h), LINEAGE_SENTENCE);
   const words = async answer => correctionNote(await load({ tours: [version(W2, 2)], rpc: { get_walkthrough_revision: async () => answer } }));
   assert.equal(await words({ data: [lineage({ link_moves_on_approval: false })] }),
-    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
+    'This is a correction of walkthrough 1a2b3c4d. Approving it uses no rooms from your allowance. It has no live link now, so approving it also turns sharing on.');
   assert.equal(await words({ data: [lineage({ approval_uses_allowance: true, walkthrough_accepted: false, link_moves_on_approval: false })] }),
-    'This is a correction of walkthrough 1a2b3c4d. That walkthrough hasn’t been accepted yet, so approving this version uses one walkthrough from your allowance; later corrections of it use none.');
+    'This is a correction of walkthrough 1a2b3c4d. That walkthrough hasn’t been accepted yet, so approving this version uses its counted rooms from your allowance; later corrections of it use none.');
   // Unanswered or unreadable: nothing is claimed about the allowance, and the review stays available.
   for (const answer of [{ error: { message: 'offline' } }, { data: [lineage({ tour_id: W1 })] }, { data: [{ tour_id: W2 }] }]) {
     const unread = await load({ tours: [version(W2, 2)], rpc: { get_walkthrough_revision: async () => answer } });
@@ -2599,7 +2604,7 @@ test('a link to a version that was replaced selects its walkthrough’s current 
 const dayOf = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const isoIn = days => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 const allowanceLine = h => (h.ids['account-plan-body'].all().find(el => el.className === 'plan-allowance') || {}).textContent;
-// The Veylet plan's allowance from offer.json (2026-09-29.2: 3 a month, up to 6 banked, a yearly pool of 36).
+// The Veylet plan's allowance from offer.json (2026-11-11.1: 30 rooms a month, up to 40 banked, a yearly pool of 360).
 const PLAN_RECORD = JSON.parse(fs.readFileSync(path.join(__dirname, '../dist/offer/offer.json'), 'utf8')).plans.find(entry => entry.code === 'solo');
 const PER_MONTH = PLAN_RECORD.includedPerMonth;
 const MAX_BANKED = PLAN_RECORD.rollover.maxBanked;
@@ -2629,38 +2634,38 @@ test('offer v8: the free months say “Free until {date}, then {price} unless yo
     assert.ok(body.endsWith('Free until ' + until + ', then ' + price + ' unless you cancel.'), body);
     assert.doesNotMatch(planText(h), /remind/i, 'no reminder email is running yet, so none is promised');
   }
-  // With no workspace yet, the offer's own default: 1 free month with 3 walkthroughs.
+  // With no workspace yet, the offer's own default: 1 free month with 30 rooms.
   const none = await load({ tables: { memberships: { data: [] } } });
-  assert.match(planText(none), /Eligible subscribers can start with 1 free month and 3 walkthroughs in total\./);
+  assert.match(planText(none), /Eligible subscribers can start with 1 free month and 30 rooms in total\./);
   // No string the desk can show mentions a reminder (comments aside).
   assert.doesNotMatch(account.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, ''), /remind/i);
 });
 
 test('offer v9: a monthly plan states its banked rollover, up to the plan row’s own bank cap, only when the capacity answer carries it', async () => {
-  assert.deepEqual([PER_MONTH, MAX_BANKED], [3, 6], 'offer 2026-09-29.2: 3 a month, up to 6 banked');
+  assert.deepEqual([PER_MONTH, MAX_BANKED], [30, 40], 'offer 2026-11-11.1: 30 rooms a month, up to 40 banked');
   const h = await withCapacity(BANKED_CAP, ACTIVE_MONTHLY);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
   assert.deepEqual(planTerms(h), ACTIVE_TERMS, 'the ledger keeps its rows');
   const limit = PER_MONTH + 2;
   assert.equal(planValues(h)[1], `0 of ${limit} used`, 'the bank is part of this month’s limit');
   // Launch review #1: one count on the panel; the sentence says the same numbers, never "0 of 3 this month".
-  assert.ok(planText(h).includes(`0 of ${limit} walkthroughs used this month (${PER_MONTH} a month + 2 banked).`), planText(h));
-  assert.doesNotMatch(planText(h), new RegExp(`0 of ${PER_MONTH} walkthroughs this month|included accepted`));
-  assert.equal(allowanceLine(h), `${limit} included walkthroughs remaining · 0 extra walkthroughs available.`);
-  assert.ok(capacityText(h).includes(`This month’s ${limit} include 2 banked from earlier months. Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(h));
+  assert.ok(planText(h).includes(`0 of ${limit} rooms used this month (${PER_MONTH} a month + 2 banked).`), planText(h));
+  assert.doesNotMatch(planText(h), new RegExp(`0 of ${PER_MONTH} rooms this month|included accepted`));
+  assert.equal(allowanceLine(h), `${limit} included rooms remaining · 0 extra rooms available.`);
+  assert.ok(capacityText(h).includes(`This month’s ${limit} include 2 banked from earlier months. Unused monthly rooms carry over, up to ${ROW_MAX_BANKED} banked.`), capacityText(h));
   assert.doesNotMatch(planText(h), /resets monthly|do not carry over/);
   // Nothing banked yet: the rule, and no count.
   const empty = await withCapacity({ ...BANKED_CAP, included_limit: PER_MONTH, included_remaining: PER_MONTH, banked_units: 0 }, ACTIVE_MONTHLY);
-  assert.ok(capacityText(empty).includes(`Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(empty));
+  assert.ok(capacityText(empty).includes(`Unused monthly rooms carry over, up to ${ROW_MAX_BANKED} banked.`), capacityText(empty));
   assert.doesNotMatch(capacityText(empty), /banked from earlier/);
   // A full bank beside this month's allowance.
   const fullLimit = PER_MONTH + ROW_MAX_BANKED;
   const full = await withCapacity({ ...BANKED_CAP, banked_units: ROW_MAX_BANKED, included_limit: fullLimit, included_remaining: fullLimit }, ACTIVE_MONTHLY);
-  assert.ok(capacityText(full).includes(`This month’s ${fullLimit} include ${ROW_MAX_BANKED} banked from earlier months. Unused monthly walkthroughs roll over, up to ${ROW_MAX_BANKED} banked.`), capacityText(full));
+  assert.ok(capacityText(full).includes(`This month’s ${fullLimit} include ${ROW_MAX_BANKED} banked from earlier months. Unused monthly rooms carry over, up to ${ROW_MAX_BANKED} banked.`), capacityText(full));
   assert.doesNotMatch(capacityText(full), new RegExp('up to ' + MAX_BANKED + ' banked'), 'never the offer’s number over the account’s own');
   // A row without max_banked: the bank is still read, and the rollover says no cap.
   const noCap = await withCapacity(BANKED_CAP, { ...ACTIVE_MONTHLY, max_banked: null });
-  assert.ok(capacityText(noCap).includes('This month’s ' + (PER_MONTH + 2) + ' include 2 banked from earlier months. Unused monthly walkthroughs roll over.'), capacityText(noCap));
+  assert.ok(capacityText(noCap).includes('This month’s ' + (PER_MONTH + 2) + ' include 2 banked from earlier months. Unused monthly rooms carry over.'), capacityText(noCap));
   assert.doesNotMatch(capacityText(noCap), /up to \d+ banked/);
   // Absent or unreadable: today's reading, and no rollover line at all (a bank over the record's maximum is unreadable).
   for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: ROW_MAX_BANKED + 1, included_limit: fullLimit + 1, included_remaining: fullLimit + 1 },
@@ -2679,28 +2684,28 @@ test('offer v9: a monthly plan states its banked rollover, up to the plan row’
 });
 
 test('offer v9: an annual plan states its yearly pool from the record, the bonus as extra walkthroughs, and the day it resets', async () => {
-  assert.equal(YEAR_POOL, 36, 'offer 2026-09-29.2: a yearly pool of 36');
+  assert.equal(YEAR_POOL, 360, 'offer 2026-11-11.1: a yearly pool of 360 rooms');
   const left = YEAR_POOL - 5;
   const resets = longDate('2027-07-15T00:00:00Z');
   const h = await withCapacity(POOL_CAP, ACTIVE_ANNUAL);
   assert.equal(planTitle(h), 'Veylet plan · A$1,399.99 a year');
-  assert.deepEqual(planTerms(h), ['State', 'Plan year', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in']);
+  assert.deepEqual(planTerms(h), ['State', 'Plan year', 'Renews', 'Hosting', 'Extra rooms', 'Managed in']);
   assert.equal(planValues(h)[1], `5 of ${YEAR_POOL} used`);
-  assert.equal(allowanceLine(h), `${left} of ${YEAR_POOL} walkthroughs left this plan year · 0 extra walkthroughs available.`);
-  assert.ok(capacityText(h).includes(`Your ${YEAR_POOL} walkthroughs are a yearly pool to use any time, with no monthly limit; it resets on ` + resets +
+  assert.equal(allowanceLine(h), `${left} of ${YEAR_POOL} rooms left this plan year · 0 extra rooms available.`);
+  assert.ok(capacityText(h).includes(`Your ${YEAR_POOL} rooms are a yearly pool to use any time, with no monthly limit; it resets on ` + resets +
     '. Unused ones do not carry into the next plan year.'), capacityText(h));
-  assert.ok(planText(h).includes(`5 of ${YEAR_POOL} walkthroughs used this plan year. Next billing date: ${resets}. Hosting included. Billed annually.`), planText(h));
+  assert.ok(planText(h).includes(`5 of ${YEAR_POOL} rooms used this plan year. Next billing date: ${resets}. Hosting included. Billed annually.`), planText(h));
   assert.doesNotMatch(planText(h), /this month|resets monthly|banked/);
   // A bonus already granted (the early-annual bonus is retired for new agreements): 4 bonus credits beside the pool.
   const bonus = await withCapacity({ ...POOL_CAP, extra_credits_available: 4, bonus_credits_available: 4 }, ACTIVE_ANNUAL);
-  assert.equal(allowanceLine(bonus), `${left} of ${YEAR_POOL} walkthroughs left this plan year · 4 extra walkthroughs available, including 4 bonus.`);
+  assert.equal(allowanceLine(bonus), `${left} of ${YEAR_POOL} rooms left this plan year · 4 extra rooms available, including 4 bonus.`);
   assert.equal(planValues(bonus)[4], '4 available');
   // A bonus count the extras cannot hold is not stated.
   const odd = await withCapacity({ ...POOL_CAP, extra_credits_available: 1, bonus_credits_available: 2 }, ACTIVE_ANNUAL);
   assert.doesNotMatch(allowanceLine(odd), /bonus/);
   // No reset day in the answer: the pool without an invented date.
   const undated = await withCapacity({ ...POOL_CAP, allowance_ends_at: null }, ACTIVE_ANNUAL);
-  assert.ok(capacityText(undated).includes(`Your ${YEAR_POOL} walkthroughs are a yearly pool to use any time, with no monthly limit. Unused ones`), capacityText(undated));
+  assert.ok(capacityText(undated).includes(`Your ${YEAR_POOL} rooms are a yearly pool to use any time, with no monthly limit. Unused ones`), capacityText(undated));
   // Today's server (no kind): the row's own counts, and no pool, reset or monthly reset claimed.
   const today = await withCapacity({ ...capacityRow, plan_status: 'active', included_limit: 1, included_used: 0, included_remaining: 1 }, ACTIVE_ANNUAL);
   assert.deepEqual(planTerms(today), ACTIVE_TERMS);
@@ -2725,7 +2730,7 @@ test('no “members” price wording in the desk’s strings or markup', async (
  * when the function is missing, refuses or fails. An office that arrived through
  * another office's link (?ref=) records it with claim_workspace_referral.
  */
-const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get 1 bonus walkthrough.';
+const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get 10 bonus rooms.';
 const REFERRAL_CODE = '7a3f09c2b41e';
 const REFERRAL_URL = 'https://veylet.com/account?ref=' + REFERRAL_CODE;
 const REFERRED_BY = '0123456789ab';
@@ -2770,7 +2775,7 @@ test('refer an office: the rule, the link built from the account’s own code, a
   assert.deepEqual([line.textContent, line.hidden], [said, false], 'and the line under the link repeats it');
   // What the link has done so far, as one quiet line.
   const tally = await withReferral(codeAnswer({ referred_offices: 2, bonus_walkthroughs: 1 }));
-  assert.equal(referralNodes(tally).find(el => /referral-tally/.test(el.className || '')).textContent, '2 offices referred so far · 1 bonus walkthrough received.');
+  assert.equal(referralNodes(tally).find(el => /referral-tally/.test(el.className || '')).textContent, '2 offices referred so far · 1 bonus room received.');
   // Blocked copying selects the link in its field and says so.
   const blocked = await withReferral(codeAnswer(), { clipboardBlocked: true });
   await referralButton(blocked, 'Copy link').fire('click');
@@ -2833,7 +2838,7 @@ test('referred: signed out, the gate says an office referred you and keeps the c
   const h = await load({ signedOut: true, search: '?ref=' + REFERRED_BY.toUpperCase(), sessionStorage: kept });
   const line = h.ids['account-referred'];
   assert.equal(line.hidden, false);
-  assert.equal(line.textContent, 'An office referred you to Veylet. When your office first pays, you and that office each get 1 bonus walkthrough.');
+  assert.equal(line.textContent, 'An office referred you to Veylet. When your office first pays, you and that office each get 10 bonus rooms.');
   assert.equal(kept.store.get('veylet-referred-by'), REFERRED_BY, 'kept lower-case, as the server records codes');
   assert.match(markup, /<p class="contact-note" id="account-referred" hidden><\/p>/);
   // No link, an odd code or two codes: no line and nothing kept.
@@ -2855,7 +2860,7 @@ test('referred: the owner of an office on its free months records the referring 
   const kept = sessionStore({ 'veylet-referred-by': REFERRED_BY });
   const h = await withReferral(codeAnswer(), { sessionStorage: kept,
     rpc: { claim_workspace_referral: async () => ({ data: { recorded: true, walkthroughs: 1, granted_when: 'first_payment' } }) } });
-  assert.match(referralText(h), /An office referred you to Veylet\. Record it before your office first pays, and you and the office that referred you each get 1 bonus walkthrough when it does\./);
+  assert.match(referralText(h), /An office referred you to Veylet\. Record it before your office first pays, and you and the office that referred you each get 10 bonus rooms when it does\./);
   const record = referralButton(h, RECORD);
   assert.equal(record.className, 'tour-action', 'a ghost button: no second filled action');
   assert.equal(h.calls.some(call => call[0] === 'claim_workspace_referral'), false, 'nothing is recorded before the press');
@@ -2863,7 +2868,7 @@ test('referred: the owner of an office on its free months records the referring 
   await settle();
   assert.deepEqual({ ...h.calls.find(call => call[0] === 'claim_workspace_referral')[1] }, { p_workspace_id: 'w1', p_code: REFERRED_BY });
   const said = referralNodes(h).find(el => el.attributes.role === 'status');
-  assert.equal(said.textContent, 'Recorded. When your office first pays, you and the office that referred you each get 1 bonus walkthrough.');
+  assert.equal(said.textContent, 'Recorded. When your office first pays, you and the office that referred you each get 10 bonus rooms.');
   assert.equal(said.wasFocused, true, 'focus stays in the block when the button goes');
   assert.equal(record.hidden, true);
   assert.equal(kept.store.has('veylet-referred-by'), false);
