@@ -70,7 +70,7 @@ test('the hero says what joining is for, the free month and the prices from offe
   assert.match(markup, /<h1 id="waitlist-title" tabindex="-1">Join the waitlist for 3D walkthroughs\.<\/h1>/);
   const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
   assert.equal(intro, 'Turn your next listing into a 3D walkthrough buyers can explore on any phone. When your weekly group opens, '
-    + `your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
+    + `your first month is free with ${offer.freeMonths.includedRooms} rooms, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
     + 'Capture quality is still being proven. Joining is free.');
   assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
 });
@@ -308,7 +308,7 @@ test('attribution is the stored first touch, else this page\'s own link, else no
 test('both privacy notices say waitlist sign-ups and /request enquiries are stored with Supabase and Resend emails us a copy and you a confirmation; no FormSubmit', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
-    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
+    const enquiries = /(?:<strong>Enquiries\.<\/strong>|<h2>Enquiries\.<\/h2>\s*<p>)([\s\S]*?)<\/p>/.exec(privacy)[1].replace(/\s+/g, ' ');
     assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: enquiry storage and notification -->Walkthrough enquiries from /request are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend emails us a copy and emails you a confirmation. <!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
     assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
     assert.doesNotMatch(privacy, /formsubmit|yodalai/i, file);
@@ -320,14 +320,15 @@ test('the success state lists what happens next, offers /see and sharing, and na
   const steps = [.../<ol class="next-steps waitlist-next"[^>]*>([\s\S]*?)<\/ol>/.exec(markup)[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]);
   assert.deepEqual(steps, [
     'Tell us when your next listing goes live: reply to your confirmation email, or email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a>. A rough date is fine.',
-    'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet Capture app.',
-    'Your first month is free, with 3 walkthroughs included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
+    'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet app.',
+    'Your first month is free, with 30 rooms included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
   ]);
-  assert.match(markup, />What happens next</);
-  assert.match(markup, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
-  assert.doesNotMatch(markup, /See a result/);
+  const done = /<section class="waitlist-done"[\s\S]*?<\/section>/.exec(markup)[0];
+  assert.match(done, />What happens next</);
+  assert.match(done, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
+  assert.doesNotMatch(done, /See a result/);
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
-  assert.match(markup, /\.waitlist-page \.button \{ min-height: 44px; \}/, 'the share button keeps a 44px target');
+  assert.ok(/<body class="site">/.test(markup) && Number(fs.readFileSync(path.join(dist, 'style.css'), 'utf8').match(/\.site \.button \{\s*min-height: (\d+)px;/)[1]) >= 44, 'the share button keeps a 44px target, from the shared button box');
   assert.match(markup, /id="waitlist-share-status" role="status" aria-live="polite"/);
   assert.match(markup, /id="waitlist-done-device" hidden>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Any phone can view a walkthrough\.</);
   const api = load();
@@ -365,7 +366,7 @@ test('sharing uses the share sheet, else copies the link, else shows it; a dismi
 test('both privacy notices say campaign labels, ad source and landing page travel with a sign-up, and click identifiers are not kept', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const privacy = fs.readFileSync(path.join(dist, file), 'utf8');
-    const enquiries = /<strong>Enquiries\.<\/strong>([\s\S]*?)<\/p>/.exec(privacy)[1];
+    const enquiries = /(?:<strong>Enquiries\.<\/strong>|<h2>Enquiries\.<\/h2>\s*<p>)([\s\S]*?)<\/p>/.exec(privacy)[1];
     assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-29: campaign labels on waitlist sign-ups -->When you arrive from a campaign link, this browser keeps that link’s campaign labels (such as utm_source=instagram), whether it came from a Meta or Google ad, and the Veylet page you arrived on, for the visit; a waitlist sign-up includes them so we know which link brought you. The click identifiers Meta and Google add to links are not kept.'), file);
   }
 });

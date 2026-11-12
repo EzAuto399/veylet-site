@@ -1,15 +1,15 @@
 # Veylet — full text
 
-> Veylet (Veylet Studio) makes 3D walkthroughs for homes, businesses and venues. Anyone with a supported iPhone captures a space with the Veylet Capture app; Veylet processes and checks it automatically and hosts a walkthrough the account reviews and approves before sharing, shared as a link or a website embed that viewers open with no app. Early accounts are onboarding in south-east Queensland, Australia; no client-accepted tour is available yet.
+> Veylet makes 3D walkthroughs for homes, businesses and venues. Anyone with a supported iPhone captures a space with the Veylet app; Veylet processes and checks it automatically and hosts a walkthrough the account reviews and approves before sharing, shared as a link or a website embed that viewers open with no app. Early accounts are onboarding in south-east Queensland, Australia; no client-accepted tour is available yet.
 
 Short answers:
 - Who it is for: anyone: agents, property managers and freelancers, on the same plan and prices; there is no separate tier.
-- What it is: the product is the Veylet Capture iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
+- What it is: the product is the Veylet iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
 - Processing: automatic, with no person checking. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. The check looks at how well the photos match, coverage, stray artefacts and walkable paths. We'll email you when it's ready. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
-- The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- The app: The Veylet app is distributed by invitation through TestFlight; it is not listed on the App Store yet.
 - Sending: Send from the app: it uploads in the background. Check your account for rendering status.
-- Price in one line: eligible subscribers receive 1 free month with 3 accepted walkthroughs in total, then the Veylet plan through the App Store: A$139.99/month for 3 new walkthroughs each paid month (bank up to 6), the same 3 as the free month, or A$1,399.99 upfront/year for a 36-walkthrough annual pool (the same 3 a month) with no annual rollover. Annual saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
+- Price in one line: eligible subscribers receive 1 free month with 30 rooms in total, then the Veylet plan through the App Store: A$139.99/month for 30 rooms each paid month (up to 40 banked on top of the month's 30), the same 30 as the free month, or A$1,399.99 upfront/year for a 360-room annual pool (the same 30 a month) with no annual rollover. Halls, stairs and connecting spaces are free with up to 2 standing spots. Yearly saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
 - Viewers: tour viewers need no app. Studio visits are not currently offered.
 - Contact: support@veylet.com
@@ -21,19 +21,19 @@ This file is the full public text of the pages linked from https://veylet.com/ll
 ## 3D virtual tours captured on your iPhone — Veylet
 Source: https://veylet.com/
 
-Veylet makes 3D walkthroughs of homes, businesses and venues that people can walk through on their phone before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
+Veylet makes 3D walkthroughs of homes, businesses and venues that people can look around on their phone, stop by stop, before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
 Open to anyone, admitted weekly
 New accounts are admitted in weekly groups.
-1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
+1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
 
 ### You capture the space. We make the walkthrough.
 Pilot status. We are onboarding early accounts while our own captures are still under quality review; we have no client-accepted tour to show yet. The app shows route checks; an automatic quality check assesses capture quality before a walkthrough is offered for your approval.
 No camera to buy
 - Your iPhone does the capture, in about 3 minutes a room, and the app coaches you as you walk.
 Only what you approve counts
-- Check the result and privacy first. A walkthrough uses your allowance only when you approve it for release.
+- Check the result and privacy first. A tour uses rooms only when it passes the check and you approve it.
 A link and an embed
-- Hosted while your plan is active, with a link and embed for approved sharing.
+- Hosted while your plan is active, with a link, a QR code and a website embed once you approve it.
 
 ### See a result.
 A public research apartment, processed by Veylet: a 3D walkthrough to explore in the browser and a walkthrough video to post.
@@ -41,24 +41,24 @@ A public research apartment, processed by Veylet: a 3D walkthrough to explore in
 ### From your walk to their browser.
 One space, four steps. You walk it with the phone; Veylet builds and checks the walkthrough automatically; nothing is shared until you approve it.
 - Walk the space with the phone upright. At each spot, turn until the ring closes; the app flags anything it still needs before you finish.
-- Finish and check the saved route. Send from the app: it uploads in the background. Check your account for rendering status.
+- Tap Finish & save and read the phone check, then tap Send to Veylet. Send from the app: it uploads in the background. Check your account for rendering status.
 - Veylet builds the walkthrough. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. A capture that cannot be used is never counted.
-- Review the exact version on your phone, then share a link or a website embed. Viewers need no app or account; revoking stops new access.
+- When it says Ready for your review, check the exact version on your phone and tap Approve and share. You get a link, a QR code and a website embed; viewers need no app or account. Your account shows how often it was opened, and turning off sharing stops new access.
 - Photo match
 - Coverage
-- Walkable paths
+- Paths between stops
 Illustration of the process, not a captured space.
-New accounts are admitted in weekly groups. 1 free month with 3 walkthroughs included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
+New accounts are admitted in weekly groups. 1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
 
 ### The app, as it is today.
-Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.
+The Veylet app signs you in with Apple or an email link, with no password. It coaches the route while you walk and checks what it saved before you send anything.
 Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.
 - Sign in A link to your email, no password.
 - Practise first One small room before a real space.
 - Check before sending The saved route and what the app could not see.
 
 ### Before you write.
-1 free month from the day you activate the plan, with 3 accepted walkthroughs included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or annual. Monthly is A$139.99 a month in the App Store, with 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Annual is A$1,399.99 upfront a year in the App Store: the same 36 walkthroughs a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. Seats are unlimited, hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
+1 free month from the day you activate the plan, with 30 rooms included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or yearly. Monthly is A$139.99 a month in the App Store, with 30 rooms a month; halls, stairs and connecting spaces are free with up to 2 standing spots (how rooms are counted), and unused rooms carry over, up to 40 banked. Yearly is A$1,399.99 upfront a year in the App Store: the same 360 rooms a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 30 rooms for A$169 or 100 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. One account for now (shared office accounts come after launch); hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
 We do not yet have a client-accepted tour to show. Our captures are still under quality review. The room images and animations here are labelled illustrations. Veylet support can tell you what has been tested so far.
 No. Joining the waitlist creates no account and takes no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with.
 
@@ -71,8 +71,8 @@ Source: https://veylet.com/offer
 For real-estate agents and property managers across Australia. Buyers and tenants walk through the space on their phone before they visit. You walk it once with the Veylet app on your iPhone; Veylet checks the capture automatically, hosts it and hands you a 3D walkthrough to review, with a private link and a website embed. No camera to buy, no course, and nobody sees it before you approve it.
 Join the waitlist See how a first walkthrough runs
 Open to anyone, admitted weekly. We admit new accounts from the waitlist each week, as many as our processing budget allows. The app is in invitation-only testing through TestFlight and is not listed on the App Store yet; the prices here are the App Store prices it uses. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
-You only use a walkthrough when you approve it. A capture that fails the automatic quality check, or that you don’t approve for release, is never counted. A correction, or a permitted recapture of every original room, keeps the same link and uses no extra walkthrough.
-If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.
+You only use rooms when a tour passes the check and you approve it. A capture that fails the automatic quality check, or that you don’t approve for release, uses none. A correction, or a permitted recapture of every original room, keeps the same link and uses no rooms.
+If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no rooms; a new capture visit is not included.
 
 ### Your first year, itemised.
 Month 1 Free · cancel before it ends and pay nothing
@@ -82,83 +82,85 @@ Month 2 onward Veylet plan
 First twelve months 1 free month, then 11 monthly App Store payments
 - A$1,539.89
 Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.
-3 accepted walkthroughs in total during the 1 free month. Then 3 a month on the plan; unused ones roll over, up to 6 banked. Need more? A pack adds 3 or 10 walkthroughs, and you can buy one during the free months. The free-months end date stays the same.
-On the Veylet plan, monthly or annual: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no extra walkthrough.
+30 rooms in total during the 1 free month. Then 30 a month on the plan; unused ones carry over, up to 40 banked. Need more? A pack adds 30 or 100 rooms, and you can buy one during the free months. The free-months end date stays the same.
+On the Veylet plan, monthly or yearly: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no rooms.
 Illustration for the Veylet plan with an eligible 1-month App Store introductory offer, then A$139.99 each month automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase. Nothing is charged by this calculator.
 
 ### What counts, and what never costs anything.
-An accepted walkthrough
-- One capture made with the app that passed the automatic quality check and that you approved for release. It is the only thing we count.
-A whole home
-- One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.
-3 in your free month
-- 3 accepted walkthroughs in the 1 free month: the same 3 a month as the plan. Use them in one week or spread them out.
-3 a month
-- On the monthly plan, 3 accepted walkthroughs a month, however you are billed. Unused ones roll over, up to 6 banked at any time.
-36 a year
-- On the annual plan, 36 walkthroughs to use any time in the plan year: a yearly pool with no monthly limit. It resets on each plan-year anniversary, and unused ones do not carry into the next year.
+A room
+- Any named space the buyer can stand in, including a garage and an outdoor area. A room has up to four standing spots; a larger one counts as two rooms.
+Halls, stairs and connecting spaces
+- A hall, stairs, landing, entry or other connecting space is free with up to two standing spots, and counts as a room when it is larger.
+When rooms are used
+- A tour uses the rooms counted in it when it passes the automatic quality check and you approve it: once, the first time you approve that tour. Every tour uses at least 1 room. If a capture reaches us without its list of rooms, it uses a fixed 10 rooms. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. Corrections are free: redoing rooms in the same tour uses no rooms and keeps the same link, and so does a permitted whole recapture including every original room.
+30 in your free month
+- 30 rooms in the 1 free month: the same 30 a month as the plan. Use them in one week or spread them out.
+30 a month
+- On the monthly plan, 30 rooms a month, however you are billed. Unused rooms carry over, up to 40 banked on top of the month’s 30.
+360 a year
+- On the yearly plan, 360 rooms to use any time in the plan year: a yearly pool with no monthly limit. It resets on each plan-year anniversary, and unused ones do not carry into the next year.
 Packs
-- A pack of 3 walkthroughs is A$169 and a pack of 10 is A$499. The account owner can buy one during the free months or on the plan. Its walkthroughs are used after the ones your free months or plan include, and stay valid 12 months from purchase. Pack walkthroughs are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
+- A pack of 30 rooms is A$169 and a pack of 100 is A$499. The account owner can buy one during the free months or on the plan. Its rooms are used after the ones your free months or plan include, and stay valid 12 months from purchase. Pack rooms are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
 Your first walkthrough
-- If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.
+- If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no rooms; a new capture visit is not included.
 A capture that is not good enough
-- A failed capture is never counted. A hard failure stops the render; other findings are flagged for you to review. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no extra walkthrough.
+- A failed capture costs nothing. A hard failure stops the render; other findings are flagged for you to review. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps the same link and uses no rooms.
 Seats
-- Unlimited. Everyone in your office can capture on the same account. You pay for walkthroughs, not people.
+- One account for now. Shared accounts for everyone in your office come after launch. You pay for rooms, not people.
 Hosting
-- Every released walkthrough stays live while your account has a running plan: the free months, monthly or annual. When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
+- Every released walkthrough stays live while your account has a running plan: the free months, monthly or yearly. No cap on live tours (fair use: 100 per account). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline, and banked rooms lapse after the 14 days. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
 Listing videos and photos
 - Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.
 Starting
-- Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 3 accepted walkthroughs in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
+- Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 30 rooms in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
 Before the first charge
 - The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
 Stopping
 - Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.
 Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.
 
-### One plan, monthly or annual. Super fast renders and packs when you need more.
-The Veylet plan includes 3 accepted walkthroughs a month, or the same 36 a year to use any time for less. When you need one fast, add a Super fast render; when you need more, add a pack. Eligible accounts get their first month free, with the same 3 walkthroughs.
+### One plan, monthly or yearly. Super fast renders and packs when you need more.
+The Veylet plan includes 30 rooms a month, or the same 360 a year to use any time for less. Halls, stairs and connecting spaces are free with up to 2 standing spots. When you need a tour fast, add a Super fast render; when you need more rooms, add a pack. Eligible accounts get their first month free, with the same 30 rooms.
 Veylet plan, monthly
 - A$139.99 a month in the App Store
-- 3 accepted walkthroughs a month; unused ones roll over, up to 6 banked. Unlimited seats: everyone in your office captures on one account. Each walkthrough gets the automatic quality check, a private link and a tested embed, and every released walkthrough stays live while you subscribe. New subscriptions start in the app through Apple. Existing agreements keep their terms.
+- 30 rooms a month; unused ones carry over, up to 40 banked. One account for now; shared office accounts come after launch. Each walkthrough gets the automatic quality check, a private link and a tested embed, and every released walkthrough stays live while you subscribe. New subscriptions start in the app through Apple. Existing agreements keep their terms.
 Veylet plan, annual Save A$279.89
-- A$1,399.99 upfront a year in the App Store against 12 monthly payments, for the same 36 walkthroughs
-- The same 36 walkthroughs a year as monthly, 3 a month, in one yearly pool with no monthly limit: a busy month can use several. It resets on each plan-year anniversary, with no rollover between years. When you use all 36, each costs A$38.89, against A$46.66 on monthly (16.7% less). Everything else is the same as monthly.
+- A$1,399.99 upfront a year in the App Store against 12 monthly payments, for the same 360 rooms
+- The same 360 rooms a year as monthly, 30 a month, in one yearly pool with no monthly limit: a busy month can use more. It resets on each plan-year anniversary, with no rollover between years. When you use all 360, each costs A$3.89, against A$4.67 on monthly (16.7% less). Everything else is the same as monthly.
 
-#### What one walkthrough costs.
+#### What it costs.
 A photographer’s 3D tour
 - A$195–400 each
 - A photographer’s 3D tour costs A$195–400 each, from published prices of real-estate photographers in Sydney, Brisbane, Perth and Adelaide, checked 29 September 2026. The providers and what each price includes are in our guide, What does a 3D tour cost in Australia?
-A Veylet walkthrough, monthly
-- A$46.66 each
-- A$139.99 a month for 3, when you use all of them.
-A Veylet walkthrough, annual
-- A$38.89 each
-- A$1,399.99 a year for 36, when you use all of them.
+A Veylet room, monthly
+- A$4.67 each
+- A$139.99 a month for 30 rooms, when you use all of them.
+A Veylet room, annual
+- A$3.89 each
+- A$1,399.99 a year for 360 rooms, when you use all of them.
 Super fast render
 - A$29 a capture, on this website
 - First in the queue on our fastest processing in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. Your account offers it when you send a capture. No daily limit and no business hours. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. Not sold in the app.
-One-time pack of 3 walkthroughs
+One-time pack of 30 rooms
 - A$169 once, valid 12 months usable during the free months
-One-time pack of 10 walkthroughs
+One-time pack of 100 rooms
 - A$499 once, valid 12 months usable during the free months
-Pack walkthroughs are used after the ones your free months or plan include. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
+Pack rooms are used after the ones your free months or plan include. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
 
-#### What you pay at three, five or eight walkthroughs a month.
+#### What you pay at 30, 50 or 80 rooms a month.
 On the monthly App Store plan, after the free months, plus a separately purchased one-time pack. At these rates a pack is used up long before its 12 months run out.
-3 a month
+30 a month
 - A$139.99 a month
-- The three walkthroughs the plan includes.
-5 a month
+- The 30 rooms the plan includes.
+50 a month
 - A$139.99 a month A$499 every five months
-- The plan’s three, and two a month from a pack of 10.
-8 a month
+- The plan’s 30, and 20 a month from a pack of 100.
+80 a month
 - A$139.99 a month A$499 every two months
-- The plan’s three, and five a month from a pack of 10.
-Referrals. When an office you refer becomes a paying account, you each get 1 bonus walkthrough. Share your own link from your account.
-Founding agencies, by invitation only. At most five agencies, on the normal plan and pack prices, with no locked or special price. Their perks: priority rendering, a free 3-pack for each referred office that becomes a paying account (up to four), and a direct line to the founder. Veylet invites agencies directly; there is nothing to sign up for here.
-New subscriptions use the App Store. Existing signed agreements retain their terms. The App Store sells the Veylet plan monthly and annual; Super fast renders are sold on this website only. In-app pack purchase arrives in a later app version. Card payment on this website is coming later.
+- The plan’s 30, and 50 a month from a pack of 100.
+Referrals. When an office you refer becomes a paying account, you each get 10 bonus rooms. Share your own link from your account.
+Founding agencies, by invitation only. At most five agencies, on the normal plan and pack prices, with no locked or special price. Their perks: priority rendering, a free pack of 30 rooms for each referred office that becomes a paying account (up to four), and a direct line to the founder. Veylet invites agencies directly; there is nothing to sign up for here.
+New subscriptions use the App Store. Existing signed agreements retain their terms. The App Store sells the Veylet plan monthly and yearly; Super fast renders are sold on this website only. In-app pack purchase arrives in a later app version. Card payment on this website is coming later.
 
 ### Other work, by agreement.
 We agree any additional work in writing before it starts. In-person capture and office visits are not currently offered.
@@ -172,23 +174,23 @@ Works with recent iPhone Pro and iPad Pro models. One email signs in both the ap
 - Walk the space with the phone upright and turn at each spot until the ring closes. The app shows route checks; an automatic quality check assesses capture quality after you send it.
 - Finish and check the saved route. Send from the app: it uploads in the background. Check your account for rendering status.
 - Veylet builds the walkthrough. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. A capture that cannot be used is never counted.
-- Check the exact version, tick “I have the right to share this walkthrough” and press Approve and share: one press puts its link, QR code and website embed live. If rooms need fixing, a permitted whole recapture must include every original room. It replaces the walkthrough on the same link and uses no extra walkthrough once you review and approve it. Only an approved walkthrough counts. Revoking blocks new access immediately.
+- Check the exact version, tick “I have the right to share this walkthrough” and press Approve and share: one press puts its link, QR code and website embed live. If rooms need fixing, a permitted whole recapture must include every original room. It replaces the walkthrough on the same link and uses no rooms once you review and approve it. Rooms are used only when a tour passes the check and you approve it. Revoking blocks new access immediately.
 - Photo match
 - Coverage
-- Walkable paths
+- Paths between stops
 Illustration of the process, not a captured space.
 
 ### Straight answers.
 iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards, on iOS 17 or later. Other iPhone and iPad models are not supported. If you are unsure, the phone’s Settings › General › About shows its model name.
-No. Your free months end on the same date. If you need more before then, the account owner can buy a pack of 3 or 10 walkthroughs: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
-The plan you chose starts, monthly or annual, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
-Annual, if you list steadily: A$1,399.99 upfront a year gives the same 36 walkthroughs as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use several. Monthly, if you want to be able to stop in any month: A$139.99 a month for 3 walkthroughs, and unused ones roll over, up to 6 banked.
-One new accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; a home with more rooms takes more captures, and each is its own walkthrough with its own link. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no extra walkthrough.
-Add a walkthrough pack: 3 walkthroughs for A$169 or 10 for A$499, each valid 12 months and used after the ones your plan includes. On the annual plan, the year’s 36 walkthroughs can also go into one busy month. If you expect more than about ten a month, tell us first, and we will say plainly what we can process before you rely on it.
+No. Your free months end on the same date. If you need more before then, the account owner can buy a pack of 30 or 100 rooms: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
+The plan you chose starts, monthly or yearly, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
+Annual, if you list steadily: A$1,399.99 upfront a year gives the same 360 rooms as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use more. Monthly, if you want to be able to stop in any month: A$139.99 a month for 30 rooms, and unused ones carry over, up to 40 banked.
+It uses the rooms counted in the tour. Each named space the buyer can stand in is a room, including a garage and an outdoor area; halls, stairs and connecting spaces are free with up to 2 standing spots. The counting rules are under “What counts” on this page. Each capture has one link and one QR code. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no rooms.
+Add a pack: 30 rooms for A$169 or 100 for A$499, each valid 12 months and used after the ones your plan includes. On the yearly plan, the year’s 360 rooms can also go into one busy month. If you expect more than about ten tours a month, tell us first, and we will say plainly what we can process before you rely on it.
 Your capture goes first in the queue on our fastest processing in Australia, so it is ready for your review in about 30 minutes, any day, any time, for A$29. If it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. There is no daily limit: your account offers it when you send a capture. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. It is sold on this website only, not in the app.
-We redo it free. If your first walkthrough isn’t listing-ready, we correct it on the same link, and the redo uses no walkthrough. It covers your account’s first accepted walkthrough; a new capture visit is not included.
+We redo it free. If your first walkthrough isn’t listing-ready, we correct it on the same link, and the redo uses no rooms. It covers your account’s first accepted walkthrough; a new capture visit is not included.
 New monthly and annual subscriptions are managed by Apple and renew unless cancelled through Apple. Existing signed agreements keep their terms. Buying a separate service never automatically pauses or cancels an Apple subscription.
-The app flags route checks, but these do not prove capture quality. After you send it, an automatic quality check stops a render that cannot work; anything else it finds is flagged for you to look at before you approve. A failed capture is never counted. Each new accepted capture uses one walkthrough. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps its link and uses no extra walkthrough. Only a walkthrough you accept counts against your allowance.
+The app flags route checks, but these do not prove capture quality. After you send it, an automatic quality check stops a render that cannot work; anything else it finds is flagged for you to look at before you approve. A failed capture costs nothing. Rooms are used only when a tour passes the check and you approve it. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps its link and uses no rooms.
 Not yet. REA shows tours only from its supported suppliers, and we are not one. Domain includes its own tour product with some listings. What you get is a link and an embed for your own website, emails, portals that accept a link, and social channels. Tell us the exact destinations you need and we will say plainly which ones work.
 Whoever controls the space, and the occupants if it is lived in or worked in. For a rental that means the tenant as well as the owner; for a listing you do not control, the selling agent. Capture permission and permission to publish are separate choices, and the app records both for each space.
 You do. Before capture, clear people, documents, screens and personal photographs, and leave out any area you want excluded. Processing is automatic: no one at Veylet views the capture as part of normal processing, and the automatic quality check tests the walkthrough, not privacy. An AI visual check is planned and will be described in the privacy notice before it is switched on. You see the exact version before release; approve it only when nothing private shows. Revocation stops new access at once; it cannot recall copies someone already downloaded.
@@ -205,7 +207,7 @@ Source: https://veylet.com/website-guide
 An approved walkthrough can sit alongside your listing photos or open from a simple link. Visitors do not need an account or the capture app.
 
 ### Start with the client link.
-In your desk, preview and review the finished tour, then create its client handoff. Use that handoff link here. Owner preview links only work for your signed-in account.
+In your account, review the finished walkthrough and choose Approve and share. Then use Copy link on its card: that is the client handoff link, beginning https://veylet.com/handoff. Paste it here. Preview links only work for your signed-in account.
 
 ### Where to paste it, by website builder.
 Every builder has a block that accepts custom HTML. Paste the responsive embed code into that block, publish, then open the published page signed out on a phone. If your site is managed by a developer or an agency template provider, send them the code and this page.
@@ -230,9 +232,9 @@ These are the builders’ documented custom-HTML paths; builder interfaces chang
 
 ### Stay in control.
 No. Listing portals do not accept this embed. They do not run pasted HTML from an agent, so the iframe will not appear there however it is entered. Where a portal offers a virtual-tour URL field, the client handoff link can go in it if that portal permits an external link; otherwise keep the tour on your own website and link to it. We claim no integration with any portal.
-New requests to the old handoff and its embed stop opening. Someone who already downloaded a tour may still have a copy. Remove the embed and old link from your listing as well. Sharing it again requires checking the current release and permissions.
-Try the direct client link and an up-to-date browser with hardware graphics enabled. Check the connection, wait for the download, then retry once. If the link is expired or revoked, ask the operator for a current one. Keep listing photos and a contact route available if a visitor’s device cannot render 3D.
-Tell the studio your browser, device and which step failed. Share the unlisted link only through your agreed support route. Keep addresses, access codes and private client imagery out of a public support post.
+New requests to the old link and its embed stop opening. Pause sharing instead keeps the same link for later. Someone who already downloaded a walkthrough may still have a copy. Remove the embed and old link from your listing as well. Sharing it again requires checking the current release and permissions.
+Try the direct client link and an up-to-date browser with hardware graphics enabled. Check the connection, wait for the download, then retry once. If sharing is paused or turned off, ask whoever sent the link for a current one. Keep listing photos and a contact route available if a visitor’s device cannot render 3D.
+Tell Veylet support your browser, device and which step failed. Share the unlisted link only through your agreed support route. Keep addresses, access codes and private client imagery out of a public support post.
 
 ## Support — Veylet
 Source: https://veylet.com/support
@@ -242,7 +244,7 @@ Email support@veylet.com. Include the space name as it appears in the app or on 
 
 ### The quick answers.
 The app says recapture advised
-- Follow the reasons it lists; each names the fix. A capture that is not good enough never counts toward your walkthroughs.
+- Follow the reasons it lists; each names the fix. A capture that is not good enough uses no rooms.
 The sign-in email did not arrive
 - Check the address you typed and your spam folder, then request a new link; each link works once and only on the device that asked.
 Your plan, free months or renewal
@@ -270,7 +272,7 @@ Plain answers to the questions people ask before they commission, capture or sha
 Source: https://veylet.com/guides/what-is-a-3d-walkthrough
 
 A 3D walkthrough is a real space rebuilt in 3D from photographs, that a viewer explores in a web browser, choosing where to move and where to look. A 360° photo tour links separate panoramas instead, and a video follows one fixed path. A walkthrough shows how a space looks and connects; it is not a measured survey.
-Veylet Studio · Updated 30 September 2026
+Veylet · Updated 30 September 2026
 
 ### What counts as a 3D walkthrough?
 Three things make a 3D walkthrough: it is captured from a real place, rebuilt as one connected 3D space, and explored by the viewer rather than played to them. Capture happens on site, with a dedicated 3D camera or a phone. The photographs are then joined into one connected space, which opens from a link in a browser.
@@ -318,9 +320,9 @@ A walkthrough gives visual context, not a guarantee of size or condition, so kee
 - Rely on it for dimensions. It is not a measured floor plan or a building survey; where a measurement matters, use a measured plan or a surveyor.
 
 ### How does Veylet make a walkthrough?
-Veylet turns a few minutes of iPhone capture into a reviewed walkthrough: the person who controls a space captures it with their iPhone in the Veylet Capture app, Veylet processes and checks it automatically, and the account reviews that exact version before anyone else sees it.
+Veylet turns a few minutes of iPhone capture into a reviewed walkthrough: the person who controls a space captures it with their iPhone in the Veylet app, Veylet processes and checks it automatically, and the account reviews that exact version before anyone else sees it.
 A released walkthrough is shared as a browser link and a website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. Viewers need no app or account. Our website guide shows how the embed goes on a page, and the offer page sets out the plans.
-Not yet proven: Veylet Capture is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review, and no client-accepted walkthrough exists yet. Veylet has no property-portal integration.
+Not yet proven: The Veylet app is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review, and no client-accepted walkthrough exists yet. Veylet has no property-portal integration.
 
 ### Questions people ask
 Not always. “Virtual tour” covers any online stand-in for a visit, including linked 360° photographs and video. A 3D walkthrough is one kind of virtual tour, in which every viewpoint sits inside one connected 3D space that the viewer moves through freely.
@@ -348,7 +350,7 @@ New accounts are admitted in weekly groups.
 Source: https://veylet.com/guides/3d-tour-cost-australia
 
 In published price lists checked in September 2026, a photographer-captured 3D tour of a home cost $195 to $400 across Sydney, Brisbane, Perth and Adelaide, or $200 to $300 plus GST from a provider in four capital cities with photographs and a floor plan bundled. Capturing it yourself with a dedicated camera costs $3,850 (iGUIDE PLANIX R1) or US$3,995 (Matterport Pro3), plus platform fees.
-Veylet Studio · Updated 29 September 2026
+Veylet · Updated 29 September 2026
 
 ### What does a photographer charge for a 3D tour?
 Published photographer prices for a 3D tour of a home sit between $195 and $400, and the differences mostly follow what is bundled in: hosting time, a floor plan, photographs and the size of the property.
@@ -434,8 +436,8 @@ Compare the total for the same property, including GST, travel, any floor plan y
 
 ### Where does Veylet fit?
 Veylet’s plans and prices are on its offer page, not in this guide, and we make no value-for-money claim against the providers above, because Veylet has no client-accepted walkthrough yet.
-Veylet works differently from both routes: the person who controls a space captures it with their iPhone in the Veylet Capture app, Veylet processes and checks it automatically, and the account reviews it before release. Released walkthroughs are shared as a link and a website embed, live while the office’s plan is active. Our first-walkthrough guide explains each step.
-Not yet proven: Veylet Capture is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review. Veylet has no property-portal integration.
+Veylet works differently from both routes: the person who controls a space captures it with their iPhone in the Veylet app, Veylet processes and checks it automatically, and the account reviews it before release. Released walkthroughs are shared as a link and a website embed, live while the office’s plan is active. Our first-walkthrough guide explains each step.
+Not yet proven: The Veylet app is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review. Veylet has no property-portal integration.
 
 ### Questions people ask
 From photographers checked on 29 September 2026, a Matterport-style tour of a home cost $195 in Adelaide with six months of hosting, $215 to $359 in Brisbane with three months, $395 in Brisbane with six, and from $300 for an apartment or $400 for a standard house in Sydney with a year. To capture your own, Matterport lists the Pro3 camera at US$3,995, and it needs at least a Professional plan, from US$69 a month.
@@ -472,10 +474,10 @@ New accounts are admitted in weekly groups.
 Source: https://veylet.com/guides/iphone-lidar-vs-matterport
 
 Either can make a 3D tour. A supported iPhone or iPad needs nothing extra if you already own one and suits smaller homes and simpler spaces, though it sees less far. A dedicated camera such as Matterport’s Pro3 costs thousands of dollars and is set up at each spot, but it reaches further and records more detail.
-Veylet Studio · Updated 30 September 2026
+Veylet · Updated 30 September 2026
 
 ### Which iPhones and iPads work with Veylet?
-Every iPhone Pro and Pro Max from the iPhone 12 Pro to the iPhone 18 Pro works, as does every iPad Pro since 2020; no other iPhone or iPad does. Apple’s comparison pages list each model. Veylet Capture needs one of the models below on iOS 17 or later, as the offer page sets out; if you are unsure, name your model when you join the waitlist.
+Every iPhone Pro and Pro Max from the iPhone 12 Pro to the iPhone 18 Pro works, as does every iPad Pro since 2020; no other iPhone or iPad does. Apple’s comparison pages list each model. The Veylet app needs one of the models below on iOS 17 or later, as the offer page sets out; if you are unsure, name your model when you join the waitlist.
 - iPhone: 12 Pro and 12 Pro Max, 13 Pro and 13 Pro Max, 14 Pro and 14 Pro Max, 15 Pro and 15 Pro Max, 16 Pro and 16 Pro Max, 17 Pro and 17 Pro Max, 18 Pro and 18 Pro Max.
 - iPad Pro: 11-inch (2nd generation) and later, 12.9-inch (4th generation) and later, including the M4 and M5 models.
 - Not supported: standard, Plus, mini, e and SE iPhones, iPhone Air, iPhone Duo, and every iPad Air, iPad mini and iPad.
@@ -516,15 +518,15 @@ A walkthrough from either device gives visual context. It is not a measured floo
 
 ### Where does Veylet fit?
 Veylet works with the supported iPhone or iPad you already have; what it adds is the automatic processing, quality check and hosting after capture, not different equipment.
-Veylet Capture guides you through the space and saves the capture on your phone. Send from the app: it uploads in the background. Check your account for rendering status. Veylet builds it automatically. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record; it retries once when a retry can help, then asks for a recapture of the named rooms. Other findings about photo match, coverage, stray artefacts and walkable paths do not block the render: they are flagged for you to check before approval. No person checks it; you then review the exact version on your phone before anyone else sees it. The released walkthrough is shared as a private link and website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. The first-walkthrough guide covers each step.
-Where we are today: Veylet Capture is available by invitation through Apple’s TestFlight, not yet on the App Store. Our own captures are still under internal quality review, and no client has accepted a Veylet walkthrough yet, so we make no claim that phone capture matches a dedicated camera. For a measured survey or a very large building, a dedicated camera may be the better tool.
+The Veylet app guides you through the space and saves the capture on your phone. Send from the app: it uploads in the background. Check your account for rendering status. Veylet builds it automatically. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record; it retries once when a retry can help, then asks for a recapture of the named rooms. Other findings about photo match, coverage, stray artefacts and walkable paths do not block the render: they are flagged for you to check before approval. No person checks it; you then review the exact version on your phone before anyone else sees it. The released walkthrough is shared as a private link and website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. The first-walkthrough guide covers each step.
+Where we are today: The Veylet app is available by invitation through Apple’s TestFlight, not yet on the App Store. Our own captures are still under internal quality review, and no client has accepted a Veylet walkthrough yet, so we make no claim that phone capture matches a dedicated camera. For a measured survey or a very large building, a dedicated camera may be the better tool.
 
 ### Questions people ask
-Yes, on a supported iPhone: Veylet Capture records the shape of each room as well as photographs, and some other apps work from photographs alone on other phones. The result shows what a space looks like; it is not a measured survey.
+Yes, on a supported iPhone: The Veylet app records the shape of each room as well as photographs, and some other apps work from photographs alone on other phones. The result shows what a space looks like; it is not a measured survey.
 The Pro and Pro Max models from iPhone 12 Pro to iPhone 18 Pro, on iOS 17 or later. Standard, Plus, mini, e and SE models, iPhone Air and iPhone Duo do not work. Among iPads, only iPad Pro models released since 2020 do.
 No. Polycam is a phone app for capturing, sharing and exporting 3D files, with a free tier and paid plans. Matterport makes dedicated cameras and a tour platform, and its app can also capture with a phone. Compare them on the result you need, not only the equipment.
 Not where exact dimensions matter. In one study, an iPhone scan differed from a Matterport Pro3 scan of the same space by 4.08 cm on average and by up to 52 cm around doors. Use a measured plan or survey for dimensions.
-No. Veylet Capture works with recent iPhone Pro and iPad Pro models on iOS 17 or later, and Veylet processes, checks and hosts the result automatically. The app is available by invitation through TestFlight, not yet on the App Store.
+No. The Veylet app works with recent iPhone Pro and iPad Pro models on iOS 17 or later, and Veylet processes, checks and hosts the result automatically. The app is available by invitation through TestFlight, not yet on the App Store.
 
 ### Sources
 - Apple — iPhone: Compare Models, accessed 24 September 2026.
@@ -550,7 +552,7 @@ New accounts are admitted in weekly groups.
 Source: https://veylet.com/guides/privacy-3d-home-tour
 
 It can be, with preparation. A 3D tour lets viewers move through the rooms and zoom in, so it can show names, letters, medication, screens and valuables that listing photos might not. Clear those before capture, keep people out, check every room before release, and prefer a private link you can switch off to a public listing. Nobody can recall copies already downloaded.
-Veylet Studio · Updated 25 September 2026
+Veylet · Updated 25 September 2026
 
 ### What can a published 3D tour reveal?
 More than most people expect: in a University of Washington study of 44 home tours chosen because belongings were visible, 84 per cent showed a resident’s first name.
@@ -633,7 +635,7 @@ New accounts are admitted in weekly groups.
 Source: https://veylet.com/guides/3d-tours-realestate-com-au-domain
 
 Only if the portal accepts the tour’s supplier. realestate.com.au shows 3D tours only from suppliers on its published list, and iGUIDE is the only fully integrated one. Domain takes a direct https link to a tour and includes Matterport tours with eligible Platinum Edge sale listings. A Veylet walkthrough is not a supported portal tour: share it by private link or on your own website.
-Veylet Studio · Updated 24 September 2026
+Veylet · Updated 24 September 2026
 
 ### What does realestate.com.au accept?
 realestate.com.au shows a 3D tour only when it comes from a supplier on its published list. REA’s help centre page for agents, last edited on 15 September 2026, sorts supported tours into immersive walkthroughs, which let a buyer move through the home, and 360° panoramic tours made of linked photos.
@@ -725,7 +727,7 @@ New accounts are admitted in weekly groups.
 Source: https://veylet.com/guides/do-3d-tours-help-sell-faster
 
 Not reliably. Zillow and Matterport, which both offer 3D tours, published figures of 10% and up to 31% faster sales from US data. A Harvard Business School study of 75,178 Los Angeles sales found no significant price gain once photo quality was counted, and tour listings could stay on the market longer. No study here measured leasing. Expect better-informed enquiries, not a guaranteed speed-up.
-Veylet Studio · Updated 24 September 2026
+Veylet · Updated 24 September 2026
 
 ### What do tour providers’ own figures say?
 They report faster sales and more attention for listings with tours, measured in their own markets. Each comes from a company with a stake in 3D tours.
@@ -782,7 +784,7 @@ Because they come from different publishers, markets and methods, and most canno
 
 ### What does Veylet claim?
 Nothing about sale or lease outcomes: Veylet has no client-accepted walkthrough yet, so it has no results of its own to report.
-Our captures are still under quality review, and the Veylet Capture app is in testing on TestFlight, not the App Store. We do not borrow Zillow’s, Matterport’s or anyone else’s figures for our walkthroughs. What a walkthrough includes is on the offer page, and how one is captured and reviewed is in getting started.
+Our captures are still under quality review, and the Veylet app is in testing on TestFlight, not the App Store. We do not borrow Zillow’s, Matterport’s or anyone else’s figures for our walkthroughs. What a walkthrough includes is on the offer page, and how one is captured and reviewed is in getting started.
 
 ### What can you reasonably expect from a good 3D tour?
 A clearer picture of the space for people who cannot visit yet, rather than a guaranteed faster sale, higher price or quicker lease.
@@ -824,8 +826,8 @@ Short answers for each step, from your first capture to your client’s first vi
 
 ### Getting started
 The device you need, signing in, and the practice room.
-- What you need to start The iPhone or iPad Veylet Capture needs, how much free space to keep, and what to have ready before your first capture.
-- Install the app and sign in Install Veylet Capture from your invitation, then sign in with Apple or email using the same account as the website.
+- What you need to start The iPhone or iPad the Veylet app needs, how much free space to keep, and what to have ready before your first capture.
+- Install the app and sign in Install the Veylet app from your invitation, then sign in with Apple or email using the same account as the website.
 - The practice room, and how to pass it Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.
 
 ### Capturing
@@ -853,7 +855,7 @@ Each reason a capture comes back, and the fix. The names match the ones the app 
 ### Reviewing and sharing
 Approving, sharing, your website, and what your client sees.
 - Approve and share your walkthrough Review a ready walkthrough on your phone, inspect any flagged areas, then use one rights confirmation and press Approve and share.
-- Share your walkthrough: link, QR code, embed and listing URL Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the listing URL for portals and your CRM.
+- Share your walkthrough: link, QR code, embed and portal link Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the link for portals and your CRM.
 - Pause or turn off sharing The difference between pausing sharing, which keeps the same link, and turning it off, which ends the link for good.
 - What your client sees, and views and taps The page your client opens: the walkthrough, your contact card with Call and Email, and the views and taps your account shows.
 - Put your walkthrough on your website Paste the embed code into WordPress, Squarespace, Wix or Webflow, with the size and plan each builder needs.
@@ -871,7 +873,7 @@ Email Veylet support
 ## What you need to start — Veylet help
 Source: https://veylet.com/help/what-you-need
 
-Veylet Capture records rooms with the LiDAR camera on a Pro iPhone or iPad. Check these before your first capture.
+The Veylet app records rooms with the LiDAR camera on a Pro iPhone or iPad. Check these before your first capture.
 - A LiDAR device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.
 - Free space: keep at least 3 GB free. A capture cannot start with less than 2 GB.
 - An email address for your Veylet account. There is no password.
@@ -895,7 +897,7 @@ All help topics
 Source: https://veylet.com/help/install-and-sign-in
 
 Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.
-- Install Veylet Capture on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.
+- Install the Veylet app on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.
 - Open it and read how it works. Choose Sign in with Apple, or Use email instead and enter the email you use on the website. Your first sign-in creates your account.
 - For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.
 - After signing in, start with the practice room from Captures before your first real capture.
@@ -1112,13 +1114,13 @@ Rendering
 Retrying
 - Rendering hit a snag, so it is trying again automatically (attempt 2 of 2). Nothing to do.
 Needs recapture
-- A room could not be used. Each room shows its reason and the fix. This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver. See fixing a capture.
+- A room could not be used. Each room shows its reason and the fix. This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver. See fixing a capture.
 Failed
-- Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.
+- Rendering could not finish and no walkthrough was used. Contact Veylet support.
 When it passes, the listing reads Ready for your review. See approve and share.
 
 ### If it doesn’t work
-Still working, checking in means the renderer has not reported for a few minutes. Veylet support has been alerted; there is nothing for you to do.
+Still working, checking in means the renderer has not reported for a few minutes. Check again later, or contact Veylet support.
 If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.
 
 ### Still stuck? Email Veylet support
@@ -1141,7 +1143,7 @@ The capture reached Veylet with fewer than three usable photos, so nothing could
 ### If it doesn’t work
 If the phone check says Not enough views yet, fewer than three photos were saved. Hold the phone level on a clear corner or doorway until views start saving.
 If the camera view stays black or frozen, close the app fully, open it again and retry.
-This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1161,11 +1163,11 @@ Source: https://veylet.com/help/fix/no_depth
 The capture has no depth readings, so a 3D walkthrough cannot be built. Capture on an iPhone or iPad with LiDAR (a Pro model), so every photo has depth.
 - Check the device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. In the app, Account says "Ready to capture" on a device that can record.
 - Make sure nothing covers the rear cameras or the LiDAR sensor beside them: no case edge, finger or dirt.
-- Capture the room again with Veylet Capture, then send it.
+- Capture the room again with the Veylet app, then send it.
 
 ### If it doesn’t work
 If Account says the device has no rear LiDAR camera, that device cannot record a capture. See what you need.
-This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1189,7 +1191,7 @@ The capture is larger than Veylet can accept in one go. Capture fewer rooms at a
 
 ### If it doesn’t work
 Keep each room to what it needs: two standing spots and three circles are enough for an ordinary room. See walk a room.
-This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1213,7 +1215,7 @@ The finished walkthrough would be too large to open smoothly on a phone. Veylet 
 
 ### If it doesn’t work
 Very large open-plan spaces count as big too. Keep to two standing spots and three circles in each.
-This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1237,7 +1239,7 @@ This capture does not look like the inside of a property. Capture the rooms insi
 
 ### If it doesn’t work
 If you did capture the inside of a home, email Veylet support with the listing’s name as it appears in the app.
-This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.
+This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1338,7 +1340,7 @@ Write to support@veylet.com and a person replies. Say which step you were on, yo
 Email Veylet support
 
 ### More in Reviewing and sharing
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - What your client sees, and views and taps
 - Put your walkthrough on your website
@@ -1351,16 +1353,16 @@ A live walkthrough has one link and four ways to hand it out. Use the one that s
 Share or Copy link
 - Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.
 QR code
-- Show QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
+- Open QR code for someone beside you to scan. In your account, Download QR code (PNG) for a window card or brochure.
 Embed code
 - Copy embed code and paste it into your website’s custom HTML block. See put it on your website.
-Listing URL (portals, CRM)
-- In your Veylet account, Copy listing URL (portals, CRM) and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.
+Link for portals and CRM
+- In your Veylet account, open Website, then Copy link for portals and CRM and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.
 Open as your client shows the page exactly as the person you send it to will see it.
-While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.
+While your plan is active, use the link anywhere: embed it on any website, use the link for portals and CRM in portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.
 
 ### If it doesn’t work
-Listing portals do not accept the embed code. Use the listing URL there instead.
+Listing portals do not accept the embed code. Use the link for portals and CRM there instead.
 If a link shows "not available", sharing is paused or turned off. See pause or turn off sharing.
 
 ### Still stuck? Email Veylet support
@@ -1377,7 +1379,7 @@ All help topics
 ## Pause or turn off sharing — Veylet help
 Source: https://veylet.com/help/pause-or-turn-off
 
-Pause keeps the same link for later. Turn off ends the link for good. Both are under Manage sharing on the walkthrough’s card in your account.
+Pause keeps the same link for later. Turn off ends the link for good. Both are under Manage on the walkthrough’s card in your account.
 Pause sharing
 - Within a minute, the link, embed and QR code show "not available". The link stays the same, so printed QR codes work again when you resume.
 Resume sharing
@@ -1385,7 +1387,7 @@ Resume sharing
 Turn off sharing
 - Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.
 - Open your Veylet account and find the walkthrough’s card.
-- Open Manage sharing.
+- Open More, then Manage. If the card has no More, Manage is on the card itself.
 - Choose Pause sharing for a break, or Turn off sharing to end the link.
 
 ### If it doesn’t work
@@ -1398,7 +1400,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - What your client sees, and views and taps
 - Put your walkthrough on your website
 All help topics
@@ -1418,12 +1420,12 @@ Your client opens a page with the listing’s name, the walkthrough and your con
 In your Veylet account, under What your clients see, enter your name, agency, phone and email, and turn on Show on shared walkthroughs. Only what you enter is shown.
 
 ### Views and taps
-Each live walkthrough’s card in your account shows how often it was opened, for example "Opened 3 times", when it was last opened, and how many times people tapped Call and Email. "Not opened yet." means no one has opened it.
+Each live walkthrough’s card in your account shows how often it was opened, how many times people tapped Call and Email, and when it was last opened, on one line: for example "14 opens · 3 calls · 1 email · last 9 Nov 2026". "Not opened yet." means no one has opened it.
 
 ### If it doesn’t work
 If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See pause or turn off sharing.
 "This link looks incomplete" means part of the link was lost when it was copied. Send it again.
-The listing URL for portals never shows your contact card.
+The link for portals and CRM never shows your contact card.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1431,7 +1433,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - Put your walkthrough on your website
 All help topics
@@ -1453,7 +1455,7 @@ Any other builder: ask for a custom HTML or raw HTML area and paste the code the
 ### If it doesn’t work
 Blank or cut off? Check the element is at least 320 pixels tall, and check the published page on a phone.
 Shows "not available"? Sharing is paused or turned off for that walkthrough.
-Listing portals do not accept the embed code. Use the listing URL: see share your walkthrough.
+Listing portals do not accept the embed code. Use the link for portals and CRM: see share your walkthrough.
 
 ### Still stuck? Email Veylet support
 Write to support@veylet.com and a person replies. Say which step you were on, your iPhone or iPad model, and the app version from Account, then About. Never send passwords or sign-in links.
@@ -1461,7 +1463,7 @@ Email Veylet support
 
 ### More in Reviewing and sharing
 - Approve and share your walkthrough
-- Share your walkthrough: link, QR code, embed and listing URL
+- Share your walkthrough: link, QR code, embed and portal link
 - Pause or turn off sharing
 - What your client sees, and views and taps
 All help topics
@@ -1503,7 +1505,7 @@ Active
 Ended
 - Your plan or free months ended on the date shown. New captures wait until a plan is running again.
 Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.
-One accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.
+A tour uses the rooms counted in it when it passes the check and you approve it; the terms say how rooms are counted. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no rooms. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.
 Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.
 See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.
 To keep a single walkthrough online without a plan, ask us for a hosting extension: use Keep this walkthrough online on its card in your Veylet account, or email Veylet support with the walkthrough’s name. It is invoiced a year at a time, per walkthrough.

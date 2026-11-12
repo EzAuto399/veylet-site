@@ -71,7 +71,7 @@ test('opened from the app, the preview’s links stay on the app’s pages; anyw
   assert.deepEqual(site.hrefs(), ['#main', '/', '/account', '/account', '/account', '/', '/privacy', '/terms']);
   const APP = ['#main', '/app/account', '/app/account', '/app/account', '/app/account', '/app/account', '/app/privacy', '/app/terms'];
   const fromApp = await load({ search: '?id=t1&review_revision=' + revision + '&from=app' });
-  assert.deepEqual(fromApp.hrefs(), APP, 'the desk in app mode adds from=app to Open review preview');
+  assert.deepEqual(fromApp.hrefs(), APP, 'the desk in app mode adds from=app to Preview');
   assert.deepEqual(fromApp.calls.map(call => call[0]), ['get_tour_review_target', 'download'], 'the review check is unchanged');
   // The app's own web view (WKWebView: an iPhone without the Safari token) or an app-named agent.
   const webView = await load({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' });

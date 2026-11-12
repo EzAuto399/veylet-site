@@ -4,7 +4,7 @@
 // steps. Motion runs only through gsap.matchMedia, never under reduced motion, and every loop
 // stops off screen and while the tab is hidden.
 (() => {
-  const PLAYER_URL = '/tour-player-v2.js?v=c7c86e3389f01585';
+  const PLAYER_URL = '/tour-player-v2.js?v=e44676364b81a448';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const narrow = window.matchMedia('(max-width: 800px)');
   const hero = document.querySelector('[data-see-hero]');
@@ -47,6 +47,9 @@
     // Under reduced motion nothing starts by itself; the visitor presses Play.
     let held = reduce.matches;
     let onScreen = !('IntersectionObserver' in window);
+    // The clip is 1.1 MB and in view at load on a wide screen: it waits for the visitor's first
+    // scroll, pointer move, key or touch, or for the page to finish loading and sit idle.
+    let awake = false;
     const current = () => cuts[cut];
     const chosen = () => !(narrow.matches && stage && stage.dataset.show === 'explore');
     const label = () => {
@@ -58,7 +61,7 @@
     };
     const sync = () => {
       const clip = current();
-      if (onScreen && chosen() && !document.hidden && !held) {
+      if (awake && onScreen && chosen() && !document.hidden && !held) {
         const playing = clip.play();
         if (playing && playing.catch) playing.catch(label);
       } else if (!clip.paused) {
@@ -97,6 +100,17 @@
       new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }, { threshold: 0.35 }).observe(phoneBox);
     }
     document.addEventListener('visibilitychange', sync);
+    const WAKE = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
+    const wake = () => {
+      if (awake) return;
+      awake = true;
+      for (const type of WAKE) window.removeEventListener(type, wake);
+      sync();
+    };
+    for (const type of WAKE) window.addEventListener(type, wake, { passive: true });
+    const whenIdle = () => (window.requestIdleCallback ? window.requestIdleCallback(wake, { timeout: 4000 }) : setTimeout(wake, 2500));
+    if (document.readyState === 'complete') whenIdle();
+    else window.addEventListener('load', whenIdle, { once: true });
     if (reduce.addEventListener) reduce.addEventListener('change', () => { if (reduce.matches) held = true; sync(); });
     label();
     return { sync };
@@ -197,7 +211,7 @@
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       down = { id: event.pointerId, x: event.clientX, y: event.clientY, touch: event.pointerType === 'touch' };
       playerBox.dataset.pressed = '';
-      if (!down.touch && playerBox.setPointerCapture) try { playerBox.setPointerCapture(event.pointerId); } catch {}
+      if (!down.touch && playerBox.setPointerCapture) try { playerBox.setPointerCapture(event.pointerId); } catch { /* synthetic or released pointer */ }
     });
     playerBox.addEventListener('pointermove', event => {
       if (!down || event.pointerId !== down.id) return;
@@ -278,6 +292,7 @@
   // Where each of the five steps starts along the pinned scroll. Step 4 holds two screens
   // (rendering, then ready) and step 5 three (approve, share, the walkthrough in a browser).
   const EDGES = [0, 0.15, 0.3, 0.45, 0.7, 1];
+  const HANDOFF = 0.035;
   // Resolve once: the render panel is written to on every scroll frame while the scene is pinned.
   const renderUiBits = renderUi ? {
     title: renderUi.querySelector('[data-ui-title]'),
@@ -319,7 +334,7 @@
   // The complete still state: what the plain list shows.
   const still = () => {
     steps.forEach(step => { step.style.removeProperty('--p'); step.removeAttribute('aria-current'); });
-    screens.forEach(screen => screen.removeAttribute('data-shown'));
+    screens.forEach(screen => { screen.removeAttribute('data-shown'); screen.removeAttribute('data-stage'); });
     setRender('ready', 5);
     setBar(1);
     setShare('shared');
@@ -342,9 +357,13 @@
     });
     const number = index + 1;
     const shown = screens.filter(screen => Number(screen.dataset.screen) <= number).pop();
-    screens.forEach(screen => {
+    screens.forEach((screen, i) => {
       const on = screen === shown;
       if (screen.hasAttribute('data-shown') !== on) screen.toggleAttribute('data-shown', on);
+      const from = i === 0 ? 0 : EDGES[Number(screen.dataset.screen) - 1] - HANDOFF;
+      const to = i + 1 < screens.length ? EDGES[Number(screens[i + 1].dataset.screen) - 1] + HANDOFF : 1;
+      const stage = at >= from && at <= to;
+      if (screen.hasAttribute('data-stage') !== stage) screen.toggleAttribute('data-stage', stage);
     });
     if (number < 4) setRender('rendering', 3);
     else if (number === 4) setRender(local < 0.62 ? 'rendering' : 'ready', Math.min(5, 3 + Math.floor((local / 0.62) * 3)));
@@ -393,7 +412,6 @@
       // finger both ways instead of fading on a timer.
       const contents = screens.map(screen => screen.querySelector('.device-screen > *'));
       const sheets = gsap.timeline({ paused: true, defaults: { ease: 'none' } });
-      const HANDOFF = 0.035;
       if (contents.every(Boolean)) {
         gsap.set(contents.slice(1), { yPercent: 100 });
         for (let i = 1; i < screens.length; i += 1) {
@@ -447,7 +465,7 @@
     };
     for (const head of document.querySelectorAll('.see-section-head')) rise(head.children, head, 0.1);
     rise('.see-ledger > div', '.see-ledger');
-    rise('.see-rooms li', '.see-rooms', 0.1);
+    rise('.see-rooms li, .see-rooms figcaption', '.see-rooms', 0.1);
     rise('.see-table thead tr, .see-table tbody tr', '.see-table', 0.06);
     rise('.see-offer-copy > *', '.see-offer');
     rise('.see-statement > *', '.see-statement', 0.06);

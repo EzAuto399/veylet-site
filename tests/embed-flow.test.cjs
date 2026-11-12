@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const markup = fs.readFileSync(path.join(__dirname, '../dist/embed/index.html'), 'utf8');
 const source = markup.match(/<script>([\s\S]*?)<\/script>/)[1];
 const clientSource = fs.readFileSync(path.join(__dirname, '../dist/client-page.js'), 'utf8');
+const { WORDS, withClientHelpers } = require('./client-words.cjs');
 // The real token rule and poster reader from client-page.js (with this page's fetch); the rest of the page API is stubbed below.
 const realPage = fetch => { const window = {}; vm.runInNewContext(clientSource, { window, setTimeout, clearTimeout, URLSearchParams, URL, fetch, location: { origin: 'https://veylet.com' } }); return window.VeyletClientPage; };
 
@@ -15,10 +16,10 @@ function load(options = {}) {
     ids[match[2]] = { hidden: /\bhidden\b/.test(match[0]), dataset: {}, events: {}, style: { setProperty(key, value) { this[key] = value; } }, addEventListener(name, callback) { this.events[name] = callback; } };
   }
   let finish, reject, bootCalls = 0, bootOptions = null;
-  const player = {
+  const player = withClientHelpers({
     boot: (options) => { bootCalls++; bootOptions = options; return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
     showFailure: (els, options) => { els.frame.hidden = true; if (els.title && options.heading) els.title.textContent = options.heading; els.body.textContent = options.body; if (els.actions) els.actions.hidden = !options.retry; if (els.retry) els.retry.hidden = !options.retry; },
-  };
+  });
   const calls = [];
   // `options.share`: what lookup_tour_share answers through the page's REST client (a promise).
   const page = options.share === undefined ? undefined : {
@@ -131,7 +132,7 @@ test('the share is looked up before Explore: a dead or unknown link reads as the
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(h.calls.filter(([name]) => name === 'lookup_tour_share'), [['lookup_tour_share', { p_token: 'synthetic-valid-token' }]]);
     assert.equal(h.ids['embed-title'].textContent, 'This walkthrough isn’t available right now.');
-    assert.equal(h.ids['embed-body'].textContent, 'The agent may have turned it off or not shared it yet.');
+    assert.equal(h.ids['embed-body'].textContent, 'It may have been paused or turned off. Ask the person who sent it for a new link.');
     assert.equal(h.ids['embed-start'].hidden, true);
     assert.equal(h.ids['embed-open'].hidden, true);
     assert.equal(h.ids['embed-status'].textContent, '');
@@ -154,8 +155,10 @@ test('Explore passes the full page as the fullscreen fallback and names a dead l
   await new Promise(resolve => setImmediate(resolve));
   h.start();
   assert.equal(h.bootOptions.fullscreenUrl, 'https://veylet.com/handoff?t=synthetic-valid-token');
-  assert.equal(h.bootOptions.missingHeading, 'This walkthrough isn’t available right now.');
-  assert.equal(h.bootOptions.missingBody, 'The agent may have turned it off or not shared it yet.');
+  // The shared client words (tour-player.js WORDS), the same on /handoff and /tour; none of its own.
+  assert.equal(h.bootOptions.client, true);
+  assert.deepEqual([h.bootOptions.missingHeading, h.bootOptions.missingBody, h.bootOptions.transientBody], [undefined, undefined, undefined]);
+  assert.equal(WORDS.missingHeading, 'This walkthrough isn’t available right now.');
 });
 
 test('framed pages fit their frame: /tour never scrolls, and the v2 status wraps to 3 lines without an ellipsis', () => {
@@ -211,7 +214,7 @@ function tourPage(search, origin = 'https://veylet.com') {
   const ids = {};
   for (const match of tour.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) ids[match[2]] = { hidden: /\bhidden\b/.test(match[0]), dataset: {}, textContent: '' };
   let bootOptions = null, failure = null;
-  const player = { TourFailure: Error, boot: options => { bootOptions = options; return new Promise(() => {}); }, showFailure: (els, options) => { failure = options; } };
+  const player = withClientHelpers({ TourFailure: Error, boot: options => { bootOptions = options; return new Promise(() => {}); }, showFailure: (els, options) => { failure = options; } });
   const window = { VeyletPlayer: player };
   window.self = window; window.top = window;
   const pageApi = (() => { const w = {}; vm.runInNewContext(clientSource, { window: w, setTimeout, clearTimeout, URLSearchParams, URL }); return w.VeyletClientPage; })();
@@ -227,6 +230,7 @@ test('/tour in a portal’s frame offers full screen as its own page, and a cut-
   assert.equal(tourPage('?t=' + HEX, 'http://127.0.0.1:8905').bootOptions.fullscreenUrl, undefined, 'only an https page is offered');
   const cut = tourPage('?t=' + HEX.slice(0, 20));
   assert.equal(cut.bootOptions, null);
-  // /tour is not a §5.2 surface: in a portal's frame there is no one to ask (viewer-beacon.test.cjs pins its words).
-  assert.deepEqual({ ...cut.failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it.' });
+  // One set of words on all three pages (10 November 2026): "the person who sent it" names no agent, so it
+  // is true in a portal's frame too.
+  assert.deepEqual({ ...cut.failure }, { heading: 'This link looks incomplete.', body: 'Check you copied all of it, or ask the person who sent it.' });
 });

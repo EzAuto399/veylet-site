@@ -141,21 +141,21 @@ const JOBS = {
   failed: job({ state: 'failed', status: 'failed' }),
   stale: job({ state: 'rendering', status: 'processing', step: 3, stage: 'train', progress_pct: 64, eta_seconds: 420, heartbeat_at: ago(300), stale: true, attempt: 1 }),
 };
-const RECAPTURE_ALLOWANCE = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+const RECAPTURE_ALLOWANCE = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
 const readyTour = (fields = {}) => ({ id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: null, ...fields });
 const toursFor = state => state === 'ready' ? [readyTour()] : state === 'live' ? [readyTour({ share_token: 'abcdefghijklmnop' })] : [];
 const withState = (state, options = {}) => load({ status: [JOBS[state]], tours: toursFor(state), approved: state === 'live', ...options });
 
 const WORDS = {
-  uploading: ['Uploading', 'Sending from your phone', ['Sending from Veylet Capture. Keep Veylet open or plugged in; it continues in the background.']],
+  uploading: ['Uploading', 'Sending from your phone', ['Sending from the Veylet app. Keep Veylet open or plugged in; it continues in the background.']],
   waiting: ['Waiting to render', 'Automatic', ['You’re 2nd in line. Usually starts within 40 minutes.']],
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
-  ready: ['Ready for your review', 'Your turn', ['Open it, walk through, then approve to share.']],
+  ready: ['Ready for your review', 'Your turn', ['Open it, check each stop, then approve to share.']],
   live: ['Live', null, ['Anyone with the link can open it.']],
   recapture: ['Needs recapture', 'Your turn', ['Kitchen: too dark to line up the photos.', RECAPTURE_ALLOWANCE]],
   retrying: ['Retrying', 'Automatic', ['Rendering hit a snag; we’re retrying automatically (attempt 2 of 2).']],
-  failed: ['Failed', 'Veylet support', ['Something went wrong on our side. Veylet support has been told; nothing was used.']],
-  stale: ['Still working — checking in', 'Automatic', ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.',
+  failed: ['Failed', 'Veylet support', ['Rendering could not finish. Contact Veylet support; no rooms were used.']],
+  stale: ['Still working — checking in', 'Automatic', ['We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.',
     'Last reported: step 3 of 5, Building your 3D walkthrough.']],
 };
 
@@ -203,7 +203,7 @@ test('render status: the filled action belongs to whoever acts next', async () =
   const operator = await withState('ready', { role: 'operator' });
   assert.equal(operator.title(), 'Ready for review', '“your review” is said to whoever reviews');
   assert.deepEqual(operator.pills(), ['With the workspace owner']);
-  assert.deepEqual(operator.lines(), ['The workspace owner opens it, walks through, then approves it to share.']);
+  assert.deepEqual(operator.lines(), ['The workspace owner opens it, checks it stop by stop, then approves it to share.']);
   assert.deepEqual(operator.filled(), []);
   assert.equal(operator.controls().length, 0);
   // Waiting, rendering (the quality check included), retrying, stale and live offer nothing to press.
@@ -393,7 +393,7 @@ test('render status: a render the server marks stale reads Still working — che
   assert.equal(stale.progress(), null, 'a stalled render shows no live progress');
   assert.equal(stale.renderTimers(), 1, 'and keeps being checked');
   const unplaced = await load({ status: [job({ ...JOBS.stale, step: null })] });
-  assert.deepEqual(unplaced.lines(), ['The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.']);
+  assert.deepEqual(unplaced.lines(), ['We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.']);
 });
 
 test('render status: a super fast capture shows its due time as the super fast block says it, until it passes', async () => {
@@ -429,7 +429,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(loading.slot().hidden, true, 'nothing flashes before 400 ms');
   await loading.slow();
   assert.equal(loading.slot().hidden, false);
-  assert.equal(loading.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, true);
+  assert.equal(loading.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, true);
   assert.equal(loading.slot().attributes['aria-busy'], 'true');
   assert.equal(loading.block().className, 'render-block render-loading');
   assert.ok(loading.slot().all().some(el => el.textContent === 'Checking render progress…'));
@@ -439,11 +439,11 @@ test('render status: loading, empty, error and a backend without the function ea
   await slowFail.slow();
   reply({ error: { message: 'offline' } }); await settle();
   assert.equal(slowFail.slot().hidden, true);
-  assert.equal(slowFail.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(slowFail.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   // Empty: a space with no capture and no walkthrough says how one arrives, instead of the older line.
   const empty = await load({ status: [] });
-  assert.deepEqual(empty.lines(), ['No capture sent yet. When you send one from Veylet Capture, its progress shows here.']);
-  const older = empty.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent));
+  assert.deepEqual(empty.lines(), ['No capture sent yet. When you send one from the Veylet app, its progress shows here.']);
+  const older = empty.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent));
   assert.equal(older.hidden, true);
   assert.equal(empty.renderTimers(), 0);
   // A space whose walkthrough is already on the desk and has no capture says nothing extra.
@@ -454,7 +454,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(broken.slot().hidden, true);
   assert.equal(broken.ids['account-render-status'].hidden, false);
   assert.equal(broken.ids['account-render-status'].textContent, 'Render progress couldn’t be checked. Your spaces are below; refresh spaces to try again.');
-  assert.equal(broken.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(broken.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   assert.equal(broken.renderTimers(), 0);
   // Before the backend has the function, the desk reads exactly as it did, and a
   // skeleton timer that fires afterwards draws nothing.
@@ -463,7 +463,7 @@ test('render status: loading, empty, error and a backend without the function ea
   assert.equal(missing.slot().hidden, true);
   assert.equal(missing.slot().children.length, 0);
   assert.equal(missing.ids['account-render-status'].hidden, true);
-  assert.equal(missing.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(missing.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   assert.equal(missing.renderTimers(), 0);
   // A failed tour read never lets a space read as having sent nothing.
   const h = await load({ status: [] });
@@ -500,7 +500,7 @@ test('render status: Recapture {room} opens that room’s steps in the app, in p
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'true');
   assert.equal(panel.hidden, false);
-  assert.equal(panel.textContent, 'On your iPhone, open Veylet Capture and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it.');
+  assert.equal(panel.textContent, 'On your iPhone, open the Veylet app and choose Sample space. It shows Needs recapture there too: choose Recapture Kitchen, capture the room again and send it.');
   await kitchen.fire('click');
   assert.equal(kitchen.attributes['aria-expanded'], 'false');
   // No room named: the reason stands alone, and the space is what is captured again.
@@ -549,7 +549,7 @@ test('render status: a space reads only what the answer said about it', async ()
   // A state this page does not know says nothing rather than a guess.
   const unknown = await load({ status: [job({ state: 'teleporting' })] });
   assert.equal(unknown.slot().hidden, true);
-  assert.equal(unknown.spaces()[0].children.find(el => /^No tour package yet/.test(el.textContent)).hidden, false);
+  assert.equal(unknown.spaces()[0].children.find(el => /^No walkthrough yet\./.test(el.textContent)).hidden, false);
   // A space the answer did not list reads as it did; another space's capture never lands here.
   const elsewhere = await load({ status: () => ({ data: { active: true, spaces: [{ property_id: 'p-other', job: JOBS.uploading }] } }) });
   assert.equal(elsewhere.slot().hidden, true);
@@ -570,10 +570,10 @@ test('render status: the next step says whose turn it is while no walkthrough is
   const rooms = await withState('recapture');
   const next = rooms.ids['account-next-step'];
   assert.equal(next.children[0].textContent, 'Recapture what the quality check found.');
-  assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.');
+  assert.equal(next.children[1].textContent, 'What and why is on Sample space below. This failed attempt uses no rooms; the complete allowance rule is shown there.');
   assert.equal(next.children[2].textContent, 'Show what to recapture');
   const broken = await withState('failed');
-  assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Something went wrong on our side.');
+  assert.equal(broken.ids['account-next-step'].children[0].textContent, 'Rendering could not finish.');
   assert.equal(broken.ids['account-next-step'].children.length, 2, 'nothing to press on Veylet support’s turn');
   // A poll that changes nothing does not rewrite the next step (a live region).
   const before = moving.ids['account-next-step'].children[0];

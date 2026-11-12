@@ -12,7 +12,7 @@
     <meta name="robots" content="index,follow" />
     <link rel="canonical" href="https://veylet.com/see" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Veylet Studio" />
+    <meta property="og:site_name" content="Veylet" />
     <meta property="og:locale" content="en_AU" />
     <meta property="og:title" content="See a result — Veylet" />
     <meta
@@ -35,13 +35,12 @@
       content="The living area of the example apartment, from its walkthrough video. Public research capture (Meta Eyeful Tower, MIT licence) processed by Veylet; not a client property."
     />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
-    <link rel="preload" href="/media/Outfit-400.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/media/Outfit-500.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="stylesheet" href="/style.css?v=776e6c97304d9019" />
-    <link rel="stylesheet" href="/conversion.css?v=3c82fa9f8cd5a55c" />
-    <link rel="stylesheet" href="/refinement.css?v=3396f9c21e422ea8" />
-    <link rel="stylesheet" href="/showcase.css?v=68947999070d9121" />
-    <link rel="stylesheet" href="/see/see.css?v=6b1929b43be4669d" />
+    <link rel="preload" href="/media/Outfit-400.woff2?v=71f028fd2349990b" as="font" type="font/woff2" crossorigin><link rel="preload" href="/media/Outfit-500.woff2?v=fc9bff941def6d92" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/style.css?v=77cd95fea06762b2" />
+    <link rel="stylesheet" href="/conversion.css?v=1afc39d382bc328e" />
+    <link rel="stylesheet" href="/refinement.css?v=19b8d96e0b4d6721" />
+    <link rel="stylesheet" href="/showcase.css?v=f8939f12c96cba56" />
+    <link rel="stylesheet" href="/see/see.css?v=011a63a21d922809" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -102,7 +101,7 @@
                 "name": "Was this example made with an iPhone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet processing your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 3 walkthroughs included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it."
+                  "text": "Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet processing your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 30 rooms included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it."
                 }
               },
               {
@@ -136,14 +135,9 @@
     </script>
     <script src="/insights.js?v=8d217f3362eb989f" defer></script>
   </head>
-  <body id="top" class="refined-marketing refined-home see-page">
+  <body id="top" class="site refined-marketing refined-home see-page">
     <a class="skip" href="#main">Skip to content</a>
-    <header class="wrap">
-      <a class="brand" href="/" aria-label="Veylet Studio home"
-        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
-      >
-      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" aria-current="page" data-analytics-cta="see" data-analytics-placement="header">See a result</a><a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/account">Sign in</a></nav>
-    </header>
+    <header class="wrap"><a class="brand" href="/" aria-label="Veylet home"><span class="portal" aria-hidden="true"></span>VEYLET</a><nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" aria-current="page" data-analytics-cta="see" data-analytics-placement="header">See a result</a><a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help">Help</a><a href="/account">Sign in</a></nav></header>
     <main id="main">
       <section class="see-hero wrap" aria-labelledby="see-title" data-see-hero>
         <h1 id="see-title">One capture.<span class="see-node" aria-hidden="true" data-thread-node></span><br /><em data-thread-em>Two ways to show it.</em></h1>
@@ -155,7 +149,7 @@
         <div class="see-actions" data-hero-actions>
           <a class="button" href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a
           ><a class="text-link see-actions-more" href="#offer">What’s in the free month</a>
-          <p class="see-actions-line"><a href="#offer">3 walkthroughs a month · the first month free · then <span data-price="see-hero-month">A$139.99</span> a month through the App Store</a></p>
+          <p class="see-actions-line"><a href="#offer">30 rooms a month · the first month free · then <span data-price="see-hero-month">A$139.99</span> a month through the App Store</a></p>
         </div>
 
         <!-- The sample walkthrough's package location, read by see.js and nowhere else. At release it
@@ -196,7 +190,7 @@
               </div>
               <figcaption>
                 <span class="see-caption-head"><strong>3D walkthrough</strong> <span class="pill see-tag">Research sample</span></span>
-                <span class="see-caption-line">Drag to look around, tap the floor to walk.</span>
+                <span class="see-caption-line">Drag to look around. Tap a numbered circle to move.</span>
               </figcaption>
             </figure>
 
@@ -314,7 +308,7 @@
             </tr>
             <tr>
               <th scope="row">Who steers</th>
-              <td><span class="see-cell-label">Explore</span>The viewer, anywhere they like</td>
+              <td><span class="see-cell-label">Explore</span>The viewer, stop by stop</td>
               <td><span class="see-cell-label">Watch</span>A set route through every room</td>
             </tr>
             <tr>
@@ -350,7 +344,7 @@
                 <p>The app unlocks real captures once the practice room passes.</p>
               </div>
               <figure class="see-step-screen" data-screen="1">
-                <div class="device"><div class="device-screen"><img src="/media/app-captures.webp" alt="Veylet Capture’s Your captures screen, with a button to start a practice capture." width="660" height="1434" loading="eager" decoding="async" /></div></div>
+                <div class="device"><div class="device-screen"><img src="/media/app-captures.webp" alt="The Veylet app’s Your captures screen, with a button to start a practice capture." width="660" height="1434" loading="eager" decoding="async" /></div></div>
                 <figcaption>App screen (iOS Simulator)</figcaption>
               </figure>
             </li>
@@ -405,7 +399,7 @@
               <div class="see-step-text">
                 <h3>Approve and share.</h3>
                 <p class="see-step-time">One press</p>
-                <p>Then a link, a QR code and a website embed. Clients walk it in their browser, no app.</p>
+                <p>Then a link, a QR code and a website embed. Clients open it in their browser, no app.</p>
               </div>
               <figure class="see-step-screen" data-screen="5">
                 <div class="device" aria-hidden="true"><div class="device-screen">
@@ -429,7 +423,7 @@
                     </div>
                   </div>
                 </div></div>
-                <figcaption>Illustration<span class="see-sr">: Approve and share, then the link, QR code and embed, then the walkthrough in a phone browser.</span><small>The view is the example above: a research capture, not captured with Veylet Capture.</small></figcaption>
+                <figcaption>Illustration<span class="see-sr">: Approve and share, then the link, QR code and embed, then the walkthrough in a phone browser.</span><small>The view is the example above: a research capture, not captured with the Veylet app.</small></figcaption>
               </figure>
             </li>
           </ol>
@@ -441,10 +435,10 @@
           <h2 id="offer-title">Your first month.</h2>
           <p class="see-offer-intro">Try it on your own spaces before you pay anything. This is what the free month includes, and what follows it.</p>
           <dl class="offer-terms see-offer-terms">
-            <div><dt>3 walkthroughs included</dt><dd>The same 3 as each month of the plan. Use them in one week or spread them out.</dd></div>
+            <div><dt>30 rooms included</dt><dd>The same 30 as each month of the plan. Use them in one week or spread them out.</dd></div>
             <div><dt>Each walkthrough</dt><dd>The 3D walkthrough, a private link, a QR code and a website embed, hosted while your plan runs.</dd></div>
             <div><dt>Listing videos and stills</dt><dd>A 16:9 listing video, a 9:16 social video and stills of each walkthrough, included in the plan when video exports open.</dd></div>
-            <div><dt>Only what you approve counts</dt><dd>A walkthrough uses your allowance only when you approve it for release. One that fails the quality check is never counted.</dd></div>
+            <div><dt>Only what you approve counts</dt><dd>A tour uses rooms only when it passes the check and you approve it. One that fails the quality check uses none. <a href="/offer#counts-title">How rooms are counted</a>.</dd></div>
             <div><dt>Your first walkthrough</dt><dd>If your first walkthrough isn’t listing-ready, we redo it free.</dd></div>
             <div><dt>Card on file, cancel any time</dt><dd>New trials start through Apple’s free introductory offer in the app, if eligible. Existing card and invoice agreements retain their terms. Cancel before the free month ends and nothing is charged.</dd></div>
           </dl>
@@ -453,8 +447,8 @@
           <h3 id="statement-title">What you pay.</h3>
           <dl class="statement-lines">
             <div><dt><span class="line-when">1 free month</span><span class="line-what">Nothing is charged unless you buy a pack or a Super fast render</span></dt><dd class="amount"><span data-price="see-free">A$0</span></dd></div>
-            <div class="line-paid"><dt><span class="line-when">Then the Veylet plan</span><span class="line-what">3 walkthroughs a month; unused ones roll over, up to 6 banked</span></dt><dd class="amount"><span data-price="see-plan-month">A$139.99</span> <span class="amount-note">a month through the App Store</span></dd></div>
-            <div><dt><span class="line-when">Or by the year, for less</span><span class="line-what">The same 36 walkthroughs a year, to use any time in the plan year</span></dt><dd class="amount"><span data-price="see-plan-year">A$1,399.99</span> <span class="amount-note">upfront a year through the App Store · save <span data-price="see-plan-year-saving">A$279.89</span> on 12 monthly payments</span></dd></div>
+            <div class="line-paid"><dt><span class="line-when">Then the Veylet plan</span><span class="line-what">30 rooms a month; unused ones carry over, up to 40 banked</span></dt><dd class="amount"><span data-price="see-plan-month">A$139.99</span> <span class="amount-note">a month through the App Store</span></dd></div>
+            <div><dt><span class="line-when">Or by the year, for less</span><span class="line-what">The same 360 rooms a year, to use any time in the plan year</span></dt><dd class="amount"><span data-price="see-plan-year">A$1,399.99</span> <span class="amount-note">upfront a year through the App Store · save <span data-price="see-plan-year-saving">A$279.89</span> on 12 monthly payments</span></dd></div>
           </dl>
           <p class="statement-note">In the App Store, the Veylet plan is <span data-price="see-plan-month-app">A$139.99</span> a month.</p>
           <p class="see-offer-actions"><a class="button" href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="body">Join the waitlist <span class="icon-arrow" aria-hidden="true"></span></a
@@ -468,7 +462,7 @@
         <div class="faq-list">
           <details>
             <summary>Was this example made with an iPhone?</summary>
-            <p>Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet processing your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 3 walkthroughs included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it.</p>
+            <p>Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence), run through the same Veylet processing your iPhone captures go through, so you can try the walkthrough and the video before you capture anything. Your first month is free with 30 rooms included, so the quickest way to see your own space in 3D is to capture it. Every walkthrough is checked, and nothing is shared until you approve it.</p>
           </details>
           <details>
             <summary>Do my clients need an app?</summary>
@@ -495,14 +489,14 @@
         </div>
       </section>
     </main>
-    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <nav class="sticky-cta" aria-label="Mobile actions" data-sticky-cta>
       <a href="#offer">1 free month</a>
       <a href="/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist</a>
     </nav>
     <script src="/vendor/gsap-3.15.0.min.js?v=92bb9a96476f983d" defer></script>
     <script src="/vendor/ScrollTrigger-3.15.0.min.js?v=b0b14d67b55b0c43" defer></script>
-    <script src="/see/see.js?v=f375c285d512a48b" defer></script>
+    <script src="/see/see.js?v=45bc622ab57a6dfa" defer></script>
     <script src="/first-touch.js?v=2a2b56b660ab0f8f" defer></script>
   </body>
 </html>

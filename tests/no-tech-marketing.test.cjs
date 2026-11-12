@@ -59,7 +59,7 @@ const ALLOW = {
     ['iPhone: 12 Pro and 12 Pro Max', 'supported model list'],
     ['iPad Pro: 11-inch (2nd generation)', 'supported model list'],
     ['The Pro and Pro Max models from iPhone 12 Pro', 'FAQ: which iPhones work'],
-    ['Veylet Capture works with recent iPhone Pro and iPad Pro models', 'FAQ: do I need a Matterport camera'],
+    ['The Veylet app works with recent iPhone Pro and iPad Pro models', 'FAQ: do I need a Matterport camera'],
     ['If you own a recent iPhone Pro or iPad Pro', 'requirement line at the final call to action'],
   ],
   'llms.txt': [

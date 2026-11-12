@@ -103,7 +103,11 @@ async function load(options = {}) {
   await settle();
   const h = {
     ids, calls, fetches, clicks,
-    block: (tourId = 't1') => ids['account-properties'].all().find(el => el.dataset?.tour === tourId)?.all().find(el => /\btour-exports\b/.test(el.className)) || null,
+    // The block is a panel under the card's row, behind its quiet "Videos and stills" disclosure (shown once the backend answers).
+    block: (tourId = 't1') => ids['account-properties'].all().find(el => el.dataset?.tour === tourId)?.all().find(el => String(el.className).split(' ').includes('tour-exports')) || null,
+    toggle: (tourId = 't1') => ids['account-properties'].all().find(el => el.dataset?.tour === tourId)?.all().find(el => el.dataset?.disclosure === 'exports') || null,
+    offered: () => Boolean(h.toggle()) && !h.toggle().hidden,
+    open: async () => { if (h.offered() && h.block().hidden) await h.toggle().events.click({}); },
     state: () => h.block().all().find(el => el.className === 'tour-exports-state'),
     text: () => h.block().shown().map(el => el.textContent).filter(Boolean),
     buttons: () => h.block().shown().filter(el => el.tagName === 'BUTTON'),
@@ -114,6 +118,8 @@ async function load(options = {}) {
     status: () => ids['account-status'].textContent,
     requests: () => calls.filter(([name]) => name === 'request_listing_exports').map(([, args]) => args),
   };
+  // As a person would: open Videos and stills once it is offered, so the block's words and buttons are on screen.
+  await h.open();
   return h;
 }
 const nothing = (consent = VERSION) => args => ({ data: { tour_id: args.p_tour_id, state: null, requested: false, downloadable: false, consent_version: consent } });
@@ -139,13 +145,14 @@ test('listing exports: the consent words are the draft statement exactly, by its
 
 test('listing exports: a backend without the functions (PGRST202) shows nothing and is asked once per page', async () => {
   const h = await load();
+  assert.equal(h.offered(), false);
   assert.equal(h.block().hidden, true);
   assert.equal(h.calls.filter(([name]) => name === 'get_listing_exports').length, 1);
   assert.equal(h.calls.some(([name]) => ['request_listing_exports', 'authorize_listing_export_download'].includes(name)), false);
   // A malformed answer (another walkthrough's row, no requested flag, an unknown state) is hidden too.
   for (const data of [{ tour_id: 'other', state: null, requested: false }, { tour_id: 't1', state: null }, { tour_id: 't1', state: 'processing', requested: true, export_id: EXPORT_ID }, null]) {
     const odd = await load({ exports: () => ({ data }) });
-    assert.equal(odd.block().hidden, true, JSON.stringify(data));
+    assert.equal(odd.offered(), false, JSON.stringify(data));
   }
 });
 
@@ -157,11 +164,11 @@ test('listing exports: only an approved walkthrough, only for whoever may share 
   for (const [role, createdBy] of [['owner', 'someone-else'], ['reviewer', 'someone-else'], ['operator', 'user-1']]) {
     const h = await load({ role, createdBy, exports: nothing() });
     assert.deepEqual({ ...h.calls.find(([name]) => name === 'get_listing_exports')[1] }, { p_tour_id: 't1' }, role);
-    assert.equal(h.block().hidden, false, role);
+    assert.equal(h.offered(), true, role);
   }
   // Sharing off or paused changes nothing: the server's gate is the approval.
   const off = await load({ tours: [{ id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/package.zip', created_by: 'user-1', share_token: null }], exports: nothing() });
-  assert.equal(off.block().hidden, false);
+  assert.equal(off.offered(), true);
 });
 
 test('listing exports: until the owner activates a statement, "Exports open soon." and nothing to press', async () => {
@@ -223,7 +230,9 @@ test('listing exports: every state reads in the contract’s words, with only wh
   }
   // Ready is on the summary, so it reads without opening the block; only the listing video is filled.
   const ready = await load({ exports: row('ready') });
-  const chip = ready.block().children[0].children.find(el => /\btour-exports-chip\b/.test(el.className));
+  // The tab says both kinds of file it holds (it read "Videos" before, hiding the stills).
+  assert.equal(ready.toggle().children[0].textContent, 'Videos and stills');
+  const chip = ready.toggle().children.find(el => /\btour-exports-chip\b/.test(el.className));
   assert.equal(chip.textContent, 'Ready to download');
   assert.deepEqual(ready.buttons().map(el => /\btour-action-primary\b/.test(el.className)), [true, false, false]);
   // Ready but not downloadable (this version is no longer the approved one): nothing to download.
@@ -374,7 +383,7 @@ test('listing exports: Check again reads again; a failed read offers Try again',
 
 test('listing exports: the app’s page shows the same block and never an amount', async () => {
   const h = await load({ appMode: true, exports: row('ready') });
-  assert.equal(h.block().hidden, false);
+  assert.equal(h.offered(), true);
   const soon = await load({ appMode: true, exports: nothing(null) });
   assert.deepEqual(soon.text(), [...INTRO, 'Exports open soon.']);
   // Every export state through the QA fixture on the app's page, as the release check renders it.

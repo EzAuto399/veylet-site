@@ -8,18 +8,30 @@
 .desk-who { margin: 0 0 40px; font-size: 13px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
 .desk-main,
 .desk-side { min-width: 0; }
-.desk-side { margin-top: 64px; }
+.desk-side { display: grid; gap: 20px; margin-top: 48px; align-items: start; }
 .desk .desk-section { margin: 0; }
-.desk-main > .desk-section,
-.desk-side > .desk-section + .desk-section { margin-top: 48px; }
+.desk-main > .desk-section { margin-top: 48px; }
+.desk-side > .desk-section + .desk-section { margin-top: 0; }
+.desk-side > .desk-section:not([hidden]) {
+  padding: 20px 22px 22px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.48);
+}
+@media (max-width: 480px) {
+  .desk-side > .desk-section:not([hidden]) { padding: 18px 16px 20px; }
+}
+@media (min-width: 720px) and (max-width: 1079px) {
+  .desk-side { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+}
 .desk-main > .account-next:empty + .desk-section { margin-top: 0; }
 @media (min-width: 1080px) {
   /* As wide as the studio desk and left-aligned under the brand; signed out,
      the page stays the narrow sign-in column. */
   .form-page:has(> .desk:not([hidden])) { max-width: 1456px; }
-  .desk:not([hidden]) {
+  /* The two-column desk is the page the app opens; the website's desk is views. */
+  .desk:not([hidden]):has(> .desk-side) {
     display: grid;
-    grid-template-columns: minmax(0, 760px) minmax(280px, 344px);
+    grid-template-columns: minmax(0, 760px) minmax(296px, 360px);
     justify-content: space-between;
     column-gap: 56px;
     align-items: start;
@@ -31,7 +43,8 @@
 /* Every desk section opens the same way: its heading on a 1px ink rule. */
 .desk .dash-heading { margin: 0; font-size: 22px; line-height: 1.25; letter-spacing: -0.02em; }
 .desk-section-head,
-.desk-side .dash-heading { padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+.desk-side .dash-heading,
+.desk-view .dash-heading { padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
 .desk-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
 .desk-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 0; }
 .desk #account-updated { margin: 0; flex-basis: auto; font-size: 13px; letter-spacing: 0; }
@@ -91,15 +104,63 @@
 .desk .dash-space-meta { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .desk .dash-space > .tour-state-help { margin-top: 12px; max-width: 62ch; }
 .desk .dash-tours { margin: 18px 0 0; padding: 0; list-style: none; }
-.desk .dash-tour { padding: 18px 0 2px; border-top: 1px solid var(--line); }
-.desk .dash-tour .tour-meta-row { margin: 0; }
-.desk .dash-tour .tour-state-help { margin: 10px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; }
-.desk .dash-tour .tour-actions-row { margin: 14px 0 0; gap: 8px; }
-.desk .dash-tour > .tour-action { margin-top: 14px; }
-.desk .dash-tour .account-details { margin: 0; padding: 0; border-bottom: 0; border-top: 1px solid var(--line); max-width: none; }
-.desk .dash-tour > :not(.account-details) + .account-details { margin-top: 18px; }
-.desk .dash-tour .account-details > summary { padding-block: 11px; font-size: 14px; color: var(--ink); }
-.desk .dash-tour .account-details[open] { padding-bottom: 16px; }
+/* A walkthrough is three rows between hairlines: its chip, date and views; one state
+   sentence; its buttons with quiet disclosures beside them. The one open panel sits
+   under the row. The card answers to its own width, so it holds in the desk's main
+   column and on a phone alike. */
+.desk .dash-tour { padding: 16px 0; border-top: 1px solid var(--line); container-type: inline-size; }
+.desk .dash-tour .tour-meta-row { margin: 0; gap: 4px 8px; }
+.desk .dash-tour .tour-state-help { margin: 8px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; }
+.desk .dash-tour .tour-actions-row { margin: 12px 0 0; gap: 8px; }
+.desk .dash-tour > .tour-action { margin-top: 12px; }
+.desk .tour-card-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; min-width: 0; }
+.desk .dash-tour .tour-card-row > .tour-actions-row { margin: 0; }
+.tour-disclosures { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin-left: auto; min-width: 0; }
+/* A disclosure is a word, not a box: 44px to press, muted until it is open, and the
+   open one underlined in ink, so its state is never colour alone. */
+.tour-disclosure {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 44px; min-height: 44px; margin: 0; padding: 0 6px;
+  border: 0; border-radius: 0; background: none; color: var(--muted);
+  font: inherit; font-size: 14px; line-height: 1.3; cursor: pointer;
+  text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 6px;
+  transition: color 0.17s, text-decoration-color 0.17s;
+}
+.tour-disclosure:hover { color: var(--ink); text-decoration-color: currentColor; }
+.tour-disclosure[aria-expanded='true'] { color: var(--ink); text-decoration-color: currentColor; text-decoration-thickness: 2px; }
+.desk .tour-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); min-width: 0; }
+.desk .dash-tour .tour-panel > :first-child { margin-top: 0; }
+@container (max-width: 560px) {
+  .desk .tour-views { flex: 1 1 100%; margin-left: 0; }
+  .desk .dash-tour .tour-card-row > .tour-actions-row > .tour-action { flex: 1 1 auto; }
+}
+/* The buttons and five toggles need 601px to share a line. Left to wrap where they happened
+   to fit, a card lost a row at 649px, one width after its own step. They stay two rows until
+   the card is 672px wide, which is the desk's 720px step, so that change happens once. */
+@container (max-width: 671px) {
+  .desk .dash-tour .tour-card-row > .tour-actions-row { flex: 1 1 100%; }
+  /* The quiet toggles hang on the card's left keyline, under its buttons. */
+  .tour-disclosures { flex: 1 1 100%; margin-left: 0; gap: 0 4px; }
+  .tour-disclosures .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
+}
+/* An ended plan's two links are 44px each to a finger. Left to wrap where they happened to
+   fit, every such card grew or shrank by a row at one width of its own; on a narrow card
+   they are a column, so that change happens once, at the card's step. */
+@media (pointer: coarse) {
+  @container (max-width: 560px) {
+    .dash-tour .tour-hosting-fix { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; }
+  }
+}
+@media (prefers-reduced-motion: reduce) { .tour-disclosure { transition: none; } }
+/* More: Insights, Videos and stills and Manage, one line under the row once opened,
+   right-aligned like the row's toggles and on the left keyline on a narrow card. */
+.desk .tour-more-group { display: flex; flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-end; gap: 0 8px; min-width: 0; }
+@container (max-width: 671px) {
+  .desk .tour-more-group { justify-content: flex-start; gap: 0 4px; }
+  .desk .tour-more-group .tour-disclosure { justify-content: flex-start; padding: 0 12px 0 0; }
+}
+/* The link's address, once Copy link is pressed: under the row, never wider than a line. */
+.desk .tour-link-address { display: grid; gap: 6px; max-width: 560px; margin-top: 12px; }
 /* One walkthrough, two versions: each says which it is, and the version a waiting
    correction will replace hangs under it on a hairline, so the pair reads as one job. */
 .desk .dash-tour .tour-lineage { margin: 8px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -119,17 +180,30 @@
 /* A live walkthrough: the hosting line, the link and its two actions on one
    row where there is room, then the website steps and code behind a
    disclosure. Same hairlines, fields and 44px targets as the rest of the desk. */
-.dash-space .tour-hosting { color: var(--ink); }
+.dash-space .tour-hosting { color: var(--muted); }
+/* A live link's sentence may run the card's width: an ended plan's quiet fixes end it. */
+.desk .dash-tour .tour-hosting { max-width: none; }
+.tour-hosting-words { margin-right: 10px; }
+.tour-hosting-fix .text-link {
+  /* Inline, and the line keeps its height: 3px above and below make a 24px target, taken back by the margin. */
+  display: inline; min-height: 0; margin: -3px 14px -3px 0; padding: 3px 0; border: 0; background: none;
+  color: var(--ink); font: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px;
+}
+.tour-hosting-fix .text-link:hover { text-decoration-color: currentColor; }
+@media (pointer: coarse) {
+  .tour-hosting-fix .text-link { display: inline-flex; align-items: center; min-height: 44px; }
+}
 .tour-field { display: grid; gap: 6px; margin: 14px 0 0; max-width: 62ch; min-width: 0; }
 .tour-field > span { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .tour-field .copy-field { min-height: 44px; color: var(--ink); border-color: var(--field-line); }
 .tour-field input.copy-field { resize: none; white-space: nowrap; overflow-x: auto; text-overflow: ellipsis; }
 .desk .copy-field { border-radius: 2px; }
 .desk .tour-field input.copy-field { height: 44px; padding-block: 0; }
-.desk .tour-link-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 14px; max-width: 700px; }
+.desk .tour-link-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 14px; max-width: 760px; }
 .desk .tour-link-row .tour-field { flex: 1 1 280px; margin: 0; max-width: none; }
 .desk .tour-link-row .tour-actions-row { margin: 0; }
-.desk .tour-website > :not(summary) { max-width: 640px; }
+.desk .tour-website > * { max-width: 640px; }
 .desk .tour-website .tour-builder { margin-top: 4px; }
 .tour-builder { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .tour-builder legend { padding: 0; margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
@@ -137,11 +211,10 @@
 .tour-builder-choice:hover { border-color: var(--ink); }
 .tour-builder-choice:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
 .tour-builder-choice:has(input:focus-visible) { outline: 3px solid #897033; outline-offset: 3px; }
-.tour-builder-choice input { width: 18px; height: 18px; margin: 0; flex: none; accent-color: var(--ink); }
+.tour-builder-choice input { width: 24px; height: 24px; margin: 0; flex: none; accent-color: var(--ink); }
 .tour-builder-choice input:focus-visible { outline: none; }
 .dash-space ol.tour-builder-steps { margin: 14px 0 0; padding-left: 1.3rem; color: var(--ink); font-size: 14px; line-height: 1.55; list-style: decimal; }
 .account-list .tour-builder-steps li { min-height: 0; margin: 6px 0; padding-left: 2px; }
-.tour-manage summary { font-size: 14px; color: var(--ink); }
 .tour-manage .tour-actions-stop:first-of-type { margin-top: 4px; }
 /* Pause comes first under Manage sharing: undone in one press, so no confirmation;
    Turn off sharing, the destructive one, sits below it on its own row. */
@@ -155,10 +228,8 @@
 .desk .tour-review .tour-flags-list { margin: 8px 0 0; padding-left: 1.2rem; list-style: disc; font-size: 14px; line-height: 1.55; color: var(--ink); }
 .desk .tour-review .tour-flags-list li { min-height: 0; margin: 4px 0; overflow-wrap: anywhere; }
 .desk .tour-review .tour-flags-note { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
-/* Views: two quiet lines under the state line, numbers tabular so a new count shifts nothing. */
-.desk .tour-views { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
-.desk .tour-views p { margin: 0; overflow-wrap: anywhere; }
-.desk .tour-views .tour-views-opens { color: var(--ink); }
+/* Views: one quiet line ending the card's first row, numbers tabular so a new count shifts nothing. */
+.desk .tour-views { margin: 0 0 0 auto; min-width: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 @media (max-width: 480px) {
   .tour-builder-choice { flex: 1 1 calc(50% - 4px); }
   .tour-website .tour-actions-row .tour-action,
@@ -184,7 +255,8 @@
    type, the state in ink, the consent statement beside one 24px box whose whole
    label is the 44px target, and one file per row so long labels wrap at 320px.
    No motion is added; the site-wide reduced-motion rule covers the controls. */
-.tour-exports-title { margin-right: 8px; }
+.tour-exports-title { margin-right: 0; }
+.desk .dash-tour .tour-exports-heading { margin: 0 0 10px; font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--ink); }
 .tour-exports-chip { vertical-align: 1px; }
 .tour-exports-body { display: grid; gap: 0; padding-top: 2px; min-width: 0; }
 .desk .dash-tour .tour-exports-body > .tour-state-help:first-child { margin-top: 0; }
@@ -290,12 +362,12 @@
 /* Prices: the yearly total, then months free and the saving, then per month. */
 .annual-choice { margin: 16px 0 0; padding: 0; border: 0; min-width: 0; }
 .annual-choice legend { margin: 0 0 8px; padding: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.annual-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 44px; padding: 14px 16px; border: 1px solid var(--field-line); border-radius: 2px; background: #fff; color: var(--ink); cursor: pointer; transition: border-color 0.17s, background 0.17s; }
+.annual-option { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 44px; padding: 14px 16px; border: 1px solid var(--field-line); border-radius: 2px; background: #fff; color: var(--ink); cursor: pointer; transition: border-color 0.17s, background 0.17s; }
 .annual-option + .annual-option { margin-top: 8px; }
 .annual-option:hover { border-color: var(--ink); }
 .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
 .annual-option:has(input:focus-visible) { outline: 3px solid #897033; outline-offset: 3px; }
-.annual-option input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ink); }
+.annual-option input { width: 24px; height: 24px; margin: 2px 0 0; accent-color: var(--ink); }
 .annual-option input:focus-visible { outline: none; }
 .annual-option-body { display: grid; gap: 2px; min-width: 0; }
 .annual-option-name { font-size: 15px; font-weight: 500; line-height: 1.4; }
@@ -420,7 +492,7 @@
 .contact-panel .clients-lead { margin: 16px 0 0; }
 .desk .clients-form { gap: 14px; margin-top: 14px; max-width: 520px; }
 .veylet-form .clients-show { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 0; font-size: 15px; line-height: 1.4; color: var(--ink); cursor: pointer; }
-.veylet-form .clients-show input { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0; accent-color: var(--ink); cursor: pointer; }
+.veylet-form .clients-show input { flex: none; width: 24px; height: 24px; min-height: 0; margin: 0; padding: 0; accent-color: var(--ink); cursor: pointer; }
 .veylet-form .clients-show input:disabled { cursor: not-allowed; }
 .veylet-form .clients-field { gap: 6px; }
 .clients-field-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
@@ -447,21 +519,40 @@
 
 /* The side column: capture help and the account, as hairline disclosures. */
 .desk-side .account-details,
-.desk-side .gate-note { margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
+.desk-view .account-details,
+.desk-side .gate-note,
+.desk-view .gate-note { margin: 0; padding: 0; border-bottom: 1px solid var(--line); }
 .desk-side .account-details[open],
-.desk-side .gate-note[open] { padding-bottom: 18px; }
+.desk-view .account-details[open],
+.desk-side .gate-note[open],
+.desk-view .gate-note[open] { padding-bottom: 18px; }
 .desk-side .account-details > summary,
-.desk-side .gate-note > summary { padding-block: 12px; font-size: 15px; }
-.desk-side .gate-note-title { margin: 0; font-size: 15px; font-weight: 500; }
+.desk-view .account-details > summary,
+.desk-side .gate-note > summary,
+.desk-view .gate-note > summary {
+  padding-block: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  transition: color 0.16s, background-color 0.16s;
+}
+.desk-side .account-details > summary:hover,
+.desk-view .account-details > summary:hover,
+.desk-side .gate-note > summary:hover,
+.desk-view .gate-note > summary:hover { color: #2c4939; }
+.desk-side .gate-note-title,
+.desk-view .gate-note-title { margin: 0; font-size: 15px; font-weight: 500; }
 .desk .dash-flow { margin: 4px 0 0; }
-.desk-links { margin: 6px 0 0; }
-.desk #account-id { overflow-wrap: anywhere; }
-.desk-sign-out { margin-top: 24px; }
+.desk-links { margin: 12px 0 0; }
+.desk #account-id { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.desk-sign-out { width: 100%; margin-top: 18px; }
 @media (min-width: 1080px) {
   /* In the narrow column the plan keeps term and value side by side; the
      longer leaving answers read better under their questions. */
-  .desk-side .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 2px 16px; padding: 11px 0; }
-  .desk-side .leaving-list:not(.plan-list) > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .desk-side .plan-list > div,
+  .desk-view .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 2px 16px; padding: 11px 0; }
+  .desk-side .leaving-list:not(.plan-list) > div,
+  .desk-view .leaving-list:not(.plan-list) > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }
 
 /* Signed out: the status line is a message and the form is a task. */
@@ -581,6 +672,15 @@
 .sign-in-or::before,
 .sign-in-or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .sign-in-link-hint { margin: -6px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+/* Who you are is a closed, optional disclosure: owner is the default, so the
+   email path has one field. The summary reads as a quiet link, never hover-only. */
+.role-intent > summary { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--muted); text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px; cursor: pointer; }
+.role-intent > summary:hover { color: var(--ink); text-decoration-color: currentColor; }
+.role-intent > summary:focus-visible { outline: 3px solid #897033; outline-offset: 4px; }
+.role-intent[open] > summary { margin-bottom: 8px; }
+/* The email path is the other way in: a ghost button, so Apple is the one filled action. */
+#account-sign-in .button-ghost { justify-self: start; }
+#account-sign-in .button-ghost:hover { background: #e3eadb; color: var(--ink); }
 
 /* Sign-in methods on the signed-in desk: one row each for email and Apple. */
 .sign-in-methods { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
@@ -588,3 +688,326 @@
 .sign-in-method-name { min-width: 56px; color: var(--muted); }
 .sign-in-method-value { min-width: 0; overflow-wrap: anywhere; }
 #account-methods-status:empty { display: none; }
+
+/* ---- Walkthrough insights, vendor report and pre-capture readiness -------- */
+.tour-insights { margin: 8px 0 12px; }
+/* On a walkthrough's card the insights are a panel already: no box inside it. */
+.desk .tour-panel.tour-insights { margin: 12px 0 0; }
+.desk .dash-tour .tour-insights-body { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
+.tour-insights-body,
+.space-prep-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fdfcfa;
+}
+/*
+ * Insights read top down, in the order the questions come: the sentence for the vendor and
+ * its report, the headline figures, where the opens came from, time per room, then where
+ * viewers stood (the plan) and time per stop. One column at every width up to the desk
+ * bar's own step (720px); from there the plan stands beside the two tables. Nothing in
+ * here changes layout at any other width, so the page below it never jumps on its own.
+ */
+.tour-insights-body { grid-template-columns: minmax(0, 1fr); --heat-floor: #fdfcfa; }
+.tour-insights-body > * { min-width: 0; }
+.tour-insights-lead, .desk .dash-tour p.tour-insights-lead { overflow-wrap: anywhere; margin: 0; max-width: 64ch; font-size: 16px; line-height: 1.5; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* While its insights are open, the card's one-line count gives way to the headline figures: each number once. */
+.desk .dash-tour:has(> .tour-insights:not([hidden])) .tour-views { display: none; }
+/* The two report buttons share one row at every width; a long label wraps inside its button. */
+.desk .dash-tour .tour-insights-report { flex-wrap: nowrap; align-items: stretch; }
+.tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding: 6px 12px; text-align: left; overflow-wrap: anywhere; }
+/* The headline row: two across on a narrow card, three across from the card's own step. */
+.tour-insights-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.tour-insights-figures > div { min-width: 0; }
+.tour-insights-figures dt { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.tour-insights-figures dd { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.015em; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tour-insights-figures dd.tour-insights-detail { font-size: 13px; font-weight: 400; line-height: 1.5; letter-spacing: 0; color: var(--muted); }
+@container (min-width: 561px) { .tour-insights-figures { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Each group's period, said once at its head: all time, the last 90 days, this version. */
+.tour-insights-body p.tour-insights-scope, .tour-insights-version > p.tour-heat-scope { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.tour-insights-roomlist > p.tour-insights-dwell { font-size: 14px; color: var(--ink); }
+/* The all-time period heads the figure row inside its rule, not under the report buttons. */
+.tour-insights-body > p.tour-insights-scope { padding-top: 12px; border-top: 1px solid var(--line); }
+.tour-insights-body > p.tour-insights-scope + .tour-insights-figures { padding-top: 0; border-top: 0; }
+.tour-insights-body > p:not(.tour-insights-lead, .tour-actions-row),
+.tour-insights-roomlist > p,
+.tour-heat p:not(.tour-actions-row),
+.tour-heat-list > p:not(.tour-actions-row) { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.tour-insights-body > p.tour-insights-stopped,
+.tour-insights-body > p.tour-insights-problem,
+.tour-heat p.tour-heat-problem,
+.tour-heat p.tour-heat-empty { max-width: 64ch; font-size: 14px; color: var(--ink); }
+.tour-insights-body > p.tour-insights-note { max-width: 64ch; font-size: 14px; }
+/* The last 90 days (time per room), then this version (where viewers stood, time per stop): each group under its own rule. */
+.tour-insights-roomlist, .tour-insights-version, .tour-heat, .tour-heat-list { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; min-width: 0; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.tour-insights-version { gap: 16px; }
+.tour-insights-version > :is(.tour-heat, .tour-heat-list) { margin-top: 0; padding-top: 0; border-top: 0; }
+.tour-heat[hidden], .tour-heat-list[hidden], .tour-heat-scope[hidden] { display: none; }
+.tour-insights-version:not(:has(> :not([hidden]))) { display: none; }
+.tour-insights-title, .tour-heat-title { margin: 0; font-size: 14px; font-weight: 500; line-height: 1.4; color: var(--ink); }
+/*
+ * Both tables are grids of rows at every width: the name takes the room that is left, the
+ * numbers sit right-aligned in columns of tabular figures, and a stop's words run under its
+ * name. No column is ever dropped and nothing scrolls sideways. The columns below are the
+ * fallback; where subgrid is supported each number column is as wide as its longest value
+ * or its header, whichever is longer, and a header too long for its column ends in an ellipsis.
+ */
+.tour-insights-rooms, .tour-heat-table { display: block; width: 100%; margin: 0; border-collapse: collapse; font-size: 14px; line-height: 1.4; color: var(--ink); font-variant-numeric: tabular-nums; }
+:is(.tour-insights-rooms, .tour-heat-table) :is(caption, thead, tbody) { display: block; }
+:is(.tour-insights-rooms, .tour-heat-table) caption { padding: 0 0 4px; text-align: left; font-size: 13px; line-height: 1.5; color: var(--muted); }
+:is(.tour-insights-rooms, .tour-heat-table) tr { display: grid; column-gap: 12px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); }
+:is(.tour-insights-rooms, .tour-heat-table) tr[hidden] { display: none; }
+:is(.tour-insights-rooms, .tour-heat-table) thead tr { align-items: end; padding: 4px 0; border-top: 0; }
+:is(.tour-insights-rooms, .tour-heat-table) :is(th, td) { display: block; min-width: 0; padding: 0; font-weight: 400; text-align: left; overflow-wrap: anywhere; }
+:is(.tour-insights-rooms, .tour-heat-table) thead th { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:is(.tour-insights-rooms, .tour-heat-table) .tour-cell-number { text-align: right; }
+.tour-insights-rooms tr { grid-template-columns: minmax(0, 1fr) 3em 6em 3em; }
+.tour-insights-rooms-counts tr { grid-template-columns: minmax(0, 1fr) 3em; }
+.tour-insights-rooms td.tour-insights-room-bar { grid-column: 1 / -1; height: 4px; margin-top: 6px; background: linear-gradient(var(--ink), var(--ink)) left / var(--share, 0%) 100% no-repeat, var(--line); }
+.tour-heat-table tr { grid-template-columns: 1.75em minmax(0, 1fr) 3em 4.5em; }
+.tour-heat-table .tour-cell-key { color: var(--muted); }
+.tour-heat-table td.tour-cell-words { grid-column: 2 / -1; padding-top: 2px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.tour-heat-table td.tour-cell-words:empty { display: none; }
+.tour-heat-table thead th.tour-cell-words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@supports (grid-template-columns: subgrid) {
+  .tour-insights-rooms, .tour-heat-table { display: grid; column-gap: 12px; }
+  .tour-insights-rooms { grid-template-columns: minmax(6.5em, 1fr) auto auto auto; }
+  .tour-insights-rooms-counts { grid-template-columns: minmax(6.5em, 1fr) auto; }
+  .tour-heat-table { grid-template-columns: auto minmax(6.5em, 1fr) auto auto; }
+  :is(.tour-insights-rooms, .tour-heat-table) :is(caption, thead, tbody, tr) { grid-column: 1 / -1; }
+  :is(.tour-insights-rooms, .tour-heat-table) :is(thead, tbody) { display: grid; grid-template-columns: subgrid; }
+  :is(.tour-insights-rooms, .tour-heat-table) tr { grid-template-columns: subgrid; }
+  /* A figure stays on one line in a column sized to hold it; only a value no real count reaches would end in an ellipsis. */
+  :is(.tour-insights-rooms, .tour-heat-table) td:is(.tour-cell-number, .tour-cell-key) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+/*
+ * The plan. Its floor is the lightest ground so every mark clears 3:1 against it. The three
+ * shade steps are one grey-green, light to dark, from the desk's own line, accent and ink;
+ * the lightest is too pale to stand alone, so it wears a field-line edge. A darker circle
+ * wears a ring of the floor colour so two that overlap stay two; a stop nobody visited is a
+ * small open ring; under five visits a circle is an outline. Numbers are ink with a floor halo.
+ */
+.tour-heat-map { display: grid; gap: 10px; min-width: 0; margin: 0; }
+.tour-heat-plan { display: block; width: 100%; max-width: 400px; height: auto; }
+.tour-heat-floor { fill: var(--heat-floor); }
+.tour-heat-floor-edge { fill: none; stroke: var(--field-line); stroke-width: 2; stroke-linejoin: round; }
+.tour-heat-spot { stroke: var(--heat-floor); stroke-width: 1.5; }
+.tour-heat-spot[data-level="1"] { fill: var(--line); stroke: var(--field-line); }
+.tour-heat-spot[data-level="2"] { fill: var(--accent); }
+.tour-heat-spot[data-level="3"] { fill: var(--ink); }
+.tour-heat-spot[data-level="count"] { fill: var(--heat-floor); stroke: var(--ink); }
+.tour-heat-spot-unvisited { fill: var(--heat-floor); stroke: var(--field-line); stroke-width: 1.25; }
+.tour-heat-look { fill: var(--ink); }
+.tour-heat-number { font-size: 12px; font-weight: 500; fill: var(--ink); stroke: var(--heat-floor); stroke-width: 3px; stroke-linejoin: round; paint-order: stroke; font-variant-numeric: tabular-nums; }
+.tour-heat-legend { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tour-heat-legend li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-width: 0; }
+.tour-heat-legend-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.tour-heat-key { flex: none; }
+/* The three steps of the shade read as one row under their label. */
+.tour-heat-legend-shade > :first-child { flex-basis: 100%; }
+/* Waiting, once it has lasted: the plan's box and its key, then three rows, where the answer will stand. */
+.tour-heat-skeleton .tour-heat-plan { aspect-ratio: 4 / 3; }
+p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.4; }
+@media (min-width: 720px) {
+  @container (min-width: 600px) {
+    /* Time per room keeps the width of the stop table under it. */
+    .tour-insights-body:has(> .tour-insights-version > .tour-heat:not([hidden])):has(> .tour-insights-version > .tour-heat-list:not([hidden])) > .tour-insights-roomlist { width: calc(58% - 32px); }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 42%); column-gap: 32px; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > * { grid-column: 1 / -1; }
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > .tour-heat-list { grid-column: 1; grid-row: 2; }
+    /* Only with both shown: a plan without its stop table (no visits, a failed read) stays one column. */
+    /* The plan stands beside the stops it maps and keeps to the top of the screen while their long table is read. */
+    .tour-insights-version:has(> .tour-heat:not([hidden])):has(> .tour-heat-list:not([hidden])) > .tour-heat { grid-column: 2; grid-row: 2; position: sticky; top: 12px; align-self: start; }
+  }
+}
+.space-prep { margin: 12px 0 0; }
+.space-prep-lead { margin: 0; }
+.space-prep-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+/* ---- The desk as views ----------------------------------------------------
+   Signed in, the website's desk has its own bar (brand, views, office, account
+   menu) and four views chosen by the URL hash. One reading column per view; the
+   walkthroughs take the wide one. Rules sit under .desk-bar and .desk-view so the
+   page the app opens, which has neither, is untouched. */
+.session-checking #site-header nav { visibility: hidden; }
+.session-checking #main { min-height: calc(100vh - 220px); }
+.session-checking #main > * { display: none; }
+.session-checking #main > #account-opening,
+.session-checking #main > #account-status { display: block; }
+.desk-opening { margin: 0; color: var(--muted); }
+.desk-bar { border-bottom: 1px solid var(--line); }
+.desk-bar-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 0 32px; min-height: 56px; }
+.desk-bar .brand { min-height: 44px; }
+.desk-views { flex: 1 1 auto; flex-wrap: nowrap; gap: 0 24px; min-width: 0; font-size: 14px; overflow-x: auto; scrollbar-width: none; }
+.desk-views::-webkit-scrollbar { display: none; }
+.desk-views a { flex: none; min-height: 44px; color: var(--muted); border-bottom: 0; padding-bottom: 0; text-decoration: underline transparent; text-decoration-thickness: 1px; text-underline-offset: 6px; transition: color 0.17s, text-decoration-color 0.17s; }
+.desk-views a:last-child { border-bottom: 0; padding-bottom: 0; }
+.desk-views a:hover { color: var(--ink); text-decoration-color: currentColor; }
+.desk-views a[aria-current='page'] { color: var(--ink); text-decoration-color: currentColor; text-decoration-thickness: 2px; }
+.desk-office { flex: 0 1 auto; min-width: 0; margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desk-menu { position: relative; flex: 0 1 auto; min-width: 0; margin-left: auto; }
+.desk-menu > summary { max-width: 100%; overflow-wrap: anywhere; }
+.desk-office:not([hidden]) + .desk-menu { margin-left: 0; }
+.desk-views + .desk-office { margin-left: auto; }
+.desk-menu > summary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; padding: 0 2px; list-style: none; cursor: pointer; font-size: 14px; line-height: 1.3; color: var(--ink); }
+.desk-menu > summary::-webkit-details-marker { display: none; }
+.desk-menu > summary::after { content: ""; width: 7px; height: 7px; margin-top: -4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); transition: transform 0.2s; }
+.desk-menu[open] > summary::after { margin-top: 3px; transform: rotate(225deg); }
+.desk-menu > summary:focus-visible { outline: 3px solid #897033; outline-offset: 2px; }
+.desk-menu-list { position: absolute; z-index: 5; top: 100%; right: 0; display: grid; min-width: 232px; max-width: min(320px, calc(100vw - 32px)); padding: 6px 0; border: 1px solid var(--field-line); background: var(--paper); }
+.desk-menu-who { margin: 0; padding: 8px 16px 10px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.desk-menu-list > a,
+.desk-menu-list > button { display: flex; align-items: center; min-height: 44px; margin: 0; padding: 0 16px; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.3; text-align: left; cursor: pointer; }
+.desk-menu-list > a:hover,
+.desk-menu-list > button:hover { background: rgba(16, 35, 29, 0.06); }
+.desk-menu-list > a:focus-visible,
+.desk-menu-list > button:focus-visible { outline-offset: -3px; }
+.desk-menu-list > a[aria-current='page'] { font-weight: 500; }
+@media (max-width: 719px) {
+  /* A phone: brand and the account menu, then the views as one row that scrolls. */
+  .desk-bar-inner { gap: 0 16px; min-height: 52px; }
+  .desk-views { order: 3; flex: 1 1 100%; gap: 0 20px; border-top: 1px solid var(--line); }
+  .desk-office { display: none; }
+  .desk-bar .desk-menu { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .desk-views a, .desk-menu > summary::after { transition: none; } }
+
+:root { --desk-width: 1152px; }
+/* One width for the bar, the page and the desk footer, so their left and right edges line up on every view. */
+.desk-bar-inner, .desk-footer, .form-page:has(> .desk:not([hidden]) > .desk-view) { max-width: var(--desk-width); }
+.form-page:has(> .desk:not([hidden]) > .desk-view) { padding-block: 0; }
+/* The footer's hairline is the page content's own bottom edge, so it shares the content's width. */
+.form-page > .desk:has(> .desk-view) { padding-bottom: 40px; border-bottom: 1px solid var(--line); }
+.desk-footer { border-top: 0; }
+.form-page:has(> .desk:not([hidden]) > .desk-view) > #account-status:not(:empty) { margin: 16px 0 0; }
+.desk-view { min-width: 0; }
+/* Plan, Your team and Account read in one column; the rule under each view's title still runs edge to edge. */
+.desk-view:not(#view-walkthroughs) > :not(.view-title):not(.desk-section),
+.desk-view:not(#view-walkthroughs) > .desk-section > :not(.view-title) { max-width: 720px; }
+.desk .view-title { margin: 0; font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.desk .view-title:focus { outline: none; }
+.desk .view-title:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+.view-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--ink); }
+.desk-view > .view-title,
+.desk-view > .desk-section > .view-title { display: flex; align-items: center; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--ink); }
+.view-head .desk-refresh { gap: 8px 12px; }
+.view-head .desk-refresh .tour-action { padding-inline: 14px; }
+.desk-view > .desk-section + .desk-section,
+.desk-view > .contact-note + .desk-section { margin-top: 40px; }
+.desk-view .dash-heading { padding-bottom: 10px; border-bottom: 1px solid var(--ink); font-size: 19px; font-weight: 500; letter-spacing: -0.015em; }
+.desk-view > .contact-note { margin-top: 16px; }
+.desk-view .desk-who { margin: 14px 0 6px; }
+.desk-view .desk-sign-out { width: auto; margin-top: 32px; }
+.desk-view .plan-title { margin-top: 18px; }
+.desk-view .plan-list > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 2px 16px; padding: 11px 0; }
+/* Add a space: the button in the page head opens the form under it. */
+.desk-view .desk-add > summary { display: none; }
+.desk-view .desk-add[open] { padding: 20px 0 24px; border-bottom: 1px solid var(--line); }
+
+/* Needs you: hairline rows, one action each, the first one filled. */
+.needs { margin: 0; }
+.needs-title { margin: 0; padding: 16px 0 6px; font-size: 14px; font-weight: 500; line-height: 1.4; letter-spacing: 0; color: var(--ink); }
+.desk .needs-list { margin: 0; padding: 0; list-style: none; }
+.desk .needs-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; min-height: 56px; margin: 0; padding: 6px 0; border-top: 1px solid var(--line); }
+.desk .needs-list > li:last-child { border-bottom: 1px solid var(--line); }
+.needs-words { flex: 1 1 280px; min-width: 0; margin: 0; font-size: 15px; line-height: 1.45; color: var(--muted); }
+.needs-words strong { font-weight: 500; color: var(--ink); }
+/* Below the cards' own step (a 560px card is a 608px page) a row is its words, then its
+   action under them. Left to wrap where each label happened to fit, every row lost a
+   button's height within a few pixels of the others, and the page under them jumped. */
+@media (max-width: 608px) {
+  .desk .needs-list > li.needs-row { flex-direction: column; flex-wrap: nowrap; align-items: flex-start; justify-content: center; }
+  .needs-row > .needs-words { flex: 0 1 auto; }
+}
+.desk .needs-list > .needs-more { min-height: 44px; padding: 0; justify-content: flex-start; }
+.desk .needs-list > .needs-more .tour-disclosure { margin-left: -6px; }
+/* The next step, when nothing waits on the reader: one quiet row with its one action. */
+.desk-view .account-next { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 16px; margin: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--line); background: none; }
+.desk-view .account-next h2 { grid-column: 1; margin: 0; font-size: 16px; font-weight: 500; line-height: 1.4; letter-spacing: -0.01em; }
+.desk-view .account-next > p:not(.eyebrow) { grid-column: 1; margin: 0; max-width: 72ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.desk-view .account-next > .tour-action,
+.desk-view .account-next > .button { grid-column: 2; grid-row: 1 / span 2; }
+.desk-view .account-next > .text-link { grid-column: 1; font-size: 14px; }
+@media (max-width: 599px) {
+  .desk-view .account-next { grid-template-columns: minmax(0, 1fr); }
+  .desk-view .account-next > .tour-action,
+  .desk-view .account-next > .button { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 8px; }
+}
+/* The plan in one line. */
+.plan-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px; min-height: 44px; margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.plan-line-words { flex: 1 1 260px; min-width: 0; padding-block: 6px; }
+.plan-line .text-link { flex: 0 1 auto; min-width: 0; font-size: 14px; color: var(--ink); }
+.desk-view .account-list > .dash-space:first-child { border-top-color: var(--ink); }
+.desk-view .dash-space { padding: 18px 0 8px; }
+.desk-view .dash-tours { margin-top: 12px; }
+.desk-view .dash-tour { padding: 14px 0; }
+#account-team-empty:has(~ .desk-section:not([hidden])) { display: none; }
+.desk-footer { padding-block: 6px; gap: 4px 24px; }
+.desk-footer nav { gap: 0 24px; font-size: 12px; }
+.desk-footer:not([hidden]) + footer { display: none; }
+/* The view's own heading says "Your team"; the section's twin only names the region. */
+#view-team #account-team-title { display: none; }
+
+/* The deletion confirmation names the account first, in ink. */
+.deletion-which { color: var(--ink); font-weight: 500; }
+
+/* ---- Polish: say each thing once, and line things up ------------------------ */
+/* A card's own actions, and a space's render status above them, are outlines: the one
+   filled button of the view is the first Needs you row, or the next step when nothing
+   waits (Add a space on an empty desk). Inside an opened panel or form the submit keeps
+   its fill. */
+#view-walkthroughs :is(.dash-tour, .render-block) .tour-action-primary:not(.tour-panel *, form *) { background: transparent; color: var(--ink); border-color: var(--field-line); }
+#view-walkthroughs :is(.dash-tour, .render-block) .tour-action-primary:not(.tour-panel *, form *):hover { border-color: var(--ink); }
+/* Review this walkthrough: the same hairline disclosure as everything else, no box. */
+.desk-view .tour-review { margin: 12px 0 0; padding: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; }
+.desk-view .tour-review[open] { padding-bottom: 16px; }
+.desk-view .tour-review > summary { padding-block: 10px; font-size: 15px; }
+/* Review in three numbered steps on one row where there is room: Preview, the
+   tick, then Approve and share (the one filled button) with what it does beside it. */
+.desk .tour-review .review-steps { counter-reset: review-step; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; margin: 16px 0 0; padding: 0; list-style: none; }
+.desk .tour-review .review-step { counter-increment: review-step; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; margin: 0; }
+.desk .tour-review .review-step::before { content: counter(review-step); flex: none; min-width: 1ch; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.desk .tour-review .review-step .button,
+.desk .tour-review .review-step .tour-action { margin: 0; }
+.desk .tour-review .review-step .review-right { margin: 0; }
+.desk .tour-review .review-step .tour-share-terms { flex: 1 1 220px; margin: 0; }
+/* Prepare a capture: one quiet link in the space head; its panel opens under the head. */
+.desk-view .dash-space { position: relative; }
+.desk-view .account-details.space-prep { margin: 0; padding: 0; border: 0; }
+.desk-view .account-details.space-prep > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 0; font-size: 14px; font-weight: 400; color: var(--muted); text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px; }
+.desk-view .account-details.space-prep > summary:hover { color: var(--ink); text-decoration-color: currentColor; }
+.desk-view .account-details.space-prep > summary::after { content: none; }
+.desk-view .account-details.space-prep[open] { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+@media (min-width: 720px) {
+  .desk-view .account-details.space-prep > summary { position: absolute; top: 8px; right: 0; }
+  .desk-view .dash-space-title, .desk-view .dash-space-meta { padding-right: 176px; }
+}
+/* A closed disclosure's content has no box at all, so nothing can sit over the next row. */
+.desk-view .account-details:not([open]) > :not(summary) { display: none !important; }
+/* An ended plan's two links sit on one line and wrap, never overlap. */
+.tour-hosting-words:empty { display: none; }
+.tour-hosting-fix { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 16px; vertical-align: top; }
+.tour-hosting-fix .text-link { margin: 0; }
+.tour-hosting-fix [hidden] { display: none; }
+.needs-note { display: block; font-size: 13px; }
+/* Plan: the counting rule behind a hairline disclosure; pack options on paper, not white. */
+.desk-view .plan-capacity:empty { display: none; }
+.desk-view .account-details.plan-counting { margin-top: 12px; border-top: 1px solid var(--line); }
+.desk-view .plan-counting > .plan-scope { margin: 0; }
+#view-plan:has([data-extra-said="true"]) [data-none="true"] { display: none; }
+.desk-view .annual-option { background: transparent; border-color: var(--line); }
+.desk-view .annual-option:hover { border-color: var(--field-line); }
+.desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
+.desk-view .annual-option:has(input:focus-visible) { outline: none; }
+.desk-view .annual-option input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }

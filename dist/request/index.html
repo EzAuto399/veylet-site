@@ -12,7 +12,7 @@
     <link rel="canonical" href="https://veylet.com/request" />
     <meta name="robots" content="noindex,follow" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Veylet Studio" />
+    <meta property="og:site_name" content="Veylet" />
     <meta property="og:locale" content="en_AU" />
     <meta property="og:title" content="Request a Veylet walkthrough" />
     <meta property="og:description" content="Start a Veylet walkthrough: capture it with your iPhone. No account or payment needed to enquire." />
@@ -21,24 +21,25 @@
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1080" />
     <meta property="og:image:height" content="1440" />
-    <meta property="og:image:alt" content="Veylet Studio: Know the space. Before you arrive. 3D walkthroughs for homes, businesses and venues." />
+    <meta property="og:image:alt" content="Veylet: Know the space. Before you arrive. 3D walkthroughs for homes, businesses and venues." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image:alt" content="An original Veylet architectural concept study with sculptural glass, metal and stone doorways." />
     <link rel="icon" href="../media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="../media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="../media/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=776e6c97304d9019" />
-    <link rel="stylesheet" href="/conversion.css?v=3c82fa9f8cd5a55c" />
-    <link rel="stylesheet" href="/refinement.css?v=3396f9c21e422ea8" />
+    <link rel="preload" href="/media/Outfit-400.woff2?v=71f028fd2349990b" as="font" type="font/woff2" crossorigin><link rel="preload" href="/media/Outfit-500.woff2?v=fc9bff941def6d92" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/style.css?v=77cd95fea06762b2" />
+    <link rel="stylesheet" href="/conversion.css?v=1afc39d382bc328e" />
+    <link rel="stylesheet" href="/refinement.css?v=19b8d96e0b4d6721" />
     <style>
-      .request-done h2 { font-size: 26px; letter-spacing: -0.025em; margin: 0 0 12px; }
+      .request-done h2 { margin: 0 0 12px; }
       .request-done h2:focus { outline: none; }
       .request-done p { margin: 0 0 10px; line-height: 1.6; }
       .request-done .request-reference strong { white-space: nowrap; }
       #request-status:empty { display: none; }
-      #request-status { color: var(--ink); font-size: 15px; border-left: 2px solid var(--ink); padding-left: 12px; }
+      #request-status { color: var(--ink); font-size: 15px; border-left: 1px solid var(--ink); padding-left: 12px; }
       #request-status a, .request-noscript a { overflow-wrap: anywhere; }
     </style>
-    <script src="/brand-host.js?v=1c06a18e19b34007"></script>
-    <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
+    <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
+    <script src="/supabase-public.js?v=67f9f1943ae2f979" defer></script>
     <script src="/enquiry.js?v=c95a4aeebe5b721a" defer></script>
     <script src="/place-fields.js?v=b597ac72159bd08e"></script>
     <script type="application/ld+json">
@@ -84,14 +85,9 @@
       }
     </script>
   </head>
-  <body class="refined-marketing">
+  <body class="site refined-marketing">
     <a class="skip" href="#main">Skip to content</a>
-    <header class="wrap">
-      <a class="brand" href="/" aria-label="Veylet Studio home"
-        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
-      >
-      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/account">Sign in</a></nav>
-    </header>
+    <header class="wrap"><a class="brand" href="/" aria-label="Veylet home"><span class="portal" aria-hidden="true"></span>VEYLET</a><nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" data-analytics-cta="see" data-analytics-placement="header">See a result</a><a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help">Help</a><a href="/account">Sign in</a></nav></header>
     <main id="main" class="form-page wrap intake-page">
       <div class="intake-heading">
       <h1>Request a walkthrough</h1>
@@ -177,7 +173,7 @@
       </section>
       <details id="enquiry-copy" class="optional-brief enquiry-copy" hidden>
         <summary>Keep a copy or recover your enquiry</summary>
-        <p>Keep a copy of your answers before you send. If sending fails, paste it into an email to the studio. A copy is not a delivery receipt.</p>
+        <p>Keep a copy of your answers before you send. If sending fails, paste it into an email to Veylet support. A copy is not a delivery receipt.</p>
         <button class="button button-ghost" id="enquiry-copy-button" type="button">Copy my enquiry</button>
         <p id="enquiry-copy-status" class="contact-note" role="status"></p>
         <textarea id="enquiry-copy-text" aria-label="Your enquiry copy" readonly rows="8" hidden></textarea>
@@ -218,6 +214,6 @@
         })();
       </script>
     </main>
-    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
   </body>
 </html>

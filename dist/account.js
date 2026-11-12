@@ -48,6 +48,101 @@
   const signOut = document.getElementById('account-sign-out');
   const targetStatus = document.getElementById('account-target-status');
   const nextStep = document.getElementById('account-next-step');
+  /*
+   * Signed in, the desk has its own bar and four views (Walkthroughs, Plan, Team,
+   * Account) chosen by the URL hash, so a reload and Back/Forward keep the view. A
+   * view is a region of this page: showing one hides the others and changes no data.
+   * The page the app opens has neither the bar nor the views; everything here is
+   * then a no-op and that page reads as one column, as before.
+   */
+  const siteHeader = document.getElementById('site-header');
+  const deskBar = document.getElementById('desk-bar');
+  const deskMenu = document.getElementById('desk-menu');
+  const deskOfficeEl = document.getElementById('desk-office');
+  const openingEl = document.getElementById('account-opening');
+  const needsEl = document.getElementById('account-needs');
+  const needsList = document.getElementById('account-needs-list');
+  const planLine = document.getElementById('account-plan-line');
+  const addSpaceEl = document.getElementById('account-add-space');
+  const addSpaceOpen = document.getElementById('account-add-open');
+  const VIEWS = ['walkthroughs', 'plan', 'team', 'account'];
+  const VIEW_HEADINGS = { walkthroughs: 'account-work-title', plan: 'account-plan-title', team: 'view-team-title', account: 'account-self-title' };
+  const VIEW_TITLES = { walkthroughs: 'Walkthroughs', plan: 'Plan', team: 'Your team', account: 'Account' };
+  // Anchors from before the views (and the ids this page links to itself): each opens its view.
+  const VIEW_OF_ANCHOR = { 'account-home': 'walkthroughs', 'account-properties': 'walkthroughs', 'account-add-space': 'walkthroughs', 'requested-tour': 'walkthroughs',
+    'account-plan': 'plan', 'account-trial': 'plan', 'account-packs': 'plan', 'account-referral': 'plan',
+    'account-team': 'team', 'account-contact': 'team',
+    'account-methods': 'account', 'account-email': 'account', 'account-leaving': 'account', 'account-deletion': 'account', 'account-export': 'account', 'account-gate': 'account' };
+  const viewEls = new Map(VIEWS.map(name => [name, document.getElementById('view-' + name)]).filter(([, el]) => el));
+  let currentView = 'walkthroughs';
+  function viewFromHash() {
+    let raw = '';
+    try { raw = decodeURIComponent(String(location.hash || '').replace(/^#/, '')); } catch { return null; }
+    if (VIEWS.includes(raw)) return { view: raw, anchor: null };
+    return Object.prototype.hasOwnProperty.call(VIEW_OF_ANCHOR, raw) ? { view: VIEW_OF_ANCHOR[raw], anchor: raw } : null;
+  }
+  // `focus`: the view was chosen by the person, so its heading takes focus and the page starts at its top.
+  function viewShow(name, { focus = false, anchor = null } = {}) {
+    if (!viewEls.has(name)) return false;
+    currentView = name;
+    for (const [key, el] of viewEls) el.hidden = key !== name;
+    for (const key of VIEWS) {
+      const link = document.getElementById('desk-link-' + key);
+      if (!link) continue;
+      if (key === name) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+    }
+    if (deskMenu) deskMenu.open = false;
+    try { if (typeof document.title === 'string') document.title = VIEW_TITLES[name] + ' — Veylet'; } catch { /* a title is a courtesy */ }
+    const target = anchor ? document.getElementById(anchor) : null;
+    if (target) {
+      // A disclosure asked for by name is opened; its summary is where the keyboard lands.
+      if (target.tagName === 'DETAILS') target.open = true;
+      const land = (target.tagName === 'DETAILS' && target.querySelector?.('summary')) || target;
+      if (land === target && !/^(BUTTON|A|INPUT|SUMMARY)$/.test(target.tagName)) target.tabIndex = -1;
+      land.focus?.({ preventScroll: true }); target.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+    } else if (focus) {
+      const heading = document.getElementById(VIEW_HEADINGS[name]);
+      try { window.scrollTo?.(0, 0); } catch { /* nothing to scroll */ }
+      heading?.focus?.({ preventScroll: true });
+    }
+    return true;
+  }
+  // Go to a view from a control on this page: the hash changes, so Back returns.
+  function viewGo(name, options = {}) {
+    if (!viewEls.has(name)) return false;
+    try { if (typeof history !== 'undefined' && history.pushState && location.hash !== '#' + name) history.pushState(null, '', '#' + name); } catch { /* the view still shows */ }
+    return viewShow(name, options);
+  }
+  let addSpaceLeads = false;
+  function addSpaceSync() {
+    if (!addSpaceOpen || !addSpaceEl) return;
+    addSpaceOpen.setAttribute('aria-expanded', addSpaceEl.open ? 'true' : 'false');
+    // The one filled button of the view when nothing waits and no walkthrough exists yet
+    // (and its form, which has its own filled Save, is closed).
+    addSpaceOpen.className = 'tour-action' + (addSpaceLeads && !addSpaceEl.open ? ' tour-action-primary' : '');
+  }
+  // The session check has answered (or cannot): the page may paint the form or the desk.
+  function sessionChecked() {
+    try { document.body?.classList?.remove('session-checking'); } catch { /* no body in a stand-in */ }
+    if (openingEl) openingEl.hidden = true;
+  }
+  function deskChrome(signedIn) {
+    if (!deskBar) return;
+    deskBar.hidden = !signedIn;
+    if (siteHeader) siteHeader.hidden = signedIn;
+    // The marketing footer after it gives way in the stylesheet.
+    const deskFooter = document.getElementById('desk-footer');
+    if (deskFooter) deskFooter.hidden = !signedIn;
+    if (!signedIn && deskMenu) deskMenu.open = false;
+  }
+  // A stored sign-in on this browser is only a hint for which header to paint while the
+  // real check runs; it shows no account data and grants nothing. The check decides.
+  try {
+    const storage = window.localStorage;
+    let stored = false;
+    for (let index = 0; storage && index < storage.length; index += 1) if (/^sb-[a-z0-9]+-auth-token$/.test(storage.key(index) || '')) stored = true;
+    if (stored && !location.pathname.startsWith('/auth/')) deskChrome(true);
+  } catch { /* no storage: the header waits for the check */ }
   // The URL selects an already-authorized row; it never grants access or
   // supplies a storage path, review revision, or publication permission.
   const tourTargets = new URLSearchParams(location.search || '').getAll('tour');
@@ -146,6 +241,8 @@
   // The contract's words after review, said once each.
   const LIVE_SAID = 'Live. Anyone with the link can open it.';
   const LIVE_LINE = 'Anyone with the link can open it.';
+  // Approved and never shared: what turning sharing on does, never said as if it were already on.
+  const UNSHARED_LINE = 'Turning sharing on makes a link, QR code and embed code that anyone can open.';
   const READY_TITLE = 'Ready for your review';
   const SHARE_UNCONFIRMED = 'Approved. Sharing didn’t turn on. Try again.';
   // Paused sharing keeps the link (pause_tour_share / resume_tour_share). The tours
@@ -369,18 +466,24 @@
     // Signed in, the page is the account; "Your walkthroughs" heads its work
     // section, so the page heading does not repeat it.
     if (title) title.textContent = signedIn ? 'Your account.' : 'Sign in to your account.';
-    if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed tour.')
+    if (intro) intro.textContent = signedIn ? (APP_MODE ? 'Check your walkthroughs, review them and share them.' : 'Save a space, check its progress and share the reviewed walkthrough.')
       : joinReturn ? 'Sign in to accept your team invite. Use the email address the invite was sent to.' : 'Use the same sign-in on the website and capture app: Apple, or the same email.';
     if (access) access.hidden = signedIn;
+    // On the desk each view has its own heading; the page heading is for the sign-in screen.
+    deskChrome(signedIn);
+    if (deskBar) { if (title) title.hidden = signedIn; if (intro) intro.hidden = signedIn; }
+    if (!signedIn) { try { if (typeof document.title === 'string' && viewEls.size) document.title = 'Account — Veylet'; } catch { /* a title is a courtesy */ } }
     // Arrived through another office's link: one line at the sign-in gate; the desk records it after sign-in.
     const referred = document.getElementById('account-referred');
     if (referred) {
       referred.textContent = referredBy ? 'An office referred you to Veylet. When your office first pays, you and that office each get ' +
-        REFERRAL_WALKTHROUGHS + ' bonus walkthrough.' : '';
+        REFERRAL_ROOMS + ' bonus rooms.' : '';
       referred.hidden = signedIn || !referredBy;
     }
   }
   function showSignedOut(message) {
+    sessionChecked();
+    needsCtx = null; needsDraw(); planLineSay('');
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
     listingGates.clear(); gateNotices.clear(); gateFocus = null;
@@ -399,7 +502,7 @@
     nextStep?.replaceChildren();
     planBody?.replaceChildren();
     planPanel?.setAttribute('aria-busy', 'false');
-    planCapacityRefresh = null;
+    planCapacityRefresh = null; planRoomsLimit = null;
     trialHide();
     expressHide();
     renderForget();
@@ -521,6 +624,127 @@
   }
   function failed(result) { return result.timedOut || result.error || result.value?.error; }
   function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
+  /*
+   * Needs you: what waits on the reader, one line each with its one action, from the
+   * same records as the cards below (a review answer, a hosting state, a status). Up
+   * to three rows show; the rest sit behind "n more". Only the first row's button is
+   * filled. With nothing waiting, the next step below speaks instead. A row never
+   * approves, shares or buys: it opens the place where that is done.
+   */
+  const NEEDS_SHOWN = 3;
+  let needsCtx = null, needsMore = false;
+  const possessive = name => name + (/s$/i.test(name) ? '’' : '’s');
+  function needsRows() {
+    if (!needsCtx || needsCtx.pending) return [];
+    const { properties, rows, items, roles, hosting } = needsCtx;
+    const visible = rows.filter(row => items.has(row.id));
+    const spaceOf = row => properties.find(space => space.id === row.property_id) || null;
+    const nameOf = row => { const title = spaceOf(row)?.title; return typeof title === 'string' && title.trim() ? title.trim() : 'A walkthrough'; };
+    // Two walkthroughs of one space are told apart by the day they were added.
+    const named = row => {
+      const twin = visible.some(other => other !== row && other.property_id === row.property_id);
+      const added = twin ? window.VeyletSharing?.hostingDate?.(row.created_at) : '';
+      return nameOf(row) + (added ? ' (added ' + added + ')' : '');
+    };
+    const openCard = (row, control) => () => {
+      viewGo('walkthroughs');
+      const item = items.get(row.id);
+      const inner = control ? item.querySelector?.('[data-control="' + control + '"]:not([hidden])') : null;
+      if (!inner) item.tabIndex = -1;
+      (inner || item).focus({ preventScroll: true }); item.scrollIntoView({ block: 'start', behavior: 'auto' });
+    };
+    const waiting = row => row.status === 'ready' && !row.share_token;
+    const out = [];
+    for (const row of visible) {
+      if (!waiting(row) || !tourApproval.has(row.id) || tourApproval.get(row.id) === true) continue;
+      const reviews = ['owner', 'reviewer'].includes(roles?.get(spaceOf(row)?.workspace_id));
+      out.push(reviews ? { kind: 'review', name: named(row), words: 'is ready for your review', label: 'Review walkthrough',
+        run: () => { openCard(row)(); reviewOpeners.get(row.id)?.(); } }
+        : { kind: 'review', name: named(row), words: 'is ready for the workspace owner’s review', label: 'Open its card', run: openCard(row) });
+    }
+    // An ended plan: its live walkthroughs, counted per office and day.
+    const ending = new Map();
+    for (const row of visible) {
+      if (row.status !== 'ready' || !row.share_token) continue;
+      const state = hosting ? hosting.get(row.id) || null : null;
+      const phase = hostingPhase(state);
+      if (phase !== 'offline' && phase !== 'offline_on') continue;
+      const date = window.VeyletSharing.hostingState(state, Date.now(), deskPlanEndedAt)?.date;
+      const day = date ? window.VeyletSharing.hostingDate(date) : '';
+      const office = officeIdOfProperty.get(row.property_id) || '';
+      const key = [office, phase, day].join('|');
+      if (!ending.has(key)) ending.set(key, { phase, day, office, rows: [] });
+      ending.get(key).rows.push(row);
+    }
+    for (const group of ending.values()) {
+      const many = group.rows.length > 1;
+      const officeName = group.office && officeNames.has(group.office) ? officeNames.get(group.office) : '';
+      const when = group.phase === 'offline' ? (many ? 'have been' : 'has been') + ' offline' + (group.day ? ' since ' + group.day : '')
+        : group.day ? (many ? 'go' : 'goes') + ' offline on ' + group.day : (many ? 'go' : 'goes') + ' offline soon';
+      // Where Restart plan lands when the Plan view shows another office: said here, once.
+      const route = APP_MODE || !planAnswered ? 'panel' : restartRoute(group.rows[0]);
+      const shown = planShownOffice ? officeNames.get(planShownOffice) || 'another office' : '';
+      out.push({ kind: 'plan', name: many ? group.rows.length + ' walkthroughs' : named(group.rows[0]),
+        note: route === 'switch' ? 'The Plan view shows ' + shown + ', not this office. Restart plan opens it so you can make this your main office.'
+          : route === 'offer' ? 'The Plan view shows ' + shown + ', not this office. Restart plan opens the offer instead.' : '',
+        words: when + ': ' + (officeName ? possessive(officeName) + ' plan has ended' : 'the plan has ended'),
+        label: APP_MODE ? 'Open its card' : 'Restart plan', run: APP_MODE ? openCard(group.rows[0]) : () => restartPlanFor(group.rows[0]) });
+    }
+    // Approved and never shared. Sharing that was turned off on purpose is not a job waiting.
+    for (const row of visible) {
+      if (!waiting(row) || tourApproval.get(row.id) !== true) continue;
+      const gate = gateBlock(row.property_id);
+      if (gate && gateCanOpen(row.property_id)) {
+        out.push({ kind: 'share', name: named(row), words: 'is approved; sharing waits for ' + (SHARE_WAITS[gate] || 'one more answer'),
+          label: gateFixLabel(gate), run: () => { viewGo('walkthroughs'); gateOpen(row.property_id, gate); } });
+      } else if (!(hosting && hosting.get(row.id)?.released_at)) {
+        out.push({ kind: 'share', name: named(row), words: 'is approved, not shared yet', label: 'Go to sharing', run: openCard(row, 'share-on') });
+      }
+    }
+    for (const row of visible) {
+      if (row.status === 'revoked') out.push({ kind: 'problem', name: named(row), words: 'is unavailable for new access', label: 'Open its card', run: openCard(row) });
+    }
+    return out;
+  }
+  function needsDraw() {
+    if (!needsEl || !needsList) return;
+    const rows = needsRows();
+    needsEl.hidden = rows.length === 0;
+    addSpaceLeads = Boolean(needsCtx) && rows.length === 0 && needsCtx.rows.length === 0; addSpaceSync();
+    // One place says what is next: the rows when something waits, else the next step.
+    if (nextStep) nextStep.hidden = rows.length > 0;
+    if (rows.length <= NEEDS_SHOWN) needsMore = false;
+    const nodes = rows.map((row, index) => {
+      const item = document.createElement('li'); item.className = 'needs-row'; item.dataset.need = row.kind;
+      item.hidden = index >= NEEDS_SHOWN && !needsMore;
+      const words = document.createElement('p'); words.className = 'needs-words';
+      const name = document.createElement('strong'); name.textContent = row.name;
+      const rest = document.createElement('span'); rest.textContent = ' ' + row.words + '.';
+      words.append(name, rest);
+      if (row.note) { const note = document.createElement('span'); note.className = 'needs-note'; note.textContent = ' ' + row.note; words.append(note); }
+      const act = button(row.label, row.run);
+      act.className = index === 0 ? 'tour-action tour-action-primary' : 'tour-action'; act.dataset.control = 'needs-' + row.kind;
+      item.append(words, act);
+      return item;
+    });
+    if (rows.length > NEEDS_SHOWN) {
+      const rest = rows.length - NEEDS_SHOWN;
+      const item = document.createElement('li'); item.className = 'needs-more';
+      const toggle = button(needsMore ? 'Show fewer' : rest + ' more', () => { needsMore = !needsMore; needsDraw(); needsList.querySelector?.('.needs-more button')?.focus?.({ preventScroll: true }); });
+      toggle.className = 'tour-disclosure'; toggle.dataset.control = 'needs-more';
+      toggle.setAttribute('aria-expanded', needsMore ? 'true' : 'false');
+      item.append(toggle); nodes.push(item);
+    }
+    needsList.replaceChildren(...nodes);
+  }
+  // The plan in one line above the list, in the Plan view's own words, with the way there.
+  function planLineSay(text) {
+    if (!planLine) return;
+    if (!text) { planLine.replaceChildren(); planLine.hidden = true; return; }
+    const words = document.createElement('span'); words.className = 'plan-line-words'; words.textContent = text;
+    const link = document.createElement('a'); link.className = 'text-link'; link.href = '#plan'; link.textContent = 'Plan details';
+    planLine.replaceChildren(words, link); planLine.hidden = false;
+  }
   // `extra`: a secondary link beside the action ({ label, href, control }), never filled.
   function guide(title, body, label, action, extra = null) {
     if (!nextStep) return;
@@ -544,9 +768,9 @@
   // than guessing whether it is approved.
   function guideDesk(properties, rows, production, items, supabase, desk = {}) {
     if (!properties.length) {
-      if (APP_MODE) { guide('Start with one space.', 'Create a space in Veylet Capture and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
+      if (APP_MODE) { guide('Start with one space.', 'Create a space in the Veylet app and capture it room by room. Its walkthrough appears here, ready for your review.'); return; }
       guide('Start with one space.', 'Save a name and general location. This prepares your desk for its first capture.', 'Add your first space', () => {
-        document.getElementById('account-add-space').open = true;
+        document.getElementById('account-add-space').open = true; addSpaceSync();
         spaceForm?.querySelector('input[name="title"]')?.focus();
       });
       return;
@@ -572,10 +796,10 @@
         // pages name no purchase path, so there the line itself says where.
         if (phase === 'offline' || phase === 'offline_on') {
           guide(phase === 'offline' ? 'Your walkthrough is offline.' : 'Your plan has ended.', hostingWords(hosting, true),
-            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : focusPlan,
+            APP_MODE ? 'Open its sharing controls' : 'Restart your plan', APP_MODE ? open : () => restartPlanFor(selected),
             APP_MODE ? null : extensionRequest(selected));
         } else guide('Your walkthrough is live.',
-          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under Manage sharing, stops it working.',
+          'Share it from its card below: the link, a QR code or your website’s embed code. Anyone with the link can open it; Turn off sharing, under More then Manage, stops it working.',
           'Open its sharing controls', open);
         return;
       }
@@ -598,27 +822,28 @@
         }
         const reviews = ['owner', 'reviewer'].includes(desk.roles?.get(space?.workspace_id));
         // The same words as the space's render status, for the same press.
-        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, walk through, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
+        if (reviews) guide((listing || 'Your walkthrough') + ' is ready for your review.', 'Open it, check each stop, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => {
           open();
           // Where a review is actually available, open it and land on it.
           reviewOpeners.get(selected.id)?.();
         });
-        else guide((listing || 'Your walkthrough') + ' is ready for review.', 'The workspace owner opens it, walks through, then approves and shares it.', 'Open walkthrough details', open);
+        else guide((listing || 'Your walkthrough') + ' is ready for review.', 'The workspace owner opens it, checks it stop by stop, then approves and shares it.', 'Open walkthrough details', open);
         return;
       }
       const actions = {
-        draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, walk through it and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
+        draft: ['Your walkthrough is being built.', 'Rendering and the quality check are automatic. When it’s ready for your review, check it stop by stop and review any flagged areas before approving and sharing. You can open its preview below.', 'Open walkthrough details'],
         processing: ['Your walkthrough is being built.', 'You can leave this page and return later. Leaving does not cancel the work. We’ll email you when it’s ready. Refresh to check for an update.', 'Refresh progress'],
-        revoked: ['Resolve the unavailable walkthrough.', 'New access is blocked. Remove old links or embeds and contact Veylet support about the next step before sharing again.', 'Open tour details'],
+        revoked: ['This walkthrough is unavailable.', 'New access is blocked, so its old links and embeds no longer open it. Email Veylet support for the next step.', APP_MODE ? 'Open walkthrough details' : 'Email Veylet support'],
       };
-      const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current tour needs an update from Veylet support before you continue.', 'Open tour details'];
-      guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase) : open);
+      const [title, body, label] = actions[selected.status] || ['Check the status with Veylet support.', 'The current walkthrough needs an update from Veylet support before you continue.', 'Open walkthrough details'];
+      guide(title, body, label, selected.status === 'processing' ? () => loadDesk(supabase)
+        : selected.status === 'revoked' && !APP_MODE ? unavailableMail(selected) : open);
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
       guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#first-session');
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use Veylet Capture on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-tour steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use the Veylet app on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-walkthrough steps', '/start');
     }
   }
   function button(label, fn) {
@@ -644,6 +869,123 @@
     };
   }
   function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
+  /*
+   * An approved walkthrough's third row: its buttons on the left and, on the right,
+   * quiet disclosures (Link, QR code, Website, Insights, Manage). One panel is open
+   * at a time, directly under the row; Escape closes it and returns to its button.
+   * `opened` runs each time a panel opens, so what an accordion drew or fetched when
+   * it opened still waits for that.
+   */
+  const DECK_ORDER = ['link', 'qr', 'website', 'insights', 'exports', 'manage'];
+  const MORE_KEYS = ['insights', 'exports', 'manage'];
+  /*
+   * Keeping place. A refresh redraws every card, so which panel was open on which
+   * walkthrough is remembered here (and for this tab, so a reload keeps it too) and
+   * opened again as soon as its button is back. Closing a panel forgets it.
+   */
+  const DECK_KEY = 'veylet-desk-open';
+  const deckWanted = new Map();
+  try {
+    const kept = JSON.parse(window.sessionStorage?.getItem(DECK_KEY) || 'null');
+    if (kept && typeof kept === 'object') for (const [id, key] of Object.entries(kept)) if (DECK_ORDER.includes(key)) deckWanted.set(id, key);
+  } catch { /* nothing kept */ }
+  const deckKeep = () => { try { window.sessionStorage?.setItem(DECK_KEY, JSON.stringify(Object.fromEntries(deckWanted))); } catch { /* this page load still has it */ } };
+  // The control that had keyboard focus when the desk was redrawn, by id; it is focused again when it returns.
+  let deskFocusWanted = '';
+  function deskFocusBack(control) {
+    if (!deskFocusWanted || !control || control.id !== deskFocusWanted || control.hidden) return;
+    deskFocusWanted = ''; control.focus?.({ preventScroll: true });
+  }
+  /*
+   * A read that only feeds a card far down the list waits until the card is near the
+   * screen (or its view is shown). Without IntersectionObserver it runs at once.
+   */
+  function whenNear(item, run, now = false) {
+    if (now || typeof IntersectionObserver !== 'function' || !item) { run(); return; }
+    const watch = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      watch.disconnect(); run();
+    }, { rootMargin: '600px 0px' });
+    watch.observe(item);
+  }
+  function cardDeck(tour, item) {
+    const row = document.createElement('div'); row.className = 'tour-card-row'; row.hidden = true;
+    const nav = document.createElement('div'); nav.className = 'tour-disclosures'; nav.hidden = true;
+    nav.setAttribute('role', 'group'); nav.setAttribute('aria-label', 'More for this walkthrough');
+    const entries = [];
+    let actions = null, placed = false;
+    // Insights, Videos and stills and Manage sit behind one More when two or more are
+    // offered; a lone one stays in the row. More shows their buttons, visible at rest.
+    const more = button('More', () => moreSet(more.getAttribute('aria-expanded') !== 'true'));
+    more.className = 'tour-disclosure tour-more'; more.dataset.disclosure = 'more'; more.hidden = true;
+    more.id = 'tour-more-' + tour.id + '-toggle';
+    const moreGroup = document.createElement('div'); moreGroup.className = 'tour-more-group'; moreGroup.hidden = true;
+    moreGroup.id = 'tour-more-' + tour.id; moreGroup.setAttribute('role', 'group'); moreGroup.setAttribute('aria-labelledby', more.id);
+    more.setAttribute('aria-expanded', 'false'); more.setAttribute('aria-controls', moreGroup.id);
+    row.append(nav, moreGroup);
+    const inMore = entry => MORE_KEYS.includes(entry.key) && entries.filter(each => MORE_KEYS.includes(each.key) && !each.toggle.hidden).length > 1;
+    function moreSet(open) {
+      more.setAttribute('aria-expanded', open ? 'true' : 'false'); moreGroup.hidden = !open;
+      if (!open) for (const entry of entries) if (entry.open && inMore(entry)) set(entry, false);
+    }
+    const sync = () => {
+      const grouped = entries.filter(inMore);
+      nav.replaceChildren(...entries.filter(each => !grouped.includes(each)).map(each => each.toggle), more);
+      moreGroup.replaceChildren(...grouped.map(each => each.toggle));
+      more.hidden = grouped.length === 0;
+      if (more.hidden) moreSet(false);
+      nav.hidden = !entries.some(entry => !entry.toggle.hidden);
+      row.hidden = nav.hidden && !actions;
+    };
+    const set = (entry, open) => {
+      if (open && inMore(entry)) moreSet(true);
+      entry.open = open; entry.panel.hidden = !open;
+      entry.toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) deckWanted.set(tour.id, entry.key); else if (deckWanted.get(tour.id) === entry.key) deckWanted.delete(tour.id);
+      deckKeep();
+      if (open && entry.opened) entry.opened();
+    };
+    // The panel that was open before a refresh or reload opens again once its button is offered.
+    const again = entry => {
+      if (!entry.toggle.hidden && !entry.open && deckWanted.get(tour.id) === entry.key && !entries.some(each => each.open)) set(entry, true);
+      deskFocusBack(entry.toggle);
+    };
+    const mount = () => { if (!placed) { placed = true; item.append(row); } };
+    return {
+      row,
+      // The card's buttons come first in the row; the row joins the card where they would have.
+      place(node) { actions = node; row.replaceChildren(node, nav, moreGroup); mount(); sync(); },
+      add(key, label, panel, opened = null) {
+        const entry = { key, panel, opened, open: false, toggle: null, show: null };
+        const toggle = button(label, () => {
+          const open = !entry.open;
+          for (const other of entries) if (other.open) set(other, false);
+          if (open) set(entry, true);
+        });
+        toggle.className = 'tour-disclosure'; toggle.dataset.disclosure = key;
+        panel.id = 'tour-' + key + '-' + tour.id; toggle.id = panel.id + '-toggle';
+        toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-controls', panel.id);
+        panel.setAttribute('role', 'group'); panel.setAttribute('aria-labelledby', toggle.id);
+        panel.hidden = true;
+        // From the row or from inside the panel: Escape closes whichever is open.
+        const escape = event => {
+          const open = event?.key === 'Escape' ? entries.find(each => each.open) : null;
+          if (!open) return;
+          event.stopPropagation?.(); set(open, false); open.toggle.focus?.({ preventScroll: true });
+        };
+        toggle.addEventListener('keydown', escape); panel.addEventListener('keydown', escape);
+        entry.toggle = toggle;
+        // Shown only once there is something behind it; hiding an open one closes it.
+        entry.show = visible => { toggle.hidden = !visible; if (!visible && entry.open) set(entry, false); sync(); if (visible && placed) again(entry); };
+        entries.push(entry);
+        entries.sort((a, b) => DECK_ORDER.indexOf(a.key) - DECK_ORDER.indexOf(b.key));
+        sync();
+        return entry;
+      },
+      // Once the card is drawn: the row (even without buttons), then its panels in order.
+      finish() { mount(); item.append(...entries.map(entry => entry.panel)); sync(); for (const entry of entries) again(entry); },
+    };
+  }
   function targetMessage(value) {
     if (!targetStatus) return;
     targetStatus.textContent = value;
@@ -652,7 +994,8 @@
   function tourPreview(tour, item, revision) {
     const preview = document.createElement('a'); preview.className = 'tour-action';
     preview.href = '/play/?id=' + encodeURIComponent(tour.id) + (revision ? '&review_revision=' + encodeURIComponent(revision) : '') + (APP_MODE ? '&from=app' : '');
-    preview.textContent = revision ? 'Open review preview' : 'Preview';
+    // One name for the private preview, whichever version it opens (it read "Open review preview" while in review).
+    preview.textContent = 'Preview';
     if (revision) { preview.target = '_blank'; preview.rel = 'noopener noreferrer'; }
     item.append(preview); return preview;
   }
@@ -679,10 +1022,40 @@
   // The plan panel, where an ended plan's filled "Restart your plan" goes to the offer.
   function focusPlan() {
     if (!planPanel) return;
+    viewGo('plan');
     planPanel.tabIndex = -1; planPanel.focus({ preventScroll: true }); planPanel.scrollIntoView({ block: 'start', behavior: 'auto' });
   }
-  function restartPlanButton() {
-    const fix = button('Restart your plan', focusPlan); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
+  /*
+   * "Restart your plan" from a walkthrough lands on something that restarts THAT
+   * walkthrough's office plan. The Plan view shows one office, the main one. When it
+   * is this office and its plan has ended, that is its filled Restart your plan. When
+   * it is another office, the way there is "Make this my main office" (the Plan view
+   * then shows this office's plan and its restart), where the backend supports it;
+   * otherwise the offer, which is where the Plan view's own restart goes too. No
+   * billing call is made here.
+   */
+  const planPrimaryButtons = new Map();
+  let planPrimarySaid = null, planRestartLink = null, planShownOffice = null;
+  function restartRoute(tour) {
+    const office = officeIdOfProperty.get(tour?.property_id) || null;
+    if (!office || !planShownOffice || office === planShownOffice) return 'panel';
+    return planPrimaryButtons.has(office) ? 'switch' : 'offer';
+  }
+  function restartPlanFor(tour) {
+    const route = planPanel ? restartRoute(tour) : 'offer';
+    if (route === 'panel') { focusPlan(); planRestartLink?.focus?.({ preventScroll: true }); return; }
+    if (route === 'switch') {
+      const office = officeIdOfProperty.get(tour.property_id);
+      viewGo('plan');
+      if (planPrimarySaid) planPrimarySaid.textContent = 'To restart ' + possessive(officeNames.get(office) || 'that office') + ' plan, make it your main office. Its plan then shows here.';
+      const make = planPrimaryButtons.get(office);
+      make.focus({ preventScroll: true }); make.scrollIntoView?.({ block: 'center', behavior: 'auto' });
+      return;
+    }
+    location.assign('/offer');
+  }
+  function restartPlanButton(tour) {
+    const fix = button('Restart your plan', () => restartPlanFor(tour)); fix.className = 'tour-action tour-action-primary'; fix.dataset.control = 'share-fix-plan';
     return fix;
   }
   // Offer 2026-09-26.2: after the plan's 14 days, a paid hosting extension keeps one
@@ -703,19 +1076,53 @@
     if (extra.control) link.dataset.control = extra.control;
     return link;
   }
-  // A live card's fix once the plan has ended: the filled "Restart your plan" and,
-  // beside it, the extension request. Shown only while the card is offline or goes
-  // offline on a date; the plan's answer can change that after the card is drawn.
+  // An ended plan's fix is said once, at the top of the desk: the plan panel's filled
+  // "Restart your plan". A card ends its state line with the extension request and,
+  // only when that panel has no restart for this card's office (another office's plan,
+  // or a plan it could not read), one quiet "Restart your plan" of its own.
+  let planAnswered = false, planRestartOffice = null;
   function hostingFixRow(tour) {
     if (APP_MODE) return null;
-    const row = document.createElement('p'); row.className = 'tour-actions-row tour-hosting-fix';
-    row.append(restartPlanButton(), extensionLinkNode(extensionRequest(tour)));
-    return row;
+    const row = document.createElement('span'); row.className = 'tour-hosting-fix';
+    const restart = button('Restart your plan', () => restartPlanFor(tour)); restart.className = 'text-link tour-plan-restart';
+    restart.dataset.control = 'share-fix-plan'; restart.hidden = true;
+    row.append(restart, extensionLinkNode(extensionRequest(tour)));
+    return { row, restart };
+  }
+  // The card's own words for an ended plan: the date and what happens, not whose plan
+  // it is or what to press (the plan panel and the space's own line say those once).
+  // `own`: the card carries its own "Restart your plan", so the sentence stops at the date.
+  function cardHostingWords(row, own = false) {
+    const phase = APP_MODE ? null : hostingPhase(row);
+    if (phase !== 'offline' && phase !== 'offline_on') return hostingWords(row || null, true);
+    const date = window.VeyletSharing.hostingState(row, Date.now(), deskPlanEndedAt)?.date;
+    const day = date ? window.VeyletSharing.hostingDate(date) : '';
+    if (phase === 'offline') return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + 'The same link, embed and QR work again when the plan restarts.';
+    // On the web desk the chip already says "Offline on {day}": the line does not say the day again.
+    if (deskBar && day) return own ? '' : 'Stays live if the plan restarts.';
+    if (own) return day ? 'Goes offline on ' + day + '.' : 'The plan has ended.';
+    return day ? 'Goes offline on ' + day + ' unless the plan restarts.' : 'The plan has ended. Restart it to keep this walkthrough live.';
   }
   function hostingFixSync(entry) {
-    if (!entry?.fix) return;
+    if (!entry) return;
     const phase = hostingPhase(entry.hosting);
-    entry.fix.hidden = !(phase === 'offline' || phase === 'offline_on');
+    const ended = phase === 'offline' || phase === 'offline_on';
+    // Until the plan answers, a card waits rather than repeat a fix the panel may carry.
+    const own = Boolean(entry.fix) && ended && planAnswered
+      && !(planRestartOffice && planRestartOffice === officeIdOfProperty.get(entry.tour.property_id));
+    entry.line.textContent = cardHostingWords(entry.hosting, own);
+    if (!entry.fix) return;
+    entry.fix.hidden = !ended; entry.restart.hidden = !own;
+  }
+  // The plan panel is drawn: `office` is the one whose ended plan it offers to restart, or null.
+  function planFixKnown(office) {
+    planAnswered = true; planRestartOffice = office || null;
+    for (const entry of hostingCards.values()) hostingFixSync(entry);
+    needsDraw();
+  }
+  // An unavailable walkthrough's one next step: an email to support naming it.
+  function unavailableMail(tour) {
+    return studioMail(tour, 'Unavailable walkthrough', ['This walkthrough shows as unavailable in my account. What is the next step?']);
   }
   function studioMail(tour, subject, lines) {
     const reference = String(walkthroughOf(tour) || '').slice(0, 8);
@@ -727,7 +1134,10 @@
   // one fix is drawn at once; `withPreview` puts the reviewer's Preview beside the
   // button, so the walkthrough's next moves read as one row rather than two.
   function turnOnSharing(tour, item, supabase, ticket, options = {}) {
-    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; item.append(actions);
+    // What sharing does, said above the button until a refusal says why it waits instead.
+    const note = options.note ? message(item, options.note) : null;
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row';
+    if (options.deck) options.deck.place(actions); else item.append(actions);
     let fix = null, preview = null;
     // The one fix for a refusal is the filled control and comes first; a retry stays
     // beside it unless it cannot help.
@@ -740,7 +1150,7 @@
         enable.hidden = true;
         fix = document.createElement('span'); fix.className = 'tour-share-ask'; fix.textContent = 'Ask the workspace owner to turn sharing on.';
       } else if (reason === 'plan' && !APP_MODE) {
-        fix = restartPlanButton();
+        fix = restartPlanButton(tour);
       } else if ((reason === 'occupancy' || reason === 'consent' || reason === 'business') && gateCanOpen(tour.property_id)) {
         // The listing's question, or its consent form, opened where the person is.
         fix = button(gateFixLabel(reason), () => gateOpen(tour.property_id, reason));
@@ -767,8 +1177,6 @@
     });
     enable.className = 'tour-action tour-action-primary'; enable.dataset.control = 'share-on'; actions.append(enable);
     if (options.withPreview) preview = tourPreview(tour, actions);
-    // What sharing does, said until a refusal says why it waits instead.
-    const note = options.note ? message(item, options.note) : null;
     const say = rowSay(tour, item);
     if (options.problem) showFix(options.problem);
   }
@@ -803,17 +1211,53 @@
     }
     return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
   }
-  // Show QR code: drawn in this browser by the vendored generator (window.VeyletQR,
-  // /vendor/qrcode-1.5.4.min.js) when the disclosure opens. No QR service is called.
-  function qrKit(tour, url, name) {
-    const details = document.createElement('details'); details.className = 'account-details tour-qr';
-    const summary = document.createElement('summary'); summary.textContent = 'Show QR code';
+  // Print-ready open-home sign card (1200 x 1600 PNG) drawn in this browser.
+  function qrSignPng(qr, url, name) {
+    const matrix = qr.matrix(url, 'M');
+    const quiet = Number.isInteger(qr.quietZone) ? qr.quietZone : 4;
+    const modules = matrix.size + quiet * 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1200;
+    canvas.height = 1600;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#f8f6f1'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#10231d'; context.fillRect(80, 80, 1040, 180);
+    context.fillStyle = '#ffffff'; context.fillRect(140, 320, 920, 920);
+    const scale = Math.max(1, Math.floor(840 / modules));
+    const offset = Math.floor((1200 - modules * scale) / 2);
+    const top = 320 + Math.floor((920 - modules * scale) / 2);
+    context.fillStyle = '#10231d';
+    for (let row = 0; row < matrix.size; row++) {
+      for (let col = 0; col < matrix.size; col++) {
+        if (matrix.modules[row * matrix.size + col] === 1) {
+          context.fillRect(offset + (col + quiet) * scale, top + (row + quiet) * scale, scale, scale);
+        }
+      }
+    }
+    if (typeof context.fillText === 'function') {
+      context.fillStyle = '#f8f6f1';
+      context.font = '600 44px sans-serif';
+      context.fillText(String(name || '3D Walkthrough').slice(0, 38), 130, 190);
+      context.fillStyle = '#10231d';
+      context.font = '700 48px sans-serif';
+      context.fillText('Scan to see it in 3D', 140, 1340);
+      context.font = '400 32px sans-serif';
+      context.fillText('Open on your phone — no app needed', 140, 1410);
+    }
+    return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
+  }
+  // QR code: drawn in this browser by the vendored generator (window.VeyletQR,
+  // /vendor/qrcode-1.5.4.min.js) when its panel opens. No QR service is called.
+  function qrKit(tour, url, name, deck) {
+    const details = document.createElement('div'); details.className = 'tour-panel tour-qr';
     const body = document.createElement('div'); body.className = 'tour-qr-body';
     const code = document.createElement('div'); code.className = 'tour-qr-code';
     code.textContent = 'Preparing the QR code…';
     const caption = document.createElement('p'); caption.className = 'tour-qr-caption';
     caption.textContent = 'Scan to open the walkthrough on a phone. Print it on a window card or brochure.';
-    const file = (slugOf(name) || 'veylet-walkthrough') + '-qr.png';
+    const slug = slugOf(name) || 'veylet-walkthrough';
+    const file = slug + '-qr.png';
+    const signFile = slug + '-open-home-sign.png';
     const download = button('Download QR code (PNG)', async () => {
       const qr = window.VeyletQR;
       if (download.disabled || !qr?.matrix) return;
@@ -825,8 +1269,19 @@
       } catch { sayQr('The QR code couldn’t be saved here. Take a screenshot of it instead.'); }
     });
     download.disabled = true; download.dataset.control = 'qr-download';
-    const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download);
-    body.append(code, caption, row); details.append(summary, body);
+    const signDownload = button('Download open-home sign (PNG)', async () => {
+      const qr = window.VeyletQR;
+      if (signDownload.disabled || !qr?.matrix) return;
+      try {
+        const href = URL.createObjectURL(await qrSignPng(qr, url, name));
+        const anchor = document.createElement('a'); anchor.href = href; anchor.download = signFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayQr('Open-home sign saved as ' + signFile + '.');
+      } catch { sayQr('The open-home sign couldn’t be saved here. Download the QR code instead.'); }
+    });
+    signDownload.disabled = true; signDownload.dataset.control = 'qr-sign-download';
+    const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download, signDownload);
+    body.append(code, caption, row); details.append(body);
     let drawn = false;
     const draw = () => {
       if (drawn) return;
@@ -834,9 +1289,9 @@
       let svg = '';
       try { svg = qr?.svg ? qr.svg(url, { label: 'QR code that opens ' + name }) : ''; } catch { svg = ''; }
       if (!/^<svg[\s>]/.test(svg)) { code.textContent = 'The QR code couldn’t be made here. Copy the link instead.'; return; }
-      drawn = true; code.innerHTML = svg; download.disabled = false;
+      drawn = true; code.innerHTML = svg; download.disabled = false; signDownload.disabled = false;
     };
-    details.addEventListener('toggle', () => { if (details.open) draw(); });
+    deck.add('qr', 'QR code', details, draw);
     const sayQr = rowSay(tour, details);
     return details;
   }
@@ -847,58 +1302,60 @@
     return share.embedCode(token).split('"' + frame + '"').join('"' + tagged(frame, 'embed') + '"')
       .split('"' + page + '"').join('"' + tagged(page, 'embed') + '"');
   }
-  // The share kit on a live walkthrough: Share (the device's share sheet) where the
-  // browser has one, otherwise Copy link, filled; then Copy listing URL, Open as your
-  // client, Show QR code and the website steps with the embed code. Each handed-out
-  // address carries its channel (link, portal, qr, embed).
-  function liveSharing(tour, item, title) {
+  // The share kit on a live walkthrough. In the row: Share (the device's share sheet)
+  // where the browser has one, otherwise Copy link, filled; then Open as your client.
+  // Behind the row's disclosures: Link (the address, Copy listing URL, and Copy link
+  // when Share took its place), QR code, and Website (the builder's steps and the embed
+  // code). Each handed-out address carries its channel (link, portal, qr, embed).
+  function liveSharing(tour, item, title, deck) {
     const share = window.VeyletSharing;
     const page = share.handoffUrl(tour.share_token);
     // What the agent hands out carries its channel; Open as your client is the page itself.
     const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
-    const copy = async () => {
+    const copy = async tell => {
       await share.copy(url, link.field, statusEl, 'Link copied. Anyone with it can open or forward the walkthrough.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      if (statusEl?.textContent) tell(statusEl.textContent);
     };
-    const copyLink = button('Copy link', copy); copyLink.dataset.control = 'copy-link';
     // One direct, frameable address for a portal's or CRM's virtual tour field: the
     // walkthrough alone, with no agent card, links or QR code (/tour).
     const listingUrl = tagged(LISTING_BASE + encodeURIComponent(tour.share_token), 'portal');
-    const listing = copyField('Listing URL (portals, CRM)', 'input', listingUrl);
+    const listing = copyField('Link for portals and CRM', 'input', listingUrl);
     listing.label.hidden = true;
-    const copyListing = button('Copy listing URL (portals, CRM)', async () => {
+    const copyListing = button('Copy link for portals and CRM', async () => {
       listing.label.hidden = false;
-      await share.copy(listingUrl, listing.field, statusEl, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      await share.copy(listingUrl, listing.field, statusEl, 'Link for portals and CRM copied. Paste it into the portal’s virtual tour field or your CRM. It shows the walkthrough only: no agent card, links or QR code.');
+      if (statusEl?.textContent) sayWeb(statusEl.textContent);
     });
     copyListing.dataset.control = 'copy-listing';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row';
     const device = typeof navigator !== 'undefined' ? navigator : null;
     let sheet = false;
     try { sheet = typeof device?.share === 'function' && (typeof device.canShare !== 'function' || device.canShare({ title: name, url }) !== false); } catch { sheet = false; }
+    // The row's one filled button; where that is Share, Copy link sits beside it, quiet.
+    const copyLink = button('Copy link', () => { link.label.hidden = false; return copy(say); }); copyLink.dataset.control = 'copy-link';
     if (sheet) {
       const send = button('Share', async () => {
         try { await device.share({ title: name, url }); }
-        catch (error) { if (error?.name !== 'AbortError') await copy(); }
+        catch (error) { if (error?.name !== 'AbortError') await copy(say); }
       });
       send.className = 'tour-action tour-action-primary'; send.dataset.control = 'share';
       actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
-    actions.append(copyListing);
+    cardShare.set(item, sheet ? actions.children[0] : copyLink);
     const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
     actions.append(open);
-    // The link and what you do with it share one row where there is room.
-    const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
-    linkRow.append(link.label, actions); item.append(linkRow, listing.label);
+    deck.place(actions);
+    // The address shows under the row once Copy link is pressed (and to select by hand
+    // where the browser refuses to copy); no Link disclosure for the common case.
+    link.label.hidden = true; link.label.className = 'tour-field tour-link-address';
+    item.append(link.label);
     const say = rowSay(tour, item);
-    item.append(qrKit(tour, tagged(page, 'qr'), name));
+    qrKit(tour, tagged(page, 'qr'), name, deck);
 
-    // Add to your website: the builder's own steps, then the one code. It is
-    // a disclosure, so a desk of live walkthroughs stays a list of links.
-    const web = document.createElement('details'); web.className = 'account-details tour-website';
-    const heading = document.createElement('summary'); heading.textContent = 'Add to your website';
+    // Website: the builder's own steps, then the one code.
+    const web = document.createElement('div'); web.className = 'tour-panel tour-website';
     const chooser = document.createElement('fieldset'); chooser.className = 'tour-builder';
     const legend = document.createElement('legend'); legend.textContent = 'Your website builder'; chooser.append(legend);
     const steps = document.createElement('ol'); steps.className = 'tour-builder-steps';
@@ -926,14 +1383,16 @@
       const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
       codeActions.append(guidePage);
     }
-    web.append(heading, chooser, steps, embed.label, codeActions);
-    item.append(web);
+    // Portals and CRM take the unbranded link, not the embed: it sits here, after the code.
+    const portalActions = document.createElement('p'); portalActions.className = 'tour-actions-row tour-portal-row'; portalActions.append(copyListing);
+    web.append(chooser, steps, embed.label, codeActions, portalActions, listing.label);
+    deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
   }
-  function manageSharing(item) {
-    const details = document.createElement('details'); details.className = 'account-details tour-manage';
-    const summary = document.createElement('summary'); summary.textContent = 'Manage sharing';
-    details.append(summary); item.append(details); return details;
+  // Manage: pause, turn off sharing and withdraw approval, behind the row's last disclosure.
+  function manageSharing(deck) {
+    const details = document.createElement('div'); details.className = 'tour-panel tour-manage';
+    deck.add('manage', 'Manage', details); return details;
   }
   // A backend without the function answers PGRST202 ("Could not find the function").
   function missingFunction(result) {
@@ -973,7 +1432,7 @@
   }
   // A paused walkthrough's one filled action. `gate` is what the listing's sharing waits
   // for (its question or the tenant's consent): that fix comes first, Resume beside it.
-  function resumeSharing(tour, item, supabase, ticket, gate = null) {
+  function resumeSharing(tour, item, supabase, ticket, gate = null, deck = null) {
     const blocked = reason => {
       say(shareWords(reason));
       if (fixed || !gateCanOpen(tour.property_id)) return;
@@ -992,7 +1451,7 @@
       const refused = failed(result) && !missingFunction(result) ? shareRefusal(result) : null;
       if (refused === 'plan') {
         resume.disabled = false; say(shareWords('plan'));
-        if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(), resume); fixed = true; }
+        if (!fixed && !APP_MODE) { resume.className = 'tour-action'; actions.replaceChildren(restartPlanButton(tour), resume); fixed = true; }
         return;
       }
       if (refused === 'occupancy' || refused === 'consent' || refused === 'business') { resume.disabled = false; blocked(refused); return; }
@@ -1006,7 +1465,7 @@
     resume.className = 'tour-action tour-action-primary'; resume.dataset.control = 'resume-share';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(resume);
     if (gate) message(item, shareWords(gate), 'tour-state-help tour-share-problem');
-    item.append(actions);
+    if (deck) deck.place(actions); else item.append(actions);
     const say = rowSay(tour, item);
     if (gate && gateCanOpen(tour.property_id)) {
       const fix = button(gateFixLabel(gate), () => gateOpen(tour.property_id, gate));
@@ -1019,28 +1478,731 @@
    * (the viewer beacon's counts). Hidden while the backend has no such function, and
    * on any error or odd answer: a missing count is never shown as zero.
    */
+  const CHANNEL_NAMES = Object.freeze({
+    link: 'Direct link',
+    qr: 'QR code',
+    embed: 'Website embed',
+    portal: 'Portal or CRM',
+    video: 'Video',
+    unknown: 'Other',
+  });
+  function formatDurationSeconds(seconds) {
+    if (!Number.isInteger(seconds) || seconds <= 0) return '';
+    if (seconds < 60) return seconds + 's';
+    const mins = Math.floor(seconds / 60), rem = seconds % 60;
+    return rem ? mins + 'm ' + rem + 's' : mins + 'm';
+  }
+  /** Seconds as a whole number: a database average arrives as 104.6 (or "104.6"), a total as an integer. */
+  function wholeSeconds(value) {
+    const number = typeof value === 'string' && /^\d+(\.\d+)?$/.test(value) ? Number(value) : value;
+    return typeof number === 'number' && Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+  }
+  function positiveEntries(map) {
+    if (!map || typeof map !== 'object') return [];
+    return Object.entries(map).filter(([, v]) => Number.isInteger(v) && v > 0).sort((a, b) => b[1] - a[1]);
+  }
+  /*
+   * Insights in plain words. Every sentence is built from one answer and says no more
+   * than it holds (get_tour_view_stats): opens, days_with_opens, avg_dwell_seconds,
+   * call_taps, email_taps, share_taps, by_src, by_host, by_room (visits per room) and
+   * by_room_seconds (viewing seconds per room). A room's share is its seconds over all
+   * rooms' seconds. The counts are of opens and taps, not of people: one person opening
+   * twice is two opens, so nothing here says "buyers" or "viewers who".
+   */
+  const countTimes = count => (count === 1 ? 'once' : count === 2 ? 'twice' : count + ' times');
+  function roomTimes(row) {
+    const rooms = positiveEntries(row?.by_room_seconds);
+    const total = rooms.reduce((sum, [, seconds]) => sum + seconds, 0);
+    const visits = row?.by_room && typeof row.by_room === 'object' ? row.by_room : {};
+    return rooms.map(([name, seconds]) => ({ name, seconds, share: total > 0 ? Math.round((seconds / total) * 100) : 0,
+      visits: viewCount(visits[name]) }));
+  }
+  // Under this many opens a ranking of rooms is noise, and the sentence says so instead. Once the
+  // backend counts visits (the last 90 days, the period the room times cover), the same line holds for them.
+  const INSIGHTS_MIN_OPENS = 5;
+  function insightsSparse(row) {
+    const visits = viewCount(row?.visits);
+    return (viewCount(row?.opens) || 0) < INSIGHTS_MIN_OPENS || (visits !== null && visits < INSIGHTS_MIN_OPENS);
+  }
+  function insightsLead(row) {
+    const opens = viewCount(row?.opens) || 0;
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0, emails = viewCount(row?.email_taps) || 0;
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
+    const parts = ['Opened ' + countTimes(opens) + (days !== null && days > 0 ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (dwell ? ', for ' + dwell + ' on average' : '') + '.'];
+    const rooms = roomTimes(row).slice(0, 3);
+    if (rooms.length && insightsSparse(row)) parts.push('It is too early to say which rooms hold attention.');
+    else if (rooms.length) {
+      const said = rooms.map((room, index) => room.name + ' (' + room.share + '%' + (index === 0 ? ' of viewing time' : '') + ')');
+      parts.push('Viewers spent longest in ' + said[0] + (said[1] ? ', followed by ' + said.slice(1).join(' and ') : '') + '.');
+    }
+    const taps = [calls ? 'the call button was tapped ' + countTimes(calls) : '', emails ? 'the email button ' + (calls ? '' : 'was tapped ') + countTimes(emails) : ''].filter(Boolean);
+    parts.push(taps.length ? taps.join(' and ').replace(/^t/, 'T') + '.' : 'Nobody has tapped call or email yet.');
+    return parts.join(' ');
+  }
+  function channelWords(row) {
+    const opens = viewCount(row?.opens) || 0;
+    return positiveEntries(row?.by_src).map(([key, count]) => (CHANNEL_NAMES[key] || key) + ' ' + count + ' (' + Math.round((count / Math.max(1, opens)) * 100) + '%)');
+  }
+  function vendorReportText(title, row, lastDate) {
+    const name = typeof title === 'string' && title.trim() ? title.trim() : 'Walkthrough';
+    const opens = viewCount(row?.opens) || 0;
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0;
+    const emails = viewCount(row?.email_taps) || 0;
+    const shares = viewCount(row?.share_taps);
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
+    const lines = [
+      'Walkthrough update: ' + name,
+      insightsLead(row),
+      '',
+      'Opens: ' + opens + (days !== null ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (lastDate ? ', last opened ' + lastDate : ''),
+    ];
+    if (dwell) lines.push('Average time: ' + dwell);
+    lines.push('Enquiries: ' + calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + (shares !== null ? ' · Link shares: ' + shares : ''));
+    const channels = channelWords(row);
+    if (channels.length) lines.push('Opened from: ' + channels.join(' · '));
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) {
+      lines.push('Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', '));
+    }
+    const rooms = roomTimes(row);
+    if (rooms.length) {
+      lines.push('Time by room: ' + rooms.map(room => room.name + ' ' + formatDurationSeconds(room.seconds) + ' (' + room.share + '%' +
+        (room.visits !== null ? ', ' + room.visits + (room.visits === 1 ? ' visit' : ' visits') : '') + ')').join(' · '));
+    } else {
+      const visited = positiveEntries(row?.by_room);
+      if (visited.length) lines.push('Visits by room: ' + visited.map(([r, c]) => r + ' ' + c).join(' · '));
+    }
+    return lines.join('\n');
+  }
+  /*
+   * Where viewers stood and looked, from get_tour_view_heatmap(p_tour_id):
+   *   { stops: [{ stop, room, visits, seconds, bins: { "<yaw 0..11>_<pitch 0..2>": seconds } }], visits, since }
+   * The viewer's page fills it (dist/client-page.js, kinds stop and look): yaw bin k is the
+   * 30-degree sector 30k..30k+30 of the walkthrough's own compass, where 0 degrees looks along
+   * the package's -Z axis and the angle grows turning left (anticlockwise seen from above);
+   * pitch 0 is down, 1 level, 2 up. Seconds and bins are whole seconds; a bin under half a
+   * second is left out, so shares are of the binned time. It answers for this version of the
+   * walkthrough only, over the last 90 days, in totals: never a visit or a viewer.
+   * The desk draws it twice: a floor plan with a circle per stop, and a table with a row per
+   * stop, so nothing is said by a mark alone. A backend without the function (PGRST202)
+   * shows no panel at all, as the view counts do. A failed read says so and offers to try again.
+   */
+  /*
+   * Under this many visits a pattern is one or two people, so the desk shows counts
+   * only: no share, no shade and no look direction, for the walkthrough as a whole
+   * and for any one stop. The database draft enforces no minimum of its own
+   * (get_tour_view_heatmap answers for a single visit), so the line is held here.
+   */
+  const HEAT_MIN_VISITS = 5;
+  // The table opens on its busiest stops; a button shows the rest.
+  const HEAT_ROWS_SHOWN = 8;
+  // Waiting is drawn only once it has lasted this long, so a quick answer never flashes a placeholder.
+  const HEAT_SKELETON_MS = 300;
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  /** The answer as clean rows ranked by time, or null when it is not the shape above. */
+  function heatmapFrom(data) {
+    const answer = firstRow(data);
+    if (!answer || typeof answer !== 'object' || !Array.isArray(answer.stops)) return null;
+    const stops = [];
+    for (const item of answer.stops) {
+      if (!item || typeof item !== 'object' || !Number.isInteger(item.stop) || item.stop < 0 || item.stop > 63) return null;
+      const seconds = wholeSeconds(item.seconds), visits = viewCount(item.visits);
+      if (seconds === null || visits === null) return null;
+      const cells = [];
+      let binned = 0;
+      for (const [key, value] of Object.entries(item.bins && typeof item.bins === 'object' ? item.bins : {})) {
+        const match = /^(\d|1[01])_([0-2])$/.exec(key);
+        const amount = typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+        if (!match || !amount) continue;
+        cells.push({ yaw: Number(match[1]), pitch: Number(match[2]), seconds: amount });
+        binned += amount;
+      }
+      cells.sort((a, b) => b.seconds - a.seconds || a.yaw - b.yaw || a.pitch - b.pitch);
+      const room = typeof item.room === 'string' && item.room.trim() ? item.room.trim().slice(0, 60) : '';
+      stops.push({ stop: item.stop, room, visits, seconds, cells, binned });
+    }
+    stops.sort((a, b) => b.seconds - a.seconds || a.stop - b.stop);
+    return { stops, visits: viewCount(answer.visits), since: typeof answer.since === 'string' ? answer.since : '' };
+  }
+  const heatShare = (part, whole) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+  /*
+   * A standing spot is named by its room and its order in that room ("Kitchen, second
+   * stop"); a room with one stop is just the room. The order is the walkthrough's own
+   * stop order. A stop with no room name keeps its number, which is all there is.
+   */
+  const HEAT_ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
+  function heatNames(stops) {
+    const names = new Map();
+    const rooms = new Map();
+    for (const row of [...stops].sort((a, b) => a.stop - b.stop)) {
+      if (!row.room) continue;
+      if (!rooms.has(row.room)) rooms.set(row.room, []);
+      rooms.get(row.room).push(row);
+    }
+    for (const row of stops) {
+      const same = row.room ? rooms.get(row.room) : null;
+      const place = same ? same.indexOf(row) : -1;
+      names.set(row, !row.room ? 'Stop ' + (row.stop + 1) + ' (room not named)'
+        : same.length === 1 ? row.room : row.room + ', ' + (HEAT_ORDINALS[place] || (place + 1) + 'th') + ' stop');
+    }
+    return names;
+  }
+  /*
+   * How people looked around at a stop, from its yaw bins (12 sectors of 30 degrees,
+   * summed over down, level and up). The data says how concentrated the looking was,
+   * never what was looked at, so the words stop there: fewer than five visits to the
+   * stop is too few to say; under 15 seconds at the stop is too brief; 40% or more of
+   * the time in one sector is mostly one direction; else 70% or more inside three
+   * neighbouring sectors is mostly one side; else all around. `from` and `to` are the
+   * sector's edges in degrees, anticlockwise from the package's -Z axis, for the plan.
+   */
+  const HEAT_MIN_SECONDS = 15;
+  function heatLook(row) {
+    if (!(row.binned > 0)) return { words: 'No look direction recorded' };
+    if (row.visits < HEAT_MIN_VISITS) return { words: 'Too few visits to say where they looked' };
+    if (row.seconds < HEAT_MIN_SECONDS) return { words: 'Too brief to say where they looked' };
+    const yaw = Array.from({ length: 12 }, (_, sector) => row.cells.filter(cell => cell.yaw === sector).reduce((sum, cell) => sum + cell.seconds, 0));
+    const top = Math.max(...yaw);
+    if (top / row.binned >= 0.4) {
+      const sector = yaw.indexOf(top);
+      return { words: 'Mostly one direction (' + heatShare(top, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 30 };
+    }
+    const sides = yaw.map((_, sector) => yaw[sector] + yaw[(sector + 1) % 12] + yaw[(sector + 2) % 12]);
+    const side = Math.max(...sides);
+    if (side / row.binned >= 0.7) {
+      const sector = sides.indexOf(side);
+      return { words: 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 90 };
+    }
+    return { words: 'Looked all around' };
+  }
+  /*
+   * The shade scale: three steps of one hue, light to dark, by the total time looked
+   * from the stop. The steps are round durations chosen so the busiest stop lands in
+   * the darkest one, and the legend names each step's range.
+   */
+  const HEAT_BREAKS = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300, 600, 900, 1200, 1800, 3600, 7200, 14400, 36000];
+  function heatScale(stops) {
+    const most = Math.max(0, ...stops.map(row => row.seconds));
+    const step = HEAT_BREAKS.find(value => value * 3 >= most) || HEAT_BREAKS[HEAT_BREAKS.length - 1];
+    return { level: seconds => (seconds >= step * 2 ? 3 : seconds >= step ? 2 : 1),
+      labels: ['Under ' + formatDurationSeconds(step), formatDurationSeconds(step) + ' to ' + formatDurationSeconds(step * 2), formatDurationSeconds(step * 2) + ' and over'] };
+  }
+  /*
+   * Where the stops stand, from the walkthrough's own streamed package: manifest.json
+   * lists each stop's floor point (x, y, z in the package's frame, in stop order, so
+   * stop n of the heat map is stops[n]) and names walkable.json, the floor a viewer
+   * can walk on (a grid of cells; bit c + r * columns of the base64 mask, least
+   * significant bit first, as dist/tour-player-v2.js reads it). The signed-in owner
+   * finds the package through get_tour_package_base, as the preview does. A zipped
+   * package, a home on more than one level, a backend without the function or any
+   * unreadable answer has no plan: the table still lists every stop.
+   */
+  const FLOOR_READ_MS = 8000;
+  const FLOOR_CELLS_MAX = 400000;
+  const FLOOR_RUNS_MAX = 6000;
+  // get_tour_package_base, until an answer says the backend does not have it (PGRST202).
+  let floorAvailable = true;
+  function floorMask(json) {
+    if (!json || json.version !== 1 || !(json.cell_metres > 0) || json.cell_metres > 1
+        || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
+        || !Number.isInteger(json.columns) || !Number.isInteger(json.rows) || json.columns < 1 || json.rows < 1
+        || json.columns * json.rows > FLOOR_CELLS_MAX || typeof json.mask !== 'string' || typeof atob !== 'function') return null;
+    let binary = '';
+    try { binary = atob(json.mask); } catch { return null; }
+    const { columns, rows } = json;
+    if (binary.length !== Math.ceil(columns * rows / 8)) return null;
+    const on = (c, r) => ((binary.charCodeAt((r * columns + c) >> 3) >> ((r * columns + c) & 7)) & 1) === 1;
+    // Each row's lit cells as runs [first column, row, length], so the floor is a few hundred boxes, not thousands.
+    const runs = [];
+    for (let r = 0; r < rows; r++) {
+      let start = -1;
+      for (let c = 0; c <= columns; c++) {
+        const lit = c < columns && on(c, r);
+        if (lit && start < 0) start = c;
+        if (!lit && start >= 0) { runs.push([start, r, c - start]); start = -1; }
+      }
+      if (runs.length > FLOOR_RUNS_MAX) return null;
+    }
+    return runs.length ? { cell: json.cell_metres, x0: json.origin[0], z0: json.origin[1], runs } : null;
+  }
+  function floorFrom(manifest, walkable) {
+    if (!manifest || typeof manifest !== 'object' || !Array.isArray(manifest.stops) || !manifest.stops.length || manifest.stops.length > 64) return null;
+    const stops = [];
+    for (const stop of manifest.stops) {
+      const at = stop && Array.isArray(stop.floor) && stop.floor.length === 3 && stop.floor.every(Number.isFinite) ? stop.floor : null;
+      if (!at) return null;
+      stops.push({ x: at[0], y: at[1], z: at[2], level: typeof stop.floor_id === 'string' ? stop.floor_id : '' });
+    }
+    // One plan cannot hold two storeys: a home on more than one level keeps to the table.
+    const heights = stops.map(stop => stop.y);
+    if (new Set(stops.map(stop => stop.level)).size > 1 || Math.max(...heights) - Math.min(...heights) > 1.5) return null;
+    return { stops, mask: floorMask(walkable) };
+  }
+  async function floorRead(url, limit) {
+    if (typeof window.fetch !== 'function') return null;
+    const reply = await window.fetch(url, { credentials: 'omit' });
+    if (!reply || !reply.ok) return null;
+    const text = await reply.text();
+    return text.length > limit ? null : JSON.parse(text);
+  }
+  async function tourFloor(tour, supabase) {
+    if (!floorAvailable || !supabase || !/\/manifest\.json$/.test(tour.storage_path || '')) return null;
+    const located = await settled(Promise.resolve().then(() => supabase.rpc('get_tour_package_base', { p_tour_id: tour.id })), FLOOR_READ_MS);
+    if (missingFunction(located)) { floorAvailable = false; return null; }
+    if (failed(located)) return null;
+    const base = firstRow(located.value?.data)?.package_base_url;
+    if (typeof base !== 'string' || !/^(https:\/\/|\/(?!\/))\S*\/$/.test(base)) return null;
+    const manifest = (await settled(floorRead(base + 'manifest.json', 600000), FLOOR_READ_MS)).value || null;
+    const path = manifest?.walkable && typeof manifest.walkable.path === 'string' && /^[\w.-]+(\/[\w.-]+)*\.json$/.test(manifest.walkable.path)
+      && !manifest.walkable.path.includes('..') ? manifest.walkable.path : '';
+    const walkable = manifest && path ? (await settled(floorRead(base + path, 2000000), FLOOR_READ_MS)).value || null : null;
+    return floorFrom(manifest, walkable);
+  }
+  const svgNode = (tag, attributes = {}) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+    return node;
+  };
+  /*
+   * The plan: the walkable floor seen from above with every stop where it stands, in
+   * the package's own proportions (one scale for both axes; the package itself says
+   * "Not to scale", so no distance is claimed). -Z is up and +X is right, so a look
+   * direction of 0 degrees points up and angles turn anticlockwise, as yaw does.
+   * A circle's size is its visits; its shade is its step of the time scale; a wedge
+   * points where most of the looking went, when heatLook can say. Each circle wears
+   * its stop number, the same number as its table row and its circle in the
+   * walkthrough. Under five visits the circles are outlines sized by visits and
+   * nothing else. The plan is a picture: every stop is a row of the table beside it.
+   */
+  const PLAN_WIDTH = 320;
+  const PLAN_PAD = 30;
+  function heatPlan(heat, floor, names, scale, sparse) {
+    if (!floor || typeof document.createElementNS !== 'function') return null;
+    const placed = heat.stops.filter(row => floor.stops[row.stop]);
+    if (!placed.length) return null;
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    const extend = (x, z) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
+    for (const stop of floor.stops) extend(stop.x, stop.z);
+    const mask = floor.mask;
+    if (mask) for (const [c, r, length] of mask.runs) { extend(mask.x0 + c * mask.cell, mask.z0 + r * mask.cell); extend(mask.x0 + (c + length) * mask.cell, mask.z0 + (r + 1) * mask.cell); }
+    const wide = Math.max(maxX - minX, 1), deep = Math.max(maxZ - minZ, 1);
+    const room = PLAN_WIDTH - PLAN_PAD * 2;
+    const height = Math.round(Math.min(380, Math.max(180, PLAN_PAD * 2 + room * deep / wide)));
+    const k = Math.min(room / wide, (height - PLAN_PAD * 2) / deep);
+    const left = (PLAN_WIDTH - (maxX - minX) * k) / 2, top = (height - (maxZ - minZ) * k) / 2;
+    const px = x => Math.round((left + (x - minX) * k) * 10) / 10;
+    const pz = z => Math.round((top + (z - minZ) * k) * 10) / 10;
+    const svg = svgNode('svg', { class: 'tour-heat-plan', viewBox: '0 0 ' + PLAN_WIDTH + ' ' + height, role: 'img' });
+    const busiest = heat.stops[0];
+    svg.setAttribute('aria-label', 'Floor plan from above with ' + placed.length + (placed.length === 1 ? ' stop' : ' stops') + ' marked'
+      + (sparse || !busiest || !busiest.seconds ? '' : ', most time at ' + names.get(busiest)) + '. The table lists every stop.');
+    if (mask) {
+      const d = mask.runs.map(([c, r, length]) => 'M' + px(mask.x0 + c * mask.cell) + ' ' + pz(mask.z0 + r * mask.cell)
+        + 'h' + (Math.round(length * mask.cell * k * 10) / 10) + 'v' + (Math.round(mask.cell * k * 10) / 10 + 0.4) + 'h-' + (Math.round(length * mask.cell * k * 10) / 10) + 'Z').join('');
+      // Drawn twice: the outline first, then the fill over its inner edges, so only the floor's outer edge shows.
+      svg.append(svgNode('path', { class: 'tour-heat-floor-edge', d }), svgNode('path', { class: 'tour-heat-floor', d }));
+    }
+    const seen = new Map(heat.stops.map(row => [row.stop, row]));
+    floor.stops.forEach((stop, index) => {
+      if (!seen.has(index)) svg.append(svgNode('circle', { class: 'tour-heat-spot-unvisited', cx: px(stop.x), cy: pz(stop.z), r: 3.5, 'data-stop': index }));
+    });
+    const most = Math.max(1, ...placed.map(row => row.visits));
+    const radius = row => Math.round((5 + 9 * Math.sqrt(row.visits / most)) * 10) / 10;
+    // Wedges under the circles; big circles under small ones, so none is hidden.
+    const drawn = [...placed].sort((a, b) => radius(b) - radius(a) || a.stop - b.stop);
+    if (!sparse) for (const row of drawn) {
+      const look = heatLook(row);
+      if (look.from === undefined) continue;
+      const cx = px(floor.stops[row.stop].x), cy = pz(floor.stops[row.stop].z), reach = radius(row) + 10;
+      const point = degrees => { const angle = degrees * Math.PI / 180; return (cx - reach * Math.sin(angle)).toFixed(1) + ' ' + (cy - reach * Math.cos(angle)).toFixed(1); };
+      svg.append(svgNode('path', { class: 'tour-heat-look', 'data-stop': row.stop, 'data-from': look.from, 'data-to': look.to,
+        d: 'M' + cx + ' ' + cy + 'L' + point(look.from) + 'A' + reach + ' ' + reach + ' 0 0 0 ' + point(look.to) + 'Z' }));
+    }
+    for (const row of drawn) {
+      svg.append(svgNode('circle', { class: 'tour-heat-spot', cx: px(floor.stops[row.stop].x), cy: pz(floor.stops[row.stop].z), r: radius(row),
+        'data-stop': row.stop, 'data-level': sparse ? 'count' : scale.level(row.seconds) }));
+    }
+    for (const row of drawn) {
+      const reach = radius(row) * 0.72 + 3;
+      const x = Math.min(PLAN_WIDTH - 16, px(floor.stops[row.stop].x) + reach), y = Math.max(12, pz(floor.stops[row.stop].z) - reach);
+      const label = svgNode('text', { class: 'tour-heat-number', x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, 'aria-hidden': 'true' });
+      label.textContent = String(row.stop + 1);
+      svg.append(label);
+    }
+    return { svg, unvisited: floor.stops.length - floor.stops.filter((_, index) => seen.has(index)).length, missing: heat.stops.length - placed.length,
+      looks: sparse ? 0 : drawn.filter(row => heatLook(row).from !== undefined).length };
+  }
+  // The plan's key, under the plan: one line per thing a mark can say, each with its unit.
+  function heatLegend(heat, plan, scale, sparse) {
+    const list = document.createElement('ul'); list.className = 'tour-heat-legend';
+    const part = (text, ...marks) => {
+      const item = document.createElement('span'); item.className = 'tour-heat-legend-item';
+      const words = document.createElement('span'); words.textContent = text;
+      item.append(...marks, words); return item;
+    };
+    const line = (className, ...parts) => { const item = document.createElement('li'); item.className = className; item.append(...parts); list.append(item); };
+    const key = () => svgNode('svg', { class: 'tour-heat-key', viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': 'true', focusable: 'false' });
+    const swatch = (level, r = 5) => {
+      const icon = key();
+      icon.append(svgNode('circle', { class: level === 'none' ? 'tour-heat-spot-unvisited' : 'tour-heat-spot', cx: 8, cy: 8, r, ...(level === 'none' ? {} : { 'data-level': level }) }));
+      return icon;
+    };
+    const visits = heat.stops.map(row => row.visits);
+    const least = Math.min(...visits), most = Math.max(...visits);
+    line('tour-heat-legend-size', part('Circle size: visits, ' + (least === most ? most + ' at each stop' : least + ' to ' + most), swatch(sparse ? 'count' : 2, 3), swatch(sparse ? 'count' : 2, 6.5)));
+    if (!sparse) line('tour-heat-legend-shade', part('Shade: time at the stop'), ...scale.labels.map((label, index) => part(label, swatch(index + 1))));
+    if (plan.looks) {
+      const icon = key();
+      icon.append(svgNode('path', { class: 'tour-heat-look', d: 'M8 13L2.5 3.5A11 11 0 0 1 13.5 3.5Z' }));
+      line('tour-heat-legend-look', part('Wedge: where most of the looking went', icon));
+    }
+    if (plan.unvisited) line('tour-heat-legend-none', part('Small ring: a stop with no visits', swatch('none', 3.5)));
+    line('tour-heat-legend-note', part('Seen from above, numbered as in the walkthrough. Not to scale.'));
+    return list;
+  }
+  /*
+   * Every stop as a row: its number, name, visits and total time, then how people
+   * looked around, in words. (A level / down / up split was dropped on 11 November:
+   * no decision an agent makes turns on it.) It is the plan's other reading, so nothing
+   * is said by a mark alone. Rows are a grid at every width (the words run under the
+   * name), so the roles a table loses to that are set by hand. Under five visits the
+   * look column is left out. It never scrolls sideways.
+   */
+  // "Total time": the stop's time over all its visits, where the room table gives the average per visit.
+  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Total time', 'How they looked around'];
+  function gridTable(className, captionText, columns) {
+    const table = document.createElement('table'); table.className = className; table.setAttribute('role', 'table');
+    const caption = document.createElement('caption'); caption.textContent = captionText;
+    const head = document.createElement('thead'), headRow = document.createElement('tr'), body = document.createElement('tbody');
+    head.setAttribute('role', 'rowgroup'); body.setAttribute('role', 'rowgroup'); headRow.setAttribute('role', 'row');
+    for (const [text, kind] of columns) {
+      const cell = document.createElement('th'); cell.setAttribute('scope', 'col'); cell.setAttribute('role', 'columnheader');
+      cell.className = 'tour-cell-' + kind; cell.textContent = text; headRow.append(cell);
+    }
+    head.append(headRow); table.append(caption, head, body);
+    const row = (className, cells) => {
+      const line = document.createElement('tr'); line.className = className; line.setAttribute('role', 'row');
+      cells.forEach(([text, kind, header], index) => {
+        const cell = document.createElement(header ? 'th' : 'td');
+        if (header) cell.setAttribute('scope', 'row');
+        cell.setAttribute('role', header ? 'rowheader' : 'cell');
+        cell.className = 'tour-cell-' + kind; cell.dataset.label = columns[index][0]; cell.textContent = text; line.append(cell);
+      });
+      body.append(line); return line;
+    };
+    return { table, body, row };
+  }
+  function heatTable(heat, names, sparse) {
+    const columns = [[HEAT_COLUMNS[0], 'key'], [HEAT_COLUMNS[1], 'name'], [HEAT_COLUMNS[2], 'number'], [HEAT_COLUMNS[3], 'number']];
+    if (!sparse) columns.push([HEAT_COLUMNS[4], 'words']);
+    const made = gridTable('tour-heat-table', 'Most time first.', columns);
+    heat.stops.forEach((row, index) => {
+      const cells = [[String(row.stop + 1), 'key'], [names.get(row), 'name', true], [String(row.visits), 'number'], [formatDurationSeconds(row.seconds) || 'Under 1s', 'number']];
+      if (!sparse) cells.push([heatLook(row).words, 'words']);
+      const line = made.row('tour-heat-row', cells);
+      line.hidden = index >= HEAT_ROWS_SHOWN;
+    });
+    return made;
+  }
+  function heatTitle(text, className = 'tour-heat-title') {
+    const title = document.createElement('h4'); title.className = className; title.textContent = text; return title;
+  }
+  // The placeholder has the answer's shape: the plan's box and its key, then three rows.
+  // The version group's period line, before the answer names its visits: which period this is, always.
+  function heatScope(scope, text = PERIOD_VERSION + '.') { if (scope) { scope.textContent = text; scope.hidden = false; } }
+  function heatWaiting(panel, list, scope = null) {
+    heatScope(scope);
+    const plan = document.createElement('div'); plan.className = 'tour-heat-map tour-heat-skeleton';
+    const box = document.createElement('div'); box.className = 'tour-heat-plan plan-skeleton'; box.setAttribute('aria-hidden', 'true');
+    plan.append(box, skeletonLine('p', 'tour-heat-legend', 30), skeletonLine('p', 'tour-heat-legend', 44));
+    const busy = document.createElement('p'); busy.className = 'tour-heat-busy'; busy.textContent = 'Loading where viewers stood…';
+    panel.replaceChildren(heatTitle('Where viewers stood and looked'), busy, plan);
+    panel.setAttribute('aria-busy', 'true'); panel.hidden = false;
+    const rows = [0, 1, 2].map(() => skeletonLine('p', 'tour-heat-row tour-heat-skeleton', 40));
+    list.replaceChildren(heatTitle('Time per stop'), ...rows); list.hidden = false;
+  }
+  function heatProblem(panel, list, retry, scope = null) {
+    heatScope(scope);
+    const words = document.createElement('p'); words.className = 'tour-heat-problem';
+    words.textContent = 'Where viewers stood couldn’t be loaded. The counts above are complete.';
+    const again = button('Try again', retry); again.dataset.control = 'heat-retry';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(again);
+    panel.replaceChildren(heatTitle('Where viewers stood and looked'), words, actions);
+    panel.removeAttribute('aria-busy'); panel.hidden = false;
+    list.replaceChildren(); list.hidden = true;
+  }
+  function renderHeat(panel, list, heat, floor, scope = null) {
+    panel.removeAttribute('aria-busy');
+    const title = heatTitle('Where viewers stood and looked');
+    heatScope(scope);
+    if (!heat.stops.length) {
+      const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
+      empty.textContent = 'No visits to this version yet. Time at each stop and where people look fills in as people open the link.';
+      panel.replaceChildren(title, empty); panel.hidden = false;
+      list.replaceChildren(); list.hidden = true;
+      return;
+    }
+    const sparse = heat.visits !== null && heat.visits < HEAT_MIN_VISITS;
+    const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
+    // The group's one period line: this version only, its visits, from its oldest one counted.
+    const said = PERIOD_VERSION + (heat.visits !== null ? ': ' + heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? ', since ' + since : '') + '.';
+    heatScope(scope, said);
+    const parts = [title];
+    if (sparse) {
+      const few = document.createElement('p'); few.className = 'tour-heat-few';
+      few.textContent = 'Fewer than ' + HEAT_MIN_VISITS + ' visits so far, so only counts are shown. Shades and look directions appear from ' + HEAT_MIN_VISITS + ' visits.';
+      parts.push(few);
+    }
+    const names = heatNames(heat.stops);
+    const scale = heatScale(heat.stops);
+    const plan = heatPlan(heat, floor, names, scale, sparse);
+    if (plan) {
+      const figure = document.createElement('figure'); figure.className = 'tour-heat-map';
+      const key = document.createElement('figcaption'); key.append(heatLegend(heat, plan, scale, sparse));
+      figure.append(plan.svg, key);
+      parts.push(figure);
+      if (plan.missing) {
+        const off = document.createElement('p'); off.className = 'tour-heat-off';
+        off.textContent = plan.missing + (plan.missing === 1 ? ' stop is' : ' stops are') + ' not on this plan. The table lists ' + (plan.missing === 1 ? 'it.' : 'them.');
+        parts.push(off);
+      }
+    } else {
+      const none = document.createElement('p'); none.className = 'tour-heat-noplan';
+      none.textContent = 'There is no floor plan for this walkthrough here. The table lists every stop.';
+      parts.push(none);
+    }
+    panel.replaceChildren(...parts); panel.hidden = false;
+    const made = heatTable(heat, names, sparse);
+    const rows = [heatTitle('Time per stop'), made.table];
+    if (heat.stops.length > HEAT_ROWS_SHOWN) {
+      const all = 'Show all ' + heat.stops.length + ' stops', fewer = 'Show the top ' + HEAT_ROWS_SHOWN;
+      const more = button(all, () => {
+        const open = more.getAttribute('aria-expanded') !== 'true';
+        Array.from(made.body.children).forEach((line, index) => { line.hidden = !open && index >= HEAT_ROWS_SHOWN; });
+        more.setAttribute('aria-expanded', open ? 'true' : 'false'); more.textContent = open ? fewer : all;
+      });
+      more.dataset.control = 'heat-all'; more.setAttribute('aria-expanded', 'false');
+      const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(more);
+      rows.push(actions);
+    }
+    list.replaceChildren(...rows); list.hidden = false;
+  }
+  /** Asked once, the first time the insights are opened; until an answer says the backend does not have it. */
+  function tourHeat(tour, panel, list, supabase, ticket, scope = null) {
+    // Asked once: opening the panel again leaves what it drew as it is.
+    if (panel.dataset.asked === 'true') return;
+    panel.className = 'tour-heat'; panel.hidden = true; list.hidden = true;
+    if (!heatAvailable || !supabase) return;
+    panel.dataset.asked = 'true';
+    let answered = false;
+    setTimeout(() => { if (!answered && ticket === deskVersion) heatWaiting(panel, list, scope); }, HEAT_SKELETON_MS);
+    const reads = Promise.all([
+      settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_heatmap', { p_tour_id: tour.id }))),
+      tourFloor(tour, supabase).catch(() => null),
+    ]);
+    void reads.then(([reply, floor]) => {
+      answered = true;
+      if (ticket !== deskVersion) return;
+      const clear = () => { panel.replaceChildren(); panel.removeAttribute('aria-busy'); panel.hidden = true; list.replaceChildren(); list.hidden = true; if (scope) scope.hidden = true; };
+      if (missingFunction(reply)) { heatAvailable = false; clear(); return; }
+      const heat = failed(reply) ? null : heatmapFrom(reply.value?.data);
+      // A failed read or an answer that is not the contract's shape: said, with the one way on.
+      if (!heat) { heatProblem(panel, list, () => { panel.dataset.asked = ''; clear(); tourHeat(tour, panel, list, supabase, ticket, scope); }, scope); return; }
+      renderHeat(panel, list, heat, floor, scope);
+    });
+  }
+  /*
+   * The headline row: at most four figures, each with what it counts and the period
+   * it covers. Opens, days and taps are counted over every stored record (the first
+   * nine columns of get_tour_view_stats); the average comes from the last 90 days.
+   */
+  const PERIOD_ALL = 'All time, every version', PERIOD_RECENT = 'Last 90 days, every version', PERIOD_VERSION = 'This version of the walkthrough';
+  // The card's own share button (Share, or Copy link where there is no share sheet), for the panel that sends people to it.
+  const cardShare = new WeakMap();
+  const STOPPED_WORDS = Object.freeze({
+    paused: 'Sharing is paused, so nobody can open the link and these counts stay as they are until you resume sharing.',
+    offline: 'This walkthrough is offline, so nobody can open the link and these counts stay as they are. Restarting your plan brings the same link back.',
+  });
+  function insightsNote(className, text) {
+    const note = document.createElement('p'); note.className = className; note.textContent = text; return note;
+  }
+  // The counts could not be read: said in the panel, with the one way on. A missing count is never shown as zero.
+  function insightsProblem(entry, retry) {
+    if (!entry) return;
+    const body = document.createElement('div'); body.className = 'tour-insights-body';
+    const again = button('Try again', () => { again.disabled = true; again.textContent = 'Trying…'; retry(); });
+    again.dataset.control = 'insights-retry';
+    const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(again);
+    body.append(insightsNote('tour-insights-problem', 'The view counts couldn’t be loaded. Nothing is lost.'), actions);
+    entry.panel.replaceChildren(body);
+    entry.show(true);
+  }
+  // `entry` is the card's Insights disclosure. `stopped` is 'paused' or 'offline' while nobody can open the link.
+  function tourInsights(tour, row, title, entry, lastDate, supabase, ticket, item = null, stopped = '') {
+    if (!entry) return;
+    const opens = viewCount(row?.opens);
+    if (opens === null) { entry.show(false); return; }
+    const box = entry.panel;
+    const body = document.createElement('div');
+    body.className = 'tour-insights-body';
+    if (opens === 0) {
+      // Nothing to count yet: say so, say what will appear, and point at the one thing that changes it.
+      body.append(insightsNote('tour-insights-lead', 'Not opened yet.'));
+      body.append(insightsNote('tour-insights-note', stopped === 'paused' ? 'Sharing is paused, so nobody can open the link. Opens are counted once you resume sharing.'
+        : stopped === 'offline' ? 'This walkthrough is offline, so nobody can open the link. Restarting your plan brings the same link back.'
+        : 'When someone opens the link, this shows how often it was opened, which rooms held attention and where viewers stood.'));
+      const share = !stopped && item ? cardShare.get(item) : null;
+      if (share) {
+        const send = button(share.textContent, () => share.click());
+        send.dataset.control = 'insights-share';
+        const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(send);
+        body.append(actions);
+      }
+      entry.opened = null;
+      box.replaceChildren(body);
+      entry.show(true);
+      return;
+    }
+    const heat = document.createElement('section');
+    heat.setAttribute('aria-label', 'Where viewers stood and looked');
+    const stops = document.createElement('div'); stops.className = 'tour-heat-list'; stops.hidden = true;
+    const scope = insightsNote('tour-heat-scope', ''); scope.hidden = true;
+    // Where viewers stood is asked for when the panel first opens, not before.
+    entry.opened = () => tourHeat(tour, heat, stops, supabase, ticket, scope);
+    const days = viewCount(row?.days_with_opens);
+    const calls = viewCount(row?.call_taps) || 0;
+    const emails = viewCount(row?.email_taps) || 0;
+    const shares = viewCount(row?.share_taps);
+    const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
+    // One sentence to repeat to a vendor, then the report it opens, then the figures behind it.
+    const leadLine = document.createElement('p');
+    leadLine.className = 'tour-insights-lead';
+    leadLine.textContent = insightsLead(row);
+    // While nobody can open the link, that comes first: the counts under it have stopped.
+    if (STOPPED_WORDS[stopped]) body.append(insightsNote('tour-insights-stopped', STOPPED_WORDS[stopped]));
+    body.append(leadLine);
+    const reportText = vendorReportText(title, row, lastDate);
+    const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
+    const copyBtn = button('Copy vendor report', async () => {
+      await window.VeyletSharing?.copy(reportText, null, statusEl, 'Vendor report copied. Paste it into your vendor update.');
+      sayInsights('Vendor report copied. Paste it into your vendor update.');
+    });
+    copyBtn.dataset.control = 'copy-vendor-report';
+    const downloadBtn = button('Download vendor report (.txt)', () => {
+      try {
+        const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+        const href = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = href; anchor.download = reportFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayInsights('Vendor report saved as ' + reportFile + '.');
+      } catch {
+        sayInsights('The vendor report couldn’t be saved here. Use Copy vendor report instead.');
+      }
+    });
+    downloadBtn.dataset.control = 'download-vendor-report';
+    const actions = document.createElement('p');
+    actions.className = 'tour-actions-row tour-insights-report';
+    actions.append(copyBtn, downloadBtn);
+    body.append(actions);
+    // The answers cover three periods (contract-gaps 4 and 6): opens, days and taps every
+    // stored record of every version; time and rooms the last 90 days of every version;
+    // where viewers stood this version only. Each group says its period once, first.
+    body.append(insightsNote('tour-insights-scope', PERIOD_ALL + (lastDate ? ' · last opened ' + lastDate : '')));
+    const figures = document.createElement('dl'); figures.className = 'tour-insights-figures';
+    const figure = (term, value, detail = '') => {
+      const group = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = term;
+      const dd = document.createElement('dd'); dd.textContent = value;
+      group.append(dt, dd);
+      if (detail) { const more = document.createElement('dd'); more.className = 'tour-insights-detail'; more.textContent = detail; group.append(more); }
+      figures.append(group);
+    };
+    figure('Opens', String(opens));
+    if (days !== null) figure('Days active', String(days));
+    figure('Enquiries', String(calls + emails), calls + emails > 0 ? calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') : '');
+    body.append(figures);
+    const channels = channelWords(row);
+    if (channels.length) body.append(insightsNote('tour-insights-channels', 'Opened from: ' + channels.join(' · ')));
+    const hosts = positiveEntries(row?.by_host);
+    if (hosts.length) body.append(insightsNote('tour-insights-hosts', 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ')));
+    if (shares !== null) body.append(insightsNote('tour-insights-shares', 'Link shares: ' + shares));
+    /*
+     * Time per room: rooms ranked by viewing time, each with its visits, its average
+     * per visit (seconds over visits; the answer carries no median) and its share of
+     * all rooms' time, with a bar scaled to the longest. Before the time columns
+     * exist, or under five visits, rooms are ranked by visits and only counts show.
+     */
+    const sparse = insightsSparse(row);
+    const rooms = sparse ? [] : roomTimes(row);
+    const visited = rooms.length ? [] : positiveEntries(row?.by_room);
+    const recent = dwell || rooms.length || visited.length ? document.createElement('div') : null;
+    if (recent) {
+      recent.className = 'tour-insights-roomlist';
+      recent.append(insightsNote('tour-insights-scope', PERIOD_RECENT));
+      if (dwell) recent.append(insightsNote('tour-insights-dwell', 'Average time per visit: ' + dwell));
+      body.append(recent);
+    }
+    if (rooms.length || visited.length) {
+      const block = recent;
+      const heading = document.createElement('h4'); heading.className = 'tour-insights-title';
+      heading.textContent = rooms.length ? 'Time per room' : 'Rooms by visits';
+      const columns = [['Room', 'name'], ['Visits', 'number']];
+      if (rooms.length) columns.push(['Avg per visit', 'number'], ['Share', 'number']);
+      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', rooms.length ? 'Most time first.' : 'Most visits first.', columns);
+      const longest = rooms.length ? rooms[0].seconds : 0;
+      for (const room of rooms) {
+        const line = made.row('tour-insights-room', [[room.name, 'name', true], [room.visits !== null ? String(room.visits) : '–', 'number'],
+          [room.visits ? formatDurationSeconds(Math.max(1, Math.round(room.seconds / room.visits))) : '–', 'number'], [room.share + '%', 'number']]);
+        const bar = document.createElement('td'); bar.className = 'tour-insights-room-bar'; bar.setAttribute('aria-hidden', 'true'); bar.setAttribute('role', 'presentation');
+        bar.dataset.share = String(Math.max(1, Math.round((room.seconds / longest) * 100)));
+        bar.style?.setProperty?.('--share', bar.dataset.share + '%');
+        line.append(bar);
+      }
+      for (const [name, count] of visited) made.row('tour-insights-room', [[name, 'name', true], [String(count), 'number']]);
+      block.append(heading, made.table);
+      if (sparse && positiveEntries(row?.by_room_seconds).length) {
+        // Named for the count that is short: visits when the answer carries them, else opens.
+        const visits = viewCount(row?.visits), short = visits !== null && visits < INSIGHTS_MIN_OPENS ? 'visits' : 'opens';
+        // About the rooms only: the average above it is shown, and the threshold is said once.
+        block.append(insightsNote('tour-insights-few', 'Rooms show visit counts only until there are ' + INSIGHTS_MIN_OPENS + ' ' + short + '; then their time and share appear.'));
+      }
+    }
+    heat.className = 'tour-heat'; heat.hidden = true;
+    // This version's group: its period (said once the answer names it), the plan and the stops.
+    const version = document.createElement('div'); version.className = 'tour-insights-version';
+    version.append(scope, heat, stops);
+    body.append(version);
+    if (entry.open) tourHeat(tour, heat, stops, supabase, ticket, scope);
+    box.replaceChildren(body);
+    const sayInsights = rowSay(tour, box);
+    entry.show(true);
+  }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
-  function tourViews(tour, host, supabase, ticket) {
+  // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".
+  function tourViews(tour, host, supabase, ticket, title, insights, item = null, stopped = '') {
     host.className = 'tour-views'; host.hidden = true;
+    if (insights) insights.show(false);
     if (!viewsAvailable) return;
-    void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+    const ask = () => void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+      if (!viewsAvailable) return;
       if (ticket !== deskVersion) return;
       if (missingFunction(reply)) { viewsAvailable = false; return; }
-      if (failed(reply)) return;
-      const row = firstRow(reply.value?.data);
+      if (sessionGone(reply)) return;
+      const row = failed(reply) ? null : firstRow(reply.value?.data);
       const opens = viewCount(row?.opens), calls = viewCount(row?.call_taps), emails = viewCount(row?.email_taps);
-      if (opens === null) return;
+      if (opens === null) { host.hidden = true; insightsProblem(insights, ask); return; }
       const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
-      const opened = document.createElement('p'); opened.className = 'tour-views-opens';
-      opened.textContent = opens === 0 ? 'Not opened yet.' : 'Opened ' + opens + (opens === 1 ? ' time' : ' times') + (last ? ' · last ' + last : '');
-      const parts = [opened];
-      if (calls !== null && emails !== null && opens > 0) {
-        const taps = document.createElement('p'); taps.className = 'tour-views-taps';
-        taps.textContent = 'Call taps ' + calls + ' · Email taps ' + emails;
-        parts.push(taps);
-      }
-      host.replaceChildren(...parts); host.hidden = false;
+      const count = (number, one, many) => number + ' ' + (number === 1 ? one : many);
+      const bits = opens === 0 ? ['Not opened yet.'] : [count(opens, 'open', 'opens')];
+      if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call', 'calls'), count(emails, 'email', 'emails'));
+      if (last) bits.push('last ' + last);
+      host.textContent = bits.join(' · '); host.hidden = false;
+      if (insights) tourInsights(tour, row, title, insights, last, supabase, ticket, item, stopped);
     });
+    whenNear(item, ask, deckWanted.has(tour.id));
   }
   function stopSharing(tour, supabase, ticket, parent) {
     let armed = false;
@@ -1062,7 +2224,7 @@
       const current = firstRow(readback.value?.data);
       if (failed(readback) || !current || current.share_token !== null) {
         say('The request completed, but the current sharing state could not be confirmed. Refresh the desk.', true);
-      } else say('Sharing turned off. Remove the link and embed from your listing too.', true);
+      } else say('Sharing turned off. Remove the link and embed from your website and portals too.', true);
       await loadDesk(supabase);
     });
     const cancelRevoke = button('Keep link', () => { armed = false; revoke.textContent = 'Turn off sharing'; revoke.dataset.armed = 'false'; cancelRevoke.hidden = true; say('Link left unchanged.'); });
@@ -1103,10 +2265,10 @@
     if (!lineage) return lead + ' Whether approving it uses your allowance couldn’t be checked. Refresh to check before you approve it.';
     const moves = lineage.link_moves_on_approval;
     if (!lineage.approval_uses_allowance) {
-      return lead + (moves ? ' Approving it uses no walkthrough from your allowance, and your existing link and embed will show this version.'
-        : ' Approving it uses no walkthrough from your allowance. It has no live link now, so approving it also turns sharing on.');
+      return lead + (moves ? ' Approving it uses no rooms from your allowance, and your existing link and embed will show this version.'
+        : ' Approving it uses no rooms from your allowance. It has no live link now, so approving it also turns sharing on.');
     }
-    return lead + ' That walkthrough hasn’t been accepted yet, so approving this version uses one walkthrough from your allowance' +
+    return lead + ' That walkthrough hasn’t been accepted yet, so approving this version uses its counted rooms from your allowance' +
       (moves ? '. Your existing link and embed will show this version.' : '; later corrections of it use none.');
   }
 
@@ -1140,6 +2302,8 @@
   const EXPORT_FILES = Object.freeze({ video_16x9: 'Download listing video (16:9)', video_9x16: 'Download social video (9:16)', stills: 'Download stills (ZIP)' });
   const EXPORT_WORDS = Object.freeze({
     heading: 'Videos and stills for your listing',
+    // The card's tab names both kinds of file it holds: the heading's own words, without "for your listing".
+    short: 'Videos and stills',
     what: 'From this walkthrough: a 16:9 listing video (60–180 seconds), a 9:16 social video (20–45 seconds) and still photos of each room. Listing videos and stills are included in your plan.',
     // realestate.com.au's residential rules (launch plan §4): no web address, QR code
     // or call to action in the frame, and an AI or rendering disclosure. It shows the
@@ -1209,21 +2373,23 @@
    * (the request's own roles). Hidden until get_listing_exports answers; a ready
    * export puts its state on the summary so it is seen without opening it.
    */
-  function listingExports(tour, item, supabase, ticket) {
+  function listingExports(tour, item, supabase, ticket, deck) {
     if (!exportsAvailable) return;
-    const box = document.createElement('details'); box.className = 'account-details tour-exports'; box.hidden = true;
-    const summary = document.createElement('summary');
-    const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.heading;
+    const box = document.createElement('div'); box.className = 'tour-panel tour-exports';
+    const entry = deck.add('exports', '', box); entry.show(false);
+    const summary = entry.toggle;
+    const summaryText = document.createElement('span'); summaryText.className = 'tour-exports-title'; summaryText.textContent = EXPORT_WORDS.short;
     summary.append(summaryText);
+    const heading = document.createElement('p'); heading.className = 'tour-exports-heading'; heading.textContent = EXPORT_WORDS.heading;
     const body = document.createElement('div'); body.className = 'tour-exports-body';
     message(body, EXPORT_WORDS.what, 'tour-state-help tour-exports-what');
     message(body, EXPORT_WORDS.where, 'tour-state-help tour-exports-where');
     // Where the export stands: focused after a press, so the result is where the reader is.
     const state = document.createElement('p'); state.className = 'tour-exports-state'; state.tabIndex = -1; state.hidden = true;
     const slot = document.createElement('div'); slot.className = 'tour-exports-slot';
-    body.append(state, slot); box.append(summary, body); item.append(box);
+    body.append(state, slot); box.append(heading, body);
     const say = rowSay(tour, body);
-    const gone = () => { exportsAvailable = false; box.hidden = true; say(''); };
+    const gone = () => { exportsAvailable = false; entry.show(false); say(''); };
     const actions = (...controls) => { const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(...controls); slot.append(row); return row; };
     const show = (words, focus) => {
       state.textContent = words; state.hidden = !words;
@@ -1243,19 +2409,19 @@
       if (missingFunction(reply)) { gone(); return; }
       if (sessionGone(reply)) {
         if (focus) showSignedOut('Your sign-in has expired. Sign in to check your listing videos.');
-        else box.hidden = true;
+        else entry.show(false);
         return;
       }
       if (failed(reply)) {
-        box.hidden = false; chip(''); slot.replaceChildren(); say('');
+        entry.show(true); chip(''); slot.replaceChildren(); say('');
         show(EXPORT_WORDS.readFailed, focus);
         const retry = button(EXPORT_WORDS.again, () => read(true)); retry.dataset.control = 'exports-retry';
         actions(retry);
         return;
       }
       const row = exportAnswer(tour, reply.value?.data);
-      if (!row) { box.hidden = true; return; }
-      box.hidden = false;
+      if (!row) { entry.show(false); return; }
+      entry.show(true);
       say('');
       draw(row, focus);
     }
@@ -1388,7 +2554,7 @@
       else if (row.state === 'failed') { show(EXPORT_WORDS.failed, focus); requestForm(row, EXPORT_WORDS.again, false); }
       else { show(EXPORT_WORDS.preparing, focus); checkAgain(); }
     }
-    void read(false);
+    whenNear(item, () => void read(false), deckWanted.has(tour.id));
   }
 
   /* ---- Is anyone living here? --------------------------------------------
@@ -1786,48 +2952,62 @@
         if (ticket !== deskVersion) { if (pending) sharePending.set(tour.id, pending); return; }
       }
       const gate = canShare && (!live || paused) ? gateBlock(tour.property_id) : null;
-      let hostingFix = null;
+      // The card in three rows: its chip, date and views; one state sentence; its buttons
+      // and quiet disclosures, with the one open panel under them.
+      const deck = cardDeck(tour, item);
       if (paused) {
         status.className = 'tour-state-help tour-hosting';
         status.textContent = PAUSED_LINE;
       } else if (live) {
         status.className = 'tour-state-help tour-hosting';
-        status.textContent = hostingWords(hosting || null, true);
         if (hosting) {
-          hostingFix = canShare ? hostingFixRow(tour) : null;
-          const entry = { tour, hosting, line: status, fix: hostingFix };
+          // The sentence, then an ended plan's quiet fixes on the same line.
+          const words = document.createElement('span'); words.className = 'tour-hosting-words';
+          const fix = canShare ? hostingFixRow(tour) : null;
+          status.textContent = ''; status.append(words);
+          if (fix) status.append(fix.row);
+          const entry = { tour, hosting, line: words, fix: fix ? fix.row : null, restart: fix ? fix.restart : null };
           hostingFixSync(entry);
           hostingCards.set(tour.id, entry);
-        }
+        } else status.textContent = hostingWords(null, true);
         // Approved and shared in one press, whatever the first answer said: it is live.
         if (pending) say(LIVE_SAID);
       } else {
         const off = hostingWords(hosting || null, false);
-        tourChip(tour, off ? 'Sharing off' : '', 'quiet');
+        tourChip(tour, off ? 'Sharing off' : deskBar ? 'Approved, not shared' : '', 'quiet');
         const problem = pending && canShare ? pending.reason || 'unknown' : gate;
-        status.textContent = problem ? shareWords(problem) : off || (canShare
-          ? 'Approved. Sharing isn’t on yet.' : 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
+        // On the web desk the chip says it is approved and not shared; the line only adds who can share it.
+        status.textContent = problem ? shareWords(problem) : off || (deskBar
+          ? (canShare ? '' : 'The workspace owner or this walkthrough’s creator can turn sharing on.')
+          : canShare ? 'Approved. Sharing isn’t on yet.' : 'Approved. The workspace owner or this walkthrough’s creator can turn sharing on.');
+        status.hidden = !status.textContent;
         if (problem) status.className = 'tour-state-help tour-share-problem';
         if (pending && problem) setStatus(shareWords(problem));
       }
       if (render?.answers) renderDraw();
-      // Its views sit under the state line, on a live or paused link.
-      if (live) { const views = document.createElement('div'); item.append(views); tourViews(tour, views, supabase, ticket); }
-      // An ended plan's fix (Restart your plan, and the hosting extension request) follows, before the link controls.
-      if (hostingFix) item.append(hostingFix);
+      // Its views end the first row, on a live or paused link; its insights wait behind a disclosure.
+      if (live) {
+        const views = document.createElement('span');
+        (tourChips.get(tour.id)?.row || item).append(views);
+        const insights = document.createElement('div'); insights.className = 'tour-panel tour-insights';
+        // While nobody can open the link, its counts stand still, and the panel says why.
+        const stopped = paused ? 'paused' : hostingChip(hosting).label === 'Offline' ? 'offline' : '';
+        tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights), item, stopped);
+      }
       if (canShare) {
-        if (paused) resumeSharing(tour, item, supabase, ticket, gate);
-        else if (live) liveSharing(tour, item, title);
+        if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);
+        else if (live) liveSharing(tour, item, title, deck);
         else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
-          withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : LIVE_LINE,
-          problem: pending ? pending.reason || 'unknown' : gate });
+          withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : UNSHARED_LINE,
+          problem: pending ? pending.reason || 'unknown' : gate, deck });
       }
       // Videos and stills: an approved version, for whoever may share it (the request's roles).
-      if (canShare) listingExports(tour, item, supabase, ticket);
-      const manage = (canShare && live) || canReview ? manageSharing(item) : null;
+      if (canShare) listingExports(tour, item, supabase, ticket, deck);
+      const manage = (canShare && live) || canReview ? manageSharing(deck) : null;
       if (manage && canShare && live && !paused) pauseSharing(tour, supabase, ticket, manage);
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
       if (manage && canReview) withdrawApproval(tour, supabase, ticket, manage);
+      deck.finish();
       return;
     }
     // Not approved: "Ready for your review" to whoever reviews; anyone else reads whose it is.
@@ -1865,17 +3045,23 @@
     // during submission: the authoritative RPC rejects a changed object even
     // when its storage path is reused.
     const snapshot = Object.freeze({ path: target.storage_path, revision: target.package_revision });
-    const preview = tourPreview(tour, item, snapshot.revision);
+    // Review in three numbered steps inside the disclosure: 1 Preview (a new tab: /play
+    // sends X-Frame-Options DENY, so it cannot be framed here), 2 the one required tick,
+    // 3 Approve and share, the one filled button, with what it does beside it.
+    const steps = document.createElement('ol'); steps.className = 'review-steps';
+    const step = () => { const li = document.createElement('li'); li.className = 'review-step'; steps.append(li); return li; };
+    const previewStep = step(), tickStep = step(), shareStep = step();
+    const preview = tourPreview(tour, previewStep, snapshot.revision);
     const details = document.createElement('details'); details.className = 'tour-review';
     details.open = tour.id === deskTarget;
     const summary = document.createElement('summary'); summary.textContent = 'Review this walkthrough'; details.append(summary);
     const form = document.createElement('form');
     const fields = {};
-    message(form, 'Open the preview and walk through it. If something needs fixing, ask for a correction instead of approving.');
+    message(form, 'Open the preview and tap each numbered circle to move through it. If something needs fixing, ask for a correction instead of approving.');
     // What the one press does, before it is pressed. A correction says its own (the
     // link moves, or not); this line is for a first release only.
     const moves = lineage?.link_moves_on_approval === true;
-    if (!correction && hosting !== undefined && !hosting?.released_at) message(form, 'Anyone with the link can open it and forward it. It stays online while your plan is active.', 'tour-state-help tour-share-terms');
+    const terms = !correction && hosting !== undefined && !hosting?.released_at;
     // The quality check's advice first, read, never a block; then what approving uses.
     const flagSlot = document.createElement('div'); flagSlot.hidden = true; form.append(flagSlot);
     reviewFlagSlots.set(tour.id, flagSlot); paintReviewFlags(flagSlot, reviewFlags.get(tour.id));
@@ -1886,16 +3072,18 @@
       const row = document.createElement('label'); row.className = 'review-right';
       const input = document.createElement('input'); input.type = 'checkbox'; input.required = true; input.name = 'right_to_share'; fields.right_to_share = input;
       const text = document.createElement('span'); text.textContent = RIGHT_TO_SHARE;
-      row.append(input, text); form.append(row);
+      row.append(input, text); tickStep.append(row);
     }
-    const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; form.append(save);
+    const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; shareStep.append(save);
+    if (terms) message(shareStep, 'Anyone with the link can open it and forward it while your plan is active.', 'tour-state-help tour-share-terms');
+    form.append(steps);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
     // is sent from this page and no approval is recorded.
     const corrections = document.createElement('a'); corrections.className = 'tour-action'; corrections.textContent = 'Request corrections by email';
     const correctionsHref = () => {
       // The walkthrough reference lets the studio record the new package against this
-      // walkthrough, so the correction uses no second walkthrough from the allowance.
+      // walkthrough, so the correction uses no rooms from the allowance.
       const reference = String(walkthroughOf(tour)).slice(0, 8);
       const body = ['Walkthrough reference: ' + reference, 'Version: ' + revisionOf(tour), 'Tour reference: ' + String(tour.id).slice(0, 8),
         'Package: ' + snapshot.revision.slice(0, 12), '',
@@ -1928,8 +3116,8 @@
         const changed = reply.value?.error?.details === 'VEYLET_PACKAGE_REVISION_CHANGED';
         const capacityBlocked = ['VEYLET_PLAN_NOT_ACTIVE', 'VEYLET_WALKTHROUGH_CAPACITY_EXHAUSTED'].includes(reply.value?.error?.details);
         const sandboxBlocked = reply.value?.error?.details === 'VEYLET_SANDBOX_TEST_ONLY';
-        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use an extra walkthrough.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan’s walkthroughs are used; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
-          : 'This walkthrough was not accepted. Refresh your plan allowance below; a walkthrough pack adds more, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
+        const explanation = sandboxBlocked ? 'Test purchase · real walkthroughs require a live plan. This test subscription cannot accept production work or use extra rooms.' : changed ? 'The package changed. Your previous checks were cleared. Start a fresh review and open its preview before checking it again.' : capacityBlocked ? (APP_MODE ? 'This walkthrough was not accepted. Your plan does not have enough rooms left for it; see your plan in the app, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.'
+          : 'This walkthrough was not accepted. Your plan does not have enough rooms left for it. Refresh your plan allowance below; a pack adds more rooms, or Veylet support can confirm available capacity. No charge was created. Start a fresh review after capacity is confirmed.') : 'Review was not confirmed. Your previous checks were cleared. Start a fresh review to check the current package and saved review state.';
         for (const field of Object.values(fields)) { field.checked = false; field.disabled = true; }
         preview.removeAttribute('href'); preview.setAttribute('aria-disabled', 'true'); preview.tabIndex = -1;
         status.textContent = explanation; say(explanation);
@@ -1960,11 +3148,12 @@
   }
 
   /* ---- Your plan -------------------------------------------------------
-   * One free month with three walkthroughs in total, started by activating the
+   * One free month with 30 rooms in total, started by activating the
    * plan with a payment method on file, then the Veylet plan unless cancelled
-   * before the first charge on the day it ends (offer 2026-09-29.2): monthly,
-   * the same three walkthroughs a month where unused ones roll over (at most six
-   * banked), or annual, a yearly pool of 36 walkthroughs. This panel only reports what get_workspace_plan
+   * before the first charge on the day it ends (offer 2026-11-11.1, the unit is the room): monthly,
+   * the same 30 rooms a month where unused ones carry over (at most 40
+   * banked), or annual, a yearly pool of 360 rooms. The server's keys keep their walkthrough names and
+   * carry room counts (docs/offer-rooms-contract-20261111.md, rule 5.7). This panel only reports what get_workspace_plan
    * and get_walkthrough_capacity return; the rollover and the yearly pool are
    * stated only when the capacity answer carries them. An error means the state
    * is unavailable — never that it is empty, started or approved — and nothing
@@ -1974,7 +3163,7 @@
   const planBody = document.getElementById('account-plan-body');
   const deletionPanel = document.getElementById('account-deletion');
   const PLAN_STATUSES = ['pending', 'trial', 'active', 'ended'];
-  const PLAN_TERMS = ['State', 'Free walkthroughs', 'Renews', 'Hosting', 'Extra walkthroughs', 'Managed in'];
+  const PLAN_TERMS = ['State', 'Free rooms', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
   // The State row says the state in the app's own short words; the date belongs
   // to the Renews row, and the full sentence to the body.
   const PLAN_STATE_WORDS = { pending: 'Not started', trial: 'Free months', active: 'Active', ended: 'Ended' };
@@ -1982,18 +3171,18 @@
   const PLAN_SOURCES = ['studio', 'apple', 'web'];
   const PLAN_SOURCE_WORDS = { apple: 'App Store', web: 'Website', studio: 'Studio invoice' };
   // Plan code to the name customers see. Offer 2026-09-25.2 sells one plan, the
-  // Veylet plan (code solo), monthly or annual; Team (studio), Office, One
+  // Veylet plan (code solo), monthly or yearly; Team (studio), Office, One
   // walkthrough and the founding rate are retired for new buyers, and an existing
   // row on one of them still reads by its own name. The studio desk states the
   // same names from the same table.
   const PLAN_NAMES = { solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' };
   // App Store product to plan and cadence, as offer.json lists the product IDs.
-  // The App Store sells the Veylet plan monthly and annual (appStore.sold); the
+  // The App Store sells the Veylet plan monthly and yearly (appStore.sold); the
   // two Team IDs stay mapped so an existing verified row still reads correctly.
   const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
-  // offer.json freeMonths: 1 month, 3 walkthroughs in total.
+  // offer.json freeMonths: 1 month, 30 rooms in total.
   const PLAN_DEFAULT_TRIAL_MONTHS = 1;
-  const PLAN_DEFAULT_TRIAL_WALKTHROUGHS = 3;
+  const PLAN_DEFAULT_TRIAL_ROOMS = 30;
   const PLAN_DASH = '—';
   const PLAN_TEST_ALLOWANCE = 'Production walkthroughs are not included in a sandbox subscription.';
   // Sandbox reads the same way on the plan and on both cards: "Test ·", then what is not live.
@@ -2007,6 +3196,11 @@
   function planMonths(value) {
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
+  }
+  // A free-month room allowance: a whole number from 1 to 240, the most the studio desk may set.
+  function planRooms(value) {
+    const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+    return value !== '' && Number.isInteger(count) && count >= 1 && count <= 240 ? String(count) : '';
   }
   function planCount(value) {
     if (value === null || value === undefined || value === '') return PLAN_DASH;
@@ -2104,7 +3298,7 @@
     const when = new Date(value);
     return Number.isNaN(when.getTime()) ? '' : when.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
   }
-  // How many unused monthly walkthroughs this account may bank: the plan row's own max_banked
+  // How many unused monthly rooms this account may bank: the plan row's own max_banked
   // (get_workspace_plan), the number the app shows for the same account. Absent, no cap is said.
   function planMaxBanked(row) {
     const value = row && row.max_banked;
@@ -2144,9 +3338,9 @@
     const accepted = planCount(row && row.accepted_this_period) + ' of ' + planCount(row && row.included_per_month);
     if (status === 'pending') {
       const months = planMonths(row.trial_months);
-      const included = planMonths(row.trial_included_walkthroughs);
+      const included = planRooms(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' walkthroughs in total.' } : unavailable;
+        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' rooms in total.' } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -2163,7 +3357,7 @@
           : billing ? free + ', then ' + billing + ' unless you cancel.'
             : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
       return { status, title: free,
-        body: (sandbox ? PLAN_TEST_ALLOWANCE + ' ' : used + ' of ' + allowance + ' free walkthroughs used. ') + renewal };
+        body: (sandbox ? PLAN_TEST_ALLOWANCE + ' ' : used + ' of ' + allowance + ' free rooms used. ') + renewal };
     }
     if (status === 'active') {
       const billing = planBilling(row);
@@ -2174,7 +3368,7 @@
           : 'Current period ends ' + until + '; check your renewal setting.';
       return { status, title: (sandbox ? 'Test · ' : '') + (PLAN_NAMES[planCode(row)] || 'Plan') + ' · ' + (billing || 'confirm billing details'),
         // How an annual allowance counts (a yearly pool) is the capacity answer's to say, below.
-        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' walkthroughs this month. ') + renewal + ' Hosting included.' +
+        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
           (planInterval(row) === 'annual' ? ' Billed annually.' : '') };
     }
     if (status === 'ended') {
@@ -2215,6 +3409,7 @@
   // The ledger's answers at their usual lengths: state, count, date, hosting, extras, source.
   const PLAN_SKELETON_LENGTHS = [11, 24, 14, 90, 11, 14];
   function planSkeleton() {
+    planLineSay('');
     if (!planPanel || !planBody) return;
     planPanel.setAttribute('aria-busy', 'true');
     if (APP_MODE) {
@@ -2248,6 +3443,8 @@
   }
   // The current desk's capacity read, so a bought pack can re-read the ledger.
   let planCapacityRefresh = null;
+  // The included limit of the last capacity answer, for "This uses 8 of your 30 rooms."
+  let planRoomsLimit = null;
   // The day an ended plan ended: its paid period, else its free months.
   function planEndDay(row) {
     if (!row || typeof row !== 'object' || row.status !== 'ended') return null;
@@ -2261,13 +3458,13 @@
     deskPlanEndedAt = day;
     // The map is cleared with each desk, so every entry is on the page drawn now.
     for (const entry of hostingCards.values()) {
-      const { tour, hosting, line } = entry;
-      line.textContent = hostingWords(hosting, true);
+      const { tour, hosting } = entry;
       hostingFixSync(entry);
       const chip = tourChips.get(tour.id)?.chip?.textContent;
       const next = hostingChip(hosting);
       if (chip && (chip === 'Live' || chip.startsWith('Offline')) && chip !== next.label) tourChip(tour, next.label, next.tone);
     }
+    needsDraw();
   }
   // The office's line once the plan has ended: how many live walkthroughs go offline, and when.
   function planHostingEnded(row, view, live) {
@@ -2311,18 +3508,21 @@
     planBody.replaceChildren(...parts);
   }
   async function renderPlan(supabase, ticket, props, members, live = 0) {
-    if (!planPanel || !planBody) return;
-    planCapacityRefresh = null;
+    // No plan panel on this page: no restart at the top, so a card keeps its own.
+    if (!planPanel || !planBody) { planFixKnown(null); return; }
+    planCapacityRefresh = null; planRoomsLimit = null;
+    planPrimaryButtons.clear(); planPrimarySaid = null; planRestartLink = null; planShownOffice = null;
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
+    planShownOffice = workspaceID;
     let row = null;
     let view;
     if (!workspaceID && !failed(members)) {
       // No workspace yet is not a failed lookup. There is nothing to refresh;
       // the free months start when the plan is activated either way.
       const start = planVocabulary({ status: 'pending', trial_months: PLAN_DEFAULT_TRIAL_MONTHS,
-        trial_included_walkthroughs: PLAN_DEFAULT_TRIAL_WALKTHROUGHS });
+        trial_included_walkthroughs: PLAN_DEFAULT_TRIAL_ROOMS });
       view = { ...start, body: start.body + ' Add a space to prepare your account. Saving a space does not activate the plan.' };
     } else {
       const reply = workspaceID
@@ -2365,21 +3565,21 @@
     let usageTerm = null;
     let extraCell = null;
     if (view.status === 'unavailable' || !row) {
-      planHairline(dl, 'Free walkthroughs', PLAN_DASH, true);
+      planHairline(dl, 'Free rooms', PLAN_DASH, true);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started' : PLAN_DASH, true);
       planHairline(dl, 'Hosting', PLAN_DASH, false);
-      planHairline(dl, 'Extra walkthroughs', PLAN_DASH, true);
+      planHairline(dl, 'Extra rooms', PLAN_DASH, true);
       planHairline(dl, 'Managed in', PLAN_DASH, false);
     } else {
       // On the plan the month is the unit; before it, the free months' total is.
       if (sandboxPlan) {
-        usageCell = planHairline(dl, 'Walkthroughs', 'Test subscription', false);
+        usageCell = planHairline(dl, 'Rooms', 'Test subscription', false);
       } else if (view.status === 'active') {
-        usageCell = planHairline(dl, planInterval(row) === 'once' ? 'Paid service period' : 'This month', planCount(row.accepted_this_period) + ' of ' + planCount(row.included_per_month) + ' accepted', true);
+        usageCell = planHairline(dl, planInterval(row) === 'once' ? 'Paid service period' : 'This month', planCount(row.accepted_this_period) + ' of ' + planCount(row.included_per_month) + ' used', true);
         // An annual pool renames this row in place once the capacity answer says so.
         usageTerm = dl.children[dl.children.length - 1].children[0];
       } else {
-        usageCell = planHairline(dl, 'Free walkthroughs',
+        usageCell = planHairline(dl, 'Free rooms',
           planCount(row.accepted_in_free_months) + ' of ' + planCount(row.trial_included_walkthroughs), true);
       }
       const renewsOn = planDate(view.status === 'active' ? row.current_period_ends_at : row.trial_ends_at);
@@ -2390,7 +3590,7 @@
         : row.hosting_included === false ? 'Not included' : PLAN_DASH, false);
       // Packs and any settled extras, counted by the acceptance ledger below; the
       // single A$ extra price is retired (offer 2026-09-24.2), so no price is stated.
-      extraCell = planHairline(dl, 'Extra walkthroughs', PLAN_DASH, true);
+      extraCell = planHairline(dl, 'Extra rooms', PLAN_DASH, true);
       planHairline(dl, 'Managed in', source ? PLAN_SOURCE_WORDS[source] : PLAN_DASH, false);
     }
     parts.push(dl);
@@ -2414,21 +3614,21 @@
         const remaining = Math.max(0, included - used);
         allowance = document.createElement('p'); allowance.className = 'plan-allowance';
         allowance.textContent = remaining > 0
-          ? remaining + ' included walkthrough' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'across your free months.' : once ? 'in this paid service period.' : 'this month.')
-          : 'Your included walkthroughs are used for ' + (free ? 'these free months.' : once ? 'this paid service period.' : 'this month.');
-        // Whether unused walkthroughs roll over (monthly) or form a yearly pool (annual)
+          ? remaining + ' included room' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'across your free months.' : once ? 'in this paid service period.' : 'this month.')
+          : 'Your included rooms are used for ' + (free ? 'these free months.' : once ? 'this paid service period.' : 'this month.');
+        // Whether unused rooms carry over (monthly) or form a yearly pool (yearly)
         // is said only from the capacity answer below; an annual row claims no monthly reset.
         cadence = free ? '' : once ? ' This single walkthrough does not reset monthly.'
           : planInterval(row) === 'annual' ? '' : ' The allowance resets monthly.';
         // A pack is named here only when it is the next step; otherwise its card follows.
-        baseNote = (free ? 'Saving a space or a failed capture does not use one.' : cadence.trim()) + (remaining > 0 ? ''
-          : ' Need more walkthroughs? A walkthrough pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
+        baseNote = (free ? 'Saving a space or a failed capture uses none.' : cadence.trim()) + (remaining > 0 ? ''
+          : ' Need more rooms? A pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
             (free ? ' Your free-months end date stays the same.' : ''));
         capacity.append(allowance);
       }
     }
     if (workspaceID && row) {
-      capacityNote.textContent = 'Checking acceptance capacity and extra walkthroughs…';
+      capacityNote.textContent = 'Checking acceptance capacity and extra rooms…';
       capacity.append(capacityNote);
     }
     if (capacity.children.length) parts.push(capacity);
@@ -2438,15 +3638,15 @@
     // The one fix once the plan has ended, filled and first: the offer, where the plan restarts.
     if (view.status === 'ended') {
       const restart = document.createElement('a'); restart.className = 'button'; restart.href = '/offer'; restart.textContent = 'Restart your plan';
-      actions.append(restart);
+      actions.append(restart); planRestartLink = restart;
     }
     if (source === 'apple') {
       const manage = document.createElement('a'); manage.className = 'text-link';
       manage.href = 'https://apps.apple.com/account/subscriptions';
       manage.textContent = 'Manage or cancel in the App Store'; actions.append(manage);
-      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Walkthrough packs are unavailable in this app version. In-app purchase arrives in a later app version.');
+      manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Packs are unavailable in this app version. In-app purchase arrives in a later app version.');
     } else if (['pending', 'ended'].includes(view.status) && source !== 'studio' && source !== 'web') {
-      manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install Veylet Capture and sign in with this email. ' +
+      manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install the Veylet app and sign in with this email. ' +
         'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
     }
     if (view.status !== 'unavailable' && view.status !== 'ended') {
@@ -2469,6 +3669,16 @@
     }
     if (actions.children.length) parts.push(actions);
     planBody.replaceChildren(...parts);
+    // The same facts in one line above the walkthroughs: the title, the count in its
+    // row, and the price that follows the free months, each exactly as drawn above.
+    const planLineDraw = () => {
+      const term = (usageCell?.parentNode || usageCell?.parent)?.children?.[0]?.textContent || 'Rooms';
+      const usage = usageCell && usageCell.textContent && usageCell.textContent !== PLAN_DASH ? term + ': ' + usageCell.textContent : '';
+      const then = view.status === 'trial' && row?.auto_renews === true && planBilling(row) ? 'then ' + planBilling(row) : '';
+      planLineSay([memberships.length > 1 ? planWorkspaceName(workspaceID, props) : '', view.title, usage, then].filter(Boolean).join(' · '));
+    };
+    planLineDraw();
+    planFixKnown(view.status === 'ended' ? workspaceID : null);
     // The free-months card, walkthrough packs and the share link read their
     // own answers; none of them ever holds up the plan.
     void renderTrial(supabase, ticket, workspaceID, row);
@@ -2488,9 +3698,10 @@
         typeof cap.can_accept === 'boolean' && (cap.reason_code === null || typeof cap.reason_code === 'string') &&
         [...PLAN_STATUSES, 'unavailable'].includes(cap.plan_status) && cap.included_remaining === Math.max(0, cap.included_limit - cap.included_used);
       if (!valid) {
+        planLineDraw();
         if (extraCell) extraCell.textContent = PLAN_DASH;
         capacityNote.textContent = sandboxPlan ? 'Test · this test subscription’s capacity could not be verified. ' + PLAN_TEST_ALLOWANCE
-          : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-walkthrough balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
+          : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-room balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
         capacity.replaceChildren(...[allowance, capacityNote].filter(Boolean)); return;
       }
       // The acceptance ledger is authoritative. A plan count alone does not
@@ -2498,50 +3709,70 @@
       if (planIsSandbox(row, cap)) {
         if (usageCell) usageCell.textContent = 'Test subscription';
         body.textContent = planVocabulary(row, true).body;
-        capacityNote.textContent = 'Test · real walkthroughs need a live plan. This test subscription cannot accept production work or spend an extra walkthrough.';
+        capacityNote.textContent = 'Test · real walkthroughs need a live plan. This test subscription cannot accept production work or spend extra rooms.';
         capacity.replaceChildren(capacityNote); return;
       }
       // Offer 2026-09-25.1, only where the answer carries it (older servers do not):
       // a monthly plan's banked rollover, and an annual plan's yearly pool.
       const { banked, rollover, maxBanked, pool, poolEnds, bonus } = planAllowance(row, cap);
+      planRoomsLimitSet(['trial', 'active'].includes(cap.plan_status) ? cap.included_limit : null);
       // One count per panel, from the capacity answer (the plan row's per-month figure leaves out
-      // banked walkthroughs): the cell and the sentence say the same numbers.
+      // banked rooms): the cell and the sentence say the same numbers.
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
       if (pool && usageTerm) usageTerm.textContent = 'Plan year';
-      if (extraCell) extraCell.textContent = cap.extra_credits_available + ' available';
-      if (cap.plan_status === 'trial') body.textContent = view.body.replace(/^.*?free walkthroughs used\./, cap.included_used + ' of ' + cap.included_limit + ' included free walkthroughs used.');
-      if (pool) body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this plan year.');
+      if (extraCell) { extraCell.textContent = cap.extra_credits_available + ' available'; extraCell.dataset.extraSaid = 'true'; }
+      planLineDraw();
+      // The table's row is the count. On the web desk the sentence keeps only what the table
+      // cannot say: what happens on the renewal date.
+      if (cap.plan_status === 'trial') body.textContent = deskBar && usageCell ? view.body.replace(/^.*?free rooms used\.\s*/, '')
+        : view.body.replace(/^.*?free rooms used\./, cap.included_used + ' of ' + cap.included_limit + ' included free rooms used.');
+      if (pool) body.textContent = view.body.replace(/^.*? rooms this month\./, cap.included_used + ' of ' + cap.included_limit + ' rooms used this plan year.');
       else if (cap.plan_status === 'active' && planInterval(row) === 'monthly') {
         const perMonth = Number.isInteger(row.included_per_month) ? row.included_per_month : cap.included_limit - (banked || 0);
-        body.textContent = view.body.replace(/^.*? walkthroughs this month\./, cap.included_used + ' of ' + cap.included_limit + ' walkthroughs used this month'
+        body.textContent = view.body.replace(/^.*? rooms this month\./, cap.included_used + ' of ' + cap.included_limit + ' rooms used this month'
           + (banked > 0 ? ' (' + perMonth + ' a month + ' + banked + ' banked)' : '') + '.');
       }
-      // Bonus walkthroughs (early annual, referral) are extra walkthroughs too; the line says how many.
-      const extras = cap.extra_credits_available + ' extra walkthrough' + (cap.extra_credits_available === 1 ? '' : 's') + ' available' +
+      // Bonus rooms (referral) are extra rooms too; the line says how many.
+      const extras = cap.extra_credits_available + ' extra room' + (cap.extra_credits_available === 1 ? '' : 's') + ' available' +
         (bonus ? ', including ' + bonus + ' bonus' : '') + '.';
       const balance = allowance || document.createElement('p'); balance.className = 'plan-allowance';
-      balance.textContent = pool ? cap.included_remaining + ' of ' + cap.included_limit + ' walkthroughs left this plan year · ' + extras
-        : cap.included_remaining + ' included walkthrough' + (cap.included_remaining === 1 ? '' : 's') + ' remaining · ' + extras;
-      const counting = pool ? ' Your ' + cap.included_limit + ' walkthroughs are a yearly pool to use any time, with no monthly limit' +
+      balance.textContent = pool ? cap.included_remaining + ' of ' + cap.included_limit + ' rooms left this plan year · ' + extras
+        : cap.included_remaining + ' included room' + (cap.included_remaining === 1 ? '' : 's') + ' remaining · ' + extras;
+      const counting = pool ? ' Your ' + cap.included_limit + ' rooms are a yearly pool to use any time, with no monthly limit' +
           (poolEnds ? '; it resets on ' + poolEnds : '') + '. Unused ones do not carry into the next plan year.'
         : banked !== null && (banked > 0 || rollover)
           ? (banked > 0 ? ' This month’s ' + cap.included_limit + ' include ' + banked + ' banked from earlier months.' : '') +
-            (rollover ? ' Unused monthly walkthroughs roll over' + (maxBanked !== null ? ', up to ' + maxBanked + ' banked.' : '.') : '')
+            (rollover ? ' Unused monthly rooms carry over' + (maxBanked !== null ? ', up to ' + maxBanked + ' banked.' : '.') : '')
           : cadence;
       const resolve = document.createElement('a'); resolve.className = 'text-link';
-      resolve.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20capacity';
-      resolve.textContent = 'Resolve walkthrough capacity with Veylet support';
+      resolve.href = 'mailto:support@veylet.com?subject=Veylet%20room%20capacity';
+      resolve.textContent = 'Resolve room capacity with Veylet support';
       if (cap.can_accept) {
         // Release with the authoritative one-capture counting migration; old usage is immutable.
         // The packs card follows, so an open allowance needs no link of its own.
-        capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new walkthrough uses one extra walkthrough, the one that expires first. ' : '') +
-          'Each new accepted capture uses one walkthrough, regardless of room count. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
+        capacityNote.textContent = (cap.included_remaining === 0 ? 'The next new tour uses your extra rooms, the ones that expire first. ' : '') +
+          'A tour uses the rooms counted in it when it passes the check and you approve it. Halls, stairs and connecting spaces are free with up to 2 standing spots. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. Saving a space or a failed capture also uses none. A partial named-room recapture is not a waiver. Previously accepted usage stays unchanged.' + counting;
+        if (deskBar) {
+          // The counts are the table's rows; the remaining line is kept only for what they do not
+          // say (bonus, banked or yearly-pool rooms). The counting rule waits, word for word, behind a disclosure.
+          const lead = cap.included_remaining === 0 ? 'The next new tour uses your extra rooms, the ones that expire first.' : '';
+          const rule = document.createElement('p'); rule.className = 'plan-scope'; rule.textContent = capacityNote.textContent.slice(lead ? lead.length + 1 : 0);
+          const how = document.createElement('details'); how.className = 'account-details plan-counting';
+          const summary = document.createElement('summary'); summary.textContent = 'How rooms are counted';
+          // The counting rules are stated once, on the offer page; the desk links to them.
+          const rules = document.createElement('a'); rules.className = 'text-link'; rules.href = '/offer#counts-title'; rules.textContent = 'The counting rules';
+          how.append(summary, rule, ...(APP_MODE ? [] : [rules]));
+          capacityNote.textContent = lead;
+          const repeats = Boolean(usageCell && extraCell) && !bonus && !pool && !(banked > 0);
+          capacity.replaceChildren(...(repeats ? [] : [balance]), ...(lead ? [capacityNote] : []), how);
+          return;
+        }
         capacity.replaceChildren(balance, capacityNote);
         return;
       }
       capacityNote.textContent = cap.reason_code === 'allowance_exhausted'
-        ? 'Your included walkthroughs are used and no extra walkthrough is available, so another can be accepted once a walkthrough pack adds more. Nothing is charged automatically and no debt is created.' + (cap.plan_status === 'trial' ? ' Your free-months end date stays the same.' : '')
-        : 'New walkthrough acceptance is paused until your plan and paid service dates are confirmed. Contact Veylet support; existing reviewed work is unchanged. A pack or an extra walkthrough does not activate an expired or unverified plan.';
+        ? 'Your included rooms are used and no extra rooms are available, so another tour can be accepted once a pack adds more rooms. Nothing is charged automatically and no debt is created.' + (cap.plan_status === 'trial' ? ' Your free-months end date stays the same.' : '')
+        : 'New walkthrough acceptance is paused until your plan and paid service dates are confirmed. Contact Veylet support; existing reviewed work is unchanged. A pack or extra rooms do not activate an expired or unverified plan.';
       capacity.replaceChildren(balance, capacityNote, resolve);
     };
     planCapacityRefresh = readCapacity;
@@ -2549,7 +3780,7 @@
   }
 
   /* ---- Free months: why they can't start here ------------------------------
-   * New free months start in the Veylet Capture app through Apple's introductory
+   * New free months start in the Veylet app through Apple's introductory
    * offer; the plan panel says so. Website card sign-up, and finishing an
    * unfinished one, were removed by owner decision on 29 September 2026 (the
    * backend refuses them). On a plan that has not started and is not Apple's, this
@@ -2756,9 +3987,9 @@
     return set;
   }
 
-  /* ---- Walkthrough packs ---------------------------------------------------
+  /* ---- Top-up packs --------------------------------------------------------
    * More accepted walkthroughs for a busy month (offer 2026-09-24.2; docs/design/
-   * one-plan-and-packs-20260924.md). A pack's walkthroughs are used after the
+   * one-plan-and-packs-20260924.md). A pack's rooms are used after the
    * free-months or monthly included ones and expire 12 months after purchase.
    * Who may buy, the packs, their prices and the balance are the server's answer
    * (get_pack_offer); whether card payment is open, and whether it is Square
@@ -2769,6 +4000,9 @@
    */
   const packsEl = document.getElementById('account-packs');
   const PACK_CODES = ['pack3', 'pack10'];
+  // offer.json packs[].rooms. The codes keep their names; the server's `walkthroughs` carries the
+  // same room count, with `rooms` beside it (offer 2026-11-11.1).
+  const PACK_ROOMS = { pack3: 30, pack10: 100 };
   const PACK_MISSING = ['not_owner', 'not_activated'];
   // offer.json packs[].validMonths.
   const PACK_VALID_MONTHS = 12;
@@ -2783,7 +4017,7 @@
   };
   // No answer, or checkout_failed: the card may have been charged, and the server
   // adds the walkthroughs once Square confirms it. The balance above is re-read.
-  const PACK_UNCONFIRMED = 'We couldn’t confirm the purchase. If your card was charged, the walkthroughs are added when the payment clears. Check the count above in a few minutes before you try again.';
+  const PACK_UNCONFIRMED = 'We couldn’t confirm the purchase. If your card was charged, the rooms are added when the payment clears. Check the count above in a few minutes before you try again.';
   let packs = null;
   let packsVersion = 0;
 
@@ -2791,7 +4025,7 @@
     return Boolean(pack) && typeof pack === 'object' && PACK_CODES.includes(pack.code)
       && Number.isInteger(pack.walkthroughs) && pack.walkthroughs > 0 && Number.isInteger(pack.price_cents) && pack.price_cents > 0
       // The count is in the code, so the two must agree before either is shown.
-      && pack.code === 'pack' + pack.walkthroughs;
+      && pack.walkthroughs === PACK_ROOMS[pack.code] && (pack.rooms === undefined || pack.rooms === pack.walkthroughs);
   }
   function packsValid(offer) {
     if (!offer || typeof offer !== 'object' || typeof offer.available !== 'boolean' || !Array.isArray(offer.missing)
@@ -2809,7 +4043,7 @@
     if (!lane) return 'error';
     return lane.open ? 'choose' : 'lane-closed';
   }
-  function packWords(count) { return count + (count === 1 ? ' walkthrough' : ' walkthroughs'); }
+  function packWords(count) { return count + (count === 1 ? ' room' : ' rooms'); }
   // Square Sandbox labels every price and payment action, as the Super fast card does.
   function packTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
   function packChosen(state) {
@@ -2824,11 +4058,14 @@
     const pack = packChosen(state);
     return packTest(state) + (state.problem ? 'Try again' : state.card ? 'Pay ' + planMoney(pack.price_cents) : 'Buy ' + packWords(pack.walkthroughs));
   }
+  // On the web desk the plan table's "Extra rooms" row already says there are none.
+  // (Marked here; the stylesheet hides it while that row is on the page.)
+  function packBalanceSync(node, offer) { if (node?.dataset) node.dataset.none = offer?.credits_available ? 'false' : 'true'; }
   function packBalance(offer) {
     const count = offer.credits_available;
-    if (!count) return 'No extra walkthroughs available.';
+    if (!count) return 'No extra rooms available.';
     const next = annualDay(offer.next_expiry);
-    return (count === 1 ? '1 extra walkthrough' : count + ' extra walkthroughs') + ' available' + (next ? '; the next expiry is ' + next + '.' : '.');
+    return (count === 1 ? '1 extra room' : count + ' extra rooms') + ' available' + (next ? '; the next expiry is ' + next + '.' : '.');
   }
   /** Brisbane's today plus the pack's validity, clamped to the month's last day. */
   function packExpiry() {
@@ -2853,7 +4090,7 @@
   }
   function packsHead(refs) {
     const head = annualNode('div', 'annual-head');
-    const title = annualNode('h3', 'annual-title', 'Walkthrough packs');
+    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Top-up packs');
     title.id = 'account-packs-title'; title.tabIndex = -1;
     if (refs) refs.title = title;
     head.append(title);
@@ -2894,16 +4131,16 @@
     if (state.notice) parts.push(annualNode('p', 'annual-notice', state.notice));
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     if (kind === 'error') {
-      say('annual-lead', 'Couldn’t check walkthrough packs.');
+      say('annual-lead', 'Couldn’t check packs.');
       say('annual-note', 'Nothing has changed, and your plan above is not affected.');
       const retry = button('Try again', () => { void renderPacks(state.supabase, deskVersion, state.workspaceID, { focus: 'title' }); });
       refs.retry = retry; parts.push(annualRow(retry));
       return parts;
     }
-    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy walkthrough packs.'); return parts; }
+    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy packs.'); return parts; }
     if (kind === 'not-activated') {
       say('annual-lead', 'Packs can be bought once your free months or plan have started.');
-      say('annual-note', 'A pack’s walkthroughs are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
+      say('annual-note', 'A pack’s rooms are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
       return parts;
     }
     if (kind === 'bought') {
@@ -2911,18 +4148,19 @@
       const done = state.done;
       say('annual-lead', packTest(state) + packWords(done.credited) + ' added; ' + done.credits_available + ' available; use by ' + done.useBy + '.');
       say('annual-charge', packTest(state) + planMoney(done.amount_cents) + ' charged today.');
-      say('annual-note', 'They are used after your included walkthroughs, oldest pack first.');
+      say('annual-note', 'They are used after your included rooms, oldest pack first.');
       const again = button('Buy another pack', () => { Object.assign(state, { kind: 'choose', done: null, notice: null, problem: null }); packsDraw('primary'); });
       refs.again = again; parts.push(annualRow(again));
       return parts;
     }
-    say('annual-lead', 'More walkthroughs for a busy month, used after your included ones.');
+    say('annual-lead', 'More rooms for a busy month, used after your included ones.');
     refs.balance = say('packs-balance', packBalance(offer));
+    packBalanceSync(refs.balance, offer);
     if (kind === 'lane-closed') {
       parts.push(packList(state));
       say('annual-lead annual-soon', 'Card payment for packs opens soon.');
       const ask = annualNode('a', 'text-link', 'Ask Veylet support to invoice a pack');
-      ask.href = 'mailto:support@veylet.com?subject=Veylet%20walkthrough%20pack'; refs.primary = ask;
+      ask.href = 'mailto:support@veylet.com?subject=Veylet%20pack'; refs.primary = ask;
       parts.push(annualRow(ask));
       return parts;
     }
@@ -2979,7 +4217,7 @@
       choice.append(row);
     }
     const action = annualNode('span', 'plan-skeleton annual-skeleton-action'); action.setAttribute('aria-hidden', 'true');
-    packsEl.replaceChildren(packsHead(), annualNode('p', 'annual-lead', 'Checking walkthrough packs and how many extra walkthroughs you have…'),
+    packsEl.replaceChildren(packsHead(), annualNode('p', 'annual-lead', 'Checking packs and how many extra rooms you have…'),
       skeletonLine('p', 'packs-balance', 32), choice, skeletonLine('p', 'annual-charge', 66), annualRow(action), skeletonLine('p', 'annual-note', 77));
   }
   async function renderPacks(supabase, ticket, workspaceID, options = {}) {
@@ -2994,7 +4232,7 @@
     ]);
     if (ticket !== deskVersion || version !== packsVersion) return;
     packsEl.setAttribute('aria-busy', 'false');
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check walkthrough packs.'); return; }
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check packs.'); return; }
     // Before the backend has the function there are no packs to show; that is not an outage.
     if (reply.value?.error?.code === 'PGRST202') { packsHide(); return; }
     const previous = packs && packs.workspaceID === workspaceID ? packs : null;
@@ -3012,10 +4250,10 @@
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
     if (!packsValid(offer)) return;
     state.offer = { ...state.offer, credits_available: offer.credits_available, next_expiry: offer.next_expiry ?? null };
-    if (state.refs?.balance) state.refs.balance.textContent = packBalance(state.offer);
+    if (state.refs?.balance) { state.refs.balance.textContent = packBalance(state.offer); packBalanceSync(state.refs.balance, state.offer); }
     void planCapacityRefresh?.();
   }
-  // "Buy" (the chosen pack's walkthroughs): load Square's SDK once, open its card field in the card, and move focus into it.
+  // "Buy" (the chosen pack's rooms): load Square's SDK once, open its card field in the card, and move focus into it.
   async function packsOpenCard(control) {
     const state = packs;
     if (!state || state.busy || state.card || state.kind !== 'choose') return;
@@ -3517,7 +4755,7 @@
   }
 
   /* ---- Refer an office -----------------------------------------------------
-   * When an office the account refers first pays, both offices get one bonus
+   * When an office the account refers first pays, both offices get ten bonus
    * walkthrough (offer 2026-09-25.1). The workspace's own code is the server's
    * answer (get_referral_code), and the share link is built from it only when it is
    * the 12-character code the server issues. Before that function exists, when it
@@ -3527,11 +4765,11 @@
    * Nothing on this page grants a bonus.
    */
   const referralEl = document.getElementById('account-referral');
-  // offer.json referral.referrerWalkthroughs and referredWalkthroughs.
-  const REFERRAL_WALKTHROUGHS = 1;
-  const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough.';
+  // offer.json referral.referrerRooms and referredRooms.
+  const REFERRAL_ROOMS = 10;
+  const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get ' + REFERRAL_ROOMS + ' bonus rooms.';
   const REFERRAL_WAITING = 'Your share link appears here once referral links open.';
-  const REFERRAL_EACH = 'you and the office that referred you each get ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough';
+  const REFERRAL_EACH = 'you and the office that referred you each get ' + REFERRAL_ROOMS + ' bonus rooms';
   // The server's refusals, by the words it raises. Each is final for this code, so the kept code is let go.
   const REFERRAL_REFUSALS = [
     ['unknown referral link', 'That referral link isn’t recognised, so nothing was recorded. Ask the office that referred you to send its link again.'],
@@ -3548,14 +4786,14 @@
     const code = answer && typeof answer === 'object' && typeof answer.code === 'string' ? answer.code : '';
     return REFERRAL_CODE.test(code) ? 'https://veylet.com/account?ref=' + code : null;
   }
-  // How many offices this one referred, and the bonus walkthroughs it received: a quiet line, only when there are some.
+  // How many offices this one referred, and the bonus rooms it received: a quiet line, only when there are some.
   function referralTally(answer) {
     const count = (value, one, many) => (Number.isInteger(value) && value > 0 ? value + (value === 1 ? one : many) : '');
     return [count(answer?.referred_offices, ' office referred so far', ' offices referred so far'),
-      count(answer?.bonus_walkthroughs, ' bonus walkthrough received', ' bonus walkthroughs received')].filter(Boolean).join(' · ');
+      count(answer?.bonus_walkthroughs, ' bonus room received', ' bonus rooms received')].filter(Boolean).join(' · ');
   }
   function referralHead() {
-    const title = annualNode('h3', 'annual-title', 'Refer an office');
+    const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Refer an office');
     title.id = 'account-referral-title';
     const head = annualNode('div', 'annual-head'); head.append(title);
     return head;
@@ -4508,6 +5746,7 @@
     emailSay(state.optIn ? 'Saved. We’ll email you tips and offers.' : 'Saved. We won’t email you tips or offers.');
   }
   /** Read once per signed-in account; a failed or odd answer shows nothing and the next desk load asks again. */
+  let emailWatched = false;
   async function emailRender(client) {
     if (!emailPanel || !emailBox || APP_MODE || !currentUserId) return;
     if (emailPrefs && emailPrefs.userId === currentUserId) return;
@@ -4547,7 +5786,7 @@
   // lane's draft 20260926131000_account_deletion_followups), word for word.
   const DELETION_TEAM_FIRST = 'Transfer ownership or remove your teammates first.';
   const DELETION_KEEP = 'Keep my account';
-  const DELETION_CONFIRM = 'Your account, spaces and walkthroughs will be deleted within 30 days. Access and handoff links pause when removal starts. This cannot be undone.';
+  const DELETION_CONFIRM = 'Your account, its spaces and its walkthroughs will be deleted within 30 days, and we confirm when it is done. You can cancel until removal starts; after that nothing can be restored. When deletion completes, every handoff link and embed stops working. A subscription billed by Apple is cancelled with Apple, not here.';
   let deletionBusy = false;
 
   function deletionShow(...parts) {
@@ -4574,7 +5813,7 @@
     if (teamEl && !teamEl.hidden) {
       const open = document.createElement('a'); open.className = 'tour-action'; open.href = '#account-team'; open.textContent = 'Open Your team';
       open.dataset.control = 'deletion-team';
-      open.addEventListener('click', () => { teamEl.tabIndex = -1; teamEl.focus?.({ preventScroll: true }); });
+      open.addEventListener('click', () => { viewShow('team'); teamEl.tabIndex = -1; teamEl.focus?.({ preventScroll: true }); });
       controls.push(open);
     }
     controls.push(button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); }));
@@ -4627,7 +5866,10 @@
     remove.classList.add('tour-action-danger');
     remove.dataset.armed = 'true';
     const keep = button(DELETION_KEEP, () => { setStatus('Your account is unchanged.'); deletionIdle(supabase); });
-    deletionShow(deletionNote(DELETION_CONFIRM), field, deletionRow(remove, keep));
+    // The confirmation names what is being deleted before it says what follows.
+    const parts = [deletionNote(DELETION_CONFIRM), field, deletionRow(remove, keep)];
+    if (currentUserEmail) parts.unshift(deletionNote('Delete the account for ' + currentUserEmail + '?', 'contact-note deletion-which'));
+    deletionShow(...parts);
   }
   function deletionRequested(supabase, when) {
     const ticket = deskVersion;
@@ -4730,7 +5972,7 @@
   const RENDER_ACTIVE = ['uploading', 'waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_EXPRESS = ['waiting', 'rendering', 'retrying', 'stale'];
   const RENDER_SUPPORT_CONTACT = 'mailto:support@veylet.com';
-  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+  const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.
   const renderSlots = new Map(), renderEmpty = new Map();
@@ -4851,17 +6093,28 @@
     slot.replaceChildren(title, list, note); slot.hidden = false;
   }
   /*
-   * Offer 2026-09-26.3 (20260926140000): the rooms the server counted from the capture and the
-   * walkthroughs its approval uses (capture_render_status_json rooms, walkthroughs_used):
-   * "9 rooms · uses 2 walkthroughs". Rooms not counted yet (null) say nothing: approval uses 1.
+   * Offer 2026-11-11.1: what approving this tour uses, before the member approves it: "This uses 8
+   * of your 30 rooms." The count is the server's (capture_render_status_json walkthroughs_used, which
+   * carries the counted rooms under its old name; docs/offer-rooms-contract-20261111.md, section 6),
+   * and "your 30" is the included limit of the last capacity answer; without one the line says only
+   * the count. Rooms not counted yet (null) say nothing.
    */
   function renderRoomsUse(job) {
     const rooms = renderInt(job?.rooms, 0, 1000), used = renderInt(job?.walkthroughs_used, 1, 1000);
     if (rooms === null || used === null) return '';
-    return rooms + (rooms === 1 ? ' room' : ' rooms') + ' · uses ' + used + (used === 1 ? ' walkthrough' : ' walkthroughs');
+    return planRoomsLimit === null ? 'This uses ' + used + (used === 1 ? ' room.' : ' rooms.')
+      : 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.';
   }
   // Per walkthrough: the rooms line from its capture, and the review form's slot for it.
   const reviewUnits = new Map(), reviewUnitSlots = new Map();
+  // A capacity answer that arrives after the lines were drawn restates them with "of your N":
+  // redrawing the render status repaints each capture's line and its review's.
+  function planRoomsLimitSet(limit) {
+    const next = Number.isInteger(limit) && limit > 0 ? limit : null;
+    if (next === planRoomsLimit) return;
+    planRoomsLimit = next;
+    renderDraw();
+  }
   function paintReviewUnits(slot, words) {
     if (slot.textContent === (words || '') && slot.hidden === !words) return;
     slot.textContent = words || ''; slot.hidden = !words;
@@ -4929,7 +6182,7 @@
       case 'waiting': return 'Waiting to render.' + (view.hold ? ' ' + renderHoldWords(view.hold) : view.position ? ' You’re ' + renderOrdinal(view.position) + ' in line.' : '');
       case 'rendering': return view.step ? 'Rendering, step ' + view.step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[view.step - 1] + '.' : 'Rendering.';
       case 'retrying': return 'Retrying' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.');
-      case 'failed': return 'Failed. Veylet support has been told; nothing was used.';
+      case 'failed': return 'Failed. Contact Veylet support; no rooms were used.';
       default: return RENDER_TITLES[view.key] + '.';
     }
   }
@@ -4969,7 +6222,7 @@
     // Without a room named, the reason stands alone and the space is what is captured again.
     item.append(annualNode('p', 'render-line', (room.room ? room.room + ': ' : '') + room.reason + '.'));
     const key = row.job_id + '|' + index;
-    const how = annualNode('p', 'render-how', 'On your iPhone, open Veylet Capture and choose ' + spaceTitle + '. It shows Needs recapture there too: ' +
+    const how = annualNode('p', 'render-how', 'On your iPhone, open the Veylet app and choose ' + spaceTitle + '. It shows Needs recapture there too: ' +
       (room.room ? 'choose Recapture ' + room.room + ', capture the room again' : 'capture it again') + ' and send it.');
     how.id = 'render-how-' + String(row.job_id).slice(0, 8) + '-' + index; how.hidden = !renderOpen.has(key);
     const open = button('Recapture ' + (room.room || spaceTitle), () => {
@@ -5012,7 +6265,7 @@
     };
     switch (view.key) {
       case 'uploading':
-        line((view.pct !== null ? view.pct + '% sent.' : 'Sending from Veylet Capture.') + ' Keep Veylet open or plugged in; it continues in the background.');
+        line((view.pct !== null ? view.pct + '% sent.' : 'Sending from the Veylet app.') + ' Keep Veylet open or plugged in; it continues in the background.');
         if (view.pct !== null) block.append(renderMeter(view.pct, 'Upload progress'));
         break;
       case 'waiting': {
@@ -5038,18 +6291,18 @@
         line('Rendering hit a snag; we’re retrying automatically' + (view.attempt ? ' (attempt ' + view.attempt + ' of ' + view.allowed + ').' : '.'));
         break;
       case 'stale':
-        line('The render hasn’t checked in for a few minutes. Veylet support has been alerted. Nothing for you to do.');
+        line('We haven’t heard from the renderer for a few minutes. Check again later, or contact Veylet support.');
         if (view.step) note('Last reported: step ' + view.step + ' of ' + RENDER_STEPS.length + ', ' + RENDER_STEPS[view.step - 1] + '.');
         break;
       case 'ready':
         if (canReview) {
-          line('Open it, walk through, then approve to share.');
+          line('Open it, check each stop, then approve to share.');
           if (view.tour) {
             const review = button('Review walkthrough', () => renderReview(view.tour));
             review.className = 'tour-action tour-action-primary'; review.dataset.control = 'review';
             const actions = annualNode('p', 'render-actions'); actions.append(review); block.append(actions);
           }
-        } else line('The workspace owner opens it, walks through, then approves it to share.');
+        } else line('The workspace owner opens it, checks it stop by stop, then approves it to share.');
         break;
       case 'live':
         line(LIVE_LINE);
@@ -5082,7 +6335,7 @@
         note(RECAPTURE_ALLOWANCE_WORDS);
         break;
       case 'failed': {
-        line('Something went wrong on our side. Veylet support has been told; nothing was used.');
+        line('Rendering could not finish. Contact Veylet support; no rooms were used.');
         const actions = annualNode('p', 'render-actions'); actions.append(renderContact(row, false)); block.append(actions);
         break;
       }
@@ -5142,12 +6395,12 @@
     }
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
-      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no walkthrough; the complete allowance rule is shown there.', 'Show what to recapture', () => {
+      guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no rooms; the complete allowance rule is shown there.', 'Show what to recapture', () => {
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
       });
-    } else if (said === 'failed') guide('Something went wrong on our side.', 'Veylet support has been told; nothing was used. Contact Veylet support from ' + broken.title + ' below if you want to talk it through.');
+    } else if (said === 'failed') guide('Rendering could not finish.', 'No rooms were used. Contact Veylet support from ' + broken.title + ' below.');
     else if (said === 'uploading') guide('Your capture is on its way.', 'Keep Veylet open or plugged in on your phone. How much has arrived shows on ' + moving.title + ' below.');
     else guide('Your walkthrough is being made automatically.', 'Its progress shows on ' + moving.title + ' below and updates by itself. You can leave this page; the render carries on.');
   }
@@ -5188,7 +6441,7 @@
       } else if (!row && desk.toursKnown && !desk.spacesWithTours.has(propertyID)) {
         signature = 'empty';
         draw = () => { const block = annualNode('div', 'render-block render-empty'); block.dataset.state = 'empty';
-          block.append(annualNode('p', 'render-line', 'No capture sent yet. When you send one from Veylet Capture, its progress shows here.')); return block; };
+          block.append(annualNode('p', 'render-line', 'No capture sent yet. When you send one from the Veylet app, its progress shows here.')); return block; };
       }
       const legacy = renderEmpty.get(propertyID);
       if (legacy) legacy.hidden = Boolean(signature);
@@ -5300,6 +6553,8 @@
   let pauseAvailable = false;
   // get_tour_view_stats, until an answer says the backend does not have it.
   let viewsAvailable = true;
+  // get_tour_view_heatmap, until an answer says the backend does not have it (PGRST202).
+  let heatAvailable = true;
   // get_listing_exports, until an answer says the backend does not have it (PGRST202).
   let exportsAvailable = true;
   // A read that named a column this database does not have: which group it was.
@@ -5353,9 +6608,11 @@
   // line says whose office it is, from workspaces.name (no name, no label).
   const officeNames = new Map();
   const officeOfProperty = new Map();
+  // Every property's workspace, named or not: whose plan a card's hosting follows.
+  const officeIdOfProperty = new Map();
   let deskMultiOffice = false;
   function deskOffices(members, offices, props) {
-    officeNames.clear(); officeOfProperty.clear();
+    officeNames.clear(); officeOfProperty.clear(); officeIdOfProperty.clear();
     for (const row of !failed(offices) && Array.isArray(offices.value?.data) ? offices.value.data : []) {
       const name = row && typeof row.name === 'string' ? row.name.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
       if (row?.id && name) officeNames.set(row.id, name);
@@ -5364,6 +6621,7 @@
     deskMultiOffice = rows.length > 1;
     for (const row of !failed(props) && Array.isArray(props.value?.data) ? props.value.data : []) {
       // Only a real office name labels a space; a space's own title would name the wrong thing.
+      if (row?.id && row.workspace_id) officeIdOfProperty.set(row.id, row.workspace_id);
       if (row?.id && row.workspace_id && officeNames.has(row.workspace_id)) officeOfProperty.set(row.id, officeNames.get(row.workspace_id));
     }
   }
@@ -5387,6 +6645,7 @@
     lead.textContent = 'Showing ' + planWorkspaceName(workspaceID, props) + ', your main office. You are an active member of ' + memberships.length + ' workspaces.';
     const others = document.createElement('ul'); others.className = 'plan-primary-list';
     const said = document.createElement('p'); said.className = 'plan-scope'; said.setAttribute('role', 'status');
+    planPrimarySaid = said;
     for (const other of memberships.filter(row => row.workspace_id !== workspaceID)) {
       const item = document.createElement('li');
       const name = document.createElement('span'); name.textContent = planWorkspaceName(other.workspace_id, props);
@@ -5400,6 +6659,7 @@
         await loadDesk(supabase);
       });
       make.className = 'tour-action'; make.dataset.control = 'make-primary';
+      planPrimaryButtons.set(other.workspace_id, make);
       item.append(name, make); others.append(item);
     }
     wrap.append(lead, others, said);
@@ -5408,14 +6668,116 @@
   function deskReset() {
     const ticket = ++deskVersion;
     deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
+    planAnswered = false; planRestartOffice = null;
+    needsCtx = null; needsDraw();
     planSkeleton();
-    guide('Checking your next step…', 'Loading your spaces, tour progress and workspace access.');
+    guide('Checking your next step…', 'Loading your spaces, walkthrough progress and workspace access.');
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
-      ? 'This review link is incomplete. Use Review again from the app, or choose an available tour below.' : '');
+      ? 'This review link is incomplete. Use Review again from the app, or choose an available walkthrough below.' : '');
     list.replaceChildren(); list.setAttribute('aria-busy', 'true');
     expressHide();
     renderHide();
     return ticket;
+  }
+  const PREP_CHECKLIST = Object.freeze([
+    'Open curtains and blinds, and turn on all room and bedside lights.',
+    'Clear kitchen benches, dining tables, vanity tops and entrance floors.',
+    'Tuck away personal photos, mail, keys, visible cables and pet bowls.',
+    'Open internal doors between rooms so doorway paths stay clear.',
+    'Allow 15 to 25 minutes of clear floor access with pets secured.',
+  ]);
+  function spacePrepNote(title) {
+    const name = typeof title === 'string' && title.trim() ? title.trim() : 'your space';
+    return [
+      'Hi — we are preparing to capture the 3D walkthrough for ' + name + '.',
+      'Before we arrive, please take 5 minutes to:',
+      ...PREP_CHECKLIST.map((line, idx) => (idx + 1) + '. ' + line),
+      'Thank you — this helps every room look its best in 3D.',
+    ].join('\n');
+  }
+  function icsStamp(date) {
+    return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  }
+  function spaceCaptureIcs(space) {
+    const name = (typeof space?.title === 'string' && space.title.trim() ? space.title.trim() : 'Space').replace(/[\r\n,;\\]+/g, ' ');
+    const where = (typeof space?.location_general === 'string' && space.location_general.trim() ? space.location_general.trim() : '').replace(/[\r\n,;\\]+/g, ' ');
+    const now = new Date();
+    const start = new Date(now.getTime() + 86400000);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const desc = PREP_CHECKLIST.map((line, idx) => (idx + 1) + '. ' + line).join('\\n');
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Veylet//Capture Slot//EN',
+      'BEGIN:VEVENT',
+      'UID:capture-' + String(space?.id || 'space') + '@veylet.com',
+      'DTSTAMP:' + icsStamp(now),
+      'DTSTART:' + icsStamp(start),
+      'DTEND:' + icsStamp(end),
+      'SUMMARY:3D walkthrough capture — ' + name,
+      ...(where ? ['LOCATION:' + where] : []),
+      'DESCRIPTION:' + desc,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ];
+    return lines.join('\r\n') + '\r\n';
+  }
+  function spacePrepKit(space) {
+    const details = document.createElement('details');
+    details.className = 'account-details space-prep';
+    const summary = document.createElement('summary');
+    // Nothing is booked with Veylet here: a checklist to send and a calendar file for your own diary.
+    summary.textContent = deskBar ? 'Prepare a capture' : 'Prepare or schedule capture';
+    const body = document.createElement('div');
+    body.className = 'space-prep-body';
+    body.hidden = !details.open;
+    details.addEventListener('toggle', () => { body.hidden = !details.open; });
+    const lead = document.createElement('p');
+    lead.className = 'tour-state-help space-prep-lead';
+    lead.textContent = 'Send this checklist to the owner or tenant before you arrive so every room is ready to capture in one visit.';
+    const list = document.createElement('ul');
+    list.className = 'space-prep-list';
+    for (const itemText of PREP_CHECKLIST) {
+      const li = document.createElement('li');
+      li.textContent = itemText;
+      list.append(li);
+    }
+    const note = spacePrepNote(space?.title);
+    const icsFile = (slugOf(space?.title) || 'veylet-space') + '-capture.ics';
+    const copyBtn = button('Copy owner & tenant prep note', async () => {
+      await window.VeyletSharing?.copy(note, null, statusEl, 'Prep checklist copied. Send it to the owner or tenant before capture.');
+      sayPrep('Prep checklist copied. Send it to the owner or tenant before capture.');
+    });
+    copyBtn.dataset.control = 'copy-prep-note';
+    const icsBtn = button('Download capture calendar slot (.ics)', () => {
+      try {
+        const blob = new Blob([spaceCaptureIcs(space)], { type: 'text/calendar;charset=utf-8' });
+        const href = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = href; anchor.download = icsFile;
+        anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
+        sayPrep('Calendar slot saved as ' + icsFile + '.');
+      } catch {
+        sayPrep('The calendar slot couldn’t be saved here. Copy the prep checklist instead.');
+      }
+    });
+    icsBtn.dataset.control = 'download-capture-ics';
+    const actions = document.createElement('p');
+    actions.className = 'tour-actions-row';
+    actions.append(copyBtn, icsBtn);
+    const said = document.createElement('p');
+    said.className = 'tour-row-status';
+    said.setAttribute('role', 'status');
+    said.hidden = true;
+    const sayPrep = text => {
+      said.textContent = text;
+      said.hidden = !text;
+      if (text) setStatus(text);
+    };
+    body.append(lead, list, actions, said);
+    details.append(summary, body);
+    return details;
   }
   // Offline with a desk on the page: it stays as it was, says how old it is, and
   // reads again when the window hears it is back online.
@@ -5454,6 +6816,12 @@
       && (members.value?.data || []).some(row => row?.workspace_id === primaryID));
     members = deskMemberships(members, primarySupported ? primaryID : null);
     deskOffices(members, offices, props);
+    if (deskOfficeEl) {
+      // The bar names the office only when there is one; with several, each space names its own.
+      const mine = failed(members) ? [] : (members.value?.data || []).filter(row => row && row.workspace_id);
+      const said = mine.length > 1 ? mine.length + ' offices' : mine.length === 1 ? officeNames.get(mine[0].workspace_id) || '' : '';
+      deskOfficeEl.textContent = said; deskOfficeEl.hidden = !said;
+    }
     if (read !== deskReadVersion || currentUserId !== loadingUser || ticket !== deskVersion) return;
     list.setAttribute('aria-busy', 'false');
     const reads = [props, tours, members];
@@ -5467,7 +6835,23 @@
       renderSay(offlineWords(0));
       return;
     }
-    if (shown) ticket = deskReset();
+    if (shown) {
+      // Keep the reader's place through the redraw: the page's scroll, the height the
+      // list had (so the page cannot collapse under them) and the control in focus.
+      const active = document.activeElement;
+      const inList = Boolean(active && active !== list && list.contains?.(active));
+      const panel = inList && !active.id ? active.closest?.('.tour-panel') : null;
+      deskFocusWanted = inList ? active.id || (panel?.id ? panel.id + '-toggle' : '') : '';
+      const top = window.scrollY, wanted = deskFocusWanted;
+      if (list.style && list.offsetHeight) list.style.minHeight = list.offsetHeight + 'px';
+      setTimeout(() => {
+        if (typeof top === 'number' && window.scrollY !== top) window.scrollTo?.(0, top);
+        if (inList && !wanted) document.getElementById('account-work-title')?.focus?.({ preventScroll: true });
+        else if (wanted) deskFocusBack(document.getElementById(wanted));
+      }, 0);
+      setTimeout(() => { if (list.style) list.style.minHeight = ''; if (deskFocusWanted === wanted) deskFocusWanted = ''; }, 1500);
+      ticket = deskReset();
+    }
     list.setAttribute('aria-busy', 'false');
     if (statusEl?.textContent === 'Signed in. Loading your spaces…') setStatus('');
     if ([props, tours, members].some(sessionGone)) { showSignedOut('Your sign-in has expired. Sign in again to refresh your spaces.'); return; }
@@ -5480,15 +6864,17 @@
     // what the list is allowed to show.
     void renderDeletion(supabase, ticket);
     // The email preferences read their own record, once per account.
-    void emailRender(supabase);
+    // (Asked when the Account view is first near the screen, not on every desk load.)
+    if (!emailWatched) { emailWatched = true; whenNear(viewEls.get('account'), () => { emailWatched = false; void emailRender(supabase); }); }
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
-    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every tour still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
+    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every walkthrough still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
     deskShownAt = failed(props) ? 0 : Date.now();
     if (failed(props)) { guide('Reload your spaces.', 'Your saved work could not be checked. Refresh before creating another space or repeating an upload.', 'Refresh spaces', () => loadDesk(supabase)); targetMessage(requestedTour ? 'The requested walkthrough could not be checked. Refresh spaces to try again.' : ''); message(list, 'Spaces could not load. Refresh the desk to try again.'); return; }
-    if (failed(tours)) { message(list, 'Tour status could not load. Your spaces are shown below, but the tour list is unavailable. Refresh to retry.'); }
+    if (failed(tours)) { message(list, 'Walkthrough status could not load. Your spaces are shown below, but the walkthrough list is unavailable. Refresh to retry.'); }
     const properties = props.value?.data || [];
     const addSpace = document.getElementById('account-add-space');
     if (addSpace) addSpace.open = properties.length === 0;
+    addSpaceSync();
     const allRows = failed(tours) ? [] : tours.value?.data || [];
     // A version that a later approved version replaced is not a walkthrough of its
     // own any more: its link, embed and approval moved on. The records file keeps it.
@@ -5514,7 +6900,7 @@
     }
     if (requestedTour) targetMessage(failed(tours)
       ? 'The requested walkthrough could not be checked. Refresh spaces to try again.'
-      : 'This walkthrough is not available in this account. Refresh spaces, sign in with the capture account, or ask the workspace owner. Available tours are shown below.');
+      : 'This walkthrough is not available in this account. Refresh spaces, sign in with the capture account, or ask the workspace owner. Available walkthroughs are shown below.');
     const roles = new Map((failed(members) ? [] : members.value?.data || []).map(row => [row.workspace_id, row.role]));
     // The team: the same workspace the plan panel shows, with or without a space yet.
     const teamWorkspace = failed(members) ? null : (members.value?.data || []).find(row => row && row.workspace_id)?.workspace_id || null;
@@ -5535,10 +6921,12 @@
     if (failed(members)) message(list, 'Workspace permissions could not load. Review and sharing actions are unavailable until you refresh.');
     const items = new Map();
     const updateGuide = (reviewsPending = false) => {
+      needsCtx = failed(tours) || failed(members) ? null : { properties, rows, items, roles, hosting: hostingRows, pending: reviewsPending };
+      needsDraw();
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
       else guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
     };
-    if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in Veylet Capture; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with Veylet Capture. Keep the same email on the website and app.'); return; }
+    if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
@@ -5546,10 +6934,11 @@
       // A space is a section of this page, so it is a heading: jumping between
       // spaces by heading is how a screen reader reads a list like this one.
       // The name is the heading; what kind of space and where are its details.
-      const title = document.createElement('h3'); title.className = 'dash-space-title';
+      const title = document.createElement(deskBar ? 'h2' : 'h3'); title.className = 'dash-space-title';
       title.textContent = row.title || 'Untitled space'; li.append(title);
       const where = [officeLabel(row.id), row.category, row.location_general].filter(Boolean).join(' · ');
       if (where) { const meta = document.createElement('p'); meta.className = 'dash-space-meta'; meta.textContent = where; li.append(meta); }
+      if (deskBar) li.append(spacePrepKit(row));
       // Where this space's capture is now, drawn when the render status answer arrives.
       const renderSlot = document.createElement('div'); renderSlot.className = 'dash-render'; renderSlot.hidden = true;
       li.append(renderSlot); renderSlots.set(row.id, renderSlot);
@@ -5562,7 +6951,7 @@
       const order = [...new Set(spaceTours.map(walkthroughOf))];
       spaceTours.sort((left, right) => (order.indexOf(walkthroughOf(left)) - order.indexOf(walkthroughOf(right)))
         || (revisionOf(right) - revisionOf(left)));
-      if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No tour package yet. Your walkthrough is made automatically from your capture and appears in this space.'));
+      if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No walkthrough yet. It is made automatically from your capture and appears in this space.'));
       // Is anyone living here? Asked once a listing has a walkthrough, before its first share.
       if (spaceTours.length && roles.has(row.workspace_id)) {
         const gateSlot = document.createElement('div'); gateSlot.className = 'dash-occupancy'; gateSlot.hidden = true;
@@ -5599,10 +6988,15 @@
           if (tour.storage_path) tourPreview(tour, item);
         }
         else if (tour.status === 'processing') message(item, 'This walkthrough is being made automatically. You can leave this page and refresh later; leaving does not cancel it.');
-        else if (tour.status === 'revoked') message(item, 'This walkthrough is unavailable for new access. Remove any old links or embeds from your listing, and contact Veylet support about the next step.');
+        else if (tour.status === 'revoked') {
+          message(item, 'This walkthrough is unavailable for new access, so its old links and embeds no longer open it. Email Veylet support for the next step.');
+          if (!APP_MODE) { const ask = document.createElement('p'); ask.className = 'tour-actions-row'; const mail = document.createElement('a'); mail.className = 'tour-action'; mail.href = unavailableMail(tour); mail.textContent = 'Email Veylet support'; mail.dataset.control = 'unavailable-support'; ask.append(mail); item.append(ask); }
+        }
         ul.append(item);
       }
-      li.append(ul); list.append(li);
+      // On the web desk the kit's link sits in the space head and its panel opens under it.
+      if (deskBar) li.append(ul); else li.append(ul, spacePrepKit(row));
+      list.append(li);
     }
     // A ready walkthrough's next step waits for its review answer, then says it once.
     updateGuide(reviewLoads.length > 0);
@@ -5644,12 +7038,14 @@
   }
 
   if (!window.supabase || !window.supabase.createClient) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus(
       'The account service did not load on this device. Check the connection and reload this page.'
     );
     return;
   }
   if (!cfg || !cfg.url || !cfg.anonKey) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus('Account service is not configured.');
     return;
   }
@@ -5663,6 +7059,7 @@
   });
 
   async function showSession(session) {
+    sessionChecked();
     if (!session || !session.user) {
       sessionHeading(false);
       currentUserId = null;
@@ -5702,6 +7099,11 @@
     if (verifyForm) verifyForm.hidden = true;
     if (home) home.hidden = false;
     if (who) who.textContent = session.user.email ? 'Signed in as ' + session.user.email : 'Signed in';
+    const menuWho = document.getElementById('desk-menu-who');
+    if (menuWho) menuWho.textContent = session.user.email || 'Signed in';
+    // The view the address names (or an older anchor into the page); Walkthroughs otherwise.
+    const asked = viewFromHash();
+    viewShow(asked ? asked.view : 'walkthroughs', { anchor: asked ? asked.anchor : null });
     if (gateTitle) gateTitle.textContent = 'Checking capture approval…';
     if (gateBody) {
       gateBody.textContent =
@@ -5730,6 +7132,7 @@
 
   const initialSession = await settled(supabase.auth.getSession());
   if (initialSession.timedOut || initialSession.error || initialSession.value?.error) {
+    sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus('Sign-in could not be checked. Check the connection and reload.');
   } else {
     await showSession(initialSession.value?.data?.session || null);
@@ -6114,6 +7517,33 @@
   }
 
   document.getElementById('account-refresh')?.addEventListener('click', () => { void loadDesk(supabase); });
+  // "Add a space" is a button in the page head; it opens the form under it.
+  addSpaceOpen?.addEventListener('click', () => {
+    if (!addSpaceEl) return;
+    addSpaceEl.open = !addSpaceEl.open; addSpaceSync();
+    if (addSpaceEl.open) spaceForm?.querySelector?.('input[name="title"]')?.focus?.();
+  });
+  addSpaceEl?.addEventListener('keydown', event => {
+    if (event?.key !== 'Escape' || !addSpaceEl.open) return;
+    addSpaceEl.open = false; addSpaceSync(); addSpaceOpen?.focus?.({ preventScroll: true });
+  });
+  // The views: a link in the bar changes the hash; the hash chooses the view.
+  window.addEventListener?.('hashchange', () => {
+    if (!currentUserId) return;
+    const asked = viewFromHash();
+    if (asked) viewShow(asked.view, { focus: true, anchor: asked.anchor });
+    else if (!String(location.hash || '').replace(/^#/, '')) viewShow('walkthroughs', { focus: true });
+  });
+  // The link for the view already showing changes no hash: it still lands on the heading.
+  for (const name of VIEWS) {
+    document.getElementById('desk-link-' + name)?.addEventListener('click', () => { if (location.hash === '#' + name) viewShow(name, { focus: true }); });
+  }
+  // The account menu closes on Escape (focus back on its button) and on a press outside it.
+  deskMenu?.addEventListener('keydown', event => {
+    if (event?.key !== 'Escape' || !deskMenu.open) return;
+    deskMenu.open = false; document.getElementById('desk-menu-button')?.focus?.({ preventScroll: true });
+  });
+  document.addEventListener?.('click', event => { if (deskMenu?.open && !deskMenu.contains?.(event?.target)) deskMenu.open = false; });
   // Anything typed, ticked or armed in the list marks the desk as in use.
   list?.addEventListener('input', () => { deskDirty = true; });
   list?.addEventListener('click', () => { deskDirty = true; });
@@ -6149,7 +7579,7 @@
     if (typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) { setStatus('This browser cannot save the file. Try a current desktop browser.'); return; }
     const records = {
       exported_at: new Date().toISOString(), format: 'veylet-desk-records-1',
-      note: 'Space and tour records visible to this account. No link secrets, storage paths, imagery or scene files are included.',
+      note: 'Space and walkthrough records visible to this account. No link secrets, storage paths, imagery or scene files are included.',
       spaces: lastDesk.properties.map(row => ({ id: row.id, title: row.title, category: row.category || null, general_location: row.location_general || null, created_at: row.created_at || null,
         tours: lastDesk.rows.filter(tour => tour.property_id === row.id).map(tour => ({ id: tour.id, status: tour.status, created_at: tour.created_at || null, has_active_link: Boolean(tour.share_token) && !tour.share_paused_at,
           walkthrough_id: walkthroughOf(tour), version: revisionOf(tour), replaced_at: tour.superseded_at || null })) })),
@@ -6157,17 +7587,30 @@
     const url = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));
     const link = document.createElement('a'); link.href = url; link.download = 'veylet-records-' + records.exported_at.slice(0, 10) + '.json';
     link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setStatus('Records saved as a file. It lists your spaces and tours; it does not contain the tours themselves.');
+    const saved = 'Records saved as a file. It lists your spaces and walkthroughs; it does not contain the walkthroughs themselves.';
+    setStatus(saved);
+    // Said next to the button too: the page's own status line is a screen away from it.
+    const beside = document.getElementById('account-export-status');
+    if (beside) beside.textContent = saved;
   });
-  signOut?.addEventListener('click', async () => {
-    signOut.disabled = true;
+  // Sign out: at the end of the Account view and in the account menu on every view.
+  const menuSignOut = document.getElementById('desk-menu-sign-out');
+  const signOutNow = async control => {
+    if (control.disabled) return;
+    control.disabled = true;
     // This browser only: the global default would also sign the iPhone app out.
     const result = await settled(supabase.auth.signOut({ scope: 'local' }));
-    signOut.disabled = false;
-    if (failed(result)) { setStatus('Sign-out was not confirmed. Check the connection and try again before leaving this shared device.'); return; }
+    control.disabled = false;
+    if (failed(result)) { if (deskMenu) deskMenu.open = false; setStatus('Sign-out was not confirmed. Check the connection and try again before leaving this shared device.'); return; }
     showSignedOut('Signed out on this browser.');
-  });
+    // The page is the sign-in screen now: its heading is where the keyboard continues.
+    const title = document.getElementById('account-title');
+    if (title && deskBar) { title.tabIndex = -1; title.focus?.({ preventScroll: true }); }
+  };
+  signOut?.addEventListener('click', () => signOutNow(signOut));
+  menuSignOut?.addEventListener('click', () => signOutNow(menuSignOut));
 })().catch(() => {
+  try { document.body?.classList?.remove('session-checking'); const opening = document.getElementById('account-opening'); if (opening) opening.hidden = true; } catch { /* nothing to reveal */ }
   const el = document.getElementById('account-status');
   if (el) {
     el.textContent =

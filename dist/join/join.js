@@ -26,7 +26,7 @@
     reviewer: 'You’re a reviewer: you can review and share walkthroughs.',
     operator: 'You’re an operator: you can capture and send walkthroughs.',
   };
-  var APP = 'In the Veylet Capture app, sign in with this same email.';
+  var APP = 'In the Veylet app, sign in with this same email.';
   var COPY = {
     loading: { title: 'Checking your invite…', message: 'One moment.' },
     signin: { title: 'Sign in to join your team', message: 'Sign in with the email address the invite was sent to. You come back here to join.',

@@ -3,35 +3,8 @@
   --chapter-space: clamp(64px, 8vw, 116px);
   --page-gutter: clamp(20px, 4.45vw, 64px);
 }
-.refined-marketing .wrap {
-  max-width: 1456px;
-  padding-inline: var(--page-gutter);
-}
-.refined-marketing > header {
-  min-height: 104px;
-  padding-top: 24px;
-  padding-bottom: 24px;
-}
-.refined-marketing > header nav {
-  gap: clamp(18px, 2.3vw, 34px);
-  font-size: 14px;
-}
-.refined-marketing .button {
-  min-height: 52px;
-  padding: 15px 22px;
-}
 .refined-marketing .button-ghost:hover {
   color: var(--paper);
-}
-.refined-marketing a:focus-visible,
-.refined-marketing button:focus-visible,
-.refined-marketing summary:focus-visible,
-.refined-marketing video:focus-visible,
-.refined-marketing input:focus-visible,
-.refined-marketing select:focus-visible,
-.refined-marketing textarea:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 5px;
 }
 .refined-home main {
   overflow-x: clip;
@@ -50,13 +23,10 @@
 .refined-home .hero h1 {
   width: 100%;
   max-width: 960px;
-  font-size: clamp(48px, 5.3vw, 78px);
-  line-height: 1.06;
-  letter-spacing: -0.04em;
   text-wrap: initial;
 }
 .refined-home .hero h1 em {
-  white-space: nowrap;
+  white-space: normal;
 }
 .refined-home .hero .intro {
   max-width: 48ch;
@@ -115,15 +85,14 @@
   padding-top: 64px;
   padding-bottom: var(--chapter-space);
 }
+/* Marketing bands head with the display sizes; ordinary sections use the h2 token. */
 .refined-home h2 {
-  font-size: clamp(34px, 3.8vw, 54px);
+  font-size: var(--display-2);
   line-height: 1.12;
-  letter-spacing: -0.035em;
   text-wrap: pretty;
 }
 .refined-home .conversion-heading h2 {
   margin-top: 0;
-  font-size: clamp(32px, 3.2vw, 46px);
 }
 .refined-home .pilot-note {
   border: 1px solid var(--line);
@@ -199,21 +168,6 @@
 .refined-home .faq-list {
   min-width: 0;
 }
-.refined-home .faq-list details:first-child {
-  border-top: 1px solid var(--line);
-}
-.refined-home .faq-list summary {
-  padding-top: 24px;
-  padding-bottom: 24px;
-  font-size: 18px;
-  line-height: 1.5;
-}
-.refined-home .faq-list details p {
-  font-size: 15px;
-  line-height: 1.7;
-  padding-bottom: 24px;
-  max-width: 64ch;
-}
 .refined-home .work {
   padding-top: 0;
   padding-bottom: var(--chapter-space);
@@ -239,7 +193,7 @@
   padding: 0;
 }
 .refined-home .study-lead-copy h2 {
-  font-size: clamp(42px, 5vw, 70px);
+  font-size: var(--display-1);
   max-width: 11ch;
 }
 .refined-home .study-lead-copy p {
@@ -355,7 +309,7 @@
 }
 .refined-home .closing-inner h2 {
   max-width: 15ch;
-  font-size: clamp(40px, 4.8vw, 68px);
+  font-size: var(--display-1);
 }
 .refined-home .closing-action p {
   max-width: 40ch;
@@ -373,19 +327,9 @@
   background: var(--sage);
   border-color: var(--sage);
 }
-.refined-marketing > footer {
-  gap: 24px 40px;
-  padding-top: 36px;
-  padding-bottom: 36px;
-  flex-wrap: wrap;
-}
-.refined-marketing > footer nav {
-  margin-left: auto;
-  font-size: 13px;
-}
-.refined-marketing > footer > span {
-  width: 100%;
-  color: var(--muted);
+/* The enquiry form sits beside its heading, so it takes the wide column. */
+.site .form-page.intake-page {
+  max-width: var(--col-wide);
 }
 .intake-page {
   display: grid;
@@ -394,15 +338,12 @@
   grid-template-rows: auto 1fr;
   align-items: start;
   gap: 0 clamp(48px, 8vw, 116px);
-  padding-top: 48px;
   padding-bottom: 96px;
 }
 .intake-heading {
   grid-area: heading;
 }
 .intake-page h1 {
-  font-size: clamp(36px, 4vw, 58px);
-  letter-spacing: -0.035em;
   margin-top: 0;
   max-width: 13ch;
 }
@@ -431,14 +372,6 @@
   gap: 9px;
   font-size: 15px;
 }
-.intake-page .veylet-form input,
-.intake-page .veylet-form select,
-.intake-page .veylet-form textarea {
-  font-size: 16px;
-  border-radius: 0;
-  background: #fbfaf6;
-  min-height: 50px;
-}
 .intake-page .veylet-form .check input {
   min-height: 20px;
 }
@@ -450,8 +383,6 @@
   max-width: 48ch;
 }
 .intake-page .reply-preview h2 {
-  font-size: 26px;
-  letter-spacing: -0.025em;
   margin-top: 16px;
 }
 .intake-page .reply-preview p {
@@ -489,22 +420,6 @@
   }
 }
 @media (max-width: 800px) {
-  .refined-marketing > header {
-    min-height: 0;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding-top: 18px;
-    padding-bottom: 14px;
-  }
-  .refined-marketing > header nav {
-    width: 100%;
-    justify-content: space-between;
-    gap: 8px 18px;
-    font-size: 13px;
-  }
-  .refined-marketing > header .brand {
-    font-size: 12px;
-  }
   .refined-home .hero {
     display: grid;
     grid-template-columns: 1fr;
@@ -516,9 +431,7 @@
     padding-top: 0;
   }
   .refined-home .hero h1 {
-    font-size: clamp(33px, 9.8vw, 72px);
     max-width: 740px;
-    line-height: 1.08;
   }
   .refined-home .hero .intro {
     max-width: 54ch;
@@ -582,20 +495,12 @@
     gap: 36px;
     padding-top: 44px;
   }
-  .refined-home .study-lead-copy h2 {
-    font-size: 42px;
-  }
   .refined-home .closing-inner {
     padding-top: 56px;
     padding-bottom: 56px;
   }
   .refined-home .closing-inner h2 {
     max-width: 18ch;
-  }
-  .refined-marketing > footer nav {
-    width: 100%;
-    margin-left: 0;
-    gap: 8px 24px;
   }
   .refined-home > footer {
     padding-bottom: 104px;
@@ -609,7 +514,6 @@
   }
   .intake-page h1 {
     max-width: 19ch;
-    font-size: clamp(36px, 6vw, 48px);
   }
   .intake-fields {
     padding: 0;
@@ -670,7 +574,6 @@
   }
   .refined-home .study-lead-copy h2 {
     max-width: none;
-    font-size: 40px;
   }
   .refined-home .study-lead-copy p {
     margin-top: 16px;
@@ -708,12 +611,6 @@
   }
   .refined-home .study-rail > li {
     scroll-snap-align: start;
-  }
-}
-@media (max-width: 380px) {
-  .refined-marketing > header nav {
-    gap: 8px;
-    font-size: 12px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

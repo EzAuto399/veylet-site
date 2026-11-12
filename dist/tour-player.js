@@ -15,11 +15,25 @@
   };
 
   const OFFLINE_HEADING = 'This walkthrough is not available.';
-  const OFFLINE_BODY =
-    'The player files did not load on this device. Check the connection and try again.';
+  // No connection at all, and a connection that did not bring the walkthrough: one next step each.
+  const OFFLINE_BODY = 'You seem to be offline. Reconnect and try again.';
+  const LOAD_BODY = 'The walkthrough couldn’t be loaded just now. Check your connection and try again.';
   const STORAGE_BODY =
     'The tour file could not be opened. Ask the agent who sent it to send the link again.';
   const PACKAGE_BODY = 'This package is not a playable reconstructed tour.';
+  /*
+   * One set of words for the three pages a client can land on (/handoff, /tour
+   * and /embed), so the same state reads the same wherever the link was opened.
+   * Each names one next step. A page asks for them with boot({ client: true }).
+   */
+  const WORDS = Object.freeze({
+    missingHeading: 'This walkthrough isn’t available right now.',
+    missingBody: 'It may have been paused or turned off. Ask the person who sent it for a new link.',
+    incompleteHeading: 'This link looks incomplete.',
+    incompleteBody: 'Check you copied all of it, or ask the person who sent it.',
+    transientBody: 'The walkthrough couldn’t be reached just now. Check your connection and try again.',
+  });
+  player.WORDS = WORDS;
   const dependencies = new Map();
 
   // A listing can show the lightweight embed invitation without parsing the
@@ -117,13 +131,46 @@
     if (signIn) signIn.hidden = !options.showSignIn;
     // A definitive miss means the same token is dead everywhere. Withdraw the
     // escape hatches that resolve it, rather than sending someone to a second
-    // page that will fail in the same way.
-    if (!options.retry) {
+    // page that will fail in the same way. (A client's page still offers Try
+    // again on a miss: a paused link can be switched back on.)
+    if (options.definitive ?? !options.retry) {
       for (const link of document.querySelectorAll('[data-tour-dead-end]')) link.hidden = true;
     }
     if (els.frame) els.frame.hidden = true;
     if (els.stage) els.stage.hidden = true;
     document.title = heading.replace(/\.$/, '') + ' — Veylet';
+  };
+
+  // The page's own Try again: one reload, wired once however the failure was reached.
+  const wired = new WeakSet();
+  function wireRetry(retry) {
+    if (!retry || typeof retry.addEventListener !== 'function' || wired.has(retry)) return;
+    wired.add(retry);
+    retry.addEventListener('click', (event) => {
+      event.preventDefault();
+      location.reload();
+    });
+  }
+  const surfaceOf = (els) => ({
+    title: els.title,
+    body: els.body,
+    status: els.status,
+    frame: els.frame,
+    stage: els.stage,
+    actions: els.actions === undefined ? document.getElementById('tour-actions') : els.actions,
+    retry: els.retry === undefined ? document.getElementById('tour-retry') : els.retry,
+  });
+
+  /** Paused, switched off, expired or gone: the shared words, and Try again. */
+  player.showMissing = (els) => {
+    const surface = surfaceOf(els);
+    wireRetry(surface.retry);
+    player.showFailure(surface, { heading: WORDS.missingHeading, body: WORDS.missingBody, retry: true, definitive: true });
+  };
+
+  /** A cut-off or broken link. Trying again cannot help, so the one step is to check it or ask. */
+  player.showIncomplete = (els) => {
+    player.showFailure(surfaceOf(els), { heading: WORDS.incompleteHeading, body: WORDS.incompleteBody });
   };
 
   player.showProgress = (els, status) => {
@@ -268,10 +315,9 @@
       actions,
       retry,
     };
-    retry?.addEventListener('click', (event) => {
-      event.preventDefault();
-      location.reload();
-    });
+    wireRetry(retry);
+    // A client's page (/handoff, /tour, /embed) reads in the shared words.
+    if (options.client) options = { missingHeading: WORDS.missingHeading, missingBody: WORDS.missingBody, transientBody: WORDS.transientBody, ...options };
 
     if (!navigator.onLine) {
       player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
@@ -282,12 +328,12 @@
     try {
       if (!window.supabase?.createClient) await player.loadScript('/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd');
     } catch {
-      player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
+      player.showFailure(surface, { body: LOAD_BODY, retry: true });
       return;
     }
     const client = player.clientFor(options.auth || {});
     if (!client) {
-      player.showFailure(surface, { body: OFFLINE_BODY, retry: true });
+      player.showFailure(surface, { body: LOAD_BODY, retry: true });
       return;
     }
 
@@ -331,10 +377,11 @@
       const transient = looked.error.transient !== false;
       player.showFailure(surface, {
         heading: options.missingHeading || OFFLINE_HEADING,
-        body: transient ? options.transientBody || OFFLINE_BODY : options.missingBody || STORAGE_BODY,
-        retry: transient,
+        body: transient ? options.transientBody || LOAD_BODY : options.missingBody || STORAGE_BODY,
+        retry: transient || Boolean(options.client),
+        definitive: !transient,
       });
-      return;
+      return { outcome: transient ? 'unreachable' : 'missing' };
     }
 
     const resolved = looked.value;
@@ -343,8 +390,10 @@
       player.showFailure(surface, {
         heading: options.missingHeading || OFFLINE_HEADING,
         body: options.missingBody || 'The link is missing, revoked, or the tour is not ready.',
+        retry: Boolean(options.client),
+        definitive: true,
       });
-      return;
+      return { outcome: 'missing' };
     }
 
     if (resolved.title) text(els.title, resolved.title);
@@ -383,12 +432,15 @@
         if (surface.actions) surface.actions.hidden = false;
         if (surface.retry) surface.retry.hidden = false;
       } else {
-        player.showProgress(surface, playback.value?.readiness === 'document-loaded' ? 'Viewer document opened. If the scene stays blank, try a current browser or ask the agent who sent it for a compatible tour.' : resolved.footer || '');
+        player.showProgress(surface, playback.value?.readiness === 'document-loaded' ? 'If the walkthrough stays blank, try another browser, or ask the person who sent it.' : resolved.footer || '');
       }
     } catch (error) {
-      player.showFailure(surface, {
+      const slow = ['viewer-not-ready', 'frame-not-loaded'].includes(error?.message);
+      // A file that is not a walkthrough reads, on a client's page, as any other link that cannot open.
+      if (!slow && options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
+      else player.showFailure(surface, {
         heading: resolved.title || OFFLINE_HEADING,
-        body: ['viewer-not-ready', 'frame-not-loaded'].includes(error?.message) ? 'The 3D view did not start in time. Try a current browser with graphics enabled, or ask the person who sent this tour for photographs and help.' : PACKAGE_BODY,
+        body: slow ? 'The walkthrough did not start in time. Try another browser, or ask the person who sent it.' : PACKAGE_BODY,
         retry: true,
       });
     }
@@ -402,12 +454,17 @@
   player.bootV2 = async (surface, resolved, options) => {
     const stage = surface.stage;
     const failed = (body, retry) => player.showFailure(surface, { heading: resolved.title || OFFLINE_HEADING, body, retry });
-    if (!stage) { failed(PACKAGE_BODY, false); return; }
+    // A package that is not a walkthrough reads, on a client's page, as any other link that cannot open.
+    const unusable = () => {
+      if (options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
+      else failed(PACKAGE_BODY, false);
+    };
+    if (!stage) { unusable(); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=c7c86e3389f01585');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=e44676364b81a448');
     } catch {
-      failed(OFFLINE_BODY, true);
+      failed(LOAD_BODY, true);
       return;
     }
     const controller = new AbortController();
@@ -428,8 +485,12 @@
       waitForTap,
       // Where Full screen goes when this frame cannot fill the screen (iPhone).
       fullscreenUrl: options.fullscreenUrl,
+      // What a client's page asks of the visit: a stop to open on, Share, who to contact (client-page.js).
+      visit: options.visit,
       onVisible: () => {
         if (surface.frame) surface.frame.hidden = true;
+        // The player says how the loading goes from here; the page's own line would say it twice.
+        player.showProgress(surface, '');
         try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }
       },
       onRetry: () => location.reload(),
@@ -437,17 +498,27 @@
     if (playback.error) {
       controller.abort();
       const code = playback.error.code || '';
-      if (code === 'package-unavailable') failed(options.missingBody || 'The link is missing, revoked, or the tour is not ready.', false);
-      else if (code.startsWith('manifest-invalid') || code === 'package-location-invalid' || code === 'package-oversized') failed(PACKAGE_BODY, false);
-      else failed(options.transientBody || OFFLINE_BODY, true);
-      return;
+      if (code === 'package-unavailable') {
+        // The link is live but its walkthrough is not there (the manifest answered 404, 403 or 410, before
+        // any 3D was asked for). A client's page says so in the heading too, rather than under the
+        // property's name as if the walkthrough were about to appear.
+        if (options.client) {
+          player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
+        } else failed(options.missingBody || 'The link is missing, revoked, or the tour is not ready.', false);
+        return { outcome: 'missing' };
+      }
+      if (code.startsWith('manifest-invalid') || code === 'package-location-invalid' || code === 'package-oversized') { unusable(); return { outcome: 'missing' }; }
+      failed(options.transientBody || LOAD_BODY, true);
+      return { outcome: 'unreachable' };
     }
     if (playback.value?.readiness === 'viewer-failed') {
-      // The player keeps the rendered poster and explains itself inside the frame.
-      player.showProgress(surface, 'The 3D view could not start here. A still from the walkthrough is shown instead.');
-      return;
+      // The player keeps the rendered poster and explains itself inside the stage: one message, not a
+      // second one under it.
+      player.showProgress(surface, '');
+      return { outcome: 'viewer-failed' };
     }
     player.showProgress(surface, resolved.footer || '');
+    return { outcome: playback.value?.readiness === 'waiting-for-tap' ? 'waiting' : 'ready' };
   };
 
   window.VeyletPlayer = player;

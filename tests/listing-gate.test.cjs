@@ -28,7 +28,7 @@ test('a backend without the functions shows no question, and sharing reads as be
   assert.equal(h.gate().hidden, true);
   assert.equal(h.gate().children.length, 0);
   const card = h.card();
-  assert.ok(h.words(card).includes('Approved. Sharing isn’t on yet.'));
+  assert.ok(h.words(card).includes('Approved, not shared'), h.words(card).join(' | '));
   assert.ok(h.button(card, 'Turn sharing on'));
   assert.equal(h.control(card, 'share-fix-occupancy'), null);
 });
@@ -128,10 +128,14 @@ test('an approved walkthrough on an unanswered listing says what sharing waits f
   assert.ok(h.button(card, 'Turn sharing on'), 'turning sharing on stays beside the fix');
   await fix.fire('click');
   assert.equal(radios(h.gate())[0].wasFocused, true);
-  // The next step says the same, with the same fix.
-  const next = h.ids['account-next-step'];
-  assert.ok(h.words(next).includes(WAIT_OCCUPANCY));
-  assert.ok(h.button(next, 'Answer the question'));
+  // Needs you says the same, with the same fix; the next step gives way to it.
+  const needs = h.ids['account-needs-list'];
+  assert.equal(h.ids['account-needs'].hidden, false);
+  assert.equal(h.ids['account-next-step'].hidden, true);
+  assert.equal(needs.text(), 'Harbour loft  is approved; sharing waits for you to say whether anyone lives here. Answer the question');
+  assert.ok(h.button(needs, 'Answer the question'));
+  await h.button(needs, 'Answer the question').fire('click');
+  assert.equal(radios(h.gate())[0].wasFocused, true);
 });
 
 test('enable_tour_share’s two new refusals read in the contract’s words, each with its own fix', async () => {
@@ -216,7 +220,11 @@ test('the videos and stills block shows the same block, and maps the same refusa
     get_listing_sharing_readiness: readiness({ occupancy: 'tenanted', blocked_reason: 'tenant_consent_required', grandfathered: true }),
     get_listing_exports: exportsNothing,
   } });
-  const box = blocked.card().all().find(el => /\btour-exports\b/.test(el.className));
+  // The block is the panel behind the card's "Videos and stills" disclosure: offered, then opened.
+  const videos = card => card.all().find(el => el.dataset?.disclosure === 'exports');
+  const box = blocked.card().all().find(el => String(el.className).split(' ').includes('tour-exports'));
+  assert.equal(videos(blocked.card()).hidden, false);
+  await videos(blocked.card()).fire('click');
   assert.equal(box.hidden, false);
   assert.ok(blocked.words(box).includes(WAIT_CONSENT));
   assert.equal(blocked.control(box, 'exports-fix-consent').textContent, 'Add consent');
@@ -227,7 +235,8 @@ test('the videos and stills block shows the same block, and maps the same refusa
     get_listing_exports: exportsNothing,
     request_listing_exports: () => ({ data: null, error: { code: 'P0001', message: 'occupancy not declared' } }),
   } });
-  const box2 = refused.card().all().find(el => /\btour-exports\b/.test(el.className));
+  const box2 = refused.card().all().find(el => String(el.className).split(' ').includes('tour-exports'));
+  await videos(refused.card()).fire('click');
   box2.all().find(el => el.dataset?.control === 'exports-consent').checked = true;
   await box2.all().find(el => el.tagName === 'FORM').fire('submit'); await refused.settle();
   assert.ok(refused.words(box2).includes(WAIT_OCCUPANCY));

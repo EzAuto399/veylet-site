@@ -9,17 +9,17 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=776e6c97304d9019" />
-    <link rel="stylesheet" href="/conversion.css?v=3c82fa9f8cd5a55c" />
+    <link rel="preload" href="/media/Outfit-400.woff2?v=71f028fd2349990b" as="font" type="font/woff2" crossorigin><link rel="preload" href="/media/Outfit-500.woff2?v=fc9bff941def6d92" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/style.css?v=77cd95fea06762b2" />
+    <link rel="stylesheet" href="/conversion.css?v=1afc39d382bc328e" />
     <style>
-      .report-page { max-width: 680px; padding-bottom: 72px; }
-      .report-page h1 { font-size: clamp(32px, 7vw, 52px); line-height: 1.08; letter-spacing: -0.03em; margin: 12px 0 18px; }
+      .report-page { padding-bottom: 72px; }
+      .report-page h1 { margin: 12px 0 18px; }
       .report-page h1:focus, .report-done h2:focus { outline: none; }
       .report-page .intro { max-width: 56ch; margin-bottom: 28px; }
-      .report-page .button { min-height: 44px; }
       .report-page .button[disabled] { opacity: 0.6; cursor: progress; }
       .report-status:empty { display: none; }
-      .report-fallback { margin: 18px 0 0; padding: 14px 16px; border-left: 2px solid var(--ink); background: var(--panel, #eaece3); font-size: 15px; line-height: 1.55; }
+      .report-fallback { margin: 18px 0 0; padding: 14px 16px; border-left: 1px solid var(--ink); background: var(--panel, #eaece3); font-size: 15px; line-height: 1.55; }
       .report-fallback[hidden] { display: none; }
       .report-fallback p { margin: 0 0 10px; }
       .report-fallback a { text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
@@ -29,11 +29,11 @@
       .report-reason-problem:empty { display: none; }
     </style>
   </head>
-  <body>
+  <body class="site">
     <a class="skip" href="#main">Skip to content</a>
     <header class="wrap">
-      <a class="brand" href="/" aria-label="Veylet Studio home"
-        ><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a
+      <a class="brand" href="/" aria-label="Veylet home"
+        ><span class="portal" aria-hidden="true"></span>VEYLET</a
       >
     </header>
     <main id="main" class="form-page wrap report-page">
@@ -74,7 +74,7 @@
         <h2 id="report-done-title" tabindex="-1">Thanks. We’ll review this within 24 hours for privacy reports.</h2>
       </section>
     </main>
-    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><nav aria-label="Legal"><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/place-fields.js?v=b597ac72159bd08e"></script>
     <script src="/report/report.js?v=06d6a6d26ebcdd80" defer></script>

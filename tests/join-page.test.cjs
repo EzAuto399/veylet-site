@@ -82,7 +82,7 @@ test('the invite leaves the address bar before anything is asked, and a joined p
   assert.deepEqual(p.replaced, ['/join']);
   assert.deepEqual(p.calls, [{ name: 'accept_workspace_invite', args: { p_token: TOKEN } }]);
   assert.deepEqual(p.view(), { state: 'accepted', title: 'You’ve joined Harbour Realty.', message: 'You’re a reviewer: you can review and share walkthroughs.',
-    detail: 'In the Veylet Capture app, sign in with this same email.', primary: ['Open your account', '/account'], retry: false });
+    detail: 'In the Veylet app, sign in with this same email.', primary: ['Open your account', '/account'], retry: false });
   assert.equal(p.ids['join-title'].focused, 1);
   assert.equal(p.local.map.size + p.sessionStore.map.size, 0, 'an answered invite is not kept');
   const operator = await page({ accept: [ok('Coast Property', 'operator')] });
@@ -157,4 +157,10 @@ test('a missing, malformed or day-old invite reads as one that can’t be used, 
   const p = await page({ search: '', local: stale, sessionStore: storage(), now });
   assert.equal(p.view().state, 'invalid');
   assert.equal(p.calls.length, 0);
+});
+
+test('an invite that can’t be used or has expired still offers Sign in and the waitlist; other states do not', () => {
+  // Site audit 10 Nov 2026, finding 24: the invalid state was a dead end. The links are static and shown by state.
+  assert.match(markup, /<p class="join-next"><a class="text-link" href="\/account">Sign in<\/a><a class="text-link" href="\/waitlist">Join the waitlist<\/a><\/p>/);
+  assert.match(markup, /\.join-page:not\(\[data-state="invalid"\], \[data-state="expired"\]\) \.join-next \{ display: none; \}/);
 });

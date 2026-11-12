@@ -3,7 +3,7 @@
  * Veylet studio desk: the accounts we look after, their free months, and the
  * walkthroughs waiting on us. Everything here is a read except a few deliberate
  * writes, each recording a decision the account has already agreed to: Set
- * plan, a settled walkthrough-pack invoice, a referral
+ * plan, a settled pack invoice, a referral
  * grant, a founding referral grant, a paid hosting extension and a correction
  * recorded against the walkthrough it corrects. Marking a money exception resolved
  * records the reference of what a person already did; it moves no money. This
@@ -53,42 +53,44 @@
   const PLAN_SOURCES = ['studio', 'apple', 'web'];
   const SOURCE_CHOICES = { studio: 'Studio', web: 'Website', apple: 'App Store' };
   // Plan code to the name customers see. Offer 2026-09-25.2 sells one plan, the
-  // Veylet plan (code solo), monthly or annual; the retired codes keep their
+  // Veylet plan (code solo), monthly or yearly; the retired codes keep their
   // names so an existing row still reads as the plan it was agreed on (plan code
   // 'studio' is Team). The account desk states the same names from the same table.
   const PLAN_NAMES = { solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' };
   const PLAN_ON_SALE = 'solo';
   const RETIRED_PLANS = ['studio', 'founding', 'office', 'one'];
   // App Store product to plan and cadence, as offer.json lists the product IDs.
-  // The App Store sells the Veylet plan monthly and annual; the two Team IDs stay
+  // The App Store sells the Veylet plan monthly and yearly; the two Team IDs stay
   // mapped so an existing verified row still reads correctly.
   const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
   // Offer 2026-09-27.1 closes new invoice subscriptions. The studio desk records
-  // only the two one-time walkthrough packs; existing subscription rows retain
+  // only the two one-time packs of rooms; existing subscription rows retain
   // the provider, price, allowance and dates already stored for their agreement.
-  const PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
+  // Offer 2026-11-11.1: the unit is the room. The keys keep their names, as the server's do, and carry
+  // room counts: pack3 is 30 rooms and pack10 is 100.
+  const PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // Annual rows use a yearly pool of 36 (offer 2026-09-29.2). Existing rows continue to display the
+  // Annual rows use a yearly pool of 360 rooms (offer 2026-11-11.1). Existing rows continue to display the
   // exact cadence, price and allowance already recorded for them.
-  const YEARLY_POOL = 36;
+  const YEARLY_POOL = 360;
   const INVOICE_ITEMS = ['pack3', 'pack10'];
-  // A founding workspace gets one free 3-pack for each referred office that
+  // A founding workspace gets one free pack of 30 rooms for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.
   const FOUNDING_GRANT_PACK = PACKS.pack3;
   const FOUNDING_GRANTS_MAX = 4;
   // Any referral: when a referred office becomes a paying account, it and the
-  // office that referred it each get 1 bonus walkthrough, once per referred office.
+  // office that referred it each get 10 bonus rooms, once per referred office.
   // The server grants them when its plan first turns active; the desk is the fallback.
-  const REFERRAL_WALKTHROUGHS = 1;
+  const REFERRAL_WALKTHROUGHS = 10;
   const FREE_MONTHS_DEFAULT = 1;
-  const FREE_WALKTHROUGHS_DEFAULT = 3;
+  const FREE_WALKTHROUGHS_DEFAULT = 30;
   // Retired whole-home rule (offer.json retiredTerms): 5 or more bedrooms, a
   // second dwelling or more than 350 m² of floor area counted as 2. Offer
   // 2026-09-27.1 supersedes both this and the later rooms rule for new captures;
   // this remains only to correct historical declarations for older listings.
   const HOME_BEDROOMS_FOR_TWO = 5;
   const HOME_AREA_OVER_M2 = 350;
-  const TRIAL_INCLUDED_MAX = 24;
+  const TRIAL_INCLUDED_MAX = 240;
   // An opaque agreement, invoice or receipt reference: never a name or an email.
   const REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$/;
   // The same rule as a pattern attribute. Browsers compile patterns with the v
@@ -147,7 +149,11 @@
     const number = Number(value);
     return Number.isFinite(number) ? String(number) : DASH;
   }
-  // Offer counts are digits, as on the account desk: "1 free month and 3 walkthroughs".
+  // Offer counts are digits, as on the account desk: "1 free month and 30 rooms".
+  function planRooms(value) {
+    const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+    return value !== '' && Number.isInteger(count) && count >= 1 && count <= TRIAL_INCLUDED_MAX ? String(count) : '';
+  }
   function planMonths(value) {
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
@@ -247,14 +253,14 @@
     if (Object.prototype.hasOwnProperty.call(PACKS, value)) {
       const pack = PACKS[value];
       return { value, code: value, cents: pack.cents, walkthroughs: pack.walkthroughs,
-        label: 'Walkthrough pack · ' + pack.walkthroughs + ' walkthroughs (' + planMoney(pack.cents) + ')' };
+        label: 'Pack · ' + pack.walkthroughs + ' rooms (' + planMoney(pack.cents) + ')' };
     }
     return null;
   }
   function invoiceTerms(item) {
     if (!item) return 'Choose the item invoiced.';
-    return planMoney(item.cents) + ' for this invoice: adds ' + item.walkthroughs + ' walkthroughs, valid ' + PACK_VALID_MONTHS +
-      ' months after purchase, used after free-months, monthly (including banked) or annual-pool included walkthroughs. A pack is separate from the subscription: no service dates and no renewal.';
+    return planMoney(item.cents) + ' for this invoice: adds ' + item.walkthroughs + ' rooms, valid ' + PACK_VALID_MONTHS +
+      ' months after purchase, used after free-months, monthly (including banked) or annual-pool included rooms. A pack is separate from the subscription: no service dates and no renewal.';
   }
   // A pack counts as recorded only when the server credited exactly this pack.
   function packConfirmed(answer, item) {
@@ -271,14 +277,14 @@
     return Number.isInteger(used) && used >= 0 && used <= FOUNDING_GRANTS_MAX ? used : null;
   }
   function plural(number, word) { return number + ' ' + word + (number === 1 ? '' : 's'); }
-  // The row's own free-months terms, in digits: "1 free month with 3
-  // walkthroughs" (a total, not a monthly figure). A running row may keep longer
+  // The row's own free-months terms, in digits: "1 free month with 30
+  // rooms" (a total, not a monthly figure). A running row may keep longer
   // terms it started with; a row that cannot say shows nothing.
   function freeMonthsTerms(row) {
     const months = row && row.trial_months;
     const included = row && row.trial_included_walkthroughs;
     if (!Number.isInteger(months) || months < 1 || months > 12 || !Number.isInteger(included) || included < 1) return '';
-    return plural(months, 'free month') + ' with ' + plural(included, 'walkthrough');
+    return plural(months, 'free month') + ' with ' + plural(included, 'room');
   }
   // The annual Veylet plan counts a yearly pool, not a month, so its row shows no
   // monthly figure. studio_list_accounts carries no billing interval or pool
@@ -296,9 +302,9 @@
     const accepted = countText(row && row.accepted_this_period) + ' of ' + countText(row && row.included_per_month);
     if (status === 'pending') {
       const months = planMonths(row.trial_months);
-      const included = planMonths(row.trial_included_walkthroughs);
+      const included = planRooms(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' walkthroughs in total.' } : unavailable;
+        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' rooms in total.' } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -315,7 +321,7 @@
           : billing ? free + ', then ' + billing + ' unless you cancel.'
             : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
       return { status, title: free,
-        body: used + ' of ' + allowance + ' free walkthroughs used. ' + renewal };
+        body: used + ' of ' + allowance + ' free rooms used. ' + renewal };
     }
     if (status === 'active') {
       const billing = planBilling(row);
@@ -325,7 +331,7 @@
         : row.auto_renews === true ? 'Next billing date: ' + until + '.'
           : 'Current period ends ' + until + '; check your renewal setting.';
       return { status, title: (PLAN_NAMES[planCode(row)] || 'Plan') + ' · ' + (billing || 'confirm billing details'),
-        body: (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' walkthroughs this month. ') + renewal + ' Hosting included.' +
+        body: (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
           (planInterval(row) === 'annual' ? ' Billed annually.' : '') };
     }
     if (status === 'ended') {
@@ -465,7 +471,7 @@
     const trialSpan = element('span');
     const trialTerms = element('span', 'studio-sub');
     trialCell.append(trialSpan, trialTerms);
-    const freeCell = cell(row, 'Free walkthroughs', 'studio-figure');
+    const freeCell = cell(row, 'Free rooms', 'studio-figure');
     const freeUsed = element('span');
     const freeOwed = element('span', 'studio-sub');
     freeCell.append(freeUsed, freeOwed);
@@ -538,7 +544,7 @@
     monthsInput.step = '1';
     monthsInput.inputMode = 'numeric';
     monthsLabel.append(monthsInput);
-    const includedLabel = element('label', 'studio-inline-field', 'Free walkthroughs (1–' + TRIAL_INCLUDED_MAX + ')');
+    const includedLabel = element('label', 'studio-inline-field', 'Free rooms (1–' + TRIAL_INCLUDED_MAX + ')');
     const includedInput = document.createElement('input');
     includedInput.type = 'number';
     includedInput.min = '1';
@@ -567,20 +573,20 @@
     result.setAttribute('role', 'status');
     const saveRow = element('p', 'studio-save-row');
     saveRow.append(save, result);
-    const warning = element('p', 'studio-warning', 'This form may maintain or end existing studio free months; it cannot start or replace a subscription. New subscriptions start in the App Store. Existing App Store, card and invoice agreements keep their recorded provider and terms. The invoice form below records walkthrough packs only.');
+    const warning = element('p', 'studio-warning', 'This form may maintain or end existing studio free months; it cannot start or replace a subscription. New subscriptions start in the App Store. Existing App Store, card and invoice agreements keep their recorded provider and terms. The invoice form below records packs only.');
     form.append(fieldset, sourceLabel, planLabel, monthsLabel, includedLabel, startLabel, renewLabel, noteLabel, warning, saveRow);
     // The row as last painted; the invoice and grant forms read their guards from it.
     let shown = account;
 
     /*
-     * Record a settled walkthrough-pack invoice. New subscriptions use the App
+     * Record a settled pack invoice. New subscriptions use the App
      * Store, so this generic desk has no plan item or service-period control.
      * Existing plan rows remain visible on their stored provider terms. Each
      * pack write is confirmed by account and amount; after an answer that never
      * arrived, only the identical request may be sent again.
      */
     const invoice = element('form', 'veylet-form studio-plan-form studio-invoice-form');
-    const invoiceHeading = element('h3', undefined, 'Record a settled walkthrough pack');
+    const invoiceHeading = element('h3', undefined, 'Record a settled pack');
     const invoiceNotice = element('p', 'studio-warning');
     const itemLabel = element('label', 'studio-inline-field', 'Item invoiced');
     const itemSelect = document.createElement('select');
@@ -621,8 +627,8 @@
       // A pack is separate from the subscription, so any activated account may
       // have one recorded, whoever bills its plan.
       if (current.status === 'trial' || current.status === 'active') return '';
-      if (current.status === 'pending') return 'This account has not started its free months. A walkthrough pack can be recorded once the account is activated.';
-      if (current.status === 'ended') return 'This account has no running plan or free months. A walkthrough pack can be recorded only for an activated account.';
+      if (current.status === 'pending') return 'This account has not started its free months. A pack can be recorded once the account is activated.';
+      if (current.status === 'ended') return 'This account has no running plan or free months. A pack can be recorded only for an activated account.';
       return "This account's plan status could not be read. Refresh the accounts before recording a pack.";
     }
     function paintInvoice() {
@@ -630,7 +636,7 @@
       const item = invoiceItem(itemSelect.value);
       invoiceTermsLine.textContent = invoiceTerms(item);
       const blocked = invoiceBlocked(shown, item);
-      invoiceNotice.textContent = blocked || 'Record only a walkthrough pack the customer agreed to in writing and already paid. New subscriptions start in the App Store; existing subscription terms stay with their recorded provider.';
+      invoiceNotice.textContent = blocked || 'Record only a pack the customer agreed to in writing and already paid. New subscriptions start in the App Store; existing subscription terms stay with their recorded provider.';
       const closed = Boolean(blocked || !item) || invoiceBusy;
       for (const input of [...Object.values(invoiceFields), invoiceSave]) input.disabled = closed;
       itemSelect.disabled = invoiceBusy;
@@ -656,8 +662,8 @@
         invoiceResult.textContent = 'The previous result is unconfirmed. Restore the same item, terms and receipt reference to retry, or refresh and reconcile the recorded invoice before changing them.'; return;
       }
       const named = current.workspace_name || 'this account';
-      const question = 'Record ' + planMoney(item.cents) + ' already settled for ' + named + ': a walkthrough pack of ' + item.walkthroughs +
-        ' walkthroughs, valid ' + PACK_VALID_MONTHS + ' months? Confirm the written agreement and invoice payment match. No card is charged.';
+      const question = 'Record ' + planMoney(item.cents) + ' already settled for ' + named + ': a pack of ' + item.walkthroughs +
+        ' rooms, valid ' + PACK_VALID_MONTHS + ' months? Confirm the written agreement and invoice payment match. No card is charged.';
       if (typeof confirm !== 'function' || !confirm(question)) { invoiceResult.textContent = 'Left unchanged.'; return; }
       const version = listVersion;
       invoiceBusy = true; paintInvoice();
@@ -683,12 +689,12 @@
       // The same references must never be offered for a second pack.
       for (const key of REFERENCE_KEYS) invoiceFields[key].value = '';
       paintInvoice();
-      invoiceResult.textContent = 'Recorded: ' + item.walkthroughs + ' walkthroughs added (' + planMoney(item.cents) + '). ' +
+      invoiceResult.textContent = 'Recorded: ' + item.walkthroughs + ' rooms added (' + planMoney(item.cents) + '). ' +
         answer.credits_available + ' available; use by ' + dayDate(answer.expires_on) + '.';
     });
 
     /*
-     * Founding referral grant: a free 3-pack for each referred office that
+     * Founding referral grant: a free pack of 30 rooms for each referred office that
      * becomes a paying account, at most four per founding workspace. It appears
      * only on a founding row, and a count the desk cannot read closes the form
      * rather than guessing.
@@ -704,10 +710,10 @@
     const grantNote = document.createElement('textarea');
     grantNote.name = 'grant_note'; grantNote.rows = 2; grantNote.maxLength = 400;
     grantNoteLabel.append(grantNote);
-    const grantTerms = element('p', 'studio-warning', 'One free ' + FOUNDING_GRANT_PACK.walkthroughs + '-pack for each referred office that becomes a paying account, up to ' +
-      FOUNDING_GRANTS_MAX + '. It adds ' + FOUNDING_GRANT_PACK.walkthroughs + ' walkthroughs, valid ' + PACK_VALID_MONTHS +
+    const grantTerms = element('p', 'studio-warning', 'One free pack of ' + FOUNDING_GRANT_PACK.walkthroughs + ' rooms for each referred office that becomes a paying account, up to ' +
+      FOUNDING_GRANTS_MAX + '. It adds ' + FOUNDING_GRANT_PACK.walkthroughs + ' rooms, valid ' + PACK_VALID_MONTHS +
       ' months, and the server keeps an audit row. Use an opaque reference, not a name, email or payment detail. No payment is taken.');
-    const grantSave = element('button', 'button', 'Grant free ' + FOUNDING_GRANT_PACK.walkthroughs + '-pack'); grantSave.type = 'submit';
+    const grantSave = element('button', 'button', 'Grant free pack of ' + FOUNDING_GRANT_PACK.walkthroughs + ' rooms'); grantSave.type = 'submit';
     const grantResult = element('span', 'studio-result'); grantResult.setAttribute('role', 'status');
     const grantSaveRow = element('p', 'studio-save-row'); grantSaveRow.append(grantSave, grantResult);
     const grantTermsRow = element('div', 'studio-form-row');
@@ -741,9 +747,9 @@
       if (uncertain && JSON.stringify(args) !== JSON.stringify(uncertain.args)) {
         grantResult.textContent = 'The previous grant is unconfirmed. Restore the same reference and note to retry, or refresh and check the count before changing them.'; return;
       }
-      const question = 'Record a free ' + FOUNDING_GRANT_PACK.walkthroughs + '-pack, grant ' + (used + 1) + ' of ' + FOUNDING_GRANTS_MAX + ', for ' +
+      const question = 'Record a free pack of ' + FOUNDING_GRANT_PACK.walkthroughs + ' rooms, grant ' + (used + 1) + ' of ' + FOUNDING_GRANTS_MAX + ', for ' +
         (current.workspace_name || 'this account') + "? Referred office's first paid invoice: " + reference + '. It adds ' +
-        FOUNDING_GRANT_PACK.walkthroughs + ' walkthroughs, valid ' + PACK_VALID_MONTHS + ' months. No payment is taken.';
+        FOUNDING_GRANT_PACK.walkthroughs + ' rooms, valid ' + PACK_VALID_MONTHS + ' months. No payment is taken.';
       if (typeof confirm !== 'function' || !confirm(question)) { grantResult.textContent = 'Left unchanged.'; return; }
       const version = listVersion;
       grantBusy = true; paintGrant();
@@ -763,13 +769,13 @@
       if (index >= 0) accounts[index] = merged;
       grantRef.value = ''; grantNote.value = '';
       paint(merged);
-      grantResult.textContent = 'Granted: ' + FOUNDING_GRANT_PACK.walkthroughs + ' walkthroughs. ' +
+      grantResult.textContent = 'Granted: ' + FOUNDING_GRANT_PACK.walkthroughs + ' rooms. ' +
         (FOUNDING_GRANTS_MAX - answer.grants_used) + ' of ' + FOUNDING_GRANTS_MAX + ' grants left.';
     });
     /*
-     * Referral walkthroughs, under the referred office's own row. The server
-     * grants them by itself when a referred office's plan first turns active: 1
-     * bonus walkthrough to it and 1 to the office that referred it, once per
+     * Referral rooms, under the referred office's own row. The server
+     * grants them by itself when a referred office's plan first turns active: 10
+     * bonus rooms to it and 10 to the office that referred it, once per
      * referred office. This is the fallback when that did not happen, and the way
      * to record a referring office named in writing (with an opaque reference).
      * studio_grant_referral_bonus answers why nothing was granted rather than
@@ -777,9 +783,9 @@
      * referral, a self or mutual referral and test workspaces. What was typed stays.
      */
     const referral = element('form', 'veylet-form studio-plan-form studio-referral-form');
-    const referralHeading = element('h3', undefined, 'Referral walkthroughs');
+    const referralHeading = element('h3', undefined, 'Referral rooms');
     const referralTerms = element('p', 'studio-warning', 'When a referred office first pays, the server grants ' + REFERRAL_WALKTHROUGHS +
-      ' bonus walkthrough to it and ' + REFERRAL_WALKTHROUGHS + ' to the office that referred it, once per referred office. Use this only when that grant did not happen, ' +
+      ' bonus rooms to it and ' + REFERRAL_WALKTHROUGHS + ' to the office that referred it, once per referred office. Use this only when that grant did not happen, ' +
       'or to record the referring office named in writing. Leave "Referred through its own link" when the office recorded its referrer from the link. ' +
       'Use an opaque reference, not a name, email or payment detail. No payment is taken.');
     const referralTermsRow = element('div', 'studio-form-row');
@@ -792,7 +798,7 @@
     const referralRef = document.createElement('input');
     referenceInput(referralRef); referralRef.name = 'referral_reference';
     referralRefLabel.append(referralRef);
-    const REFERRAL_ACTION = 'Grant ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough to each office';
+    const REFERRAL_ACTION = 'Grant ' + REFERRAL_WALKTHROUGHS + ' bonus rooms to each office';
     const referralSave = element('button', 'button', REFERRAL_ACTION); referralSave.type = 'submit';
     const referralResult = element('span', 'studio-result'); referralResult.setAttribute('role', 'status');
     const referralSaveRow = element('p', 'studio-save-row'); referralSaveRow.append(referralSave, referralResult);
@@ -846,16 +852,16 @@
         args.p_referrer_workspace_id = referrer.workspace_id;
         args.p_reference = reference;
         question = REFERRAL_ACTION + '? Records ' + (referrer.workspace_name || 'the named office') + ' as the office that referred ' + referred +
-          ' (reference ' + reference + '), then grants ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough to each once ' + referred +
+          ' (reference ' + reference + '), then grants ' + REFERRAL_WALKTHROUGHS + ' bonus rooms to each once ' + referred +
           ' has paid. Once per referred office; the server keeps an audit row. No payment is taken.';
       } else {
         question = REFERRAL_ACTION + '? ' + referred + ' and the office it recorded through its own link each get ' + REFERRAL_WALKTHROUGHS +
-          ' bonus walkthrough once ' + referred + ' has paid. Once per referred office; the server keeps an audit row. No payment is taken.';
+          ' bonus rooms once ' + referred + ' has paid. Once per referred office; the server keeps an audit row. No payment is taken.';
       }
       if (typeof confirm !== 'function' || !confirm(question)) { referralResult.textContent = 'Left unchanged.'; return; }
       const version = listVersion;
       referralBusy = true; paintReferral();
-      referralResult.textContent = 'Granting the referral walkthroughs…';
+      referralResult.textContent = 'Granting the referral rooms…';
       const reply = await settled(client.rpc('studio_grant_referral_bonus', args));
       if (version !== listVersion) return;
       referralBusy = false;
@@ -875,17 +881,17 @@
         const until = planDate(answer.expires_at);
         referralRef.value = ''; referrerSelect.value = OWN_LINK; paintReferral();
         referralResult.textContent = answer.referrer_granted
-          ? 'Granted: ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough each to ' + referred + ' and ' + referrerName + (until ? ', usable until ' + until : '') + '.'
-          : 'Granted: ' + REFERRAL_WALKTHROUGHS + ' bonus walkthrough to ' + referred + (until ? ', usable until ' + until : '') +
+          ? 'Granted: ' + REFERRAL_WALKTHROUGHS + ' bonus rooms each to ' + referred + ' and ' + referrerName + (until ? ', usable until ' + until : '') + '.'
+          : 'Granted: ' + REFERRAL_WALKTHROUGHS + ' bonus rooms to ' + referred + (until ? ', usable until ' + until : '') +
             '. The referring office received none: it no longer exists or is being deleted.';
         return;
       }
       referralResult.textContent = answer.reason === 'already_granted'
-        ? 'Already granted: ' + referred + "'s referral walkthroughs were granted before. Nothing new was added."
+        ? 'Already granted: ' + referred + "'s referral rooms were granted before. Nothing new was added."
         : answer.reason === 'not_paying'
           ? 'Not granted yet: ' + referred + ' has not paid. ' + (answer.referrer_workspace_id
-            ? 'Its referral by ' + referrerName + ' is recorded, and the walkthroughs are granted automatically when its plan first turns active.'
-            : 'The walkthroughs are granted automatically when its plan first turns active.')
+            ? 'Its referral by ' + referrerName + ' is recorded, and the rooms are granted automatically when its plan first turns active.'
+            : 'The rooms are granted automatically when its plan first turns active.')
           : answer.reason === 'no_referral'
             ? 'No referral is recorded for ' + referred + '. Choose the referring office and give a reference.'
             : 'Not granted' + (typeof answer.reason === 'string' && answer.reason ? ': ' + answer.reason.replace(/_/g, ' ') + '.' : '.');
@@ -917,7 +923,7 @@
       // A yearly pool has no monthly figure, and the list carries no pool counts.
       const pool = annualPoolRow(next);
       monthCount.textContent = pool ? DASH : countText(next.accepted_this_period) + ' / ' + countText(next.included_per_month);
-      monthRule.textContent = pool ? YEARLY_POOL + '-walkthrough yearly pool' : '';
+      monthRule.textContent = pool ? YEARLY_POOL + '-room yearly pool' : '';
       totalCell.textContent = countText(next.accepted_total);
       renewsCell.textContent = shortDate(next.current_period_ends_at) || shortDate(next.trial_ends_at) || DASH;
       renewCell.textContent = next.auto_renews === true ? 'yes' : next.auto_renews === false ? 'no' : DASH;
@@ -1158,7 +1164,7 @@
   /* ---- Hosted walkthroughs --------------------------------------------
    * Released walkthroughs and whether a plan keeps them live, those without an
    * active plan first. Offer 2026-09-26.2: a walkthrough is live while its
-   * office has an active plan (free months, monthly or annual); when the plan
+   * office has an active plan (free months, monthly or yearly); when the plan
    * ends its links, embeds and QR codes stay up 14 days, then go offline, and
    * restarting the plan brings the same links back. After that, only a paid
    * hosting extension (on request, invoiced) keeps that one walkthrough online,
@@ -1193,7 +1199,7 @@
       return local.getUTCDate() + ' ' + HOSTED_MONTHS[local.getUTCMonth()] + ' ' + local.getUTCFullYear();
     }
   }
-  // Without an active plan (free months, monthly or annual) a walkthrough goes
+  // Without an active plan (free months, monthly or yearly) a walkthrough goes
   // offline 14 days after the plan ends.
   function hostedDue(row) {
     return !['trial', 'active'].includes(row.plan_status);
@@ -1883,7 +1889,7 @@
   // The redo is a correction of the account's first accepted walkthrough, once per
   // account; the server refuses it for any other walkthrough or a second time.
   const CORRECTION_REASONS = { defect: 'Studio defect', requested_change: 'Requested change', first_walkthrough_redo: 'First-walkthrough redo (our promise)' };
-  const REDO_NOTE = 'First-walkthrough redo: only for the account’s first accepted walkthrough, once per account. It uses no walkthrough and keeps the same link; a new capture visit is not included.';
+  const REDO_NOTE = 'First-walkthrough redo: only for the account’s first accepted walkthrough, once per account. It uses no rooms and keeps the same link; a new capture visit is not included.';
   const CORRECTION_LIST = 'studio-correction-walkthroughs';
   let correctionOptions = null;
   // Bumped when the form is rebuilt or the desk signs out, so a late answer writes nowhere.
@@ -2000,8 +2006,8 @@
       const walkthrough = 'walkthrough ' + answer.walkthrough_id.slice(0, 8);
       const said = (answer.recorded === false ? 'Already recorded: ' : 'Recorded: ') + 'package ' + tourID.slice(0, 8) + ' is version ' +
         answer.revision + ' of ' + walkthrough + (answer.reason === 'first_walkthrough_redo' ? ', the account’s free first-walkthrough redo' : '') + '. ' + (answer.walkthrough_accepted === true
-          ? 'Approving it uses no walkthrough from the account’s allowance.'
-          : 'That walkthrough has not been accepted yet, so its first approval uses one walkthrough.');
+          ? 'Approving it uses no rooms from the account’s allowance.'
+          : 'That walkthrough has not been accepted yet, so its first approval uses its counted rooms.');
       result.textContent = said; setStatus(said);
       packageInput.value = ''; walkInput.value = ''; refInput.value = '';
       for (const input of radios) input.checked = false;
@@ -2062,7 +2068,7 @@
     const refLabel = element('label', 'studio-inline-field', 'Ticket or estimate reference');
     const refInput = document.createElement('input'); referenceInput(refInput); refInput.required = true; refInput.name = 'reference';
     refLabel.append(refInput);
-    const note = element('p', 'studio-field-note', 'For an older listing declared under the retired large-home rule only. One new accepted capture now uses one walkthrough regardless of room count. Correcting this historical declaration does not rewrite accepted usage. The server keeps the declared facts, the previous ones and an audit row. Use an opaque reference, not a name, email or address. Nothing is charged.');
+    const note = element('p', 'studio-field-note', 'For an older listing declared under the retired large-home rule only. From offer 2026-11-11.1 a tour uses the rooms counted in it. Correcting this historical declaration does not rewrite accepted usage. The server keeps the declared facts, the previous ones and an audit row. Use an opaque reference, not a name, email or address. Nothing is charged.');
     const noteRow = element('div', 'studio-form-row'); noteRow.append(note);
     const HOME_ACTION = 'Correct the declared large home (older listing)';
     const save = element('button', 'button', HOME_ACTION); save.type = 'submit';

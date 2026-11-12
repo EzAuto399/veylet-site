@@ -3,7 +3,7 @@
  * The help centre's single source. Every article is written once here and rendered twice:
  *
  * - /help/<slug>      public, indexable, with a canonical URL, a description and JSON-LD;
- * - /app/help/<slug>  the same words for the Veylet Capture app: noindex, no marketing
+ * - /app/help/<slug>  the same words for the Veylet app: noindex, no marketing
  *                     navigation, links only to /app pages, no price, pack or way to buy
  *                     (scripts/check-app-pages.mjs; App Store Guideline 3.1.1).
  *
@@ -31,7 +31,7 @@ const SUPPORT = 'support@veylet.com';
 const RECAPTURE_RULES = ['no_frames', 'no_depth', 'upload_limits', 'phone_budget', 'not_property'];
 const FLAG_RULES = ['photo_match', 'coverage', 'few_views', 'floaters', 'no_floor', 'not_connected', 'ai_visual'];
 const FLAG_ARTICLE = 'fix/worth-a-look';
-const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no walkthrough. A later accepted new capture uses one. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough. A partial named-room recapture is not a waiver.';
+const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
 
 const GROUPS = [
   { id: 'getting-started', title: 'Getting started', summary: 'The device you need, signing in, and the practice room.' },
@@ -55,8 +55,8 @@ const ARTICLES = [
   // ---- Getting started ------------------------------------------------------------------
   {
     slug: 'what-you-need', group: 'getting-started', title: 'What you need to start', short: 'What you need',
-    description: 'The iPhone or iPad Veylet Capture needs, how much free space to keep, and what to have ready before your first capture.',
-    lead: 'Veylet Capture records rooms with the LiDAR camera on a Pro iPhone or iPad. Check these before your first capture.',
+    description: 'The iPhone or iPad the Veylet app needs, how much free space to keep, and what to have ready before your first capture.',
+    lead: 'The Veylet app records rooms with the LiDAR camera on a Pro iPhone or iPad. Check these before your first capture.',
     body: [{ steps: [
       '**A LiDAR device:** an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.',
       '**Free space:** keep at least 3 GB free. A capture cannot start with less than 2 GB.',
@@ -71,10 +71,10 @@ const ARTICLES = [
   },
   {
     slug: 'install-and-sign-in', group: 'getting-started', title: 'Install the app and sign in', short: 'Install and sign in',
-    description: 'Install Veylet Capture from your invitation, then sign in with Apple or email using the same account as the website.',
+    description: 'Install the Veylet app from your invitation, then sign in with Apple or email using the same account as the website.',
     lead: 'Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.',
     body: [{ steps: [
-      'Install **Veylet Capture** on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.',
+      'Install **the Veylet app** on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.',
       'Open it and read how it works. Choose **Sign in with Apple**, or **Use email instead** and enter the email you use on the website. Your first sign-in creates your account.',
       'For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.',
       'After signing in, start with the practice room from Captures before your first real capture.',
@@ -228,12 +228,12 @@ const ARTICLES = [
       ['Rendering', 'Five steps: 1 Preparing photos, 2 Lining up camera positions, 3 Building your 3D walkthrough, 4 Packing it for phones, 5 Checking quality. Step 5 is an automatic check of the finished walkthrough.'],
       ['Retrying', 'Rendering hit a snag, so it is trying again automatically (attempt 2 of 2). Nothing to do.'],
       ['Needs recapture', 'A room could not be used. Each room shows its reason and the fix. ' + RECAPTURE_ALLOWANCE_WORDS + ' See [fixing a capture](help#fixing).'],
-      ['Failed', 'Something went wrong on Veylet’s side. Veylet support has been told, and nothing was used.'],
+      ['Failed', 'Rendering could not finish and no walkthrough was used. Contact Veylet support.'],
     ] }, { paras: [
       'When it passes, the listing reads **Ready for your review**. See [approve and share](help:approve-and-share).',
     ] }],
     notWorking: [
-      '**Still working, checking in** means the renderer has not reported for a few minutes. Veylet support has been alerted; there is nothing for you to do.',
+      '**Still working, checking in** means the renderer has not reported for a few minutes. Check again later, or contact Veylet support.',
       'If a render has waited much longer than its usual start time with no hold shown, email Veylet support with the listing’s name as it appears in the app.',
     ],
   },
@@ -262,7 +262,7 @@ const ARTICLES = [
     body: [{ steps: [
       'Check the device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. In the app, **Account** says "Ready to capture" on a device that can record.',
       'Make sure nothing covers the rear cameras or the LiDAR sensor beside them: no case edge, finger or dirt.',
-      'Capture the room again with Veylet Capture, then send it.',
+      'Capture the room again with the Veylet app, then send it.',
     ] }],
     notWorking: [
       'If Account says the device has no rear LiDAR camera, that device cannot record a capture. See [what you need](help:what-you-need).',
@@ -379,34 +379,34 @@ const ARTICLES = [
     ],
   },
   {
-    slug: 'share-your-walkthrough', group: 'sharing', title: 'Share your walkthrough: link, QR code, embed and listing URL', short: 'Share your walkthrough', pageTitle: 'Share a walkthrough: link, QR code, embed',
-    description: 'Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the listing URL for portals and your CRM.',
+    slug: 'share-your-walkthrough', group: 'sharing', title: 'Share your walkthrough: link, QR code, embed and portal link', short: 'Share your walkthrough', pageTitle: 'Share a walkthrough: link, QR code, embed',
+    description: 'Ways to share a live walkthrough: the link, a QR code for print, the embed code for your website, and the link for portals and your CRM.',
     lead: 'A live walkthrough has one link and four ways to hand it out. Use the one that suits where your client will see it.',
     body: [{ terms: [
       ['Share or Copy link', 'Sends the link by Messages, Mail, AirDrop or any app. Anyone with it can open or forward the walkthrough.'],
-      ['QR code', '**Show QR code** for someone beside you to scan. In your account, **Download QR code (PNG)** for a window card or brochure.'],
+      ['QR code', 'Open **QR code** for someone beside you to scan. In your account, **Download QR code (PNG)** for a window card or brochure.'],
       ['Embed code', '**Copy embed code** and paste it into your website’s custom HTML block. See [put it on your website](help:website).'],
-      ['Listing URL (portals, CRM)', 'In [your Veylet account](account), **Copy listing URL (portals, CRM)** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
+      ['Link for portals and CRM', 'In [your Veylet account](account), open **Website**, then **Copy link for portals and CRM** and paste it into a portal’s virtual tour field or your CRM. It shows the walkthrough only: no contact card, links or QR code.'],
     ] }, { paras: [
       '**Open as your client** shows the page exactly as the person you send it to will see it.',
-      'While your plan is active, use the link anywhere: embed it on any website, add the listing URL to portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
+      'While your plan is active, use the link anywhere: embed it on any website, use the link for portals and CRM in portals and your CRM. Once video exports open, you can also make listing videos for realestate.com.au and social media; listing videos and stills are included in the plan once exports open, and files you download are yours to keep.',
     ] }],
     notWorking: [
-      'Listing portals do not accept the embed code. Use the listing URL there instead.',
+      'Listing portals do not accept the embed code. Use the link for portals and CRM there instead.',
       'If a link shows "not available", sharing is paused or turned off. See [pause or turn off sharing](help:pause-or-turn-off).',
     ],
   },
   {
     slug: 'pause-or-turn-off', group: 'sharing', title: 'Pause or turn off sharing', short: 'Pause or turn off',
     description: 'The difference between pausing sharing, which keeps the same link, and turning it off, which ends the link for good.',
-    lead: 'Pause keeps the same link for later. Turn off ends the link for good. Both are under **Manage sharing** on the walkthrough’s card in your account.',
+    lead: 'Pause keeps the same link for later. Turn off ends the link for good. Both are under **Manage** on the walkthrough’s card in your account.',
     body: [{ terms: [
       ['Pause sharing', 'Within a minute, the link, embed and QR code show "not available". The link stays the same, so printed QR codes work again when you resume.'],
       ['Resume sharing', 'Within a minute, the same link, embed and QR code open the walkthrough again.'],
       ['Turn off sharing', 'Stops the link, its embed and any printed QR code for good. You confirm it first. Turning sharing back on makes a new link, and copies someone already downloaded cannot be recalled.'],
     ] }, { steps: [
       'Open [your Veylet account](account) and find the walkthrough’s card.',
-      'Open **Manage sharing**.',
+      'Open **More**, then **Manage**. If the card has no More, **Manage** is on the card itself.',
       'Choose **Pause sharing** for a break, or **Turn off sharing** to end the link.',
     ] }],
     notWorking: [
@@ -420,18 +420,18 @@ const ARTICLES = [
     lead: 'Your client opens a page with the listing’s name, the walkthrough and your contact card. They never need an account or an app.',
     body: [{ title: 'The page', list: [
       'The walkthrough, with a short line: "Captured on site with an iPhone. Not to scale."',
-      'Moving around: drag to look, tap the floor or a numbered circle to walk, and use the arrows to go room to room.',
+      'Moving around: drag to look around, and tap a numbered circle, or Next stop, to move.',
       'Your contact card, with **Call** and **Email** buttons that reach you directly.',
       'A **Share** button, so they can forward it to a partner.',
     ] }, { title: 'Your contact card', paras: [
       'In [your Veylet account](account), under **What your clients see**, enter your name, agency, phone and email, and turn on **Show on shared walkthroughs**. Only what you enter is shown.',
     ] }, { title: 'Views and taps', paras: [
-      'Each live walkthrough’s card in your account shows how often it was opened, for example "Opened 3 times", when it was last opened, and how many times people tapped Call and Email. "Not opened yet." means no one has opened it.',
+      'Each live walkthrough’s card in your account shows how often it was opened, how many times people tapped Call and Email, and when it was last opened, on one line: for example "14 opens · 3 calls · 1 email · last 9 Nov 2026". "Not opened yet." means no one has opened it.',
     ] }],
     notWorking: [
       'If your client sees "This walkthrough isn’t available right now", sharing is paused or off. See [pause or turn off sharing](help:pause-or-turn-off).',
       '"This link looks incomplete" means part of the link was lost when it was copied. Send it again.',
-      'The listing URL for portals never shows your contact card.',
+      'The link for portals and CRM never shows your contact card.',
     ],
   },
   {
@@ -449,7 +449,7 @@ const ARTICLES = [
     notWorking: [
       'Blank or cut off? Check the element is at least 320 pixels tall, and check the published page on a phone.',
       'Shows "not available"? Sharing is paused or turned off for that walkthrough.',
-      'Listing portals do not accept the embed code. Use the listing URL: see [share your walkthrough](help:share-your-walkthrough).',
+      'Listing portals do not accept the embed code. Use the link for portals and CRM: see [share your walkthrough](help:share-your-walkthrough).',
     ],
   },
 
@@ -483,7 +483,7 @@ const ARTICLES = [
       ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
-      'One accepted capture uses one walkthrough, regardless of room count. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
+      'A tour uses the rooms counted in it when it passes the check and you approve it; the [terms](terms) say how rooms are counted. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no rooms. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',
       'Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.',
       'See your plan in the app, under Account. If you subscribed through the App Store, manage or cancel it in your iPhone’s Settings, under your name and then Subscriptions.',
     ] }, {
@@ -553,6 +553,12 @@ function block(section, edition, level = 'h2') {
   return `<section${labelled}>${parts.join('')}</section>`;
 }
 
+function fontPreloads() {
+  const css = fs.readFileSync(path.join(DIST, 'style.css'), 'utf8');
+  return [...css.matchAll(/url\("(media\/Outfit-\d+\.woff2\?v=[0-9a-f]+)"\)/g)]
+    .map(match => `<link rel="preload" href="/${match[1]}" as="font" type="font/woff2" crossorigin>`).join('');
+}
+
 function stylesheets(prefix = '') {
   const version = file => assetHash(fs.readFileSync(path.join(DIST, file)));
   return ['style.css', 'guides.css', 'help/help.css'].map(file => `${prefix}<link rel="stylesheet" href="/${file}?v=${version(file)}">`).join('\n');
@@ -564,22 +570,23 @@ function mailto(subject) {
 
 function header(edition) {
   if (edition === 'app') return '<header class="wrap app-header"><span class="brand"><span class="portal" aria-hidden="true"></span>VEYLET</span></header>';
-  return '<header class="wrap"><a class="brand" href="/" aria-label="Veylet Studio home"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a>'
-    + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
+  return '<header class="wrap"><a class="brand" href="/" aria-label="Veylet home"><span class="portal" aria-hidden="true"></span>VEYLET</a>'
+    + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" data-analytics-cta="see" data-analytics-placement="header">See a result</a>'
+    + '<a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
 }
 
-// The index pages alone link to the service status page (/status, /app/status), from their footers.
-// The public index alone may link to /offer, and only from its footer.
+// The app index alone links to its service status page (/app/status), from its footer.
+// Public pages share the site's one header and footer; app pages carry no sales link.
 function footer(edition, index = false) {
   if (edition === 'app') {
     const status = index ? '<a href="/app/status">Service status</a>' : '';
     return '<footer class="wrap app-footer"><nav aria-label="Account and help"><a href="/app/account">Account</a><a href="/app/help">Help</a>'
       + `<a href="/app/support">Support</a>${status}<a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav></footer>`;
   }
-  const offer = index ? '<a href="/offer">Offer</a>' : '';
-  const status = index ? '<a href="/status">Service status</a>' : '';
-  return '<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET STUDIO</a><p>Spaces people can understand.</p>'
-    + `<nav aria-label="Footer"><a href="/help">Help</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a>${offer}<a href="/support">Support</a>${status}<a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>`
+  // One footer on every public page, in one order (tests/site-chrome.test.cjs).
+  return '<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p>'
+    + '<nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a>'
+    + '<a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>'
     + '<span>© 2026 Veylet Studio</span></footer>';
 }
 
@@ -603,12 +610,15 @@ function head({ title, description, canonical, edition, jsonLd, extra = '', card
   if (edition === 'app') lines.push('<meta name="robots" content="noindex,nofollow">');
   else {
     lines.push(`<link rel="canonical" href="${canonical}">`,
-      '<meta property="og:type" content="article">', '<meta property="og:site_name" content="Veylet Studio">', '<meta property="og:locale" content="en_AU">',
+      '<meta property="og:type" content="article">', '<meta property="og:site_name" content="Veylet">', '<meta property="og:locale" content="en_AU">',
       `<meta property="og:title" content="${escape(title)}">`, `<meta property="og:description" content="${escape(description)}">`,
       `<meta property="og:url" content="${canonical}">`, ...shareImage(card),
       '<meta name="twitter:card" content="summary_large_image">');
   }
-  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/favicon.svg" type="image/svg+xml"><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/media/apple-touch-icon.png">', stylesheets());
+  lines.push('<meta name="theme-color" content="#10231d">', '<link rel="icon" href="/media/favicon.svg" type="image/svg+xml"><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png"><link rel="apple-touch-icon" href="/media/apple-touch-icon.png">');
+  // Public pages fetch both weights with the HTML, at the same versioned URL style.css names (one cached copy).
+  if (edition === 'public') lines.push(fontPreloads());
+  lines.push(stylesheets());
   if (extra) lines.push(extra);
   if (jsonLd) lines.push('<script type="application/ld+json">\n' + JSON.stringify(jsonLd, null, 2) + '\n</script>');
   // Cookieless page counts on the public edition only (dist/insights.js); never in the app edition.
@@ -640,7 +650,7 @@ function renderArticle(article, edition) {
   const siblings = ARTICLES.filter(other => other.group === article.group && other.slug !== article.slug);
   const subject = 'Veylet help: ' + plain(article.short);
   const body = [
-    `<body class="help-page">`,
+    `<body class="${edition === 'app' ? '' : 'site '}help-page">`,
     '<a class="skip" href="#main">Skip to content</a>',
     header(edition),
     '<main id="main" class="wrap article-page help-article">',
@@ -669,7 +679,7 @@ function renderArticle(article, edition) {
 function renderIndex(edition) {
   const base = EDITIONS[edition].base;
   const canonical = `${ORIGIN}/help`;
-  const description = 'Short, plain answers for Veylet Capture: getting started, capturing rooms, sending, fixing a capture, sharing your walkthrough, privacy and your account.';
+  const description = 'Short, plain answers for the Veylet app: getting started, capturing rooms, sending, fixing a capture, sharing your walkthrough, privacy and your account.';
   const jsonLd = edition === 'public' ? {
     '@context': 'https://schema.org',
     '@graph': [{ '@type': 'CollectionPage', '@id': canonical + '#collection', url: canonical, name: 'Veylet help centre', description, inLanguage: 'en-AU',
@@ -684,7 +694,7 @@ function renderIndex(edition) {
       + '</ul></section>';
   }).join('\n');
   const body = [
-    '<body class="help-page help-index">',
+    `<body class="${edition === 'app' ? '' : 'site '}help-page help-index">`,
     '<a class="skip" href="#main">Skip to content</a>',
     header(edition),
     '<main id="main" class="wrap article-page">',
@@ -700,7 +710,7 @@ function renderIndex(edition) {
     '</body>',
     '</html>',
   ];
-  const card = { name: 'help', alt: 'Veylet Studio help centre: Capture, send, share. Short answers for each step of Veylet Capture.' };
+  const card = { name: 'help', alt: 'Veylet Studio help centre: Capture, send, share. Short answers for each step of the Veylet app.' };
   return head({ title: edition === 'public' ? 'Help centre — Veylet' : 'Help — Veylet', description, canonical, edition, jsonLd, card }) + '\n' + body.join('\n') + '\n';
 }
 

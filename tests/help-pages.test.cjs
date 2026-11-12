@@ -1,6 +1,6 @@
 /*
  * The help centre: /help (public, indexable) and /app/help (the same articles for the
- * Veylet Capture app: noindex, price-free, links only to /app pages). Both are rendered
+ * Veylet app: noindex, price-free, links only to /app pages). Both are rendered
  * from tests/help-articles.cjs; these tests hold dist to that source, run the app-page
  * checker over /app/help, and keep the words, rule ids and links in step with the desk.
  */
@@ -79,9 +79,10 @@ test('D1 practice is required once, preserves saved success and does not block s
 test('your-plan mirrors the accepted capture allowance and says exports are not open yet', () => {
   for (const file of ['help/your-plan/index.html', 'app/help/your-plan/index.html']) {
     const words = text(main(read(file)));
-    assert.match(words, /One accepted capture uses one walkthrough, regardless of room count\./, file);
+    assert.match(words, /A tour uses the rooms counted in it when it passes the check and you approve it; the terms say how rooms are counted\./, file);
+    assert.doesNotMatch(words, /uses one walkthrough|regardless of room count/, file);
     assert.match(words, /if all rooms do not fit, make more captures\. Each additional capture is another walkthrough with its own link and QR code\./, file);
-    assert.match(words, /permitted whole recapture containing every original room, replaces it on the same link and uses no extra walkthrough\./, file);
+    assert.match(words, /permitted whole recapture containing every original room, replaces it on the same link and uses no rooms\./, file);
     assert.match(words, /A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver\./, file);
     assert.doesNotMatch(words, /up to 8 rooms|each further 8 rooms|recapture of the rooms the quality check names, uses none/i, file);
     assert.match(words, /Listing videos and stills are included in your plan once exports open\. Exports are not open yet\./, file);
@@ -90,7 +91,7 @@ test('your-plan mirrors the accepted capture allowance and says exports are not 
 });
 
 test('render-status and every blocking-fix page state the bounded recapture allowance', () => {
-  const allowance = /This failed attempt uses no walkthrough\. A later accepted new capture uses one\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no extra walkthrough\. A partial named-room recapture is not a waiver\./;
+  const allowance = /This failed attempt uses no rooms\. A later accepted new capture uses its counted rooms\. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms\. A partial named-room recapture is not a waiver\./;
   const slugs = ['render-status', ...help.RECAPTURE_RULES.map(rule => `fix/${rule}`)];
   for (const base of ['help', 'app/help']) {
     for (const slug of slugs) {
@@ -234,11 +235,12 @@ test('the index lists every article once, in at most seven groups, and each brea
   }
 });
 
-test('only the public index links to /offer, and only from its footer', () => {
+test('public help pages link to /offer only from the shared header and footer; app pages never do', () => {
   for (const page of pages) {
     const offers = hrefs(page.html).filter(link => /\/offer\b/.test(link));
-    if (page.edition === 'public' && page.kind === 'index') {
-      assert.deepEqual(offers, ['/offer'], page.file);
+    if (page.edition === 'public' && page.kind !== 'redirect' && /<footer\b/.test(page.html)) {
+      assert.deepEqual(offers, ['/offer', '/offer'], page.file);
+      assert.ok(/<header class="wrap">[\s\S]*?href="\/offer"[\s\S]*?<\/header>/.test(page.html), page.file);
       assert.ok(/<footer\b[\s\S]*href="\/offer"[\s\S]*<\/footer>/.test(page.html) && !main(page.html).includes('/offer'), page.file);
     } else {
       assert.deepEqual(offers, [], page.file);

@@ -363,7 +363,7 @@ test('/status is public and indexable: title, description, canonical, site heade
   assert.match(html, /<meta property="og:url" content="https:\/\/veylet\.com\/status">/);
   assert.match(html, /<nav aria-label="Main">[\s\S]*?href="\/help"[\s\S]*?href="\/account"/);
   const footer = html.match(/<footer[\s\S]*?<\/footer>/)[0];
-  assert.deepEqual(hrefs(footer), ['/', '/help', '/website-guide', '/guides', '/offer', '/support', '/privacy', '/terms']);
+  assert.deepEqual(hrefs(footer), ['/', '/offer', '/start', '/see', '/help', '/guides', '/website-guide', '/support', '/status', '/privacy', '/terms']);
   assert.match(read('sitemap.xml'), /<url><loc>https:\/\/veylet\.com\/status<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/);
   const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
   assert.equal(locs.filter(loc => loc === 'https://veylet.com/status').length, 1);
@@ -397,14 +397,12 @@ test('the app checker reads the status script: a price or purchase word in it fa
   for (const expected of ['status.js (script) A$', 'status.js (script) pack']) assert.ok(said.includes(expected), expected + ' in ' + said.join(', '));
 });
 
-test('only the two help indexes link to the status page, each to its own edition, from the footer', () => {
-  const linking = help.pages().filter(entry => /href="\/(app\/)?status"/.test(entry.html)).map(entry => entry.file).sort();
-  assert.deepEqual(linking, ['app/help/index.html', 'help/index.html']);
-  for (const [file, target] of [['help/index.html', '/status'], ['app/help/index.html', '/app/status']]) {
-    const html = read(file);
-    const footer = html.match(/<footer[\s\S]*?<\/footer>/)[0];
-    assert.ok(hrefs(footer).includes(target), file + ' footer links to ' + target);
-    assert.equal(hrefs(html).filter(link => /\/status$/.test(link)).length, 1, file + ' links once');
-    assert.equal(hrefs(html.replace(footer, '')).some(link => /\/status$/.test(link)), false, file + ': only from the footer');
+test('every public help page links to /status once, from the shared footer; in the app only the help index does', () => {
+  for (const entry of help.pages()) {
+    const footer = (entry.html.match(/<footer[\s\S]*?<\/footer>/) || [''])[0];
+    const links = hrefs(entry.html).filter(link => /\/status$/.test(link));
+    const expected = !footer ? [] : entry.edition === 'app' ? (entry.file === 'app/help/index.html' ? ['/app/status'] : []) : ['/status'];
+    assert.deepEqual(links, expected, entry.file);
+    assert.equal(hrefs(entry.html.replace(footer, '')).some(link => /\/status$/.test(link)), false, entry.file + ': only from the footer');
   }
 });

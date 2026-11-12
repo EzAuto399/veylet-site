@@ -390,3 +390,34 @@ test('an account switch while Apple’s window is open links nothing to the new 
     assert.doesNotMatch(h.ids['account-methods-status'].textContent, /linked\./);
   }
 });
+
+test('website sign-in: Apple sits under the lead paragraph and is the one filled action; email is the quiet way in', () => {
+  const html = PAGES.web;
+  const main = html.slice(html.indexOf('<main'), html.indexOf('<section id="account-home"'));
+  const intro = main.indexOf('id="account-intro"'), apple = main.indexOf('id="account-apple"');
+  // Only the hidden loading line and the noscript fallback may sit between the lead and Apple.
+  const between = main.slice(intro, apple).replace(/<noscript>[\s\S]*?<\/noscript>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  assert.doesNotMatch(between, /account-access-note|account-referred|account-status|sign-in-or/, 'no note between the lead paragraph and Apple');
+  for (const id of ['account-status', 'account-referred', 'account-access-note']) {
+    assert.ok(main.indexOf('id="' + id + '"') > main.indexOf('<form id="account-verify"'), id + ' follows the forms');
+  }
+  assert.match(main, /<p id="account-status" class="contact-note" role="status"><\/p>/, 'the status stays announced');
+  assert.match(main, /<p class="contact-note" id="account-access-note" data-launch-account>/, 'dist/stage.js still finds the access note');
+  const form = html.match(/<form id="account-sign-in"[\s\S]*?<\/form>/)[0];
+  assert.match(form, /<button class="button button-ghost" type="submit" id="account-sign-in-submit">\s*Email me a sign-in link/);
+  assert.equal((form.match(/class="button"/g) || []).length, 0, 'no filled .button beside Apple');
+  // Who you are: a closed disclosure holding both radios, owner by default.
+  const role = form.match(/<details class="role-intent" id="account-role-intent">\s*<summary>I capture spaces for clients<\/summary>([\s\S]*?)<\/details>/);
+  assert.ok(role, 'role choice sits in a closed <details>');
+  assert.match(role[1], /<input type="radio" name="role_intent" value="owner" checked \/>/);
+  assert.match(role[1], /<input type="radio" name="role_intent" value="operator" \/>/);
+  assert.doesNotMatch(form.replace(role[0], '').replace(/<!--[\s\S]*?-->/g, ''), /role_intent/, 'no role field outside the disclosure');
+});
+
+test('website code step: one filled action and two sentences that keep the facts', () => {
+  const verify = PAGES.web.match(/<form id="account-verify"[\s\S]*?<\/form>/)[0];
+  assert.equal((verify.match(/class="button"/g) || []).length, 1, 'one filled button');
+  assert.match(verify, /<button class="button" type="submit">Sign in with code<\/button>/);
+  const note = verify.match(/<p class="contact-note">([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  assert.equal(note, 'We sent a link and a six-digit code to . Open the link on this device or type the code below; both expire and work once.');
+});

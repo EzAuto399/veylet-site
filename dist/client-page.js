@@ -32,12 +32,50 @@
     return number ? 'tel:' + number : '';
   }
 
-  function mailtoHref(email, title) {
+  /** `where` (optional): the stop the visitor is on, so the agent knows which room they mean. */
+  function mailtoHref(email, title, where) {
     const address = clean(email, 254);
     if (!EMAIL.test(address)) return '';
     const at = address.lastIndexOf('@');
     const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
-    return 'mailto:' + encoded + '?subject=' + encodeURIComponent('Walkthrough: ' + (title || 'Shared space'));
+    const subject = '?subject=' + encodeURIComponent('Walkthrough: ' + (title || 'Shared space'));
+    if (!where || !where.url) return 'mailto:' + encoded + subject;
+    const body = 'I’m at stop ' + where.number + ' of ' + where.count + ' in the walkthrough.\n' + where.url + '\n\n';
+    return 'mailto:' + encoded + subject + '&body=' + encodeURIComponent(body);
+  }
+
+  // Where the visitor is in the walkthrough, once the player has said so (visitLink): the page's
+  // address, Share and the Email to the agent all point at that stop. One page, one visit.
+  let place = null;
+  function stopFromHash(hash) {
+    const match = /^#stop=(\d{1,2})$/.exec(hash || '');
+    const number = match ? Number(match[1]) : 0;
+    return number >= 1 ? number : null;
+  }
+
+  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
+  function bookingHref(url) {
+    const raw = clean(url, 240);
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
+  function viewingRequestHref(email, title, agentName) {
+    const address = clean(email, 254);
+    if (!EMAIL.test(address)) return '';
+    const at = address.lastIndexOf('@');
+    const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
+    const space = title || 'Shared space';
+    const greeting = agentName ? 'Hi ' + agentName + ',' : 'Hello,';
+    const subject = 'Book a viewing: ' + space;
+    const body = greeting + '\n\nI just explored the 3D walkthrough of ' + space + ' and would like to arrange an inspection.\n\nPreferred day / time:\nMy phone number:\n';
+    return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   }
 
   /** The one row the server answers, or null unless it names someone reachable. */
@@ -48,7 +86,16 @@
     const phone = dialable(row.phone) ? clean(row.phone, 32) : '';
     const email = EMAIL.test(clean(row.email, 254)) ? clean(row.email, 254) : '';
     if (!name || (!phone && !email)) return null;
-    return { name, agency: clean(row.agency, 80), phone, email };
+    const bookingUrl = bookingHref(row.booking_url);
+    const allowViewingRequest = row.allow_viewing_request === true;
+    return {
+      name,
+      agency: clean(row.agency, 80),
+      phone,
+      email,
+      ...(bookingUrl ? { bookingUrl } : {}),
+      ...(allowViewingRequest ? { allowViewingRequest: true } : {}),
+    };
   }
 
   function withTimeout(promise, ms) {
@@ -115,9 +162,61 @@
    * keepalive, which survives the page as sendBeacon would and can carry the
    * service's key headers, which sendBeacon cannot. A backend without the
    * function (PGRST202, or a 404) turns the beacon off for the rest of the visit.
+   *
+   * Walkthrough insights (10 Nov 2026): which stops were stood on and, roughly,
+   * which way people looked there. Each page load makes one random "visit"
+   * token (crypto.getRandomValues, 32 hex), held in memory only: no cookie, no
+   * local or session storage, gone with the page, so two loads by one person
+   * are two visits and nothing ties a visit to anyone. Details:
+   *   open         {visit}
+   *   first_frame  <seconds>          a bare number, unchanged, with no visit
+   *   room         {visit, room}
+   *   dwell        {visit, seconds}
+   *   stop         {visit, stop: 0..63, room: text up to 60 chars | null}   on arrival at a stop
+   *   (stop and look are kept by the database only in exactly these keys, as whole numbers.)
+   *   look         {visit, stop, ms: 1..600000, bins: {"<yaw>_<pitch>": ms}} once per stop visit,
+   *                sent on arrival at a different stop, or on pagehide (keepalive)
+   * Look bins. The player's view() gives degrees in the tour package's own frame
+   * (right-handed, Y up): yaw 0 looks along -Z, and yaw grows turning LEFT
+   * (anticlockwise seen from above), so 90 looks along -X, 180 along +Z, 270
+   * along +X. Yaw bin k (0..11) is 30k <= yaw < 30k + 30. Pitch bin 0 is down
+   * (below -15 degrees), 1 is level (-15..+15 inclusive), 2 is up (above +15).
+   * At most 36 keys; a bin with no time is left out; the bins add up to ms.
+   * The view is read about twice a second, only while the page is visible and
+   * the player has drawn a 3D frame; a hidden page is not sampled at all.
    */
   const VIEW_FUNCTION = 'record_tour_view';
-  const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell'];
+  const VIEW_KINDS = ['open', 'first_frame', 'room', 'call_tap', 'email_tap', 'share_tap', 'dwell', 'stop', 'look'];
+  // The two kinds an older backend refuses: the first refusal stops them for the visit, and the rest carry on.
+  const INSIGHT_KINDS = ['stop', 'look'];
+  const LOOK_SAMPLE_MS = 500;
+  const LOOK_CAP_MS = 600000;
+  const STOP_LIMIT = 63;
+  // Per visit: at most this many stop events and this many look events, however long someone wanders.
+  const INSIGHT_EVENT_CAP = 32;
+  const ROOM_NAME_MAX = 60;
+
+  /** A random 32-hex visit token for this page load, or null where the browser has no CSPRNG (never Math.random). */
+  function visitToken(source) {
+    try {
+      const random = source || (typeof crypto !== 'undefined' ? crypto : null);
+      if (!random || typeof random.getRandomValues !== 'function') return null;
+      const bytes = random.getRandomValues(new Uint8Array(16));
+      let hex = '';
+      for (let i = 0; i < 16; i++) hex += (bytes[i] & 255).toString(16).padStart(2, '0');
+      return /^[0-9a-f]{32}$/.test(hex) ? hex : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** "<yaw 0..11>_<pitch 0..2>" for a look direction in degrees (see the note above), or null for anything unusable. */
+  function lookBin(yaw, pitch) {
+    if (typeof yaw !== 'number' || typeof pitch !== 'number' || !Number.isFinite(yaw) || !Number.isFinite(pitch)) return null;
+    const turn = ((yaw % 360) + 360) % 360;
+    const sector = Math.min(11, Math.floor(turn / 30));
+    return sector + '_' + (pitch < -15 ? 0 : pitch > 15 ? 2 : 1);
+  }
   const VIEW_ONCE = ['open', 'first_frame', 'dwell'];
   const VIEW_SOURCES = ['link', 'qr', 'embed', 'video', 'portal', 'unknown'];
   const DWELL_CAP_SECONDS = 3600;
@@ -152,15 +251,23 @@
     let off = !cfg.url || !cfg.anonKey || !request || typeof token !== 'string' || token.length < 16;
     const endpoint = off ? '' : String(cfg.url).replace(/\/+$/, '') + '/rest/v1/rpc/' + VIEW_FUNCTION;
     const said = new Set();
+    const roomsSeen = new Set();
     let openedAt = null, openedMark = null;
+    const visit = visitToken(options.crypto);
+    let insightsOff = !visit;
+    let standing = null, lastSample = null, sampler = null, stopsSent = 0, looksSent = 0;
+    /** The visit token beside whatever else the event says; without a token, just the rest (or nothing). */
+    const withVisit = fields => (visit ? { visit, ...fields } : fields && Object.keys(fields).length ? fields : null);
 
-    function send(kind, detail) {
+    function send(kind, detail, keepalive) {
       if (off || !VIEW_KINDS.includes(kind)) return false;
+      const insight = INSIGHT_KINDS.includes(kind);
+      if (insight && insightsOff) return false;
       if (VIEW_ONCE.includes(kind)) { if (said.has(kind)) return false; said.add(kind); }
       try {
         const pending = request(endpoint, {
           method: 'POST',
-          keepalive: kind === 'dwell',
+          keepalive: kind === 'dwell' || keepalive === true,
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
           cache: 'no-store',
@@ -172,9 +279,106 @@
           let body = null;
           try { body = await response.json(); } catch { body = null; }
           if (response.status === 404 || (body && body.code === 'PGRST202')) off = true;
+          // A backend from before stops and looks refuses the kind: say no more of them this visit.
+          else if (insight) insightsOff = true;
         }).catch(() => {});
       } catch { /* a view count is never in the way */ }
       return true;
+    }
+
+    function roomVisited(roomName) {
+      const name = clean(roomName, 80);
+      if (!name || roomsSeen.has(name) || roomsSeen.size >= 24) return false;
+      roomsSeen.add(name);
+      return send('room', withVisit({ room: name }));
+    }
+
+    const validStop = stop => Number.isInteger(stop) && stop >= 0 && stop <= STOP_LIMIT;
+
+    /** The one look for the stop being left: where the time there went, by direction. */
+    function flushLook(leaving) {
+      const was = standing;
+      if (!was || was.ms <= 0) return false;
+      was.ms = 0;
+      const bins = was.bins;
+      was.bins = {};
+      if (looksSent >= INSIGHT_EVENT_CAP) return false;
+      const total = Object.values(bins).reduce((sum, ms) => sum + ms, 0);
+      if (!send('look', { visit, stop: was.stop, ms: total, bins }, leaving === true)) return false;
+      looksSent++;
+      return true;
+    }
+
+    /** Arrival at a stop (0-based). Arriving again where you already stand is not a new arrival. */
+    function stopArrived(stop, roomName) {
+      if (insightsOff || off || !validStop(stop)) return false;
+      if (standing && standing.stop === stop) return false;
+      flushLook(false);
+      standing = { stop, ms: 0, bins: {} };
+      // Time counts from the arrival while the page is being read; otherwise from the next reading.
+      lastSample = sampler !== null ? clock() : null;
+      if (stopsSent >= INSIGHT_EVENT_CAP) return false;
+      const room = typeof roomName === 'string' ? roomName.replace(/\s+/g, ' ').trim().slice(0, ROOM_NAME_MAX) : '';
+      if (!send('stop', { visit, stop, room: room || null })) return false;
+      stopsSent++;
+      return true;
+    }
+
+    /** One reading of where the viewer looks; the time since the last reading at this stop goes to that direction. */
+    function sampleLook(view) {
+      if (insightsOff || off) return false;
+      const stop = view && view.stop;
+      const bin = view ? lookBin(view.yaw, view.pitch) : null;
+      // Moving, between stops, no 3D frame yet or no reading: that time belongs to no direction.
+      if (!validStop(stop) || !bin) { lastSample = null; return false; }
+      if (!standing || standing.stop !== stop) stopArrived(stop, null);
+      if (!standing || standing.stop !== stop) return false;
+      const at = clock();
+      // A timer the browser held back (a busy or throttled tab) counts as two readings at most.
+      const elapsed = lastSample === null ? 0 : Math.min(2 * LOOK_SAMPLE_MS, Math.max(0, Math.round(at - lastSample)));
+      lastSample = at;
+      const room = Math.min(elapsed, LOOK_CAP_MS - standing.ms);
+      if (room <= 0) return false;
+      standing.bins[bin] = (standing.bins[bin] || 0) + room;
+      standing.ms += room;
+      return true;
+    }
+
+    /** Read the player about twice a second while the page is visible; nothing runs while it is hidden. */
+    function watchLook(win) {
+      const doc = win && win.document;
+      if (insightsOff || !doc || typeof win.setInterval !== 'function' || typeof win.clearInterval !== 'function') return;
+      const hidden = () => doc.hidden === true || doc.visibilityState === 'hidden';
+      const read = () => {
+        if (insightsOff || off) { pause(); return; }
+        if (hidden()) { lastSample = null; return; }
+        let view = null;
+        try {
+          const current = win.VeyletPlayerV2 && win.VeyletPlayerV2.current;
+          view = current && typeof current.view === 'function' ? current.view() : null;
+        } catch { view = null; }
+        sampleLook(view);
+      };
+      function pause() { if (sampler !== null) { win.clearInterval(sampler); sampler = null; } lastSample = null; }
+      function resume() {
+        if (sampler !== null || hidden() || insightsOff || off) return;
+        sampler = win.setInterval(read, LOOK_SAMPLE_MS);
+        // Seen again: time counts from now, and none of the time away.
+        lastSample = standing ? clock() : null;
+      }
+      if (typeof doc.addEventListener === 'function') {
+        doc.addEventListener('veylet:stop', event => {
+          try {
+            const detail = event && event.detail;
+            if (detail) stopArrived(detail.stop, detail.room);
+          } catch { /* never in the player's way */ }
+        });
+        doc.addEventListener('visibilitychange', () => { if (hidden()) pause(); else resume(); });
+      }
+      if (typeof win.addEventListener === 'function') {
+        win.addEventListener('pagehide', () => { pause(); flushLook(true); insightsOff = true; }, { once: true });
+      }
+      resume();
     }
 
     function seconds(ms) { return Math.min(DWELL_CAP_SECONDS, Math.max(0, Math.round(ms / 1000))); }
@@ -188,6 +392,7 @@
           const entry = list.getEntries().find(item => item && item.name === FIRST_FRAME_MARK);
           if (!entry) return;
           observer.disconnect();
+          // A bare number of seconds, as it always was (the database contract leaves first_frame alone: no visit).
           send('first_frame', seconds(openedMark === null ? entry.startTime : entry.startTime - openedMark));
         });
         observer.observe({ type: 'mark', buffered: true });
@@ -198,15 +403,29 @@
       get enabled() { return !off; },
       src,
       host,
+      /** This page load's random token (32 hex), or null; in memory only. */
+      visit,
       send,
+      roomVisited,
+      stopArrived,
+      sampleLook,
+      flushLook,
       /** The walkthrough was found: count the open, then its first frame and, once, the time spent. */
       opened(win) {
-        if (!send('open')) return false;
+        if (!send('open', withVisit({}))) return false;
         openedAt = clock();
         try { openedMark = win && win.performance && typeof win.performance.now === 'function' ? win.performance.now() : null; } catch { openedMark = null; }
         watchFirstFrame(win);
+        if (win && win.document && typeof win.document.addEventListener === 'function') {
+          win.document.addEventListener('veylet:room', event => {
+            const name = event && event.detail && event.detail.room;
+            if (name) roomVisited(name);
+          });
+        }
+        // The look for the last stop goes first, then the dwell: both keepalive, both once.
+        try { watchLook(win); } catch { /* insights are optional */ }
         if (win && typeof win.addEventListener === 'function') {
-          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', seconds(clock() - openedAt)); }, { once: true });
+          win.addEventListener('pagehide', () => { if (openedAt !== null) send('dwell', withVisit({ seconds: seconds(clock() - openedAt) })); }, { once: true });
         }
         return true;
       },
@@ -233,16 +452,31 @@
   /** Call is the filled action when there is a phone; otherwise Email is. A tap is counted for the agent. */
   function contactActions(doc, contact, title, beacon) {
     const actions = element(doc, 'div', 'agent-actions');
-    const add = (href, text, verb, kind) => {
+    const add = (href, text, verb, kind, detail, external) => {
       if (!href) return;
       const link = element(doc, 'a', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', text);
       link.setAttribute('href', href);
       link.setAttribute('aria-label', verb + ' ' + contact.name);
-      if (beacon && typeof link.addEventListener === 'function') link.addEventListener('click', () => beacon.send(kind));
+      if (external) {
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+      }
+      if (kind === 'email_tap' && detail === undefined && typeof link.addEventListener === 'function') {
+        // At the press: the stop the visitor is on goes into the message.
+        link.addEventListener('click', () => { if (place) link.setAttribute('href', mailtoHref(contact.email, title, place)); });
+      }
+      if (beacon && typeof link.addEventListener === 'function') {
+        link.addEventListener('click', () => (detail === undefined ? beacon.send(kind) : beacon.send(kind, detail)));
+      }
       actions.append(link);
     };
     add(telHref(contact.phone), 'Call', 'Call', 'call_tap');
     add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
+    if (contact.bookingUrl) {
+      add(bookingHref(contact.bookingUrl), 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
+    } else if (contact.allowViewingRequest && contact.email) {
+      add(viewingRequestHref(contact.email, title, contact.name), 'Book viewing', 'Book viewing with', 'email_tap', { booking: true }, false);
+    }
     return actions;
   }
 
@@ -269,6 +503,8 @@
     host.setAttribute('aria-label', 'Contact ' + contact.name);
     host.hidden = false;
     doc.body?.classList.add('has-agent-bar');
+    // Focus that scrolls into view stops above the bar, not under it (client-page.css).
+    doc.documentElement?.classList?.add('client-has-bar');
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
@@ -323,32 +559,79 @@
    */
   function mountShare(button, options) {
     if (!button) return;
-    const nav = options.navigator;
-    const doc = options.document;
-    const native = Boolean(nav && typeof nav.share === 'function');
+    const native = Boolean(options.navigator && typeof options.navigator.share === 'function');
     button.textContent = native ? 'Share' : 'Copy link';
     button.hidden = false;
     let busy = false;
     button.addEventListener('click', async () => {
       if (busy) return;
       busy = true;
-      if (options.beacon) options.beacon.send('share_tap');
       try {
-        if (native) {
-          try {
-            await nav.share({ title: options.title, url: options.url });
-            say(options.status, '');
-            return;
-          } catch (error) {
-            if (error && error.name === 'AbortError') return;
-          }
-        }
-        const copied = await copyText(options.url, nav, doc);
-        say(options.status, copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.');
+        const said = await shareNow(options);
+        if (said !== null) say(options.status, said);
       } finally {
         busy = false;
       }
     });
+  }
+
+  /**
+   * One share: the tap is counted, then the system sheet or a copy. Answers what to tell the
+   * visitor ('' after the sheet), or null when they closed the sheet. `options.url` may be a
+   * function, read at the press, so the link carries the stop the visitor is on.
+   */
+  async function shareNow(options) {
+    const nav = options.navigator;
+    const url = typeof options.url === 'function' ? options.url() : options.url;
+    if (options.beacon) options.beacon.send('share_tap');
+    if (nav && typeof nav.share === 'function') {
+      try {
+        await nav.share({ title: options.title, url });
+        return '';
+      } catch (error) {
+        if (error && error.name === 'AbortError') return null;
+      }
+    }
+    const copied = await copyText(url, nav, options.document);
+    return copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.';
+  }
+
+  /**
+   * What the page asks of the player for this visit (tour-player-v2.js `visit`): open on the
+   * stop the link names (#stop=N), keep the address on the stop the visitor is at, and offer
+   * Share and the agent's Call and Email inside the player (its end card and About panel), where
+   * the page's own are out of reach in full screen. The player sends nothing; presses are counted
+   * here, as the page's own buttons count them.
+   */
+  function visitLink(options) {
+    const win = options.window, loc = options.location;
+    let title = '', giveContact = () => {};
+    const contact = new Promise(resolve => { giveContact = resolve; });
+    const url = () => (place ? place.url : shareUrl(loc, options.token));
+    return {
+      startAt: stopFromHash(loc.hash),
+      onStop(number, count) {
+        const hash = number > 1 ? '#stop=' + number : '';
+        place = { number, count, url: shareUrl(loc, options.token) + hash };
+        try {
+          if ((loc.hash || '') !== hash) win.history.replaceState(win.history.state, '', loc.pathname + loc.search + hash);
+        } catch { /* the address stays; Share still carries the stop */ }
+      },
+      share: () => shareNow({ navigator: options.navigator, document: options.document, beacon: options.beacon, title, url }),
+      contact,
+      url,
+      setTitle(value) { title = value || ''; },
+      setContact(found) {
+        if (!found) { giveContact(null); return; }
+        const beacon = options.beacon;
+        const actions = [];
+        const tel = telHref(found.phone);
+        if (tel) actions.push({ label: 'Call', href: tel, press: () => { if (beacon) beacon.send('call_tap'); } });
+        const mail = mailtoHref(found.email, title);
+        if (mail) actions.push({ label: 'Email', href: mail, hrefNow: () => mailtoHref(found.email, title, place), press: () => { if (beacon) beacon.send('email_tap'); } });
+        giveContact(actions.length ? { name: found.name, actions } : null);
+      },
+    };
   }
 
   // How long after the walkthrough is found the agent card's held place waits
@@ -371,9 +654,12 @@
     if (truth) truth.hidden = false;
     const help = doc.getElementById('client-help');
     if (help) help.hidden = !options.streamed;
+    const visit = options.visit || null;
+    if (visit) visit.setTitle(options.title);
     mountShare(doc.getElementById('client-share'), {
       title: options.title,
-      url: shareUrl(options.location, options.token),
+      // With a visit: the stop the visitor is on, read at the press.
+      url: visit ? visit.url : shareUrl(options.location, options.token),
       status: doc.getElementById('client-share-status'),
       navigator: options.navigator,
       document: doc,
@@ -387,10 +673,34 @@
       clearTimeout(grace);
       const late = Boolean(held) && !held.contains('client-contact-pending');
       const shown = showContact(doc, contact, options.title, options.beacon, late);
+      if (visit) visit.setContact(contact);
       // The held place goes in the same step the card fills it, or not.
       release();
       return shown;
     });
+  }
+
+  /*
+   * A phone on its side shows about 360px of page. Once the walkthrough is on
+   * screen it is brought to the top, once, so the whole player and its controls
+   * sit above the fixed Call/Email bar (tour-stage.css sizes it to fit). Never
+   * after the visitor has moved the page themselves.
+   */
+  const SHORT_LANDSCAPE = '(orientation: landscape) and (max-height: 500px)';
+  const STAGE_GAP = 4; // px of page left above the stage
+  function settleStage(win, stage) {
+    try {
+      if (!win || !stage || stage.hidden || typeof stage.getBoundingClientRect !== 'function' || typeof win.scrollTo !== 'function') return false;
+      if (typeof win.matchMedia !== 'function' || !win.matchMedia(SHORT_LANDSCAPE).matches) return false;
+      if ((win.scrollY || 0) > 4) return false;
+      // Measured, not scrollIntoView: the site keeps 30px of scroll padding for its other pages.
+      const top = Math.round((win.scrollY || 0) + stage.getBoundingClientRect().top - STAGE_GAP);
+      if (top <= 0) return false;
+      win.scrollTo({ top, behavior: 'auto' });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /*
@@ -507,10 +817,10 @@
   }
 
   window.VeyletClientPage = {
-    dialable, telHref, mailtoHref, contactFrom, lookupContact, restClient,
-    channelFrom, referrerHost, viewBeacon,
+    dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
+    channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
-    shareUrl, copyText, mountShare, showWalkthrough, placeExtras, mountColumns,
+    shareUrl, copyText, mountShare, shareNow, visitLink, stopFromHash, showWalkthrough, settleStage, placeExtras, mountColumns,
     reportHref, mountReport, linkToken, invitationPoster, watchFailures,
   };
 })();

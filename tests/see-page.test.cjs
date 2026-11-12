@@ -121,8 +121,8 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-29.2, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-29.2');
+test('every price on the page is offer.json 2026-11-11.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-11-11.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.appAud),
@@ -138,20 +138,21 @@ test('every price on the page is offer.json 2026-09-29.2, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  // Offer 2026-09-29.2: the free month carries the plan's own 3, so the line leads with the allowance.
-  assert.equal(offer.freeMonths.includedWalkthroughs, plan.includedPerMonth, 'the line states one allowance for both');
+  // Offer 2026-11-11.1: the free month carries the plan's own 30 rooms, so the line leads with the allowance.
+  assert.equal(offer.allowanceUnit, 'room');
+  assert.equal(offer.freeMonths.includedRooms, plan.includedPerMonth, 'the line states one allowance for both');
   assert.equal(offer.freeMonths.months, 1, 'the line says the first month');
-  assert.equal(heroLine, `${plan.includedPerMonth} walkthroughs a month · the first month free · then ${aud(plan.appAud)} a month through the App Store`);
+  assert.equal(heroLine, `${plan.includedPerMonth} rooms a month · the first month free · then ${aud(plan.appAud)} a month through the App Store`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
-  assert.ok(statement.includes(`${plan.includedPerMonth} walkthroughs a month; unused ones roll over, up to ${plan.rollover.maxBanked} banked`));
-  assert.ok(statement.includes(`The same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year`));
+  assert.ok(statement.includes(`${plan.includedPerMonth} rooms a month; unused ones carry over, up to ${plan.rollover.maxBanked} banked`));
+  assert.ok(statement.includes(`The same ${plan.annualIncluded} rooms a year, to use any time in the plan year`));
   assert.ok(statement.includes(`save ${aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100)} on 12 monthly payments`));
-  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of walkthroughs');
+  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of rooms');
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
-  assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included The same ${plan.includedPerMonth} as each month of the plan.`), 'the free month’s allowance is the plan’s');
+  assert.ok(terms.includes(`${offer.freeMonths.includedRooms} rooms included The same ${plan.includedPerMonth} as each month of the plan.`), 'the free month’s allowance is the plan’s');
   assert.doesNotMatch(terms, /in total, not \d+ a month/, 'the free month is no longer set against the monthly allowance');
   assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
@@ -257,9 +258,13 @@ test('the pinned phone is one frame: screens slide over each other on the scroll
   // cannot stack the phones at different heights; only the first frame draws the bezel and lift.
   assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen \{[^}]*translate: 0 calc\(var\(--flow-device\) \* -1\.0864\)/);
   assert.match(css, /\.see-step-screen:not\(\[data-screen="1"\]\) \.device-screen \{[^}]*border-color: transparent;[^}]*box-shadow: none;/);
-  // The screen changes are scrubbed by the pin itself, not faded on a timer.
+  // The screen changes are scrubbed by the pin itself, not faded on a timer, and both screens
+  // stay on-stage across the sheet handoff while parked screens stay hidden.
   assert.match(js, /animation: sheets,\s*scrub: true,/);
   assert.doesNotMatch(css, /\.see-step-screen\[data-shown\] \{\s*opacity: 1;/, 'no whole-frame cross-fade');
+  assert.doesNotMatch(css, /\.see-step-screen:not\(\[data-shown\]\)\s*\.device-screen/, 'outgoing screen is not hidden mid-handoff');
+  assert.match(css, /\.see-flow\[data-mode="pinned"\] \.see-step-screen:not\(\[data-stage\]\) \.device-screen > \* \{\s*visibility: hidden;/);
+  assert.match(js, /screen\.toggleAttribute\('data-stage', stage\)/);
   // The render bar lives in the drawn (aria-hidden) screen and ends full in the still state.
   assert.match(element('data-ui="render"', 'div'), /<span class="see-ui-bar"><span data-ui-bar><\/span><\/span>/);
   assert.match(js, /setRender\('ready', 5\);\s*setBar\(1\);/);
@@ -402,7 +407,7 @@ test('the cue: a centred chip whose icon nudges only when motion is welcome; the
   const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(reduced, /\.see-drag-icon \{\s*animation: none;/, 'reduced motion removes the nudge');
   assert.equal(visible.split('35 MB').length - 1, 1, 'the download size appears once');
-  assert.equal(flat(element('data-see-frame="explore"', 'figure').match(/<span class="see-caption-line">[\s\S]*?<\/span>/)[0]), 'Drag to look around, tap the floor to walk.');
+  assert.equal(flat(element('data-see-frame="explore"', 'figure').match(/<span class="see-caption-line">[\s\S]*?<\/span>/)[0]), 'Drag to look around. Tap a numbered circle to move.');
   const icon = element('class="see-drag-icon"', 'svg');
   assert.doesNotMatch(icon, /fill="#|stroke="#/, 'the icon draws in currentColor');
 });
@@ -417,7 +422,27 @@ test('the iPhone answer is the same in the visible FAQ and the structured data, 
   assert.ok(question && shown);
   assert.equal(flat(shown[1]), question.acceptedAnswer.text, 'visible and JSON-LD answers match');
   assert.ok(question.acceptedAnswer.text.startsWith('Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence)'));
-  assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
+  assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedRooms} rooms included`));
   assert.equal(offer.freeMonths.months, 1);
   assert.ok(question.acceptedAnswer.text.endsWith('Every walkthrough is checked, and nothing is shared until you approve it.'));
+});
+
+// Owner decision, 11 November 2026: walkthroughs are point to point. A viewer moves between numbered circles;
+// no page says or implies walking anywhere, tapping the floor or free movement.
+test('point-to-point copy: no viewer-facing page offers free movement or tapping the floor', () => {
+  const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
+  const words = html => html.replace(/<!--[\s\S]*?-->/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  const pages = ['guides/what-is-a-3d-walkthrough/index.html', 'see/index.html', 'handoff/index.html', 'help/what-your-client-sees/index.html',
+    'app/help/what-your-client-sees/index.html', 'embed/index.html', 'index.html', 'offer/index.html'];
+  for (const page of pages) {
+    const text = words(read(page));
+    for (const phrase of [/tap the floor/i, /\bwander/i, /move freely/i, /own pace/i, /anywhere they like/i, /clients walk it/i, /tenants walk through/i,
+      /walkable paths/i])
+      assert.doesNotMatch(text, phrase, page + ' says ' + phrase);
+  }
+  assert.match(words(read('see/index.html')), /Drag to look around\. Tap a numbered circle to move\./);
+  assert.match(words(read('embed/index.html')), /Tap a numbered circle to move\. Drag to look around\./);
+  assert.match(words(read('help/what-your-client-sees/index.html')), /tap a numbered circle, or Next stop, to move/);
+  const desk = read('account.js');
+  assert.doesNotMatch(desk, /walks? through(?:,| it)|is walked through|Scan to walk/, 'the desk names stops, not walking');
 });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * The pages the Veylet Capture app opens (/app/*) state no price and sell
+ * The pages the Veylet app opens (/app/*) state no price and sell
  * nothing (App Store Guideline 3.1.1; launch plan C1). This fails when any of
  * them, rendered or in reach of their scripts in app mode, says "A$", "$",
  * "pack", "Super fast", "express", "/offer" or "price", or links out of /app.

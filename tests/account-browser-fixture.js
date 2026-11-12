@@ -51,7 +51,31 @@
    * opens on 5 days, 3 Call taps, 1 Email tap, 2 Share taps, by channel (link 8,
    * qr 4, embed 2) and by site (example-agency.invalid 2), last opened yesterday.
    * `?views=zero` answers no opens yet, `missing` answers PGRST202 to both functions
-   * (the desk shows no views, the beacon stops), `error` fails both. */
+   * (the desk shows no views, the beacon stops), `error` fails both. With views, the
+   * stats also carry what the insights release adds (the sibling repository's
+   * docs/analytics-insights-contract-20261110.md): avg_dwell_seconds 96, visits 11,
+   * by_room (visits: Living area 11, Kitchen 9, Main bedroom 6, Balcony 2) and
+   * by_room_seconds, which is the heat map's seconds added up by room, as the draft
+   * supabase/drafts/release-4/20261110100000_tour_insights.sql computes both. Every
+   * answer has exactly the draft's columns: `?views=zero` carries all thirteen too.
+   * `?views=few` answers 3 opens and 3 visits (under the desk's five: counts only),
+   * `slow` answers after 1.5 s.
+   * get_tour_view_heatmap(p_tour_id) answers "Where viewers stood and looked" inside
+   * Walkthrough insights: by default eight fictional stops in four rooms over 11
+   * visits, in stop order as the draft returns them.
+   * `?heat=empty` answers no visits yet ("No visits yet"), `few` three visits (counts only), `missing` answers
+   * PGRST202 as a backend from before the function does (no panel), `error` fails the
+   * read (said, with Try again), `slow` answers after 1.5 s and `loading` never
+   * answers (the placeholder). `&insights-open=1` opens the live walkthrough's
+   * insights once they are shown, so a capture can include the panel.
+   * The floor plan under the stops comes from the walkthrough's own streamed package
+   * (manifest.json stops and walkable.json, the shapes dist/tour-player-v2.js reads):
+   * on the desk pages the live walkthrough is such a package, found through
+   * get_tour_package_base at /__qa/insights-plan/ and answered here, never fetched.
+   * It is a fictional flat of nine stops; the ninth has no visits. `?floor=stops`
+   * is a package without a walkable floor (the stops alone), `none` a zipped package
+   * (no plan), `fail` a package whose manifest cannot be read (no plan), and
+   * `levels` a home on two levels (no plan: one drawing cannot hold both). */
   /* Email preferences: the tips-and-offers box of the sibling repository's
    * docs/lifecycle-email.md and its draft 20260926114000_lifecycle_email.sql (not yet
    * released). `?email=` answers get_email_preferences: by default `missing`
@@ -77,6 +101,58 @@
     : { tips_opt_in: false, wording_version: null, changed_at: null };
   const pauseCase = params.get('pause');
   const viewsCase = params.get('views');
+  const heatCase = params.get('heat');
+  // Synthetic look times (seconds) by "<yaw 0..11>_<pitch 0..2>": no real visitor is in here.
+  const HEAT_STOPS = [
+    { stop: 0, room: 'Living area', visits: 11, seconds: 187, bins: { '0_1': 61, '11_1': 44, '1_1': 30, '6_1': 22, '0_2': 12, '5_0': 10, '7_1': 8 } },
+    { stop: 1, room: 'Living area', visits: 8, seconds: 71, bins: { '4_1': 30, '5_1': 18, '10_1': 12, '4_0': 6, '3_1': 5 } },
+    { stop: 2, room: 'Kitchen', visits: 9, seconds: 214, bins: { '2_1': 88, '3_1': 52, '2_0': 21, '8_1': 19, '3_2': 14, '9_1': 11, '5_1': 9 } },
+    { stop: 3, room: 'Kitchen', visits: 7, seconds: 58, bins: { '9_1': 26, '10_1': 17, '9_0': 9, '2_1': 6 } },
+    { stop: 4, room: 'Main bedroom', visits: 6, seconds: 96, bins: { '7_1': 41, '6_1': 23, '7_2': 15, '1_1': 9, '8_0': 8 } },
+    { stop: 5, room: 'Main bedroom', visits: 4, seconds: 33, bins: { '0_1': 14, '1_1': 9, '11_2': 6, '6_1': 4 } },
+    { stop: 6, room: null, visits: 3, seconds: 12, bins: { '3_1': 7, '4_1': 5 } },
+    { stop: 7, room: 'Balcony', visits: 2, seconds: 5, bins: { '6_2': 5 } },
+  ];
+  const HEAT_FEW = [
+    { stop: 0, room: 'Living area', visits: 3, seconds: 64, bins: { '0_1': 40, '11_1': 24 } },
+    { stop: 2, room: 'Kitchen', visits: 2, seconds: 41, bins: { '2_1': 41 } },
+    { stop: 4, room: 'Main bedroom', visits: 1, seconds: 9, bins: { '7_1': 9 } },
+  ];
+  /* The fictional flat the plan is drawn from: 9 m by 7 m, one level, a 0.25 m floor
+   * grid. Living area top left, kitchen top right, main bedroom bottom left, a hall
+   * between, a balcony bottom right. Coordinates are the package's own (x right, z
+   * towards the viewer, y up), with the floor at y = -1.4, like a real package. */
+  const floorCase = params.get('floor') || 'plan';
+  const PLAN_BASE = '/__qa/insights-plan/';
+  const PLAN_DESK = ['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && floorCase !== 'none';
+  const PLAN_ORIGIN = [-4.5, -3.5], PLAN_CELL = 0.25, PLAN_COLUMNS = 36, PLAN_ROWS = 28;
+  // [x, z, width, depth] in metres from the flat's top left corner.
+  const PLAN_FLOOR = [[0, 0, 5, 4], [5, 0, 4, 3.5], [0, 4.25, 4, 2.75], [3, 4, 0.75, 0.25], [4.25, 3.5, 1.25, 3.5], [5.5, 4, 0.25, 0.75], [5.75, 4, 3.25, 1.5]];
+  const PLAN_SPOTS = [[1.5, 1.2, 'r1'], [3.8, 2.8, 'r1'], [6.2, 1.0, 'r2'], [8.0, 2.4, 'r2'], [1.2, 5.6, 'r3'], [3.0, 6.2, 'r3'], [4.9, 5.0, 'r4'], [7.4, 4.8, 'r5'], [4.9, 6.5, 'r4']];
+  function planManifest() {
+    const upstairs = floorCase === 'levels' ? 2.8 : 0;
+    return {
+      format: 'veylet.tour-package', package_format_version: 2, generated_at: '2026-11-01T00:00:00Z', synthetic: true, captured_on: null,
+      truth_label: 'Fictional practice space. Not to scale.', generative_model_used: false,
+      walkable: floorCase === 'stops' ? null : { path: 'walkable.json' },
+      rooms: [{ id: 'r1', name: 'Living area' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }, { id: 'r4', name: null }, { id: 'r5', name: 'Balcony' }],
+      stops: PLAN_SPOTS.map(([x, z, room], index) => {
+        const at = [PLAN_ORIGIN[0] + x, 0, PLAN_ORIGIN[1] + z], lift = index >= 4 ? upstairs : 0;
+        return { id: 's' + (index + 1), room, position: [at[0], lift, at[2]], target: [at[0], lift - 0.16, at[2] - 2], floor: [at[0], lift - 1.4, at[2]], floor_measured: true };
+      }),
+      start_stop: 0,
+    };
+  }
+  function planWalkable() {
+    const bits = new Uint8Array(Math.ceil(PLAN_COLUMNS * PLAN_ROWS / 8));
+    for (const [x, z, width, depth] of PLAN_FLOOR) {
+      for (let r = Math.round(z / PLAN_CELL); r < Math.round((z + depth) / PLAN_CELL); r++) {
+        for (let c = Math.round(x / PLAN_CELL); c < Math.round((x + width) / PLAN_CELL); c++) bits[(r * PLAN_COLUMNS + c) >> 3] |= 1 << ((r * PLAN_COLUMNS + c) & 7);
+      }
+    }
+    return { version: 1, cell_metres: PLAN_CELL, origin: PLAN_ORIGIN, columns: PLAN_COLUMNS, rows: PLAN_ROWS, floor_y: -1.4, eye_height: 1.4, area_m2: 44.9,
+      mask: btoa(String.fromCharCode(...bits)) };
+  }
   const pausedAt = new Map();
   const viewsMissing = { data: null, error: { code: 'PGRST202', message: 'Could not find the function in the schema cache' } };
   /* Sharing and the connection on /__qa/account/ (the desk's S1 states).
@@ -420,7 +496,7 @@
   if (['draft', 'processing', 'revoked'].includes(scenario)) tours[0].status = scenario;
   // Plan fixtures (offer 2026-09-28.1). One free month with three walkthroughs
   // in total, started by activating the plan and renewing afterwards; the one
-  // Veylet plan (code solo), monthly or annual; a source that decides which price
+  // Veylet plan (code solo), monthly or yearly; a source that decides which price
   // is true; retired Team rows that must still read by their own name; and a
   // failed lookup that must read as unavailable. `?case=plan-monthly-banked` is an
   // active monthly plan (2 a month) with 2 walkthroughs banked (at most 4);
@@ -475,9 +551,9 @@
       current_period_ends_at: '2026-10-01T00:00:00Z' },
     'apple-annual': { ...planBase, ...apple, plan_code: 'studio', included_per_month: 3, status: 'active', apple_product_id: 'dev.property3d.capture.plan.annual', billing_interval: 'annual', renewal_price_aud_cents: 318999, apple_environment: 'Sandbox', apple_verified: true, current_period_ends_at: '2027-09-23T00:00:00Z' },
     'trial-credits': { ...planBase, status: 'trial', accepted_in_free_months: 3 },
-    // Free months running, nothing accepted yet (an older server kept the annual plan locked here).
+    // Free months running, nothing accepted yet (an older server kept the yearly plan locked here).
     'trial-none': { ...planBase, status: 'trial', accepted_in_free_months: 0, accepted_this_period: 0, accepted_total: 0 },
-    // An annual plan running by card (source web): the annual plan card is hidden.
+    // An annual plan running by card (source web): the yearly plan card is hidden.
     'web-annual': { ...planBase, ...pastTrial, source: 'web', status: 'active', plan_code: 'solo', billing_interval: 'annual',
       renewal_price_aud_cents: 139999, accepted_this_period: 1, accepted_total: 8, accepted_in_free_months: 3,
       current_period_ends_at: '2027-07-15T00:00:00Z' },
@@ -575,7 +651,7 @@
   const studioTier = params.get('tier') || 'standard';
   // Legacy agreed invoice rates: A$99 a month and A$990 a year (earlier agreements; new subscriptions use the App Store).
   const STUDIO_INVOICE_CENTS = { monthly: 9900, annual: 99000 };
-  const STUDIO_PACKS = { pack3: { walkthroughs: 3, cents: 16900 }, pack10: { walkthroughs: 10, cents: 49900 } };
+  const STUDIO_PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
   const studioPackReceipts = new Map(), studioGrantReceipts = new Map(), studioInvoiceReceipts = new Map();
   /* Referrals (studio_grant_referral_bonus). Wren & Fielding (paying) records Northgate
    * as its referrer, from a link; `?studio=referral-granted` has its walkthroughs granted
@@ -734,7 +810,7 @@
    * walkthroughs to the same balance the plan panel's capacity reads. */
   const packsCase = params.get('packs') || (scenario === 'operator' ? 'not-owner'
     : ['pending', 'ended', 'ended-after-active', 'nomembership'].includes(planCase) ? 'not-activated' : 'choose');
-  const PACKS = [{ code: 'pack3', walkthroughs: 3, price_cents: 16900 }, { code: 'pack10', walkthroughs: 10, price_cents: 49900 }];
+  const PACKS = [{ code: 'pack3', walkthroughs: 30, rooms: 30, price_cents: 16900 }, { code: 'pack10', walkthroughs: 100, rooms: 100, price_cents: 49900 }];
   let extraCredits = planCase === 'trial-credits' || packsCase === 'credits' ? 2 : 0;
   let packExpiry = extraCredits ? '2027-03-02' : null;
   const packOffer = () => {
@@ -887,7 +963,7 @@
   /* Refer an office (offer 2026-09-25.1; migration 20260925100000_offer_v8, not yet
    * released). `?referral=` picks the answer of get_referral_code: missing (the
    * default: the function does not exist yet, so the block is words only), link (a
-   * fictional code, 2 offices referred and 1 bonus walkthrough received), sandbox (the
+   * fictional code, 2 offices referred and 1 bonus room received), sandbox (the
    * server refuses a test workspace), invalid (a code that is not 12 hex characters),
    * error, or loading. `?ref=0123456789ab` arrives through another office's link:
    * claim_workspace_referral records it (a repeat answers recorded false);
@@ -909,6 +985,12 @@
       const answer = await window.supabase.createClient().rpc(name, init.body ? JSON.parse(init.body) : {});
       const status = answer?.error ? (answer.error.code === 'PGRST202' ? 404 : 400) : answer?.data === null || answer?.data === undefined ? 204 : 200;
       return new Response(status === 204 ? null : JSON.stringify(answer?.error || answer.data), { status, headers: { 'Content-Type': 'application/json' } });
+    }
+    // The floor plan's package: its manifest and walkable floor, answered here and never fetched.
+    if (url.startsWith(PLAN_BASE)) {
+      const file = url.slice(PLAN_BASE.length);
+      const body = floorCase === 'fail' ? null : file === 'manifest.json' ? planManifest() : file === 'walkable.json' && floorCase !== 'stops' ? planWalkable() : null;
+      return new Response(body ? JSON.stringify(body) : 'Not found', { status: body ? 200 : 404, headers: { 'Content-Type': body ? 'application/json' : 'text/plain' } });
     }
     if (!url.startsWith(HOOKS + '/')) return realFetch ? realFetch(input, init) : Promise.reject(new TypeError('fetch unavailable'));
     const path = url.slice(HOOKS.length);
@@ -1092,7 +1174,8 @@
         if (scenario === 'errors') return { error: { message: 'Synthetic unavailable tour service' } };
         if (params.get('lineage') === 'missing' && /walkthrough_id/.test(columns)) return { error: { code: '42703', message: 'column tours.walkthrough_id does not exist' } };
         if (pauseCase === 'missing' && /share_paused_at/.test(columns)) return { error: { code: '42703', message: 'column tours.share_paused_at does not exist' } };
-        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' } : {}), share_token: tokens.get(tour.id) || null, share_paused_at: pausedAt.get(tour.id) || null })).filter(row => only === null || row.id === only);
+        const rows = tours.map(tour => ({ ...tour, ...(streamed ? { storage_path: 'synthetic/v2/manifest.json' }
+          : PLAN_DESK && tour.id === 'synthetic-live-active' ? { storage_path: 'synthetic/live-active/manifest.json' } : {}), share_token: tokens.get(tour.id) || null, share_paused_at: pausedAt.get(tour.id) || null })).filter(row => only === null || row.id === only);
         // Only the columns asked for, as PostgREST answers: a read without the lineage
         // columns sees no walkthrough, version or replacement.
         const names = columns.split(',').map(name => name.trim()).filter(Boolean);
@@ -1289,7 +1372,7 @@
         if (!Number.isInteger(account.founding_grants_used) || account.founding_grants_used >= 4) return { error: { message: 'Synthetic: no founding grant left.' } };
         account.founding_grants_used += 1;
         account.pack_credits = (account.pack_credits || 0) + 3;
-        const answer = { credited: 3, credits_available: account.pack_credits, grants_used: account.founding_grants_used, expires_on: studioYearOn() };
+        const answer = { credited: 30, credits_available: account.pack_credits, grants_used: account.founding_grants_used, expires_on: studioYearOn() };
         studioGrantReceipts.set(args.p_reference, answer);
         return { data: [answer] };
       }
@@ -1670,9 +1753,24 @@
       if (name === 'get_tour_view_stats') {
         if (viewsCase === 'missing') return viewsMissing;
         if (viewsCase === 'error') return { data: null, error: { message: 'Synthetic view failure' } };
-        if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null }] };
+        if (viewsCase === 'slow') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (viewsCase === 'zero') return { data: [{ opens: 0, days_with_opens: 0, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: null,
+          explores: 0, avg_dwell_seconds: null, visits: 0, by_room: {}, by_room_seconds: {} }] };
+        if (viewsCase === 'few') return { data: [{ opens: 3, days_with_opens: 2, call_taps: 0, email_taps: 0, share_taps: 1, by_src: { link: 3 }, by_host: {}, last_opened_at: ago(1),
+          explores: 3, avg_dwell_seconds: 48, visits: 3, by_room: { 'Living area': 3, Kitchen: 2, 'Main bedroom': 1 }, by_room_seconds: { 'Living area': 64, Kitchen: 41, 'Main bedroom': 9 } }] };
         return { data: [{ opens: 14, days_with_opens: 5, call_taps: 3, email_taps: 1, share_taps: 2, by_src: { link: 8, qr: 4, embed: 2 },
-          by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1) }] };
+          by_host: { 'example-agency.invalid': 2 }, last_opened_at: ago(1),
+          explores: 9, avg_dwell_seconds: 96, visits: 11, by_room: { 'Living area': 11, Kitchen: 9, 'Main bedroom': 6, Balcony: 2 },
+          by_room_seconds: { Kitchen: 272, 'Living area': 258, 'Main bedroom': 129, Balcony: 5 } }] };
+      }
+      if (name === 'get_tour_view_heatmap') {
+        if (heatCase === 'missing' || viewsCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_view_heatmap(p_tour_id) in the schema cache' } };
+        if (heatCase === 'error') return { data: null, error: { message: 'Synthetic heat map failure' } };
+        if (heatCase === 'loading') return new Promise(() => {});
+        if (heatCase === 'slow') await new Promise(resolve => setTimeout(resolve, 1500));
+        if (heatCase === 'empty' || viewsCase === 'zero') return { data: { stops: [], visits: 0, since: null } };
+        if (heatCase === 'few' || viewsCase === 'few') return { data: { stops: HEAT_FEW, visits: 3, since: ago(2) } };
+        return { data: { stops: HEAT_STOPS, visits: 11, since: ago(6) } };
       }
       if (name === 'lookup_tour_share' && pauseCase === 'paused') return { data: [] };
       if (name === 'lookup_tour_share') return scenario === 'missing' ? { data: [] } : scenario === 'errors' ? { error: { message: 'Synthetic service failure' } }
@@ -1716,6 +1814,7 @@
           phone: contactCase === 'email' ? null : '+61 400 000 000', email: contactCase === 'phone' ? null : 'alex@example.invalid' }] };
       }
       // Proposed owner-preview locator for version 2 packages (not a live function).
+      if (name === 'get_tour_package_base' && !streamed && PLAN_DESK && args.p_tour_id === 'synthetic-live-active') return { data: [{ package_base_url: PLAN_BASE }] };
       if (name === 'get_tour_package_base') return streamed ? { data: [{ package_base_url: V2_BASE }] } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_tour_package_base' } };
       return { error: { message: 'This QA fixture does not change properties.' } };
     },
@@ -1751,13 +1850,28 @@
         if ((email && !email.hidden) || ++tries > 40) clearInterval(open);
       }, 100);
     }
+    // Review affordance only: `&insights-open=1` opens the live walkthrough's insights once
+    // they are shown, so a capture can include "Where viewers stood and looked". It changes nothing.
+    // The desk reads a card's counts when the card nears the screen, so on a short or narrow
+    // window the live card is brought into view first; otherwise the panel would open at some
+    // widths and not at others.
+    if (location.pathname === '/__qa/account/' && params.get('insights-open') === '1') {
+      let tries = 0;
+      const open = setInterval(() => {
+        const card = document.querySelector('[data-tour="synthetic-live-active"]');
+        if (card && !card.querySelector('[data-disclosure="insights"]:not([hidden])')) card.scrollIntoView({ block: 'start' });
+        const block = (card || document).querySelector('.dash-tour [data-disclosure="insights"]:not([hidden])');
+        if (block) { if (block.getAttribute('aria-expanded') !== 'true') block.click(); block.scrollIntoView({ block: 'start' }); }
+        if (block || ++tries > 40) clearInterval(open);
+      }, 100);
+    }
     // Review affordance only: `&exports-open=1` opens the live walkthrough's Videos and
     // stills block once it is shown, so a capture can include it. It changes nothing.
     if (['/__qa/account/', '/__qa/app-account/'].includes(location.pathname) && params.get('exports-open') === '1') {
       let tries = 0;
       const open = setInterval(() => {
-        const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] .tour-exports:not([hidden])');
-        if (block) { block.open = true; block.scrollIntoView({ block: 'start' }); }
+        const block = document.querySelector('[data-tour="' + EXPORT_TOUR + '"] [data-disclosure="exports"]:not([hidden])');
+        if (block) { if (block.getAttribute('aria-expanded') !== 'true') block.click(); block.scrollIntoView({ block: 'start' }); }
         if (block || ++tries > 40) clearInterval(open);
       }, 100);
     }

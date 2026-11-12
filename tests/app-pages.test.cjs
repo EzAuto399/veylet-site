@@ -1,5 +1,5 @@
 /*
- * The pages the Veylet Capture app opens (/app/account, /app/terms, /app/privacy,
+ * The pages the Veylet app opens (/app/account, /app/terms, /app/privacy,
  * /app/support): no price, no purchase, no link out of /app (launch plan C1,
  * App Store Guideline 3.1.1). scripts/check-app-pages.mjs does the work; these
  * tests run it on dist, prove it catches what it must, and hold the legal text
@@ -91,10 +91,24 @@ const mainOf = html => html.match(/<main\b[\s\S]*?<\/main>/)[0];
 const GOOGLE_POLICY_LINK = '<a href="https://policies.google.com/privacy">Privacy Policy</a>';
 test('/app/privacy is the public notice word for word; only its account link stays in the app', () => {
   const app = mainOf(read('app/privacy/index.html'));
-  const site = mainOf(read('privacy/index.html'));
+  // The public notice carries one paragraph marked DRAFT (shared walkthrough usage, 10 Nov 2026) that waits for
+  // the owner's legal review; the app copy takes it once it is approved. It is the only difference allowed here.
+  const DRAFT = /\s*<!-- DRAFT 2026-11-10: owner legal review required before release -->\s*<h2>[^<]*<\/h2>\s*<p>[\s\S]*?<\/p>\s*<!-- \/DRAFT 2026-11-10 -->/g;
+  const marked = read('privacy/index.html').match(DRAFT) || [];
+  assert.equal(marked.length, 1, 'exactly one marked draft paragraph');
+  assert.equal((marked[0].match(/<p>/g) || []).length, 1, 'and it is one paragraph');
+  for (const word of [/anonymous usage/, /opened/, /how long/, /rooms and stops/, /direction looked/, /Call, Email or Share/, /hostname of a website that embeds/, /no cookies/, /identifies the viewer/]) assert.match(marked[0].replace(/\s+/g, ' '), word);
+  assert.ok(read('privacy/index.html').indexOf('Client handoff links.') < read('privacy/index.html').indexOf(marked[0].trim()), 'after Client handoff links');
+  const site = mainOf(read('privacy/index.html').replace(DRAFT, ''));
   assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
   assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
-  assert.equal(app.replace('<a href="/app/account">', '<a href="/account">'), site.replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
+  // The public notice opens each section with a real heading (site audit 10 Nov 2026, finding 10); the app copy
+  // still runs the same words in as bold leads. Words, links, comments and order must match exactly; only that
+  // heading element and whitespace may differ.
+  const flat = html => html.replace(/\s+/g, ' ');
+  const asRunIn = html => flat(html).replace(/<h2>([^<]+)<\/h2> <p>/g, '<p> <strong>$1</strong>');
+  assert.equal((flat(site).match(/<h2>/g) || []).length, (flat(app).match(/<p> <strong>/g) || []).length, 'one heading per run-in lead');
+  assert.equal(flat(app).replace('<a href="/app/account">', '<a href="/account">'), asRunIn(site).replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
 });
 
 test('/app/terms is the public terms word for word, less the sentences that name an amount or a purchase the app does not sell', () => {
@@ -109,7 +123,7 @@ test('/app/terms is the public terms word for word, less the sentences that name
   assert.equal(app.split(REPLACED).length - 1, 5, 'five sentences stand in for amounts (listed for legal review)');
   assert.ok(app.includes(NOTE));
   // What was left out, by heading.
-  for (const heading of ['One-time walkthrough packs.', 'Super fast renders.', 'Other work.']) {
+  for (const heading of ['One-time packs.', 'Super fast renders.', 'Other work.']) {
     assert.ok(site.includes(heading), heading);
     assert.ok(!app.includes(heading), heading + ' is not in the app copy');
   }

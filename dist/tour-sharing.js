@@ -79,7 +79,7 @@ window.VeyletSharing = (() => {
   /*
    * The hosting line, in the words the app uses too (owner decision 26 September
    * 2026). A walkthrough is live while the office has an active plan (free
-   * months, monthly or annual). When the plan ends, its link, embed and QR code
+   * months, monthly or yearly). When the plan ends, its link, embed and QR code
    * keep working for 14 days, then go offline; nothing is deleted or revoked, and
    * restarting the plan brings the same link back at once.
    *

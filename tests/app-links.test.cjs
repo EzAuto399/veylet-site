@@ -1,6 +1,6 @@
 /*
  * Universal links (dist/.well-known/apple-app-site-association): which veylet.com addresses
- * open the Veylet Capture app when it is installed. Only /app/account?tour= (ready-for-review
+ * open the Veylet app when it is installed. Only /app/account?tour= (ready-for-review
  * emails and desk deep links, opening the in-app Review) and /join?i= (team invites); the client
  * routes (/handoff, /tour, /embed) and help (/help/*, /app/help/*) are excluded explicitly, and
  * everything else stays on the web because nothing else matches. vercel.json serves the file,
