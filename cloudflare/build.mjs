@@ -61,10 +61,12 @@ export function transformAnalytics(file, body, transform) {
     changes.push('remove one exact Vercel insights script tag');
   }
   const privacyExpected = transform.privacyPaths.includes(file);
-  const privacyCount = text.split(transform.privacyParagraph).length - 1;
+  // Exact reviewed paragraph; a page whose markup was reformatted pins its own exact text.
+  const privacyParagraph = transform.privacyParagraphByPath?.[file] ?? transform.privacyParagraph;
+  const privacyCount = text.split(privacyParagraph).length - 1;
   assert.equal(privacyCount, privacyExpected ? 1 : 0, 'Vercel privacy paragraph guard changed: ' + file);
   if (privacyExpected) {
-    text = text.replace(transform.privacyParagraph, '');
+    text = text.replace(privacyParagraph, '');
     changes.push('remove exact discontinued Vercel page-count paragraph');
   }
   assert(!text.includes('/insights.js') && !text.includes('/_vercel/insights/') && !text.includes('Vercel Web Analytics'), 'Unreviewed Vercel analytics reference: ' + file);

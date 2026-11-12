@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "sourceCommit": "26d5eda6596e72603cf5dbbae30f5cd5090b23b5",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
-  "vercelConfigSha256": "c062905eb26a249859253487628f8b314cef8d0e4b622c65add839f22f1acc5a",
+  "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
     "content-type",
     "cache-control",
@@ -245,8 +245,8 @@
     },
     {
       "path": "404.html",
-      "bytes": 2020,
-      "sha256": "55c105e8f269800c4bab9a004db4be3f1f7f2802490e6282edbe2938e36d42d4",
+      "bytes": 2830,
+      "sha256": "3236884bba9067c37b71b37c0d9c40146bce64e3794cae9249a42402b41e1653",
       "headerProfile": 1
     },
     {
@@ -262,22 +262,22 @@
       "headerProfile": 2
     },
     {
-      "path": "account/index.html",
-      "bytes": 18862,
-      "sha256": "5c8cd63c6deefdbb5cde7253c091dfff932cd5e651ca04882ed839a3360b7b82",
-      "headerProfile": 1
-    },
-    {
       "path": "account-guide.css",
-      "bytes": 42797,
-      "sha256": "cbca5f950e45130ce6c7b39277b750781a74d8243e5212451bf98b11a9b962a0",
+      "bytes": 75570,
+      "sha256": "fc8530458aa35e9a711776d3aa0013d8c5aabce9bf24ae478e4756cb979b9325",
       "headerProfile": 3
     },
     {
       "path": "account.js",
-      "bytes": 390996,
-      "sha256": "4cecdf5571a1c4d6a0a1e35573ebce287f1f6190ada681bd2f295363ebd8c6ea",
+      "bytes": 484065,
+      "sha256": "0d4c8a2dacfb377d41c96f0707ed7fa1f3df82a5f57ad1b4985fb7c8a2b0261c",
       "headerProfile": 4
+    },
+    {
+      "path": "account/index.html",
+      "bytes": 23323,
+      "sha256": "9b9502cfbe392655cc99e5bc743f077ba9243ec73318bf06f64bd98c0691567e",
+      "headerProfile": 1
     },
     {
       "path": "analytics-config.js",
@@ -287,237 +287,15 @@
     },
     {
       "path": "analytics.css",
-      "bytes": 2486,
-      "sha256": "3fa4f6de0f812df2a046a072c8a570d8453c4ed587266769a734053c437ef728",
+      "bytes": 4029,
+      "sha256": "2ec160f6f99c9bfa1a46ef69e92f1350e3878d1043feb34e3f45c95bbaf5ff7a",
       "headerProfile": 3
     },
     {
       "path": "analytics.js",
-      "bytes": 22536,
-      "sha256": "0cf1473a218eaeb89fa739a9ac05310990056f7ceedd15979a77598145ead879",
+      "bytes": 22572,
+      "sha256": "a5856e701dbef2661575f72720533ca490085bd0c17b4017f44c50fed4aa7d7b",
       "headerProfile": 4
-    },
-    {
-      "path": "app/account/index.html",
-      "bytes": 11241,
-      "sha256": "07913ac2334d25d6bc662c46662a7847307e9c9489a2312b57111c1da0dc6be3",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/approve-and-share/index.html",
-      "bytes": 5276,
-      "sha256": "12388e49cb40f16e74a85537835b2d7b44cae4a2dd1faae65b4e2a4138b5660b",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/delete-account/index.html",
-      "bytes": 3976,
-      "sha256": "8024a4a6872a4bffef531c3153a3129759fa34970e0779f445207c59fc92b23f",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/doorways/index.html",
-      "bytes": 3988,
-      "sha256": "531aaac2f2a46d7721f1ccd743b8c261b635f06b8db0a00c66b103a06651c6fb",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/ai_visual/index.html",
-      "bytes": 946,
-      "sha256": "8adca1849faa88c803b15c93960ac4d513241855f273686ce2c47983d36decd3",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/coverage/index.html",
-      "bytes": 884,
-      "sha256": "c064568ac83ec14f60a373e5697842baaceddb253607028428dc464d81ff6965",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/few_views/index.html",
-      "bytes": 952,
-      "sha256": "cd74bce6c8ae1a81ff80f0a07399b0c30c055175fd58f66f0630d5675d57b3c4",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/floaters/index.html",
-      "bytes": 914,
-      "sha256": "afabe99dbeff3a10e3728bcb852e34198498b34145a32e5916abee2f8af1d4a2",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/no_depth/index.html",
-      "bytes": 4160,
-      "sha256": "519611c4029809aa371556ac720450a80a39c672ef6f354f1a60afa81fb5aa2b",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/no_floor/index.html",
-      "bytes": 899,
-      "sha256": "754306ffe25fa1cec992cc69941fadc66e0468938e95a5183d1a210e569fec12",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/no_frames/index.html",
-      "bytes": 4291,
-      "sha256": "4b8d4ac7af2f140b00a8c84970bfd945c87e94ef40ae45cc0b27672629de283f",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/not_connected/index.html",
-      "bytes": 933,
-      "sha256": "e928cbe8c5f9d460fec9baf66c598cb38c70f6d23c1c843f85be4b8a485a811b",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/not_property/index.html",
-      "bytes": 3949,
-      "sha256": "c1913498b8282bbbe4f25e3680268873b1986e57227b7dac995a429f93fa6c38",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/phone_budget/index.html",
-      "bytes": 4040,
-      "sha256": "5e5be218d5682baf846ac7d91def9fd5a83e869df1eac4e248e158bfc1dcaf66",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/photo_match/index.html",
-      "bytes": 887,
-      "sha256": "8bda4fcced877d2c067e07bcc24564a95be3f4bb169f5ac3419f6d1b0fc05caa",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/upload_limits/index.html",
-      "bytes": 4014,
-      "sha256": "25c1f6dc899a9f7021883ab6e5c2dcc3bf144b6b9a0e9bb189c7f0546607e704",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/fix/worth-a-look/index.html",
-      "bytes": 6093,
-      "sha256": "3bb4bd74b58b0eec48d70b971c671dc69a3daab70bde5b057e359dab8df6f021",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/index.html",
-      "bytes": 9926,
-      "sha256": "abaa7f46781a655896d03440c4cc294fe8ad7edb11a0c7a6ebd468a884685e46",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/install-and-sign-in/index.html",
-      "bytes": 3985,
-      "sha256": "421204f19bf3f99fad7899debae37525f590dd8b521410b2ae66cf8082079fb3",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/light-mirrors-windows/index.html",
-      "bytes": 3966,
-      "sha256": "11d3d682e546cbddb76676147fc695d65ca4f6521ccc3cc9c8df670000f6bd95",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/pause-or-turn-off/index.html",
-      "bytes": 4298,
-      "sha256": "1143568fd49527baa4c6377142c763c62016495870782d4c76bd7a836837a065",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/phone-check/index.html",
-      "bytes": 4483,
-      "sha256": "b0741a72ac36946a2094da655ed8989000f1d9689bd4b5450976cf94864403eb",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/practice-room/index.html",
-      "bytes": 4771,
-      "sha256": "d4d49600a3f9fc7ea140932a517971da74d1c974c0daae888f54208556889fac",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/privacy-and-consent/index.html",
-      "bytes": 4224,
-      "sha256": "edc1a4611543441f85446d9e9fae914f5eaacfaf60110657016c05b5a23cd1b2",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/render-status/index.html",
-      "bytes": 4868,
-      "sha256": "568aa9dc5aef3e3cf2c9c6b7a6a5885adae471859ff63b9dffd4816b23104403",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/share-your-walkthrough/index.html",
-      "bytes": 4780,
-      "sha256": "261432b7872bd7de687294e358a5d53f21a613eaa6969a86d05297c58c33e99a",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/uploading/index.html",
-      "bytes": 4037,
-      "sha256": "87269c1208b74032e6893b80d633f99e06ddf2dca626d6a7edd936b4b957e4ea",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/walk-a-room/index.html",
-      "bytes": 4419,
-      "sha256": "a0ed802b4cfc63f84fda9b11e2b32a377a3051cb7ef68c11337e55064acf2dfc",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/website/index.html",
-      "bytes": 4630,
-      "sha256": "79b9b39249d053fd2fb796458957f9cfc8975dd63204dc92a5b44506f1bc9813",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/what-you-need/index.html",
-      "bytes": 3950,
-      "sha256": "452973958a37da75302f35fe85be62f65ea9b625026e8a33c5eb8b9c204204ae",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/what-your-client-sees/index.html",
-      "bytes": 4616,
-      "sha256": "e13e1fcc99a4dc6f564a47c6fc889c7d5ecc22741fdd39b99a4176d7dbaea4a1",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/whole-home/index.html",
-      "bytes": 4121,
-      "sha256": "d44579a658259808f301e56227854fe4176e817b239d720fad93433cd645e4b7",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/help/your-plan/index.html",
-      "bytes": 4824,
-      "sha256": "80ccc7339c91b16dd231aaa52c6a8f34bff41285dce42da8779aa5f5003db08f",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/privacy/index.html",
-      "bytes": 12322,
-      "sha256": "205402d600bf935d7fefcb49ecde8e2177e25bb2186e3d33a8a6172eaa966ae3",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/status/index.html",
-      "bytes": 3159,
-      "sha256": "58013a6da31fcfe4bdfb065014c6155b4667a4e646097985c00329349c1ec9bb",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/support/index.html",
-      "bytes": 4023,
-      "sha256": "c32f82c19b1dff4f1784b69086aba4557b567279d26ed2c7a77d2e028a04e8c1",
-      "headerProfile": 5
-    },
-    {
-      "path": "app/terms/index.html",
-      "bytes": 10661,
-      "sha256": "8696cb0990fda4f99f6b5e20402812b4024f91df30a70b93b666d0d743c5bbc8",
-      "headerProfile": 5
     },
     {
       "path": "app.js",
@@ -526,9 +304,231 @@
       "headerProfile": 4
     },
     {
+      "path": "app/account/index.html",
+      "bytes": 11393,
+      "sha256": "c3950f1011677de7e4034a8d8a6e1a20158e2f9ca62a87078ebdf1c09f4cf008",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/approve-and-share/index.html",
+      "bytes": 5432,
+      "sha256": "7d6489f4da586baac1a6902e930c451d0fed40c65b19b3a2cb961cef79aba1e2",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/delete-account/index.html",
+      "bytes": 4132,
+      "sha256": "cd69499e00967d599d99da3f5d4651f93a8e6a86b033f5162f2452b99140d0f0",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/doorways/index.html",
+      "bytes": 4144,
+      "sha256": "6a17e64bd33e60c79f23d3a2f6d0bc1b9207a11498dc10c8e78c0d2b5e56cd68",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/ai_visual/index.html",
+      "bytes": 946,
+      "sha256": "f591e416ae0353497544a39bb1fcb975f240563147d690081ca14185e768fdc9",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/coverage/index.html",
+      "bytes": 884,
+      "sha256": "9ee0d12cbc6e7d361d0aeaa1a9d94f28ca59f0c1dffdf39d85e9d7c1cac904d0",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/few_views/index.html",
+      "bytes": 952,
+      "sha256": "da9e8ed557ccf16deca68171b22625b4e111d4145275957f5ecb270b03a16793",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/floaters/index.html",
+      "bytes": 914,
+      "sha256": "fe0def2c4de98ed5b9b3cded1edf745ec26162f6c41fc256a1af99b4b53c0d74",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_depth/index.html",
+      "bytes": 4312,
+      "sha256": "db89727dd717ac6e3798d75843526f11089f0609520b20a23051e48baf045181",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_floor/index.html",
+      "bytes": 899,
+      "sha256": "3b83800339d7f82f4e2505845e2382aa2b852be20a374e7335ff8f68d878aadf",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/no_frames/index.html",
+      "bytes": 4443,
+      "sha256": "614a0e6f099cff3471e2465dac52a4c0018da567bf215fd2b002fe9683437ea1",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/not_connected/index.html",
+      "bytes": 933,
+      "sha256": "687c19ce50407c21a698863b66d7a3aeeb24a27bc570a92e1781cb5bc7bda2e7",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/not_property/index.html",
+      "bytes": 4101,
+      "sha256": "5ac46db5518e8a03469c40cde2d070dbf8de6706b09e1e1a3106247d126f219b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/phone_budget/index.html",
+      "bytes": 4192,
+      "sha256": "172e83be0c1da9e798f082793a73164147822eb09a9117079c6ee39ce8a6db4e",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/photo_match/index.html",
+      "bytes": 887,
+      "sha256": "a421bf466d85623ed7ff7ba41a9e984fdb21529950fd171ef909386d29d46b64",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/upload_limits/index.html",
+      "bytes": 4166,
+      "sha256": "e939aa2c1c258520aa2c2ed34b2cea6c7f58d7e65a2bd7b17ebae16c345b3db1",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/fix/worth-a-look/index.html",
+      "bytes": 6249,
+      "sha256": "478fb80c5e493cf167a80ef2c8e396fdbd8e537ed38b7804de5d2b9a0fb0e13c",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/index.html",
+      "bytes": 10075,
+      "sha256": "39ab928e01fa37f283ade5b1a9878bf0ff75eeb92102534207af428531204b3d",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/install-and-sign-in/index.html",
+      "bytes": 4141,
+      "sha256": "51a672c4c5f63cfffd48a3e95ad90c1e52dc92e4788c500b1f3235fd4d16589b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/light-mirrors-windows/index.html",
+      "bytes": 4122,
+      "sha256": "a94f6a4d3f70a781b075eadda50b74588df71f41cd412c40c3f3dfbcc23be260",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/pause-or-turn-off/index.html",
+      "bytes": 4538,
+      "sha256": "2cbbb4efc31133398c661758b72a977687f3fc18ebd0a2104ccd9ef74f7b578a",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/phone-check/index.html",
+      "bytes": 4639,
+      "sha256": "2da10fe2086a534b6160c0abb59e172ca6aeccfee99517270e71cd35f8d24640",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/practice-room/index.html",
+      "bytes": 4927,
+      "sha256": "968ed4f310e5c47165ad20e05d175173b3bba018c08bcb17ffe0dbd2a6c32d8a",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/privacy-and-consent/index.html",
+      "bytes": 4380,
+      "sha256": "1c38c9933372a9e3fddc97ce7821c05e02c8fbe0abc72449199407f0a86b1bfd",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/render-status/index.html",
+      "bytes": 4988,
+      "sha256": "5aa29404b2643b717ff5acf9b72f2413ca3d202c5fa0fb40383a31a8ed606e8b",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/share-your-walkthrough/index.html",
+      "bytes": 4987,
+      "sha256": "03326f1eb5d0623f7ff186704df2f512e4581d0113ed5aee21592f5f43b21bde",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/uploading/index.html",
+      "bytes": 4193,
+      "sha256": "6392858e4c00272e5e36a7020c3edb67f8ea7a66781ce444c0c902cbac344c42",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/walk-a-room/index.html",
+      "bytes": 4575,
+      "sha256": "ed4738cd26237037ad9351e5767522c52b4b0c5aabe405d4e3f3d75d4c16baad",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/website/index.html",
+      "bytes": 4799,
+      "sha256": "d1097d62379cd75351024b996e26b41d7ac3e75b5eb015bc50de30b1534d39e0",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/what-you-need/index.html",
+      "bytes": 4106,
+      "sha256": "2e664728588598f9ff21dcfcf253f4d1f90fea6889f66c3151dc5efde5604324",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/what-your-client-sees/index.html",
+      "bytes": 4795,
+      "sha256": "dcec2f402ac6718b221406e3d379e039f6328ef5d7301915791d9c200de78d17",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/whole-home/index.html",
+      "bytes": 4277,
+      "sha256": "45b451b2a252f2bc066786575531e8f2d1de9a30d43b023a197fa186f74fae00",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/help/your-plan/index.html",
+      "bytes": 5042,
+      "sha256": "954bf4e1f8c720872f80ea6c3ee910069dc1cd1102420b19169ca87d66a4d7bf",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/privacy/index.html",
+      "bytes": 12482,
+      "sha256": "0eb6843648160d1fa57021070f1dd799d6ebc537dd4a21f36f363c34f3e7fe35",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/status/index.html",
+      "bytes": 3307,
+      "sha256": "04056b8fadedb80839588f477a4a971e0450fda463ce57bc49f779b7a3d3c1ae",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/support/index.html",
+      "bytes": 4170,
+      "sha256": "c341635cf2c875071610fa00888eadc0a60daac120f170f387c4c6cd91b74f97",
+      "headerProfile": 5
+    },
+    {
+      "path": "app/terms/index.html",
+      "bytes": 11329,
+      "sha256": "0db3354b7f76d2fce453765ffaefdf01a72cfe824dd6a397d71ffefb9c793688",
+      "headerProfile": 5
+    },
+    {
       "path": "auth/callback/index.html",
-      "bytes": 2559,
-      "sha256": "4780cea4b68cd785e9f399db92450c5bbcdb9d5e588ca40da2aa3f3faea77da8",
+      "bytes": 2698,
+      "sha256": "4ef44602f07c4d99b9f0672187f5022b10f1680859ce5fc4232c782a3555faf3",
       "headerProfile": 1
     },
     {
@@ -540,19 +540,19 @@
     {
       "path": "build-info.json",
       "bytes": 2372,
-      "sha256": "05518d525a884bb8c893c83011820132142b9433d00a8601e5a20ef277a3b468",
+      "sha256": "28a4d8d7017c1dad8607ce893dbdadeab4c66c46edee267fb4d0c521bfebfacb",
       "headerProfile": 6
     },
     {
       "path": "client-page.css",
-      "bytes": 8328,
-      "sha256": "86b52db17ca6b659e05c8ab6489f82560f4c83a8056c7c19920a5bb0daf50ed7",
+      "bytes": 10444,
+      "sha256": "8f674aaacaaa46b019066223b63ae941b285789c9592ec15ec225689b3c09a4c",
       "headerProfile": 3
     },
     {
       "path": "client-page.js",
-      "bytes": 23492,
-      "sha256": "d210ebdd6f0af45a8d35318e15ddbe305eb362ee7de9c57cc13d39af7b5f3f4a",
+      "bytes": 42388,
+      "sha256": "80fa32cdf3f2dee31f7024685359f3879e6406730bdc27b70f7634d1b9c40538",
       "headerProfile": 4
     },
     {
@@ -563,14 +563,14 @@
     },
     {
       "path": "conversion.css",
-      "bytes": 21015,
-      "sha256": "3c82fa9f8cd5a55c36f3efccd2e6155a004e7cb4af97a716571913982fd7a255",
+      "bytes": 20159,
+      "sha256": "1afc39d382bc328ed24b056992f1c5c395aaa1d228e77196ffe4beba593f0a0a",
       "headerProfile": 3
     },
     {
       "path": "embed/index.html",
-      "bytes": 17516,
-      "sha256": "205ac8e29455643b525389a4caf6a6ed39f215803f9a012ecf4b84ef4651fa46",
+      "bytes": 18747,
+      "sha256": "1fbdfe4cc07dfcb87faabf318e0ae257376fa7b5833634ebb561ac69a8aa230c",
       "headerProfile": 7
     },
     {
@@ -586,267 +586,267 @@
       "headerProfile": 4
     },
     {
+      "path": "guides.css",
+      "bytes": 8844,
+      "sha256": "ed8c2dd3f47609ce06d994e9df1c822fe843d826bc630f3a151dc527726a7874",
+      "headerProfile": 3
+    },
+    {
       "path": "guides/3d-tour-cost-australia/index.html",
-      "bytes": 22254,
-      "sha256": "61a29f1afdcf5a9d48ab81fffc7bc72a9da64787d6abad99365332dbd285dfc3",
+      "bytes": 24482,
+      "sha256": "8adaca1a03a9853adfa6240ab181dc529397140264bdc446ba105a3320ec9c13",
       "headerProfile": 1
     },
     {
       "path": "guides/3d-tours-realestate-com-au-domain/index.html",
-      "bytes": 20343,
-      "sha256": "5da566480cb2c1d67a11aea4a96f533b87f12ced1a1598134a9348a8493ee3dc",
+      "bytes": 21603,
+      "sha256": "6f35406ee920b4487d5bd2afa8f1745fc5649e08949c7f2372dec96c9c4470d2",
       "headerProfile": 1
     },
     {
       "path": "guides/do-3d-tours-help-sell-faster/index.html",
-      "bytes": 19822,
-      "sha256": "e1644d909a911ca33034c61a5977cc761ae056f3af19ed8fbca12ee0e1e6bca2",
+      "bytes": 21269,
+      "sha256": "81246e8dd35be655502ab4288cf0e7aa800fd5d8323f8edc96a5836d8cf25961",
       "headerProfile": 1
     },
     {
       "path": "guides/index.html",
-      "bytes": 7922,
-      "sha256": "0d69de8fa6007317ca610b36036fcb37641e21cffcb31287c4a5c771a599260b",
+      "bytes": 9397,
+      "sha256": "2e2fcf96c767ec8069d7b9ab13d8efca9c1dd2a7c16f20fcf34b5ac2ad55160f",
       "headerProfile": 1
     },
     {
       "path": "guides/iphone-lidar-vs-matterport/index.html",
-      "bytes": 18284,
-      "sha256": "d15338bfe33f266bde5aaed8112c89df456afee4a638822632b1256705936350",
+      "bytes": 19872,
+      "sha256": "c12052f3dfeb4772acadfbb3db1179f570922fd6c7822927a417b6681676ebb2",
       "headerProfile": 1
     },
     {
       "path": "guides/privacy-3d-home-tour/index.html",
-      "bytes": 20196,
-      "sha256": "26ad3fede56d1afbe18b7ee9f52d04eb5c5f5f7616f4f47f1d4bc651a0f5f46a",
+      "bytes": 21497,
+      "sha256": "32a8d6f0900fe04d2c479848a43480d952dd3d84e369d60496842322771c3198",
       "headerProfile": 1
     },
     {
       "path": "guides/what-is-a-3d-walkthrough/index.html",
-      "bytes": 16611,
-      "sha256": "d2a980c495e009f4fbb6491691e73e0bed62eca067d25c6ab214973e746b16d0",
+      "bytes": 17781,
+      "sha256": "7980bcb0814b217ade72ab6222469080d5c90da1ef148b0417bde801e953a001",
       "headerProfile": 1
     },
     {
-      "path": "guides.css",
-      "bytes": 7430,
-      "sha256": "ceeecc110ad9b6b471076595295c598147527806769d8685edf0f4184582b1cf",
-      "headerProfile": 3
-    },
-    {
       "path": "handoff/index.html",
-      "bytes": 13453,
-      "sha256": "f861a2936b0ea4ee525fcc35c535d07463b498c8a12d0fa4626861e3b0308fad",
+      "bytes": 14638,
+      "sha256": "3d3f3d999eea58432af7291387466b66528b59549563a168041d5f3e83ee190e",
       "headerProfile": 1
     },
     {
       "path": "help/approve-and-share/index.html",
-      "bytes": 7520,
-      "sha256": "9b6c329a8d600c1d269fe41c432dec1a2d703c400f1bfcf305fae59abe953641",
+      "bytes": 8290,
+      "sha256": "7f74d9c7c7152d74a78a310941d50722c401b344545146087872b7f766f59b8b",
       "headerProfile": 1
     },
     {
       "path": "help/delete-account/index.html",
-      "bytes": 6194,
-      "sha256": "578871b5d3891a2f6226ab531b72768fc34430fb49d1fed80c87d31f06052c5c",
+      "bytes": 6964,
+      "sha256": "1c1a3ab0c7250eab0bbf006c01f1f6d59f554e0cac08f3f993002b1b13f9f307",
       "headerProfile": 1
     },
     {
       "path": "help/doorways/index.html",
-      "bytes": 6084,
-      "sha256": "8980d64d864ec21ea3e3ba2d74122fb3f75e955d8f6806765153a07652832e1d",
+      "bytes": 6854,
+      "sha256": "039a9c661849037cd7ee654c45301dfe3fe5a9e8df317aef65fd5d2c5f4363f5",
       "headerProfile": 1
     },
     {
       "path": "help/fix/ai_visual/index.html",
       "bytes": 938,
-      "sha256": "d29506064fdce6d82b15f4513f0b8bac9c73cb83146c388eeede4c6aee8e99ee",
+      "sha256": "1a5fce33e1878a67ddadfcc3515534dfb76381684d13322c5ae74269006d5300",
       "headerProfile": 1
     },
     {
       "path": "help/fix/coverage/index.html",
       "bytes": 876,
-      "sha256": "6b451bd94c3172be30c30bc00cb70139a5661afc0d05ea61679b0aeac2f7eb5e",
+      "sha256": "f17b0b0167ab52543e31e271a30841ed66c131c8906d86a551e48c6fd851b916",
       "headerProfile": 1
     },
     {
       "path": "help/fix/few_views/index.html",
       "bytes": 944,
-      "sha256": "e5061b3ba78d699d0a9f19fb8e2dce98bb714daf649be5ac3f31e39376e7fdff",
+      "sha256": "da7d572a1e38a6fa8e75a58083502d9c3372b6a3b4ed56e080c196f3930c2e08",
       "headerProfile": 1
     },
     {
       "path": "help/fix/floaters/index.html",
       "bytes": 906,
-      "sha256": "f8443530e538dd3155e1db84acfcf74a2a5df4298077e582302d7b154bc0411b",
+      "sha256": "c292da647b3f852e161f3604a3e28d3b0e9a82d8a31665b41d2c99fa8bc9b751",
       "headerProfile": 1
     },
     {
       "path": "help/fix/no_depth/index.html",
-      "bytes": 6301,
-      "sha256": "2d8f317851c92951ede1e9c5466bd7b34480cc460ade07f3506d100dd4fdd6b8",
+      "bytes": 7067,
+      "sha256": "321a6f319491213d6e48e91734dd4df90479c43a189bc36c6fe1e14ed7b2f830",
       "headerProfile": 1
     },
     {
       "path": "help/fix/no_floor/index.html",
       "bytes": 891,
-      "sha256": "1e4cfd841087d12a609aced3767c04c266d45b32ae1546017c476716fd712e88",
+      "sha256": "9d9327f4011fd012f14e45aff75cd8ccb004cdef237bb02df279c1009deb61d5",
       "headerProfile": 1
     },
     {
       "path": "help/fix/no_frames/index.html",
-      "bytes": 6428,
-      "sha256": "68039f67e8003cb70c12eba9f801aeed88cc72cff2dc21e50b75a3026cde4046",
+      "bytes": 7194,
+      "sha256": "9a88e6ef4ae40a91fcd94e1934c46ec7a2717d54893f7792574247ca9277961a",
       "headerProfile": 1
     },
     {
       "path": "help/fix/not_connected/index.html",
       "bytes": 925,
-      "sha256": "5e72f1717147d7745100f5e46c1fac310d6d453a908b592a920523458b76fd9d",
+      "sha256": "47df7defba07501229433a3c93b87df229e100dfb927a6358cdf050ae9c42292",
       "headerProfile": 1
     },
     {
       "path": "help/fix/not_property/index.html",
-      "bytes": 6119,
-      "sha256": "2171a0d014ffd380dfedd4df466f9a88cbd1266976201685fd37ee4283426c0f",
+      "bytes": 6885,
+      "sha256": "2711f82b5f4e830050a3a54dd441ad96487487b3638a1549bd554dfd8018d6ca",
       "headerProfile": 1
     },
     {
       "path": "help/fix/phone_budget/index.html",
-      "bytes": 6259,
-      "sha256": "e81b0cad534ee0ae0512226533c2ccc49b3c8dd755161f4f1c483411efb423c4",
+      "bytes": 7025,
+      "sha256": "57a2130eec0291922e06c0616efec6f9613254d2af92a770fadd3a33ecdbfce4",
       "headerProfile": 1
     },
     {
       "path": "help/fix/photo_match/index.html",
       "bytes": 879,
-      "sha256": "d0f8b58518fbc327244c2f3ed5c914d2dacd011767555f17d405801ec37d5cb2",
+      "sha256": "b5f0b2dc797f76ab42f48bc1519c0f2ae4552b6be601d152c7360fc2f04ba821",
       "headerProfile": 1
     },
     {
       "path": "help/fix/upload_limits/index.html",
-      "bytes": 6184,
-      "sha256": "ed73be934e15d5ab4769f187dae41d687ec52022248c9432b4633f50ba511e6c",
+      "bytes": 6950,
+      "sha256": "58b35bb3a40a830b4987c9111f41787805da7711816824a3477e90b241615c43",
       "headerProfile": 1
     },
     {
       "path": "help/fix/worth-a-look/index.html",
-      "bytes": 8339,
-      "sha256": "a8897ffeaa328594d48d057ed13a35f2b29e2684190cb896d56c07721eda9207",
+      "bytes": 9109,
+      "sha256": "9a0b83e4c6478c2b8e930d0e4f3405260794bbb6d496bd8d7689f632d2874419",
       "headerProfile": 1
     },
     {
       "path": "help/help.css",
-      "bytes": 3383,
-      "sha256": "4491086eed76473e9810dd5c66a5b43a197bafd94ff620a27c3e21bb2f53b6b9",
+      "bytes": 3273,
+      "sha256": "ef847e09d2e5d978fdef5834bba3e9d9469b401f320f05b0ecb87c01f65fb19b",
       "headerProfile": 3
     },
     {
       "path": "help/index.html",
-      "bytes": 17036,
-      "sha256": "5e0da28440239aee1a0ff8ed4f43f191551f3b3a12e03a753c8de6f9aef1a04d",
+      "bytes": 17737,
+      "sha256": "e3ad461a53c1201308e13e81a7f2282123fa0888ac2101e878160576111c6e1c",
       "headerProfile": 1
     },
     {
       "path": "help/install-and-sign-in/index.html",
-      "bytes": 6221,
-      "sha256": "43e50ca72ba541a5bbf35d1f91af583797b4d18ffd6d0796d52cd16619f05c3c",
+      "bytes": 6991,
+      "sha256": "5febcd7cb55aacf20a66bab82bfb0c9e4874b3c3c67d5c094315c8c0cd69ce68",
       "headerProfile": 1
     },
     {
       "path": "help/light-mirrors-windows/index.html",
-      "bytes": 6135,
-      "sha256": "40e0e5d2dd0f3ca5ec970c2e8109f25f8675d8c1294a0ae3ef2882c74e5f9593",
+      "bytes": 6905,
+      "sha256": "fcfeb64fe1ae41d1e5ea0bf1500eb00c33dc6d68fb5548217edc8ca3b21d6938",
       "headerProfile": 1
     },
     {
       "path": "help/pause-or-turn-off/index.html",
-      "bytes": 6504,
-      "sha256": "4186bfdaea4be4411971f0c8e8456b4bc52173cab91a63e012d9254aee4fc910",
+      "bytes": 7358,
+      "sha256": "1a8b623802585fbef1861cea256540edfffd8d4fbb79ca2e15533b948dd566a9",
       "headerProfile": 1
     },
     {
       "path": "help/phone-check/index.html",
-      "bytes": 6699,
-      "sha256": "ca926063d1fe46ff8f6d9c3a99519042af1bb40cd356aec0353d4345dc259875",
+      "bytes": 7469,
+      "sha256": "822d279d069488efccb526936d4ab50485a2d48b36f5a601e93f7e62d97f1e98",
       "headerProfile": 1
     },
     {
       "path": "help/practice-room/index.html",
-      "bytes": 7047,
-      "sha256": "68502175e4e41dc4de6cdb01025655937c9c1b23f19175f9fd42786d9c6207a4",
+      "bytes": 7817,
+      "sha256": "7c7496d8012396092861723abd64ae55404ac825dabc3a6bdec345c5c74fa918",
       "headerProfile": 1
     },
     {
       "path": "help/privacy-and-consent/index.html",
-      "bytes": 6508,
-      "sha256": "66d38004e4d78506618757f8b507eeb1b360e9a149690dc0fcc1d833f98b5942",
+      "bytes": 7278,
+      "sha256": "63c65d25e0ec9b618dc12f4a78cbf4f242f55c33531b5629b8451ef025cdfdf6",
       "headerProfile": 1
     },
     {
       "path": "help/render-status/index.html",
-      "bytes": 7099,
-      "sha256": "9a36acf48647e93d35f4ff50ef805209b7085d20ad15b051464888f581e8d7c2",
+      "bytes": 7833,
+      "sha256": "c8a2de21585bce98a160bb33d136a2e471bdd1774475f6db033632c1a4e0f1ca",
       "headerProfile": 1
     },
     {
       "path": "help/share-your-walkthrough/index.html",
-      "bytes": 7113,
-      "sha256": "efdbcc1f192106128c6d2e3fedccea3c9cd7ff48b7fbbab128d2248a1a3a9fde",
+      "bytes": 7920,
+      "sha256": "b8a6c028e8ad5f1f38066c351e0aa07e570c02e6895c4a46390849d3d84fd768",
       "headerProfile": 1
     },
     {
       "path": "help/uploading/index.html",
-      "bytes": 6155,
-      "sha256": "3400472972336e359b1ff938146f90a78392f40c752b00f64f1ff8cc06ad1684",
+      "bytes": 6925,
+      "sha256": "cd04298c17e0252c486e0ce671a1c78f946a2f975bd59454629d4b7cea0844ea",
       "headerProfile": 1
     },
     {
       "path": "help/walk-a-room/index.html",
-      "bytes": 6637,
-      "sha256": "24fd40711b4b407d9b7280b6b59dd41aa9c945134fba2fb2c4fece6daabe1112",
+      "bytes": 7407,
+      "sha256": "fb86a46562b46a4b675de004334495210e74eb2326ef4c2f5ef53ea1e8a1a98f",
       "headerProfile": 1
     },
     {
       "path": "help/website/index.html",
-      "bytes": 6787,
-      "sha256": "7474d614d71e3679577f37f044f7d9d8bd8a91cf917434bb347390b8af206d32",
+      "bytes": 7570,
+      "sha256": "a2de273ddab19bdd1cac60e7d5199bab4e19c7646487cc3c0b1e539a830cd6ac",
       "headerProfile": 1
     },
     {
       "path": "help/what-you-need/index.html",
-      "bytes": 6142,
-      "sha256": "5b44d8180bc3b03e133189290085684dacbf528647f16475d72997aa72a1ade3",
+      "bytes": 6912,
+      "sha256": "025df6c01f2cb04bc0cbf4799fc483e78905156764fe06e98732107e86400e15",
       "headerProfile": 1
     },
     {
       "path": "help/what-your-client-sees/index.html",
-      "bytes": 6894,
-      "sha256": "0fcea7be6d79036d392688b5b0cc844959a638be50a5c69c115edf1ba3339f85",
+      "bytes": 7687,
+      "sha256": "53c37a9cbcdf5028ece9e28d68b3e31f508d729b509f6ccce85577a34758c753",
       "headerProfile": 1
     },
     {
       "path": "help/whole-home/index.html",
-      "bytes": 6289,
-      "sha256": "a65738a4e9c4a40ee8f35e6337f7b6f9f0ee22a31c194c8bfffe51856f22dac7",
+      "bytes": 7059,
+      "sha256": "9c3703cd7fd38da2d74df56cc621c2f7882bec66d454b0aee534353d3437071d",
       "headerProfile": 1
     },
     {
       "path": "help/your-plan/index.html",
-      "bytes": 7379,
-      "sha256": "fff4f47793808fb79850e888ee7028dff817eedd0080a6a5939b3fe08f42fb75",
+      "bytes": 8207,
+      "sha256": "fd29eaa2b39693f5437a93b994f922419054928bd9506185cb7bf20c0061d0b7",
       "headerProfile": 1
     },
     {
       "path": "home-refinement.js",
-      "bytes": 1523,
-      "sha256": "075fabb50280faf2942dec44f11134982c276f9e627b354e438f10dd4bf6e0f8",
+      "bytes": 1522,
+      "sha256": "d6b05820aa523189d4b833bf0913a2f5efa0bc864ffe94b8e96593bab5b5e7c7",
       "headerProfile": 4
     },
     {
       "path": "index.html",
-      "bytes": 24687,
-      "sha256": "07cfb77fe336bc1b0e7cd11878f81bd1ab96f6032016a1fbb608fdc432f44392",
+      "bytes": 24917,
+      "sha256": "f2bae52d113b02a8db6352b29a971005cd07a3398cc4795b05b9cd5d4820fa31",
       "headerProfile": 1
     },
     {
@@ -857,26 +857,26 @@
     },
     {
       "path": "join/index.html",
-      "bytes": 3487,
-      "sha256": "0b332a2243c3ad1485724b2e8b7976ad6419eb0aa3c1b07a83f407e2430156bf",
+      "bytes": 4553,
+      "sha256": "060a80060ffade67e8ea466c0c11775a4fa26f9594802e846ac92277ed2822a8",
       "headerProfile": 1
     },
     {
       "path": "join/join.js",
-      "bytes": 9946,
-      "sha256": "d681fcefdd1485230be01fe2bde89c8a7c7aeedc501196634c47a9159619bcdc",
+      "bytes": 9938,
+      "sha256": "d435c8fe40a52f0486e6fbcb35024551a1e370c424c9f3f53dbe0d13cf2c768c",
       "headerProfile": 4
     },
     {
       "path": "llms-full.txt",
-      "bytes": 134361,
-      "sha256": "2832334e35b54418bd9fa3957dca4e2f816381479b6117fe4b63f05760ef34ec",
+      "bytes": 135216,
+      "sha256": "ce16f8b70ddadd65f9e4a0333d93d4f7e2a753d18c04f2a56cfd32ea8635dd1b",
       "headerProfile": 2
     },
     {
       "path": "llms.txt",
-      "bytes": 15230,
-      "sha256": "6787df4fc7f6011333ad923ace1de65ed90b9aa280ea022e4f7b25cc42400394",
+      "bytes": 15729,
+      "sha256": "2f9f14d67e8c441c093d8a3f3c19a51f36996d613fb656cf46061ebc924814c3",
       "headerProfile": 2
     },
     {
@@ -988,6 +988,30 @@
       "headerProfile": 9
     },
     {
+      "path": "media/apple-touch-icon.png",
+      "bytes": 1596,
+      "sha256": "9f6c76b31bc18790f80904edbf5fffda9864ac0a1cb3c6ceaa2ae8ecb8b39350",
+      "headerProfile": 11
+    },
+    {
+      "path": "media/favicon-32.png",
+      "bytes": 771,
+      "sha256": "3338f5c62f19fd96bd4762ca9baf879bb98aa211ddf2c8fb1ecb17d50859b886",
+      "headerProfile": 11
+    },
+    {
+      "path": "media/favicon.svg",
+      "bytes": 415,
+      "sha256": "3983d11950a9fb3f6bdf6a8653384b884f3cf51c7db016756dc662a16b6278be",
+      "headerProfile": 13
+    },
+    {
+      "path": "media/guide-cost-400.webp",
+      "bytes": 12772,
+      "sha256": "7f1ca95776333f8bbdf81d7b0c1dcfd1ca7fc6ed504e883570fe6ffe06b03f29",
+      "headerProfile": 9
+    },
+    {
       "path": "media/guide-cost-720.webp",
       "bytes": 33030,
       "sha256": "50510d850be1fe1fe0471f355cd9ebfc063c2fba58a7e3317d77ade4291db355",
@@ -1003,6 +1027,12 @@
       "path": "media/guide-cost.webp",
       "bytes": 84450,
       "sha256": "a7ce4ef865b3cd9825a2c23f0959b2a51c92392b4500ccca5cfea225aab91fe8",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-lidar-400.webp",
+      "bytes": 7900,
+      "sha256": "a705eb74c9ae1d80b25e9511b8766425ddd65b93d1a3004ca0c0afe07bd4cfde",
       "headerProfile": 9
     },
     {
@@ -1024,6 +1054,12 @@
       "headerProfile": 9
     },
     {
+      "path": "media/guide-portals-400.webp",
+      "bytes": 11142,
+      "sha256": "c6583cde828525d490c8c0fe6408b6272c2f04ca84071879a9ebf94ae42c0214",
+      "headerProfile": 9
+    },
+    {
       "path": "media/guide-portals-720.webp",
       "bytes": 29224,
       "sha256": "eb5b1972164b9cf578bd95409cd754816e96d7f3f9d9022959aa922fd0130f12",
@@ -1039,6 +1075,12 @@
       "path": "media/guide-portals.webp",
       "bytes": 77960,
       "sha256": "6a26838f23db29ab15c5a0e01828b50ba31bfedad0acf0bbed4b3abb72ae0547",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-privacy-400.webp",
+      "bytes": 7288,
+      "sha256": "3cfea63fe0e887457a227296d59cbb7c93ec2f0e96b3f543849d9ed89c3f91a2",
       "headerProfile": 9
     },
     {
@@ -1060,6 +1102,12 @@
       "headerProfile": 9
     },
     {
+      "path": "media/guide-sell-400.webp",
+      "bytes": 12240,
+      "sha256": "67b2043974e4b6e699f1ee26a61414842ba5f3b47c7e10919d72bef0e34cf89c",
+      "headerProfile": 9
+    },
+    {
       "path": "media/guide-sell-720.webp",
       "bytes": 29318,
       "sha256": "b448b472a1023271478e9c74adc3783b6cbd63dfa7880108901fb387488cd814",
@@ -1075,6 +1123,12 @@
       "path": "media/guide-sell.webp",
       "bytes": 74998,
       "sha256": "86faf09a2902dce5b35cf90de725d03e398e4d7313ecc34f3dc7af1ebfa5cde5",
+      "headerProfile": 9
+    },
+    {
+      "path": "media/guide-what-is-400.webp",
+      "bytes": 11142,
+      "sha256": "c6583cde828525d490c8c0fe6408b6272c2f04ca84071879a9ebf94ae42c0214",
       "headerProfile": 9
     },
     {
@@ -1252,6 +1306,12 @@
       "headerProfile": 12
     },
     {
+      "path": "media/share-card.jpg",
+      "bytes": 41089,
+      "sha256": "efe5d72defb1bf0ce8300d96b783ce16bd904da3f388e346ea1390003006e0e8",
+      "headerProfile": 8
+    },
+    {
       "path": "media/share/guides.jpg",
       "bytes": 76458,
       "sha256": "0f567c96177732a86baa1c213eb166d1df60123ffbfa8bc12e81d2d9e3d9ac82",
@@ -1282,12 +1342,6 @@
       "headerProfile": 8
     },
     {
-      "path": "media/share-card.jpg",
-      "bytes": 41089,
-      "sha256": "efe5d72defb1bf0ce8300d96b783ce16bd904da3f388e346ea1390003006e0e8",
-      "headerProfile": 8
-    },
-    {
       "path": "media/studio-avatar.png",
       "bytes": 10269,
       "sha256": "255429a73c7bd8b99c5ff45ebefbd6bf36a82e1976e4db762591be668c0415db",
@@ -1306,22 +1360,22 @@
       "headerProfile": 11
     },
     {
+      "path": "offer.js",
+      "bytes": 9169,
+      "sha256": "36b20a712396239ff6ceba65609e0371366f228805b8c8374ccd4f41bff801e2",
+      "headerProfile": 4
+    },
+    {
       "path": "offer/index.html",
-      "bytes": 51650,
-      "sha256": "f9416a022f8793edc9111215e98321f7197947bf193497d70a94856a41a4a2bb",
+      "bytes": 52569,
+      "sha256": "6c39e854b89cf3969edf4fbd3dfe36bc039507c02ebba9afd19d2f126d6b1f2a",
       "headerProfile": 1
     },
     {
       "path": "offer/offer.json",
-      "bytes": 22748,
-      "sha256": "ef98389e5ed555ee3e28b77b2c7f46a0bfdf3fbad47c7989386daa067585dd22",
+      "bytes": 26242,
+      "sha256": "57bb0ada5c9aa7bf81eff38798aa887f07961e0ee1e5639b762d10e4f0b00abd",
       "headerProfile": 6
-    },
-    {
-      "path": "offer.js",
-      "bytes": 9229,
-      "sha256": "e292f716a9724738a82212dae26e4909a1a1ac942f19cdaaf1e7b5716290364e",
-      "headerProfile": 4
     },
     {
       "path": "place-fields.js",
@@ -1331,26 +1385,26 @@
     },
     {
       "path": "play/index.html",
-      "bytes": 8457,
-      "sha256": "18912cc66a6395af4bac6e2b22af75ebbe16363876b2505cbafe39adfaa1bfd6",
+      "bytes": 8596,
+      "sha256": "1b8d171aae11eafa6d5373e52c6936acdcc39ac75f77d2731cc00fe27673b3b9",
       "headerProfile": 1
     },
     {
       "path": "privacy/index.html",
-      "bytes": 15422,
-      "sha256": "005340d5ea6815857f5df9ee2ffda81e0c477bbb52aabd222c54849ff728b059",
+      "bytes": 16417,
+      "sha256": "a823f7f566fa2d9e473137e8867d86419e93e7a72ec3e9ac7b610ab32dc1743d",
       "headerProfile": 1
     },
     {
       "path": "refinement.css",
-      "bytes": 15577,
-      "sha256": "3396f9c21e422ea80e69351f7999ddeadc8555648806d647eb243d2fe00b265e",
+      "bytes": 13302,
+      "sha256": "19b8d96e0b4d6721d9005c5279ec152cfbade7bdf639d6efb0dbf7dca0cbdd4e",
       "headerProfile": 3
     },
     {
       "path": "report/index.html",
-      "bytes": 5925,
-      "sha256": "6cf1576e06526adb0ef32e7810cfdc3859f6d358e92f038f19a44a6ce0fd46b1",
+      "bytes": 6180,
+      "sha256": "fe170c954fbdb25306cbd05b99e4014e371f651bd5b8d463cf208f15bbe44c87",
       "headerProfile": 1
     },
     {
@@ -1361,8 +1415,8 @@
     },
     {
       "path": "request/index.html",
-      "bytes": 13477,
-      "sha256": "6204e106aa926176cba046926e93149fd7738ff43e19faf1a57b5f9c7cfa21eb",
+      "bytes": 14001,
+      "sha256": "e110a9d8cdae0c60bdcfe14596287748207c263853cadba2c0530c463ecf1cca",
       "headerProfile": 1
     },
     {
@@ -2099,26 +2153,26 @@
     },
     {
       "path": "see/index.html",
-      "bytes": 33243,
-      "sha256": "1c24343538871762df8bd440e6e6bc3d5f0bbbe7462fac62f6a8af2ae9ca3864",
+      "bytes": 33526,
+      "sha256": "f7333ab4f88c1a08efeb2480b35208368a01d272a10cea36e8ae9dd894302b22",
       "headerProfile": 1
     },
     {
       "path": "see/see.css",
-      "bytes": 28423,
-      "sha256": "6b1929b43be4669d3cdebb1ec996d30f6cbe4ba3e899f382186d8dfb480195ff",
+      "bytes": 29834,
+      "sha256": "011a63a21d92280903e7f11cce796eb0ca254a267a6ac9d3ca27e07c9ed57d25",
       "headerProfile": 3
     },
     {
       "path": "see/see.js",
-      "bytes": 25944,
-      "sha256": "d9bcf2b27fb9d0ebcdd28062a3d45729bb2dacc390896cbb0ce5e82ce19dbf80",
+      "bytes": 27194,
+      "sha256": "54d9aa0a66d2aa3914bcb2ebb42f7ddea8d68f52edb4e897d9684a1fea582e70",
       "headerProfile": 4
     },
     {
       "path": "showcase.css",
-      "bytes": 21196,
-      "sha256": "68947999070d91216c3494a2562a6af5b4aa70a7d6adddbeaf00c47706a56077",
+      "bytes": 20961,
+      "sha256": "f8939f12c96cba56c1e05e5329a6318bcf68d420d728f7f0c367892c7f61dc03",
       "headerProfile": 3
     },
     {
@@ -2141,14 +2195,8 @@
     },
     {
       "path": "start/index.html",
-      "bytes": 19715,
-      "sha256": "12c8d97a3382688172bdc1acb4431c54049f82a5c16d545f3536de52a20b4ba4",
-      "headerProfile": 1
-    },
-    {
-      "path": "status/index.html",
-      "bytes": 4099,
-      "sha256": "c05210bee40e056ec67ddf38704647926bfc4a1705ddbfbf223f28ed91ea35bb",
+      "bytes": 21339,
+      "sha256": "3644f718a29a3a11652ba254c9514f96ee485a321c381e5637102a353fb7e74b",
       "headerProfile": 1
     },
     {
@@ -2164,27 +2212,33 @@
       "headerProfile": 4
     },
     {
-      "path": "studio/index.html",
-      "bytes": 13888,
-      "sha256": "ef72b7f091d03abe2acbf38b973438d94fefb86c3c826eb702d33f00346ca1c6",
-      "headerProfile": 18
+      "path": "status/index.html",
+      "bytes": 4849,
+      "sha256": "60e7696072304c060e946ef294bfdbf1d6ae8ff9c31f8aa9df1a75475475ff0c",
+      "headerProfile": 1
     },
     {
       "path": "studio.css",
-      "bytes": 22573,
-      "sha256": "dd35e6ff75d47f6b0a2b85f8826dcdab6375d3f003c47984f10a58869192d0ee",
+      "bytes": 22763,
+      "sha256": "872dbe985f71694c4dcae78c09cd4e70ccab74c6035fa8ecb4bd157855a7b192",
       "headerProfile": 3
     },
     {
       "path": "studio.js",
-      "bytes": 131478,
-      "sha256": "2f86a42caf63acf6f05d2375e4dcb645a0a771aec3b6e2bcdcc18821843a278e",
+      "bytes": 131604,
+      "sha256": "bdf50146b482d769966a26270da82bd383c8b1021fa4dd767c47769c8e6d1369",
       "headerProfile": 4
     },
     {
+      "path": "studio/index.html",
+      "bytes": 14031,
+      "sha256": "c0ac10b69aa0663fd011cd8764643e91d44801f1fd4d35284194c5080b629c47",
+      "headerProfile": 18
+    },
+    {
       "path": "style.css",
-      "bytes": 45805,
-      "sha256": "3412b25235ba11a445eeca1fef09c3490ea2c53673170a5e3a7ae6fa020be129",
+      "bytes": 54114,
+      "sha256": "77cd95fea06762b2e86c21ef51306806ca986d79210d66712460b91ee4d99b89",
       "headerProfile": 3
     },
     {
@@ -2195,69 +2249,69 @@
     },
     {
       "path": "support/index.html",
-      "bytes": 6278,
-      "sha256": "8630c5851aa231b7ea36c88bee66416118bf157e21edfdf154a86d513ca450ff",
+      "bytes": 6984,
+      "sha256": "02afded788271f62e0d0f1f6b0ee71584b7f1fd46cdad393619b904e79f49bda",
       "headerProfile": 1
     },
     {
       "path": "terms/index.html",
-      "bytes": 16604,
-      "sha256": "9f08862399aaee7667769fedcd2a8c62c56c1a57801f06537735f3c099fc86ac",
+      "bytes": 17412,
+      "sha256": "d210ee06228f3deef939afbb3084bbe343cb42e7c66cae3849d0959227cd0fd5",
       "headerProfile": 1
     },
     {
       "path": "thanks/index.html",
-      "bytes": 3410,
-      "sha256": "e8dac8682872c83f4d4c9467b20aeaae7644a70e830de481e6d908436ea9c768",
+      "bytes": 4222,
+      "sha256": "b823cd427aeb894cd37d864a5751f3b28f4c72b3df258f4a35185d4ebf9b1f09",
       "headerProfile": 1
     },
     {
-      "path": "tour/index.html",
-      "bytes": 13091,
-      "sha256": "a28fff0ff5e23c9442cec14719188eb2602e9fcfe6913dc01bf0d0fa8d6ffd50",
-      "headerProfile": 19
-    },
-    {
       "path": "tour-player-v2.css",
-      "bytes": 12112,
-      "sha256": "72a09df6f0e1e23be7cc32a4ac7ace83a351b8cbbc5355dfeba6516d0d0df7d3",
+      "bytes": 17999,
+      "sha256": "ccaac186bd8390c787455757f17d0411603ef26d1a9773cd69d57cdd987f932d",
       "headerProfile": 3
     },
     {
       "path": "tour-player-v2.js",
-      "bytes": 95366,
-      "sha256": "911f64ef87c448189449250f0291b3b419fb36cc09949f8d20401d4583cf5709",
+      "bytes": 142631,
+      "sha256": "33c55a63831731fcf2211f9534aa2e8dac300d9f8c69e36a55c622e36d951a4c",
       "headerProfile": 4
     },
     {
       "path": "tour-player.js",
-      "bytes": 20266,
-      "sha256": "51bdce56f449891665b840f3cc94912b1890e221f656acd293d5aca234864bcf",
+      "bytes": 24310,
+      "sha256": "7574dcd2c109893c384a429d4df53bfb969f53a3604670cb3f6dc5ece25524c8",
       "headerProfile": 4
     },
     {
       "path": "tour-sharing.js",
-      "bytes": 11095,
-      "sha256": "be796c17f4972ab7c8b603ae47621c5d99ef99889e7612b22f9fcbd6ac52285a",
+      "bytes": 11116,
+      "sha256": "c26b71518e726e57e4bb28c69ccb10c0694d1ccbde071ef603f7342a889bb331",
       "headerProfile": 4
     },
     {
       "path": "tour-stage.css",
-      "bytes": 1275,
-      "sha256": "6800a56190b612071984227af33c08544aa320710c5e17b7ea7771889beb2d61",
+      "bytes": 3661,
+      "sha256": "a91aa260a248fb09a999c97b83f6fd1fd044c4ddf713ef4843d266bc4e2f3f23",
       "headerProfile": 3
     },
     {
-      "path": "unsubscribe/index.html",
-      "bytes": 3176,
-      "sha256": "28b8ba41de24fe256fdb79c5679396ffa7d391d13a65ea141bef8c388144a712",
-      "headerProfile": 1
+      "path": "tour/index.html",
+      "bytes": 14356,
+      "sha256": "2ae388e15266b85a251e1581b3c97f90631ea9a3a9aabf779d2f85e871397f2d",
+      "headerProfile": 19
     },
     {
       "path": "unsubscribe.js",
       "bytes": 7033,
       "sha256": "7f4e1de75803ea5b5fa1c0650c2f1e0540f86ed2a753419c7cb067d0d84517f2",
       "headerProfile": 4
+    },
+    {
+      "path": "unsubscribe/index.html",
+      "bytes": 3836,
+      "sha256": "9a3e0a0048b7ddeba59fb1ad7208dee0c7f7335e4453db372c29ae4cb4094f76",
+      "headerProfile": 1
     },
     {
       "path": "vendor/LICENSE.gsap.txt",
@@ -2308,9 +2362,9 @@
       "headerProfile": 4
     },
     {
-      "path": "vendor/playcanvas-2.22.6.min.js",
-      "bytes": 2466208,
-      "sha256": "37ab7320dff06cb8946eac5dc45c90c407cd82abc78faa6eca794244e97cb374",
+      "path": "vendor/playcanvas-2.23.2.min.js",
+      "bytes": 2550945,
+      "sha256": "dc5be7cc192c8e49631b445ac8afb0704012a951e83714a681ffe6b4a9a42647",
       "headerProfile": 4
     },
     {
@@ -2327,8 +2381,8 @@
     },
     {
       "path": "waitlist/index.html",
-      "bytes": 12245,
-      "sha256": "66ca2381f526e1b3e840b5a32bc6b718de7dd0508a0c8836c0be32a77809c16d",
+      "bytes": 12689,
+      "sha256": "db5ed815ca42c76d28db9c9bd53f817baedca48505678647b75a6f2410e19126",
       "headerProfile": 1
     },
     {
@@ -2338,16 +2392,16 @@
       "headerProfile": 4
     },
     {
-      "path": "website-guide/index.html",
-      "bytes": 11800,
-      "sha256": "f3147014b19cbdc2a86dffa8207a2678443dde81414e75d0055bd8ad2a36df4c",
-      "headerProfile": 1
-    },
-    {
       "path": "website-guide.js",
       "bytes": 2154,
       "sha256": "3559123101a8c2cee86e8199ba916c1ea4dd393b0d7960d839f640ab5bec2bb9",
       "headerProfile": 4
+    },
+    {
+      "path": "website-guide/index.html",
+      "bytes": 12710,
+      "sha256": "b86df5c06f483f8f74cb685174c3582ada77fa9fe6c1f726f3923b6b746f5042",
+      "headerProfile": 1
     }
   ],
   "analyticsTransform": {
@@ -2400,6 +2454,9 @@
     "privacyPaths": [
       "privacy/index.html",
       "app/privacy/index.html"
-    ]
+    ],
+    "privacyParagraphByPath": {
+      "privacy/index.html": "      <!-- LEGAL REVIEW 2026-09-29: cookieless page counts (Vercel Web Analytics) -->\n      <h2>Page counts.</h2>\n      <p> veylet.com counts page views with Vercel\n        Web Analytics, which uses no cookies and stores no personal identifiers:\n        it counts the page address (without query strings or fragments), the\n        referrer, the country and the device type in aggregate. Vercel\n        may process this outside Australia. Google Analytics still runs only\n        after you allow it.\n      </p>"
+    }
   }
 }
