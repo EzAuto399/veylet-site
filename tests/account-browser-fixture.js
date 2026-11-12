@@ -151,7 +151,7 @@
   const activityItems = () => [
     { id: 'd1111111-1111-4111-8111-111111111111', kind: 'ready_for_review', tour_id: ACTIVITY_READY, revision: 3, needs_attention: !approvedTours.has(ACTIVITY_READY), action: 'review', occurred_at: ago(.02) },
     { id: 'd2222222-2222-4222-8222-222222222222', kind: 'sharing_on', tour_id: ACTIVITY_LIVE, revision: 2, needs_attention: false, action: 'sharing', occurred_at: ago(1) },
-  ].map(item => ({ ...item, workspace_id: 'e1111111-1111-4111-8111-111111111111', property_id: ACTIVITY_SPACE, job_id: null, space_name: 'Fictional apartment', read_at: activityRead.has(item.id) ? ago(0) : null }));
+  ].map(item => ({ ...item, unread_eligible: params.get('activity') !== 'pre-membership', workspace_id: 'e1111111-1111-4111-8111-111111111111', property_id: ACTIVITY_SPACE, job_id: null, space_name: 'Fictional apartment', read_at: activityRead.has(item.id) ? ago(0) : null }));
   const hostingCase = ['review', 'hosting-errors'].includes(scenario);
   const planActiveFor = { 'synthetic-workspace': true, 'synthetic-workspace-ended': false };
   const extendedUntil = new Map();
@@ -1127,13 +1127,14 @@
         if (params.get('activity') === 'missing' || scenario !== 'activity') return { error: { code: 'PGRST202' } };
         if (params.get('activity') === 'error') return { error: { message: 'Synthetic Activity failure' } };
         const items = params.get('activity') === 'empty' ? [] : activityItems();
-        return { data: { items, unread_count: items.filter(item => !item.read_at).length, next_cursor: null, snapshot_token: ACTIVITY_SNAPSHOT, as_of: ago(0) } };
+        return { data: { items, unread_count: items.filter(item => item.unread_eligible !== false && !item.read_at).length, attention_count: items.filter(item => item.needs_attention).length, next_cursor: null, snapshot_token: ACTIVITY_SNAPSHOT, as_of: ago(0) } };
       }
       if (name === 'mark_activity_read') {
         if (params.get('activity') === 'read-error') return { error: { message: 'Synthetic read save failure' } };
-        const ids = args.p_snapshot_token === ACTIVITY_SNAPSHOT ? activityItems().map(item => item.id) : (args.p_event_ids || []).filter(id => activityItems().some(item => item.id === id));
+        const eligible = activityItems().filter(item => item.unread_eligible !== false);
+        const ids = args.p_snapshot_token === ACTIVITY_SNAPSHOT ? eligible.map(item => item.id) : (args.p_event_ids || []).filter(id => eligible.some(item => item.id === id));
         ids.forEach(id => activityRead.add(id)); try { window.sessionStorage?.setItem('veylet-qa-activity-read', JSON.stringify([...activityRead])); } catch { /* this synthetic visit still holds its reads */ }
-        return { data: { read_ids: ids, unread_count: activityItems().filter(item => !item.read_at).length } };
+        return { data: { read_ids: ids, unread_count: activityItems().filter(item => item.unread_eligible !== false && !item.read_at).length } };
       }
       if (name === 'get_walkthrough_insights') {
         if (scenario !== 'activity' || params.get('insights') === 'missing') return { error: { code: 'PGRST202' } };

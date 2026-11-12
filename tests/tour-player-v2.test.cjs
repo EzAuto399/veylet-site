@@ -179,8 +179,7 @@ test('camera, stop and floor geometry', () => {
   const wide = player.fieldOfView(2.4, { width: 1600, height: 900, fov: 70 });
   assert.equal(wide.horizontal, true);
   assert.ok(Math.abs(wide.fov - 2 * Math.atan(Math.tan(35 * Math.PI / 180) * 16 / 9) * 180 / Math.PI) < 1e-9); // 102.4°
-  assert.deepEqual([...player.floorHit([0, 0, 0], [0, -1, 0], -1.4)], [0, -1.4, 0]);
-  assert.equal(player.floorHit([0, 0, 0], [0, 0.1, -1], -1.4), null);
+  assert.equal(player.floorHit, undefined, 'the approved point-to-point player has no floor-tap target');
   // A 3 x 1 m floor split by a wall cell: you can stand on either side, not walk through.
   const bits = [1, 1, 1, 0, 1, 1];
   const mask = Buffer.from([bits.reduce((byte, bit, i) => byte | (bit << i), 0)]).toString('base64');
@@ -293,7 +292,7 @@ test('no WebGL2 or WebGPU: no engine download, the rendered poster stays, and th
   const root = byClass(x.stage, 'v2');
   assert.equal(root.dataset.state, 'fallback');
   assert.equal(byClass(x.stage, 'v2-fallback').hidden, false);
-  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This still is rendered from the walkthrough/);
+  assert.match(byClass(x.stage, 'v2-fallback').textContent, /3D can’t open in this browser\.This picture is from the walkthrough/);
   assert.equal(byClass(x.stage, 'v2-bar').hidden, true);
   assert.equal(byClass(x.stage, 'v2-poster').src, 'https://veylet.com/pkg/poster-portrait.webp');
   assert.equal(x.stage.hidden, false);
@@ -378,38 +377,16 @@ function room() {
   return { version: 1, cell_metres: 0.1, origin: [0, 0], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
 }
 
-test('a tap walks to open floor, snaps to floor beside furniture, or walks as far as the floor runs', () => {
+// Owner decision, 12 November: remove free-walk. The point-to-point navigation suite also
+// exercises the actual movement closures with clear/blocked floors and legacy path metadata.
+test('legacy free-walk targeting APIs are absent; masks remain available for stop visibility', () => {
   const { player } = load();
+  for (const name of ['walkTarget', 'tapAim', 'floorHit', 'tetherToStations']) assert.equal(player[name], undefined, name);
   const walkable = player.decodeWalkable(room());
-  const from = [0.5, 1.5];
-  // Open floor in a straight line: straight there.
-  assert.deepEqual([...player.walkTarget(walkable, from, [1.2, 0.5])], [1.2, 0.5]);
-  // On the sofa's edge: the nearest open floor within 0.75 m that can be walked to.
-  const beside = player.walkTarget(walkable, from, [1.6, 1.5]);
-  assert.ok(beside && walkable.walkable(...beside) && Math.hypot(beside[0] - 1.6, beside[1] - 1.5) <= 0.75, String(beside));
-  // Deep in the sofa and behind it: as far as the floor runs towards it, short of the sofa.
-  const towards = player.walkTarget(walkable, [0.5, 1.5], [2.4, 1.5], { snap: 0.2 });
-  assert.ok(towards && towards[0] > 0.8 && towards[0] < 1.5 && Math.abs(towards[1] - 1.5) < 1e-9, String(towards));
-  // Past the wall of the room: to the wall, not through it.
-  const wall = player.walkTarget(walkable, [0.5, 0.5], [0.5, -3], { snap: 0.2 });
-  assert.equal(wall, null); // 0.5 m from the edge, less the margin, is too short a move to count
-  const wallFar = player.walkTarget(walkable, [0.5, 2.9], [0.5, -3], { snap: 0.2 });
-  assert.ok(wallFar && wallFar[1] >= 0 && wallFar[1] < 0.5, String(wallFar));
-  // Facing straight into the sofa from its edge: nothing to walk to.
-  assert.equal(player.walkTarget(walkable, [1.45, 1.5], [2.0, 1.5], { snap: 0.2 }), null);
-  // Standing a hair off the mask (a stop at the edge of the sofa) still lets you walk away.
-  assert.deepEqual([...player.walkTarget(walkable, [1.52, 1.5], [0.5, 1.5])], [0.5, 1.5]);
+  assert.equal(walkable.walkable(.5, .5), true); assert.equal(walkable.walkable(2, 1.5), false);
 });
 
-test('where a tap aims: the floor it meets, a clamped point towards a wall, never the ceiling', () => {
-  const { player } = load();
-  assert.deepEqual([...player.tapAim([0, 0, 0], [0, -1, 0], -1.4)], [0, 0]);
-  const level = player.tapAim([0, 0, 0], [0, 0, -1], -1.4, 8);
-  assert.deepEqual([...level].map(v => Math.round(v * 1000) / 1000), [0, -8]);
-  assert.equal(player.tapAim([0, 0, 0], [0, 0.8, -0.6], -1.4), null);
-});
-
-test('a short wobbly touch still walks, and the refusal fits a phone frame on one line', async () => {
+test('a short wobbly scene tap keeps the captured pose and explains numbered-circle navigation', async () => {
   const x = await started({ manifest: manifest({ walkable: { path: 'walkable.json' } }) });
   x.log.length = 0;
   const app = x.engine.apps[0];
@@ -422,7 +399,8 @@ test('a short wobbly touch still walks, and the refusal fits a phone frame on on
   canvas.dispatch('pointerup', { pointerId: 1, clientX: 110, clientY: 106, pointerType: 'touch' });
   // No walkable floor in this package, so the tap is answered with the stops rule.
   const status = byClass(x.stage, 'v2-status').textContent;
-  assert.equal(status, 'Tap a circle or Next stop to move.');
+  assert.equal(status, 'No circle in view. Tap Next.');
+  assert.deepEqual([...x.window.VeyletPlayerV2.current.inspect().state.position], [0, 0, 0]);
   assert.ok(status.length <= 36);
 });
 
@@ -448,9 +426,9 @@ test('without the Fullscreen API (iPhone Safari) Full screen fills the window, a
   assert.equal(x.document.documentElement.style.overflow, '');
 });
 
-test('a frame under 320 px keeps Full screen and drops the map toggle instead', async () => {
+test('a frame under 288 px keeps Full screen and drops the map toggle instead', async () => {
   const narrow = load({ files: { 'manifest.json': manifest() } });
-  narrow.stage.clientWidth = 304;
+  narrow.stage.clientWidth = 280;
   const engine = fakeEngine(narrow.log);
   const pending = narrow.player.start(narrow.stage, { base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
   for (let i = 0; i < 12; i++) await tick();
@@ -703,7 +681,7 @@ async function readyPlayer(options = {}) {
   return { ...x, app, canvas: byClass(x.stage, 'v2-canvas'), stopLine: () => byClass(x.stage, 'v2-stop').textContent, status: () => byClass(x.stage, 'v2-status').textContent };
 }
 
-test('the render loop goes idle after an interrupted flight: a drag, a turn or a new move (VIEWER-08)', async () => {
+test('the render loop stays idle after point-to-point moves, drags and turns (VIEWER-08)', async () => {
   const time = clock();
   const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
   x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
@@ -714,41 +692,42 @@ test('the render loop goes idle after an interrupted flight: a drag, a turn or a
   assert.equal(renders(), false, 'at rest nothing is drawn');
   const next = byClass(x.stage, 'v2-next');
   next.click();
-  assert.equal(renders(), true, 'a flight draws every frame');
-  // A drag takes the camera mid-flight.
+  assert.equal(renders(), false, 'the point-to-point jump holds no render loop');
+  assert.equal(x.window.VeyletPlayerV2.current.inspect().state.stop, 1);
+  // A drag looks around from the new stop.
   x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
   x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
   x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
-  assert.equal(renders(), false, 'idle again after a drag cut the flight short');
-  // An arrow key turns mid-flight.
+  assert.equal(renders(), false, 'idle again after a drag');
+  // An arrow key turns at the next captured pose.
   next.click();
   x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
-  assert.equal(renders(), false, 'idle again after a turn cut the flight short');
-  // A second move replaces the first before it lands, and then lands.
+  assert.equal(renders(), false, 'idle again after a turn');
+  // Repeated moves jump immediately and leave no delayed movement.
   next.click(); next.click();
   time.t += 5000;
   x.app.fire('update');
-  assert.equal(renders(), false, 'idle again once the replacing flight lands');
+  assert.equal(renders(), false, 'idle after repeated point-to-point moves');
 });
 
-test('Next and Previous from “Between stops” go on from the nearest stop, not from the first or last (VIEWER-07)', async () => {
+test('scene taps never leave a stop; Next and Previous retain the current captured stop (VIEWER-07)', async () => {
   // 6 x 2 m of open floor along the five stops (x 0 to 4 m).
   const columns = 60, rows = 20;
   const open = { version: 1, cell_metres: 0.1, origin: [-1, -1], columns, rows, floor_y: -1.4, eye_height: 1.4,
     mask: Buffer.from(new Uint8Array(Math.ceil(columns * rows / 8)).fill(255)).toString('base64') };
   const x = await readyPlayer({ manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': open } });
-  const walkBetween = () => { x.window.VeyletPlayerV2.current.tapAt(340, 0); assert.equal(x.stopLine(), 'Between stops'); };
-  // 3.4 m along: stop 4 (3 m) is nearest, stop 5 (4 m) is next, stop 3 (2 m) is behind.
-  walkBetween();
+  const tapAtStop = () => { x.window.VeyletPlayerV2.current.goToStop(3); x.window.VeyletPlayerV2.current.tapAt(340, 0); assert.equal(x.stopLine(), 'Stop 4 of 5'); };
+  // A floor tap near stop 4 stays at its captured pose; the controls move to exact neighbours.
+  tapAtStop();
   byClass(x.stage, 'v2-next').click();
   assert.equal(x.stopLine(), 'Stop 5 of 5');
-  walkBetween();
+  tapAtStop();
   byClass(x.stage, 'v2-prev').click();
   assert.equal(x.stopLine(), 'Stop 3 of 5');
-  walkBetween();
+  tapAtStop();
   x.canvas.dispatch('keydown', { key: 'n' });
   assert.equal(x.stopLine(), 'Stop 5 of 5');
-  walkBetween();
+  tapAtStop();
   x.canvas.dispatch('keydown', { key: 'p' });
   assert.equal(x.stopLine(), 'Stop 3 of 5');
 });
@@ -757,11 +736,11 @@ test('a phone-sized stage (334 x 300) still gets a one-line movement hint, and N
   const x = await readyPlayer({ size: [334, 300] });
   const hint = byClass(x.stage, 'v2-hint');
   assert.equal(hint.hidden, false, 'the first view says how to move');
-  assert.equal(hint.textContent, 'Drag to look. Tap to move.');
+  assert.equal(hint.textContent, 'Drag to look. Tap a circle to move.');
   assert.ok(hint.className.includes('v2-hint-short'));
   // A roomy stage keeps the full sentence.
   const roomy = await readyPlayer();
-  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Tap the floor or a circle to move.');
+  assert.equal(byClass(roomy.stage, 'v2-hint').textContent, 'Drag to look around. Tap a circle or Next to move.');
   // Next: named for assistive technology, and "Next" stays on screen down to 300 px.
   const next = byClass(x.stage, 'v2-next');
   assert.equal(next.getAttribute('aria-label'), 'Next stop');
@@ -939,7 +918,7 @@ test('F07: a non-retryable failure replaces the focused loading action with a fo
   fallback.querySelector('button').focus();
   finishDevice(null);
   assert.equal((await pending).reason, 'no-graphics');
-  assert.equal(fallback.querySelector('button'), null);
+  assert.equal(fallback.querySelector('button').textContent, 'Copy link', 'the approved recovery keeps a link for another browser');
   const title = fallback.querySelector('h2');
   assert.equal(title.getAttribute('tabindex'), '-1');
   assert.equal(x.document.activeElement, title);
@@ -1076,21 +1055,20 @@ for (const scenario of ['blocked', 'missing', 'unmeasured', 'other-storey', 'hei
   });
 }
 
-test('a clear measured-floor stop route still animates, while reduced motion lands immediately', async () => {
+test('a clear measured-floor route jumps immediately with either motion preference', async () => {
   for (const reduced of [false, true]) {
     const time = clock(), data = manifest({ walkable: { path: 'walkable.json' } });
     const x = await readyPlayer({ reduced, context: { performance: time }, manifest: data, files: { 'walkable.json': navigationFloor() } });
     const controller = x.window.VeyletPlayerV2.current;
     controller.goToStop(2); time.t += 400; x.app.fire('update');
     const state = controller.inspect().state;
-    if (reduced) assert.deepEqual([...state.position], data.stops[2].position);
-    else assert.ok(state.position[0] > 0 && state.position[0] < 2, 'a known clear route retains interpolation');
+    assert.deepEqual([...state.position], data.stops[2].position, 'a clear floor never re-enables interpolation');
     time.t += 5000; x.app.fire('update');
     assert.deepEqual([...controller.inspect().state.position], data.stops[2].position);
   }
 });
 
-test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station tether, and adaptive DPR 2.0 step-up', async () => {
+test('Walkthrough 2.0: room pills, destination labels, captured-pose navigation, and adaptive DPR 2.0 step-up', async () => {
   const { player } = load();
   // 1. Adaptive DPR 2.0 step-up on capable phones with sustained >55 fps headroom.
   const phone = player.deviceProfile(phoneWebgl2);
@@ -1104,15 +1082,8 @@ test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station t
   }
   assert.equal(gov.state.pixelRatio, 2, 'sustained >55 fps headroom steps DPR up to peakPixelRatio 2.0');
 
-  // 2. Station tether keeps floor taps within the 0.85m corridor around stops and segments.
-  const walkable = player.decodeWalkable(navigationFloor());
-  const stops = manifest().stops;
-  const corridorPt = player.tetherToStations(walkable, [0, 0], [3.4, 0], stops);
-  assert.deepEqual([...corridorPt], [3.4, 0], 'point along stop corridor remains untouched');
-  const nearStopPt = player.tetherToStations(walkable, [0, 0], [2.15, 0.1], stops);
-  assert.deepEqual([...nearStopPt], [2, 0], 'tap within 0.3m of a stop snaps cleanly to the stop');
-  const farSidePt = player.tetherToStations(walkable, [2, 0], [2, 0.98], stops);
-  assert.ok(Math.abs(farSidePt[0] - 2) < 1e-6 && Math.abs(farSidePt[1] - 0.85) < 1e-6, 'far sideways tap is tethered to 0.85m radius');
+  // 2. No free-walk tether remains in the approved point-to-point player.
+  assert.equal(player.tetherToStations, undefined);
 
   // 3. Multi-room walkthrough renders 1-tap room pills and labels destination hotspots.
   const multiRoom = manifest({
@@ -1192,7 +1163,7 @@ test('corridorRoute routes smoothly around obstacles via intermediate stops or c
   assert.equal(player.corridorRoute(sealed, [1.0, 0, 0], [2.0, 0, 0], []), null, 'sealed wall still blocks');
 });
 
-test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, colorUpdateAngle=2, idle-gap governor immunity, and tethered stepForward', async () => {
+test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, colorUpdateAngle=2, idle-gap governor immunity, and stop-only keyboard movement', async () => {
   const time = clock();
   const x = await readyPlayer({ reduced: true, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
   x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
@@ -1214,10 +1185,23 @@ test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, co
   }
   assert.equal(x.window.VeyletPlayerV2.current.stats().pixelRatio, 1.5, 'idle gaps between drags do not trigger false pixelRatio downscaling');
 
-  // Stepping perpendicular to the station line (yaw = -90 looks along +X, so yaw = 0 looks along -Z) is tethered within 0.85 m of the stop line (z = 0).
+  // Keyboard movement always retains a captured pose, never a synthesized point beside the route.
   for (let i = 0; i < 5; i++) x.canvas.dispatch('keydown', { key: 'ArrowUp' });
   const pos = x.window.VeyletPlayerV2.current.inspect().state.position;
-  assert.ok(Math.abs(pos[2]) <= 0.85 + 1e-6, `stepForward stays tethered within 0.85 m of the station corridor, got z=${pos[2]}`);
+  assert.ok(manifest().stops.some(stop => stop.position.every((value, index) => value === pos[index])), 'keyboard movement stays on a captured stop');
 });
 
 
+
+test('point-to-point player emits only opaque engagement stops at ready, arrival and teardown', async () => {
+  const aborter = new AbortController();
+  const x = await started({ startOptions: { signal: aborter.signal }, context: { CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } } } });
+  x.document.FakeNode.prototype.dispatchEvent = function (event) { this.dispatch(event.type, { detail: event.detail }); };
+  const events = []; x.stage.addEventListener('veylet:stop', event => events.push(event.detail));
+  const app = x.engine.apps[0]; app.systems.gsplat.fire('frame:ready', null, null, false, 1); app.systems.gsplat.fire('frame:ready', null, null, true, 0); await x.pending;
+  assert.deepEqual(JSON.parse(JSON.stringify(events)), [{ source: 'veylet-v2', stop_id: 's1' }]);
+  x.window.VeyletPlayerV2.current.goToStop(2);
+  assert.deepEqual(JSON.parse(JSON.stringify(events.slice(-2))), [{ source: 'veylet-v2', stop_id: null }, { source: 'veylet-v2', stop_id: 's3' }]);
+  aborter.abort(); assert.equal(events.at(-1).stop_id, null);
+  assert.ok(x.log.includes('app.destroy'), 'the real abort teardown ran');
+});

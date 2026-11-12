@@ -3284,3 +3284,15 @@ test('checking an older trial_limit hold only reloads status and never starts or
   assert.equal(h.calls.some(call => ['get_start_plan_now', 'start_plan_now'].includes(call[0])), false);
   assert.equal(h.requests.some(request => request.path === '/square/trial/start-now'), false);
 });
+
+test('journey clipboard success announces only in the toast while copy failures stay inline', async () => {
+  const h = await load({ journey: true, approved: true, tours: [{ ...liveTour, id: requestedID }] });
+  await h.all().find(n => n.dataset.control === 'copy-link').fire('click');
+  const toast = h.ids['journey-toast']; assert.equal(toast.hidden, false); assert.match(toast.all().map(n => n.textContent).join(' '), /Link copied/);
+  assert.equal(h.ids['account-status'].textContent, '');
+  assert.equal(h.all().some(n => n.className === 'tour-row-status' && /Link copied/.test(n.textContent)), false);
+  const denied = await load({ journey: true, approved: true, tours: [{ ...liveTour, id: requestedID }], clipboardBlocked: true });
+  await denied.all().find(n => n.dataset.control === 'copy-link').fire('click');
+  assert.equal(denied.ids['journey-toast'].hidden, true); assert.match(denied.ids['account-status'].textContent, /did not allow automatic copying/);
+  assert.ok(denied.all().some(n => n.className === 'tour-row-status' && /did not allow automatic copying/.test(n.textContent) && !n.hidden));
+});

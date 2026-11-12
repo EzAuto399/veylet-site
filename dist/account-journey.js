@@ -5,24 +5,26 @@
   const words = { ready_for_review: 'Ready to review', needs_recapture: 'Recapture needed', render_failed: 'Did not render', sharing_on: 'Sharing turned on', sharing_waits: 'Sharing waits' };
   const count = value => Number.isInteger(value) && value >= 0 ? value : null;
   const row = value => Array.isArray(value) ? value[0] : value;
-  const missing = error => error?.code === 'PGRST202' || error?.code === '42883' || String(error?.code) === '404';
+  const missing = error => error?.code === 'PGRST202' || error?.code === '42883';
+  const accessLost = error => [401, 403, 404].includes(Number(error?.status || error?.code)) || ['42501', 'PGRST301', 'PGRST302', 'PGRST303'].includes(error?.code);
+  const unread = item => item.unread_eligible !== false && !item.read_at;
   const when = (value, utc = false) => { const d = new Date(value); return value && Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...(utc ? { timeZone: 'UTC' } : {}) }) : 'Time unavailable'; };
   async function call(rpc, name, args) {
     let timer;
     try {
       const answer = await Promise.race([Promise.resolve().then(() => rpc(name, args)), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 12000); })]);
-      if (answer?.error) throw Object.assign(new Error('request failed'), { code: answer.error.code });
+      if (answer?.error) throw Object.assign(new Error('request failed'), { code: answer.error.code, status: answer.status || answer.error.status });
       return row(answer?.data);
     } finally { clearTimeout(timer); }
   }
   function activityStore({ rpc, changed = () => {}, arrived = () => {} }) {
     let user = null, generation = 0, request = 0, readRequest = 0;
-    let state = blank();
+    let state = blank(); const seen = new Set();
     function blank() { return { phase: 'idle', items: [], unread: null, attention: null, cursor: null, snapshot: null, asOf: null, busy: false, reading: false, error: '' }; }
     const emit = () => changed(state);
     return {
       get state() { return state; },
-      setUser(id) { if (id === user) return; user = id || null; generation++; request++; readRequest++; state = blank(); emit(); },
+      setUser(id) { if (id === user) return; user = id || null; generation++; request++; readRequest++; seen.clear(); state = blank(); emit(); },
       async load(more = false) {
         if (!user || state.reading || (more && !state.cursor)) return;
         const owner = generation, ticket = ++request, previous = state;
@@ -30,33 +32,39 @@
         try {
           const data = await call(rpc, 'list_activity', { p_limit: 50, p_cursor: more ? previous.cursor : null });
           if (owner !== generation || ticket !== request) return;
-          if (!data || !Array.isArray(data.items) || count(data.unread_count) === null || !data.items.every(item => item && UUID.test(item.id) && words[item.kind] && typeof item.needs_attention === 'boolean')) throw new Error('invalid response');
-          const ids = new Set(previous.items.map(item => item.id));
+          if (!data || !Array.isArray(data.items) || count(data.unread_count) === null || !data.items.every(item => item && UUID.test(item.id) && words[item.kind] && typeof item.needs_attention === 'boolean' && (item.unread_eligible === undefined || typeof item.unread_eligible === 'boolean'))) throw new Error('invalid response');
+          const ids = new Set(previous.items.map(item => item.id)), firstSeen = data.items.filter(item => !seen.has(item.id));
+          for (const item of data.items) seen.add(item.id);
+          while (seen.size > 2000) seen.delete(seen.values().next().value);
           const items = more ? [...previous.items, ...data.items.filter(item => !ids.has(item.id))] : data.items;
           state = { phase: 'ready', items, unread: data.unread_count, attention: count(data.attention_count), cursor: data.next_cursor || null, snapshot: data.snapshot_token || previous.snapshot, asOf: data.as_of, busy: false, reading: previous.reading, error: '' }; emit();
-          if (!more && previous.phase === 'ready') for (const item of data.items) if (!ids.has(item.id) && !item.read_at && item.kind === 'ready_for_review') { arrived(item); break; }
+          if (!more && previous.phase === 'ready') for (const item of firstSeen) if (unread(item) && item.kind === 'ready_for_review' && item.needs_attention && item.action === 'review') { arrived(item); break; }
         } catch (error) {
           if (owner !== generation || ticket !== request) return;
+          if (accessLost(error) && !missing(error)) { state = { ...blank(), phase: 'error', error: 'Activity is no longer available for this account. Sign in or refresh your access.' }; emit(); return; }
           state = { ...previous, busy: false, phase: previous.items.length ? 'stale' : missing(error) ? 'unavailable' : 'error', error: missing(error) ? 'Activity is not available yet.' : 'Activity could not refresh. Try again.' }; emit();
         }
       },
       async mark(ids = [], all = false) {
-        if (!user || state.reading || (!all && !ids.length) || (all && !state.snapshot)) return false;
+        if (!user || state.reading || (!all && !ids.length) || (all && (!state.snapshot || !state.unread))) return false;
+        const eligible = state.items.filter(unread);
+        const chosen = new Set((all ? eligible : eligible.filter(item => ids.includes(item.id))).map(item => item.id));
+        if (!all && !chosen.size) return false;
         const owner = generation, ticket = ++readRequest, before = state;
         ++request; // An older refresh cannot restore unread markers after this write.
-        const chosen = new Set(all ? state.items.map(item => item.id) : ids.filter(id => UUID.test(id)));
-        state = { ...state, busy: false, reading: true, error: '', items: state.items.map(item => chosen.has(item.id) ? { ...item, read_at: item.read_at || new Date().toISOString() } : item) }; emit();
+        state = { ...state, busy: false, reading: true, error: '', unread: all ? 0 : state.unread === null ? null : Math.max(0, state.unread - chosen.size), items: state.items.map(item => chosen.has(item.id) ? { ...item, read_at: item.read_at || new Date().toISOString() } : item) }; emit();
         try {
           const data = await call(rpc, 'mark_activity_read', { p_event_ids: all ? [] : [...chosen], p_snapshot_token: all ? before.snapshot : null });
           if (owner !== generation || ticket !== readRequest) return false;
           if (!data || !Array.isArray(data.read_ids) || count(data.unread_count) === null) throw new Error('invalid response');
-          const read = new Set(data.read_ids);
-          state = { ...state, reading: false, unread: data.unread_count, items: state.items.map(item => read.has(item.id) ? { ...item, read_at: item.read_at || new Date().toISOString() } : item) }; emit();
+          const read = new Set(data.read_ids), original = new Map(before.items.map(item => [item.id, item.read_at]));
+          state = { ...state, reading: false, unread: data.unread_count, items: state.items.map(item => item.unread_eligible !== false && read.has(item.id) ? { ...item, read_at: item.read_at || new Date().toISOString() } : chosen.has(item.id) ? { ...item, read_at: original.get(item.id) || null } : item) }; emit();
           return true;
-        } catch {
+        } catch (error) {
           if (owner !== generation || ticket !== readRequest) return false;
+          if (accessLost(error)) { state = { ...blank(), phase: 'error', error: 'Activity is no longer available for this account. Sign in or refresh your access.' }; emit(); return false; }
           const original = new Map(before.items.map(item => [item.id, item.read_at]));
-          state = { ...state, reading: false, items: state.items.map(item => chosen.has(item.id) ? { ...item, read_at: original.get(item.id) || null } : item), error: 'Read status could not save. Try again.' }; emit();
+          state = { ...state, reading: false, unread: before.unread, items: state.items.map(item => chosen.has(item.id) ? { ...item, read_at: original.get(item.id) || null } : item), error: 'Read status could not save. Try again.' }; emit();
           return false;
         }
       },
@@ -117,12 +125,12 @@
         if (selected === 'all' && nextGroup !== group) { host.append(el(doc, 'h3', nextGroup, 'journey-group')); group = nextGroup; }
         const article = el(doc, 'article', undefined, 'journey-event'); article.dataset.eventId = item.id;
         const heading = el(doc, 'h3', words[item.kind]);
-        if (!item.read_at) { const unread = el(doc, 'span', 'Unread', 'journey-unread'); heading.append(unread); }
+        if (unread(item)) { const unread = el(doc, 'span', 'Unread', 'journey-unread'); heading.append(unread); }
         article.append(heading, el(doc, 'p', item.space_name || 'Your space', 'journey-context'), el(doc, 'p', when(item.occurred_at), 'tour-when'));
         if (item.needs_attention) article.append(el(doc, 'p', 'Needs attention', 'journey-task'));
         const labels = { review: 'Review walkthrough', capture: 'See capture details', sharing: 'See sharing', space: 'Open space' };
         if (labels[item.action] && (UUID.test(item.tour_id || '') || UUID.test(item.property_id || ''))) { const link = button(doc, labels[item.action], () => navigate(item), 'tour-action tour-action-primary'); link.dataset.journeyFocus = 'open:' + item.id; article.append(link); }
-        if (!item.read_at) { const b = button(doc, 'Mark read', () => { void store.mark([item.id]); }); b.disabled = state.reading; b.dataset.journeyFocus = 'read:' + item.id; article.append(b); }
+        if (unread(item)) { const b = button(doc, 'Mark read', () => { void store.mark([item.id]); }); b.disabled = state.reading; b.dataset.journeyFocus = 'read:' + item.id; article.append(b); }
         host.append(article);
       }
       const foot = el(doc, 'div', undefined, 'journey-heading');
@@ -177,7 +185,7 @@
       if (!current() || busy) return; const ticket = ++version; busy = true;
       draw('Loading Insights…');
       try { const result = await readInsights(rpc, tourID, days); if (ticket !== version || !current()) return; data = result; busy = false; draw(); }
-      catch { if (ticket !== version || !current()) return; busy = false; draw(data ? 'Could not refresh. Showing the last successful read.' : 'Insights could not load. Try again.'); }
+      catch (error) { if (ticket !== version || !current()) return; busy = false; if (accessLost(error)) { data = null; draw('Insights are no longer available for this account. Sign in or refresh your access.'); } else draw(data ? 'Could not refresh. Showing the last successful read.' : 'Insights could not load. Try again.'); }
     }
     function draw(error = '') {
       const priorFocus = content.contains?.(doc.activeElement) ? doc.activeElement?.dataset?.journeyFocus : null;

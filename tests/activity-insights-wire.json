@@ -1,9 +1,9 @@
 {
   "activity": {
-    "as_of": "2026-11-13T07:12:29.514875+10:00",
+    "as_of": "2026-11-13T07:26:24.913661+10:00",
     "items": [
       {
-        "id": "e00eb1cc-4f2f-4664-a191-0210d598298b",
+        "id": "07b025fd-b7a4-4d7d-a48f-0082a0e8fc35",
         "kind": "sharing_on",
         "action": "sharing",
         "job_id": null,
@@ -11,10 +11,11 @@
         "tour_id": "a5110000-0000-4000-8000-000000000011",
         "revision": 1,
         "space_name": "Synthetic apartment",
-        "occurred_at": "2026-11-13T07:12:28.906366+10:00",
+        "occurred_at": "2026-11-13T07:26:24.252711+10:00",
         "property_id": "a5110000-0000-4000-8000-000000000010",
-        "workspace_id": "ca2109ec-95b7-47fa-8c50-04631cb2e556",
-        "needs_attention": false
+        "workspace_id": "79c04865-e5c2-4391-b844-9f0dfd33d001",
+        "needs_attention": false,
+        "unread_eligible": true
       },
       {
         "id": "a5110000-0000-4000-8000-000000000014",
@@ -25,15 +26,16 @@
         "tour_id": "a5110000-0000-4000-8000-000000000011",
         "revision": 1,
         "space_name": "Synthetic apartment",
-        "occurred_at": "2026-11-13T07:12:28.755789+10:00",
+        "occurred_at": "2026-11-13T07:26:24.069468+10:00",
         "property_id": "a5110000-0000-4000-8000-000000000010",
-        "workspace_id": "ca2109ec-95b7-47fa-8c50-04631cb2e556",
-        "needs_attention": false
+        "workspace_id": "79c04865-e5c2-4391-b844-9f0dfd33d001",
+        "needs_attention": false,
+        "unread_eligible": true
       }
     ],
     "next_cursor": null,
     "unread_count": 2,
-    "snapshot_token": "94420d0b-d44e-4aa7-bf69-424f084dd678",
+    "snapshot_token": "ef2a3b02-8307-406c-b146-56c84d28bc30",
     "attention_count": 0
   },
   "insights": {

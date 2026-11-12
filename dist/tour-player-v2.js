@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=25009fa272a71592';
+  const STYLE_URL = '/tour-player-v2.css?v=ccaac186bd8390c7';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -101,11 +101,13 @@
       if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
       // floor_id (whole-home packages): which floor the stop stands on. Anything else is ignored, not refused.
       const floorId = typeof stop.floor_id === 'string' && /^f\d{1,3}$/.test(stop.floor_id) ? stop.floor_id : null;
-      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId, floorMeasured: stop.floor_measured === true };
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId };
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
+    // Point to point (12 Nov 2026): a package's walked path (path) and floor_measured are older free-walk data. They
+    // are not read, so a package that carries them opens exactly as one without; they never refuse a tour.
     return {
       synthetic: json.synthetic === true,
       researchSample: json.research_sample === true,
@@ -115,6 +117,11 @@
       posters,
       walkable: json.walkable ? json.walkable.path : null,
       rooms, stops, start: json.start_stop,
+      // What the package lists, for sizes shown to the visitor and the first files to fetch. A list that is
+      // missing or odd is no list; the scene's own loader still decides what loads.
+      files: (Array.isArray(json.files) ? json.files : [])
+        .filter(file => file && typeof file.path === 'string' && SAFE_PATH.test(file.path) && Number.isFinite(file.bytes) && file.bytes >= 0)
+        .map(file => ({ path: file.path, bytes: file.bytes })),
     };
   }
 
@@ -320,10 +327,22 @@
     return index < 0 ? counts.length - 1 : index;
   }
 
+  /**
+   * Stops are numbered in the order of the visit, from the opening stop: the first view reads "Stop 1", and
+   * Next counts up to the last one. (A package's own order may open on any stop.)
+   */
+  function visitNumber(manifest, index) {
+    const count = manifest.stops.length, start = Number.isInteger(manifest.start) ? manifest.start : 0;
+    return ((index - start) % count + count) % count + 1;
+  }
+  function stopAtNumber(manifest, number) {
+    const count = manifest.stops.length, start = Number.isInteger(manifest.start) ? manifest.start : 0;
+    return (start + number - 1) % count;
+  }
   function stopLabel(manifest, index) {
     const stop = manifest.stops[index];
     const room = manifest.rooms.find(item => item.id === stop.room);
-    return { room: room && room.name ? room.name : '', stop: 'Stop ' + (index + 1) + ' of ' + manifest.stops.length };
+    return { room: room && room.name ? room.name : '', stop: 'Stop ' + visitNumber(manifest, index) + ' of ' + manifest.stops.length };
   }
 
   /**
@@ -375,6 +394,10 @@
 
   const posterFor = (manifest, aspect) => aspect < 1 ? manifest.posters.portrait : manifest.posters.landscape;
 
+  /**
+   * The package's floor mask (walkable.json). Since tours became point to point it moves no one: it only hides the
+   * circles of stops behind a wall (stopReachable) and draws the floor on the map.
+   */
   function decodeWalkable(json) {
     if (!json || json.version !== 1 || !Number.isFinite(json.cell_metres) || json.cell_metres <= 0 || json.cell_metres > 1
         || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
@@ -388,9 +411,9 @@
     const { columns, rows } = json, cell = json.cell_metres, [x0, z0] = json.origin;
     const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
     const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
-    // Every sample on the straight line must be floor: no walking through walls.
+    // Every sample on the straight line must be floor: nothing seen through walls.
     // `skip` metres from the start are not checked, so a viewer standing a hair
-    // off the mask (a stop at the edge of the floor) can still walk away from it.
+    // off the mask (a stop at the edge of the floor) still sees the stops around it.
     const clear = (from, to, skip = 0) => {
       const dx = to[0] - from[0], dz = to[1] - from[1];
       const length = Math.hypot(dx, dz);
@@ -414,93 +437,13 @@
   }
 
   /**
-   * Where a tap should take the viewer, on the walkable mask (x, z), or null.
-   * The tap's floor point if it is open floor in a straight line from here;
-   * else the nearest open cell within `snap` metres of it that is (a tap on a
-   * bed or a bench beside the path goes to the floor next to it); else as far
-   * as the floor runs from here towards it, stopping `margin` short of the
-   * obstacle. Moves shorter than `minStep` do not count.
-   */
-  function walkTarget(walkable, from, hit, { snap = 1, minStep = 0.3, margin = 0.2, skip = 0.25 } = {}) {
-    const far = (point) => Math.hypot(point[0] - from[0], point[1] - from[1]) >= minStep;
-    if (walkable.walkable(hit[0], hit[1]) && walkable.clear(from, hit, skip) && far(hit)) return hit;
-    const { cell, origin: [x0, z0] } = walkable;
-    const c0 = Math.floor((hit[0] - x0) / cell), r0 = Math.floor((hit[1] - z0) / cell), n = Math.ceil(snap / cell);
-    let best = null, bestDistance = Infinity;
-    for (let r = r0 - n; r <= r0 + n; r++) for (let c = c0 - n; c <= c0 + n; c++) {
-      if (!walkable.on(c, r)) continue;
-      const point = [x0 + (c + 0.5) * cell, z0 + (r + 0.5) * cell];
-      const distance = Math.hypot(point[0] - hit[0], point[1] - hit[1]);
-      if (distance > snap || distance >= bestDistance || !far(point) || !walkable.clear(from, point, skip)) continue;
-      best = point; bestDistance = distance;
-    }
-    if (best) return best;
-    const dx = hit[0] - from[0], dz = hit[1] - from[1], length = Math.hypot(dx, dz);
-    if (!(length > 0)) return null;
-    const step = cell / 2;
-    let open = 0, blocked = false;
-    for (let d = step; d <= length + 1e-9; d += step) {
-      if (d >= skip && !walkable.walkable(from[0] + dx * d / length, from[1] + dz * d / length)) { blocked = true; break; }
-      open = d;
-    }
-    const reach = blocked ? open - margin : length;
-    return reach >= minStep ? [from[0] + dx * reach / length, from[1] + dz * reach / length] : null;
-  }
-
-  /**
-   * Tethers a free-walk floor point to the verified station corridor (`maxCorridor` metres around
-   * captured stops and stop-to-stop segments on the same storey) so a visitor cannot wander into
-   * unobserved splat geometry behind furniture, while snapping within `snapRadius` of a stop.
-   */
-  function tetherToStations(walkable, from, point, stops, { snapRadius = 0.3, maxCorridor = 0.85, minStep = 0.3, skip = 0.25 } = {}) {
-    if (!point || !Array.isArray(stops) || !stops.length) return point;
-    const pts = stops.map(stop => [stop.position[0], stop.position[2]]);
-    for (const st of pts) {
-      if (Math.hypot(point[0] - st[0], point[1] - st[1]) <= snapRadius
-          && Math.hypot(st[0] - from[0], st[1] - from[1]) >= minStep
-          && (!walkable || (walkable.walkable(st[0], st[1]) && walkable.clear(from, st, skip)))) {
-        return st;
-      }
-    }
-    let closest = pts[0], bestDist = Math.hypot(point[0] - pts[0][0], point[1] - pts[0][1]);
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const d0 = Math.hypot(point[0] - a[0], point[1] - a[1]);
-      if (d0 < bestDist) { bestDist = d0; closest = a; }
-      if (i + 1 < pts.length) {
-        const b = pts[i + 1];
-        const abx = b[0] - a[0], abz = b[1] - a[1], len2 = abx * abx + abz * abz;
-        if (len2 > 1e-6) {
-          const t = clamp(((point[0] - a[0]) * abx + (point[1] - a[1]) * abz) / len2, 0, 1);
-          const proj = [a[0] + abx * t, a[1] + abz * t];
-          const dp = Math.hypot(point[0] - proj[0], point[1] - proj[1]);
-          if (dp < bestDist) { bestDist = dp; closest = proj; }
-        }
-      }
-    }
-    if (bestDist <= maxCorridor) return point;
-    const tethered = [
-      closest[0] + (point[0] - closest[0]) * (maxCorridor / bestDist),
-      closest[1] + (point[1] - closest[1]) * (maxCorridor / bestDist),
-    ];
-    if (Math.hypot(tethered[0] - from[0], tethered[1] - from[1]) >= minStep
-        && (!walkable || (walkable.walkable(tethered[0], tethered[1]) && walkable.clear(from, tethered, skip)))) {
-      return tethered;
-    }
-    if (Math.hypot(closest[0] - from[0], closest[1] - from[1]) >= minStep
-        && (!walkable || (walkable.walkable(closest[0], closest[1]) && walkable.clear(from, closest, skip)))) {
-      return closest;
-    }
-    return point;
-  }
-
-  /**
    * Finds a clear walkable floor route from `fromPosition` to `toPosition`:
    * `[toPosition]` when the straight line is open (allowing `skip` metres near
    * the endpoint for a stop standing at the edge of the floor mask), or a
    * 2-segment `[viaPosition, toPosition]` route through an intermediate stop
    * or corridor bend when a kitchen island or sofa corner sits between them.
    * Returns `null` when no clear walkable route exists on this floor.
+   * Used only to decide whether a stop's circle is offered; the viewer jumps to the stop, never along the route.
    */
   function corridorRoute(walkable, fromPosition, toPosition, stops = [], { skip = 0.25 } = {}) {
     if (!walkable || !Array.isArray(fromPosition) || !Array.isArray(toPosition)) return null;
@@ -528,25 +471,6 @@
       consider([vx, midY, vz]);
     }
     return best;
-  }
-
-  /** Where a view ray meets the floor plane, if in front and within reach. */
-  function floorHit(origin, direction, floorY, reach = 12) {
-    if (direction[1] >= -1e-4) return null;
-    const t = (floorY - origin[1]) / direction[1];
-    if (!(t > 0) || t > reach) return null;
-    return [origin[0] + direction[0] * t, floorY, origin[2] + direction[2] * t];
-  }
-
-  /** The point on the floor a tap aims at: where the ray meets it, or (for a
-   *  tap at a wall, the horizon or above) `reach` metres along its heading. */
-  function tapAim(origin, direction, floorY, reach = 8) {
-    if (direction[1] > 0.35) return null; // the ceiling is not somewhere to go
-    const hit = floorHit(origin, direction, floorY, reach);
-    if (hit) return [hit[0], hit[2]];
-    const flat = Math.hypot(direction[0], direction[2]);
-    if (!(flat > 1e-6)) return null;
-    return [origin[0] + direction[0] / flat * reach, origin[2] + direction[2] / flat * reach];
   }
 
   /** The stop nearest `position` across the floor; with `storey`, only stops whose eye is within that height. */
@@ -722,7 +646,7 @@
     const poster = el('img', { class: 'v2-poster', alt: '', decoding: 'async' });
     const canvas = el('canvas', { class: 'v2-canvas', tabindex: '0', role: 'application',
       'aria-roledescription': '3D walkthrough',
-      'aria-label': '3D walkthrough. Arrow keys look and move, N and P go to the next and previous stop, M shows the map.' });
+      'aria-label': '3D walkthrough. Left and right arrows look, up and down go to the stop ahead or behind, N and P go to the next and previous stop, M shows the map.' });
     const hotspots = el('div', { class: 'v2-hotspots', 'aria-hidden': 'true' });
     const where = el('div', { class: 'v2-where' });
     const room = el('p', { class: 'v2-room' });
@@ -737,13 +661,17 @@
     const progress = el('div', { class: 'v2-progress', hidden: true });
     progress.append(el('span'));
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
-    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap the floor or a circle to move.');
+    const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap a circle or Next to move.');
     const prev = iconButton('prev', 'Previous stop', 'v2-icon v2-prev');
     // "Next stop" on screen; "Next" on a phone (the stylesheet drops " stop"); the arrow alone under 300 px.
     const next = iconButton('next', 'Next stop', 'v2-primary v2-next');
     const nextLabel = el('span', { class: 'v2-label', 'aria-hidden': 'true' }, 'Next');
     nextLabel.append(el('span', { class: 'v2-label-more' }, ' stop'));
-    next.append(nextLabel);
+    // On the last stop of the visit the same button reads "Start again".
+    // ("Restart", without the arrow, where a phone's bar has no room for more.)
+    const againLabel = el('span', { class: 'v2-label v2-label-again', 'aria-hidden': 'true', hidden: true }, 'Start again');
+    const restartLabel = el('span', { class: 'v2-label v2-label-restart', 'aria-hidden': 'true', hidden: true }, 'Restart');
+    next.append(nextLabel, againLabel, restartLabel);
     const stopsToggle = el('button', { type: 'button', class: 'v2-stops-toggle', 'aria-expanded': 'false', 'aria-haspopup': 'true' });
     stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
     const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
@@ -762,17 +690,19 @@
     const map = el('figure', { class: 'v2-map', hidden: true });
     const aboutPanel = el('div', { class: 'v2-panel v2-about', role: 'dialog', 'aria-label': 'About this walkthrough', hidden: true });
     const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
-    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, bar, fallback, announce);
+    // The end of the visit: a short card over the last stop (see showEnd).
+    const end = el('section', { class: 'v2-end', hidden: true, 'aria-label': 'End of the walkthrough' });
+    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
     stage.append(root);
     return { root, preview, poster, canvas, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
-      prev, next, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, fallback };
+      prev, next, nextLabel, againLabel, restartLabel, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
   }
 
   const FALLBACK_WORDS = {
-    'no-graphics': ['3D can’t open in this browser.', 'This still is rendered from the walkthrough. Open the link in a current browser, such as Safari or Chrome with hardware acceleration on, to walk through it.'],
-    'engine-unavailable': ['3D didn’t load.', 'The 3D player files didn’t arrive. Check the connection and try again. This still is rendered from the walkthrough.'],
-    'context-lost': ['3D stopped on this device.', 'The graphics memory was reclaimed, which can happen on phones with many tabs open. Try again, or close other tabs first.'],
-    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this still is from it.'],
+    'no-graphics': ['3D can’t open in this browser.', 'This picture is from the walkthrough. Try opening this link in Safari or Chrome.'],
+    'engine-unavailable': ['3D didn’t load.', 'Check your connection and try again. This picture is from the walkthrough.'],
+    'context-lost': ['3D stopped on this device.', 'This can happen when many tabs are open. Try again, or close other tabs first.'],
+    'too-slow': ['3D is taking a while.', 'The connection looks slow. The walkthrough is still downloading, and this picture is from it.'],
   };
 
   // ---------- the player ----------
@@ -802,18 +732,18 @@
     let framed = Boolean(options.framed);
     if (options.framed === undefined) { try { framed = window.top !== window.self; } catch { framed = true; } }
     const waitForTap = Boolean(options.waitForTap && profile.api);
-    // The engine download starts now, in parallel with the manifest, unless
-    // the visitor is first asked to press Explore.
+    // The engine download starts as soon as the package's manifest has answered and reads as a walkthrough
+    // (a few KB), unless the visitor is first asked to press Explore. A link whose package is gone costs
+    // nobody the engine.
     const loadEngine = options.loadEngine || (() => import(ENGINE_URL));
     let enginePromise = null;
     const requestEngine = () => (enginePromise ||= Promise.resolve().then(loadEngine).catch(() => null));
-    if (profile.api && !waitForTap) requestEngine();
-    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal);
-    manifestPromise.catch(() => {}); // handled below, after the styles
+    const manifestPromise = fetchJson(base + 'manifest.json', MANIFEST_LIMIT, signal).then(validateManifest);
+    manifestPromise.then(() => { if (profile.api && !waitForTap && !signal?.aborted) requestEngine(); }, () => {}); // a refusal is handled below, after the styles
     await ensureStyle();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
+    const manifest = await manifestPromise;
     const ui = buildInterface(stage);
-    const manifest = validateManifest(await manifestPromise);
     mark('manifest');
     const walkablePromise = manifest.walkable
       ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal).then(decodeWalkable).catch(() => null)
@@ -841,12 +771,22 @@
       const label = stopLabel(manifest, index);
       ui.room.textContent = label.room;
       ui.room.hidden = !label.room;
+      // A named room makes the label three lines; a narrow stage drops the third (tour-player-v2.css).
+      if (label.room) ui.root.classList.add('v2-has-room'); else ui.root.classList.remove('v2-has-room');
       ui.stopLine.textContent = label.stop;
       return label;
     };
-    labels(manifest.start);
+    // What the page asks of the visit (all optional): where to open (a link to a stop), a word when the stop
+    // changes, Share, and who to contact. The player itself still sends nothing anywhere.
+    const visit = options.visit && typeof options.visit === 'object' ? options.visit : {};
+    const lastStop = stopAtNumber(manifest, manifest.stops.length);
+    const asked = Number.isInteger(visit.startAt) && visit.startAt >= 1 && visit.startAt <= manifest.stops.length ? stopAtNumber(manifest, visit.startAt) : manifest.start;
+    // A chunked home opens on the chunk its package names, and walks to the asked stop once it is drawn.
+    const opening = manifest.scene.chunked ? manifest.start : asked;
+    if (manifest.researchSample) ui.root.classList.add('v2-research');
+    labels(opening);
 
-    const state = { stop: manifest.start, position: [...manifest.stops[manifest.start].position], zoom: 1, ...lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target) };
+    const state = { stop: opening, position: [...manifest.stops[opening].position], zoom: 1, ...lookAngles(manifest.stops[opening].position, manifest.stops[opening].target) };
     let viewer = null, torndown = false, settled = false;
     let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
     let resolveReady;
@@ -870,9 +810,21 @@
         ui.fallback.append(retry);
         recovery = retry;
       }
+      if (kind === 'no-graphics') {
+        // The next step is another browser, so the link goes with the visitor.
+        const copy = el('button', { type: 'button', class: 'v2-primary' }, 'Copy link');
+        const note = el('p', { class: 'v2-copy-note', role: 'status' });
+        copy.addEventListener('click', async () => {
+          let copied = false;
+          try { await navigator.clipboard.writeText(String(location.href)); copied = true; } catch { copied = false; }
+          note.textContent = copied ? 'Link copied.' : 'Copying didn’t work. Copy the address from your browser instead.';
+        });
+        ui.fallback.append(copy, note);
+      }
       ui.root.dataset.state = 'fallback';
       ui.fallback.hidden = false;
       ui.bar.hidden = true;
+      ui.root.append(ui.status);
       ui.progress.hidden = true;
       ui.status.textContent = '';
       ui.announce.textContent = `${heading} ${body}`;
@@ -900,6 +852,11 @@
       slowShown = true;
       becomeVisible();
     }
+    // A scene file did not arrive. The engine reports it from inside its own loader, which goes on using what
+    // teardown destroys, so the panel and the teardown wait for the engine to finish that step.
+    function sceneFailed() {
+      setTimeout(() => { if (!torndown) fail('engine-unavailable'); }, 0);
+    }
     function hideSlow() {
       if (!slowShown) return;
       slowShown = false;
@@ -912,6 +869,53 @@
       try { viewer?.destroy(); } catch { /* already gone */ }
     }
     signal?.addEventListener('abort', () => { teardown(); ui.root.remove(); }, { once: true });
+
+    // ----- the first files, fetched beside the engine, and one bar for the whole wait -----
+    // The coarsest level is what the first 3D frame is made of. Fetching it while the engine downloads warms
+    // the browser's cache, so the engine finds it there; its bytes also drive the bar from the first second.
+    const first = { started: false, total: 0, loaded: 0, engine: false };
+    let progressShown = 0;
+    function setProgress(value) {
+      progressShown = Math.max(progressShown, Math.min(1, value));
+      ui.progress.firstChild.style.transform = `scaleX(${progressShown.toFixed(3)})`;
+    }
+    function loadProgress() {
+      if (ready || torndown) return;
+      setProgress(first.total ? 0.6 * Math.min(1, first.loaded / first.total) + (first.engine ? 0.25 : 0) : (first.engine ? 0.5 : 0));
+    }
+    async function fetchFirst(file, attempt) {
+      let got = 0;
+      const count = bytes => { const add = Math.min(bytes, file.bytes - got); got += add; first.loaded += add; loadProgress(); };
+      try {
+        const response = await fetch(base + file.path, { signal, credentials: 'omit' });
+        if (!response.ok) throw new Error('status');
+        const reader = response.body && typeof response.body.getReader === 'function' ? response.body.getReader() : null;
+        if (reader) for (;;) { const part = await reader.read(); if (part.done) break; count(part.value ? part.value.byteLength : 0); }
+        else if (typeof response.arrayBuffer === 'function') await response.arrayBuffer();
+        count(file.bytes);
+      } catch {
+        first.loaded -= got;
+        if (signal?.aborted || torndown || ready) return;
+        // Once more after a moment; a file that is still missing means no 3D, and the visitor is told now
+        // rather than after the long deadline.
+        if (attempt < 1) setTimeout(() => { if (!torndown && !ready) fetchFirst(file, attempt + 1); }, 1500);
+        else sceneFailed();
+      }
+    }
+    function startFirstFiles() {
+      if (first.started) return;
+      first.started = true;
+      const scene = manifest.scene;
+      const folder = scene.lodMeta.slice(0, scene.lodMeta.lastIndexOf('/') + 1);
+      const files = scene.chunked ? [] : manifest.files.filter(file => file.bytes > 0 && (file.path === scene.lodMeta || file.path.startsWith(folder + (scene.levels - 1) + '_')));
+      first.total = files.reduce((sum, file) => sum + file.bytes, 0);
+      ui.progress.hidden = false;
+      // No list to count: the bar still moves, slowly, so the wait is seen to be alive.
+      if (!first.total) ui.progress.classList.add('v2-progress-wait');
+      loadProgress();
+      for (const file of files) fetchFirst(file, 0);
+    }
+    if (profile.api && !waitForTap) startFirstFiles();
 
     if (!profile.api) {
       await Promise.race([new Promise(resolve => ui.poster.addEventListener('load', resolve, { once: true })), new Promise(resolve => setTimeout(resolve, 4000))]);
@@ -935,6 +939,7 @@
       mark('explore');
     }
     ui.status.textContent = 'Loading 3D…';
+    startFirstFiles();
     // One deadline for the first 3D frame, from the start of the 3D download: 45 s of visible time (a hidden tab
     // keeps its allowance), then Keep waiting or Try again over the poster. The page adds none of its own.
     cancelDeadline = visibleDeadline(tooSlow, 45000);
@@ -943,6 +948,8 @@
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
     if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');
     mark('engine');
+    first.engine = true;
+    loadProgress();
     const walkable = await walkablePromise;
     becomeVisible();
 
@@ -1016,14 +1023,13 @@
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
-    let flightFovOffset = 0;
     const requestRender = () => { app.renderNextFrame = true; };
     function applyCamera() {
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
       const view = fieldOfView(aspect(), posterSpec, state.zoom);
       camera.camera.horizontalFov = view.horizontal;
-      camera.camera.fov = clamp(view.fov + flightFovOffset, 20, 130);
+      camera.camera.fov = view.fov;
       requestRender();
       placeHotspots();
     }
@@ -1032,16 +1038,24 @@
     // A home on more than one level: one level at a time, on the map and on the floor discs.
     const storeys = storeysOf(manifest.stops);
     const levelOf = storeys ? manifest.stops.map((_, index) => storeys.findIndex(level => level.stops.includes(index))) : null;
-    let viewerLevel = storeys ? levelOf[manifest.start] : 0;
+    let viewerLevel = storeys ? levelOf[opening] : 0;
     const hotspotButtons = manifest.stops.map((stop, index) => {
       // Hidden until placeHotspots puts it on its floor point (after the first frame), not in the corner.
       const button = el('button', { type: 'button', class: 'v2-hotspot', tabindex: '-1', hidden: true });
-      button.append(el('span', {}, String(index + 1)));
+      button.append(el('span', {}, String(visitNumber(manifest, index))));
       button.addEventListener('click', event => { event.stopPropagation(); goToStop(index); });
       ui.hotspots.append(button);
       return button;
     });
     const screen = new pc.Vec3(), world = new pc.Vec3();
+    /** Whether a stop on the viewer's level can be offered from here: the one rule for circles and keys. */
+    function stopReachable(stop, level) {
+      // The mask says nothing about a storey it was not carved for.
+      if (!walkable || (storeys && level !== levelOf[manifest.start])) return true;
+      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === level) : manifest.stops;
+      return walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
+        || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
+    }
     function placeHotspots() {
       if (!ready) return;
       const forward = forwardOf(state.yaw, state.pitch);
@@ -1054,11 +1068,7 @@
         const d = stop.floor.map((v, i) => v - state.position[i]);
         const distance = Math.hypot(d[0], d[2]);
         const inFront = d[0] * forward[0] + d[1] * forward[1] + d[2] * forward[2] > 0.2;
-        // The mask says nothing about a storey it was not carved for.
-        const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-        const reachable = !walkable || (storeys && viewerLevel !== levelOf[manifest.start])
-          || walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
-          || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
+        const reachable = stopReachable(stop, viewerLevel);
         if (index === state.stop && distance < 0.4 || !inFront || !reachable || distance > 12) { button.hidden = true; return; }
         const label = stopLabel(manifest, index);
         const activeStop = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
@@ -1069,7 +1079,7 @@
         if (stop.room !== currentRoomId && label.room) button.dataset.roomLabel = label.room;
         else if (index === nextStopIndex && manifest.stops.length > 1) button.dataset.roomLabel = 'Next';
         else delete button.dataset.roomLabel;
-        button.title = [label.room, 'Stop ' + (index + 1)].filter(Boolean).join(' · ');
+        button.title = [label.room, 'Stop ' + visitNumber(manifest, index)].filter(Boolean).join(' · ');
         world.set(...stop.floor);
         camera.camera.worldToScreen(world, screen);
         // A disc half off the edge is still worth a tap.
@@ -1099,6 +1109,13 @@
         ui.roomsBar.append(pill);
       }
       ui.roomsBar.hidden = ui.roomsBar.children.length < 2;
+      ui.roomsBar.addEventListener('scroll', pillsMore, { passive: true });
+    }
+    // More room names than fit: the row fades at its right edge until it is scrolled to the end.
+    function pillsMore() {
+      const row = ui.roomsBar;
+      if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 4) row.dataset.more = 'true';
+      else delete row.dataset.more;
     }
 
     function buildStopsPanel() {
@@ -1113,10 +1130,12 @@
         const group = el('section', { class: 'v2-room-group' });
         if (manifest.rooms.length > 1 || room.name) group.append(el('h3', {}, room.name || 'Other stops'));
         const list = el('ol');
-        manifest.stops.forEach((stop, index) => {
+        // In the order of the visit, so the list counts up.
+        manifest.stops.map((_, place) => stopAtNumber(manifest, place + 1)).forEach(index => {
+          const stop = manifest.stops[index];
           if (stop.room !== room.id) return;
           const item = el('li');
-          const button = el('button', { type: 'button', class: 'v2-stop-button', 'data-stop': String(index) }, 'Stop ' + (index + 1));
+          const button = el('button', { type: 'button', class: 'v2-stop-button', 'data-stop': String(index) }, 'Stop ' + visitNumber(manifest, index));
           button.addEventListener('click', () => { togglePanel(ui.stopsPanel, ui.stopsToggle, false); goToStop(index); });
           item.append(button);
           list.append(item);
@@ -1136,8 +1155,16 @@
         if (pill.dataset.room === activeRoomId) pill.setAttribute('aria-current', 'true');
         else pill.removeAttribute('aria-current');
       }
-      ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? (state.stop + 1) : '–') + ' of ' + manifest.stops.length;
-      ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? state.stop + 1 : 'none') + ' of ' + manifest.stops.length);
+      ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? visitNumber(manifest, state.stop) : '–') + ' of ' + manifest.stops.length;
+      ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? visitNumber(manifest, state.stop) : 'none') + ' of ' + manifest.stops.length);
+      // The last stop of the visit: Next offers the start again, and says so.
+      const atEnd = manifest.stops.length > 1 && state.stop === lastStop;
+      ui.nextLabel.hidden = atEnd;
+      ui.againLabel.hidden = !atEnd;
+      ui.restartLabel.hidden = !atEnd;
+      if (atEnd) ui.next.dataset.end = 'true'; else delete ui.next.dataset.end;
+      ui.next.setAttribute('aria-label', atEnd ? 'Start again from the first stop' : 'Next stop');
+      ui.next.title = atEnd ? 'Start again' : 'Next stop';
     }
     function aboutContents() {
       ui.aboutPanel.replaceChildren();
@@ -1149,13 +1176,26 @@
       const controls = el('ul', { class: 'v2-controls' });
       for (const line of [
         'Drag to look around. Pinch, or use + and −, to zoom.',
-        walkable ? 'Tap the floor or a numbered circle to move there.' : 'Tap a numbered circle, or Next stop, to move.',
-        'Keys: arrows look and move, N and P change stop, 1 to 9 pick a stop, M shows the map.',
+        'Tap a numbered circle, or Next stop, to move.',
       ]) controls.append(el('li', {}, line));
-      const credits = el('p', { class: 'v2-credits' }, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
-      const licence = el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence');
-      credits.append(licence);
-      ui.aboutPanel.append(heading, el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
+      // For a keyboard; a touch screen does not show it (tour-player-v2.css).
+      controls.append(el('li', { class: 'v2-keys' }, 'Keys: left and right look, up and down go to the stop ahead or behind, N and P change stop, 1 to 9 pick a stop, M shows the map.'));
+      // The engine's credit and licence, one press away rather than in every visitor's way.
+      const credits = el('details', { class: 'v2-credits' });
+      const credit = el('p', {}, 'Rendered with the PlayCanvas engine 2.23.2 (MIT licence). ');
+      credit.append(el('a', { href: '/vendor/LICENSE.playcanvas.txt', target: '_blank', rel: 'noopener' }, 'Licence'));
+      credits.append(el('summary', {}, 'Credits'), credit);
+      ui.aboutPanel.append(heading);
+      if (contact) {
+        // One tap away in full screen too, where the page's own Call and Email are out of reach. First in
+        // the panel, so it shows without scrolling on a phone.
+        const row = el('div', { class: 'v2-contact' });
+        const links = el('div', { class: 'v2-actions' });
+        links.append(...contactLinks('v2-quiet'));
+        row.append(el('p', { class: 'v2-contact-name' }, 'Contact ' + contact.name), links);
+        ui.aboutPanel.append(row);
+      }
+      ui.aboutPanel.append(el('p', { class: 'v2-truth-full' }, manifest.truthLabel), controls);
       if (saveData) {
         // Data Saver is on: low detail stays unless the visitor asks for more.
         const more = el('button', { type: 'button', class: 'v2-primary' }, 'Load full detail');
@@ -1239,8 +1279,12 @@
         label.setAttribute('transform', `rotate(${-mapTurn})`);
         label.setAttribute('font-size', String(half * 0.12));
         label.setAttribute('dy', String(half * 0.042));
-        label.textContent = String(index + 1);
-        dot.append(circle, label);
+        label.textContent = String(visitNumber(manifest, index));
+        // A finger needs more than the dot: an unseen circle about 24 px across takes the press.
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('class', 'v2-map-hit');
+        hit.setAttribute('r', String(half * 0.14));
+        dot.append(hit, circle, label);
         dot.addEventListener('click', () => goToStop(index));
         mapGroup.append(dot);
         if (storeys) mapParts.push([dot, levelOf[index]]);
@@ -1273,6 +1317,7 @@
       for (const [other, button] of [[ui.stopsPanel, ui.stopsToggle], [ui.aboutPanel, ui.about]]) {
         if (other !== panel && !other.hidden) { other.hidden = true; button.setAttribute('aria-expanded', 'false'); }
       }
+      if (show) hideEnd();
       panel.hidden = !show;
       toggle.setAttribute('aria-expanded', String(show));
       // One overlay at a time: the map steps aside while a panel is open.
@@ -1284,116 +1329,154 @@
     }
 
     // ----- movement -----
-    let flight = null;
-    // Every flight holds the render loop (continuous) until it lands or is cut short here.
-    function cancelFlight() {
-      if (!flight) return;
-      flight = null;
-      flightFovOffset = 0;
-      continuous = Math.max(0, continuous - 1);
-    }
-    const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
-      cancelFlight();
-      if (!animate || reduced()) {
-        flightFovOffset = 0;
-        Object.assign(state, { position, yaw, pitch });
-        applyCamera();
-        onArrive?.();
-        return;
-      }
-      let deltaYaw = ((yaw - state.yaw) % 360 + 540) % 360 - 180;
-      const from = { position: [...state.position], yaw: state.yaw, pitch: state.pitch };
-      const via = Array.isArray(waypoints) && waypoints.length === 2 ? waypoints[0] : null;
-      const distance = via
-        ? Math.hypot(...via.map((v, i) => v - from.position[i])) + Math.hypot(...position.map((v, i) => v - via[i]))
-        : Math.hypot(...position.map((v, i) => v - from.position[i]));
-      const duration = clamp(450 + distance * 220, 450, 1250);
-      if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from, via, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
-      continuous++;
-    }
-    function stepFlight(now) {
-      if (!flight) return;
-      const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
-      if (flight.via) {
-        const u = 1 - k, p0 = flight.from.position, p1 = flight.via, p2 = flight.position;
-        state.position = p0.map((v, i) => {
-          const bezier = u * u * v + 2 * u * k * p1[i] + k * k * p2[i];
-          const linear = k < 0.5 ? v + (p1[i] - v) * (k * 2) : p1[i] + (p2[i] - p1[i]) * ((k - 0.5) * 2);
-          return bezier * 0.65 + linear * 0.35;
-        });
-      } else {
-        state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
-      }
-      state.yaw = flight.from.yaw + flight.deltaYaw * k;
-      state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
-      flightFovOffset = t < 1 ? 3.2 * Math.sin(Math.PI * t) : 0;
-      applyCamera();
-      if (t >= 1) { const done = flight.onArrive; flight = null; flightFovOffset = 0; continuous = Math.max(0, continuous - 1); done?.(); }
-    }
+    // Point to point (owner decision, 12 November 2026): every move is a jump to a stop, from a circle, Next and
+    // Previous, a room, the map or a key. Nothing walks: not over the floor mask, not along the path walked at capture.
+    // The last move, for QA (inspect()).
+    let lastMove = null;
     // On a home with levels, a stop straight above or below is not where you are.
     const sameLevel = storeys ? STOREY_METRES : Infinity;
-    // The walkable mask is carved for the opening stop's storey; on any other storey it is the floor below, so
-    // free walking there is refused rather than dropping the viewer through it (per-storey masks: later).
-    const maskLevel = storeys ? levelOf[manifest.start] : 0;
-    const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
-    const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
-    let lastRoomVisited = stopLabel(manifest, manifest.start).room || '';
+    let lastRoomVisited = stopLabel(manifest, opening).room || '';
+    // What the viewer did, said to the page as a DOM event and nothing more: the player itself sends nothing anywhere.
+    function announceActivity(type, detail) {
+      try {
+        if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent(type, { detail }));
+      } catch { /* optional: a page that is not listening changes nothing */ }
+    }
+    // Viewer insights (docs/data-events-20261111.md): the stops reached and the seconds spent per room TYPE,
+    // said to the page as one 'veylet:visit' summary after every arrival. A room's own name is never in it,
+    // only its preset type (CaptureRoomNames.presets; any other name is Other). The page decides whether
+    // anything is counted; the player itself still sends nothing anywhere.
+    function roomType(name) {
+      const presets = ['Living', 'Kitchen', 'Bedroom', 'Bathroom', 'Hall', 'Stairs', 'Landing', 'Office', 'Reception',
+        'Meeting room', 'Retail floor', 'Studio', 'Garage', 'Outdoor area'];
+      const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return null;
+      if (words.length > 1 && /^[0-9]+$/.test(words[words.length - 1])) words.pop();
+      const base = words.join(' ').toLowerCase();
+      return presets.find(type => type.toLowerCase() === base) || 'Other';
+    }
+    const visitLog = { seen: new Set([opening]), last: visitNumber(manifest, opening), furthest: visitNumber(manifest, opening),
+      room: roomType(stopLabel(manifest, opening).room), since: performance.now(), ms: new Map() };
+    function logVisit(index, room) {
+      const now = performance.now();
+      if (visitLog.room) visitLog.ms.set(visitLog.room, (visitLog.ms.get(visitLog.room) || 0) + Math.max(0, now - visitLog.since));
+      visitLog.since = now;
+      visitLog.room = roomType(room);
+      visitLog.seen.add(index);
+      visitLog.last = visitNumber(manifest, index);
+      visitLog.furthest = Math.max(visitLog.furthest, visitLog.last);
+      const seconds = {};
+      for (const [type, ms] of visitLog.ms) seconds[type] = Math.round(ms / 1000);
+      // `room` is where the visitor is now: the page adds the time from this event to the end of the visit.
+      return { stops: visitLog.seen.size, last_stop: visitLog.last, furthest_stop: visitLog.furthest,
+        total_stops: manifest.stops.length, room: visitLog.room, seconds };
+    }
     function engagementStop(id) {
       try { ui.root.dispatchEvent?.(new CustomEvent('veylet:stop', { bubbles: true, detail: { source: 'veylet-v2', stop_id: id } })); } catch { /* optional first-party measurement never blocks playback */ }
     }
     function arrived(index) {
+      // Point to point: every move ends at a stop, so index is always one.
       state.stop = index;
       engagementStop(index >= 0 && (!chunked || held.get(currentChunk)?.settled) ? manifest.stops[index]?.id || null : null);
-      const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
-      if (index < 0) ui.stopLine.textContent = 'Between stops';
+      const label = labels(index);
       markCurrent();
       placeHotspots();
-      ui.announce.textContent = [label.room, index >= 0 ? label.stop : 'Between stops'].filter(Boolean).join(', ');
+      ui.announce.textContent = [label.room, label.stop].filter(Boolean).join(', ');
       if (label.room && label.room !== lastRoomVisited) {
         lastRoomVisited = label.room;
-        try {
-          if (typeof CustomEvent === 'function') {
-            document.dispatchEvent?.(new CustomEvent('veylet:room', { detail: { room: label.room } }));
-          }
-        } catch { /* optional telemetry event */ }
+        announceActivity('veylet:room', { room: label.room });
       }
+      announceActivity('veylet:stop', { stop: index, room: label.room || null });
+      announceActivity('veylet:visit', logVisit(index, label.room));
+      tellStop(index);
+      if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }
-    function goToStop(index) {
+    /** The page hears which stop this is (its number in the visit), for its own address and Share. */
+    function tellStop(index) {
+      if (index < 0) return;
+      try { visit.onStop?.(visitNumber(manifest, index), manifest.stops.length); } catch { /* optional */ }
+    }
+
+    // ----- who to contact, Share, and the end of the visit -----
+    let contact = null;
+    const linkOk = href => typeof href === 'string' && /^(?:tel:|mailto:|https:\/\/)/.test(href);
+    Promise.resolve(visit.contact).then(value => {
+      if (torndown || !value || typeof value.name !== 'string' || !value.name || !Array.isArray(value.actions)) return;
+      const actions = value.actions.filter(item => item && typeof item.label === 'string' && linkOk(item.href)).slice(0, 3);
+      if (!actions.length) return;
+      contact = { name: value.name.slice(0, 80), actions };
+      aboutContents();
+      if (!ui.end.hidden) showEnd(false);
+    }, () => {});
+    function contactLinks(className) {
+      return contact.actions.map(action => {
+        const link = el('a', { class: className, href: action.href, 'aria-label': action.label + ' ' + contact.name }, action.label);
+        if (action.external) { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer'); }
+        link.addEventListener('click', () => {
+          // The address as it is now (the stop the visitor is on), then the page's own note of the press.
+          try { const now = action.hrefNow?.(); if (linkOk(now)) link.setAttribute('href', now); } catch { /* the first address stands */ }
+          try { action.press?.(); } catch { /* optional */ }
+        });
+        return link;
+      });
+    }
+    function shareButton(className) {
+      if (typeof visit.share !== 'function') return null;
+      const button = el('button', { type: 'button', class: className }, 'Share');
+      button.addEventListener('click', async () => {
+        let said = '';
+        try { said = await visit.share(); } catch { said = ''; }
+        if (typeof said === 'string' && said && !torndown) say(said);
+      });
+      return button;
+    }
+    function showEnd(announce = true) {
+      if (!ready) return;
+      // Only puts the card away: a quiet press. The bar's Restart is the player's one filled
+      // action here, and the page's own Call stays the filled way on.
+      const stay = el('button', { type: 'button', class: 'v2-quiet' }, 'Look around again');
+      stay.addEventListener('click', () => { hideEnd(); ui.canvas.focus?.(); });
+      const actions = el('div', { class: 'v2-actions' });
+      actions.append(stay);
+      const share = shareButton('v2-quiet');
+      if (share) actions.append(share);
+      if (contact) {
+        // A page that already shows Call and Email beside the stage hides these until full screen (tour-stage.css).
+        const reach = el('span', { class: 'v2-end-contact' });
+        reach.append(...contactLinks('v2-quiet'));
+        actions.append(reach);
+      }
+      ui.end.replaceChildren(el('p', { class: 'v2-end-title' }, 'That’s the last stop.'), actions);
+      // Above the controls, whatever their height (a row of room names makes them taller).
+      const barHeight = ui.bar.offsetHeight || ui.bar.clientHeight || 0;
+      if (barHeight) ui.end.style.setProperty('--v2-bar', barHeight + 'px');
+      ui.end.hidden = false;
+      ui.root.dataset.end = 'shown';
+      if (announce) ui.announce.textContent = [ui.announce.textContent, 'That’s the last stop.'].filter(Boolean).join('. ');
+    }
+    function hideEnd() {
+      if (ui.end.hidden) return;
+      const held = ui.end.contains(document.activeElement);
+      ui.end.hidden = true;
+      delete ui.root.dataset.end;
+      if (held) ui.next.focus?.();
+    }
+    function goToStop(index, byUser = true) {
       if (!ready) return;
       engagementStop(null);
-      dismissHint();
+      dismissHint(byUser);
+      hideEnd();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
-      // A chunked home starts streaming the room ahead as the move starts; far rooms go once there.
+      // A chunked home holds the stop's room (and the rooms beyond its doorways) first; far rooms go on arrival.
       if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
-      // A saved pose is not a walking route. Only interpolate on the mask's measured floor;
-      // unknown paths and other storeys jump directly, without passing through walls or floors.
-      const from = state.stop >= 0 ? manifest.stops[state.stop] : null;
-      const onMeasuredFloor = item => Boolean(walkable && item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15);
-      const canRoute = Boolean(walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)
-        && onMeasuredFloor(stop) && (from ? onMeasuredFloor(from) : Math.abs(state.position[1] - walkable.eyeHeight - walkable.floorY) <= 0.15));
-      let route = null;
-      if (canRoute) {
-        if (walkable.clear([state.position[0], state.position[2]], [stop.position[0], stop.position[2]])) {
-          route = [[...stop.position]];
-        } else {
-          const levelStops = storeys
-            ? manifest.stops.filter((_, i) => levelOf[i] === maskLevel && onMeasuredFloor(manifest.stops[i]))
-            : manifest.stops.filter(onMeasuredFloor);
-          route = corridorRoute(walkable, state.position, stop.position, levelStops);
-        }
-      }
-      flyTo([...stop.position], look.yaw, look.pitch, () => { arrived(index); if (chunked) releaseFarChunks(); }, Boolean(route), route);
+      lastMove = { route: 'direct', from: state.stop, to: index, points: 2, duration: 0, cut: true };
+      Object.assign(state, { position: [...stop.position], yaw: look.yaw, pitch: look.pitch });
+      applyCamera();
+      arrived(index);
+      if (chunked) releaseFarChunks();
     }
-    function walkTo(point) {
-      const eye = walkable ? walkable.eyeHeight : 1.4;
-      const target = [point[0], point[1] + eye, point[2]];
-      if (chunked) enterChunk(chunkAt(manifest, target, currentChunk, sameLevel));
-      flyTo(target, state.yaw, state.pitch, () => { arrived(nearestStop(manifest, target, 0.35, sameLevel)); if (chunked) releaseFarChunks(); });
-    }
-    // Where Next and Previous count from: this stop, or between stops the nearest one on this level (as the labels say).
+    // Where Next and Previous count from: the stop the viewer is on.
     const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
     let messageTimer = null;
     function say(message) {
@@ -1401,56 +1484,38 @@
       clearTimeout(messageTimer);
       messageTimer = setTimeout(() => { if (ui.status.textContent === message) ui.status.textContent = ''; }, 3500);
     }
+    // ----- point to point: only the circles, Next and Previous, rooms, the map and keys move -----
+    // Short enough to fit a 280 px phone frame on one line.
+    const STOP_HINT = 'Tap a numbered circle to move.';
+    // Facing a wall there may be no circle on screen to tap: then the hint names what is, the Next button.
+    const NO_CIRCLE_HINT = 'No circle in view. Tap Next.';
+    const missHint = () => (hotspotButtons.some(button => !button.hidden) ? STOP_HINT : NO_CIRCLE_HINT);
+    // Forward and back: stops within KEY_CONE degrees either side of the heading (four headings cover the room),
+    // no further than the circles are drawn; stops within KEY_TIE degrees of the best aligned count as level, nearest wins.
+    const KEY_CONE = 45, KEY_TIE = 10, KEY_REACH = 12;
+    /** The other stops on the viewer's level that the circles' rule lets it move to. */
+    function stopChoices() {
+      const level = storeys ? levelAt(storeys, state.position) : 0;
+      const here = hereStop();
+      return manifest.stops.map((stop, index) => ({ stop, index }))
+        .filter(({ stop, index }) => index !== here && (!storeys || levelOf[index] === level) && stopReachable(stop, level));
+    }
+    /** Forward (1) or back (-1): to the stop best aligned with the heading, or the hint. */
     function stepForward(sign) {
-      if (!walkable) { say('Use Next stop, or N and P, to move.'); return; }
-      if (offMask()) { say(OFF_MASK); return; }
       const forward = forwardOf(state.yaw, 0);
-      const from = [state.position[0], state.position[2]];
-      const to = [from[0] + forward[0] * 0.35 * sign, from[1] + forward[2] * 0.35 * sign];
-      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-      if (walkable.clear(from, to)) {
-        const tethered = tetherToStations(walkable, from, to, levelStops);
-        walkTo([tethered[0], walkable.floorY, tethered[1]]);
-        return;
-      }
-      const slide = walkTarget(walkable, from, to, { minStep: 0.15, snap: 0.35 });
-      if (slide) {
-        const tethered = tetherToStations(walkable, from, slide, levelStops, { minStep: 0.15 });
-        walkTo([tethered[0], walkable.floorY, tethered[1]]);
-        return;
-      }
-      say('A wall or furniture is in the way.');
+      let best = null;
+      const choices = stopChoices().map(({ stop, index }) => {
+        const dx = stop.position[0] - state.position[0], dz = stop.position[2] - state.position[2], distance = Math.hypot(dx, dz);
+        const angle = distance > 1e-6 ? Math.acos(clamp((dx * forward[0] + dz * forward[2]) * sign / distance, -1, 1)) * 180 / Math.PI : 180;
+        return { index, distance, angle };
+      }).filter(choice => choice.angle <= KEY_CONE && choice.distance <= KEY_REACH);
+      const least = Math.min(...choices.map(choice => choice.angle));
+      for (const choice of choices) if (choice.angle <= least + KEY_TIE && (!best || choice.distance < best.distance)) best = choice;
+      if (best) goToStop(best.index); else say(missHint());
     }
-    function aimFor(clientX, clientY) {
-      const rect = ui.canvas.getBoundingClientRect();
-      const x = clientX - rect.left, y = clientY - rect.top;
-      const near = camera.camera.screenToWorld(x, y, camera.camera.nearClip, new pc.Vec3());
-      const far = camera.camera.screenToWorld(x, y, camera.camera.farClip, new pc.Vec3());
-      const direction = [far.x - near.x, far.y - near.y, far.z - near.z];
-      const length = Math.hypot(...direction);
-      return tapAim([near.x, near.y, near.z], direction.map(v => v / length), walkable.floorY);
-    }
-    function tapAt(clientX, clientY) {
-      if (!walkable) { say('Tap a circle or Next stop to move.'); return; }
-      if (offMask()) { say(OFF_MASK); return; }
-      const aim = aimFor(clientX, clientY);
-      const from = [state.position[0], state.position[2]];
-      const raw = aim && walkTarget(walkable, from, aim);
-      const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === viewerLevel) : manifest.stops;
-      const to = raw && tetherToStations(walkable, from, raw, levelStops, { maxCorridor: 0.75 });
-      if (to) {
-        walkTo([to[0], walkable.floorY, to[1]]);
-        return;
-      }
-      if (aim) {
-        const candidateStop = nearestStop(manifest, [aim[0], state.position[1], aim[1]], 1.4, sameLevel);
-        if (candidateStop >= 0 && candidateStop !== state.stop) {
-          goToStop(candidateStop);
-          return;
-        }
-      }
-      // Short enough to fit a 280 px phone frame on one line.
-      say('Can’t walk there. Try open floor.');
+    /** A tap on the scene never moves: it says how to (a numbered circle, or Next when none is in view). */
+    function tapAt() {
+      say(missHint());
     }
 
     // ----- input -----
@@ -1459,7 +1524,9 @@
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
       engaged = true;
-      dismissHint();
+      wheelHeld = true;
+      dismissHint(true);
+      hideEnd();
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
@@ -1484,7 +1551,6 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        cancelFlight();
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -1502,10 +1568,20 @@
     };
     ui.canvas.addEventListener('pointerup', release);
     ui.canvas.addEventListener('pointercancel', release);
-    // A listing page scrolls with the wheel; zoom on a trackpad pinch or on a
-    // standalone / fullscreen walkthrough, and inside someone else's page only once engaged.
+    // The wheel belongs to the page until the visitor is using the walkthrough. Inside someone else's page:
+    // a trackpad pinch only, once engaged. On our own pages: a pinch, full screen, a page with nothing to
+    // scroll, or after a press or key on the walkthrough, until the pointer leaves it or focus moves on.
+    let wheelHeld = false;
+    const releaseWheel = () => { wheelHeld = false; };
+    stage.addEventListener('pointerleave', releaseWheel);
+    ui.canvas.addEventListener('blur', releaseWheel);
+    const pageScrolls = () => {
+      const root = document.documentElement;
+      return Boolean(root && root.scrollHeight > root.clientHeight + 1);
+    };
     ui.canvas.addEventListener('wheel', event => {
-      if (!ready || (framed && (!event.ctrlKey || !engaged))) return;
+      if (!ready) return;
+      if (framed ? (!event.ctrlKey || !engaged) : (!event.ctrlKey && !wheelHeld && !isFull() && pageScrolls())) return;
       event.preventDefault();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
@@ -1514,10 +1590,9 @@
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
       engaged = true;
       const key = event.key;
-      const handled = () => { event.preventDefault(); dismissHint(); };
+      const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
-        cancelFlight();
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
         state.yaw += left ? 10 : -10;
         applyCamera();
@@ -1530,17 +1605,18 @@
       else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
-      else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(Number(key) - 1); }
+      else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(stopAtNumber(manifest, Number(key))); }
       else if (key === 'Home' || key === '0') { handled(); state.zoom = 1; goToStop(manifest.start); }
       else if (key === '+' || key === '=') { handled(); state.zoom = clamp(state.zoom * 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
     });
     // Any press anywhere in the player means the visitor has found the controls.
-    ui.root.addEventListener('pointerdown', () => dismissHint(), true);
+    ui.root.addEventListener('pointerdown', () => dismissHint(true), true);
     ui.root.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
-      if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
+      if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
+      else if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
     const escapeFull = event => {
@@ -1660,21 +1736,25 @@
       ui.full.title = ui.full.getAttribute('aria-label');
       fitBar();
     }
-    // Under 320 px the bar has room for five controls, not six: the map (which
-    // would cover most of so small a view) gives way to Full screen.
+    // Under 288 px (a frame narrower than a 320 px phone's own page) the bar has room for five controls,
+    // not six: the map, which would cover most of so small a view, gives way to Full screen.
     function fitBar() {
-      const narrow = stage.clientWidth > 0 && stage.clientWidth < 320 && !isFull();
+      const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
+      pillsMore();
     }
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
 
     let hintTimer = null;
-    function dismissHint() {
+    // The hint goes after nine seconds or on the first move. Only a real press, drag or key marks it as
+    // seen: someone who looked away while it timed out sees it again next time.
+    function dismissHint(byUser = false) {
       if (ui.hint.hidden) return;
       ui.hint.hidden = true;
       clearTimeout(hintTimer);
+      if (!byUser) return;
       try { localStorage.setItem(HINT_KEY, '1'); } catch { /* per-viewer convenience only */ }
     }
     function offerHint() {
@@ -1685,11 +1765,11 @@
         // A small frame on someone else's page has no room for a hint over the room (About has the controls);
         // a phone's own page gets the one-line version.
         if (framed) return;
-        ui.hint.textContent = 'Drag to look. Tap to move.';
+        ui.hint.textContent = 'Drag to look. Tap a circle to move.';
         ui.hint.classList.add('v2-hint-short');
       }
       ui.hint.hidden = false;
-      hintTimer = setTimeout(dismissHint, 9000);
+      hintTimer = setTimeout(() => dismissHint(false), 9000);
     }
 
     // ----- rendering, loading phases and frame pacing -----
@@ -1710,7 +1790,7 @@
     }
     function addChunk(id) {
       const item = holdChunk(id);
-      item.asset.on('error', () => fail('engine-unavailable'));
+      item.asset.on('error', sceneFailed);
       app.assets.load(item.asset);
       return item;
     }
@@ -1737,7 +1817,7 @@
     // Everything held has arrived at its level.
     function chunksSettled() {
       for (const item of held.values()) item.settled = true;
-      if (!flight && state.stop >= 0) engagementStop(manifest.stops[state.stop]?.id || null);
+      if (state.stop >= 0) engagementStop(manifest.stops[state.stop]?.id || null);
       if (roomWait) {
         stats.rooms.push({ chunk: roomWait.chunk, ms: Math.round(performance.now() - roomWait.since) });
         roomWait = null;
@@ -1791,7 +1871,9 @@
         if (loadingCount > 0) {
           maxLoading = Math.max(maxLoading, loadingCount);
           ui.progress.hidden = false;
-          ui.progress.firstChild.style.transform = `scaleX(${((maxLoading - loadingCount) / maxLoading).toFixed(3)})`;
+          // The last part of the one bar: the engine reading what was fetched.
+          ui.progress.classList.remove('v2-progress-wait');
+          setProgress(0.85 + 0.15 * (maxLoading - loadingCount) / maxLoading);
         }
         if (!frameReady || loadingCount > 0) return;
         // Data served from cache may never show as loading; a settled second of frames will do.
@@ -1800,14 +1882,21 @@
         mark('first-3d');
         ready = true;
         engagementStop(manifest.stops[state.stop >= 0 ? state.stop : manifest.start]?.id || null);
+        // The opening stop is an arrival too, once there is something to look at.
+        if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
+        tellStop(state.stop);
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
+        // From here the status hangs from the top edge of the controls (tour-player-v2.css), so no row of room
+        // names, wrapped or not, can cover it.
+        ui.bar.append(ui.status);
         ui.status.textContent = saveData ? '' : 'Sharpening detail…';
         ui.progress.hidden = saveData;
+        ui.progress.classList.remove('v2-progress-wait');
         ui.progress.firstChild.style.transform = 'scaleX(0)';
         // Finer levels now stream under the budget, over what is already on screen.
         if (chunked) {
@@ -1826,7 +1915,8 @@
         offerHint();
         settle({ readiness: 'viewer-ready', marks, stats });
         // Back where the visitor was before the graphics context was lost.
-        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop);
+        if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop, false);
+        else if (asked !== state.stop) goToStop(asked, false);
         return;
       }
       if (phase === 'detail') {
@@ -1847,7 +1937,6 @@
     continuous++; // stream the first levels continuously; released when detail completes
     app.on('update', () => {
       const now = performance.now();
-      stepFlight(now);
       if (continuous > 0 || benchmark) requestRender();
       if (benchmark) {
         const through = Math.min(now, benchmark.until);
@@ -1925,8 +2014,8 @@
     if (chunked) for (const item of held.values()) app.assets.load(item.asset);
     else app.assets.load(asset);
     app.start();
-    if (chunked) for (const item of held.values()) item.asset.on('error', () => fail('engine-unavailable'));
-    else asset.on('error', () => fail('engine-unavailable'));
+    if (chunked) for (const item of held.values()) item.asset.on('error', sceneFailed);
+    else asset.on('error', sceneFailed);
     // A wide screen has room for the map from the start; phones, and frames on
     // someone else's page, open it on request.
     toggleMap(stage.clientWidth >= 900 && !framed);
@@ -1948,16 +2037,21 @@
     const controller = {
       stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames),
         ...(chunked ? { chunk: currentChunk, chunks: [...held].map(([id, item]) => ({ id, level: item.level, settled: item.settled })) } : {}) }),
+      // goToStop(index): jumps to that stop. tapAt(): what a tap on the scene does: shows the hint, never moves.
       goToStop, tapAt,
-      // For QA: whether a tap here aims at open floor on the walkable mask.
-      probe: (clientX, clientY) => {
-        const aim = walkable && aimFor(clientX, clientY);
-        return { aim, openFloor: Boolean(aim && walkable.walkable(aim[0], aim[1])) };
-      },
+      /*
+       * Where the viewer stands and looks, read by the page when it wants it (no timer and no network here).
+       * null until the first 3D frame. stop: the stop stood on (0-based).
+       * Angles are degrees in the tour package's own frame (right-handed, Y up), exactly as lookAngles() gives them:
+       * yaw 0 looks along -Z (up on the floor map before its turn); yaw grows turning LEFT, anticlockwise seen
+       * from above, so yaw 90 looks along -X, 180 along +Z and 270 along +X. Given here as 0 <= yaw < 360.
+       * pitch 0 is level, positive looks up, negative down (-80..80).
+       */
+      view: () => (ready ? { stop: state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
       // For QA and measurement: the camera state and where each stop's floor disc projects.
       inspect: () => {
         const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
-        return { state: { ...state, position: [...state.position] }, discs, ready };
+        return { state: { ...state, position: [...state.position] }, discs, ready, move: lastMove && { ...lastMove, moving: false } };
       },
       benchmark(seconds = 5, degreesPerSecond = 30) {
         stats.frames = [];
@@ -1980,8 +2074,8 @@
 
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
-    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, roomFootprint, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
+    resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
+    fieldOfView, posterFor, decodeWalkable, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     start, mount, current: null,
   };

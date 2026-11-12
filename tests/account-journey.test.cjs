@@ -141,3 +141,68 @@ test('Insights refresh keeps a focusable busy action until the response arrives'
   pending.resolve(response); await new Promise(resolve => setImmediate(resolve));
   assert.equal(doc.activeElement.textContent, 'Refresh Insights'); assert.ok(host.contains(doc.activeElement));
 });
+
+test('pre-membership tasks remain visible without inherited unread or read mutation; absent eligibility stays compatible', async () => {
+  const { createDocument } = require('./fake-dom.cjs');
+  const doc = createDocument(), host = doc.createElement('section'), launch = doc.createElement('button');
+  host.id = 'account-activity'; launch.id = 'account-activity-open'; host.hidden = true; doc.body.append(launch, host);
+  const calls = [], older = item({ unread_eligible: false });
+  const mount = api.mountActivity({ document: doc, open() {}, rpc: async (name, args) => { calls.push([name, args]); return name === 'list_activity' ? { data: { ...page([older]).data, unread_count: 0 } } : { data: { read_ids: [EVENT], unread_count: 0 } }; } });
+  mount.setUser(A); await mount.load(); mount.open();
+  assert.match(host.textContent, /Needs attention/); assert.match(host.textContent, /Review walkthrough/);
+  assert.equal(host.querySelectorAll('.journey-unread').length, 0); assert.equal(host.querySelectorAll('button').some(n => n.textContent === 'Mark read'), false);
+  assert.equal(await mount.store.mark([EVENT]), false); assert.equal(await mount.store.mark([], true), false);
+  assert.equal(calls.filter(([name]) => name === 'mark_activity_read').length, 0); assert.equal(mount.store.state.items[0].read_at, null);
+  const pending = deferred();
+  const store = api.activityStore({ rpc: name => name === 'list_activity' ? Promise.resolve({ data: { ...page([older, item({ id: B })]).data, unread_count: 1 } }) : pending.promise });
+  store.setUser(A); await store.load(); const marking = store.mark([EVENT, B]);
+  assert.equal(store.state.unread, 0); assert.equal(store.state.items[0].read_at, null); assert.ok(store.state.items[1].read_at);
+  pending.resolve({ data: { read_ids: [EVENT, B], unread_count: 0 } }); await marking; assert.equal(store.state.items[0].read_at, null);
+});
+
+test('Insights clears previously loaded private values on authentication, permission and not-found refresh errors', async () => {
+  const { createDocument } = require('./fake-dom.cjs');
+  for (const denial of [{ error: { code: 'PGRST301' }, status: 401 }, { error: { code: '42501' }, status: 403 }, { error: { code: '404' }, status: 404 }]) {
+    const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host); let calls = 0;
+    const mount = api.mountInsights({ document: doc, host, tourID: TOUR, title: 'Synthetic space', autoOpen: true, rpc: async () => ++calls === 1 ? { data: { schema_version: 1, tour_id: TOUR, revision: 1, availability: 'disabled', totals: { opens: 187 }, coverage: {}, stops: [] } } : denial });
+    await new Promise(resolve => setImmediate(resolve)); assert.match(host.textContent, /187/); await mount.load();
+    assert.equal(mount.data, null); assert.doesNotMatch(host.textContent, /187|Copy Insights summary|Recorded opens/); assert.match(host.textContent, /no longer available/);
+  }
+});
+
+test('Insights keeps a clearly stale value for transient server failures only', async () => {
+  const { createDocument } = require('./fake-dom.cjs'); const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host); let calls = 0;
+  const mount = api.mountInsights({ document: doc, host, tourID: TOUR, title: 'Synthetic space', autoOpen: true, rpc: async () => ++calls === 1 ? { data: { schema_version: 1, tour_id: TOUR, revision: 1, availability: 'disabled', totals: { opens: 187 }, coverage: {}, stops: [] } } : { error: { code: 'XX000' }, status: 500 } });
+  await new Promise(resolve => setImmediate(resolve)); await mount.load(); assert.match(host.textContent, /187/); assert.match(host.textContent, /last successful read/);
+});
+
+test('partial read acknowledgements restore unacknowledged optimistic markers for direct and snapshot reads', async () => {
+  for (const all of [false, true]) {
+    const store = api.activityStore({ rpc: async name => name === 'list_activity' ? page([item(), item({ id: B })]) : { data: { read_ids: [B], unread_count: 1 } } });
+    store.setUser(A); await store.load(); await store.mark([EVENT, B], all);
+    assert.equal(store.state.unread, 1); assert.equal(store.state.items[0].read_at, null); assert.ok(store.state.items[1].read_at);
+  }
+});
+
+test('late discovery of resolved ready history does not produce a review toast', async () => {
+  const arrivals = []; let requests = 0;
+  const store = api.activityStore({ arrived: item => arrivals.push(item), rpc: async () => ++requests === 1 ? page([]) : page([item({ needs_attention: false, action: 'space' })]) });
+  store.setUser(A); await store.load(); await store.load(); assert.equal(arrivals.length, 0);
+});
+
+test('ready-event toast history survives out-of-page refreshes and resets at an account boundary', async () => {
+  const arrivals = [], pages = [[], [item()], [], [item()], [], [item()]];
+  const store = api.activityStore({ arrived: event => arrivals.push(event.id), rpc: async () => page(pages.shift()) });
+  store.setUser(A); await store.load(); await store.load(); await store.load(); await store.load(); assert.deepEqual(arrivals, [EVENT]);
+  store.setUser(B); store.setUser(A); await store.load(); await store.load(); assert.deepEqual(arrivals, [EVENT, EVENT]);
+});
+
+test('Activity clears cached private rows when refreshing or marking loses authorization', async () => {
+  for (const operation of ['load', 'mark']) {
+    let requests = 0;
+    const store = api.activityStore({ rpc: async () => ++requests === 1 ? page() : { error: { code: '42501' }, status: 403 } });
+    store.setUser(A); await store.load();
+    if (operation === 'load') await store.load(); else await store.mark([EVENT]);
+    assert.deepEqual(store.state.items, []); assert.equal(store.state.unread, null); assert.equal(store.state.snapshot, null); assert.match(store.state.error, /no longer available/);
+  }
+});

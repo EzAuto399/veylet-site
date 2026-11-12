@@ -310,6 +310,7 @@
     const copied = journey && /\bcopied\b/i.test(value || '') && !/not|couldn|could not|failed/i.test(value);
     if (copied) journey.toast(document, value);
     if (statusEl) statusEl.textContent = copied ? '' : value;
+    return copied;
   }
 
   /** Never leave the desk waiting on one unanswered request. */
@@ -650,9 +651,9 @@
       line.textContent = rowNotice.text; line.hidden = false; rowNotice = null;
     }
     return (value, keepAfterReload = false) => {
-      setStatus(value);
-      line.textContent = value; line.hidden = !value;
-      rowNotice = keepAfterReload && value ? { tourId: tour.id, text: value } : null;
+      const toasted = setStatus(value);
+      line.textContent = toasted ? '' : value; line.hidden = toasted || !value;
+      rowNotice = !toasted && keepAfterReload && value ? { tourId: tour.id, text: value } : null;
     };
   }
   function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
@@ -919,8 +920,9 @@
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
     const copy = async () => {
-      await share.copy(url, link.field, statusEl, 'Link copied. Anyone with it can open or forward the walkthrough.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      const feedback = { textContent: '' };
+      await share.copy(url, link.field, feedback, 'Link copied. Anyone with it can open or forward the walkthrough.');
+      if (feedback.textContent) say(feedback.textContent);
     };
     const copyLink = button('Copy link', copy); copyLink.dataset.control = 'copy-link';
     // One direct, frameable address for a portal's or CRM's virtual tour field: the
@@ -930,8 +932,9 @@
     listing.label.hidden = true;
     const copyListing = button('Copy listing URL (portals, CRM)', async () => {
       listing.label.hidden = false;
-      await share.copy(listingUrl, listing.field, statusEl, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
-      if (statusEl?.textContent) say(statusEl.textContent);
+      const feedback = { textContent: '' };
+      await share.copy(listingUrl, listing.field, feedback, 'Listing URL copied. Paste it into the virtual tour field. It shows the walkthrough only: no agent card, links or QR code.');
+      if (feedback.textContent) say(feedback.textContent);
     });
     copyListing.dataset.control = 'copy-listing';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row';
@@ -978,8 +981,9 @@
     const code = embedCodeTagged(share, tour.share_token);
     const embed = copyField('Embed code', 'textarea', code);
     const copyCode = button('Copy embed code', async () => {
-      await share.copy(code, embed.field, statusEl, 'Embed code copied. Paste it into your builder’s custom HTML block, then check the published page on a phone.');
-      if (statusEl?.textContent) sayWeb(statusEl.textContent);
+      const feedback = { textContent: '' };
+      await share.copy(code, embed.field, feedback, 'Embed code copied. Paste it into your builder’s custom HTML block, then check the published page on a phone.');
+      if (feedback.textContent) sayWeb(feedback.textContent);
     });
     const codeActions = document.createElement('p'); codeActions.className = 'tour-actions-row'; codeActions.append(copyCode);
     if (!APP_MODE) {
@@ -1188,9 +1192,10 @@
     reportField.className = 'copy-field copy-fallback'; reportField.readOnly = true; reportField.rows = 8; reportField.hidden = true;
     reportField.setAttribute('aria-label', 'Vendor report — select and copy');
     const copyBtn = button('Copy vendor report', async () => {
-      const copied = await window.VeyletSharing.copy(reportText, reportField, statusEl, 'Vendor report copied. Paste it into your vendor update.');
+      const feedback = { textContent: '' };
+      const copied = await window.VeyletSharing.copy(reportText, reportField, feedback, 'Vendor report copied. Paste it into your vendor update.');
       if (copied) reportField.hidden = true;
-      sayInsights(statusEl.textContent);
+      sayInsights(feedback.textContent);
     });
     copyBtn.dataset.control = 'copy-vendor-report';
     const downloadBtn = button('Download vendor report (.txt)', () => {
@@ -3835,7 +3840,7 @@
       const said = annualNode('p', 'referral-said'); said.hidden = true;
       const copy = button('Copy link', async () => {
         const share = window.VeyletSharing;
-        if (share?.copy) await share.copy(url, link.field, statusEl, 'Share link copied. Send it to the office you are referring.');
+        if (share?.copy) { const feedback = { textContent: '' }; await share.copy(url, link.field, feedback, 'Share link copied. Send it to the office you are referring.'); setStatus(feedback.textContent); }
         else { link.field.focus(); link.field.select(); setStatus('Select and copy the link above.'); }
         said.textContent = statusEl?.textContent || ''; said.hidden = !said.textContent;
       });
@@ -4411,10 +4416,10 @@
     const link = copyField('Invite link', 'input', url);
     link.field.dataset.control = 'team-link';
     const said = annualNode('p', 'team-said'); said.hidden = true;
-    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const say = text => { const toasted = text && setStatus(text); said.textContent = toasted ? '' : text; said.hidden = toasted || !text; };
     const copy = async () => {
       const share = window.VeyletSharing;
-      if (share?.copy) { await share.copy(url, link.field, statusEl, TEAM_WORDS.copied); say(statusEl?.textContent || TEAM_WORDS.copied); }
+      if (share?.copy) { const feedback = { textContent: '' }; await share.copy(url, link.field, feedback, TEAM_WORDS.copied); say(feedback.textContent || TEAM_WORDS.copied); }
       else { link.field.focus?.(); link.field.select?.(); say('Select and copy the link above.'); }
     };
     const copyLink = button('Copy link', copy); copyLink.dataset.control = 'team-copy';
@@ -4460,7 +4465,7 @@
   function teamConfirmed(parent, { label, confirm, warn, keep: keepLabel, kept, control, onMissing, run }) {
     let armed = false;
     const said = annualNode('p', 'team-said'); said.hidden = true;
-    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const say = text => { const toasted = text && setStatus(text); said.textContent = toasted ? '' : text; said.hidden = toasted || !text; };
     const reset = () => { armed = false; press.textContent = label; press.dataset.armed = 'false'; keep.hidden = true; press.disabled = false; };
     const press = button(label, async () => {
       if (press.disabled) return;
@@ -5706,9 +5711,10 @@
     prepField.className = 'copy-field copy-fallback'; prepField.readOnly = true; prepField.rows = 8; prepField.hidden = true;
     prepField.setAttribute('aria-label', 'Preparation note — select and copy');
     const copyBtn = button('Copy owner & tenant prep note', async () => {
-      const copied = await window.VeyletSharing.copy(note, prepField, statusEl, 'Prep checklist copied. Send it to the owner or tenant before capture.');
+      const feedback = { textContent: '' };
+      const copied = await window.VeyletSharing.copy(note, prepField, feedback, 'Prep checklist copied. Send it to the owner or tenant before capture.');
       if (copied) prepField.hidden = true;
-      sayPrep(statusEl.textContent);
+      sayPrep(feedback.textContent);
     });
     copyBtn.dataset.control = 'copy-prep-note';
     const icsBtn = button('Download calendar file (.ics)', () => {
@@ -5732,9 +5738,9 @@
     said.setAttribute('role', 'status');
     said.hidden = true;
     const sayPrep = text => {
-      said.textContent = text;
-      said.hidden = !text;
-      if (text) setStatus(text);
+      const toasted = text && setStatus(text);
+      said.textContent = toasted ? '' : text;
+      said.hidden = toasted || !text;
     };
     body.append(lead, list, draftNote, actions, prepField, said);
     details.append(summary, body);
