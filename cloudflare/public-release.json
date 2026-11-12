@@ -540,7 +540,7 @@
     {
       "path": "build-info.json",
       "bytes": 2372,
-      "sha256": "691624ebc4d562ebd703e21d5928ea2ceb2dec9efa404d38f6a622b5a424b374",
+      "sha256": "2fbd55f22b847f661af7b40e5fd837d953592327c35c19699ce073d487f39e10",
       "headerProfile": 6
     },
     {
@@ -845,8 +845,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 24917,
-      "sha256": "f2bae52d113b02a8db6352b29a971005cd07a3398cc4795b05b9cd5d4820fa31",
+      "bytes": 24742,
+      "sha256": "1d6b30105216f1feaff1a431cf0f2420644658636e720556ea03112369d0322b",
       "headerProfile": 1
     },
     {
@@ -1367,8 +1367,8 @@
     },
     {
       "path": "offer/index.html",
-      "bytes": 52569,
-      "sha256": "6c39e854b89cf3969edf4fbd3dfe36bc039507c02ebba9afd19d2f126d6b1f2a",
+      "bytes": 52394,
+      "sha256": "7531717fe8a7a2aa9091e104fb72542824eefeda33efc5da32c9b58078e6c825",
       "headerProfile": 1
     },
     {
