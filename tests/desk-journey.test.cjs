@@ -989,7 +989,7 @@ test('views: opens with the last day and the Call and Email taps, under the stat
   const none = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 0, call_taps: 0, email_taps: 0, last_opened_at: null }] }) } });
   await settle();
   assert.deepEqual(none.card('t1').all().find(el => el.className === 'tour-views').children.map(el => el.textContent), ['Not opened yet.']);
-  // PGRST202: hidden, and not asked again on the next read. An error or an odd answer: hidden.
+  // PGRST202: hidden, and not asked again on the next read. An error or an odd answer: recovery guidance, never zero.
   const missing = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
   await settle();
   assert.equal(missing.card('t1').all().find(el => el.className === 'tour-views').hidden, true);
@@ -998,7 +998,8 @@ test('views: opens with the last day and the Call and Email taps, under the stat
   for (const reply of [{ error: { message: 'boom' } }, { data: [{ opens: -1 }] }, { data: [] }]) {
     const odd = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => reply } });
     await settle();
-    assert.equal(odd.card('t1').all().find(el => el.className === 'tour-views').hidden, true, JSON.stringify(reply));
+    assert.equal(odd.card('t1').all().find(el => el.className === 'tour-views').hidden, false, JSON.stringify(reply));
+    assert.match(odd.visible(), /Views couldn’t load. Refresh spaces to try again/);
     assert.doesNotMatch(odd.visible(), /Opened|Not opened/);
   }
   // Only a card with a link asks.
@@ -1269,4 +1270,161 @@ test('app mode: the review preview opens /play with from=app, so its links stay 
   assert.match(byText(h.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}&from=app$/);
   const site = await load({ tours: [readyTour()] });
   assert.match(byText(site.card('t1'), 'Open review preview').href, /^\/play\/\?id=t1&review_revision=a{64}$/);
+});
+
+test('Walkthrough insights & vendor report, open-home QR sign card and pre-capture readiness kit work on the desk', async () => {
+  const stats = {
+    opens: 14,
+    days_with_opens: 5,
+    call_taps: 3,
+    email_taps: 1,
+    share_taps: 2,
+    avg_dwell_seconds: 105,
+    by_src: { link: 8, qr: 4, embed: 2 },
+    by_host: { 'harbourrealty.com.au': 2 },
+    by_room: { Kitchen: 9, 'Living room': 7 },
+    last_opened_at: '2026-09-24T02:00:00Z',
+  };
+  const h = await load({
+    tours: [liveTour()],
+    approved: true,
+    hosting: [released()],
+    properties: [{ id: 'p1', title: '12 Rue Café & Co.', location_general: 'Paddington QLD', workspace_id: 'w1' }],
+    rpc: { get_tour_view_stats: async () => ({ data: [stats] }) },
+  });
+  await settle();
+  const card = h.card('t1');
+
+  // 1. Walkthrough insights & vendor report disclosure.
+  const insights = card.all().find(el => el.className === 'account-details tour-insights');
+  assert.ok(insights && !insights.hidden);
+  assert.equal(insights.children[0].textContent, 'Walkthrough insights & vendor report');
+  insights.open = true;
+  await insights.fire('toggle');
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-summary').textContent,
+    'Active days: 5 · Contact taps: 4 · Share taps: 2 · Avg. time: 1m 45s');
+  assert.deepEqual(insights.all().filter(el => el.className === 'tour-insights-channel').map(el => el.textContent),
+    ['Direct link: 8 (57%)', 'QR code: 4 (29%)', 'Website embed: 2 (14%)']);
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-hosts').textContent,
+    'Embedded on: harbourrealty.com.au (2)');
+  assert.equal(insights.all().find(el => el.className === 'tour-insights-rooms').textContent,
+    'Most explored rooms: Kitchen (9) · Living room (7)');
+
+  const copyReport = insights.all().find(el => el.dataset.control === 'copy-vendor-report');
+  await copyReport.fire('click');
+  await settle();
+  assert.match(h.copied.at(-1), /Walkthrough campaign report — 12 Rue Café & Co\./);
+  assert.match(h.copied.at(-1), /Total opens: 14 \(5 active days · last opened 24 Sep 2026\)/);
+  assert.equal(rowLine(insights), 'Vendor report copied. Paste it into your vendor update.');
+
+  const dlReport = insights.all().find(el => el.dataset.control === 'download-vendor-report');
+  await dlReport.fire('click');
+  await settle();
+  const reportAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(reportAnchor.download, '12-rue-cafe-co-vendor-report.txt');
+  assert.equal(rowLine(insights), 'Vendor report saved as 12-rue-cafe-co-vendor-report.txt.');
+
+  // 2. Open-home QR sign card download.
+  const qr = card.all().find(el => el.className === 'account-details tour-qr');
+  qr.open = true;
+  await qr.fire('toggle');
+  const signDl = qr.all().find(el => el.dataset.control === 'qr-sign-download');
+  assert.equal(signDl.disabled, false);
+  await signDl.fire('click');
+  await settle();
+  const signAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(signAnchor.download, '12-rue-cafe-co-open-home-sign.png');
+  const signCanvas = h.created.filter(el => el.tagName === 'CANVAS').at(-1);
+  assert.deepEqual([signCanvas.width, signCanvas.height], [1200, 1600]);
+  assert.equal(rowLine(qr), 'Open-home sign saved as 12-rue-cafe-co-open-home-sign.png.');
+
+  // 3. Pre-capture readiness kit on the space card.
+  const space = h.ids['account-properties'].children[0];
+  const prep = space.all().find(el => el.className === 'account-details space-prep');
+  assert.ok(prep);
+  assert.equal(prep.children[0].textContent, 'Prepare for capture');
+  prep.open = true;
+  await prep.fire('toggle');
+  const copyPrep = prep.all().find(el => el.dataset.control === 'copy-prep-note');
+  await copyPrep.fire('click');
+  await settle();
+  assert.match(h.copied.at(-1), /we are preparing to capture the 3D walkthrough for 12 Rue Café & Co\./);
+  assert.equal(rowLine(prep), 'Prep checklist copied. Send it to the owner or tenant before capture.');
+
+  const dlIcs = prep.all().find(el => el.dataset.control === 'download-capture-ics');
+  await dlIcs.fire('click');
+  await settle();
+  const icsAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
+  assert.equal(icsAnchor.download, '12-rue-cafe-co-capture.ics');
+  assert.equal(rowLine(prep), 'Calendar file downloaded. Open it to choose the date and time; no visit is booked.');
+});
+
+
+test('insights preserve unavailable metrics, explain totals, and distinguish true zero', async () => {
+  for (const unavailable of [null, undefined, -1, '3']) {
+    const h = await load({ tours: [liveTour()], approved: true, rpc: {
+      get_tour_view_stats: async () => ({ data: [{ opens: 14, call_taps: unavailable, email_taps: 1, share_taps: unavailable, by_src: { link: 14 } }] }),
+    } });
+    const insights = h.card('t1').all().find(el => el.className === 'account-details tour-insights');
+    assert.match(textOf(insights), /Contact taps: Not available/);
+    assert.doesNotMatch(textOf(insights), /Direct enquiries/);
+    assert.match(textOf(insights), /Recorded totals/);
+    assert.match(textOf(insights), /not unique visitors/);
+    await insights.all().find(el => el.dataset.control === 'copy-vendor-report').fire('click');
+    assert.match(h.copied.at(-1), /Call taps: Not available/);
+    assert.match(h.copied.at(-1), /Email taps: 1/);
+    assert.match(h.copied.at(-1), /Share taps: Not available/);
+  }
+  const zero = await load({ tours: [liveTour()], approved: true, rpc: {
+    get_tour_view_stats: async () => ({ data: [{ opens: 1, call_taps: 0, email_taps: 0, share_taps: 0 }] }),
+  } });
+  const insights = zero.card('t1').all().find(el => el.className === 'account-details tour-insights');
+  assert.match(textOf(insights), /Contact taps: 0/);
+});
+
+test('report and preparation copying recover honestly when the clipboard is denied', async () => {
+  const h = await load({ tours: [liveTour()], approved: true, rpc: {
+    get_tour_view_stats: async () => ({ data: [{ opens: 14, call_taps: 3, email_taps: 1 }] }),
+  } });
+  h.navigator.clipboard.writeText = async () => { throw new Error('Clipboard denied'); };
+  for (const control of ['copy-vendor-report', 'copy-prep-note']) {
+    await h.all().find(el => el.dataset.control === control).fire('click');
+    assert.match(h.status(), /Select and copy/);
+    assert.doesNotMatch(h.status(), /copied/i);
+    const field = h.documentStub.activeElement;
+    assert.equal(field.tagName, 'TEXTAREA');
+    assert.equal(field.hidden, false);
+    assert.equal(field.readOnly, true);
+    assert.ok(field.value.length > 40);
+  }
+});
+
+test('a new recapture takes priority over a completed live walkthrough and clears when resolved', async () => {
+  let state = 'needs_recapture';
+  const h = await load({ tours: [liveTour()], approved: true, rpc: {
+    list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p1', job: {
+      job_id: 'new-job', property_id: 'p1', state, attempts_allowed: 2,
+    } }] } }),
+  } });
+  assert.match(textOf(h.ids['account-next-step']), /Recapture what the quality check found/);
+  state = 'live';
+  await h.ids['account-refresh'].fire('click'); await settle();
+  assert.match(textOf(h.ids['account-next-step']), /Your walkthrough is live/);
+});
+
+
+test('a newly ready capture keeps review guidance while edits defer automatic desk reload', async () => {
+  let job = { job_id: 'j2', property_id: 'p2', state: 'rendering', step: 2, attempts_allowed: 2 };
+  const h = await load({ tours: [liveTour()], approved: true,
+    properties: [{ id: 'p1', title: 'Live space', workspace_id: 'w1' }, { id: 'p2', title: 'New space', workspace_id: 'w1' }],
+    rpc: { list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p2', job }] } }) },
+  });
+  assert.match(textOf(h.ids['account-next-step']), /being made automatically/);
+  await h.ids['account-properties'].fire('input');
+  job = { ...job, state: 'ready_for_review', tour_id: 't2' };
+  const reads = h.tourReads();
+  await h.poll();
+  assert.equal(h.tourReads(), reads, 'in-progress edits prevent automatic desk replacement');
+  assert.match(textOf(h.ids['account-next-step']), /New space is ready for your review/);
+  assert.ok(h.ids['account-next-step'].all().some(el => el.tagName === 'BUTTON' && el.textContent === 'Review walkthrough'));
 });

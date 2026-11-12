@@ -16,9 +16,9 @@
       gsap.to(stage.querySelector('.stage-phone'), { yPercent: -7, ease: 'none', scrollTrigger: scrub });
     }
     // The three app screens arrive staggered, the way a hand fans out cards.
-    const phones = gsap.utils.toArray('.app-phones .device');
+    const phones = gsap.utils.toArray('.app-phones figure');
     if (phones.length) {
-      gsap.fromTo(phones, { y: (i) => 40 + i * 30, opacity: 0.35 }, {
+      gsap.fromTo(phones, { y: (i) => 16 + i * 12, opacity: 0.35 }, {
         y: 0, opacity: 1, ease: 'expo.out', duration: 1.1, stagger: 0.12,
         scrollTrigger: { trigger: '.app-phones', start: 'top 85%', once: true },
       });

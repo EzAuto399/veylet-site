@@ -31,9 +31,11 @@ window.VeyletSharing = (() => {
     try {
       await navigator.clipboard.writeText(value);
       if (status) status.textContent = message;
+      return true;
     } catch {
       if (field) { field.focus(); field.select(); }
       if (status) status.textContent = 'Select and copy the text below. Your browser did not allow automatic copying.';
+      return false;
     }
   }
 

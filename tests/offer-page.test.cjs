@@ -433,7 +433,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
     Object.fromEntries([...match[1].matchAll(/<div><dt>([\s\S]*?)<\/dt><dd>([\s\S]*?)<\/dd><\/div>/g)].map(([, dt, dd]) => [text(dt), text(dd)])));
   assert.deepEqual(ledgers.map(Object.keys), [
     ['An accepted walkthrough', 'A whole home', `${free.includedWalkthroughs} in your free month`, `${plan.includedPerMonth} a month`, `${plan.annualIncluded} a year`, 'Packs'],
-    ['Your first walkthrough', 'A capture that is not good enough', 'Seats', 'Hosting', 'Listing videos and photos', 'Starting', 'Before the first charge', 'Stopping'],
+    ['Your first walkthrough', 'A capture that is not good enough', 'Seats', 'Hosting', 'Listing videos and photos', 'Buyer views, QR sign and vendor report', 'Starting', 'Before the first charge', 'Stopping'],
   ]);
   const terms = Object.assign({}, ...ledgers);
   assert.ok(counts.includes(`<dt><span class="tally">${plan.includedPerMonth} a month</span></dt>`), 'the monthly tally');
@@ -460,6 +460,7 @@ test('what counts: an accepted walkthrough, a whole home, the free months, rollo
     + `When the plan ends, its links, embeds and QR codes keep working for ${graceDays} days, then go offline. Restart the plan and the same links come back at once. `
     + `To keep a single walkthrough online without a plan, ask us for a hosting extension: ${aud(hostingYear)} a year per walkthrough.`);
   assert.equal(terms['Listing videos and photos'], 'Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.');
+  assert.equal(terms['Buyer views, QR sign and vendor report'], 'Every released walkthrough includes first-party view and channel counts (direct link, QR code, website embed and portal), call and email tap counts, a print-ready open-home QR sign card, a pre-capture home readiness checklist and a one-tap vendor report for weekly campaign updates.');
   // Starting needs a payment method on file, in each channel's own words.
   assert.match(terms.Starting, /Start in the app through Apple’s 1-month free introductory offer, if eligible/);
   assert.match(terms.Starting, /It includes 3 accepted walkthroughs in total/);

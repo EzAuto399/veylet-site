@@ -26,10 +26,10 @@
     reviewer: 'You’re a reviewer: you can review and share walkthroughs.',
     operator: 'You’re an operator: you can capture and send walkthroughs.',
   };
-  var APP = 'In the Veylet Capture app, sign in with this same email.';
+  var APP = 'Use the same sign-in on the website and capture app: Apple, or the same email.';
   var COPY = {
     loading: { title: 'Checking your invite…', message: 'One moment.' },
-    signin: { title: 'Sign in to join your team', message: 'Sign in with the email address the invite was sent to. You come back here to join.',
+    signin: { title: 'Sign in to join your team', message: 'Use your Veylet sign-in: Apple, or your email. You come back here to join.',
       action: ['Sign in to join', '/account?join=1'] },
     accepted: { title: 'You’ve joined {team}.', message: 'You can open your account now.', action: ['Open your account', '/account'] },
     member: { title: 'You’re already in {team}.', message: 'Nothing changed. Your account shows its walkthroughs.', action: ['Open your account', '/account'] },

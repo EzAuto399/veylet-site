@@ -144,12 +144,12 @@ test('an owner with a saved space gets self-capture preparation without an unava
 test('an approved operator sees capture preparation only from confirmed production access', async () => {
   const h = await load({ rpc: { can_produce_tours: () => ({ data: true }) } });
   const guidance = h.ids['account-next-step'].all().map(el => el.textContent).join(' ');
-  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#first-session');
+  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#capture-preparation');
   assert.match(guidance, /Send from the app: it uploads in the background\. Check your account for rendering status\./);
   assert.doesNotMatch(guidance, /usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
   const unavailable = await load({ rpc: { can_produce_tours: () => ({ error: { message: 'offline' } }) } });
   assert.match(unavailable.ids['account-next-step'].all().map(el => el.textContent).join(' '), /approval could not be checked/);
-  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#first-session'), false);
+  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#capture-preparation'), false);
 });
 test('processing guidance gives no turnaround time and promises no pilot target', async () => {
   const h = await load({ tours: [{ ...tour, status: 'processing' }] });
@@ -1110,7 +1110,7 @@ test('signing out clears the plan panel', async () => {
 });
 
 test('the desk first-capture steps follow the app-first flow', () => {
-  assert.match(markup, /Install Veylet Capture on a LiDAR iPhone and sign in with this same email/);
+  assert.match(markup, /Install Veylet Capture on a LiDAR iPhone and use the same sign-in as this website: Apple, or the same email/);
   assert.match(markup, /Do one practice capture in a space you are allowed to record/);
   // Owner decision 26 September 2026: sending happens from the app; one tick before Approve and share.
   assert.match(markup, /Send from the app: it uploads in the background\. Check your account for rendering status\./);

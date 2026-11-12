@@ -221,7 +221,7 @@
 .stage-link {
   position: absolute;
   z-index: 3;
-  right: -3%;
+  right: 0;
   bottom: 17%;
   width: 50%;
   min-width: 212px;
@@ -298,7 +298,6 @@
   font-style: normal;
   color: var(--ink);
   border-bottom: 1px solid #a6b3a2;
-  white-space: nowrap;
 }
 .product-stage figcaption {
   max-width: 46ch;
@@ -686,7 +685,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 36px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 6px 14px;
   border: 1px solid var(--field-line);
   border-radius: 99px;

@@ -1089,3 +1089,135 @@ test('a clear measured-floor stop route still animates, while reduced motion lan
     assert.deepEqual([...controller.inspect().state.position], data.stops[2].position);
   }
 });
+
+test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station tether, and adaptive DPR 2.0 step-up', async () => {
+  const { player } = load();
+  // 1. Adaptive DPR 2.0 step-up on capable phones with sustained >55 fps headroom.
+  const phone = player.deviceProfile(phoneWebgl2);
+  assert.equal(phone.maxPixelRatio, 1.5);
+  assert.equal(phone.peakPixelRatio, 2);
+  const gov = player.createGovernor(phone);
+  let now = 1000;
+  for (const end = now + 30_000; now < end;) {
+    now += 14; // ~71 fps
+    gov.sample(14, now);
+  }
+  assert.equal(gov.state.pixelRatio, 2, 'sustained >55 fps headroom steps DPR up to peakPixelRatio 2.0');
+
+  // 2. Station tether keeps floor taps within the 0.85m corridor around stops and segments.
+  const walkable = player.decodeWalkable(navigationFloor());
+  const stops = manifest().stops;
+  const corridorPt = player.tetherToStations(walkable, [0, 0], [3.4, 0], stops);
+  assert.deepEqual([...corridorPt], [3.4, 0], 'point along stop corridor remains untouched');
+  const nearStopPt = player.tetherToStations(walkable, [0, 0], [2.15, 0.1], stops);
+  assert.deepEqual([...nearStopPt], [2, 0], 'tap within 0.3m of a stop snaps cleanly to the stop');
+  const farSidePt = player.tetherToStations(walkable, [2, 0], [2, 0.98], stops);
+  assert.ok(Math.abs(farSidePt[0] - 2) < 1e-6 && Math.abs(farSidePt[1] - 0.85) < 1e-6, 'far sideways tap is tethered to 0.85m radius');
+
+  // 3. Multi-room walkthrough renders 1-tap room pills and labels destination hotspots.
+  const multiRoom = manifest({
+    rooms: [{ id: 'r1', name: 'Living' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Bedroom' }],
+    stops: [
+      { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, 0, -2], floor: [0, -1.4, 0], floor_measured: true },
+      { id: 's2', room: 'r2', position: [0, 0, -2], target: [0, 0, -4], floor: [0, -1.4, -2], floor_measured: true },
+      { id: 's3', room: 'r3', position: [0, 0, -4], target: [0, 0, -6], floor: [0, -1.4, -4], floor_measured: true },
+    ],
+  });
+  const x = await readyPlayer({ manifest: multiRoom });
+  const pillsBar = byClass(x.stage, 'v2-room-pills');
+  assert.equal(pillsBar.hidden, false);
+  const pills = pillsBar.querySelectorAll('.v2-room-pill');
+  assert.deepEqual(pills.map(p => p.textContent), ['Living', 'Kitchen', 'Bedroom']);
+  assert.equal(pills[0].getAttribute('aria-current'), 'true');
+  const hotspots = x.stage.querySelectorAll('.v2-hotspot');
+  assert.equal(hotspots[1].dataset.next, 'true');
+  assert.equal(hotspots[1].dataset.roomLabel, 'Kitchen');
+  pills[2].click();
+  assert.equal(byClass(x.stage, 'v2-room').textContent, 'Bedroom');
+  assert.equal(pills[2].getAttribute('aria-current'), 'true');
+  assert.equal(pills[0].getAttribute('aria-current'), null);
+});
+
+test('roomFootprint computes indicative room dimensions and arrived dispatches veylet:room on room change', async () => {
+  const { player } = load();
+  const raw = manifest({
+    rooms: [
+      { id: 'r1', name: 'Living', bounds: [4.8, 3.6] },
+      { id: 'r2', name: 'Kitchen' },
+    ],
+    stops: [
+      { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, 0, -2], floor: [0, -1.4, 0], floor_measured: true },
+      { id: 's2', room: 'r2', position: [0, 0, -2], target: [0, 0, -4], floor: [0, -1.4, -2], floor_measured: true },
+      { id: 's3', room: 'r2', position: [1.8, 0, -3.2], target: [1.8, 0, -5], floor: [1.8, -1.4, -3.2], floor_measured: true },
+    ],
+  });
+  const data = player.validateManifest(raw);
+  assert.deepEqual({ ...player.roomFootprint(data, 'r1') }, { widthMeters: 4.8, depthMeters: 3.6, label: 'approx. 4.8 × 3.6 m' });
+  assert.deepEqual({ ...player.roomFootprint(data, 'r2') }, { widthMeters: 3.2, depthMeters: 2.6, label: 'approx. 3.2 × 2.6 m' });
+  const visitedRooms = [];
+  const x = await readyPlayer({
+    manifest: raw,
+    context: {
+      CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } },
+    },
+  });
+  x.document.dispatchEvent = event => { if (event?.type === 'veylet:room') visitedRooms.push(event.detail?.room); };
+  const pills = byClass(x.stage, 'v2-room-pills').querySelectorAll('.v2-room-pill');
+  assert.equal(pills[0].dataset.dimensions, 'approx. 4.8 × 3.6 m');
+  assert.equal(pills[0].title, 'Living · approx. 4.8 × 3.6 m');
+  assert.equal(pills[1].dataset.dimensions, 'approx. 3.2 × 2.6 m');
+  pills[1].click();
+  assert.deepEqual(visitedRooms, ['Kitchen']);
+  pills[1].click();
+  assert.deepEqual(visitedRooms, ['Kitchen'], 'staying in the same room does not re-dispatch');
+  pills[0].click();
+  assert.deepEqual(visitedRooms, ['Kitchen', 'Living']);
+});
+
+test('corridorRoute routes smoothly around obstacles via intermediate stops or corridor bends while rejecting sealed walls', () => {
+  const { player } = load();
+  const sofaFloor = player.decodeWalkable(room());
+  const stops = [
+    { id: 's1', position: [0.8, 0, 1.5], floor: [0.8, -1.4, 1.5], floorMeasured: true },
+    { id: 's2', position: [2.0, 0, 0.4], floor: [2.0, -1.4, 0.4], floorMeasured: true },
+    { id: 's3', position: [3.2, 0, 1.5], floor: [3.2, -1.4, 1.5], floorMeasured: true },
+  ];
+  assert.equal(sofaFloor.clear([0.8, 1.5], [3.2, 1.5]), false, 'direct line crosses the sofa');
+  const route = player.corridorRoute(sofaFloor, stops[0].position, stops[2].position, stops);
+  assert.ok(route && route.length === 2, 'finds a 2-segment route around the sofa via s2');
+  assert.deepEqual([...route[0]], stops[1].position);
+  assert.deepEqual([...route[1]], stops[2].position);
+
+  const sealed = player.decodeWalkable(navigationFloor(true));
+  assert.equal(player.corridorRoute(sealed, [1.0, 0, 0], [2.0, 0, 0], []), null, 'sealed wall still blocks');
+});
+
+test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, colorUpdateAngle=2, idle-gap governor immunity, and tethered stepForward', async () => {
+  const time = clock();
+  const x = await readyPlayer({ reduced: true, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
+  x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
+  x.app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  assert.equal(x.app.scene.gsplat.radialSorting, true, 'radial sorting keeps depth order invariant during 360 rotation');
+  assert.equal(x.app.scene.gsplat.lodBehindPenalty, 1, 'octree nodes behind the camera keep full LOD for instant turns');
+  assert.equal(x.app.scene.gsplat.colorUpdateAngle, 2, 'SH colors refresh smoothly every 2 degrees of camera motion');
+
+  // Five short drags separated by 500 ms idle pauses must not be miscounted as 2 fps frames by the governor.
+  for (let i = 0; i < 6; i++) {
+    time.t += 500;
+    x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
+    time.t += 16;
+    x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 120, clientY: 100 });
+    x.app.fire('update');
+    x.app.fire('postrender');
+    x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 120, clientY: 100 });
+    x.app.fire('postrender');
+  }
+  assert.equal(x.window.VeyletPlayerV2.current.stats().pixelRatio, 1.5, 'idle gaps between drags do not trigger false pixelRatio downscaling');
+
+  // Stepping perpendicular to the station line (yaw = -90 looks along +X, so yaw = 0 looks along -Z) is tethered within 0.85 m of the stop line (z = 0).
+  for (let i = 0; i < 5; i++) x.canvas.dispatch('keydown', { key: 'ArrowUp' });
+  const pos = x.window.VeyletPlayerV2.current.inspect().state.position;
+  assert.ok(Math.abs(pos[2]) <= 0.85 + 1e-6, `stepForward stays tethered within 0.85 m of the station corridor, got z=${pos[2]}`);
+});
+
+

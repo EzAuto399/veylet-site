@@ -82,7 +82,7 @@ test('the invite leaves the address bar before anything is asked, and a joined p
   assert.deepEqual(p.replaced, ['/join']);
   assert.deepEqual(p.calls, [{ name: 'accept_workspace_invite', args: { p_token: TOKEN } }]);
   assert.deepEqual(p.view(), { state: 'accepted', title: 'You’ve joined Harbour Realty.', message: 'You’re a reviewer: you can review and share walkthroughs.',
-    detail: 'In the Veylet Capture app, sign in with this same email.', primary: ['Open your account', '/account'], retry: false });
+    detail: 'Use the same sign-in on the website and capture app: Apple, or the same email.', primary: ['Open your account', '/account'], retry: false });
   assert.equal(p.ids['join-title'].focused, 1);
   assert.equal(p.local.map.size + p.sessionStore.map.size, 0, 'an answered invite is not kept');
   const operator = await page({ accept: [ok('Coast Property', 'operator')] });
@@ -94,7 +94,7 @@ test('signed out, the page keeps the invite and sends the person to sign in, whi
   const p = await page({ signedIn: false, local, sessionStore });
   assert.deepEqual(p.replaced, ['/join']);
   assert.equal(p.calls.length, 0);
-  assert.deepEqual(p.view(), { state: 'signin', title: 'Sign in to join your team', message: 'Sign in with the email address the invite was sent to. You come back here to join.',
+  assert.deepEqual(p.view(), { state: 'signin', title: 'Sign in to join your team', message: 'Use your Veylet sign-in: Apple, or your email. You come back here to join.',
     detail: '', primary: ['Sign in to join', '/account?join=1'], retry: false });
   assert.equal(JSON.parse(local.map.get('veylet-join-invite')).t, TOKEN);
   assert.equal(JSON.parse(sessionStore.map.get('veylet-join-invite')).t, TOKEN);
