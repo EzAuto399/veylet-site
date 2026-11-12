@@ -226,9 +226,12 @@ test('a tap or an arrow key only ever goes to a stop on the viewer\'s storey: it
   const next = x.stage.querySelector('.v2-next');
   next.click(); next.click(); next.click();
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
-  // The stand-in camera's tap looks down and ahead; read against the bedroom's own floor it meets it beside stop 5.
+  // Free walk removed (owner, 12 November 2026): a tap never moves, upstairs or down; Next goes to stop 5.
   x.player.current.tapAt(100, 100);
-  assert.deepEqual(eye(), TWO_FLOORS[4].position, 'a tap goes to the stop on this storey, at its own height');
+  assert.deepEqual(eye(), TWO_FLOORS[3].position, 'a tap never moves the viewer');
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
+  next.click();
+  assert.deepEqual(eye(), TWO_FLOORS[4].position, 'Next goes to the stop on this storey, at its own height');
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 5 of 5']);
   // Ahead of stop 5 there is no stop on this storey: the hint, and no move.
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });

@@ -168,33 +168,6 @@ test('a slow device gives back pixels first, then splats; a fast one earns detai
   assert.equal(change?.pixelRatio, 1.2); // 2.5 fps: helped after five frames, not forty-five
 });
 
-test('camera, stop and floor geometry', () => {
-  const { player } = load();
-  assert.deepEqual([0, 1, 2, 3, 4].map(i => player.stepStop(i, 1, 5)), [1, 2, 3, 4, 0]);
-  assert.equal(player.stepStop(0, -1, 5), 4);
-  const look = player.lookAngles([0, 0, 0], [1, -1, -1]);
-  const forward = player.forwardOf(look.yaw, look.pitch);
-  assert.ok(Math.abs(forward[0] - 1 / Math.sqrt(3)) < 1e-9 && Math.abs(forward[1] + 1 / Math.sqrt(3)) < 1e-9);
-  // Cover-fitted poster: a tall frame keeps the poster's vertical view; a wide one its horizontal view.
-  assert.deepEqual({ ...player.fieldOfView(0.5, { width: 900, height: 1600, fov: 90 }) }, { horizontal: false, fov: 90 });
-  const wide = player.fieldOfView(2.4, { width: 1600, height: 900, fov: 70 });
-  assert.equal(wide.horizontal, true);
-  assert.ok(Math.abs(wide.fov - 2 * Math.atan(Math.tan(35 * Math.PI / 180) * 16 / 9) * 180 / Math.PI) < 1e-9); // 102.4°
-  assert.deepEqual([...player.floorHit([0, 0, 0], [0, -1, 0], -1.4)], [0, -1.4, 0]);
-  assert.equal(player.floorHit([0, 0, 0], [0, 0.1, -1], -1.4), null);
-  // A 3 x 1 m floor split by a wall cell: you can stand on either side, not walk through.
-  const bits = [1, 1, 1, 0, 1, 1];
-  const mask = Buffer.from([bits.reduce((byte, bit, i) => byte | (bit << i), 0)]).toString('base64');
-  const walkable = player.decodeWalkable({ version: 1, cell_metres: 0.5, origin: [0, 0], columns: 6, rows: 1, floor_y: -1.4, eye_height: 1.4, mask });
-  assert.equal(walkable.walkable(0.2, 0.2), true);
-  assert.equal(walkable.walkable(1.7, 0.2), false);
-  assert.equal(walkable.clear([0.2, 0.2], [1.2, 0.2]), true);
-  assert.equal(walkable.clear([0.2, 0.2], [2.7, 0.2]), false);
-  assert.throws(() => player.decodeWalkable({ version: 1, cell_metres: 0.5, origin: [0, 0], columns: 64, rows: 1, floor_y: 0, eye_height: 1.4, mask }), /walkable-invalid/);
-  assert.equal(player.nearestStop(player.validateManifest(manifest()), [1.1, 0, 0.1]), 1);
-  assert.equal(player.nearestStop(player.validateManifest(manifest()), [1.5, 0, 0.1]), -1);
-});
-
 // ---------- the player in a stand-in page ----------
 
 async function started(options = {}) {
@@ -378,61 +351,6 @@ function room() {
   }
   return { version: 1, cell_metres: 0.1, origin: [0, 0], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
 }
-
-test('a tap walks to open floor, snaps to floor beside furniture, or walks as far as the floor runs', () => {
-  const { player } = load();
-  const walkable = player.decodeWalkable(room());
-  const from = [0.5, 1.5];
-  // Open floor in a straight line: straight there.
-  assert.deepEqual([...player.walkTarget(walkable, from, [1.2, 0.5])], [1.2, 0.5]);
-  // On the sofa's edge: the nearest open floor within 0.75 m that can be walked to.
-  const beside = player.walkTarget(walkable, from, [1.6, 1.5]);
-  assert.ok(beside && walkable.walkable(...beside) && Math.hypot(beside[0] - 1.6, beside[1] - 1.5) <= 0.75, String(beside));
-  // Deep in the sofa and behind it: as far as the floor runs towards it, short of the sofa.
-  const towards = player.walkTarget(walkable, [0.5, 1.5], [2.4, 1.5], { snap: 0.2 });
-  assert.ok(towards && towards[0] > 0.8 && towards[0] < 1.5 && Math.abs(towards[1] - 1.5) < 1e-9, String(towards));
-  // Past the wall of the room: to the wall, not through it.
-  const wall = player.walkTarget(walkable, [0.5, 0.5], [0.5, -3], { snap: 0.2 });
-  assert.equal(wall, null); // 0.5 m from the edge, less the margin, is too short a move to count
-  const wallFar = player.walkTarget(walkable, [0.5, 2.9], [0.5, -3], { snap: 0.2 });
-  assert.ok(wallFar && wallFar[1] >= 0 && wallFar[1] < 0.5, String(wallFar));
-  // Facing straight into the sofa from its edge: nothing to walk to.
-  assert.equal(player.walkTarget(walkable, [1.45, 1.5], [2.0, 1.5], { snap: 0.2 }), null);
-  // Standing a hair off the mask (a stop at the edge of the sofa) still lets you walk away.
-  assert.deepEqual([...player.walkTarget(walkable, [1.52, 1.5], [0.5, 1.5])], [0.5, 1.5]);
-});
-
-test('where a tap aims: the floor it meets, a clamped point towards a wall, never the ceiling', () => {
-  const { player } = load();
-  assert.deepEqual([...player.tapAim([0, 0, 0], [0, -1, 0], -1.4)], [0, 0]);
-  const level = player.tapAim([0, 0, 0], [0, 0, -1], -1.4, 8);
-  assert.deepEqual([...level].map(v => Math.round(v * 1000) / 1000), [0, -8]);
-  assert.equal(player.tapAim([0, 0, 0], [0, 0.8, -0.6], -1.4), null);
-});
-
-test('a short wobbly touch still moves, to a stop, and the hint fits a phone frame on one line', async () => {
-  const x = await started({ manifest: manifest({ walkable: { path: 'walkable.json' } }) });
-  x.log.length = 0;
-  const app = x.engine.apps[0];
-  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
-  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
-  await x.pending;
-  const canvas = byClass(x.stage, 'v2-canvas');
-  const at = () => [...x.window.VeyletPlayerV2.current.inspect().state.position];
-  canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100, pointerType: 'touch' });
-  canvas.dispatch('pointermove', { pointerId: 1, clientX: 110, clientY: 106, pointerType: 'touch' });
-  canvas.dispatch('pointerup', { pointerId: 1, clientX: 110, clientY: 106, pointerType: 'touch' });
-  // The tap aims at floor point (1.1, 1.06): stop 2 (1, 0) is the stop nearest it, so the viewer goes to stop 2 itself.
-  assert.equal(byClass(x.stage, 'v2-stop').textContent, 'Stop 2 of 5');
-  assert.deepEqual(at(), [1, 0, 0]);
-  // A tap 3 m from every stop moves nothing and says how to move.
-  canvas.dispatch('pointerdown', { pointerId: 1, clientX: 200, clientY: 300, pointerType: 'touch' });
-  canvas.dispatch('pointerup', { pointerId: 1, clientX: 200, clientY: 300, pointerType: 'touch' });
-  const status = byClass(x.stage, 'v2-status').textContent;
-  assert.equal(status, 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
-  assert.ok(status.length <= 36);
-  assert.deepEqual(at(), [1, 0, 0]);
-});
 
 test('without the Fullscreen API (iPhone Safari) Full screen fills the window, and Escape restores the page', async () => {
   const x = await started();
@@ -715,55 +633,9 @@ async function readyPlayer(options = {}) {
   return { ...x, app, canvas: byClass(x.stage, 'v2-canvas'), stopLine: () => byClass(x.stage, 'v2-stop').textContent, status: () => byClass(x.stage, 'v2-status').textContent };
 }
 
-test('the render loop goes idle once a flight lands, also after a drag, a turn or a new move during it (VIEWER-08)', async () => {
-  const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
-  x.app.systems.gsplat.fire('frame:ready', null, null, false, 2);
-  x.app.systems.gsplat.fire('frame:ready', null, null, true, 0);
-  assert.equal(x.window.VeyletPlayerV2.current.stats().phase, 'complete');
-  // One engine update: does it ask for another frame when nothing moves?
-  const renders = () => { x.app.renderNextFrame = false; x.app.fire('update'); return x.app.renderNextFrame; };
-  assert.equal(renders(), false, 'at rest nothing is drawn');
-  const next = byClass(x.stage, 'v2-next');
-  next.click();
-  assert.equal(renders(), true, 'a flight draws every frame');
-  // A drag takes the camera mid-flight.
-  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
-  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
-  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
-  // Point to point (was: idle again after a drag cut the flight short): the glide carries on to its stop while
-  // the visitor looks, then the loop goes idle there.
-  const controller = x.window.VeyletPlayerV2.current;
-  const facing = controller.inspect().state.yaw;
-  assert.equal(renders(), true, 'the glide carries on after a drag');
-  assert.equal(controller.inspect().state.yaw, facing, 'and no longer steers the look');
-  time.t += 5000;
-  x.app.fire('update');
-  assert.equal(renders(), false, 'idle again once it lands');
-  assert.deepEqual([...controller.inspect().state.position], [1, 0, 0], 'at the stop');
-  assert.equal(controller.inspect().state.yaw, facing, 'facing where the visitor turned');
-  assert.equal(x.stopLine(), 'Stop 2 of 5');
-  // An arrow key turns mid-flight: the same.
-  next.click();
-  x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
-  assert.equal(renders(), true, 'the glide carries on after a turn');
-  assert.equal(controller.inspect().state.yaw, facing + 10);
-  time.t += 5000;
-  x.app.fire('update');
-  assert.equal(renders(), false, 'idle again once it lands');
-  assert.deepEqual([...controller.inspect().state.position], [2, 0, 0]);
-  assert.equal(controller.inspect().state.yaw, facing + 10);
-  // A second move replaces the first before it lands, and then lands.
-  next.click(); next.click();
-  time.t += 5000;
-  x.app.fire('update');
-  assert.equal(renders(), false, 'idle again once the replacing flight lands');
-});
-
-// Point to point (owner decision, 11 November 2026). Replaces 'Next and Previous from “Between stops” go on from the
-// nearest stop' (VIEWER-07): there is no “Between stops” to count from any more.
-test('a floor tap ends at the stop nearest it, never between stops, and Next and Previous count from that stop', async () => {
-  // 6 x 2 m of open floor along the five stops (x 0 to 4 m).
+// Owner, 12 November 2026: "Remove free-walk mode". Point to point is the only mode: a tap on the
+// floor never moves, even on a measured open floor; the numbered circles, Next, Previous and the keys do.
+test('point to point is the only mode: a floor tap never moves, circles and Next still do', async () => {
   const columns = 60, rows = 20;
   const open = { version: 1, cell_metres: 0.1, origin: [-1, -1], columns, rows, floor_y: -1.4, eye_height: 1.4,
     mask: Buffer.from(new Uint8Array(Math.ceil(columns * rows / 8)).fill(255)).toString('base64') };
@@ -775,25 +647,23 @@ test('a floor tap ends at the stop nearest it, never between stops, and Next and
     assert.deepEqual([...controller.inspect().state.position], data.stops[index].position, 'at the stop itself');
     assert.equal(controller.view().stop, index);
   };
-  // A tap on open floor 3.4 m along: stop 4 (3 m) is nearest. The viewer goes there, not to 3.4 m.
-  controller.tapAt(340, 0);
-  atStop(3);
+  atStop(0);
+  for (const [px, py] of [[340, 0], [200, 150], [0, 0]]) {
+    controller.tapAt(px, py);
+    atStop(0);
+  }
+  assert.equal(typeof controller.probe, 'undefined', 'no free-walk QA probe');
   byClass(x.stage, 'v2-next').click();
-  atStop(4);
-  // From stop 5 the same tap goes back to stop 4: the stop stood on is never the answer.
-  controller.tapAt(340, 0);
+  atStop(1);
+  x.stage.querySelectorAll('.v2-hotspot')[3].click();
+  atStop(3);
+  controller.tapAt(100, 0);
   atStop(3);
   byClass(x.stage, 'v2-prev').click();
   atStop(2);
   x.canvas.dispatch('keydown', { key: 'n' });
   atStop(3);
-  x.canvas.dispatch('keydown', { key: 'p' });
-  atStop(2);
-  // Open floor, but 1.5 m from the nearest stop (over the 1.4 m a tap reaches): the hint, and no move.
-  controller.tapAt(200, 150);
-  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
-  atStop(2);
-  assert.doesNotMatch(x.stage.textContent, /Between stops/);
+  assert.doesNotMatch(x.stage.textContent, /Between stops|Tap the floor/);
 });
 
 test('forward and back keys go to the stop the view is aligned with; no stop within 45° gives the hint', async () => {
@@ -821,34 +691,6 @@ test('forward and back keys go to the stop the view is aligned with; no stop wit
   // Back from there is +X: s2.
   x.canvas.dispatch('keydown', { key: 's' });
   atStop(1);
-});
-
-test('a tap or a key never goes to a stop the circles would not offer: behind a wall, or on another level', async () => {
-  // A wall across the floor at x 1.5 m: s1 and s2 on this side, s3 to s5 beyond it.
-  const data = manifest({ walkable: { path: 'walkable.json' } });
-  const x = await readyPlayer({ manifest: data, files: { 'walkable.json': navigationFloor(true) } });
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.tapAt(100, 0);
-  assert.equal(x.stopLine(), 'Stop 2 of 5');
-  controller.tapAt(200, 0); // right on s3, which is behind the wall
-  assert.equal(x.status(), 'No circle in view. Tap Next.'); // facing away from every stop: no circle on screen
-  assert.deepEqual([...controller.inspect().state.position], data.stops[1].position);
-  for (let i = 0; i < 9; i++) x.canvas.dispatch('keydown', { key: 'ArrowRight' }); // now looking along +X, at the wall
-  x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.equal(x.stopLine(), 'Stop 2 of 5');
-  assert.deepEqual([...controller.inspect().state.position], data.stops[1].position);
-  x.canvas.dispatch('keydown', { key: 'ArrowDown' });
-  assert.equal(x.stopLine(), 'Stop 1 of 5');
-  // Two levels, no floor mask: s3 stands 3 m above the others. A tap under it goes to the nearest stop on this level.
-  const levels = manifest();
-  for (const stop of levels.stops) stop.floor_id = 'f1';
-  const upper = levels.stops[2]; upper.position[1] += 3; upper.target[1] += 3; upper.floor[1] += 3; upper.floor_id = 'f2';
-  const y = await readyPlayer({ manifest: levels });
-  y.window.VeyletPlayerV2.current.tapAt(100, 0);
-  assert.equal(y.stopLine(), 'Stop 2 of 5');
-  y.window.VeyletPlayerV2.current.tapAt(210, 0); // floor point (2.1, 0): s3 is overhead, s4 is 0.9 m away on this level
-  assert.equal(y.stopLine(), 'Stop 4 of 5');
-  assert.deepEqual([...y.window.VeyletPlayerV2.current.inspect().state.position], levels.stops[3].position);
 });
 
 test('a miss names the circles only when one is on screen; facing away it points to Next, and both fit one line', async () => {
@@ -1220,68 +1062,6 @@ for (const scenario of ['blocked', 'missing', 'unmeasured', 'other-storey', 'hei
   });
 }
 
-test('a clear measured-floor stop route still animates, while reduced motion lands immediately', async () => {
-  for (const reduced of [false, true]) {
-    const time = clock(), data = manifest({ walkable: { path: 'walkable.json' } });
-    const x = await readyPlayer({ reduced, context: { performance: time }, manifest: data, files: { 'walkable.json': navigationFloor() } });
-    const controller = x.window.VeyletPlayerV2.current;
-    controller.goToStop(2); time.t += 400; x.app.fire('update');
-    const state = controller.inspect().state;
-    if (reduced) assert.deepEqual([...state.position], data.stops[2].position);
-    else assert.ok(state.position[0] > 0 && state.position[0] < 2, 'a known clear route retains interpolation');
-    time.t += 5000; x.app.fire('update');
-    assert.deepEqual([...controller.inspect().state.position], data.stops[2].position);
-  }
-});
-
-test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station tether, and adaptive DPR 2.0 step-up', async () => {
-  const { player } = load();
-  // 1. Adaptive DPR 2.0 step-up on capable phones with sustained >55 fps headroom.
-  const phone = player.deviceProfile(phoneWebgl2);
-  assert.equal(phone.maxPixelRatio, 1.5);
-  assert.equal(phone.peakPixelRatio, 2);
-  const gov = player.createGovernor(phone);
-  let now = 1000;
-  for (const end = now + 30_000; now < end;) {
-    now += 14; // ~71 fps
-    gov.sample(14, now);
-  }
-  assert.equal(gov.state.pixelRatio, 2, 'sustained >55 fps headroom steps DPR up to peakPixelRatio 2.0');
-
-  // 2. Station tether keeps floor taps within the 0.85m corridor around stops and segments.
-  const walkable = player.decodeWalkable(navigationFloor());
-  const stops = manifest().stops;
-  const corridorPt = player.tetherToStations(walkable, [0, 0], [3.4, 0], stops);
-  assert.deepEqual([...corridorPt], [3.4, 0], 'point along stop corridor remains untouched');
-  const nearStopPt = player.tetherToStations(walkable, [0, 0], [2.15, 0.1], stops);
-  assert.deepEqual([...nearStopPt], [2, 0], 'tap within 0.3m of a stop snaps cleanly to the stop');
-  const farSidePt = player.tetherToStations(walkable, [2, 0], [2, 0.98], stops);
-  assert.ok(Math.abs(farSidePt[0] - 2) < 1e-6 && Math.abs(farSidePt[1] - 0.85) < 1e-6, 'far sideways tap is tethered to 0.85m radius');
-
-  // 3. Multi-room walkthrough renders 1-tap room pills and labels destination hotspots.
-  const multiRoom = manifest({
-    rooms: [{ id: 'r1', name: 'Living' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Bedroom' }],
-    stops: [
-      { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, 0, -2], floor: [0, -1.4, 0], floor_measured: true },
-      { id: 's2', room: 'r2', position: [0, 0, -2], target: [0, 0, -4], floor: [0, -1.4, -2], floor_measured: true },
-      { id: 's3', room: 'r3', position: [0, 0, -4], target: [0, 0, -6], floor: [0, -1.4, -4], floor_measured: true },
-    ],
-  });
-  const x = await readyPlayer({ manifest: multiRoom });
-  const pillsBar = byClass(x.stage, 'v2-room-pills');
-  assert.equal(pillsBar.hidden, false);
-  const pills = pillsBar.querySelectorAll('.v2-room-pill');
-  assert.deepEqual(pills.map(p => p.textContent), ['Living', 'Kitchen', 'Bedroom']);
-  assert.equal(pills[0].getAttribute('aria-current'), 'true');
-  const hotspots = x.stage.querySelectorAll('.v2-hotspot');
-  assert.equal(hotspots[1].dataset.next, 'true');
-  assert.equal(hotspots[1].dataset.roomLabel, 'Kitchen');
-  pills[2].click();
-  assert.equal(byClass(x.stage, 'v2-room').textContent, 'Bedroom');
-  assert.equal(pills[2].getAttribute('aria-current'), 'true');
-  assert.equal(pills[0].getAttribute('aria-current'), null);
-});
-
 test('roomFootprint computes indicative room dimensions and arrived dispatches veylet:room on room change', async () => {
   const { player } = load();
   const raw = manifest({
@@ -1438,18 +1218,6 @@ test('veylet:stop is announced at the first 3D frame and on each arrival; view()
   x.document.dispatchEvent = () => { throw new Error('a listener failed'); };
   assert.doesNotThrow(() => byClass(x.stage, 'v2-next').click());
   assert.equal(controller().view().stop, 1);
-});
-
-test('view() answers stop -1 while a move is under way, so no look is counted against a stop in passing', async () => {
-  const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' } }), files: { 'walkable.json': navigationFloor() } });
-  const controller = x.window.VeyletPlayerV2.current;
-  assert.equal(controller.view().stop, 0);
-  byClass(x.stage, 'v2-next').click();
-  assert.equal(controller.view().stop, -1, 'in flight');
-  time.t += 60000;
-  x.app.fire('update');
-  assert.equal(controller.view().stop, 1, 'arrived');
 });
 
 test('the player stays analytics-free: stop events and view() add no request, beacon, storage key or timer of their own', async () => {
@@ -1716,341 +1484,7 @@ function walkedPath(overrides = {}) {
 }
 const plainJson = value => JSON.parse(JSON.stringify(value));
 
-test('a valid walked path is accepted and exposed; old packages have none', () => {
-  const { player } = load();
-  const data = player.validateManifest(manifest({ path: walkedPath() }));
-  assert.deepEqual(plainJson(data.path.legs.map(leg => [leg.from, leg.to, leg.fromIndex, leg.toIndex, Math.round(leg.length * 1000) / 1000, leg.points.length])),
-    [['s1', 's3', 0, 2, 2.562, 4], ['s3', 's4', 2, 3, 1.001, 3]], 'lengths are the points\' own');
-  assert.equal('path' in player.validateManifest(manifest()), false, 'no path: the manifest reads exactly as before');
-});
-
-test('any invalid walked path is dropped whole, never refusing the tour', () => {
-  const { player } = load();
-  const leg = walkedPath().legs[0];
-  const withLeg = change => walkedPath({ legs: [{ ...leg, ...change }] });
-  const line = Array.from({ length: 12 }, (_, i) => ({ id: 's' + (i + 1), room: 'r1', position: [i / 2, 0, 0], target: [i / 2, -0.3, -2], floor: [i / 2, -1.4, 0], floor_measured: true }));
-  const pairs = [];
-  for (let a = 0; a < 12; a++) for (let b = a + 1; b < 12; b++) pairs.push({ from: line[a].id, to: line[b].id, points: [line[a].position, [(a + b) / 4, 0, 0.1], line[b].position], length_m: (b - a) / 2, max_gap_m: 0.5 });
-  // The limit itself: 59 distinct legs are a path, 60 are not.
-  assert.equal(player.validateManifest(manifest({ stops: line, path: walkedPath({ legs: pairs.slice(0, 59) }) })).path.legs.length, 59);
-  const cases = {
-    'points not an array': withLeg({ points: 'not-points' }),
-    'one point': withLeg({ points: [[0, 0, 0]] }),
-    '65 points': withLeg({ points: [[0, 0, 0], ...Array.from({ length: 63 }, (_, i) => [i / 32, 0, 0.5]), [2, 0, 0]] }),
-    'NaN coordinate': withLeg({ points: [[0, 0, 0], [1, NaN, 0.5], [2, 0, 0]] }),
-    'unknown stop id': withLeg({ to: 's9' }),
-    'unknown version': walkedPath({ version: 2 }),
-    'start 0.06 m from its stop': withLeg({ points: [[0.06, 0, 0], [1, 0, 0.5], [2, 0, 0]] }),
-    'end 0.06 m from its stop': withLeg({ points: [[0, 0, 0], [1, 0, 0.5], [2, 0, 0.06]] }),
-    '60 legs': walkedPath({ legs: pairs.slice(0, 60) }),
-    'not an object': 'path',
-    'no legs': walkedPath({ legs: [] }),
-  };
-  for (const [name, path] of Object.entries(cases)) {
-    let data;
-    assert.doesNotThrow(() => { data = player.validateManifest(manifest({ stops: name === '60 legs' ? line : manifest().stops, path })); }, name);
-    assert.equal(data.path, undefined, name);
-    assert.equal(data.stops.length, name === '60 legs' ? 12 : 5, name);
-  }
-  // 0.04 m off is within the contract's 0.05 m.
-  assert.equal(player.validateManifest(manifest({ path: withLeg({ points: [[0.04, 0, 0], [1, 0, 0.5], [2, 0, 0]] }) })).path.legs.length, 1);
-});
-
-test('a move picks the leg, the leg reversed, the shorter chain of legs, or nothing', () => {
-  const { player } = load();
-  const data = player.validateManifest(manifest({ path: walkedPath() }));
-  const route = (from, to) => plainJson(player.pathRoute(data.path, data.stops, from, to));
-  assert.deepEqual(route(0, 2), [[0, 0, 0], [0.5, 0, 0.6], [1.5, 0, 0.6], [2, 0, 0]]);
-  assert.deepEqual(route(2, 0), [[2, 0, 0], [1.5, 0, 0.6], [0.5, 0, 0.6], [0, 0, 0]], 'legs are walked either way');
-  assert.deepEqual(route(0, 3), [[0, 0, 0], [0.5, 0, 0.6], [1.5, 0, 0.6], [2, 0, 0], [2.5, 0.02, 0], [3, 0, 0]], 'a chain of two legs');
-  assert.equal(player.pathRoute(data.path, data.stops, 0, 1), null, 'no leg reaches s2');
-  assert.equal(player.pathRoute(data.path, data.stops, 0, 0), null);
-  // Two chains from s1 to s4: s1→s2→s4 (1 + 3.61 m) and s1→s3→s4 (2.56 + 1 m); the shorter wins.
-  const both = player.validateManifest(manifest({ path: walkedPath({ legs: [...walkedPath().legs,
-    { from: 's1', to: 's2', points: [[0, 0, 0], [1, 0, 0]], length_m: 1, max_gap_m: 1 }, { from: 's2', to: 's4', points: [[1, 0, 0], [2, 0, -1.5], [3, 0, 0]], length_m: 3.6, max_gap_m: 1 }] }) }));
-  assert.deepEqual(plainJson(player.pathRoute(both.path, both.stops, 0, 3)).map(p => p[2]), [0, 0.6, 0.6, 0, 0, 0]);
-  const shortcut = player.validateManifest(manifest({ path: walkedPath({ legs: [...walkedPath().legs,
-    { from: 's1', to: 's2', points: [[0, 0, 0], [1, 0, 0]], length_m: 1, max_gap_m: 1 }, { from: 's2', to: 's4', points: [[1, 0, 0], [2, 0, -0.2], [3, 0, 0]], length_m: 2.04, max_gap_m: 1 }] }) }));
-  assert.deepEqual(plainJson(player.pathRoute(shortcut.path, shortcut.stops, 0, 3)).map(p => p[2]), [0, 0, -0.2, 0], 'then 1 + 2.04 m is shorter');
-});
-
-test('walking pace: about 1.4 m/s, never under 0.9 s or over 5 s, easing in and out', () => {
-  const { player } = load();
-  assert.ok(Math.abs(player.walkDuration(4.31) - 4.31 / 1.4 * 1000) < 1e-6, '4.31 m walks in about 3.1 s');
-  assert.equal(player.walkDuration(0.5), 900);
-  assert.equal(player.walkDuration(20), 5000, 'a long chain walks faster to fit 5 s');
-  assert.equal(player.walkEase(0), 0);
-  assert.equal(player.walkEase(1), 1);
-  let previous = 0, steps = [];
-  for (let i = 1; i <= 100; i++) { const k = player.walkEase(i / 100); steps.push(k - previous); previous = k; }
-  assert.ok(steps[0] < steps[50] / 5 && steps[99] < steps[50] / 5, 'slow at both ends');
-  assert.ok(Math.abs(steps[40] - steps[60]) < 1e-9, 'an even pace in the middle');
-});
-
-test('the walk stays on the polyline, reaches the stop exactly and turns smoothly through a corner', () => {
-  const { player } = load();
-  const points = [[0, 0, 0], [2, 0.1, 0], [2, 0, -2], [3.3, 0, -2.4]];
-  const walk = player.walkPath(points);
-  const offLine = p => Math.min(...points.slice(1).map((b, i) => {
-    const a = points[i], ab = b.map((v, k) => v - a[k]), len2 = ab.reduce((s, v) => s + v * v, 0);
-    const t = Math.max(0, Math.min(1, p.reduce((s, v, k) => s + (v - a[k]) * ab[k], 0) / len2));
-    return Math.hypot(...p.map((v, k) => v - (a[k] + ab[k] * t)));
-  }));
-  for (let i = 0; i <= 400; i++) assert.ok(offLine(walk.at(i / 400).position) < 1e-9, `share ${i / 400} is on the path`);
-  assert.deepEqual(plainJson(walk.at(1).position), points[3]);
-  assert.deepEqual(plainJson(walk.at(0).position), points[0]);
-  assert.ok(Math.abs(walk.at(0.5).position[1] - 0.025) < 0.05, 'eye height follows the points');
-  // Heading: +X first (yaw -90), then -Z (yaw 0) once clear of the corner.
-  // Continuous: halving the step halves the largest change (a snap at the vertex would not shrink).
-  const largestStep = n => { let most = 0; for (let i = 1; i <= n; i++) most = Math.max(most, Math.abs(walk.at(i / n).yaw - walk.at((i - 1) / n).yaw)); return most; };
-  assert.ok(largestStep(400) < 2 && largestStep(1600) < 0.6, `largest heading steps ${largestStep(400)}°, ${largestStep(1600)}°`);
-  assert.ok(Math.abs(walk.at(0.05).yaw - -90) < 1e-6 && Math.abs(walk.at(0.56).yaw - 0) < 1e-6, 'straight runs look straight ahead');
-  // The look over the whole move: from the stop's look to the travel heading to the next stop's opening look.
-  const from = { yaw: 170, pitch: -10 }, to = { yaw: 200, pitch: -5 };
-  let look = player.walkLook(walk, 0, from, to);
-  assert.deepEqual([look.yaw, look.pitch], [170, -10]);
-  let jump = 0;
-  for (let i = 1; i <= 1000; i++) {
-    const next = player.walkLook(walk, i / 1000, from, to);
-    jump = Math.max(jump, Math.abs(next.yaw - look.yaw), Math.abs(next.pitch - look.pitch));
-    look = next;
-  }
-  assert.ok(jump < 2, `largest look step ${jump}° per 0.1% of the move`);
-  assert.ok(Math.abs(((look.yaw - 200) % 360 + 360) % 360) < 1e-6 && Math.abs(look.pitch + 5) < 1e-9, 'ends on the next stop\'s opening look');
-  const mid = player.walkLook(walk, 0.5, from, to);
-  assert.ok(Math.abs(((mid.yaw - walk.at(player.walkEase(0.5)).yaw) % 360 + 540) % 360 - 180) < 1e-6 && mid.pitch === 0, 'looks level along the way');
-});
-
-test('free walk is tethered to the walked leg, not the straight line, where a leg exists', () => {
-  const { player } = load();
-  const stops = [
-    { id: 's1', position: [0, 0, 0] },
-    { id: 's2', position: [4, 0, 0] },
-  ];
-  // The person walked round something: 1.5 m to the side of the straight line at its middle.
-  const legs = [{ from: 's1', to: 's2', points: [[0, 0, 0], [0.5, 0, 1.2], [1, 0, 1.5], [3, 0, 1.5], [3.5, 0, 1.2], [4, 0, 0]] }];
-  const offLeg = [2, 2.0]; // 0.5 m off the leg, 2 m off the straight line
-  const offLine = [2, -0.5]; // 0.5 m off the straight line, 2 m off the leg
-  assert.deepEqual(plainJson(player.tetherToStations(null, [0, 0], offLeg, stops, { legs })), offLeg, 'beside the walked leg: kept');
-  const pulled = player.tetherToStations(null, [0, 0], offLine, stops, { legs });
-  assert.ok(Math.abs(pulled[0] - 2) < 1e-9 && Math.abs(pulled[1] - 0.65) < 1e-9, 'beside the unwalked straight line: drawn back to 0.85 m of the leg');
-  // Without a path, today's corridor: the straight line.
-  assert.deepEqual(plainJson(player.tetherToStations(null, [0, 0], offLine, stops)), offLine);
-  const old = player.tetherToStations(null, [0, 0], offLeg, stops);
-  assert.ok(Math.abs(old[1] - 0.85) < 1e-9);
-  // A pair with no leg keeps its straight line.
-  const three = [...stops, { id: 's3', position: [4, 0, -4] }];
-  assert.deepEqual(plainJson(player.tetherToStations(null, [0, 0], [4.5, -2], three, { legs })), [4.5, -2]);
-});
-
-test('stop to stop along the walked path, from Next, numbers and goToStop; no leg moves as before', async () => {
-  const time = clock(), data = manifest({ path: walkedPath() });
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(2);
-  let seen = controller.inspect();
-  assert.equal(seen.move.route, 'path');
-  assert.equal(seen.move.moving, true);
-  assert.ok(Math.abs(seen.move.duration - 2.56 / 1.4 * 1000) < 50, `duration ${seen.move.duration}`);
-  assert.equal(controller.view().stop, -1, 'moving');
-  time.t += seen.move.duration / 2; x.app.fire('update');
-  const middle = controller.inspect().state.position;
-  assert.ok(Math.abs(middle[2] - 0.6) < 1e-9 && middle[0] > 0.5 && middle[0] < 1.5, `on the walked leg, not the straight line: ${middle}`);
-  time.t += 6000; x.app.fire('update');
-  seen = controller.inspect();
-  assert.deepEqual(plainJson(seen.state.position), data.stops[2].position);
-  const look = x.player.lookAngles(data.stops[2].position, data.stops[2].target);
-  assert.ok(Math.abs(((seen.state.yaw - look.yaw) % 360 + 360) % 360) < 1e-6 && Math.abs(seen.state.pitch - look.pitch) < 1e-9);
-  assert.equal(seen.state.stop, 2);
-  assert.equal(seen.move.moving, false);
-  assert.equal(x.stopLine(), 'Stop 3 of 5');
-  // Next (s3 → s4) has a leg too.
-  byClass(x.stage, 'v2-next').click();
-  assert.equal(controller.inspect().move.route, 'path');
-  time.t += 6000; x.app.fire('update');
-  assert.equal(x.stopLine(), 'Stop 4 of 5');
-  // Point to point (was: a drag during a walk stops it where it is): the walk carries on along its leg to the
-  // stop while the visitor looks; it never leaves the viewer part-way.
-  controller.goToStop(0);
-  time.t += 500; x.app.fire('update');
-  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
-  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 140, clientY: 100 });
-  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 140, clientY: 100 });
-  const part = [...controller.inspect().state.position], facing = controller.inspect().state.yaw;
-  assert.equal(controller.inspect().move.moving, true, 'still walking');
-  time.t += 300; x.app.fire('update');
-  const further = controller.inspect().state.position;
-  assert.ok(Math.hypot(...further) < Math.hypot(...part), `nearer stop 1 than at the drag: ${further}`);
-  assert.equal(controller.inspect().state.yaw, facing, 'the walk no longer turns the look');
-  time.t += 6000; x.app.fire('update');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[0].position, 'the walk ends at the stop');
-  assert.equal(controller.inspect().state.yaw, facing, 'facing where the visitor turned');
-  assert.equal(x.stopLine(), 'Stop 1 of 5');
-  assert.equal(controller.view().stop, 0);
-  assert.equal(controller.inspect().move.moving, false);
-  // s4 → s5: no leg, so today's move (no floor mask: a cut).
-  controller.goToStop(3); time.t += 6000; x.app.fire('update');
-  controller.goToStop(4);
-  assert.equal(controller.inspect().move.route, 'direct');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[4].position);
-});
-
-test('reduced motion lands a walked-path move at once, and a path never changes moves on a floor mask without legs', async () => {
-  const data = manifest({ path: walkedPath() });
-  const x = await readyPlayer({ reduced: true, manifest: data });
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(2);
-  assert.equal(controller.inspect().move.route, 'path');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[2].position);
-  assert.equal(controller.view().stop, 2);
-  const time = clock();
-  const masked = await readyPlayer({ reduced: false, context: { performance: time }, manifest: manifest({ walkable: { path: 'walkable.json' }, path: walkedPath() }), files: { 'walkable.json': navigationFloor() } });
-  const mc = masked.window.VeyletPlayerV2.current;
-  mc.goToStop(1);
-  assert.equal(mc.inspect().move.route, 'mask', 's1 → s2 has no leg: over the floor mask as before');
-  assert.equal(mc.inspect().move.duration, 450 + 1 * 220);
-});
-
 // ---------- walked path: bounds, agreement and moves under stress (review of the first slice) ----------
-
-test('a walked path with a point far outside the home, a huge step or a runaway length is dropped', () => {
-  const { player } = load();
-  const leg = walkedPath().legs[0];
-  const withLeg = change => walkedPath({ legs: [{ ...leg, ...change }] });
-  const stepsOut = [[0, 0, 0]];
-  for (let i = 1; i <= 26; i++) stepsOut.push([0, 0, i * 2.5]); // 65 m out in 2.5 m steps
-  for (let i = 25; i >= 1; i--) stepsOut.push([2, 0, i * 2.5]);
-  stepsOut.push([2, 0, 0]);
-  const outLength = stepsOut.slice(1).reduce((sum, p, i) => sum + Math.hypot(...p.map((v, k) => v - stepsOut[i][k])), 0);
-  const cases = {
-    '1e308 coordinate': withLeg({ points: [[0, 0, 0], [1e308, 0, 0], [2, 0, 0]] }),
-    'a 6 m step': withLeg({ points: [[0, 0, 0], [1, 0, 5.9], [2, 0, 0]], length_m: 11.9 }),
-    'a point 65 m from every stop': withLeg({ points: stepsOut, length_m: outLength }),
-  };
-  for (const [name, path] of Object.entries(cases)) {
-    let data;
-    assert.doesNotThrow(() => { data = player.validateManifest(manifest({ path })); }, name);
-    assert.equal(data.path, undefined, name);
-  }
-  // The same detour kept within 50 m of the stops (45 m out) is a path.
-  const near = [[0, 0, 0], ...Array.from({ length: 18 }, (_, i) => [0, 0, (i + 1) * 2.5]), ...Array.from({ length: 18 }, (_, i) => [2, 0, (18 - i) * 2.5]), [2, 0, 0]];
-  const nearLength = near.slice(1).reduce((sum, p, i) => sum + Math.hypot(...p.map((v, k) => v - near[i][k])), 0);
-  assert.equal(player.validateManifest(manifest({ path: withLeg({ points: near, length_m: nearLength }) })).path.legs.length, 1);
-});
-
-test('length_m must agree with the points, and max_gap_m must be 0 to 1 m', () => {
-  const { player } = load();
-  const leg = walkedPath().legs[0]; // the points measure 2.562 m
-  const short = walkedPath().legs[1]; // the points measure 1.001 m
-  const kept = change => player.validateManifest(manifest({ path: walkedPath({ legs: [{ ...leg, ...change }, short] }) })).path !== undefined;
-  const keptShort = change => player.validateManifest(manifest({ path: walkedPath({ legs: [leg, { ...short, ...change }] }) })).path !== undefined;
-  assert.equal(kept({ length_m: 3.18 }), true, 'within 25 %');
-  assert.equal(kept({ length_m: 3.3 }), false, 'more than 25 % long');
-  assert.equal(kept({ length_m: 1.9 }), false, 'more than 25 % short');
-  assert.equal(keptShort({ length_m: 1.24 }), true, 'a short leg may be 0.25 m out');
-  assert.equal(keptShort({ length_m: 1.3 }), false);
-  assert.equal(kept({ length_m: '2.56' }), false);
-  assert.equal(kept({ max_gap_m: 1 }), true);
-  assert.equal(kept({ max_gap_m: 0 }), true);
-  for (const gap of [undefined, 1.2, -0.1, NaN, '0.4']) assert.equal(kept({ max_gap_m: gap }), false, String(gap));
-  // Route choice uses the points' length: a leg claiming 2 m while measuring 2.56 m still counts as 2.56 m.
-  const data = player.validateManifest(manifest({ path: walkedPath({ legs: [{ ...leg, length_m: 2 }, short] }) }));
-  assert.ok(Math.abs(data.path.legs[0].length - 2.562) < 0.001);
-});
-
-test('two different stop pairs never share a key, whatever the ids contain', () => {
-  const { player } = load();
-  const stops = ['a b', 'c', 'a', 'b c'].map((id, i) => ({ id, position: [i, 0, 0] }));
-  const legs = [
-    { from: 'a b', to: 'c', points: [[0, 0, 0], [1, 0, 0]], length_m: 1, max_gap_m: 1 },
-    { from: 'a', to: 'b c', points: [[2, 0, 0], [3, 0, 0]], length_m: 1, max_gap_m: 1 },
-  ];
-  assert.equal(player.readPath({ version: 1, source: 'capture_poses', legs }, stops).legs.length, 2);
-  assert.equal(player.readPath({ version: 1, source: 'capture_poses', legs: [legs[0], { ...legs[0], from: 'c', to: 'a b' }] }, stops), null, 'the same pair twice');
-});
-
-test('reduced motion: a walked-path move is reported as a cut, an animated one is not', async () => {
-  const data = manifest({ path: walkedPath() });
-  const still = await readyPlayer({ reduced: true, manifest: data });
-  still.window.VeyletPlayerV2.current.goToStop(2);
-  const cut = plainJson(still.window.VeyletPlayerV2.current.inspect().move);
-  assert.deepEqual([cut.route, cut.cut, cut.moving, cut.duration], ['path', true, false, 0]);
-  const time = clock();
-  const moving = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
-  moving.window.VeyletPlayerV2.current.goToStop(2);
-  const walk = plainJson(moving.window.VeyletPlayerV2.current.inspect().move);
-  assert.deepEqual([walk.route, walk.cut, walk.moving], ['path', false, true]);
-  moving.window.VeyletPlayerV2.current.goToStop(4); // no leg, no floor mask: today's cut
-  assert.deepEqual(plainJson(moving.window.VeyletPlayerV2.current.inspect().move).cut, true);
-});
-
-test('where a leg doubles back the look swings at no more than 180°/s instead of snapping', async () => {
-  const time = clock();
-  // s1 → s2 walked past s2 to 2.5 m and back: the direction of travel reverses.
-  const data = manifest({ path: walkedPath({ legs: [{ from: 's1', to: 's2', points: [[0, 0, 0], [2.5, 0, 0], [1, 0, 0]], length_m: 4, max_gap_m: 0.5 }] }) });
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(1);
-  let previous = controller.inspect().state.yaw, largest = 0, frames = 0;
-  while (controller.inspect().move.moving) {
-    time.t += 16; x.app.fire('update'); frames++;
-    const state = controller.inspect().state;
-    if (controller.inspect().move.moving) largest = Math.max(largest, Math.abs(state.yaw - previous));
-    previous = state.yaw;
-  }
-  assert.ok(frames > 100, `${frames} frames`);
-  assert.ok(largest <= 180 * 0.016 + 1e-9, `largest turn in a 16 ms frame: ${largest}°`);
-  const look = x.player.lookAngles(data.stops[1].position, data.stops[1].target);
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[1].position);
-  assert.ok(Math.abs(((controller.inspect().state.yaw - look.yaw) % 360 + 360) % 360) < 1e-6, 'still ends on the stop\'s look');
-});
-
-test('a walk cut short by a second move, or looked around in by a drag, leaves a usable viewer at a stop; a start off the stop falls back', async () => {
-  const time = clock(), data = manifest({ path: walkedPath() });
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
-  const controller = x.window.VeyletPlayerV2.current;
-  // A second move mid-walk: the camera is now over a metre from s1, so s1 → s4 (a chain) is not walked from here.
-  controller.goToStop(2);
-  time.t += 900; x.app.fire('update');
-  assert.ok(Math.hypot(...controller.inspect().state.position) > 0.35);
-  controller.goToStop(3);
-  assert.equal(controller.inspect().move.route, 'direct');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[3].position);
-  assert.equal(x.stopLine(), 'Stop 4 of 5');
-  byClass(x.stage, 'v2-prev').click(); // s4 → s3 has a leg
-  assert.equal(controller.inspect().move.route, 'path');
-  time.t += 300; x.app.fire('update');
-  // Point to point (was: a drag mid-walk stops it where it is): the walk goes on to stop 3; Next goes on from there.
-  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
-  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
-  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
-  assert.equal(controller.inspect().move.moving, true);
-  time.t += 6000; x.app.fire('update');
-  assert.equal(controller.inspect().move.moving, false);
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[2].position);
-  assert.equal(x.stopLine(), 'Stop 3 of 5');
-  byClass(x.stage, 'v2-next').click();
-  time.t += 6000; x.app.fire('update');
-  assert.equal(x.stopLine(), 'Stop 4 of 5');
-  assert.deepEqual(plainJson(controller.inspect().state.position), data.stops[3].position);
-  assert.equal(controller.view().stop, 3);
-});
-
-// Replaces 'a floor tap beside the walked leg is kept, through the tap handler; without a path it is drawn to the straight line'.
-test('a floor tap beside the walked leg goes to the nearest stop, through the tap handler, with or without a path', async () => {
-  const columns = 60, rows = 40, bits = new Uint8Array(Math.ceil(columns * rows / 8)).fill(255);
-  const floor = { version: 1, cell_metres: 0.1, origin: [-1, -1], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
-  for (const withPath of [true, false]) {
-    const data = manifest({ walkable: { path: 'walkable.json' }, ...(withPath ? { path: walkedPath() } : {}) });
-    const x = await readyPlayer({ reduced: true, manifest: data, files: { 'walkable.json': floor } });
-    // The stand-in camera aims a tap at (x, y) straight down at floor point (x / 100, y / 100): (1, 1.3) here, open
-    // floor 0.7 m from the s1 → s3 leg. The viewer does not go there: stop 2 (1, 0), 1.3 m away, is the nearest stop.
-    x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 130, pointerType: 'mouse' });
-    x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 100, clientY: 130, pointerType: 'mouse' });
-    assert.deepEqual(plainJson(x.window.VeyletPlayerV2.current.inspect().state.position), data.stops[1].position, `${withPath ? 'with' : 'without'} a path`);
-    assert.equal(x.stopLine(), 'Stop 2 of 5');
-  }
-});
 
 // Five rooms in a row, one chunk each, a stop in each and a walked leg between neighbours.
 function chunkedWalk() {
@@ -2078,86 +1512,3 @@ function heldChunks(log) {
   }
   return held;
 }
-
-test('chunked home: a walk loads one room ahead at a time and lets rooms behind go, never holding more than an arrival plus one', async () => {
-  const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: chunkedWalk() });
-  const settle = () => { x.app.systems.gsplat.fire('frame:ready', null, null, false, 2); x.app.systems.gsplat.fire('frame:ready', null, null, true, 0); };
-  settle(); settle(); // neighbours, then detail
-  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_1', 'chunk_2']);
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(4); // Hall → Kitchen → Study → Bedroom → Bath: the Study, Bedroom and Bath are not loaded
-  assert.equal(controller.inspect().move.route, 'path');
-  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_1', 'chunk_2'], 'nothing beyond the next room is asked for at the start');
-  // An arrival in a middle room holds three chunks (the room and its two doorways); a walk may hold one more.
-  let most = 0, frames = 0;
-  while (controller.inspect().move.moving && frames < 1000) {
-    time.t += 50; x.app.fire('update'); frames++;
-    if (frames % 4 === 0) settle();
-    most = Math.max(most, heldChunks(x.log).size);
-  }
-  assert.ok(most <= 4, `held at most ${most} chunks during the walk`);
-  assert.equal(x.stopLine(), 'Stop 5 of 5');
-  assert.deepEqual([...heldChunks(x.log)].sort(), ['chunk_4', 'chunk_5'], 'arrival holds the room and its doorway, as a normal arrival does');
-});
-
-test('chunked home: a walk a drag looks around in still ends at its stop, and lets go of rooms two doorways from it', async () => {
-  const time = clock();
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: chunkedWalk() });
-  const settle = () => { x.app.systems.gsplat.fire('frame:ready', null, null, false, 2); x.app.systems.gsplat.fire('frame:ready', null, null, true, 0); };
-  settle(); settle();
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(4);
-  while (controller.inspect().state.position[0] < 8.5) { time.t += 50; x.app.fire('update'); settle(); }
-  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 });
-  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 160, clientY: 100 });
-  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 160, clientY: 100 });
-  // Point to point (was: the walk stops in the Study and the Study stays): it goes on, room by room, to the Bath's stop.
-  assert.equal(controller.inspect().move.moving, true);
-  for (let i = 0; i < 400 && controller.inspect().move.moving; i++) { time.t += 50; x.app.fire('update'); settle(); }
-  assert.equal(controller.inspect().move.moving, false);
-  assert.deepEqual(plainJson(controller.inspect().state.position), [16, 0, 0]);
-  assert.equal(controller.view().stop, 4);
-  const held = [...heldChunks(x.log)].sort();
-  assert.ok(held.includes('chunk_5'), `the Bath, where the walk ended, stays: ${held}`);
-  assert.ok(held.every(id => ['chunk_4', 'chunk_5'].includes(id)), `only the Bath and its doorway stay held: ${held}`);
-});
-
-test('the turn into the stop\'s look keeps to 180°/s through the arrival frame, taking up to 1 s more if it must', async () => {
-  const time = clock();
-  const data = manifest({ path: walkedPath({ legs: [{ from: 's1', to: 's2', points: [[0, 0, 0], [0.5, 0, 0.05], [1, 0, 0]], length_m: 1.0, max_gap_m: 0.5 }] }) });
-  // Both stops look back the way the walk comes from (-X), so the look turns away and all the way back in 0.9 s.
-  data.stops[0].target = [-2, -0.3, 0];
-  data.stops[1].target = [-1, -0.3, 0];
-  const x = await readyPlayer({ reduced: false, context: { performance: time }, manifest: data });
-  const controller = x.window.VeyletPlayerV2.current;
-  controller.goToStop(1);
-  assert.equal(controller.inspect().move.duration, 900);
-  let previous = controller.inspect().state, largest = 0, frames = 0;
-  while (controller.view().stop === -1 && frames < 500) {
-    time.t += 16; x.app.fire('update'); frames++;
-    const now = controller.inspect().state; // the arrival frame included
-    largest = Math.max(largest, Math.abs(((now.yaw - previous.yaw) % 360 + 540) % 360 - 180), Math.abs(now.pitch - previous.pitch));
-    previous = now;
-  }
-  assert.ok(largest <= 180 * 0.016 + 1e-9, `largest change in a 16 ms frame: ${largest}°`);
-  assert.ok(frames * 16 > 900 && frames * 16 <= 900 + 1000 + 16, `arrived after ${frames * 16} ms`);
-  const look = x.player.lookAngles(data.stops[1].position, data.stops[1].target);
-  assert.ok(Math.abs(((previous.yaw - look.yaw) % 360 + 540) % 360 - 180) < 1e-6 && Math.abs(previous.pitch - look.pitch) < 1e-9, 'ends exactly on the stop\'s look');
-  assert.deepEqual(plainJson(previous.position), data.stops[1].position);
-  assert.equal(controller.view().stop, 1);
-});
-
-test('a leg needs a positive length_m and at least 0.3 m of points', () => {
-  const { player } = load();
-  const stops = [
-    { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, -0.3, -2], floor: [0, -1.4, 0], floor_measured: true },
-    { id: 's2', room: 'r1', position: [0.2, 0, 0], target: [0.2, -0.3, -2], floor: [0.2, -1.4, 0], floor_measured: true },
-    { id: 's3', room: 'r1', position: [0.6, 0, 0], target: [0.6, -0.3, -2], floor: [0.6, -1.4, 0], floor_measured: true },
-  ];
-  const path = (from, to, end, length_m) => walkedPath({ legs: [{ from, to, points: [[0, 0, 0], [end, 0, 0]], length_m, max_gap_m: 0.2 }] });
-  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's2', 0.2, 0.2) })).path, undefined, '0.2 m of points');
-  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, 0) })).path, undefined, 'length_m 0');
-  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, -0.1) })).path, undefined, 'length_m below 0');
-  assert.equal(player.validateManifest(manifest({ stops, path: path('s1', 's3', 0.6, 0.6) })).path.legs.length, 1);
-});

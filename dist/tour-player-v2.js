@@ -101,12 +101,13 @@
       if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
       // floor_id (whole-home packages): which floor the stop stands on. Anything else is ignored, not refused.
       const floorId = typeof stop.floor_id === 'string' && /^f\d{1,3}$/.test(stop.floor_id) ? stop.floor_id : null;
-      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId, floorMeasured: stop.floor_measured === true };
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId };
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
-    const path = json.path === undefined ? null : readPath(json.path, stops);
+    // Point to point (12 Nov 2026): a package's walked path (path) and floor_measured are older free-walk data. They
+    // are not read, so a package that carries them opens exactly as one without; they never refuse a tour.
     return {
       synthetic: json.synthetic === true,
       researchSample: json.research_sample === true,
@@ -116,55 +117,12 @@
       posters,
       walkable: json.walkable ? json.walkable.path : null,
       rooms, stops, start: json.start_stop,
-      ...(path ? { path } : {}),
       // What the package lists, for sizes shown to the visitor and the first files to fetch. A list that is
       // missing or odd is no list; the scene's own loader still decides what loads.
       files: (Array.isArray(json.files) ? json.files : [])
         .filter(file => file && typeof file.path === 'string' && SAFE_PATH.test(file.path) && Number.isFinite(file.bytes) && file.bytes >= 0)
         .map(file => ({ path: file.path, bytes: file.bytes })),
     };
-  }
-
-  /**
-   * The optional walked path (path.version 1, source capture_poses): for each leg between two stops, the camera
-   * positions the person passed while capturing, in walk order. Legs are undirected. Anything off the contract
-   * drops the whole path (null) and the tour moves as it did without one; a path never stops a tour loading.
-   */
-  function readPath(value, stops) {
-    if (!value || typeof value !== 'object' || value.version !== 1 || value.source !== 'capture_poses') return null;
-    const legs = value.legs;
-    if (!Array.isArray(legs) || legs.length < 1 || legs.length > 59) return null;
-    const indexOf = new Map(stops.map((stop, i) => [stop.id, i]));
-    const near = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= 0.05;
-    // Every point within 50 m (each axis) of the box around the stops, so no point can send the camera off to nowhere.
-    const low = [0, 1, 2].map(i => Math.min(...stops.map(stop => stop.position[i])) - 50);
-    const high = [0, 1, 2].map(i => Math.max(...stops.map(stop => stop.position[i])) + 50);
-    const inBox = point => point.every((v, i) => v >= low[i] && v <= high[i]);
-    const pairs = new Set();
-    const out = [];
-    for (const leg of legs) {
-      if (!leg || typeof leg !== 'object' || !indexOf.has(leg.from) || !indexOf.has(leg.to) || leg.from === leg.to) return null;
-      const pair = JSON.stringify([leg.from, leg.to].sort());
-      if (pairs.has(pair)) return null;
-      pairs.add(pair);
-      const points = leg.points;
-      if (!Array.isArray(points) || points.length < 2 || points.length > 64 || !points.every(point => finite3(point) && inBox(point))) return null;
-      // The packager never leaves a gap over 1 m; a step over 5 m is not a walk.
-      if (!Number.isFinite(leg.max_gap_m) || leg.max_gap_m < 0 || leg.max_gap_m > 1) return null;
-      let length = 0;
-      for (let i = 1; i < points.length; i++) {
-        const step = Math.hypot(...points[i].map((v, k) => v - points[i - 1][k]));
-        if (!Number.isFinite(step) || step > 5) return null;
-        length += step;
-      }
-      // length_m must agree with the points (within 25 % or 0.25 m, whichever is larger); the points' length is used.
-      if (!Number.isFinite(length) || length < 0.3 || !Number.isFinite(leg.length_m) || leg.length_m <= 0
-          || Math.abs(leg.length_m - length) > Math.max(0.25, 0.25 * length)) return null;
-      const fromIndex = indexOf.get(leg.from), toIndex = indexOf.get(leg.to);
-      if (!near(points[0], stops[fromIndex].position) || !near(points[points.length - 1], stops[toIndex].position)) return null;
-      out.push({ from: leg.from, to: leg.to, fromIndex, toIndex, length, points: points.map(point => [...point]) });
-    }
-    return { version: 1, legs: out };
   }
 
   /**
@@ -436,6 +394,10 @@
 
   const posterFor = (manifest, aspect) => aspect < 1 ? manifest.posters.portrait : manifest.posters.landscape;
 
+  /**
+   * The package's floor mask (walkable.json). Since tours became point to point it moves no one: it only hides the
+   * circles of stops behind a wall (stopReachable) and draws the floor on the map.
+   */
   function decodeWalkable(json) {
     if (!json || json.version !== 1 || !Number.isFinite(json.cell_metres) || json.cell_metres <= 0 || json.cell_metres > 1
         || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
@@ -449,9 +411,9 @@
     const { columns, rows } = json, cell = json.cell_metres, [x0, z0] = json.origin;
     const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
     const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
-    // Every sample on the straight line must be floor: no walking through walls.
+    // Every sample on the straight line must be floor: nothing seen through walls.
     // `skip` metres from the start are not checked, so a viewer standing a hair
-    // off the mask (a stop at the edge of the floor) can still walk away from it.
+    // off the mask (a stop at the edge of the floor) still sees the stops around it.
     const clear = (from, to, skip = 0) => {
       const dx = to[0] - from[0], dz = to[1] - from[1];
       const length = Math.hypot(dx, dz);
@@ -475,103 +437,13 @@
   }
 
   /**
-   * Not called by the player since tours became point to point (11 Nov 2026); kept for harnesses that import it.
-   * Where a tap should take the viewer, on the walkable mask (x, z), or null.
-   * The tap's floor point if it is open floor in a straight line from here;
-   * else the nearest open cell within `snap` metres of it that is (a tap on a
-   * bed or a bench beside the path goes to the floor next to it); else as far
-   * as the floor runs from here towards it, stopping `margin` short of the
-   * obstacle. Moves shorter than `minStep` do not count.
-   */
-  function walkTarget(walkable, from, hit, { snap = 1, minStep = 0.3, margin = 0.2, skip = 0.25 } = {}) {
-    const far = (point) => Math.hypot(point[0] - from[0], point[1] - from[1]) >= minStep;
-    if (walkable.walkable(hit[0], hit[1]) && walkable.clear(from, hit, skip) && far(hit)) return hit;
-    const { cell, origin: [x0, z0] } = walkable;
-    const c0 = Math.floor((hit[0] - x0) / cell), r0 = Math.floor((hit[1] - z0) / cell), n = Math.ceil(snap / cell);
-    let best = null, bestDistance = Infinity;
-    for (let r = r0 - n; r <= r0 + n; r++) for (let c = c0 - n; c <= c0 + n; c++) {
-      if (!walkable.on(c, r)) continue;
-      const point = [x0 + (c + 0.5) * cell, z0 + (r + 0.5) * cell];
-      const distance = Math.hypot(point[0] - hit[0], point[1] - hit[1]);
-      if (distance > snap || distance >= bestDistance || !far(point) || !walkable.clear(from, point, skip)) continue;
-      best = point; bestDistance = distance;
-    }
-    if (best) return best;
-    const dx = hit[0] - from[0], dz = hit[1] - from[1], length = Math.hypot(dx, dz);
-    if (!(length > 0)) return null;
-    const step = cell / 2;
-    let open = 0, blocked = false;
-    for (let d = step; d <= length + 1e-9; d += step) {
-      if (d >= skip && !walkable.walkable(from[0] + dx * d / length, from[1] + dz * d / length)) { blocked = true; break; }
-      open = d;
-    }
-    const reach = blocked ? open - margin : length;
-    return reach >= minStep ? [from[0] + dx * reach / length, from[1] + dz * reach / length] : null;
-  }
-
-  /**
-   * Not called by the player since tours became point to point (11 Nov 2026); kept for harnesses that import it.
-   * Tethers a free-walk floor point to the verified station corridor (`maxCorridor` metres around
-   * captured stops and stop-to-stop segments on the same storey) so a visitor cannot wander into
-   * unobserved splat geometry behind furniture, while snapping within `snapRadius` of a stop.
-   * With `legs` (a validated walked path), the spine between two listed stops joined by a leg is the
-   * leg's polyline; the straight stop-to-stop line stands only for a pair with no leg.
-   */
-  function tetherToStations(walkable, from, point, stops, { snapRadius = 0.3, maxCorridor = 0.85, minStep = 0.3, skip = 0.25, legs = null } = {}) {
-    if (!point || !Array.isArray(stops) || !stops.length) return point;
-    const pts = stops.map(stop => [stop.position[0], stop.position[2]]);
-    for (const st of pts) {
-      if (Math.hypot(point[0] - st[0], point[1] - st[1]) <= snapRadius
-          && Math.hypot(st[0] - from[0], st[1] - from[1]) >= minStep
-          && (!walkable || (walkable.walkable(st[0], st[1]) && walkable.clear(from, st, skip)))) {
-        return st;
-      }
-    }
-    let closest = pts[0], bestDist = Math.hypot(point[0] - pts[0][0], point[1] - pts[0][1]);
-    const segment = (a, b) => {
-      const abx = b[0] - a[0], abz = b[1] - a[1], len2 = abx * abx + abz * abz;
-      if (len2 > 1e-6) {
-        const t = clamp(((point[0] - a[0]) * abx + (point[1] - a[1]) * abz) / len2, 0, 1);
-        const proj = [a[0] + abx * t, a[1] + abz * t];
-        const dp = Math.hypot(point[0] - proj[0], point[1] - proj[1]);
-        if (dp < bestDist) { bestDist = dp; closest = proj; }
-      }
-    };
-    const ids = new Set(stops.map(stop => stop.id));
-    const walked = Array.isArray(legs) ? legs.filter(leg => ids.has(leg.from) && ids.has(leg.to)) : [];
-    const joined = (a, b) => walked.some(leg => (leg.from === a && leg.to === b) || (leg.from === b && leg.to === a));
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const d0 = Math.hypot(point[0] - a[0], point[1] - a[1]);
-      if (d0 < bestDist) { bestDist = d0; closest = a; }
-      if (i + 1 < pts.length && !joined(stops[i].id, stops[i + 1].id)) segment(a, pts[i + 1]);
-    }
-    for (const leg of walked) {
-      for (let i = 0; i + 1 < leg.points.length; i++) segment([leg.points[i][0], leg.points[i][2]], [leg.points[i + 1][0], leg.points[i + 1][2]]);
-    }
-    if (bestDist <= maxCorridor) return point;
-    const tethered = [
-      closest[0] + (point[0] - closest[0]) * (maxCorridor / bestDist),
-      closest[1] + (point[1] - closest[1]) * (maxCorridor / bestDist),
-    ];
-    if (Math.hypot(tethered[0] - from[0], tethered[1] - from[1]) >= minStep
-        && (!walkable || (walkable.walkable(tethered[0], tethered[1]) && walkable.clear(from, tethered, skip)))) {
-      return tethered;
-    }
-    if (Math.hypot(closest[0] - from[0], closest[1] - from[1]) >= minStep
-        && (!walkable || (walkable.walkable(closest[0], closest[1]) && walkable.clear(from, closest, skip)))) {
-      return closest;
-    }
-    return point;
-  }
-
-  /**
    * Finds a clear walkable floor route from `fromPosition` to `toPosition`:
    * `[toPosition]` when the straight line is open (allowing `skip` metres near
    * the endpoint for a stop standing at the edge of the floor mask), or a
    * 2-segment `[viaPosition, toPosition]` route through an intermediate stop
    * or corridor bend when a kitchen island or sofa corner sits between them.
    * Returns `null` when no clear walkable route exists on this floor.
+   * Used only to decide whether a stop's circle is offered; the viewer jumps to the stop, never along the route.
    */
   function corridorRoute(walkable, fromPosition, toPosition, stops = [], { skip = 0.25 } = {}) {
     if (!walkable || !Array.isArray(fromPosition) || !Array.isArray(toPosition)) return null;
@@ -599,129 +471,6 @@
       consider([vx, midY, vz]);
     }
     return best;
-  }
-
-  // Walking a captured path: about 1.4 m/s, never under 0.9 s or over 5 s (a longer chain walks faster to fit).
-  const WALK_PACE = 1.4, WALK_MIN_MS = 900, WALK_MAX_MS = 5000, WALK_TURN = 180;
-  const wrapDegrees = value => ((value % 360) + 540) % 360 - 180;
-
-  /**
-   * The walked route from stop index `from` to stop index `to`: the points of the leg joining them (reversed
-   * when walked the other way), or of the chain of legs with the least total length_m. null when no leg joins
-   * them. The first point is the `from` stop's position and the last the `to` stop's, exactly.
-   */
-  function pathRoute(path, stops, from, to) {
-    if (!path || !Array.isArray(path.legs) || from === to || !stops[from] || !stops[to]) return null;
-    const best = stops.map(() => Infinity), via = stops.map(() => null), done = stops.map(() => false);
-    best[from] = 0;
-    for (;;) {
-      let here = -1;
-      for (let i = 0; i < stops.length; i++) if (!done[i] && best[i] < Infinity && (here < 0 || best[i] < best[here])) here = i;
-      if (here < 0 || here === to) break;
-      done[here] = true;
-      for (const leg of path.legs) {
-        const next = leg.fromIndex === here ? leg.toIndex : leg.toIndex === here ? leg.fromIndex : -1;
-        if (next < 0 || done[next] || best[here] + leg.length >= best[next]) continue;
-        best[next] = best[here] + leg.length;
-        via[next] = { leg, previous: here };
-      }
-    }
-    if (best[to] === Infinity) return null;
-    const chain = [];
-    for (let at = to; at !== from; at = via[at].previous) chain.unshift(via[at]);
-    const points = [[...stops[from].position]];
-    // points.through: the stops the walk passes, from first to last (their rooms are the rooms it walks through).
-    points.through = [from];
-    points.throughAt = [0]; // each passed stop's index in points
-    for (const { leg, previous } of chain) {
-      const walked = leg.fromIndex === previous ? leg.points : [...leg.points].reverse();
-      points.push(...walked.slice(1, -1).map(point => [...point]));
-      const end = leg.fromIndex === previous ? leg.toIndex : leg.fromIndex;
-      points.push([...stops[end].position]);
-      points.through.push(end);
-      points.throughAt.push(points.length - 1);
-    }
-    return points;
-  }
-
-  /** How long walking `length` metres takes, in milliseconds. */
-  const walkDuration = length => clamp(length / WALK_PACE * 1000, WALK_MIN_MS, WALK_MAX_MS);
-
-  /** Share of the route covered at time share `t`: speeds up over the first fifth, walks evenly, slows over the last fifth. */
-  function walkEase(t, ramp = 0.2) {
-    const u = clamp(t, 0, 1);
-    if (u < ramp) return u * u / (2 * ramp) / (1 - ramp);
-    if (u > 1 - ramp) return 1 - (1 - u) * (1 - u) / (2 * ramp) / (1 - ramp);
-    return (u - ramp / 2) / (1 - ramp);
-  }
-
-  /**
-   * A polyline to walk. at(share) gives the position that share of the way along it and the heading (yaw, as
-   * lookAngles gives it, unwrapped so it never jumps by 360) of the direction of travel, averaged over the
-   * half metre either side so it turns smoothly through a corner instead of snapping at the vertex.
-   */
-  function walkPath(points) {
-    const run = [0];
-    for (let i = 1; i < points.length; i++) run.push(run[i - 1] + Math.hypot(...points[i].map((v, k) => v - points[i - 1][k])));
-    const length = run[run.length - 1];
-    const pointAt = distance => {
-      const s = clamp(distance, 0, length);
-      let i = 1;
-      while (i < points.length - 1 && run[i] < s) i++;
-      const span = run[i] - run[i - 1], f = span > 1e-9 ? (s - run[i - 1]) / span : 1;
-      return points[i - 1].map((v, k) => v + (points[i][k] - v) * f);
-    };
-    const reach = Math.min(0.5, length / 4);
-    const samples = 128, yaws = [];
-    let last = null;
-    for (let i = 0; i <= samples; i++) {
-      const s = length * i / samples, ahead = pointAt(s + reach), behind = pointAt(s - reach);
-      const dx = ahead[0] - behind[0], dz = ahead[2] - behind[2];
-      let yaw = Math.hypot(dx, dz) > 1e-6 ? Math.atan2(-dx, -dz) * 180 / Math.PI : (last ?? 0);
-      if (last !== null) yaw = last + wrapDegrees(yaw - last);
-      yaws.push(yaw);
-      last = yaw;
-    }
-    return {
-      length,
-      at(share) {
-        const k = clamp(share, 0, 1), f = k * samples, i = Math.min(samples - 1, Math.floor(f));
-        return { position: k >= 1 ? [...points[points.length - 1]] : pointAt(k * length), yaw: yaws[i] + (yaws[i + 1] - yaws[i]) * (f - i) };
-      },
-    };
-  }
-
-  /**
-   * Where to look at time share `t` of a walk: from the stop's look, turn to the direction of travel over the
-   * first fifth, look level along the way, then turn to the next stop's opening look over the last quarter.
-   */
-  function walkLook(walk, t, from, to) {
-    const u = clamp(t, 0, 1), smooth = x => { const c = clamp(x, 0, 1); return c * c * (3 - 2 * c); };
-    const begin = walk.at(0).yaw, offset = from.yaw + wrapDegrees(begin - from.yaw) - begin;
-    const travel = walk.at(walkEase(u)).yaw + offset, endTravel = walk.at(1).yaw + offset;
-    const into = smooth(u / 0.2), out = smooth((u - 0.75) / 0.25);
-    const along = from.yaw + (travel - from.yaw) * into, pitchAlong = from.pitch * (1 - into);
-    const final = endTravel + wrapDegrees(to.yaw - endTravel);
-    return { yaw: along + (final - along) * out, pitch: pitchAlong + (to.pitch - pitchAlong) * out };
-  }
-
-  /** Where a view ray meets the floor plane, if in front and within reach. */
-  function floorHit(origin, direction, floorY, reach = 12) {
-    if (direction[1] >= -1e-4) return null;
-    const t = (floorY - origin[1]) / direction[1];
-    if (!(t > 0) || t > reach) return null;
-    return [origin[0] + direction[0] * t, floorY, origin[2] + direction[2] * t];
-  }
-
-  /** The point on the floor a tap aims at: where the ray meets it, or (for a
-   *  tap at a wall, the horizon or above) `reach` metres along its heading. */
-  function tapAim(origin, direction, floorY, reach = 8) {
-    if (direction[1] > 0.35) return null; // the ceiling is not somewhere to go
-    const hit = floorHit(origin, direction, floorY, reach);
-    if (hit) return [hit[0], hit[2]];
-    const flat = Math.hypot(direction[0], direction[2]);
-    if (!(flat > 1e-6)) return null;
-    return [origin[0] + direction[0] / flat * reach, origin[2] + direction[2] / flat * reach];
   }
 
   /** The stop nearest `position` across the floor; with `storey`, only stops whose eye is within that height. */
@@ -1274,14 +1023,13 @@
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
-    let flightFovOffset = 0;
     const requestRender = () => { app.renderNextFrame = true; };
     function applyCamera() {
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
       const view = fieldOfView(aspect(), posterSpec, state.zoom);
       camera.camera.horizontalFov = view.horizontal;
-      camera.camera.fov = clamp(view.fov + flightFovOffset, 20, 130);
+      camera.camera.fov = view.fov;
       requestRender();
       placeHotspots();
     }
@@ -1300,7 +1048,7 @@
       return button;
     });
     const screen = new pc.Vec3(), world = new pc.Vec3();
-    /** Whether a stop on the viewer's level can be offered from here: the one rule for circles, taps and keys. */
+    /** Whether a stop on the viewer's level can be offered from here: the one rule for circles and keys. */
     function stopReachable(stop, level) {
       // The mask says nothing about a storey it was not carved for.
       if (!walkable || (storeys && level !== levelOf[manifest.start])) return true;
@@ -1581,99 +1329,12 @@
     }
 
     // ----- movement -----
-    let flight = null;
-    // The last stop-to-stop move, for QA (inspect()): route 'path' (the walked path), 'mask' (over the floor mask) or 'direct' (a cut).
+    // Point to point (owner decision, 12 November 2026): every move is a jump to a stop, from a circle, Next and
+    // Previous, a room, the map or a key. Nothing walks: not over the floor mask, not along the path walked at capture.
+    // The last move, for QA (inspect()).
     let lastMove = null;
-    // Every flight holds the render loop (continuous) until it lands or is cut short here.
-    function cancelFlight() {
-      if (!flight) return;
-      flight = null;
-      flightFovOffset = 0;
-      continuous = Math.max(0, continuous - 1);
-    }
-    // Point to point: a drag or a turn mid-move no longer stops it. The move carries on to its stop and from then
-    // on the look is the visitor's own (the move stops steering it), so the viewer never rests between stops.
-    function freeLook() {
-      if (flight) flight.free = true;
-    }
-    const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    function flyTo(position, yaw, pitch, onArrive, animate = true, waypoints = null) {
-      cancelFlight();
-      if (!animate || reduced()) {
-        flightFovOffset = 0;
-        Object.assign(state, { position, yaw, pitch });
-        applyCamera();
-        onArrive?.();
-        return;
-      }
-      let deltaYaw = ((yaw - state.yaw) % 360 + 540) % 360 - 180;
-      const from = { position: [...state.position], yaw: state.yaw, pitch: state.pitch };
-      const via = Array.isArray(waypoints) && waypoints.length === 2 ? waypoints[0] : null;
-      const distance = via
-        ? Math.hypot(...via.map((v, i) => v - from.position[i])) + Math.hypot(...position.map((v, i) => v - via[i]))
-        : Math.hypot(...position.map((v, i) => v - from.position[i]));
-      const duration = clamp(450 + distance * 220, 450, 1250);
-      if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from, via, position, deltaYaw, pitch, duration, started: performance.now(), onArrive };
-      continuous++;
-    }
-    // Along the path walked at capture: the same flight (a drag or a turn frees the look, a new move replaces it, the same way).
-    function walkAlong(points, yaw, pitch, onArrive, { onProgress } = {}) {
-      const position = [...points[points.length - 1]];
-      if (reduced()) { flyTo(position, yaw, pitch, onArrive, false); return 0; }
-      cancelFlight();
-      const walk = walkPath(points), duration = walkDuration(walk.length);
-      if (continuous === 0 && !benchmark) lastRender = performance.now();
-      flight = { from: { position: [...state.position], yaw: state.yaw, pitch: state.pitch }, walk, position, to: { yaw, pitch }, duration, started: performance.now(), stepped: performance.now(), onArrive, onProgress };
-      continuous++;
-      return duration;
-    }
-    function stepFlight(now) {
-      if (!flight) return;
-      const t = clamp((now - flight.started) / flight.duration, 0, 1), k = easeInOut(t);
-      if (flight.walk) {
-        state.position = t >= 1 ? [...flight.position] : flight.walk.at(walkEase(t)).position;
-        // The look swings at no more than WALK_TURN degrees a second (the shorter way round), so a leg that doubles
-        // back turns rather than snaps. Any turn still owed at the stop finishes there at that rate (at most 1 s more,
-        // as no turn the shorter way is over 180 degrees); the move ends when the look is the stop's own.
-        const aim = walkLook(flight.walk, t, flight.from, flight.to), most = WALK_TURN * Math.max(0, now - flight.stepped) / 1000;
-        const turn = wrapDegrees(aim.yaw - state.yaw), tilt = aim.pitch - state.pitch;
-        if (!flight.free) {
-          state.yaw += clamp(turn, -most, most);
-          state.pitch += clamp(tilt, -most, most);
-        }
-        flight.stepped = now;
-        applyCamera();
-        const walking = flight;
-        walking.onProgress?.(walkEase(t) * walking.walk.length);
-        if (flight !== walking) return;
-        if (t >= 1 && (walking.free || (Math.abs(turn) <= most && Math.abs(tilt) <= most))) { flight = null; continuous = Math.max(0, continuous - 1); walking.onArrive?.(); }
-        return;
-      }
-      if (flight.via) {
-        const u = 1 - k, p0 = flight.from.position, p1 = flight.via, p2 = flight.position;
-        state.position = p0.map((v, i) => {
-          const bezier = u * u * v + 2 * u * k * p1[i] + k * k * p2[i];
-          const linear = k < 0.5 ? v + (p1[i] - v) * (k * 2) : p1[i] + (p2[i] - p1[i]) * ((k - 0.5) * 2);
-          return bezier * 0.65 + linear * 0.35;
-        });
-      } else {
-        state.position = flight.from.position.map((v, i) => v + (flight.position[i] - v) * k);
-      }
-      if (!flight.free) {
-        state.yaw = flight.from.yaw + flight.deltaYaw * k;
-        state.pitch = flight.from.pitch + (flight.pitch - flight.from.pitch) * k;
-      }
-      flightFovOffset = t < 1 ? 3.2 * Math.sin(Math.PI * t) : 0;
-      applyCamera();
-      if (t >= 1) { const done = flight.onArrive; flight = null; flightFovOffset = 0; continuous = Math.max(0, continuous - 1); done?.(); }
-    }
     // On a home with levels, a stop straight above or below is not where you are.
     const sameLevel = storeys ? STOREY_METRES : Infinity;
-    // The walkable mask is carved for the opening stop's storey; on any other storey it is the floor below, so
-    // it routes nothing there (per-storey masks: later).
-    const maskLevel = storeys ? levelOf[manifest.start] : 0;
-    const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
     let lastRoomVisited = stopLabel(manifest, opening).room || '';
     // What the viewer did, said to the page as a DOM event and nothing more: the player itself sends nothing anywhere.
     function announceActivity(type, detail) {
@@ -1796,77 +1457,21 @@
       delete ui.root.dataset.end;
       if (held) ui.next.focus?.();
     }
-    /**
-     * Rooms streamed along a walk on a chunked home. In the first half of each leg the camera counts as in the room of
-     * the stop it left, and the next stop's room (one room ahead, never more) starts loading; from halfway it counts as
-     * in the next stop's room. Each change is an ordinary room entry (enterChunk: the device's chunk plan) followed by
-     * the arrival's release, so rooms two doorways behind go as the walk proceeds. A walk replaced
-     * by another move is tidied by that move's own room entry.
-     */
-    function walkRooms(points) {
-      const run = [0];
-      for (let i = 1; i < points.length; i++) run.push(run[i - 1] + Math.hypot(...points[i].map((v, k) => v - points[i - 1][k])));
-      const marks = points.throughAt.map(i => run[i]);
-      const roomOf = n => chunked.chunkOfRoom[manifest.stops[points.through[n]].room];
-      let last = null;
-      return {
-        onProgress(distance) {
-          let leg = 0;
-          while (leg + 2 < marks.length && distance >= marks[leg + 1]) leg++;
-          const past = distance >= (marks[leg] + marks[leg + 1]) / 2;
-          const here = roomOf(past ? leg + 1 : leg), ahead = past ? null : roomOf(leg + 1);
-          if (last === here + ' ' + ahead) return;
-          last = here + ' ' + ahead;
-          enterChunk(here);
-          releaseFarChunks();
-          if (ahead && !held.has(ahead)) addChunk(ahead);
-        },
-      };
-    }
     function goToStop(index, byUser = true) {
       if (!ready) return;
       dismissHint(byUser);
       hideEnd();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
-      // A saved pose is not a walking route. Only interpolate on the mask's measured floor;
-      // unknown paths and other storeys jump directly, without passing through walls or floors.
-      const from = state.stop >= 0 ? manifest.stops[state.stop] : null;
-      const onArrive = () => { arrived(index); if (chunked) releaseFarChunks(); };
-      // The way the person walked when capturing, when a leg (or chain of legs) joins the two stops and the
-      // camera is still at the stop it left. Otherwise the rules below, as before there were paths.
-      const route0 = from && manifest.path ? pathRoute(manifest.path, manifest.stops, state.stop, index) : null;
-      const walked = route0 && Math.hypot(...route0[0].map((v, i) => v - state.position[i])) <= 0.35 ? route0 : null;
-      // A chunked home starts streaming the room ahead as the move starts; far rooms go once there. A walk instead
-      // streams room by room as it goes (walkRooms).
-      if (chunked && !(walked && !reduced())) enterChunk(chunked.chunkOfRoom[stop.room]);
-      if (walked) {
-        walked[0] = [...state.position];
-        const origin = state.stop;
-        const duration = walkAlong(walked, look.yaw, look.pitch, onArrive, chunked ? walkRooms(walked) : {});
-        // cut: true when the move did not animate (reduced motion), so it is never read as a walk.
-        lastMove = { route: 'path', from: origin, to: index, points: walked.length, duration, cut: !duration };
-        return;
-      }
-      const onMeasuredFloor = item => Boolean(walkable && item?.floorMeasured && Math.abs(item.floor[1] - walkable.floorY) <= 0.15);
-      const canRoute = Boolean(walkable && !offMask() && (!storeys || levelOf[index] === maskLevel)
-        && onMeasuredFloor(stop) && (from ? onMeasuredFloor(from) : Math.abs(state.position[1] - walkable.eyeHeight - walkable.floorY) <= 0.15));
-      let route = null;
-      if (canRoute) {
-        if (walkable.clear([state.position[0], state.position[2]], [stop.position[0], stop.position[2]])) {
-          route = [[...stop.position]];
-        } else {
-          const levelStops = storeys
-            ? manifest.stops.filter((_, i) => levelOf[i] === maskLevel && onMeasuredFloor(manifest.stops[i]))
-            : manifest.stops.filter(onMeasuredFloor);
-          route = corridorRoute(walkable, state.position, stop.position, levelStops);
-        }
-      }
-      lastMove = { route: route ? 'mask' : 'direct', from: state.stop, to: index, points: route ? route.length + 1 : 2, duration: 0, cut: true };
-      flyTo([...stop.position], look.yaw, look.pitch, onArrive, Boolean(route), route);
-      if (flight) Object.assign(lastMove, { duration: flight.duration, cut: false });
+      // A chunked home holds the stop's room (and the rooms beyond its doorways) first; far rooms go on arrival.
+      if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
+      lastMove = { route: 'direct', from: state.stop, to: index, points: 2, duration: 0, cut: true };
+      Object.assign(state, { position: [...stop.position], yaw: look.yaw, pitch: look.pitch });
+      applyCamera();
+      arrived(index);
+      if (chunked) releaseFarChunks();
     }
-    // Where Next and Previous count from: the stop the viewer is on (or, mid-move, left).
+    // Where Next and Previous count from: the stop the viewer is on.
     const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
     let messageTimer = null;
     function say(message) {
@@ -1874,15 +1479,12 @@
       clearTimeout(messageTimer);
       messageTimer = setTimeout(() => { if (ui.status.textContent === message) ui.status.textContent = ''; }, 3500);
     }
-    // ----- point to point: taps and the forward/back keys only ever choose a stop -----
+    // ----- point to point: only the circles, Next and Previous, rooms, the map and keys move -----
     // Short enough to fit a 280 px phone frame on one line.
     const STOP_HINT = 'Tap a numbered circle to move.';
     // Facing a wall there may be no circle on screen to tap: then the hint names what is, the Next button.
     const NO_CIRCLE_HINT = 'No circle in view. Tap Next.';
     const missHint = () => (hotspotButtons.some(button => !button.hidden) ? STOP_HINT : NO_CIRCLE_HINT);
-    // A tap counts for a stop within this of the tapped floor point: the radius the tap fallback already used,
-    // about a stride past the circle and under the usual 1.5 to 3 m between stops, so it goes to the stop it is beside.
-    const TAP_RADIUS = 1.4;
     // Forward and back: stops within KEY_CONE degrees either side of the heading (four headings cover the room),
     // no further than the circles are drawn; stops within KEY_TIE degrees of the best aligned count as level, nearest wins.
     const KEY_CONE = 45, KEY_TIE = 10, KEY_REACH = 12;
@@ -1906,26 +1508,9 @@
       for (const choice of choices) if (choice.angle <= least + KEY_TIE && (!best || choice.distance < best.distance)) best = choice;
       if (best) goToStop(best.index); else say(missHint());
     }
-    // The floor a tap is read against: the mask's where the viewer is on it, else the floor of the stop stood on.
-    const floorHere = () => (walkable && !offMask() ? walkable.floorY : manifest.stops[hereStop()].floor[1]);
-    function aimFor(clientX, clientY, floorY = floorHere()) {
-      const rect = ui.canvas.getBoundingClientRect();
-      const x = clientX - rect.left, y = clientY - rect.top;
-      const near = camera.camera.screenToWorld(x, y, camera.camera.nearClip, new pc.Vec3());
-      const far = camera.camera.screenToWorld(x, y, camera.camera.farClip, new pc.Vec3());
-      const direction = [far.x - near.x, far.y - near.y, far.z - near.z];
-      const length = Math.hypot(...direction);
-      return tapAim([near.x, near.y, near.z], direction.map(v => v / length), floorY);
-    }
-    /** A tap on the scene: to the stop nearest the tapped floor point, or the hint. Never to the point itself. */
-    function tapAt(clientX, clientY) {
-      const aim = aimFor(clientX, clientY);
-      let best = -1, distance = TAP_RADIUS;
-      if (aim) for (const { stop, index } of stopChoices()) {
-        const d = Math.hypot(stop.floor[0] - aim[0], stop.floor[2] - aim[1]);
-        if (d <= distance) { best = index; distance = d; }
-      }
-      if (best >= 0) goToStop(best); else say(missHint());
+    /** A tap on the scene never moves: it says how to (a numbered circle, or Next when none is in view). */
+    function tapAt() {
+      say(missHint());
     }
 
     // ----- input -----
@@ -1961,7 +1546,6 @@
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
-        freeLook();
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
         applyCamera();
@@ -2004,7 +1588,6 @@
       const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
-        freeLook();
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
         state.yaw += left ? 10 : -10;
         applyCamera();
@@ -2014,7 +1597,7 @@
         const forward = key === 'ArrowUp' || key === 'w' || key === 'W';
         stepForward(forward ? 1 : -1);
       }
-      else if (key === 'PageUp' || key === 'PageDown') { handled(); freeLook(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
+      else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
       else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(stopAtNumber(manifest, Number(key))); }
@@ -2347,7 +1930,6 @@
     continuous++; // stream the first levels continuously; released when detail completes
     app.on('update', () => {
       const now = performance.now();
-      stepFlight(now);
       if (continuous > 0 || benchmark) requestRender();
       if (benchmark) {
         const through = Math.min(now, benchmark.until);
@@ -2447,29 +2029,21 @@
     const controller = {
       stats: () => ({ ...stats, marks: { ...marks }, phase, stop: state.stop, fps: medianFps(stats.frames),
         ...(chunked ? { chunk: currentChunk, chunks: [...held].map(([id, item]) => ({ id, level: item.level, settled: item.settled })) } : {}) }),
-      // goToStop(index): moves to that stop (along the walked path or the measured floor route when there is one).
-      // tapAt(clientX, clientY): what a tap on the scene does. Point to point: moves to the stop nearest the tapped
-      // floor point (within 1.4 m, on this level, reachable as the circles are), or shows the hint. Never free walking.
+      // goToStop(index): jumps to that stop. tapAt(): what a tap on the scene does: shows the hint, never moves.
       goToStop, tapAt,
       /*
        * Where the viewer stands and looks, read by the page when it wants it (no timer and no network here).
-       * null until the first 3D frame. stop: the stop stood on (0-based), or -1 while moving.
+       * null until the first 3D frame. stop: the stop stood on (0-based).
        * Angles are degrees in the tour package's own frame (right-handed, Y up), exactly as lookAngles() gives them:
        * yaw 0 looks along -Z (up on the floor map before its turn); yaw grows turning LEFT, anticlockwise seen
        * from above, so yaw 90 looks along -X, 180 along +Z and 270 along +X. Given here as 0 <= yaw < 360.
        * pitch 0 is level, positive looks up, negative down (-80..80).
        */
-      view: () => (ready ? { stop: flight ? -1 : state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
-      // For QA: whether a tap here aims at open floor on the walkable mask (the mask still routes moves and draws
-      // the map; a tap no longer goes to the point itself).
-      probe: (clientX, clientY) => {
-        const aim = walkable && aimFor(clientX, clientY, walkable.floorY);
-        return { aim, openFloor: Boolean(aim && walkable.walkable(aim[0], aim[1])) };
-      },
+      view: () => (ready ? { stop: state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
       // For QA and measurement: the camera state and where each stop's floor disc projects.
       inspect: () => {
         const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
-        return { state: { ...state, position: [...state.position] }, discs, ready, move: lastMove && { ...lastMove, moving: Boolean(flight) } };
+        return { state: { ...state, position: [...state.position] }, discs, ready, move: lastMove && { ...lastMove, moving: false } };
       },
       benchmark(seconds = 5, degreesPerSecond = 30) {
         stats.frames = [];
@@ -2493,7 +2067,7 @@
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
-    fieldOfView, posterFor, decodeWalkable, floorHit, tapAim, walkTarget, tetherToStations, corridorRoute, readPath, pathRoute, walkDuration, walkEase, walkPath, walkLook, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
+    fieldOfView, posterFor, decodeWalkable, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     start, mount, current: null,
   };
