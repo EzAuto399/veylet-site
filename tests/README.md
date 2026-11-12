@@ -22,6 +22,7 @@ Open `http://127.0.0.1:8904/__qa/` for the QA entry page. These routes use ficti
 - `/__qa/embed/?t=synthetic-fixture-token` and `/__qa/website-guide/` exercise embed loading and copied code on the same loopback origin.
 - `/__qa/play/?id=synthetic-tour&format=v2` exercises the streamed player. Add `&graphics=none` to inspect its no-graphics fallback.
 - `/__qa/app-account/` exercises the app-facing account page with stubbed responses.
+- Add `?case=activity` to either account fixture for the Activity hub, revision 3 ready for review, and revision 2 Insights. `activity=empty|missing|error|read-error` and `insights=zero|low|missing|error` exercise recovery and partial-data states. These are synthetic local responses; the visitor collector remains disabled.
 
 For a retained, approved synthetic export, pass `--package /absolute/path/to/export.zip`. For a streamed package folder, pass `--package-v2 /absolute/path/to/package`; `--gzip` simulates CDN compression for JS, CSS, and JSON. The server serves only the selected fixture files and public site, never the export's parent directory. Stop it after the check.
 

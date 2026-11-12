@@ -33,7 +33,8 @@
     <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
-    <script src="/tour-player.js?v=f7cfefb265096c73"></script>
+    <script src="/tour-player.js?v=e390b75a8b64e395"></script>
+    <script src="/viewer-engagement.js?v=5b71cc315b651927"></script>
     <script src="/client-page.js?v=1ae099e78ef93e37"></script>
     <style>
       html,
@@ -205,9 +206,11 @@
         const raw = new URLSearchParams(location.search).get('t') || '';
         const link = window.VeyletClientPage?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
         const token = link.complete ? link.token : '';
+      // Suppression only: this hint never changes share authorization or access.
+      const ownerPreview = new URLSearchParams(location.search).get('preview') === 'owner';
         // Views for the agent's desk: an embed's channel is embed unless its link
         // says otherwise, and the site framing it is named by hostname only.
-        const beacon = token.length < 16 || !window.VeyletClientPage?.viewBeacon ? null : window.VeyletClientPage.viewBeacon({
+        const beacon = ownerPreview || token.length < 16 || !window.VeyletClientPage?.viewBeacon ? null : window.VeyletClientPage.viewBeacon({
           config: window.VEYLET_SUPABASE,
           token,
           src: window.VeyletClientPage.channelFrom(location.search, 'embed'),
@@ -313,6 +316,8 @@
                 });
               }
               beacon?.opened(window);
+              window.veyletPublicEngagement?.dispose?.();
+              window.veyletPublicEngagement = window.VeyletEngagement?.create({ window, document, stage: els.stage, config: window.VEYLET_SUPABASE, enabled: window.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview, publicShare: true, token, tourID: row.tour_id });
               return {
                 storagePath: row.storage_path,
                 packageFormatVersion: row.package_format_version === 2 ? 2 : 1,

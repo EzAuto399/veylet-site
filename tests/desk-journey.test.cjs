@@ -22,7 +22,7 @@ const markup = read('dist/account/index.html');
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 const TOKEN = 'abcdefghijklmnop';
 const HANDOFF = 'https://veylet.com/handoff?t=' + TOKEN;
-// What the desk hands out carries its channel (?src=); Open as your client is the page itself.
+// Handed-out links carry a channel; explicit owner previews suppress analytics.
 const LINK = HANDOFF + '&src=link';
 const QR = HANDOFF + '&src=qr';
 
@@ -523,7 +523,7 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   const h = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released()], share: async () => {} });
   const card = h.card('t1');
   assert.deepEqual(filled(card), ['Share']);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF);
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&preview=owner');
   assert.ok(byText(card, 'Copy link'));
   assert.equal(byText(card, 'Open as a visitor'), undefined);
   await byText(card, 'Share').fire('click');
@@ -969,7 +969,7 @@ test('Copy listing URL gives portals and CRMs the unbranded /tour address, tagge
   assert.equal(code.replace(/&src=embed/g, ''), h.window.VeyletSharing.embedCode(TOKEN));
   // The link field and Open as your client.
   assert.equal(card.all().find(el => el.tagName === 'INPUT' && el.className === 'copy-field').value, LINK);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF, 'the agent’s own look is untagged');
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&preview=owner', 'the agent’s explicit preview does not count as a visit');
 });
 
 test('views: opens with the last day and the Call and Email taps, under the state line; hidden while the backend has none', async () => {

@@ -118,12 +118,44 @@ async function load(options = {}) {
   const context = { window, document: documentStub, Blob: class { constructor(parts, init) { this.parts = parts; this.type = init?.type; } }, URL: FileURL, Date, navigator: { clipboard: { writeText: async () => { if (options.clipboardBlocked) throw new Error('blocked'); } } }, location: { pathname: options.pathname || '/account', search: options.search || '', replace: value => redirects.push(value), assign: value => redirects.push(value) }, URLSearchParams, setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: fn => { intervals.set(++intervalId, fn); return intervalId; }, clearInterval: id => intervals.delete(id), FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
   if (options.Date) context.Date = options.Date;
   vm.runInNewContext(sharing, context);
-  await vm.runInNewContext(options.accountScript || account, context);
+  if (options.journey) { window.navigator = context.navigator; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../dist/account-journey.js'), 'utf8'), context); }
+  const journeyBaseline = options.journey && process.env.VEYLET_JOURNEY_BASELINE ? fs.readFileSync(process.env.VEYLET_JOURNEY_BASELINE, 'utf8') : null;
+  await vm.runInNewContext(options.accountScript || journeyBaseline || account, context);
   await new Promise(resolve => setImmediate(resolve));
   return { billingHooks: window.__billingTest, ids, calls, queries, selects, redirects, supabase, verifySubmit, exported, documentStub, documentEvents, windowEvents, scripts, pollCount: () => pollTimers.size, async firePolls() { for (const timer of [...pollTimers]) { pollTimers.delete(timer); timer.fire(); } await new Promise(resolve => setImmediate(resolve)); }, expireRequests() { for (const timer of [...requestTimers]) { requestTimers.delete(timer); timer.fire(); } }, tickSeconds(count) { for (let i=0;i<count;i++) for (const fn of [...intervals.values()]) fn(); }, all: () => Object.values(ids).flatMap(el => el.all()), text: () => Object.values(ids).flatMap(el => [el, ...el.all()]).map(el => el.textContent).join('\n') };
 }
 const tour = { id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/original.zip', created_by: 'user-1' };
 const requestedID = 'dddddddd-2222-4333-8444-555555555555';
+const journeyEventID = 'aaaaaaaa-2222-4333-8444-555555555555';
+function journeyRPC(overrides = {}) {
+  return { list_activity: async () => ({ data: { items: [{ id: journeyEventID, kind: 'ready_for_review', needs_attention: true, action: 'review', read_at: null, tour_id: requestedID, space_name: 'Synthetic apartment', occurred_at: '2026-11-01T00:00:00Z' }], unread_count: 1, attention_count: 1, next_cursor: null, snapshot_token: requestedID, as_of: '2026-11-13T00:00:00Z' } }),
+    mark_activity_read: async () => ({ data: { read_ids: [journeyEventID], unread_count: 0 } }),
+    get_walkthrough_insights: async () => ({ data: { schema_version: 1, tour_id: requestedID, revision: 2, availability: 'disabled', totals: { scope: 'revision_period', opens: 14, explores: 8, call_taps: 2, email_taps: 1, share_taps: 0 }, coverage: { observed_visits: 0, complete_visits: 0, minimum_visits: 20, layout_available: false, historical_event_coverage: 'unknown' }, stops: [{ id: 's0', label: 'Stop 1', visits: 0, active_seconds: 0, exits: 0 }], period_start: '2026-10-14T00:00:00Z', period_end: '2026-11-13T00:00:00Z', as_of: '2026-11-13T00:00:00Z' } }), ...overrides };
+}
+test('Activity journey marks read while retaining the task and clears on sign out', async () => {
+  const h = await load({ journey: true, tours: [{ ...tour, id: requestedID }], rpc: journeyRPC() });
+  await new Promise(resolve => setImmediate(resolve));
+  await h.ids['account-activity-open'].fire('click');
+  const hub = h.ids['account-activity']; assert.equal(hub.hidden, false); assert.match(hub.all().map(n => n.textContent).join(' '), /Ready to review/);
+  await hub.all().find(n => n.textContent === 'Mark read').fire('click'); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.ids['account-activity-open'].textContent, 'Activity'); assert.ok(hub.all().some(n => n.textContent === 'Review walkthrough'));
+  h.supabase.auth.callback('SIGNED_OUT', null); assert.equal(hub.hidden, true); assert.equal(h.ids['account-activity-open'].textContent, 'Activity');
+});
+test('Insights journey opens from its retained route, shows basic counts while collection is off, and does not show fabricated stop zeros', async () => {
+  const h = await load({ journey: true, tours: [{ ...tour, id: requestedID }], search: '?tour=' + requestedID + '&panel=insights', approved: true, rpc: journeyRPC() });
+  await new Promise(resolve => setImmediate(resolve));
+  const panel = h.all().find(n => n.dataset.insights === requestedID); assert.ok(panel?.open);
+  const text = panel.all().map(n => n.textContent).join(' '); assert.match(text, /Recorded opens/); assert.match(text, /14/); assert.match(text, /not collecting/); assert.match(text, /historical event coverage is unknown/);
+  assert.equal(panel.all().some(n => n.tagName === 'TABLE'), false);
+  assert.equal(h.calls.some(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)), false);
+});
+test('Insights journey preserves panel target through email callback and missing RPC is an honest fallback', async () => {
+  const h = await load({ journey: true, pathname: '/auth/callback', search: '?tour=' + requestedID + '&panel=insights' });
+  assert.ok(h.redirects.some(value => value === '/account?tour=' + requestedID + '&panel=insights'));
+  const legacy = await load({ journey: true, tours: [{ ...tour, id: requestedID }], search: '?tour=' + requestedID + '&panel=insights', approved: true, rpc: journeyRPC({ get_walkthrough_insights: async () => ({ error: { code: 'PGRST202' } }), get_tour_view_stats: async () => ({ data: { opens: 0, call_taps: 0, email_taps: 0 } }) }) });
+  await new Promise(resolve => setImmediate(resolve));
+  const text = legacy.all().map(n => n.textContent).join(' '); assert.match(text, /No recorded opens yet/); assert.match(text, /Recorded history · all revisions/);
+});
 test('a new account gets one setup action without changing access or creating a space', async () => {
   const h = await load({ tables: { properties: { data: [] } } });
   const panel = h.ids['account-next-step'];
@@ -1671,7 +1703,7 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.equal(link.value, share.handoffUrl(TOKEN) + '&src=link');
   assert.equal(link.readOnly, true);
   assert.ok(byText(h, 'Copy link'));
-  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN));
+  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN) + '&preview=owner');
   assert.ok(byText(h, 'Add to your website'));
   assert.deepEqual(radios(h).map(el => el.value), ['wordpress', 'squarespace', 'wix', 'webflow', 'other']);
   assert.deepEqual(radios(h).filter(el => el.checked).map(el => el.value), ['wordpress']);

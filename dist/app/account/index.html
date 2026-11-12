@@ -17,7 +17,9 @@
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
     <!-- data-app-mode on <html> is read by the desk script: every money block stays out. -->
-    <script src="/account.js?v=c99545a85d7a75d4" defer></script>
+    <link rel="stylesheet" href="/account-journey.css?v=3ceba0f91a3e0a32" />
+    <script src="/account-journey.js?v=7703a2a1f82daa0f" defer></script>
+    <script src="/account.js?v=50cdbc0d070de86e" defer></script>
     <noscript><style>#account-sign-in, #account-verify { display: none !important; }</style></noscript>
   </head>
   <body>
@@ -99,8 +101,9 @@
            review and sharing, what clients see, the plan's state in words, and
            the account and its deletion. -->
       <section id="account-home" class="desk" hidden>
-        <p class="desk-who" id="account-who"></p>
+        <div class="journey-launch"><p class="desk-who" id="account-who"></p><button class="tour-action" id="account-activity-open" type="button" aria-controls="account-activity" aria-expanded="false">Activity</button></div>
         <div class="desk-main">
+          <section id="account-activity" class="journey-activity" aria-labelledby="account-activity-title" hidden></section>
           <section id="account-next-step" class="account-next" aria-label="Your next step" aria-live="polite"></section>
           <section class="desk-section" aria-labelledby="account-work-title">
             <div class="desk-section-head">
@@ -169,5 +172,6 @@
     <footer class="wrap app-footer">
       <nav aria-label="Account and help"><a href="/app/account" aria-current="page">Account</a><a href="/app/support">Support</a><a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav>
     </footer>
+  <div id="journey-toast" class="journey-toast" hidden></div>
   </body>
 </html>

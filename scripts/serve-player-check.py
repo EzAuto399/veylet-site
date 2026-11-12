@@ -187,6 +187,7 @@ class Handler(SimpleHTTPRequestHandler):
                     self.send_error(500, 'Fixture preview routing failed')
                     return
                 data = data.replace(b"'/play/?id='", b"'/__qa/play/?id='")
+                data = data.replace(b"(APP_MODE ? '/app/account' : '/account') + tourQuery", b"(APP_MODE ? '/__qa/app-account/' : '/__qa/account/') + tourQuery + (() => { const params = new URLSearchParams(location.search); return ['case','insights','activity'].filter(key => params.has(key)).map(key => '&' + key + '=' + encodeURIComponent(params.get(key))).join(''); })()")
             self.send_response(200)
             mime = 'application/zip' if path.endswith('.zip') else 'text/javascript' if path.endswith('.js') else 'text/html; charset=utf-8'
             self.send_header('Content-Type', mime)

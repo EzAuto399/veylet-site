@@ -1340,8 +1340,12 @@
     const offMask = () => Boolean(storeys) && levelAt(storeys, state.position) !== maskLevel;
     const OFF_MASK = 'Use Next stop or a numbered circle on this floor.';
     let lastRoomVisited = stopLabel(manifest, manifest.start).room || '';
+    function engagementStop(id) {
+      try { ui.root.dispatchEvent?.(new CustomEvent('veylet:stop', { bubbles: true, detail: { source: 'veylet-v2', stop_id: id } })); } catch { /* optional first-party measurement never blocks playback */ }
+    }
     function arrived(index) {
       state.stop = index;
+      engagementStop(index >= 0 && (!chunked || held.get(currentChunk)?.settled) ? manifest.stops[index]?.id || null : null);
       const label = labels(index >= 0 ? index : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));
       if (index < 0) ui.stopLine.textContent = 'Between stops';
       markCurrent();
@@ -1358,6 +1362,7 @@
     }
     function goToStop(index) {
       if (!ready) return;
+      engagementStop(null);
       dismissHint();
       const stop = manifest.stops[index];
       const look = lookAngles(stop.position, stop.target);
@@ -1732,6 +1737,7 @@
     // Everything held has arrived at its level.
     function chunksSettled() {
       for (const item of held.values()) item.settled = true;
+      if (!flight && state.stop >= 0) engagementStop(manifest.stops[state.stop]?.id || null);
       if (roomWait) {
         stats.rooms.push({ chunk: roomWait.chunk, ms: Math.round(performance.now() - roomWait.since) });
         roomWait = null;
@@ -1793,6 +1799,7 @@
         phase = 'detail';
         mark('first-3d');
         ready = true;
+        engagementStop(manifest.stops[state.stop >= 0 ? state.stop : manifest.start]?.id || null);
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
@@ -1928,6 +1935,7 @@
     const originalDestroy = app.destroy.bind(app);
     viewer = {
       destroy() {
+        engagementStop(null);
         observer.disconnect();
         document.removeEventListener('visibilitychange', visibility);
         document.removeEventListener('fullscreenchange', fullscreenChanged);

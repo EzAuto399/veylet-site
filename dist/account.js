@@ -41,6 +41,8 @@
   const gateBody = document.getElementById('account-gate-body');
   const spaceForm = document.getElementById('account-space');
   const home = document.getElementById('account-home');
+  const journey = window.VeyletJourney;
+  let activity = null;
   const who = document.getElementById('account-who');
   const idEl = document.getElementById('account-id');
   const copyId = document.getElementById('account-copy-id');
@@ -51,10 +53,14 @@
   // The URL selects an already-authorized row; it never grants access or
   // supplies a storage path, review revision, or publication permission.
   const tourTargets = new URLSearchParams(location.search || '').getAll('tour');
-  const requestedTour = tourTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(tourTargets[0])
+  let requestedTour = tourTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(tourTargets[0])
     ? tourTargets[0] : null;
   const invalidTourTarget = tourTargets.length > 0 && !requestedTour;
-  const tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) : '';
+  const panelTargets = new URLSearchParams(location.search || '').getAll('panel');
+  let requestedPanel = panelTargets.length === 1 && panelTargets[0] === 'insights' && requestedTour ? 'insights' : null;
+  const spaceTargets = new URLSearchParams(location.search || '').getAll('space');
+  let requestedSpace = spaceTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(spaceTargets[0]) ? spaceTargets[0] : null;
+  let tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : requestedSpace ? '?space=' + encodeURIComponent(requestedSpace) : '';
   let focusedTourForUser = null;
   // The walkthrough the link asked for, or, once a later version replaced it, that
   // walkthrough's current version. Worked out again on every desk load.
@@ -87,7 +93,8 @@
     const parts = [];
     if (APP_MODE) parts.push('app=1');
     if (joinReturn || appJoin) parts.push('join=1');
-    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    else if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     return parts.length ? '?' + parts.join('&') : '';
   }
   function authEditionKeep() {
@@ -102,7 +109,8 @@
     if (!authReturnsToApp()) return joinReturn ? '/join' : '/account' + tourQuery;
     try { window.sessionStorage?.removeItem(AUTH_EDITION_KEY); } catch { /* nothing kept */ }
     const parts = [];
-    if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     if (authParams.get('join') === '1') parts.push('join=1');
     return '/app/account' + (parts.length ? '?' + parts.join('&') : '');
   }
@@ -111,7 +119,8 @@
   function authRetryPath() {
     const parts = [];
     if (authParams.get('join') === '1') parts.push('join=1');
-    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    else if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     return (authReturnsToApp() ? '/app/account' : '/account') + (parts.length ? '?' + parts.join('&') : '');
   }
   const APPLE_UNAVAILABLE = 'Apple sign-in isn’t available right now. Use email instead.';
@@ -298,7 +307,9 @@
   }
 
   function setStatus(value) {
-    if (statusEl) statusEl.textContent = value;
+    const copied = journey && /\bcopied\b/i.test(value || '') && !/not|couldn|could not|failed/i.test(value);
+    if (copied) journey.toast(document, value);
+    if (statusEl) statusEl.textContent = copied ? '' : value;
   }
 
   /** Never leave the desk waiting on one unanswered request. */
@@ -381,6 +392,7 @@
     }
   }
   function showSignedOut(message) {
+    activity?.setUser(null); journey?.clearToast(document);
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
     listingGates.clear(); gateNotices.clear(); gateFocus = null;
@@ -902,7 +914,7 @@
   function liveSharing(tour, item, title) {
     const share = window.VeyletSharing;
     const page = share.handoffUrl(tour.share_token);
-    // What the agent hands out carries its channel; Open as your client is the page itself.
+    // Shared links carry their channel. The explicit owner preview suppresses analytics only.
     const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
@@ -935,7 +947,7 @@
       actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
     actions.append(copyListing);
-    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
+    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page + '&preview=owner'; open.textContent = 'Open as your client';
     actions.append(open);
     // The link and what you do with it share one row where there is room.
     const linkRow = document.createElement('div'); linkRow.className = 'tour-link-row';
@@ -1117,7 +1129,7 @@
   function tourInsights(tour, row, title, box, lastDate) {
     if (!box) return;
     const opens = viewCount(row?.opens);
-    if (!opens || opens <= 0) { box.hidden = true; return; }
+    if (opens === null) { box.hidden = true; return; }
     box.className = 'account-details tour-insights';
     const summary = document.createElement('summary');
     summary.textContent = 'Walkthrough insights & vendor report';
@@ -1225,7 +1237,7 @@
         parts.push(taps);
       }
       host.replaceChildren(...parts); host.hidden = false;
-      if (opens > 0 && insightsBox) tourInsights(tour, row, title, insightsBox, last);
+      if (insightsBox) tourInsights(tour, row, title, insightsBox, last);
     });
   }
   function stopSharing(tour, supabase, ticket, parent) {
@@ -1997,8 +2009,8 @@
         if (pending && problem) setStatus(shareWords(problem));
       }
       if (render?.answers) renderDraw();
-      // Its views sit under the state line, on a live or paused link.
-      if (live) {
+      // Legacy fallback when the shared journey component could not load.
+      if (!journey && live) {
         const views = document.createElement('div');
         const insights = document.createElement('details');
         insights.className = 'account-details tour-insights';
@@ -5736,6 +5748,7 @@
   }
   async function loadDesk(supabase) {
     if (!list || !currentUserId) return;
+    void activity?.load();
     // A drawn desk is read before it is cleared, so a lost connection never empties it.
     const shown = deskShownAt > 0;
     if (shown && offlineNow()) { deskOffline(); return; }
@@ -5858,6 +5871,7 @@
     const reviewLoads = [];
     for (const row of properties) {
       const li = document.createElement('li'); li.className = 'dash-space';
+      if (row.id === requestedSpace) { li.id = 'requested-space'; li.tabIndex = -1; }
       // A space is a section of this page, so it is a heading: jumping between
       // spaces by heading is how a screen reader reads a list like this one.
       // The name is the heading; what kind of space and where are its details.
@@ -5915,6 +5929,12 @@
         }
         else if (tour.status === 'processing') message(item, 'This walkthrough is being made automatically. You can leave this page and refresh later; leaving does not cancel it.');
         else if (tour.status === 'revoked') message(item, 'This walkthrough is unavailable for new access. Remove any old links or embeds from your listing, and contact Veylet support about the next step.');
+        if (journey && roles.has(row.workspace_id) && tour.status !== 'revoked') {
+          const insights = document.createElement('details'); item.append(insights);
+          const owner = currentUserId, ownerAuthVersion = authVersion;
+          journey.mountInsights({ document, host: insights, rpc: (name, args) => supabase.rpc(name, args), tourID: tour.id, title: row.title,
+            current: () => ticket === deskVersion && owner === currentUserId && ownerAuthVersion === authVersion, autoOpen: requestedPanel === 'insights' && deskTarget === tour.id });
+        }
         ul.append(item);
       }
       li.append(ul, spacePrepKit(row)); list.append(li);
@@ -5981,10 +6001,25 @@
     },
   });
 
+  activity = journey?.mountActivity({ document, rpc: (name, args) => supabase.rpc(name, args), open: item => {
+    // Stay in this document so the independent read acknowledgement survives navigation.
+    // A fresh desk read still rechecks membership, current revision and approval.
+    const id = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+    requestedTour = id.test(item.tour_id || '') ? item.tour_id : null;
+    requestedSpace = !requestedTour && id.test(item.property_id || '') ? item.property_id : null;
+    if (!requestedTour && !requestedSpace) return;
+    requestedPanel = requestedTour && item.kind === 'sharing_on' ? 'insights' : null;
+    tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : '?space=' + encodeURIComponent(requestedSpace);
+    deskTarget = requestedTour; focusedTourForUser = null;
+    window.history?.replaceState?.(null, '', (APP_MODE ? '/app/account' : '/account') + tourQuery);
+    void loadDesk(supabase).then(() => { if (requestedSpace) { const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
+  } });
+
   async function showSession(session) {
     if (!session || !session.user) {
       sessionHeading(false);
       currentUserId = null;
+      activity?.setUser(null);
       currentUserEmail = ''; currentUserConfirmedAt = null;
       emailHide();
       methodsHide();
@@ -6010,6 +6045,7 @@
     // Another account's desk is never kept on the page while this one's is read.
     if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); methodsHide(); }
     currentUserId = session.user.id;
+    activity?.setUser(currentUserId);
     currentUserEmail = session.user.email || '';
     currentUserConfirmedAt = session.user.email_confirmed_at || session.user.confirmed_at || session.user.created_at || null;
     if (signupTipsRow) signupTipsRow.hidden = true;
@@ -6055,6 +6091,7 @@
   }
 
   supabase.auth.onAuthStateChange((event, session) => {
+    activity?.setUser(session?.user?.id || null);
     const version = ++authVersion;
     // Invalidate immediately, before the queued session render can run.
     if (session?.user || event === 'SIGNED_OUT') resetSignInAttempt();
