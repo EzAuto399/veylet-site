@@ -208,27 +208,40 @@ function groundMask() {
   return { version: 1, cell_metres: 0.1, origin: [-2, -7], columns, rows, floor_y: -1.4, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
 }
 
-test('upstairs, a tap or an arrow-key walk is refused with a hint: it never drops the viewer to the ground storey (VIEWER-01)', async () => {
+test('arrow keys jump only to numbered stops on their storey; scene taps never move between floors (VIEWER-01)', async () => {
   const x = await ready(TWO_FLOORS, { walkable: groundMask() });
-  const eye = () => x.player.current.inspect().state.position;
-  // On the ground floor the mask is the floor you stand on: the arrow keys walk.
+  const expectStop = index => {
+    const state = x.player.current.inspect().state;
+    const stop = TWO_FLOORS[index];
+    assert.deepEqual([...state.position], stop.position, 'arrives at the numbered stop, never partway across the floor');
+    assert.equal(state.stop, index);
+    const d = stop.target.map((value, i) => value - stop.position[i]);
+    assert.ok(Math.abs(state.yaw - Math.atan2(-d[0], -d[2]) * 180 / Math.PI) < 1e-9, 'uses this stop’s look target');
+    assert.ok(Math.abs(state.pitch - Math.asin(d[1] / Math.hypot(...d)) * 180 / Math.PI) < 1e-9);
+  };
+  // The approved player uses numbered stops, including when a legacy floor mask exists.
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.ok(Math.abs(eye()[2] + 0.35) < 1e-6, 'ground floor: one step ahead');
-  assert.notEqual(x.status(), 'Use Next stop or a numbered circle on this floor.');
+  expectStop(1);
+  assert.deepEqual(x.where(), ['Living room', 'Stop 2 of 5']);
+  assert.deepEqual(x.floors(), [['Ground', 'true'], ['Level 1', 'false']]);
   x.canvas.dispatch('keydown', { key: 'Home' });
-  // Upstairs (stop 4), the mask is the floor below: a step or a tap would fall through it.
+  expectStop(0);
+  // Next can deliberately change storey; directional keys select only this storey’s stops.
   const next = x.stage.querySelector('.v2-next');
   next.click(); next.click(); next.click();
+  expectStop(3);
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
-  const upstairs = [...eye()];
   x.canvas.dispatch('keydown', { key: 'ArrowUp' });
-  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
-  assert.deepEqual([...eye()], upstairs, 'the arrow key does not move the viewer');
+  expectStop(4);
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 5 of 5']);
+  assert.deepEqual(x.floors(), [['Ground', 'false'], ['Level 1', 'true']]);
+  x.canvas.dispatch('keydown', { key: 'ArrowDown' });
+  expectStop(3);
+  // A scene tap supplies guidance rather than moving through the ceiling into the ground mask.
   x.player.current.tapAt(100, 100);
-  assert.equal(x.status(), 'Use Next stop or a numbered circle on this floor.');
-  assert.deepEqual([...eye()], upstairs, 'a tap does not move the viewer');
+  assert.equal(x.status(), 'Tap a numbered circle to move.');
+  expectStop(3);
   assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
   assert.deepEqual(x.floors(), [['Ground', 'false'], ['Level 1', 'true']]);
-  // The next stop upstairs is still offered on the floor, although the ground mask has no say up here.
-  assert.deepEqual(x.discs(), ['5']);
+  assert.deepEqual(x.discs(), ['5'], 'the next numbered stop on this storey remains offered');
 });

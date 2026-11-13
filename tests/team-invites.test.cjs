@@ -202,7 +202,7 @@ test('a teammate reads their role and who has joined, and changes nothing but wh
 
 test('signing in from an invite comes back to /join, by the email link and by the code', async () => {
   const out = await loadDesk({ signedOut: true, search: '?join=1', formData: { email: 'invitee@example.invalid', role_intent: 'owner' } });
-  assert.equal(out.ids['account-intro'].textContent, 'Sign in to accept your team invite. Use the email address the invite was sent to.');
+  assert.equal(out.ids['account-intro'].textContent, 'Sign in to accept your team invite. Use your Veylet sign-in: Apple, or your email.');
   await out.ids['account-sign-in'].fire('submit'); await out.settle();
   assert.equal(out.otp.length, 1);
   assert.equal(out.otp[0].options.emailRedirectTo, 'https://veylet.com/auth/callback?join=1');
