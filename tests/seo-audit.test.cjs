@@ -61,3 +61,45 @@ test('llms.txt is Markdown with an H1 and links every guide and help page as [na
   const wanted = locs.filter((loc) => /\/(guides|help)(\/|$)/.test(loc)).concat(['https://veylet.com/offer', 'https://veylet.com/waitlist', 'https://veylet.com/start']);
   for (const loc of wanted) assert.ok(linked.has(loc), `llms.txt links ${loc}`);
 });
+
+test('searchable pages have one matching canonical URL and unique titles', () => {
+  const titles = new Set();
+  for (const loc of locs) {
+    const html = read(pageFile(loc));
+    const canonicals = [...html.matchAll(/<link\b[^>]*rel="canonical"[^>]*href="([^"]+)"[^>]*>/g)];
+    assert.equal(canonicals.length, 1, `${loc}: one canonical`);
+    assert.equal(decode(canonicals[0][1]), loc, `${loc}: canonical matches sitemap`);
+    const title = text(html.match(/<title[^>]*>([\s\S]*?)<\/title>/)[1]);
+    assert.equal(titles.has(title), false, `${loc}: unique title`);
+    titles.add(title);
+  }
+});
+
+test('app discovery names the supported devices and links useful capture guidance', () => {
+  for (const file of ['index.html', 'start/index.html']) {
+    const html = read(file);
+    assert.match(html.match(/<title>([^<]+)<\/title>/)[1], /iPhone.*iPad/);
+    assert.match(html, /href="\/help\/what-you-need"/);
+    assert.match(html, /href="\/help\/practice-room"/);
+  }
+  assert.match(read('start/index.html'), /<h1>[^<]*3D property tour[^<]*<\/h1>/);
+});
+
+test('the capture app entity describes visible functionality without invented commercial or rating data', () => {
+  const html = read('start/index.html');
+  const docs = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .flatMap((match) => { const doc = JSON.parse(match[1]); return doc['@graph'] || [doc]; });
+  const app = docs.find((node) => node['@type'] === 'MobileApplication');
+  assert.ok(app, 'capture application entity');
+  assert.ok(text(html).includes(app.name), 'app name is visible');
+  assert.equal(app.identifier, 'dev.property3d.capture');
+  assert.match(app.operatingSystem, /iOS/);
+  assert.equal(app.url, 'https://veylet.com/start#veylet-capture');
+  assert.match(html, /id="veylet-capture"/);
+  assert.equal(app.offers, undefined, 'do not invent a current commercial offer');
+  assert.equal(app.aggregateRating, undefined, 'do not invent ratings');
+  assert.equal(app.review, undefined, 'do not invent reviews');
+  assert.equal(app.softwareVersion, undefined, 'do not present the local candidate as released');
+  const page = docs.find((node) => node['@type'] === 'WebPage');
+  assert.equal(page.about['@id'], app['@id']);
+});

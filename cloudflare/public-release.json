@@ -857,8 +857,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 24713,
-      "sha256": "7c6575cf34fcb66c4f7158e7172171649613460ea9d73ac2a48d9f20917ce312",
+      "bytes": 24852,
+      "sha256": "2d1314e89d32dde114b17a3b4661c53981fe3eb1daa1a9d571eff5bb81af5011",
       "headerProfile": 1
     },
     {
@@ -2142,7 +2142,7 @@
     {
       "path": "sitemap.xml",
       "bytes": 3904,
-      "sha256": "a766954de9a7d898055e23a05949920a7bd353e90d09e327972aada06ad0c13e",
+      "sha256": "9c68abef6a7a0a001859e3ac9d628a62c7d7738d982e6701b7d1a52355a119fc",
       "headerProfile": 17
     },
     {
@@ -2153,8 +2153,8 @@
     },
     {
       "path": "start/index.html",
-      "bytes": 19740,
-      "sha256": "1a0578700d3a2a076f1d5d2f898eb7a5001ac34c95bee16f04c5286aace289bb",
+      "bytes": 20704,
+      "sha256": "f814b99b27391d0b117e1e0aabfaff98715e1e7d0adbf34f03939009058f66ac",
       "headerProfile": 1
     },
     {
