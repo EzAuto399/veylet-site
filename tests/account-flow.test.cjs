@@ -145,7 +145,7 @@ test('Insights journey opens from its retained route, shows basic counts while c
   const h = await load({ journey: true, tours: [{ ...tour, id: requestedID }], search: '?tour=' + requestedID + '&panel=insights', approved: true, rpc: journeyRPC() });
   await new Promise(resolve => setImmediate(resolve));
   const panel = h.all().find(n => n.dataset.insights === requestedID); assert.ok(panel?.open);
-  const text = panel.all().map(n => n.textContent).join(' '); assert.match(text, /Recorded opens/); assert.match(text, /14/); assert.match(text, /not collecting/); assert.match(text, /historical event coverage is unknown/);
+  const text = panel.all().map(n => n.textContent).join(' '); assert.match(text, /Recorded opens/); assert.match(text, /14/); assert.match(text, /not collecting/); assert.match(text, /Historical event coverage is unknown/);
   assert.equal(panel.all().some(n => n.tagName === 'TABLE'), false);
   assert.equal(h.calls.some(([name]) => ['review_tour_versioned', 'enable_tour_share'].includes(name)), false);
 });
