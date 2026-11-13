@@ -7,7 +7,7 @@ Short answers:
 - What it is: the product is the Veylet Capture iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
 - Processing: automatic, with no person checking. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. The check looks at how well the photos match, coverage, stray artefacts and walkable paths. We'll email you when it's ready. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
-- The app: Veylet Capture is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- The app: Veylet Capture released versions use the App Store; beta invitations use TestFlight. Capture and walkthrough access follow account admission and agreed scope.
 - Sending: Send from the app: it uploads in the background. Check your account for rendering status.
 - Price in one line: eligible subscribers receive 1 free month with 3 accepted walkthroughs in total, then the Veylet plan through the App Store: A$139.99/month for 3 new walkthroughs each paid month (bank up to 6), the same 3 as the free month, or A$1,399.99 upfront/year for a 36-walkthrough annual pool (the same 3 a month) with no annual rollover. Annual saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
@@ -52,7 +52,7 @@ New accounts are admitted in weekly groups. 1 free month with 3 walkthroughs inc
 
 ### The app, as it is today.
 Veylet Capture signs you in with your email, coaches the route while you walk and checks what it saved before you send anything.
-Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.
+Example iOS Simulator screens; on a supported device the camera fills the capture screen. Capture and processing access follow your account’s admission and agreed scope.
 - Sign in A link to your email, no password.
 - Practise first One small room before a real space.
 - Check before sending The saved route and what the app could not see.
@@ -70,7 +70,7 @@ Source: https://veylet.com/offer
 
 For real-estate agents and property managers across Australia. Buyers and tenants walk through the space on their phone before they visit. You walk it once with the Veylet app on your iPhone; Veylet checks the capture automatically, hosts it and hands you a 3D walkthrough to review, with a private link and a website embed. No camera to buy, no course, and nobody sees it before you approve it.
 Join the waitlist See how a first walkthrough runs
-Open to anyone, admitted weekly. We admit new accounts from the waitlist each week, as many as our processing budget allows. The app is in invitation-only testing through TestFlight and is not listed on the App Store yet; the prices here are the App Store prices it uses. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
+Open to anyone, admitted weekly. We admit new accounts from the waitlist each week, as many as our processing budget allows. Released app versions use the App Store; beta invitations use TestFlight. Capture and walkthrough access follow account admission and agreed scope. The prices here are the App Store prices it uses. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
 You only use a walkthrough when you approve it. A capture that fails the automatic quality check, or that you don’t approve for release, is never counted. A correction, or a permitted recapture of every original room, keeps the same link and uses no extra walkthrough.
 If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no walkthrough; a new capture visit is not included.
 
@@ -895,7 +895,7 @@ All help topics
 Source: https://veylet.com/help/install-and-sign-in
 
 Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.
-- Install Veylet Capture on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.
+- Install Veylet Capture on your supported Pro iPhone or iPad using the invitation link Veylet sent you. Released app versions use the App Store; beta invitations use TestFlight. Capture and walkthrough access follow account admission and agreed scope.
 - Open it and read how it works. Choose Sign in with Apple, or Use email instead and enter the email you use on the website. Your first sign-in creates your account.
 - For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.
 - After signing in, start with the practice room from Captures before your first real capture.

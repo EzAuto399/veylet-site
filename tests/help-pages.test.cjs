@@ -53,7 +53,9 @@ test('F04 install help follows the current Apple/email and invited app journey',
   for (const base of ['help', 'app/help']) {
     const words = text(main(read(`${base}/install-and-sign-in/index.html`)));
     assert.match(words, /invitation link Veylet sent you/, base);
-    assert.match(words, /invite-only testing through TestFlight/, base);
+    assert.match(words, /Released app versions use the App Store; beta invitations use TestFlight/, base);
+    assert.match(words, /Capture and walkthrough access follow account admission and agreed scope/, base);
+    assert.doesNotMatch(words, /invite-only testing through TestFlight|not listed on the App Store yet/, base);
     assert.match(words, /Sign in with Apple/, base);
     assert.match(words, /Use email instead/, base);
     assert.match(words, /same sign-in.*website/, base);

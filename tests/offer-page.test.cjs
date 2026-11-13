@@ -1229,7 +1229,9 @@ test('the offer page shows the buyable plan and no unavailable capacity, says wh
   assert.ok(body.indexOf('id="ways-title"') > 0, 'the real plans are on the page');
   assert.equal(body.indexOf('id="capacity-title"'), -1, 'no unavailable capacity section');
   assert.match(body, /<p class="intro">For real-estate agents and property managers across Australia\./);
-  assert.match(body, /The app is in invitation-only testing through TestFlight and is not listed on the App Store yet/);
+  assert.match(body, /Released app versions use the App Store; beta invitations use TestFlight/);
+  assert.match(body, /Capture and walkthrough access follow account admission and agreed scope/);
+  assert.doesNotMatch(body, /not listed on the App Store yet/);
   const docs = [...offer.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const product = docs.flatMap((doc) => doc['@graph'] || [doc]).find((node) => node['@type'] === 'Product');
   assert.ok(product, 'a Product node');

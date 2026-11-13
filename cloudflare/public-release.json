@@ -425,8 +425,8 @@
     },
     {
       "path": "app/help/install-and-sign-in/index.html",
-      "bytes": 3985,
-      "sha256": "560fbd1257495e85f2e51ba6c2febbbe0f348acb339e1ae9773251513df188f0",
+      "bytes": 4079,
+      "sha256": "97c202f346af7088751277fe2ab85ca2a51b5afe79156bfeb60f53756a5cd87a",
       "headerProfile": 5
     },
     {
@@ -761,8 +761,8 @@
     },
     {
       "path": "help/install-and-sign-in/index.html",
-      "bytes": 6221,
-      "sha256": "e13a6ab3df9d2beaf7b76e6cacf2cdd8e0689c4b597e84e6bcf8f2702e18f968",
+      "bytes": 6315,
+      "sha256": "0daaf41d8fc7a879cdd71859dad72668c83085c35b7deb306946302e20980c60",
       "headerProfile": 1
     },
     {
@@ -881,14 +881,14 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 134361,
-      "sha256": "2832334e35b54418bd9fa3957dca4e2f816381479b6117fe4b63f05760ef34ec",
+      "bytes": 134515,
+      "sha256": "ebbdc2e60363451d866ece570f3276d667e7bece4d9d2d244488342c4e5314e1",
       "headerProfile": 2
     },
     {
       "path": "llms.txt",
-      "bytes": 15230,
-      "sha256": "6787df4fc7f6011333ad923ace1de65ed90b9aa280ea022e4f7b25cc42400394",
+      "bytes": 15286,
+      "sha256": "8d8b409a2c7dc65a61a6e2a798c392a55a24be9109478171e9fdb08acfee73ff",
       "headerProfile": 2
     },
     {
@@ -1325,8 +1325,8 @@
     },
     {
       "path": "offer/index.html",
-      "bytes": 52090,
-      "sha256": "774655945ca542a39743e7be49677e27894e443e4876678f803e0facaa52d0dd",
+      "bytes": 52141,
+      "sha256": "a2177e439bf5254dc112a1cae94444e65dd06597d09433e96ecaf7c8bcb5a7e0",
       "headerProfile": 1
     },
     {
@@ -2142,7 +2142,7 @@
     {
       "path": "sitemap.xml",
       "bytes": 3904,
-      "sha256": "66a702510c5d243a0becb79de428efd6442995e35a97c35e7fd9a44991c1dc79",
+      "sha256": "cf8b0a87db65a4e3e5c9740545a2e545acd4c493f0222e667dba99ea1509a0ca",
       "headerProfile": 17
     },
     {

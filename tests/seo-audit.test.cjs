@@ -103,3 +103,13 @@ test('the capture app entity describes visible functionality without invented co
   const page = docs.find((node) => node['@type'] === 'WebPage');
   assert.equal(page.about['@id'], app['@id']);
 });
+
+test('public availability copy distinguishes released apps from beta invitations without claiming the local candidate is released', () => {
+  for (const file of ['offer/index.html', 'help/install-and-sign-in/index.html', 'app/help/install-and-sign-in/index.html', 'llms.txt', 'llms-full.txt']) {
+    const content = read(file);
+    assert.doesNotMatch(content, /not listed on the App Store yet|(?:invite|invitation)-only testing through TestFlight/, file);
+    assert.match(content, /[Rr]eleased (?:app )?versions use the App Store; beta invitations use TestFlight/, file);
+    assert.match(content, /Capture and walkthrough access follow account admission and agreed scope/, file);
+    assert.doesNotMatch(content, /(?:version\s*)?1\.1\s*\(60\)\s+(?:is available|is released|download)/, file);
+  }
+});
