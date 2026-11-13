@@ -515,8 +515,8 @@
     },
     {
       "path": "app/privacy/index.html",
-      "bytes": 13231,
-      "sha256": "a13a009b668c8067f551bcf959d3b5024a201504a8c7d6100af698d5cfbceab8",
+      "bytes": 15211,
+      "sha256": "a097d7de6145821c0236c86a882e703c2a6b866783bf95274bb31dfcae7a64ee",
       "headerProfile": 5
     },
     {
@@ -1349,8 +1349,8 @@
     },
     {
       "path": "privacy/index.html",
-      "bytes": 16331,
-      "sha256": "a83eeff2fa313c83b8e7c03dce0e41987cab12c47a91fa6a7f521a7a52fb7d36",
+      "bytes": 18311,
+      "sha256": "108b22fc534e581511c1fdc3342feed9da0160b6ce9970c669da5c666d1c161d",
       "headerProfile": 1
     },
     {
@@ -2142,7 +2142,7 @@
     {
       "path": "sitemap.xml",
       "bytes": 3904,
-      "sha256": "9c68abef6a7a0a001859e3ac9d628a62c7d7738d982e6701b7d1a52355a119fc",
+      "sha256": "66a702510c5d243a0becb79de428efd6442995e35a97c35e7fd9a44991c1dc79",
       "headerProfile": 17
     },
     {
