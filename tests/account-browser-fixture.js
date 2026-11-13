@@ -1,5 +1,8 @@
 'use strict';
 // Exact QA route only. This file is outside dist and never shipped.
+// Member Insights: ?case=activity&tour=a2222222-2222-4222-8222-222222222222&panel=insights.
+// &insights=low|no-map|limited|zero|missing|error exercises sample, layout and data states.
+// The 7/30/90-day period controls return distinct, internally consistent fictional records.
 (() => {
   const params = new URLSearchParams(location.search);
   // Player v2 (streamed packages): `?format=v2` answers every tour and share
@@ -1140,12 +1143,22 @@
         if (scenario !== 'activity' || params.get('insights') === 'missing') return { error: { code: 'PGRST202' } };
         if (params.get('insights') === 'error') return { error: { message: 'Synthetic Insights failure' } };
         const isLive = args.p_tour_id === ACTIVITY_LIVE, zero = !isLive || params.get('insights') === 'zero', low = params.get('insights') === 'low';
+        const range = [7, 30, 90].includes(args.p_days) ? args.p_days : 30;
+        const sample = {
+          7: { opens: 34, explores: 23, calls: 1, emails: 1, shares: 1, link: 24, embed: 10, observed: 18, complete: 15, visits: [18, 13, 10], active: [96, 78, 60], endings: [3, 4, 8] },
+          30: { opens: 148, explores: 92, calls: 6, emails: 2, shares: 5, link: 100, embed: 48, observed: 92, complete: 80, visits: [92, 66, 50], active: [412, 324, 201], endings: [12, 18, 50] },
+          90: { opens: 412, explores: 248, calls: 15, emails: 6, shares: 14, link: 280, embed: 132, observed: 188, complete: 160, visits: [188, 150, 110], active: [940, 720, 480], endings: [24, 36, 100] }
+        }[range];
+        const observed = zero ? 0 : low ? 7 : sample.observed, complete = zero ? 0 : low ? 6 : sample.complete;
+        const noMap = params.get('insights') === 'no-map', limited = params.get('insights') === 'limited';
         return { data: { schema_version: 1, tour_id: args.p_tour_id, walkthrough_id: args.p_tour_id, revision: isLive ? 2 : 3,
-          availability: !isLive ? 'not_shared' : zero ? 'no_observations' : low ? 'insufficient_data' : 'available',
-          as_of: ago(0), period_start: ago(args.p_days || 30), period_end: ago(0), timezone: 'UTC',
-          totals: { scope: 'revision_period', opens: zero ? 0 : 148, explores: zero ? 0 : 92, call_taps: zero ? 0 : 6, email_taps: zero ? 0 : 2, share_taps: zero ? 0 : 5, by_src: zero ? {} : { link: 100, embed: 48 } },
-          coverage: { observed_visits: zero ? 0 : low ? 7 : 92, complete_visits: zero ? 0 : low ? 6 : 80, collection_started_at: ago(30), dropped_visits: 0, minimum_visits: 20, layout_available: true },
-          stops: !isLive || zero ? [] : [{ id: 's0', label: 'Stop 1', visits: low ? 7 : 92, active_seconds: 412, exits: 12, x: .1, y: .1 }, { id: 's1', label: 'Stop 2', visits: low ? 4 : 66, active_seconds: 324, exits: 18, x: .8, y: .1 }, { id: 's2', label: 'Stop 3', visits: low ? 3 : 50, active_seconds: 201, exits: 50, x: .8, y: .85 }] } };
+          availability: !isLive ? 'not_shared' : zero ? 'no_observations' : observed < 20 ? 'insufficient_data' : 'available',
+          as_of: ago(0), period_start: ago(range), period_end: ago(0), timezone: 'UTC',
+          totals: { scope: 'revision_period', opens: zero ? 0 : sample.opens, explores: zero ? 0 : sample.explores, call_taps: zero ? 0 : sample.calls, email_taps: zero ? 0 : sample.emails, share_taps: zero ? 0 : sample.shares, by_src: zero ? {} : { link: sample.link, embed: sample.embed } },
+          coverage: { observed_visits: observed, complete_visits: complete, collection_started_at: ago(90), dropped_visits: limited ? null : 0, rate_limited: limited, minimum_visits: 20, layout_available: !noMap },
+          stops: !isLive || zero ? [] : [0, 1, 2].map(index => ({ id: 's' + index, label: 'Stop ' + (index + 1),
+            visits: low ? [7, 4, 3][index] : sample.visits[index], active_seconds: low ? [42, 20, 9][index] : sample.active[index], exits: low ? [1, 2, 3][index] : sample.endings[index],
+            x: noMap ? null : [.1, .8, .8][index], y: noMap ? null : [.1, .1, .85][index] })) } };
       }
       if (name === 'record_walkthrough_visit') return { data: { status: 'disabled', sequence: args.p_payload?.sequence } };
       if (name === 'get_primary_workspace') return primaryCase === 'office' ? { data: primaryNow } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_primary_workspace' } };

@@ -114,7 +114,12 @@ test('Insights stop-metric changes retain keyboard focus and normalized server g
   const active = host.querySelectorAll('button').find(b => b.textContent === 'Active time'); active.focus(); active.click();
   assert.equal(doc.activeElement.textContent, 'Active time'); assert.ok(host.contains(doc.activeElement)); assert.equal(doc.activeElement.getAttribute('aria-pressed'), 'true');
   assert.deepEqual(host.querySelectorAll('circle').map(n => [n.getAttribute('cx'), n.getAttribute('cy')]), [['30', '115'], ['330', '115']]);
-  assert.match(host.textContent, /Active foreground seconds/);
+  assert.match(host.textContent, /Average active foreground seconds per observed visit/);
+  assert.match(host.textContent, /10\.5 s average/);
+  const second = host.querySelectorAll('.journey-stop-marker')[1]; second.focus(); second.click();
+  assert.equal(doc.activeElement.dataset.journeyFocus, 'stop:s2');
+  assert.equal(doc.activeElement.getAttribute('aria-pressed'), 'true');
+  assert.equal(host.querySelector('.journey-map-detail').textContent, 'Stop 2 · 5 s average');
 });
 
 test('synthetic full-schema PostgreSQL wire responses decode without client shape translation', async () => {
@@ -205,4 +210,62 @@ test('Activity clears cached private rows when refreshing or marking loses autho
     if (operation === 'load') await store.load(); else await store.mark([EVENT]);
     assert.deepEqual(store.state.items, []); assert.equal(store.state.unread, null); assert.equal(store.state.snapshot, null); assert.match(store.state.error, /no longer available/);
   }
+});
+
+test('source bars use recorded-open denominators and coverage never claims sharing is live', async () => {
+  const { createDocument } = require('./fake-dom.cjs'); const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host);
+  api.mountInsights({ document: doc, host, tourID: TOUR, autoOpen: true, rpc: async () => ({ data: { schema_version: 1, tour_id: TOUR, revision: 2, availability: 'available',
+    totals: { opens: 148, by_src: { link: 100, embed: 48 } }, coverage: { observed_visits: 24, complete_visits: 22, rate_limited: true, dropped_visits: null }, stops: [] } }) });
+  await new Promise(resolve => setImmediate(resolve));
+  const fills = host.querySelectorAll('.journey-sources .journey-chart-fill');
+  assert.equal(fills.length, 2); assert.equal(parseFloat(fills[0].style.width), 100 / 148 * 100);
+  assert.equal(parseFloat(fills[1].style.width), 48 / 148 * 100);
+  assert.match(host.textContent, /Data coverageCollection limited/);
+  assert.match(host.textContent, /24 observed visits · 22 complete summaries/);
+  assert.match(host.textContent, /2 partial summaries/); assert.match(host.textContent, /amount is unknown/);
+  assert.doesNotMatch(host.textContent, /Sharing is live|0 known omitted|conversion rate/i);
+});
+
+test('stop comparisons survive missing layout but small samples expose raw values only', async () => {
+  const { createDocument } = require('./fake-dom.cjs');
+  for (const small of [false, true]) {
+    const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host);
+    api.mountInsights({ document: doc, host, tourID: TOUR, autoOpen: true, rpc: async () => ({ data: { schema_version: 1, tour_id: TOUR, revision: 2, availability: small ? 'insufficient_data' : 'available',
+      totals: { opens: 24 }, coverage: { observed_visits: small ? 8 : 24, complete_visits: small ? 7 : 22, layout_available: false, minimum_visits: 20 },
+      stops: [{ id: 's1', label: 'Stop 1', visits: small ? 8 : 24, active_seconds: 240, exits: small ? 7 : 22, x: null, y: null }] } }) });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(host.querySelector('.journey-stop-map'), null);
+    if (small) {
+      assert.match(host.textContent, /Stop comparisons appear after 20/);
+      assert.equal(host.querySelectorAll('.journey-stops .journey-chart-fill').length, 0);
+    } else {
+      assert.match(host.textContent, /No verified stop diagram/);
+      assert.equal(host.querySelectorAll('.journey-stops .journey-chart-fill').length, 1);
+    }
+    host.querySelectorAll('button').find(b => b.textContent === 'Active time').click();
+    assert.match(host.textContent, small ? /240 s recorded/ : /10 s average/);
+    if (small) assert.doesNotMatch(host.textContent, /s average/);
+  }
+});
+
+test('map requires available data, sufficient observations and every verified coordinate', async () => {
+  const { createDocument } = require('./fake-dom.cjs');
+  for (const fault of ['availability', 'minimum', 'coordinate']) {
+    const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host);
+    api.mountInsights({ document: doc, host, tourID: TOUR, autoOpen: true, rpc: async () => ({ data: { schema_version: 1, tour_id: TOUR, revision: 2, availability: fault === 'availability' ? 'insufficient_data' : 'available',
+      totals: { opens: 24 }, coverage: { observed_visits: 24, complete_visits: 24, layout_available: true, minimum_visits: fault === 'minimum' ? 25 : 20 },
+      stops: [{ id: 's1', label: 'Stop 1', visits: 24, active_seconds: 240, exits: 24, x: fault === 'coordinate' ? null : 0, y: 1 }] } }) });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(host.querySelector('.journey-stop-map'), null, fault);
+    assert.match(host.textContent, /24 of 24 visits/, fault);
+  }
+});
+
+test('legacy Insights keeps undated history and source bars without a date filter or stop map', async () => {
+  const { createDocument } = require('./fake-dom.cjs'); const doc = createDocument(), host = doc.createElement('details'); doc.body.append(host);
+  api.mountInsights({ document: doc, host, tourID: TOUR, autoOpen: true, rpc: async name => name === 'get_walkthrough_insights' ? { error: { code: 'PGRST202' } } : { data: { opens: 12, by_src: { link: 12 } } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.match(host.textContent, /Recorded history · all revisions/); assert.match(host.textContent, /Historical coverage unavailable/);
+  assert.equal(host.querySelectorAll('.journey-sources .journey-chart-fill').length, 1);
+  assert.equal(host.querySelectorAll('select').length, 0); assert.equal(host.querySelector('.journey-stop-map'), null);
 });

@@ -176,7 +176,7 @@
       ...data.stops.map(stop => `${stop.label || stop.id}: ${stop.visits} observed visits; ${Math.round(stop.active_seconds)} active seconds; ${stop.exits} confirmed final stops.`)].join('\n');
   }
   function mountInsights({ document: doc, host, rpc, tourID, title, current = () => true, autoOpen = false }) {
-    let version = 0, data = null, days = 30, busy = false, metric = 'visits';
+    let version = 0, data = null, days = 30, busy = false, metric = 'visits', selectedStopID = null, stale = false;
     const summary = el(doc, 'summary', 'Insights');
     const content = el(doc, 'div', undefined, 'journey-insights');
     host.className = 'account-details tour-insights'; host.hidden = false; host.dataset.insights = tourID;
@@ -184,8 +184,8 @@
     async function load() {
       if (!current() || busy) return; const ticket = ++version; busy = true;
       draw('Loading Insights…');
-      try { const result = await readInsights(rpc, tourID, days); if (ticket !== version || !current()) return; data = result; busy = false; draw(); }
-      catch (error) { if (ticket !== version || !current()) return; busy = false; if (accessLost(error)) { data = null; draw('Insights are no longer available for this account. Sign in or refresh your access.'); } else draw(data ? 'Could not refresh. Showing the last successful read.' : 'Insights could not load. Try again.'); }
+      try { const result = await readInsights(rpc, tourID, days); if (ticket !== version || !current()) return; data = result; busy = false; stale = false; draw(); }
+      catch (error) { if (ticket !== version || !current()) return; busy = false; if (accessLost(error)) { data = null; draw('Insights are no longer available for this account. Sign in or refresh your access.'); } else { stale = Boolean(data); draw(data ? 'Could not refresh. Showing the last successful read.' : 'Insights could not load. Try again.'); } }
     }
     function draw(error = '') {
       const priorFocus = content.contains?.(doc.activeElement) ? doc.activeElement?.dataset?.journeyFocus : null;
@@ -212,24 +212,69 @@
         if (data.availability !== 'not_shared') content.append(metrics);
         content.append(el(doc, 'p', 'Repeat opens count. Contact taps are not confirmed enquiries. Share taps are not completed deliveries.', 'contact-note'));
         if (t.by_src && typeof t.by_src === 'object') {
-          const sources = Object.entries(t.by_src).filter(([, value]) => count(value) !== null && value > 0);
-          if (sources.length) { const list = el(doc, 'ul', undefined, 'journey-sources'); for (const [key, value] of sources) list.append(el(doc, 'li', `${({ link: 'Shared link', embed: 'Website embed', qr: 'QR code', portal: 'Listing portal', video: 'Video', unknown: 'Unknown' })[key] || 'Other'}: ${value}`)); content.append(el(doc, 'h3', 'Where opens came from'), list); }
+          const sources = Object.entries(t.by_src).filter(([, value]) => count(value) !== null && value > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+          if (sources.length) {
+            const list = el(doc, 'ul', undefined, 'journey-sources');
+            const maximum = Math.max(1, count(t.opens) || 0, ...sources.map(([, value]) => value));
+            for (const [key, value] of sources) {
+              const item = el(doc, 'li'), heading = el(doc, 'div', undefined, 'journey-chart-label');
+              heading.append(el(doc, 'span', ({ link: 'Shared link', embed: 'Website embed', qr: 'QR code', portal: 'Listing portal', video: 'Video', unknown: 'Unknown' })[key] || 'Other'), el(doc, 'strong', String(value)));
+              const track = el(doc, 'span', undefined, 'journey-chart-track'), fill = el(doc, 'span', undefined, 'journey-chart-fill');
+              track.setAttribute('aria-hidden', 'true'); fill.style.width = (value / maximum * 100) + '%'; track.append(fill); item.append(heading, track); list.append(item);
+            }
+            content.append(el(doc, 'h3', 'Where opens came from'), list, el(doc, 'p', 'Recorded opens by source, including repeats. These bars do not count unique people.', 'contact-note'));
+          }
         }
         const c = data.coverage;
-        if (count(c.observed_visits) !== null) content.append(el(doc, 'p', `${c.observed_visits} observed visits · ${count(c.complete_visits) === null ? 'Completion coverage unavailable' : c.complete_visits + ' final summaries received'}`, 'contact-note'));
-        content.append(el(doc, 'p', data.legacy ? 'Historical collection coverage is unavailable.' : 'Basic event history may be incomplete; historical event coverage is unknown. These are recorded observations, not unique people or physical movement. ' + (count(c.dropped_visits) !== null ? `${c.dropped_visits} known omitted visits in the separate stop-engagement stream.` : 'Collection coverage may be incomplete.'), 'contact-note'));
-        if (data.stops.length && ['available', 'insufficient_data'].includes(data.availability) && count(c.observed_visits) !== null && c.observed_visits > 0) {
+        const observed = count(c.observed_visits), complete = count(c.complete_visits), minimum = Math.max(20, count(c.minimum_visits) || 20);
+        const status = data.legacy ? 'Historical coverage unavailable' : stale ? 'Saved observations' : c.rate_limited ? 'Collection limited' : data.availability === 'disabled' ? 'Stop collection off' : data.availability === 'unavailable' ? 'Stop data unavailable' : data.availability === 'no_observations' || observed === 0 ? 'No stop observations' : observed !== null && observed < minimum ? 'Small sample' : data.availability === 'insufficient_data' ? 'Limited stop data' : 'Recorded data available';
+        const coverage = el(doc, 'section', undefined, 'journey-coverage');
+        const coverageHeading = el(doc, 'div', undefined, 'journey-chart-label');
+        coverageHeading.append(el(doc, 'h3', 'Data coverage'), el(doc, 'span', status, 'journey-data-status'));
+        coverage.append(coverageHeading);
+        if (observed !== null) coverage.append(el(doc, 'p', `${observed} observed visits · ${complete === null ? 'Complete-summary count unavailable' : complete + ' complete summaries'}`, 'contact-note'));
+        if (observed !== null && complete !== null && complete < observed) coverage.append(el(doc, 'p', `${observed - complete} partial summaries are included. Complete summaries do not mean the walkthrough was completed.`, 'contact-note'));
+        if (c.rate_limited) coverage.append(el(doc, 'p', 'Collection limits were reached. Some observations are missing; the amount is unknown.', 'contact-note'));
+        else if (count(c.dropped_visits) !== null && c.dropped_visits > 0) coverage.append(el(doc, 'p', `${c.dropped_visits} known omitted visits in the separate stop-engagement stream.`, 'contact-note'));
+        coverage.append(el(doc, 'p', data.legacy ? 'Historical collection dates and coverage are unavailable.' : 'These are recorded observations, not unique people or physical movement. Historical event coverage is unknown.', 'contact-note'));
+        content.append(coverage);
+        if (data.stops.length && ['available', 'insufficient_data'].includes(data.availability) && observed !== null && observed > 0) {
           content.append(el(doc, 'h3', 'Stop engagement'));
           const tabs = el(doc, 'div', undefined, 'journey-tabs');
-          for (const [value, label] of [['visits', 'Stops reached'], ['active_seconds', 'Active time'], ['exits', 'Visits ending here']]) { const b = button(doc, label, () => { metric = value; draw(); }); b.setAttribute('aria-pressed', String(metric === value)); tabs.append(b); } content.append(tabs);
-          const eligible = count(c.observed_visits) !== null && c.observed_visits >= Math.max(20, c.minimum_visits || 20);
-          if (eligible && c.layout_available && data.stops.every(s => Number.isFinite(s.x) && s.x >= 0 && s.x <= 1 && Number.isFinite(s.y) && s.y >= 0 && s.y <= 1) && doc.createElementNS) {
-            const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('journey-stop-map'); svg.setAttribute('viewBox', '0 0 360 240'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Stop engagement diagram. Equivalent values are listed below. This is not a floor plan.');
-            const max = Math.max(1, ...data.stops.map(s => s[metric]));
-            data.stops.forEach(s => { const circle = doc.createElementNS(svg.namespaceURI, 'circle'); const x = 30 + s.x * 300, y = 30 + s.y * 170; circle.setAttribute('cx', String(x)); circle.setAttribute('cy', String(y)); circle.setAttribute('r', String(7 + 15 * s[metric] / max)); circle.setAttribute('fill-opacity', String(.3 + .7 * s[metric] / max)); const label = doc.createElementNS(svg.namespaceURI, 'text'); label.setAttribute('x', String(x)); label.setAttribute('y', String(y + 31)); label.setAttribute('text-anchor', 'middle'); label.textContent = s.label || s.id; svg.append(circle, label); }); content.append(svg, el(doc, 'p', 'Larger, darker circles show more recorded engagement. Positions belong to this revision; this diagram is not a floor plan.', 'contact-note'));
-          } else if (!eligible) content.append(el(doc, 'p', `Stop maps appear after ${Math.max(20, c.minimum_visits || 20)} observed visits. Counts remain available below.`, 'contact-note'));
-          const table = el(doc, 'table', undefined, 'journey-stops'); const caption = el(doc, 'caption', metric === 'visits' ? 'Observed visits reaching each stop' : metric === 'exits' ? 'Visits with a received final summary ending here' : 'Active foreground seconds at each stop'); const tbody = el(doc, 'tbody');
-          data.stops.forEach(s => { const tr = el(doc, 'tr'); const name = el(doc, 'th', s.label || s.id); name.scope = 'row'; tr.append(name, el(doc, 'td', String(Math.round(s[metric])) + (metric === 'active_seconds' ? ' s' : ''))); tbody.append(tr); }); table.append(caption, tbody); content.append(table);
+          for (const [value, label] of [['visits', 'Recorded reach'], ['active_seconds', 'Active time'], ['exits', 'Confirmed endings']]) {
+            const b = button(doc, label, () => { metric = value; draw(); }); b.dataset.journeyFocus = 'stop-metric:' + value; b.setAttribute('aria-pressed', String(metric === value)); tabs.append(b);
+          }
+          content.append(tabs);
+          const eligible = data.availability === 'available' && observed >= minimum;
+          const valueOf = stop => metric === 'active_seconds' ? stop.visits > 0 ? stop.active_seconds / stop.visits : null : stop[metric];
+          const formatValue = stop => metric === 'active_seconds' ? !eligible ? Math.round(stop.active_seconds) + ' s recorded' : stop.visits > 0 ? (stop.active_seconds / stop.visits).toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' s average' : 'No recorded reach' : metric === 'visits' ? `${stop.visits} of ${observed} visits` : String(stop.exits);
+          const maximum = metric === 'visits' ? observed : metric === 'exits' ? Math.max(1, complete || 0, ...data.stops.map(s => s.exits)) : Math.max(1, ...data.stops.map(s => valueOf(s) || 0));
+          const hasLayout = eligible && c.layout_available === true && data.stops.every(s => Number.isFinite(s.x) && s.x >= 0 && s.x <= 1 && Number.isFinite(s.y) && s.y >= 0 && s.y <= 1);
+          if (hasLayout && doc.createElementNS) {
+            const map = el(doc, 'div', undefined, 'journey-map-wrap'); map.setAttribute('role', 'group'); map.setAttribute('aria-label', 'Recorded engagement at verified stop positions');
+            const svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.classList.add('journey-stop-map'); svg.setAttribute('viewBox', '0 0 360 240'); svg.setAttribute('aria-hidden', 'true');
+            const selected = data.stops.find(s => s.id === selectedStopID) || data.stops[0];
+            data.stops.forEach((stop, index) => {
+              const fraction = Math.min(1, Math.max(0, (valueOf(stop) || 0) / maximum));
+              const circle = doc.createElementNS(svg.namespaceURI, 'circle'); circle.setAttribute('cx', String(30 + stop.x * 300)); circle.setAttribute('cy', String(30 + stop.y * 170)); circle.setAttribute('r', String(22 + 6 * fraction)); circle.setAttribute('fill-opacity', String(fraction > 0 ? .25 + .75 * fraction : 0)); svg.append(circle);
+              const marker = button(doc, String(index + 1), () => { selectedStopID = stop.id; draw(); }, 'journey-stop-marker'); marker.style.left = ((30 + stop.x * 300) / 360 * 100) + '%'; marker.style.top = ((30 + stop.y * 170) / 240 * 100) + '%'; marker.dataset.journeyFocus = 'stop:' + stop.id;
+              marker.setAttribute('aria-label', `${stop.label || stop.id}: ${formatValue(stop)}`); marker.setAttribute('aria-pressed', String(stop.id === selected.id)); map.append(marker);
+            });
+            map.append(svg);
+            const detail = el(doc, 'p', `${selected.label || selected.id} · ${formatValue(selected)}`, 'journey-map-detail'); detail.setAttribute('aria-live', 'polite');
+            content.append(map, detail, el(doc, 'p', 'Larger, darker markers show more recorded engagement at each stop. Positions belong to this revision. The diagram does not show a floor plan, paths or gaze.', 'contact-note'));
+          } else if (!eligible) content.append(el(doc, 'p', `Stop comparisons appear after ${minimum} observed visits with available engagement data. Recorded counts remain below.`, 'contact-note'));
+          else content.append(el(doc, 'p', 'No verified stop diagram is available. Comparisons and recorded values remain below.', 'contact-note'));
+          const table = el(doc, 'table', undefined, 'journey-stops');
+          const caption = el(doc, 'caption', metric === 'visits' ? 'Observed visits reaching each stop' : metric === 'exits' ? 'Complete summaries ending at each stop' : eligible ? 'Average active foreground seconds per observed visit reaching each stop' : 'Recorded active foreground seconds at each stop');
+          const tbody = el(doc, 'tbody');
+          data.stops.forEach(stop => {
+            const tr = el(doc, 'tr'), name = el(doc, 'th', stop.label || stop.id), cell = el(doc, 'td'), value = el(doc, 'span', formatValue(stop), 'journey-stop-value'); name.scope = 'row'; cell.append(value);
+            if (eligible && valueOf(stop) !== null) { const track = el(doc, 'span', undefined, 'journey-chart-track'), fill = el(doc, 'span', undefined, 'journey-chart-fill'); track.setAttribute('aria-hidden', 'true'); fill.style.width = (Math.min(1, valueOf(stop) / maximum) * 100) + '%'; track.append(fill); cell.append(track); }
+            tr.append(name, cell); tbody.append(tr);
+          });
+          table.append(caption, tbody); content.append(table);
+          if (metric === 'active_seconds' && eligible) content.append(el(doc, 'p', 'Averages include active time from partial summaries. Background and idle time are excluded; this is not time spent in a physical room.', 'contact-note'));
         }
         if (data.as_of) content.append(el(doc, 'p', 'Updated: ' + when(data.as_of), 'tour-when'));
         const report = button(doc, 'Copy Insights summary', async () => {
