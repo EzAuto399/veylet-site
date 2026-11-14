@@ -82,12 +82,12 @@ test('the accounts list is a real table a screen reader can read', () => {
   assert.match(markup, /<caption>/);
   const accountsTable = markup.slice(markup.indexOf('<table class="studio-table" id="studio-table">'), markup.indexOf('id="studio-rows"'));
   const headers = [...accountsTable.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/gs)].map(match => match[1].replace(/<[^>]+>[^<]*<\/[^>]+>/g, '').trim());
-  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Free walkthroughs',
+  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Included free allowance',
     'This month', 'Total', 'Renews', 'Auto-renew', 'Walkthroughs', 'Last activity', 'Note']);
   // The assertions below index by name, so the map must follow the markup.
   assert.equal(headers.length, 12);
   assert.equal(headers[COL.source], 'Source');
-  assert.equal(headers[COL.freeWalkthroughs], 'Free walkthroughs');
+  assert.equal(headers[COL.freeWalkthroughs], 'Included free allowance');
   assert.equal(headers[COL.renews], 'Renews');
   assert.equal(headers[COL.autoRenew], 'Auto-renew');
   assert.match(markup, /<tbody id="studio-rows"><\/tbody>/);
