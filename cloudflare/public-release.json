@@ -269,8 +269,8 @@
     },
     {
       "path": "account-journey.css",
-      "bytes": 6311,
-      "sha256": "5c3282789def46e6d53f7db8d64a89e79cbddb609b71466813969478d2d96c51",
+      "bytes": 8442,
+      "sha256": "02cfbb13f5adecda0d4323a7d1b8bf47ddb1fb055aa2b3e688d20e4cd5c3ebff",
       "headerProfile": 3
     },
     {
@@ -288,7 +288,7 @@
     {
       "path": "account/index.html",
       "bytes": 19439,
-      "sha256": "339852b1b12aac8f9520689e331b0e39092e71d3ce15e089b989a2ab93325246",
+      "sha256": "38bbe6887967a52f16a91faae26b3f8ebbdeb3aea966c3bf489757f408c134e0",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11753,
-      "sha256": "178a5737a23906d3c001f877dbf367b5d27922f8b802dce70a47893eeca779e0",
+      "sha256": "288a8a5e5d47853fcf6c1d8f2777961b155536edd4047a22d63f256cbfdc94a1",
       "headerProfile": 5
     },
     {
