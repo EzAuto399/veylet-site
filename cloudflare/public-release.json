@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 411877,
-      "sha256": "56f5709821ab115a885977597b6be4f6a0b144f4bed8a4bb47914e6f28a986fb",
+      "bytes": 416010,
+      "sha256": "37a7e3aa7dda4e44885960386ce00ae1f0be7783b46b41ba1d37b91bdf7bd06a",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
-      "bytes": 19439,
-      "sha256": "339852b1b12aac8f9520689e331b0e39092e71d3ce15e089b989a2ab93325246",
+      "bytes": 19434,
+      "sha256": "b09cb2c5254b21c51f0a5a448845046f3bf82645fb48348bf47d2ebbdca007c7",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11753,
-      "sha256": "178a5737a23906d3c001f877dbf367b5d27922f8b802dce70a47893eeca779e0",
+      "sha256": "fb733dc16eede6c4a6dd1c84a66ea69159197a390b8ce4dc778b28e2e331f752",
       "headerProfile": 5
     },
     {
@@ -365,8 +365,8 @@
     },
     {
       "path": "app/help/fix/no_depth/index.html",
-      "bytes": 4160,
-      "sha256": "c233426cc3f6c2b8eaee5677f6c91644643e434f35193deeb8e9c5d29c31ea7f",
+      "bytes": 4156,
+      "sha256": "b0e1efe5aa2b63308268d45034e44590c971ea80b66345dfe2371c6f2142ae8e",
       "headerProfile": 5
     },
     {
@@ -377,8 +377,8 @@
     },
     {
       "path": "app/help/fix/no_frames/index.html",
-      "bytes": 4291,
-      "sha256": "e2c2ae6fe4901898e1bc7730edf5d8e91988f0fd55ff1bba6b621c871659c2de",
+      "bytes": 4287,
+      "sha256": "1f1cbf080b8a67d3ef34da2dc77468dcde1bf79ca500bbe8915c358828ab17d8",
       "headerProfile": 5
     },
     {
@@ -389,14 +389,14 @@
     },
     {
       "path": "app/help/fix/not_property/index.html",
-      "bytes": 3949,
-      "sha256": "a1e9e056277db0eed442676a1c4bbfff5519ac31589bb6589ca4093020ccb507",
+      "bytes": 3945,
+      "sha256": "3e8145d5f491abd8ddd8d11b9e19e6ca93ff62177329a34fcbdf97108b98ea6d",
       "headerProfile": 5
     },
     {
       "path": "app/help/fix/phone_budget/index.html",
-      "bytes": 4040,
-      "sha256": "024c77b6d35d441dc8b3bc8c7f9128aa5e346071b96ee9c1d8a16fbbd7ee73b9",
+      "bytes": 4036,
+      "sha256": "e577f80a9b7e5677a547fea3dba9e3ef1220d6a601bb005e396c34bd498acfb1",
       "headerProfile": 5
     },
     {
@@ -407,8 +407,8 @@
     },
     {
       "path": "app/help/fix/upload_limits/index.html",
-      "bytes": 4014,
-      "sha256": "56879dd6b0ba1653f8d43ed1ecad59a499fac124ca976a9d5471f43d9e24ddf5",
+      "bytes": 4010,
+      "sha256": "59bd7dfad0131d255344ba27dfa56e92b85722c22443824c2eb911c03f86745e",
       "headerProfile": 5
     },
     {
@@ -461,8 +461,8 @@
     },
     {
       "path": "app/help/render-status/index.html",
-      "bytes": 4868,
-      "sha256": "1b9300aeaed3a5eccb2820b6e5e50200b9013f5092e1244df80efecbed01aa00",
+      "bytes": 4843,
+      "sha256": "0ea0a6fad7ccd19eb5c7ab476290d6713c302582f5285553a2c891731290d235",
       "headerProfile": 5
     },
     {
@@ -509,8 +509,8 @@
     },
     {
       "path": "app/help/your-plan/index.html",
-      "bytes": 4824,
-      "sha256": "32e3e8e1dfb488f54547b3779b95f979c2e260a1aedc487b63380e81abc9a319",
+      "bytes": 4886,
+      "sha256": "c2161b5986f7ea40cb80ffb2831b39d1ea6c8b6cabdaa50d0657a19f12d7175d",
       "headerProfile": 5
     },
     {
@@ -527,20 +527,20 @@
     },
     {
       "path": "app/support/index.html",
-      "bytes": 4023,
-      "sha256": "5c3cf73b465311fc7c1b673b06a1dc2fbaae63f425b0b43529d8f93a3ba7e726",
+      "bytes": 4009,
+      "sha256": "aab9227f5f863a24ac844ae403a4de73732873af264f4779afced3fb77928992",
       "headerProfile": 5
     },
     {
       "path": "app/terms/index.html",
-      "bytes": 10661,
-      "sha256": "1732ee5d8997140fa8a10c3561e4714c59ccefc4b4cf03b1169ae8592e4ce5e2",
+      "bytes": 11560,
+      "sha256": "afb2030754713a75b3b1edf8873443fc11355745934e3c36fea5f92de19c35ab",
       "headerProfile": 5
     },
     {
       "path": "auth/callback/index.html",
       "bytes": 2559,
-      "sha256": "b4944b2b9c02aed0e8fecb4b5b8ca6d6446f5ec0b20a07eda55fef0c962510e1",
+      "sha256": "12286c1546306835bbb6575dcd12a1740284366efbbfd50da0167cd6908ace8a",
       "headerProfile": 1
     },
     {
@@ -551,8 +551,8 @@
     },
     {
       "path": "build-info.json",
-      "bytes": 2371,
-      "sha256": "a7ce85eb0d6227827c5c90d092b459890c69c5421e8a744b2b10dd06ce887571",
+      "bytes": 2512,
+      "sha256": "1a66715a85d1060ae958f61769c0747fd11fd767e95cb03b450135966d7c2d73",
       "headerProfile": 6
     },
     {
@@ -695,8 +695,8 @@
     },
     {
       "path": "help/fix/no_depth/index.html",
-      "bytes": 6301,
-      "sha256": "c3bb79e66b9bfaf134e005bd2a1af0e79af512fcba14815e8f1a23aa5c317b36",
+      "bytes": 6297,
+      "sha256": "6fe84974aaa966b41954bdf059689b9f0251ba70927e13620e6c4b0768e95483",
       "headerProfile": 1
     },
     {
@@ -707,8 +707,8 @@
     },
     {
       "path": "help/fix/no_frames/index.html",
-      "bytes": 6428,
-      "sha256": "d3a054530ee958d92ad32da8d498b6c84c61134672686fe92fb1b92ea569716a",
+      "bytes": 6424,
+      "sha256": "04cf11b59a63a9501f3b7c96998cc180cf53b26d40add9c311e3984154ee0d19",
       "headerProfile": 1
     },
     {
@@ -719,14 +719,14 @@
     },
     {
       "path": "help/fix/not_property/index.html",
-      "bytes": 6119,
-      "sha256": "1887cc61552a0b6267240b7ad3c8ad0059d3f8b9d132a6a37b3d1717b1e9e20d",
+      "bytes": 6115,
+      "sha256": "4d3e0ab31c2d4c1340757ea8bbe34f93b83f0a5b5d6c2331914fee8c9e98c835",
       "headerProfile": 1
     },
     {
       "path": "help/fix/phone_budget/index.html",
-      "bytes": 6259,
-      "sha256": "3c71a96f738715e6ab913fba4cd540345a4f1b36dbda43b4cdda35011b3a9060",
+      "bytes": 6255,
+      "sha256": "3309825f35810615890399e67e99ba5794e87f217dc591941391a6ec41f89b53",
       "headerProfile": 1
     },
     {
@@ -737,8 +737,8 @@
     },
     {
       "path": "help/fix/upload_limits/index.html",
-      "bytes": 6184,
-      "sha256": "18912c7d2ffa1bcbe6f0b90004f143a85ab391828e82331be5fc051315d0520b",
+      "bytes": 6180,
+      "sha256": "093685ede7a3f814e8bf31fb09f52b5621752a68dacca29b525af1177232e8f5",
       "headerProfile": 1
     },
     {
@@ -797,8 +797,8 @@
     },
     {
       "path": "help/render-status/index.html",
-      "bytes": 7099,
-      "sha256": "dee14d094bd5bcfe51c4e38c557755199b81f60eb103668d687e53a20dce22ac",
+      "bytes": 7074,
+      "sha256": "ff8606343f65d76c5b36f66e6922ee24e90fd59b0c75aefb40df287f829a5dd4",
       "headerProfile": 1
     },
     {
@@ -845,8 +845,8 @@
     },
     {
       "path": "help/your-plan/index.html",
-      "bytes": 7379,
-      "sha256": "986c39f2d32b003f37f868a05a44cd4aa3f7cf0eeba0fac2077e695fef758256",
+      "bytes": 7437,
+      "sha256": "451b015ec8782b84165d9ddd1a91e9ea9cda29c14d792c7b251905a91e1ce4ed",
       "headerProfile": 1
     },
     {
@@ -857,8 +857,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 24852,
-      "sha256": "2d1314e89d32dde114b17a3b4661c53981fe3eb1daa1a9d571eff5bb81af5011",
+      "bytes": 25018,
+      "sha256": "812520d87184e3908c5d96ed124fe714eda7119f9288b296bbc59672512dd89a",
       "headerProfile": 1
     },
     {
@@ -881,14 +881,14 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 134515,
-      "sha256": "ebbdc2e60363451d866ece570f3276d667e7bece4d9d2d244488342c4e5314e1",
+      "bytes": 135254,
+      "sha256": "d92c4634b8e5f28d58f49cb6e47c6d010fb9f4101753bc54d87ed7845c47c866",
       "headerProfile": 2
     },
     {
       "path": "llms.txt",
-      "bytes": 15286,
-      "sha256": "8d8b409a2c7dc65a61a6e2a798c392a55a24be9109478171e9fdb08acfee73ff",
+      "bytes": 16111,
+      "sha256": "46b8317212f24f8e3a25118197671655e77099b39f09e72f083db6baf21ec5ad",
       "headerProfile": 2
     },
     {
@@ -1319,20 +1319,20 @@
     },
     {
       "path": "offer.js",
-      "bytes": 9229,
-      "sha256": "e292f716a9724738a82212dae26e4909a1a1ac942f19cdaaf1e7b5716290364e",
+      "bytes": 9169,
+      "sha256": "f9877a4da7ecd6e32ed4ddd2316ee02834404fc50a125bcce306e255445460d5",
       "headerProfile": 4
     },
     {
       "path": "offer/index.html",
-      "bytes": 52141,
-      "sha256": "a2177e439bf5254dc112a1cae94444e65dd06597d09433e96ecaf7c8bcb5a7e0",
+      "bytes": 52659,
+      "sha256": "5a53a498892c466204ebe7c3c0d57b61cf5716ee4267308db612cbe4f3efad90",
       "headerProfile": 1
     },
     {
       "path": "offer/offer.json",
-      "bytes": 22748,
-      "sha256": "ef98389e5ed555ee3e28b77b2c7f46a0bfdf3fbad47c7989386daa067585dd22",
+      "bytes": 26563,
+      "sha256": "6a6ed4c841e4214a542ca560703cd1e840d9b488cb334256d66336a8c958ea38",
       "headerProfile": 6
     },
     {
@@ -2111,8 +2111,8 @@
     },
     {
       "path": "see/index.html",
-      "bytes": 33243,
-      "sha256": "dd5589e65d3331e1ab39feb3dbe6d0e00b165cd91f9074a2fd0458d56cc15048",
+      "bytes": 33256,
+      "sha256": "3e6dcbd4a4a241e13551a6b8c619cfbf1f2dd247e53c297b60dcd514f0b578a9",
       "headerProfile": 1
     },
     {
@@ -2142,7 +2142,7 @@
     {
       "path": "sitemap.xml",
       "bytes": 3904,
-      "sha256": "cf8b0a87db65a4e3e5c9740545a2e545acd4c493f0222e667dba99ea1509a0ca",
+      "sha256": "92a584ca0b2e58fa4260feb916cdc6fc18f0517f820739ee4d1a6a261449e91d",
       "headerProfile": 17
     },
     {
@@ -2153,8 +2153,8 @@
     },
     {
       "path": "start/index.html",
-      "bytes": 20704,
-      "sha256": "f814b99b27391d0b117e1e0aabfaff98715e1e7d0adbf34f03939009058f66ac",
+      "bytes": 21431,
+      "sha256": "b030d6e086f5e7130afd42d83818dcb80cf3328377817afd61e57b1db5118361",
       "headerProfile": 1
     },
     {
@@ -2183,14 +2183,14 @@
     },
     {
       "path": "studio.js",
-      "bytes": 131478,
-      "sha256": "2f86a42caf63acf6f05d2375e4dcb645a0a771aec3b6e2bcdcc18821843a278e",
+      "bytes": 131604,
+      "sha256": "28a295118c6abe95dcdfb8db18c34ea9f56a78a9cd46b78c5d84974da218c171",
       "headerProfile": 4
     },
     {
       "path": "studio/index.html",
-      "bytes": 13888,
-      "sha256": "ca658185b3f833907dc13253e6f7cd2aae4fa0c57693887c267e72e6f7386e42",
+      "bytes": 13892,
+      "sha256": "3cbf4edbe960497840861007d139d5393a43c86dcd6c8e676bc72b2e3aa4c18c",
       "headerProfile": 18
     },
     {
@@ -2207,14 +2207,14 @@
     },
     {
       "path": "support/index.html",
-      "bytes": 6278,
-      "sha256": "d195abcbfa899acf0fd1da856cc514f0f18fe10b5a35876d7f0259f813d532c2",
+      "bytes": 6254,
+      "sha256": "0b29a631fa27112e988d422be410d2db3624be9242334918ca04bf5b94f4199f",
       "headerProfile": 1
     },
     {
       "path": "terms/index.html",
-      "bytes": 16604,
-      "sha256": "d3fc0af56ad22b91987efd8aa6315b260183116f065716bdfee822137fa3a7e5",
+      "bytes": 17333,
+      "sha256": "dd190e57d8682897cf5aeffef7b0589e0b37586d60be2907d4b703f6960c0b22",
       "headerProfile": 1
     },
     {
@@ -2345,8 +2345,8 @@
     },
     {
       "path": "waitlist/index.html",
-      "bytes": 12320,
-      "sha256": "ccdead3af1489fb9f9fb7787a50424eb4da8d0d1a2e352eee9ea8bb0ec29e0e9",
+      "bytes": 12308,
+      "sha256": "affc2bf931a8f9ebab002fbaefcf9682f9d6dee9de21cb56f4c07bd0927c884b",
       "headerProfile": 1
     },
     {

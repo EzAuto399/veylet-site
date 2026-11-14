@@ -149,14 +149,14 @@ test('the studio desk and the account desk use one vocabulary, written once each
     "{ 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] }",
     "'Free months ended '", "'Plan ended '",
     "'Review the available plan. Eligible subscribers can start with '",
-    "' free month' + (months === '1' ? '' : 's') + ' and '", "' walkthroughs in total.'",
+    "' free month' + (months === '1' ? '' : 's') + ' and '", "' rooms in total.'",
     // Offer 2026-09-26.1: hosting follows the plan; offline 14 days after it ends, links restored on restart.
     "'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.'",
-    "' free walkthroughs used. '",
+    "' free rooms used. '",
     // Offer 2026-09-25.1: the reminder reads "Free until {date}, then {price} unless you cancel."
     "', then '", "' unless you cancel.'",
     "'It ends on '", "' and will not renew.'",
-    "' walkthroughs this month. '", "' Hosting included.'", "' Billed annually.'",
+    "' rooms this month. '", "' Hosting included.'", "' Billed annually.'",
   ];
   for (const phrase of shared) {
     assert.equal(script.split(phrase).length - 1, 1, `studio.js states ${phrase} once`);
@@ -386,7 +386,7 @@ test('a studio member sees the summary, the three accounts and the shared status
   assert.deepEqual(rows.map(row => row.children[COL.account].children[0].textContent),
     ['Northgate Property Co', 'Wren & Fielding', 'Kelvin Grove Dental']);
   assert.match(rows[2].children[COL.account].children[1].textContent, /^— · 2 members$/);
-  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with 6 walkthroughs']);
+  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with 6 rooms']);
   assert.deepEqual(rows[0].children[COL.thisMonth].children.map(el => el.textContent), ['2 / 3', ''], 'a retired plan states no v8 allowance rule');
   assert.equal(rows[1].children[COL.total].textContent, '18');
   assert.equal(rows[1].children[COL.walkthroughs].textContent, '2 / 0');
@@ -404,9 +404,8 @@ test('the desk says where each account is billed, how far into its free walkthro
   assert.deepEqual(source(0), ['App Store', 'unverified'], 'an unconfirmed Apple purchase says so');
   assert.deepEqual(source(1), ['Studio', '']);
   assert.deepEqual(source(2), ['Website', '']);
-  // The allowance is the row's own: three for running and new free months, and the
-  // four an account kept when its free months ended before the offer changed.
-  assert.equal(offer.freeMonths.includedWalkthroughs, 3);
+  // The allowance is the row's own, whatever the offer's default is now (30 rooms from 2026-11-11.1).
+  assert.equal(offer.freeMonths.includedRooms, 30);
   const free = index => rows[index].children[COL.freeWalkthroughs].children.map(el => el.textContent);
   assert.deepEqual(free(0), ['3 / 6', '']);
   assert.deepEqual(free(1), ['4 / 4', '2 beyond included; check agreed billing']);
@@ -542,7 +541,7 @@ test('maintaining existing studio free months preserves its stored plan and repa
   // The allowance is what the offer caps, so the desk sets it explicitly.
   assert.equal(included.value, '6');
   assert.equal(included.min, '1');
-  assert.equal(included.max, '24');
+  assert.equal(included.max, '240');
   const selects = form.all().filter(el => el.tagName === 'SELECT');
   // The source and stored plan are identifiers, not sale choices.
   assert.deepEqual(selects.map(select => select.children.map(option => option.value)),
@@ -929,8 +928,8 @@ test('the generic invoice form offers only the two canonical walkthrough packs',
   const { form, fields } = prepareInvoice(h, { index: 0 });
   assert.equal(fields.item.tagName, 'SELECT', 'one native select');
   assert.deepEqual(fields.item.children.map(option => [option.value, option.textContent]), [
-    ['pack3', 'Walkthrough pack · 3 walkthroughs (' + aud(OFFER.packs.pack3.cents) + ')'],
-    ['pack10', 'Walkthrough pack · 10 walkthroughs (' + aud(OFFER.packs.pack10.cents) + ')'],
+    ['pack3', 'Pack · 30 rooms (' + aud(OFFER.packs.pack3.cents) + ')'],
+    ['pack10', 'Pack · 100 rooms (' + aud(OFFER.packs.pack10.cents) + ')'],
   ]);
   assert.deepEqual(fields.item.children.map(option => option.value), INVOICE_CHOICES);
   assert.deepEqual(Object.keys(fields).sort(), ['agreement_id', 'item', 'receipt_key', 'settlement_id']);
@@ -968,7 +967,7 @@ test('a walkthrough pack is recorded for any activated account, App Store includ
     const pack = OFFER.packs[code];
     assert.equal(Object.hasOwn(fields, 'period_start'), false, kind + ': a pack has no service dates');
     assert.equal(Object.hasOwn(fields, 'period_end'), false);
-    assert.ok(form.text().includes(aud(pack.cents) + ' for this invoice: adds ' + pack.walkthroughs + ' walkthroughs, valid 12 months after purchase'), kind);
+    assert.ok(form.text().includes(aud(pack.cents) + ' for this invoice: adds ' + pack.walkthroughs + ' rooms, valid 12 months after purchase'), kind);
     assert.equal(submitOf(form).disabled, false, kind);
     await form.fire('submit');
     const writes = h.calls.filter(([name]) => name === 'studio_record_pack_invoice');
@@ -977,10 +976,10 @@ test('a walkthrough pack is recorded for any activated account, App Store includ
       p_agreement_id: 'agreement-001', p_settlement_id: 'settled-line-001', p_receipt_key: 'invoice-plan-001' });
     assert.equal(h.calls.some(([name]) => /studio_activate_invoice_plan|studio_set_plan/.test(name)), false, 'a pack never touches the plan');
     assert.equal(h.confirms.length, 1);
-    for (const part of ['Harbour Realty', aud(pack.cents), pack.walkthroughs + ' walkthroughs', 'valid 12 months']) {
+    for (const part of ['Harbour Realty', aud(pack.cents), pack.walkthroughs + ' rooms', 'valid 12 months']) {
       assert.ok(h.confirms[0].includes(part), kind + ' confirms ' + part);
     }
-    assert.equal(resultOf(form), 'Recorded: ' + pack.walkthroughs + ' walkthroughs added (' + aud(pack.cents) + '). ' +
+    assert.equal(resultOf(form), 'Recorded: ' + pack.walkthroughs + ' rooms added (' + aud(pack.cents) + '). ' +
       (pack.walkthroughs + 2) + ' available; use by 24 September 2027.');
     // The same references are never offered again for a second pack.
     assert.deepEqual([fields.agreement_id.value, fields.settlement_id.value, fields.receipt_key.value], ['', '', '']);
@@ -991,9 +990,9 @@ test('a walkthrough pack is recorded for any activated account, App Store includ
 
 test('a pack is refused for an account that has not started or has ended, with the reason', async () => {
   const cases = [
-    ['pending', { status: 'pending' }, 'This account has not started its free months. A walkthrough pack can be recorded once the account is activated.'],
+    ['pending', { status: 'pending' }, 'This account has not started its free months. A pack can be recorded once the account is activated.'],
     ['ended', { status: 'ended', trial_started_at: soon(-400), trial_ends_at: soon(-220), current_period_ends_at: soon(-10) },
-      'This account has no running plan or free months. A walkthrough pack can be recorded only for an activated account.'],
+      'This account has no running plan or free months. A pack can be recorded only for an activated account.'],
   ];
   for (const [status, extra, reason] of cases) {
     for (const code of ['pack3', 'pack10']) {
@@ -1014,7 +1013,7 @@ test('a pack answer that does not match is not confirmed, and only the identical
   const wrong = [
     { error: { message: 'offline' } },
     { data: [] },
-    packResponse({ p_pack_code: 'pack3' }, { credited: 10 }),
+    packResponse({ p_pack_code: 'pack3' }, { credited: 100 }),
     packResponse({ p_pack_code: 'pack3' }, { credited: 0 }),
     packResponse({ p_pack_code: 'pack3' }, { amount_cents: OFFER.packs.pack10.cents }),
     packResponse({ p_pack_code: 'pack3' }, { amount_cents: String(OFFER.packs.pack3.cents) }),
@@ -1045,7 +1044,7 @@ test('a pack answer that does not match is not confirmed, and only the identical
     assert.equal(attempt, 2);
     const writes = h.calls.filter(([name]) => name === 'studio_record_pack_invoice');
     assert.deepEqual(writes[0][1], writes[1][1]);
-    assert.match(resultOf(form), /^Recorded: 3 walkthroughs added/);
+    assert.match(resultOf(form), /^Recorded: 30 rooms added/);
   }
 });
 
@@ -1079,13 +1078,13 @@ test('a forged plan migration is refused before any write', async () => {
   assert.match(resultOf(form), /Keep this account's existing plan\. New subscriptions and plan choices start in the App Store\./);
 });
 
-test('Set plan falls back to 1 free month and 3 free walkthroughs when the row cannot say', async () => {
-  assert.deepEqual([offer.freeMonths.months, offer.freeMonths.includedWalkthroughs], [1, 3]);
+test('Set plan falls back to 1 free month and 30 free rooms when the row cannot say', async () => {
+  assert.deepEqual([offer.freeMonths.months, offer.freeMonths.includedRooms, offer.freeMonths.includedWalkthroughs], [1, 30, 30]);
   assert.match(script, new RegExp(`const FREE_MONTHS_DEFAULT = ${offer.freeMonths.months};`));
   assert.match(script, new RegExp(`const FREE_WALKTHROUGHS_DEFAULT = ${offer.freeMonths.includedWalkthroughs};`));
   const h = await load({ accounts: oneAccount({ source: 'studio', trial_months: null, trial_included_walkthroughs: null }) });
   const [months, included] = h.formFor(0).all().filter(el => el.type === 'number');
-  assert.deepEqual([months.value, included.value], ['1', '3']);
+  assert.deepEqual([months.value, included.value], ['1', '30']);
   // A row that cannot state its terms states none, rather than the defaults.
   assert.equal(h.dataRows()[0].children[COL.freeMonths].children[1].textContent, '');
 });
@@ -1093,9 +1092,9 @@ test('Set plan falls back to 1 free month and 3 free walkthroughs when the row c
 test('each row states its own free-months terms in digits, and a running row keeps its longer terms', async () => {
   const h = await load();
   const terms = h.dataRows().map(row => row.children[COL.freeMonths].children[1].textContent);
-  assert.deepEqual(terms, ['6 free months with 6 walkthroughs', '6 free months with 4 walkthroughs', '3 free months with 6 walkthroughs']);
+  assert.deepEqual(terms, ['6 free months with 6 rooms', '6 free months with 4 rooms', '3 free months with 6 rooms']);
   const single = await load({ accounts: oneAccount({ trial_months: 1, trial_included_walkthroughs: 1 }) });
-  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with 1 walkthrough');
+  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with 1 room');
   for (const odd of [{ trial_months: '3' }, { trial_months: 0 }, { trial_months: 13 }, { trial_included_walkthroughs: 2.5 }, { trial_included_walkthroughs: undefined }]) {
     const other = await load({ accounts: oneAccount(odd) });
     assert.equal(other.dataRows()[0].children[COL.freeMonths].children[1].textContent, '', JSON.stringify(odd));
@@ -1131,9 +1130,9 @@ test('the This month column never prints an allowance rule the row does not carr
   // A row that does carry its cadence (an invoice answer, or an App Store product)
   // and is annual shows the pool rule in place of a monthly figure.
   const rows = [
-    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', OFFER.yearlyPool + '-walkthrough yearly pool']],
+    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
     ['App Store annual', { source: 'apple', apple_verified: true, plan_code: 'solo', apple_product_id: 'dev.property3d.capture.solo.annual',
-      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', OFFER.yearlyPool + '-walkthrough yearly pool']],
+      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
     ['Monthly invoice', { plan_code: 'solo', billing_interval: 'monthly', renewal_price_aud_cents: OFFER.month }, 'Veylet plan · ' + aud(OFFER.month) + ' a month', ['0 / 3', '']],
     ['Team annual', { source: 'apple', apple_verified: true, plan_code: 'studio', apple_product_id: 'dev.property3d.capture.plan.annual',
       billing_interval: 'annual', renewal_price_aud_cents: 318999 }, 'Team · A$3,189.99 a year', ['0 / 3', '']],
@@ -1145,12 +1144,12 @@ test('the This month column never prints an allowance rule the row does not carr
 });
 
 /* ---- Founding referral grant -------------------------------------------
- * A free 3-pack for each referred office that becomes paying, at most four per
+ * A free pack of 30 rooms for each referred office that becomes paying, at most four per
  * founding workspace. Proposed list fields: founding_member, founding_grants_used.
  */
 const foundingRow = (extra = {}) => oneAccount({ source: 'studio', ...activePlan, founding_member: true, founding_grants_used: 1, ...extra });
 // The proposed studio_grant_founding_pack answer.
-const grantResponse = (used, extra = {}) => ({ data: [{ credited: 3, credits_available: 3, grants_used: used, expires_on: '2027-09-24', ...extra }] });
+const grantResponse = (used, extra = {}) => ({ data: [{ credited: 30, credits_available: 30, grants_used: used, expires_on: '2027-09-24', ...extra }] });
 const grantCountOf = form => form.all().find(el => el.className === 'studio-grant-count').textContent;
 
 test('a founding account shows the grants it has left and records one referral grant', async () => {
@@ -1164,10 +1163,10 @@ test('a founding account shows the grants it has left and records one referral g
   await form.fire('submit');
   assert.equal(h.confirms.length, 1);
   assert.ok(h.confirms[0].includes('Harbour Realty'));
-  assert.ok(h.confirms[0].includes('free 3-pack, grant 2 of 4'));
+  assert.ok(h.confirms[0].includes('free pack of 30 rooms, grant 2 of 4'));
   const call = h.calls.find(([name]) => name === 'studio_grant_founding_pack');
   assert.deepEqual({ ...call[1] }, { p_workspace_id: 'ws-harbour', p_reference: 'INV-REFERRED-0042', p_note: 'Referred office paid its first invoice.' });
-  assert.equal(resultOf(form), 'Granted: 3 walkthroughs. 2 of 4 grants left.');
+  assert.equal(resultOf(form), 'Granted: 30 rooms. 2 of 4 grants left.');
   assert.equal(grantCountOf(form), '2 of 4 grants left');
   assert.deepEqual([fields.grant_reference.value, fields.grant_note.value], ['', '']);
   // The count belongs to the row, so a view change keeps it.
@@ -1187,8 +1186,8 @@ test('the fourth grant closes the form, and a spent or unreadable count sends no
   assert.equal(grantCountOf(form), '1 of 4 grants left');
   fieldsOf(form).grant_reference.value = 'INV-REFERRED-0099';
   await form.fire('submit');
-  assert.ok(h.confirms[0].includes('free 3-pack, grant 4 of 4'));
-  assert.equal(resultOf(form), 'Granted: 3 walkthroughs. 0 of 4 grants left.');
+  assert.ok(h.confirms[0].includes('free pack of 30 rooms, grant 4 of 4'));
+  assert.equal(resultOf(form), 'Granted: 30 rooms. 0 of 4 grants left.');
   assert.equal(grantCountOf(form), 'All four founding grants are used.');
   assert.equal(submitOf(form).disabled, true);
   assert.equal(fieldsOf(form).grant_reference.disabled, true);
@@ -1235,7 +1234,7 @@ test('a declined, impossible or non-opaque grant sends nothing', async () => {
 });
 
 test('an unconfirmed grant is reported, and only the identical request is retried', async () => {
-  for (const reply of [{ error: { message: 'offline' } }, { data: [] }, grantResponse(1), grantResponse(3), grantResponse(2, { credited: 10 })]) {
+  for (const reply of [{ error: { message: 'offline' } }, { data: [] }, grantResponse(1), grantResponse(3), grantResponse(2, { credited: 100 })]) {
     let attempt = 0;
     const h = await load({ accounts: foundingRow(), rpc: { studio_grant_founding_pack: async () => ++attempt === 1 ? reply : grantResponse(2) } });
     const form = h.grantFormFor(0);
@@ -1251,7 +1250,7 @@ test('an unconfirmed grant is reported, and only the identical request is retrie
     fields.grant_reference.value = 'INV-REFERRED-0042';
     await form.fire('submit');
     assert.equal(attempt, 2);
-    assert.equal(resultOf(form), 'Granted: 3 walkthroughs. 2 of 4 grants left.');
+    assert.equal(resultOf(form), 'Granted: 30 rooms. 2 of 4 grants left.');
   }
 });
 
@@ -1269,7 +1268,7 @@ test('plan code founding counts as a founding account, and any other account has
   assert.match(styles, /\.studio-plan-form\[hidden\],\s*\.studio-inline-field\[hidden\] \{\s*display: none;/);
 });
 
-/* ---- Referral walkthroughs (offer v8 migration) ----------------------------
+/* ---- Referral rooms (offer v8 migration; rooms from offer 2026-11-11.1) ----------------------------
  * studio_grant_referral_bonus(p_workspace_id, p_referrer_workspace_id default
  * null, p_reference default null) answers { granted, reason?, referrer_granted,
  * walkthroughs, expires_at, referrer_workspace_id } and never raises for a rule.
@@ -1285,7 +1284,7 @@ const REFERRAL_EXPIRES = '2027-09-25T00:00:00Z';
 const referralAnswer = (extra = {}) => ({ data: { granted: true, referrer_granted: true, walkthroughs: OFFER.referral,
   expires_at: REFERRAL_EXPIRES, referrer_workspace_id: 'ws-bayside', ...extra } });
 const referralCalls = h => h.calls.filter(([name]) => name === 'studio_grant_referral_bonus');
-const REFERRAL_ACTION = 'Grant ' + OFFER.referral + ' bonus walkthrough to each office';
+const REFERRAL_ACTION = 'Grant ' + OFFER.referral + ' bonus rooms to each office';
 const fillReferral = (form, values = {}) => {
   const fields = fieldsOf(form);
   fields.referrer_workspace.value = values.referrer ?? 'ws-bayside';
@@ -1298,8 +1297,8 @@ test('the referral form is the fallback: its own link first, then every other ac
   const h = await load({ accounts: referralAccounts() });
   assert.deepEqual(h.dataRows().map(row => row.children[COL.account].children[0].textContent), ['Harbour Realty', 'Bayside Homes', 'Acre & Co']);
   const form = h.referralFormFor(0);
-  assert.equal(form.all().find(el => el.tagName === 'H3').textContent, 'Referral walkthroughs');
-  assert.match(form.text(), /When a referred office first pays, the server grants 1 bonus walkthrough to it and 1 to the office that referred it, once per referred office\. Use this only when that grant did not happen/);
+  assert.equal(form.all().find(el => el.tagName === 'H3').textContent, 'Referral rooms');
+  assert.match(form.text(), /When a referred office first pays, the server grants 10 bonus rooms to it and 10 to the office that referred it, once per referred office\. Use this only when that grant did not happen/);
   const fields = fieldsOf(form);
   assert.equal(fields.referrer_workspace.tagName, 'SELECT', 'a native select');
   assert.equal(labelOf(form, fields.referrer_workspace).textContent, 'Referred by');
@@ -1329,9 +1328,9 @@ test('naming the referring office records it with its reference, then states bot
   await form.fire('submit');
   assert.equal(h.confirms.length, 1);
   assert.equal(h.confirms[0], REFERRAL_ACTION + '? Records Bayside Homes as the office that referred Harbour Realty (reference INV-HARBOUR-0001), ' +
-    'then grants 1 bonus walkthrough to each once Harbour Realty has paid. Once per referred office; the server keeps an audit row. No payment is taken.');
+    'then grants 10 bonus rooms to each once Harbour Realty has paid. Once per referred office; the server keeps an audit row. No payment is taken.');
   assert.deepEqual(referralCalls(h).map(([, args]) => ({ ...args })), [{ p_workspace_id: 'ws-harbour', p_referrer_workspace_id: 'ws-bayside', p_reference: 'INV-HARBOUR-0001' }]);
-  assert.equal(resultOf(form), 'Granted: 1 bonus walkthrough each to Harbour Realty and Bayside Homes, usable until ' + longDate(REFERRAL_EXPIRES) + '.');
+  assert.equal(resultOf(form), 'Granted: 10 bonus rooms each to Harbour Realty and Bayside Homes, usable until ' + longDate(REFERRAL_EXPIRES) + '.');
   assert.equal(form.all().find(el => el.className === 'studio-result').attributes.role, 'status');
   assert.deepEqual([fields.referrer_workspace.value, fields.referral_reference.value, fields.referral_reference.disabled], ['', '', true]);
 });
@@ -1340,17 +1339,17 @@ test('its own link sends only the office, and a referrer that received nothing i
   const h = await load({ accounts: referralAccounts(), rpc: { studio_grant_referral_bonus: async () => referralAnswer({ referrer_granted: false, referrer_workspace_id: 'ws-gone' }) } });
   const form = h.referralFormFor(0);
   await form.fire('submit');
-  assert.equal(h.confirms[0], REFERRAL_ACTION + '? Harbour Realty and the office it recorded through its own link each get 1 bonus walkthrough once Harbour Realty has paid. ' +
+  assert.equal(h.confirms[0], REFERRAL_ACTION + '? Harbour Realty and the office it recorded through its own link each get 10 bonus rooms once Harbour Realty has paid. ' +
     'Once per referred office; the server keeps an audit row. No payment is taken.');
   assert.deepEqual(referralCalls(h).map(([, args]) => ({ ...args })), [{ p_workspace_id: 'ws-harbour' }]);
-  assert.equal(resultOf(form), 'Granted: 1 bonus walkthrough to Harbour Realty, usable until ' + longDate(REFERRAL_EXPIRES) +
+  assert.equal(resultOf(form), 'Granted: 10 bonus rooms to Harbour Realty, usable until ' + longDate(REFERRAL_EXPIRES) +
     '. The referring office received none: it no longer exists or is being deleted.');
 });
 
 test('a rule the server answers with is said in place: already granted, not paying yet, no referral recorded', async () => {
   const cases = [
-    [{ granted: false, reason: 'already_granted', referrer_workspace_id: 'ws-bayside' }, "Already granted: Harbour Realty's referral walkthroughs were granted before. Nothing new was added."],
-    [{ granted: false, reason: 'not_paying', referrer_workspace_id: 'ws-bayside' }, 'Not granted yet: Harbour Realty has not paid. Its referral by Bayside Homes is recorded, and the walkthroughs are granted automatically when its plan first turns active.'],
+    [{ granted: false, reason: 'already_granted', referrer_workspace_id: 'ws-bayside' }, "Already granted: Harbour Realty's referral rooms were granted before. Nothing new was added."],
+    [{ granted: false, reason: 'not_paying', referrer_workspace_id: 'ws-bayside' }, 'Not granted yet: Harbour Realty has not paid. Its referral by Bayside Homes is recorded, and the rooms are granted automatically when its plan first turns active.'],
     [{ granted: false, reason: 'no_referral', referrer_workspace_id: null }, 'No referral is recorded for Harbour Realty. Choose the referring office and give a reference.'],
     [{ granted: false, reason: 'something_new' }, 'Not granted: something new.'],
   ];
@@ -1373,7 +1372,7 @@ test('a refusal the server raises is shown in place and the form is kept; a lost
     [async () => { throw new Error('network'); }, 'The referral grant was not confirmed. Sending it again is safe: the server grants once per referred office.'],
     [async () => ({ error: { message: 'offline' } }), /^The referral grant was not confirmed\./],
     [async () => ({ data: null }), /^The referral grant was not confirmed\./],
-    [async () => referralAnswer({ walkthroughs: 2 }), /^The referral grant was not confirmed\./],
+    [async () => referralAnswer({ walkthroughs: 1 }), /^The referral grant was not confirmed\./],
     [async () => referralAnswer({ referrer_granted: undefined }), /^The referral grant was not confirmed\./],
     [async () => ({ data: { referrer_credited: 1, referred_credited: 1, replay: false } }), /^The referral grant was not confirmed\./],
   ];
@@ -2041,7 +2040,7 @@ test('Record correction is one inline form: labelled fields, both tours, a reaso
   // Offer 2026-09-25.2: the free redo of the first walkthrough is a correction too, with its scope beside it.
   const redo = form.all().find(el => el.value === 'first_walkthrough_redo');
   const redoNote = form.all().find(el => el.id === redo.attributes['aria-describedby']);
-  assert.equal(redoNote.textContent, 'First-walkthrough redo: only for the account’s first accepted walkthrough, once per account. It uses no walkthrough and keeps the same link; a new capture visit is not included.');
+  assert.equal(redoNote.textContent, 'First-walkthrough redo: only for the account’s first accepted walkthrough, once per account. It uses no rooms and keeps the same link; a new capture visit is not included.');
   assert.deepEqual(form.all().filter(el => el.tagName === 'BUTTON').map(el => [el.textContent, el.type, el.className]), [['Record correction', 'submit', 'button']]);
   assert.equal(form.all().find(el => el.className === 'studio-result').attributes.role, 'status');
   // Released walkthroughs are offered as suggestions, by title and short reference.
@@ -2060,7 +2059,7 @@ test('recording sends the exact tours, reason and reference after a confirmation
     'When the account approves it, its link and embed move to package 9f8e7d6c. This cannot be moved to another walkthrough later.');
   assert.deepEqual(correctionCalls(h).map(([, args]) => ({ ...args })),
     [{ p_tour_id: NEW_PACKAGE, p_corrects_tour_id: LIVE_WALKTHROUGH, p_reason: 'requested_change', p_reference: 'TCK-1042' }]);
-  const said = 'Recorded: package 9f8e7d6c is version 2 of walkthrough 1a2b3c4d. Approving it uses no walkthrough from the account’s allowance.';
+  const said = 'Recorded: package 9f8e7d6c is version 2 of walkthrough 1a2b3c4d. Approving it uses no rooms from the account’s allowance.';
   assert.equal(resultOf(correctionForm(h)), said);
   assert.equal(h.ids['studio-status'].textContent, said);
   assert.deepEqual(['tour_id', 'corrects_tour_id', 'reference'].map(name => correctionInput(h, name).value), ['', '', '']);
@@ -2070,7 +2069,7 @@ test('recording sends the exact tours, reason and reference after a confirmation
   fillCorrection(again, { reason: 'defect' });
   await correctionForm(again).fire('submit');
   assert.match(again.confirms[0], /Reason: studio defect\./);
-  assert.equal(resultOf(correctionForm(again)), 'Already recorded: package 9f8e7d6c is version 3 of walkthrough 1a2b3c4d. That walkthrough has not been accepted yet, so its first approval uses one walkthrough.');
+  assert.equal(resultOf(correctionForm(again)), 'Already recorded: package 9f8e7d6c is version 3 of walkthrough 1a2b3c4d. That walkthrough has not been accepted yet, so its first approval uses its counted rooms.');
 });
 
 test('a missing or malformed tour, the same tour twice, no reason, a non-opaque reference or a declined confirmation sends nothing', async () => {
@@ -2161,12 +2160,13 @@ test('the capture queue reads no whole-home fields; the retired correction form 
   assert.doesNotMatch(h.ids['studio-queue-rows'].text(), /Counts as/);
   const note = markup.slice(markup.indexOf('id="studio-home"'), markup.indexOf('id="studio-home-body"')).replace(/\s+/g, ' ');
   assert.match(markup, /<h2 class="dash-heading" id="studio-home-title">Declared large home \(older listings\)<\/h2>/);
-  assert.match(note, /One new accepted capture uses one walkthrough, regardless of room count\./);
+  assert.match(note, /From offer 2026-11-11\.1 a tour uses the rooms counted in it\./);
+  assert.doesNotMatch(note, /uses one walkthrough, regardless of room count/);
   assert.match(note, /older listing/);
   assert.doesNotMatch(note, /up to 8 rooms|each further 8|counted by the rooms captured/);
-  assert.match(script, /One new accepted capture now uses one walkthrough regardless of room count\./);
+  assert.match(script, /From offer 2026-11-11\.1 a tour uses the rooms counted in it\./);
   assert.doesNotMatch(script, /Offer 2026-09-26\.3 counts (?:new listings|a new listing) by/);
-  assert.equal(offer.walkthroughScope.unitsPerAcceptedCapture, 1);
+  assert.equal(offer.walkthroughScope.unit, 'room');
   assert.match(offer.walkthroughScope.status, /historical usage is unchanged/);
   assert.match(offer.retiredTerms.items['walkthroughScope.countsAsTwo'], /5 or more bedrooms, a second dwelling, or more than 350 m²/);
   assert.ok(markup.indexOf('id="studio-corrections"') < markup.indexOf('id="studio-home"'));
@@ -2400,7 +2400,7 @@ test('offer v9: the first-walkthrough redo is recorded as a correction, confirme
   assert.match(h.confirms[0], /Reason: first-walkthrough redo \(our promise\)\. Reference: TCK-1042\. .* This uses the account’s one free first-walkthrough redo\.$/);
   assert.deepEqual(correctionCalls(h).map(([, args]) => ({ ...args })),
     [{ p_tour_id: NEW_PACKAGE, p_corrects_tour_id: LIVE_WALKTHROUGH, p_reason: 'first_walkthrough_redo', p_reference: 'TCK-1042' }]);
-  assert.equal(resultOf(correctionForm(h)), 'Recorded: package 9f8e7d6c is version 2 of walkthrough 1a2b3c4d, the account’s free first-walkthrough redo. Approving it uses no walkthrough from the account’s allowance.');
+  assert.equal(resultOf(correctionForm(h)), 'Recorded: package 9f8e7d6c is version 2 of walkthrough 1a2b3c4d, the account’s free first-walkthrough redo. Approving it uses no rooms from the account’s allowance.');
   // The server decides whether this is the first accepted walkthrough, and whether the redo is still unused.
   for (const message of ['the first-walkthrough redo applies only to the account’s first accepted walkthrough', 'the first-walkthrough redo is already used for this account']) {
     const refused = await load({ rpc: { studio_record_tour_correction: async () => ({ error: { code: 'P0001', message } }) } });

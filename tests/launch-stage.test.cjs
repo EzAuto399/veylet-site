@@ -220,3 +220,15 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
     assert.doesNotMatch(read(page), /href="\/request/, `${page} does not link /request`);
   }
 });
+
+test('home states the rooms offer alongside the existing weekly admission and App Store price', () => {
+  const home = read('index.html');
+  const main = home.match(/<main\b[\s\S]*?<\/main>/)[0];
+  const words = flatText(main);
+  assert.match(words, /Open to anyone, admitted weekly/);
+  assert.match(words, /1 free month with 30 rooms included, then the Veylet plan at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\./);
+  assert.match(words, /A tour uses rooms only when it passes the check and you approve it\./);
+  assert.match(main, /href="\/waitlist"[^>]*data-analytics-placement="hero"/);
+  assert.match(main, /class="closing-invitation"[\s\S]*?href="\/waitlist"/);
+  assert.doesNotMatch(words, /3 walkthroughs included|up to 6 banked/);
+});

@@ -121,8 +121,8 @@ test('the words: walkthrough, never scan, model or a customer result, and no hea
   assert.match(hero, /<h1 id="see-title">One capture\.<span[^>]*><\/span><br \/><em data-thread-em>Two ways to show it\.<\/em><\/h1>/);
 });
 
-test('every price on the page is offer.json 2026-09-29.2, set on data-price elements', () => {
-  assert.equal(offer.version, '2026-09-29.2');
+test('every price on the page is offer.json 2026-11-11.1, set on data-price elements', () => {
+  assert.equal(offer.version, '2026-11-11.1');
   const prices = Object.fromEntries([...body.matchAll(/<span data-price="([\w-]+)">([^<]+)<\/span>/g)].map(match => [match[1], match[2]]));
   assert.deepEqual(prices, {
     'see-hero-month': aud(plan.appAud),
@@ -138,20 +138,21 @@ test('every price on the page is offer.json 2026-09-29.2, set on data-price elem
   for (const amount of amounts) assert.ok(allowed.has(amount), `${amount} is not an offer.json amount`);
   // The facts around the amounts, first the phones' line under the hero button.
   const heroLine = flat(element('class="see-actions-line"', 'p'));
-  // Offer 2026-09-29.2: the free month carries the plan's own 3, so the line leads with the allowance.
-  assert.equal(offer.freeMonths.includedWalkthroughs, plan.includedPerMonth, 'the line states one allowance for both');
+  // Offer 2026-11-11.1: the free month carries the plan's own 30 rooms, so the line leads with the allowance.
+  assert.equal(offer.allowanceUnit, 'room');
+  assert.equal(offer.freeMonths.includedRooms, plan.includedPerMonth, 'the line states one allowance for both');
   assert.equal(offer.freeMonths.months, 1, 'the line says the first month');
-  assert.equal(heroLine, `${plan.includedPerMonth} walkthroughs a month · the first month free · then ${aud(plan.appAud)} a month through the App Store`);
+  assert.equal(heroLine, `${plan.includedPerMonth} rooms a month · the first month free · then ${aud(plan.appAud)} a month through the App Store`);
   const statement = flat(element('class="statement see-statement"', 'aside'));
   assert.ok(statement.includes(`${aud(plan.appAud)} a month through the App Store`));
   assert.ok(statement.includes(`${aud(plan.annualAppAud)} upfront a year through the App Store`));
-  assert.ok(statement.includes(`${plan.includedPerMonth} walkthroughs a month; unused ones roll over, up to ${plan.rollover.maxBanked} banked`));
-  assert.ok(statement.includes(`The same ${plan.annualIncluded} walkthroughs a year, to use any time in the plan year`));
+  assert.ok(statement.includes(`${plan.includedPerMonth} rooms a month; unused ones carry over, up to ${plan.rollover.maxBanked} banked`));
+  assert.ok(statement.includes(`The same ${plan.annualIncluded} rooms a year, to use any time in the plan year`));
   assert.ok(statement.includes(`save ${aud(Math.round(12 * plan.appAud * 100 - plan.annualAppAud * 100) / 100)} on 12 monthly payments`));
-  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of walkthroughs');
+  assert.equal(plan.annualIncluded, 12 * plan.includedPerMonth, 'the saving compares the same number of rooms');
   assert.ok(statement.includes(`In the App Store, the Veylet plan is ${aud(plan.appAud)} a month.`));
   const terms = flat(element('id="offer"', 'section'));
-  assert.ok(terms.includes(`${offer.freeMonths.includedWalkthroughs} walkthroughs included The same ${plan.includedPerMonth} as each month of the plan.`), 'the free month’s allowance is the plan’s');
+  assert.ok(terms.includes(`${offer.freeMonths.includedRooms} rooms included The same ${plan.includedPerMonth} as each month of the plan.`), 'the free month’s allowance is the plan’s');
   assert.doesNotMatch(terms, /in total, not \d+ a month/, 'the free month is no longer set against the monthly allowance');
   assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
@@ -421,7 +422,7 @@ test('the iPhone answer is the same in the visible FAQ and the structured data, 
   assert.ok(question && shown);
   assert.equal(flat(shown[1]), question.acceptedAnswer.text, 'visible and JSON-LD answers match');
   assert.ok(question.acceptedAnswer.text.startsWith('Not this one. It’s an apartment from Meta’s Eyeful Tower research dataset (MIT licence)'));
-  assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedWalkthroughs} walkthroughs included`));
+  assert.ok(question.acceptedAnswer.text.includes(`Your first month is free with ${offer.freeMonths.includedRooms} rooms included`));
   assert.equal(offer.freeMonths.months, 1);
   assert.ok(question.acceptedAnswer.text.endsWith('Every walkthrough is checked, and nothing is shared until you approve it.'));
 });

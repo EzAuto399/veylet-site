@@ -5,7 +5,7 @@
 // annually: monthly pays each paid month after the free months; annual
 // pays one year, once, on the day the free month ends, and that year runs past month twelve.
 // Nothing is charged during the free months; the first charge is on the day they end. A
-// walkthrough pack is optional and bought once, at its website (card or invoice) price on
+// pack of rooms is optional and bought once, at its website (card or invoice) price on
 // a separate transaction. Pack in-app purchase is unavailable in this app version and arrives in a later version.
 function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 1, packPrice = 0 }) {
   const packCents = Math.round(Number(packPrice) * 100);
@@ -38,9 +38,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const data = form.dataset;
     const annual = isAnnual();
     const code = pack && PACKS.includes(pack.value) ? pack.value : '';
-    const count = code ? Number(data[code + 'Walkthroughs']) : 0;
+    const count = code ? Number(data[code + 'Rooms']) : 0;
     const valid = Number(data.packValidMonths);
-    const sizes = PACKS.every(key => Number(data[key + 'Walkthroughs']) > 0);
+    const sizes = PACKS.every(key => Number(data[key + 'Rooms']) > 0);
     const [free, included, banked, pool] = [data.freeIncluded, data.planIncluded, data.planBankedMax,
       data.planYearIncluded].map(Number);
     const cost = offerTotal({ channel: channel.value, cadence: annual ? 'annual' : 'monthly',
@@ -59,7 +59,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const packLine = document.querySelector('[data-pack-line]');
     if (packLine) packLine.hidden = !code;
     if (code) {
-      put('[data-pack-what]', `Pack of ${count} walkthroughs · by studio invoice (card later) · valid ${valid} months`);
+      put('[data-pack-what]', `Pack of ${count} rooms · by studio invoice (card later) · valid ${valid} months`);
       put('[data-pack-amount]', money(cost.packCents));
     }
     const payments = annual
@@ -68,13 +68,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     put('[data-year-total]', money(cost.firstTwelveMonthsCents));
     const freeLabel = `${months} free month${months === 1 ? '' : 's'}`;
     put('[data-total-caption]', code ? `${freeLabel}, ${payments} and the pack` : `${freeLabel}, then ${payments}`);
-    const freePart = `${free} accepted walkthroughs in total during the ${months} free month${months === 1 ? '' : 's'}.`;
+    const freePart = `${free} rooms in total during the ${months} free month${months === 1 ? '' : 's'}.`;
     const planPart = annual
       ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years.`
-      : `Then ${included} a month on the plan; unused ones roll over, up to ${banked} banked.`;
+      : `Then ${included} a month on the plan; unused ones carry over, up to ${banked} banked.`;
     const packPart = code
       ? `The pack adds ${count}, used after the included ones and valid ${valid} months from purchase. You can buy it during the free months; the free-months end date stays the same.`
-      : `Need more? A pack adds ${data.pack3Walkthroughs} or ${data.pack10Walkthroughs} walkthroughs, and you can buy one during the free months. The free-months end date stays the same.`;
+      : `Need more? A pack adds ${data.pack3Rooms} or ${data.pack10Rooms} rooms, and you can buy one during the free months. The free-months end date stays the same.`;
     put('[data-statement-allowance]', `${freePart} ${planPart} ${packPart}`);
     const saving = annual && savedCents > 0
       ? ` Annual saves ${money(savedCents)} (${savedPercent}%) compared with 12 monthly payments.` : '';
