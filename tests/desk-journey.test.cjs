@@ -1112,7 +1112,7 @@ test('a held capture stays Waiting to render with the contract’s words for its
 /* ---- Offer 2026-09-26.3 (20260926140000): rooms, and the free months' render attempts ---- */
 
 /* Offer 2026-11-11.1: the unit is the room. walkthroughs_used carries the counted rooms under its old name. */
-test('each capture and its review say how many rooms its approval uses; unknown rooms say nothing', async () => {
+test('each capture and its review say how many rooms its approval uses; unknown or malformed charge stays hidden', async () => {
   for (const [rooms, used, words] of [[1, 1, 'This uses 1 room.'], [8, 8, 'This uses 8 rooms.'],
     [9, 7, 'This uses 7 rooms.'], [3, 10, 'This uses 10 rooms.']]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used, allowance_unit: 'room' }) } });
@@ -1135,8 +1135,8 @@ test('each capture and its review say how many rooms its approval uses; unknown 
   assert.equal(limited.count('get_walkthrough_capacity'), 1);
   assert.equal(reviewForm(limited.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
   assert.equal(renderBlockOf(limited).all().find(el => /\brender-units\b/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
-  // Rooms not counted yet (null), an odd count or no walkthroughs used: nothing, and approval still works (it uses 1).
-  for (const fields of [{ rooms: null, walkthroughs_used: 1 }, { rooms: 9, walkthroughs_used: null }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
+  // Unknown or malformed charge and malformed room counts stay hidden; a missing list alone does not erase a known charge.
+  for (const fields of [{ rooms: 9, walkthroughs_used: null }, { rooms: 9, walkthroughs_used: -1 }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', ...fields }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, JSON.stringify(fields));
@@ -1474,5 +1474,15 @@ test('a capture never borrows another workspace room denominator or scales its s
     assert.equal(blocks.find(el => el.dataset.job === 'j2').all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
     assert.equal(reviewForm(h.card('t2')).all().find(el => /tour-review-units/.test(el.className)).textContent, words);
     assert.doesNotMatch(words, /of your 30|80/);
+  }
+});
+
+test('a known fixed charge remains visible when the room list is missing', async () => {
+  for (const [unit, words] of [['room', 'This uses 10 rooms.'], [undefined, 'This uses 10 of your allowance.']]) {
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review',
+      status: 'awaiting_review', tour_id: 't1', rooms: null, walkthroughs_used: 10, allowance_unit: unit }) } });
+    await settle();
+    assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+    assert.equal(reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, words);
   }
 });

@@ -887,6 +887,8 @@
     out.review_flags = renderFlagsOf(out.state);
     out.rooms = roomsCase;
     out.walkthroughs_used = 1;
+    // Exact local fallback-charge proof; the R4 reader can know the charge before a room list exists.
+    if (params.get('fixed-charge') === '10') { out.rooms = null; out.walkthroughs_used = 10; }
     if (out.eta_seconds !== null && out.heartbeat_at) out.eta_at = new Date(Date.parse(out.heartbeat_at) + out.eta_seconds * 1000).toISOString();
     if (tour) out.tour_id = renderTourOf(state === 'walk' ? 'ready' : state);
     if (params.get('render-fields') === 'none') Object.assign(out, { step: null, step_label: null, stage: null, progress_pct: null,
@@ -1276,6 +1278,12 @@
       if (name === 'studio_list_accounts') {
         if (studioCase === 'unavailable') return { error: { message: 'Synthetic studio account service failure' } };
         if (studioCase === 'outsider') return { error: { message: 'Synthetic studio refuses non-studio users.' } };
+        if (params.get('studio-allowance') === 'compare') return { data: [36, 360].map((count, index) => ({ ...studioAccounts[1],
+          workspace_id: 'synthetic-pool-' + count, workspace_name: index ? 'Fictional current annual pool' : 'Fictional historical annual pool',
+          plan_code: 'solo', status: 'active', billing_interval: 'annual', renewal_price_aud_cents: 139999,
+          trial_included_walkthroughs: index ? 30 : 3, allowance_kind: 'annual_pool', allowance_included: count,
+          allowance_limit: count, allowance_used: 0, allowance_unit: undefined, offer_version: undefined,
+        })) };
         return { data: studioAccounts.map(row => ({ ...row })) };
       }
       if (name === 'studio_list_hosted_tours') {

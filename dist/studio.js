@@ -70,9 +70,7 @@
   // room counts: pack3 is 30 rooms and pack10 is 100.
   const PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // Annual rows use a yearly pool of 360 rooms (offer 2026-11-11.1). Existing rows continue to display the
-  // exact cadence, price and allowance already recorded for them.
-  const YEARLY_POOL = 360;
+  // Annual pool counts come only from the account reader; the current offer cannot replace an existing allowance.
   const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free pack of 30 rooms for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.
@@ -280,17 +278,34 @@
   // The row's own free-months terms, in digits: "1 free month with 30
   // rooms" (a total, not a monthly figure). A running row may keep longer
   // terms it started with; a row that cannot say shows nothing.
+  function allowanceUnit(row) { return ['room', 'walkthrough'].includes(row?.allowance_unit) ? row.allowance_unit : null; }
+  function allowanceWords(row, words) {
+    const unit = allowanceUnit(row);
+    if (unit === 'room') return words;
+    if (unit === 'walkthrough') return words.replace(/\brooms\b/g, 'walkthroughs');
+    return words.replace(/free rooms used/g, 'included allowance used').replace(/rooms this month/g, 'included allowance this month').replace(/rooms in total/g, 'included in total');
+  }
   function freeMonthsTerms(row) {
     const months = row && row.trial_months;
     const included = row && row.trial_included_walkthroughs;
     if (!Number.isInteger(months) || months < 1 || months > 12 || !Number.isInteger(included) || included < 1) return '';
-    return plural(months, 'free month') + ' with ' + plural(included, 'room');
+    const unit = allowanceUnit(row);
+    return plural(months, 'free month') + (unit ? ' with ' + plural(included, unit) : ' with an included allowance of ' + included);
   }
-  // The annual Veylet plan counts a yearly pool, not a month, so its row shows no
-  // monthly figure. studio_list_accounts carries no billing interval or pool
-  // counts today; only a row repainted from an invoice answer carries its cadence.
+  // Cadence identifies the pool, but only the reader's actual annual allowance may supply its size.
   function annualPoolRow(row) {
-    return planCode(row) === PLAN_ON_SALE && planInterval(row) === 'annual';
+    return row?.allowance_kind === 'annual_pool' || (planCode(row) === PLAN_ON_SALE && planInterval(row) === 'annual');
+  }
+  function annualPoolCount(row) {
+    if (row?.allowance_kind !== 'annual_pool') return null;
+    for (const count of [row.allowance_limit, row.allowance_included]) {
+      if (Number.isInteger(count) && count >= 0) return count;
+    }
+    return null;
+  }
+  function annualPoolWords(row) {
+    const count = annualPoolCount(row), unit = allowanceUnit(row);
+    return count === null ? 'Yearly pool · count unavailable' : unit ? count + '-' + unit + ' yearly pool' : count + ' included in yearly pool';
   }
   /*
    * The same words the app, the account desk and this desk use, from the same
@@ -304,7 +319,7 @@
       const months = planMonths(row.trial_months);
       const included = planRooms(row.trial_included_walkthroughs);
       return months && included ? { status, title: 'Plan not started',
-        body: 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' rooms in total.' } : unavailable;
+        body: allowanceWords(row, 'Review the available plan. Eligible subscribers can start with ' + months + ' free month' + (months === '1' ? '' : 's') + ' and ' + included + ' rooms in total.') } : unavailable;
     }
     if (status === 'trial') {
       const until = planDate(row.trial_ends_at);
@@ -321,7 +336,7 @@
           : billing ? free + ', then ' + billing + ' unless you cancel.'
             : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
       return { status, title: free,
-        body: used + ' of ' + allowance + ' free rooms used. ' + renewal };
+        body: allowanceWords(row, used + ' of ' + allowance + ' free rooms used. ' + renewal) };
     }
     if (status === 'active') {
       const billing = planBilling(row);
@@ -331,8 +346,8 @@
         : row.auto_renews === true ? 'Next billing date: ' + until + '.'
           : 'Current period ends ' + until + '; check your renewal setting.';
       return { status, title: (PLAN_NAMES[planCode(row)] || 'Plan') + ' · ' + (billing || 'confirm billing details'),
-        body: (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
-          (planInterval(row) === 'annual' ? ' Billed annually.' : '') };
+        body: allowanceWords(row, (annualPoolRow(row) ? annualPoolWords(row) + '. ' : planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
+          (planInterval(row) === 'annual' ? ' Billed annually.' : '')) };
     }
     if (status === 'ended') {
       const afterPlan = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined;
@@ -471,7 +486,7 @@
     const trialSpan = element('span');
     const trialTerms = element('span', 'studio-sub');
     trialCell.append(trialSpan, trialTerms);
-    const freeCell = cell(row, 'Free rooms', 'studio-figure');
+    const freeCell = cell(row, 'Included free allowance', 'studio-figure');
     const freeUsed = element('span');
     const freeOwed = element('span', 'studio-sub');
     freeCell.append(freeUsed, freeOwed);
@@ -544,7 +559,7 @@
     monthsInput.step = '1';
     monthsInput.inputMode = 'numeric';
     monthsLabel.append(monthsInput);
-    const includedLabel = element('label', 'studio-inline-field', 'Free rooms (1–' + TRIAL_INCLUDED_MAX + ')');
+    const includedLabel = element('label', 'studio-inline-field', 'Included free allowance (1–' + TRIAL_INCLUDED_MAX + ')');
     const includedInput = document.createElement('input');
     includedInput.type = 'number';
     includedInput.min = '1';
@@ -917,13 +932,15 @@
       const until = shortDate(next.trial_ends_at);
       trialSpan.textContent = from || until ? (from || DASH) + ' → ' + (until || DASH) : 'not started';
       trialTerms.textContent = freeMonthsTerms(next);
+      const unit = allowanceUnit(next);
+      freeCell.dataset.label = unit ? 'Free ' + unit + 's' : 'Included free allowance';
       freeUsed.textContent = countText(next.accepted_in_free_months) + ' / ' + countText(next.trial_included_walkthroughs);
       freeOwed.textContent = count(next.extras_in_free_months) > 0
         ? count(next.extras_in_free_months) + ' beyond included; check agreed billing' : '';
       // A yearly pool has no monthly figure, and the list carries no pool counts.
       const pool = annualPoolRow(next);
       monthCount.textContent = pool ? DASH : countText(next.accepted_this_period) + ' / ' + countText(next.included_per_month);
-      monthRule.textContent = pool ? YEARLY_POOL + '-room yearly pool' : '';
+      monthRule.textContent = pool ? annualPoolWords(next) : '';
       totalCell.textContent = countText(next.accepted_total);
       renewsCell.textContent = shortDate(next.current_period_ends_at) || shortDate(next.trial_ends_at) || DASH;
       renewCell.textContent = next.auto_renews === true ? 'yes' : next.auto_renews === false ? 'no' : DASH;

@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 416010,
-      "sha256": "37a7e3aa7dda4e44885960386ce00ae1f0be7783b46b41ba1d37b91bdf7bd06a",
+      "bytes": 416127,
+      "sha256": "45675c9dce4f177cd6d9909367b6ef00f1956fe5f9a0a3f3886c381dada55407",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 19434,
-      "sha256": "b09cb2c5254b21c51f0a5a448845046f3bf82645fb48348bf47d2ebbdca007c7",
+      "sha256": "130e53cce8ade9e9b1084e910a2d9955638c86dc64200c75a2203cc2bf17ca6c",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11753,
-      "sha256": "fb733dc16eede6c4a6dd1c84a66ea69159197a390b8ce4dc778b28e2e331f752",
+      "sha256": "5551523ace477f62924e91bc3a6c31f911dc26b32c05da7372c193266d137c65",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2559,
-      "sha256": "12286c1546306835bbb6575dcd12a1740284366efbbfd50da0167cd6908ace8a",
+      "sha256": "6679626625f6dd0213b3b880ef23367516ee37830b931adae10a7f3686cc27d5",
       "headerProfile": 1
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2512,
-      "sha256": "1a66715a85d1060ae958f61769c0747fd11fd767e95cb03b450135966d7c2d73",
+      "sha256": "f3500301390c4cbd0396bfe73a8c9939f0862c75f721b1b9bda6453093ec45e0",
       "headerProfile": 6
     },
     {
@@ -2183,14 +2183,14 @@
     },
     {
       "path": "studio.js",
-      "bytes": 131604,
-      "sha256": "28a295118c6abe95dcdfb8db18c34ea9f56a78a9cd46b78c5d84974da218c171",
+      "bytes": 132782,
+      "sha256": "ec57b862e7712adc7cf6dcdea35623a09f62be5d8169e16de5ee562391f63f18",
       "headerProfile": 4
     },
     {
       "path": "studio/index.html",
       "bytes": 13892,
-      "sha256": "3cbf4edbe960497840861007d139d5393a43c86dcd6c8e676bc72b2e3aa4c18c",
+      "sha256": "bd0efaa8d3b3a65e14ac5cfb878a561dec4a604e713be9ad0f6d0e6c0de32e3d",
       "headerProfile": 18
     },
     {

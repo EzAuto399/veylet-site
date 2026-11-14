@@ -5097,8 +5097,9 @@
    * the count. Rooms not counted yet (null) say nothing.
    */
   function renderRoomsUse(job, workspaceID = null) {
-    const rooms = renderInt(job?.rooms, 0, 1000), used = renderInt(job?.walkthroughs_used, 1, 1000);
-    if (rooms === null || used === null) return '';
+    const used = renderInt(job?.walkthroughs_used, 1, 1000);
+    // A missing room list can still carry the server's fixed charge; a malformed list/count is not trusted.
+    if (used === null || (job?.rooms != null && renderInt(job.rooms, 0, 1000) === null)) return '';
     const matchingPlan = workspaceID && workspaceID === planRoomsWorkspaceID && planRoomsLimit !== null;
     if (job?.allowance_unit !== 'room' && (job?.allowance_unit || !matchingPlan)) return 'This uses ' + used + ' of your allowance.';
     return matchingPlan ? 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.'
