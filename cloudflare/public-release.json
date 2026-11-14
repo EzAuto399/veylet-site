@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 416127,
-      "sha256": "45675c9dce4f177cd6d9909367b6ef00f1956fe5f9a0a3f3886c381dada55407",
+      "bytes": 416113,
+      "sha256": "f5145898b7b4254d2131c559b19f0863b07b91d8b3b65728b726b5c73cf70099",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 19434,
-      "sha256": "130e53cce8ade9e9b1084e910a2d9955638c86dc64200c75a2203cc2bf17ca6c",
+      "sha256": "92bcb5e12f29a4c86b27cb1dfa9a70b2e6ecb53a0e8b19d1b07f4340d3df01be",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11753,
-      "sha256": "5551523ace477f62924e91bc3a6c31f911dc26b32c05da7372c193266d137c65",
+      "sha256": "bf2eb3b45ba6d7d1e67f0eb76c10fa93b20aee92b8f52304b3e309eaff8ea6c4",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2559,
-      "sha256": "6679626625f6dd0213b3b880ef23367516ee37830b931adae10a7f3686cc27d5",
+      "sha256": "0b7b5a17af9d0cab1198bfb7856f5c308bd4e233f9e893214604f893496d3347",
       "headerProfile": 1
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2512,
-      "sha256": "f3500301390c4cbd0396bfe73a8c9939f0862c75f721b1b9bda6453093ec45e0",
+      "sha256": "798be75ef539d6d7fecb8e39f76896b023ec47ef52cb56eb6c9a13945ea6f30b",
       "headerProfile": 6
     },
     {
@@ -2177,8 +2177,8 @@
     },
     {
       "path": "studio.css",
-      "bytes": 22573,
-      "sha256": "dd35e6ff75d47f6b0a2b85f8826dcdab6375d3f003c47984f10a58869192d0ee",
+      "bytes": 22601,
+      "sha256": "1c55e7f74fb275149d34fe9e05c62ddabd1174faafb5dc23c83bffdafebc3875",
       "headerProfile": 3
     },
     {
@@ -2190,7 +2190,7 @@
     {
       "path": "studio/index.html",
       "bytes": 13898,
-      "sha256": "46ab59ea7800586e07bb264599b00fbdd6e8cf7d063cbbe2281d42e7681d6a3a",
+      "sha256": "7f2f6aacd1d9b2744579e952097280d28544a7d8e5a9babc040e55fbb46fe0c2",
       "headerProfile": 18
     },
     {

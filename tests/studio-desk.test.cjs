@@ -122,7 +122,7 @@ test('the twelve columns are reachable without a mouse when the desk scrolls', (
   assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-set-plan summary,\s*\.studio-plan-form \{[^}]*position: sticky;[^}]*max-width: var\(--studio-view, 100%\)/s);
   // Below the stacked breakpoint nothing scrolls, so nothing may be pinned or
   // given a width that pushes the page past 320px.
-  assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-table thead th \{\s*white-space: normal/s);
+  assert.match(styles, /@media \(min-width: 721px\) \{\s*#studio-table \{\s*min-width: 1440px;\s*\}\s*\.studio-table thead th \{\s*white-space: normal;\s*overflow-wrap: normal;\s*word-break: normal/s);
 });
 
 test('the studio desk stays usable on a phone and keeps 44px targets', () => {

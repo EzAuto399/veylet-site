@@ -2770,7 +2770,7 @@ test('refer an office: the rule, the link built from the account’s own code, a
   assert.deepEqual([line.textContent, line.hidden], [said, false], 'and the line under the link repeats it');
   // What the link has done so far, as one quiet line.
   const tally = await withReferral(codeAnswer({ referred_offices: 2, bonus_walkthroughs: 1 }));
-  assert.equal(referralNodes(tally).find(el => /referral-tally/.test(el.className || '')).textContent, '2 offices referred so far · 1 bonus room received.');
+  assert.equal(referralNodes(tally).find(el => /referral-tally/.test(el.className || '')).textContent, '2 offices referred so far · 1 bonus unit recorded.');
   // Blocked copying selects the link in its field and says so.
   const blocked = await withReferral(codeAnswer(), { clipboardBlocked: true });
   await referralButton(blocked, 'Copy link').fire('click');
@@ -3321,4 +3321,12 @@ test('current room-marked plan and capacity show thirty rooms without converting
   assert.match(capacityText(historic), /1 included walkthrough remaining · 0 extra walkthroughs available/);
   assert.match(capacityText(historic), /Each new accepted capture uses one walkthrough, regardless of room count/);
   assert.doesNotMatch(planText(historic), /2 of 30|included rooms remaining/);
+});
+
+test('mixed historical and current referral grants retain raw counts without claiming a room balance', async () => {
+  const h = await withReferral(codeAnswer({ referred_offices: 2, bonus_walkthroughs: 1 + 10 }));
+  const tally = referralNodes(h).find(el => /referral-tally/.test(el.className || '')).textContent;
+  assert.equal(tally, '2 offices referred so far · 11 bonus units recorded.');
+  assert.ok(referralText(h).includes(REFERRAL_RULE), 'current ten-room referral terms remain visible');
+  assert.doesNotMatch(tally, /rooms|110/);
 });

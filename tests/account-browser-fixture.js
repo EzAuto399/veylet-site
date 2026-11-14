@@ -913,7 +913,7 @@
   /* Refer an office (offer 2026-09-25.1; migration 20260925100000_offer_v8, not yet
    * released). `?referral=` picks the answer of get_referral_code: missing (the
    * default: the function does not exist yet, so the block is words only), link (a
-   * fictional code, 2 offices referred and 1 bonus room received), sandbox (the
+   * fictional code, 2 offices referred and 1 bonus unit recorded), sandbox (the
    * server refuses a test workspace), invalid (a code that is not 12 hex characters),
    * error, or loading. `?ref=0123456789ab` arrives through another office's link:
    * claim_workspace_referral records it (a repeat answers recorded false);
@@ -1235,7 +1235,7 @@
         if (referralCase === 'loading') return new Promise(() => {});
         if (referralCase === 'error') return { error: { message: 'Synthetic referral code failure' } };
         if (referralCase === 'sandbox') return { error: { code: 'P0001', message: 'test workspaces cannot take part in referrals' } };
-        if (referralCase === 'link') return { data: { code: '7a3f09c2b41e', referred_offices: 2, bonus_walkthroughs: 1 } };
+        if (['link', 'mixed'].includes(referralCase)) return { data: { code: '7a3f09c2b41e', referred_offices: 2, bonus_walkthroughs: referralCase === 'mixed' ? 11 : 1 } };
         if (referralCase === 'invalid') return { data: { code: 'QA-FIXTURE', referred_offices: 0, bonus_walkthroughs: 0 } };
         return { error: { code: 'PGRST202', message: 'Could not find the function public.get_referral_code' } };
       }

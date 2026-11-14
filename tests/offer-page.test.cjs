@@ -173,7 +173,9 @@ test('the free month carries the monthly allowance, the year is twelve monthly a
   // server's capacity answer, so it carries neither number.
   assert.doesNotMatch(read('account.js'), /PLAN_MAX_BANKED|const \w+ = (?:6|40);/);
   assert.match(read('account.js'), /row\.max_banked/);
-  assert.match(read('studio.js'), new RegExp(`const YEARLY_POOL = ${plan.annualIncluded};`));
+  assert.doesNotMatch(read('studio.js'), /const YEARLY_POOL\s*=/, 'Studio must not replace an account allowance with the current offer');
+  assert.match(read('studio.js'), /row\.allowance_limit/);
+  assert.match(read('studio.js'), /row\.allowance_included/);
 });
 
 // The worked example: the plan's own monthly allowance, then 20 and 50 more a month from a

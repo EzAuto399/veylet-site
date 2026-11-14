@@ -3787,11 +3787,11 @@
     const code = answer && typeof answer === 'object' && typeof answer.code === 'string' ? answer.code : '';
     return REFERRAL_CODE.test(code) ? 'https://veylet.com/account?ref=' + code : null;
   }
-  // How many offices this one referred, and the bonus rooms it received: a quiet line, only when there are some.
+  // Raw referral-grant history can mix old and current units; it is not a normalized room balance.
   function referralTally(answer) {
     const count = (value, one, many) => (Number.isInteger(value) && value > 0 ? value + (value === 1 ? one : many) : '');
     return [count(answer?.referred_offices, ' office referred so far', ' offices referred so far'),
-      count(answer?.bonus_walkthroughs, ' bonus room received', ' bonus rooms received')].filter(Boolean).join(' · ');
+      count(answer?.bonus_walkthroughs, ' bonus unit recorded', ' bonus units recorded')].filter(Boolean).join(' · ');
   }
   function referralHead() {
     const title = annualNode('h3', 'annual-title', 'Refer an office');
