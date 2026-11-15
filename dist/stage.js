@@ -7,19 +7,21 @@
  *   invitation  stage 1   "By invitation"; Ask for an invitation (the enquiry, which brings the app invitation)
  *   waitlist    stage 2   "By invitation"; Join the waitlist
  *   open        stages 3-4  open to anyone (offer 2026-09-26.3): new accounts admitted in weekly groups from the waitlist
+ *   app         stage 5   the app is on the App Store (from 6 November 2026); rendering still admits new accounts weekly from the waitlist
  *
  * Sign-in is never removed: /account signs in existing and invited accounts at every stage.
  * The pages carry the default stage's words in their markup (tests/stage.test.cjs checks
  * they match), so without JavaScript, or before this runs, a page reads as the default.
  */
-window.VEYLET_STAGE = 'open';
+window.VEYLET_STAGE = 'app';
 
 (function () {
   'use strict';
 
-  var DEFAULT = 'open';
+  var DEFAULT = 'app';
   var INVITATION = { text: 'Ask for an invitation', href: '/request?capture=self' };
   var WAITLIST = { text: 'Join the waitlist', href: '/waitlist' };
+  var APP_STORE = { text: 'Get the app', href: 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913' };
   var INVITED = 'New accounts are by invitation for now. Invited? Sign in with the email we invited.';
 
   var STAGES = {
@@ -35,6 +37,12 @@ window.VEYLET_STAGE = 'open';
       label: 'Open to anyone, admitted weekly',
       cta: WAITLIST,
       account: 'Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with.',
+      accountLink: WAITLIST,
+    },
+    app: {
+      label: 'On the App Store, admitted weekly',
+      cta: APP_STORE,
+      account: 'Get the app to try the free practice room. Rendering opens to new accounts in weekly groups from the waitlist. Admitted? Sign in with the email you joined with.',
       accountLink: WAITLIST,
     },
   };

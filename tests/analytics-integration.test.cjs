@@ -13,7 +13,8 @@ const read = file => fs.readFileSync(path.join(dist, file), 'utf8');
 const measurementPages = ['index.html', 'start/index.html', 'offer/index.html', 'privacy/index.html'];
 const hookPages = ['index.html', 'start/index.html', 'offer/index.html', 'see/index.html',
   'waitlist/index.html', 'request/index.html', 'privacy/index.html'];
-const destinations = ['waitlist', 'request', 'see', 'offer', 'start'];
+const destinations = ['waitlist', 'request', 'see', 'offer', 'start', 'app_store'];
+const APP_STORE = 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913';
 const placements = ['header', 'hero', 'body', 'footer', 'sticky', 'form'];
 const answers = { name: 'Synthetic Name Canary', email: 'canary@example.invalid',
   business_type: 'sales_agent', device: 'iphone_pro_lidar', region: 'Synthetic Region', channels: ['own_website'] };
@@ -113,7 +114,8 @@ test('public CTA hooks use fixed destinations and placements and intake forms ke
     for (const hook of hooks) {
       assert.ok(destinations.includes(hook['data-analytics-cta']), `${file} fixed destination`);
       assert.ok(placements.includes(hook['data-analytics-placement']), `${file} fixed placement`);
-      assert.equal(hook.href, '/' + hook['data-analytics-cta'], `${file} the destination matches the actual link`);
+      assert.equal(hook.href, hook['data-analytics-cta'] === 'app_store' ? APP_STORE : '/' + hook['data-analytics-cta'],
+        `${file} the destination matches the actual link`);
       assert.notEqual(hook['aria-hidden'], 'true', `${file} decorative links are not CTAs`);
     }
   }

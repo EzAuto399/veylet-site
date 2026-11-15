@@ -11,7 +11,7 @@
     '/offer': 'Plans | Veylet', '/waitlist': 'Join the waitlist | Veylet', '/request': 'Enquire | Veylet',
     '/privacy': 'Privacy | Veylet' });
   const FORMS = ['waitlist', 'request'];
-  const DESTINATIONS = ['waitlist', 'request', 'see', 'offer', 'start'];
+  const DESTINATIONS = ['waitlist', 'request', 'see', 'offer', 'start', 'app_store'];
   const PLACEMENTS = ['header', 'hero', 'body', 'footer', 'form', 'sticky'];
   const ERRORS = ['validation', 'network', 'unavailable', 'busy', 'unknown'];
   const REFERRAL_HOSTS = ['facebook.com', 'www.facebook.com', 'l.facebook.com', 'm.facebook.com',
