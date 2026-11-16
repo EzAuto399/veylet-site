@@ -482,6 +482,15 @@ test('tour-campaign-sync loads lazily on first open, saves edits, preserves 5 bu
           stop_number: 2,
           message: 'Can we inspect Saturday?',
           created_at: '2026-11-16T02:00:00Z',
+        }, {
+          // Sent before an approved correction replaced the version the buyer saw: same walkthrough, earlier tour.
+          enquiry_id: 'e2', tour_id: 't1-earlier', walkthrough_id: 't1', space_title: '14 River St',
+          visitor_name: 'Earlier Buyer', visitor_email: 'earlier@buyer.invalid', visitor_phone: null,
+          stop_number: null, message: 'Wrote before the correction', created_at: '2026-11-15T02:00:00Z',
+        }, {
+          enquiry_id: 'e3', tour_id: 't9', walkthrough_id: 't9', space_title: '2 Other St',
+          visitor_name: 'Other Buyer', visitor_email: 'other@buyer.invalid', visitor_phone: null,
+          stop_number: null, message: 'About another walkthrough', created_at: '2026-11-15T03:00:00Z',
         }],
       }),
       set_property_campaign_details: async args => ({
@@ -533,6 +542,8 @@ test('tour-campaign-sync loads lazily on first open, saves edits, preserves 5 bu
   assert.equal(String(bedsInput.value), '3');
   assert.ok(syncDetails.textContent.includes('Liam <script>'));
   assert.ok(syncDetails.textContent.includes('Can we inspect Saturday?'));
+  assert.ok(syncDetails.textContent.includes('Wrote before the correction'), 'an enquiry follows its walkthrough across versions');
+  assert.ok(!syncDetails.textContent.includes('About another walkthrough'), 'another walkthrough’s enquiry is not listed here');
 
   // Edit & save
   modeSelect.value = 'lease';

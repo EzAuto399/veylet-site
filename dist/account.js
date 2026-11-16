@@ -1776,8 +1776,12 @@
         heading.className = 'tour-enquiries-title';
         heading.textContent = 'Buyer enquiries';
         box.append(heading);
+        // An enquiry stays with its walkthrough: a buyer who wrote before an approved correction replaced the
+        // version they saw is still listed on the current version's card (walkthrough_id; tour_id before it existed).
+        const sameID = (left, right) => String(left).toLowerCase() === String(right).toLowerCase();
         const matching = enquiries.filter(row => row && typeof row === 'object'
-          && (!row.tour_id || String(row.tour_id).toLowerCase() === String(tour.id).toLowerCase())).slice(0, 20);
+          && (row.walkthrough_id ? sameID(row.walkthrough_id, walkthroughOf(tour))
+            : (!row.tour_id || sameID(row.tour_id, tour.id)))).slice(0, 20);
         if (!matching.length) {
           const empty = document.createElement('p');
           empty.className = 'tour-state-help';
@@ -3009,6 +3013,11 @@
       box.dataset.exports = row.requested ? row.state || 'requested' : 'none';
       slot.replaceChildren(); state.textContent = ''; state.hidden = true;
       chip(row.requested && row.state === 'ready' && row.downloadable === true ? EXPORT_WORDS.ready.replace(/\.$/, '') : '');
+      // Queued on approval before anyone asked, and not made yet: a request is refused until the files exist, so
+      // say what is happening instead of showing a form that cannot work.
+      if (!row.requested && (row.state === 'requested' || row.state === 'rendering')) {
+        box.dataset.exports = row.state; show(EXPORT_WORDS.preparing, focus); checkAgain(); return;
+      }
       if (!row.requested) { requestForm(row, EXPORT_WORDS.make, focus); return; }
       if (row.state === 'ready' && row.downloadable === true) {
         show(EXPORT_WORDS.ready, focus);

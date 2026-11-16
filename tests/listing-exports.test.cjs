@@ -209,6 +209,16 @@ test('listing exports: the request is sent only after the box beside the stateme
   assert.equal(h.row().hidden, true);
 });
 
+test('listing exports: an export queued on approval says Preparing until it is made, never a form that would be refused', async () => {
+  for (const state of ['requested', 'rendering']) {
+    const h = await load({ exports: row(state, { requested: false, requested_at: null, acknowledged_cannot_recall: false }) });
+    assert.deepEqual(h.text().filter(line => !INTRO.includes(line)), ['Preparing your video and photos.', 'Check again'], state);
+    assert.deepEqual(h.buttons().map(el => el.textContent), ['Check again'], state);
+    assert.equal(h.block().dataset.exports, state, state);
+    assert.equal(h.requests().length, 0, state);
+  }
+});
+
 test('listing exports: every state reads in the contract’s words, with only what it allows', async () => {
   const cases = {
     requested: [['Preparing your video and photos.'], ['Check again']],
