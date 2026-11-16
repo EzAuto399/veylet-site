@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "bab507acffb8fa9aaa91ad519103291242288dca",
+  "sourceCommit": "82c593bd95af2a0900c4d40ef7404f318e35fea5",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -269,14 +269,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 519270,
-      "sha256": "637b7dc36daabd286bb0996396875d4eb68388d4bdff7eaedd3cd513685a4bcb",
+      "bytes": 520031,
+      "sha256": "f6cb5acb21e895a795d94881cbcd576391ab3f75c959b098ff0224bbc8efd9ac",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 23355,
-      "sha256": "25a9d5b360d18810098fd61571180495ca9cc3cabac5aae406230adc91363fd4",
+      "sha256": "beef3a9c20b22be2d09b7d99425db1847ae5a6f11891aa3917533ff205db0b9c",
       "headerProfile": 1
     },
     {
@@ -306,7 +306,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11393,
-      "sha256": "5336419f65b54321ad4856696003900e564006db93074731abc04f7cd334fa90",
+      "sha256": "3a7979124820299a205e71ab9d58db39eabd6fbe431eb1396eff3b46b1b9a51d",
       "headerProfile": 5
     },
     {
@@ -528,7 +528,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2698,
-      "sha256": "cc2ebba50a0449a9dba69c79b91e6644753345f9d9548eb022359a9a50362230",
+      "sha256": "1c3b7ddcbe2d194cd6e3fa674207eafce8c669bde0aa024cbf7ca164763f2058",
       "headerProfile": 1
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "build-info.json",
       "bytes": 2408,
-      "sha256": "41fd6d18b51dfcc04cf30901fe0a241d326da8464ea80fd2e41761cc957d6c98",
+      "sha256": "da938c4abdd8ab80d8472966e44e13e9d89539e40a3f840cd65eede09cbbeb2f",
       "headerProfile": 6
     },
     {
