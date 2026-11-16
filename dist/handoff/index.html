@@ -34,17 +34,17 @@
     <link rel="preload" href="/tour-player-v2.js?v=1d070a4714d5fab4" as="script" />
     <link rel="stylesheet" href="/style.css?v=71e227ed29237165" />
     <link rel="stylesheet" href="/tour-stage.css?v=c3e2e90965b086a1" />
-    <link rel="stylesheet" href="/client-page.css?v=213afaa7858a6158" />
+    <link rel="stylesheet" href="/client-page.css?v=fc65b5f239a1269a" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
          nothing is held and the page reads as it always has. The rule is
-         client-page.js linkToken: 32 hex characters, or 16 to 64 other link
+         client-page.js linkToken: 32 hex characters, or 16 to 256 other link
          characters, after trailing punctuation. -->
     <script>
       (function () {
         var t = (new URLSearchParams(location.search).get('t') || '').trim().replace(/[.,;:!?)\]}>'"_-]+$/, '');
         var hex = /^[0-9a-f]+$/i.test(t);
-        if (hex ? t.length === 32 : t.length >= 16 && t.length <= 64 && /^[A-Za-z0-9_-]+$/.test(t)) {
+        if (hex ? t.length === 32 : t.length >= 16 && t.length <= 256 && /^[A-Za-z0-9_-]+$/.test(t)) {
           document.documentElement.classList.add('client-pending', 'client-contact-pending');
         }
       })();
@@ -52,7 +52,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=c7af2dee74d1ad94"></script>
+    <script src="/client-page.js?v=f1b5c46abf0fe31b"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
     <script src="/tour-player.js?v=f051a1e20ee7baff"></script>
@@ -262,6 +262,18 @@
             beacon?.opened(window);
             // Truth line, Share, movement help and the agent card. The contact
             // lookup runs beside the walkthrough and never holds it up.
+            // Optional Release 5 context enrichment (facts bar, agency brand, inline enquiry sheet) via REST.
+            const rest = page?.restClient?.(window.VEYLET_SUPABASE);
+            const enquiryOpts = rest ? { token, enquiryClient: rest, hooksUrl: window.VEYLET_HOOKS?.url || '' } : undefined;
+            const contextLookup = rest && page?.lookupHandoffContext ? page.lookupHandoffContext(rest, token) : null;
+            let handoffContextApplied = false;
+            let appliedBrand = null;
+            let visitContactSent = false;
+            const sendVisitContact = resolved => {
+              if (visitContactSent) return;
+              visitContactSent = true;
+              visit?.setContact?.(resolved);
+            };
             page?.showWalkthrough({
               document,
               location,
@@ -273,21 +285,32 @@
               beacon,
               contact,
               visit,
+              enquiryOpts,
+              deferVisitContact: Boolean(contextLookup),
+              shouldApplyContact: () => !handoffContextApplied,
+              onContactShown: () => { if (appliedBrand) page.applyBrand?.(document, appliedBrand); },
             });
-            // Optional Release 5 context enrichment (facts bar, agency brand, inline enquiry sheet) via REST.
-            const rest = page?.restClient?.(window.VEYLET_SUPABASE);
-            if (rest && page?.lookupHandoffContext) {
-              page.lookupHandoffContext(rest, token).then(ctx => {
-                if (!ctx) return;
-                if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
-                if (ctx.contact) {
-                  const late = !document.documentElement.classList.contains('client-contact-pending');
-                  const card = document.getElementById('agent-card');
-                  if (ctx.contact.bookingUrl || ctx.contact.allowViewingRequest || !card || card.hidden) {
-                    page.showContact(document, ctx.contact, title, beacon, late, { token, enquiryClient: rest });
+            if (contextLookup) {
+              contextLookup.then(ctx => {
+                if (ctx) {
+                  if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
+                  if (ctx.brand) appliedBrand = ctx.brand;
+                  if (ctx.contact) {
+                    handoffContextApplied = true;
+                    const card = document.getElementById('agent-card');
+                    const alreadyShown = Boolean(card && !card.hidden && !card.classList?.contains?.('agent-card-late'));
+                    const late = !alreadyShown && !document.documentElement?.classList?.contains?.('client-contact-pending');
+                    page.showContact(document, ctx.contact, title, beacon, late, enquiryOpts);
+                    sendVisitContact(ctx.contact);
+                    document.documentElement?.classList?.remove?.('client-contact-pending');
                   }
+                  if (ctx.brand) page.applyBrand(document, ctx.brand);
                 }
-                if (ctx.brand) page.applyBrand(document, ctx.brand);
+                if (!ctx?.contact) {
+                  Promise.resolve(contact).then(basic => {
+                    if (!handoffContextApplied) sendVisitContact(basic || null);
+                  });
+                }
               });
             }
             return {

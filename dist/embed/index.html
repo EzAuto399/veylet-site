@@ -34,7 +34,7 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/tour-player.js?v=f051a1e20ee7baff"></script>
-    <script src="/client-page.js?v=c7af2dee74d1ad94"></script>
+    <script src="/client-page.js?v=f1b5c46abf0fe31b"></script>
     <style>
       html,
       body {
@@ -286,7 +286,11 @@
         } else if (!link.complete) {
           window.VeyletPlayer.showIncomplete({ ...els, actions: null, retry: null });
         } else {
-          open.href = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
+          const baseOpenHref = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
+          const safeHash = () => (typeof location.hash === 'string' && /^#[A-Za-z0-9_=&.-]{1,64}$/.test(location.hash) ? location.hash : '');
+          const syncOpenHref = () => { open.href = baseOpenHref + safeHash(); };
+          syncOpenHref();
+          if (typeof window.addEventListener === 'function') window.addEventListener('hashchange', syncOpenHref);
           // Report shows for any complete-looking token, whatever the lookup says.
           window.VeyletClientPage?.mountReport?.(document.getElementById('embed-report'), token);
           // The share is looked up (lookup_tour_share, one REST call) BEFORE Explore is

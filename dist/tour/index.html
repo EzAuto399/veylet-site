@@ -33,7 +33,7 @@
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/tour-player.js?v=f051a1e20ee7baff"></script>
-    <script src="/client-page.js?v=c7af2dee74d1ad94"></script>
+    <script src="/client-page.js?v=f1b5c46abf0fe31b"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
@@ -270,8 +270,9 @@
         }
         let unavailable = false;
         // In a portal's frame on an iPhone (no element full screen), Full screen opens this page on its own.
+        const safeHash = typeof location.hash === 'string' && /^#[A-Za-z0-9_=&.-]{1,64}$/.test(location.hash) ? location.hash : '';
         const own = typeof location.origin === 'string' && location.origin.startsWith('https://')
-          ? location.origin + location.pathname + '?t=' + encodeURIComponent(token) : undefined;
+          ? location.origin + location.pathname + '?t=' + encodeURIComponent(token) + safeHash : undefined;
         player.boot({
           els,
           fullscreenUrl: own,

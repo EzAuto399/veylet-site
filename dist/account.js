@@ -1825,7 +1825,7 @@
       const [campaignReply, enquiriesReply] = await Promise.all([
         settled(Promise.resolve().then(() => supabase.rpc('get_property_campaign_details', { p_property_id: tour.property_id }))),
         workspaceID
-          ? settled(Promise.resolve().then(() => supabase.rpc('list_workspace_tour_enquiries', { p_workspace_id: workspaceID, p_limit: 50 })))
+          ? settled(Promise.resolve().then(() => supabase.rpc('list_workspace_tour_enquiries', { p_workspace_id: workspaceID, p_limit: 200 })))
           : Promise.resolve(null),
       ]);
       state.loading = false;
@@ -3474,7 +3474,7 @@
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
       if (manage && canReview) withdrawApproval(tour, supabase, ticket, manage);
       deck.finish();
-      if (live && !paused && role) {
+      if (role) {
         tourCampaignSync(tour, item, supabase, role, ticket, officeIdOfProperty.get(tour.property_id) || null);
       }
       return;
@@ -5447,6 +5447,43 @@
       hexLabel.append(annualNode('span', 'clients-brand-label', 'Brand colour hex (optional)'), hexInput, hexErr);
       form.append(hexLabel);
 
+      const avatarLabel = annualNode('label', 'clients-brand-field');
+      const avatarInput = annualNode('input');
+      avatarInput.type = 'url'; avatarInput.name = 'avatar_url';
+      avatarInput.id = 'account-brand-avatar';
+      avatarInput.maxLength = 500;
+      avatarInput.placeholder = 'https://...';
+      avatarInput.autocomplete = 'off';
+      avatarInput.readOnly = state.readOnly;
+      avatarInput.value = typeof bState.row.avatar_url === 'string' ? bState.row.avatar_url : '';
+      const avatarErr = annualNode('small', 'field-problem'); avatarErr.hidden = true;
+      avatarLabel.append(annualNode('span', 'clients-brand-label', 'Headshot image URL (optional)'), avatarInput, avatarErr);
+      form.append(avatarLabel);
+
+      const logoLabel = annualNode('label', 'clients-brand-field');
+      const logoInput = annualNode('input');
+      logoInput.type = 'url'; logoInput.name = 'agency_logo_url';
+      logoInput.id = 'account-brand-logo';
+      logoInput.maxLength = 500;
+      logoInput.placeholder = 'https://...';
+      logoInput.autocomplete = 'off';
+      logoInput.readOnly = state.readOnly;
+      logoInput.value = typeof bState.row.agency_logo_url === 'string' ? bState.row.agency_logo_url : '';
+      const logoErr = annualNode('small', 'field-problem'); logoErr.hidden = true;
+      logoLabel.append(annualNode('span', 'clients-brand-label', 'Agency logo URL (optional)'), logoInput, logoErr);
+      form.append(logoLabel);
+
+      const validBrandHttpsUrl = raw => {
+        if (!raw) return true;
+        if (raw.length > 500 || /\s/.test(raw) || !raw.startsWith('https://')) return false;
+        try {
+          const parsed = new URL(raw);
+          return parsed.protocol === 'https:' && Boolean(parsed.hostname);
+        } catch {
+          return false;
+        }
+      };
+
       const said = annualNode('p', 'clients-brand-said'); said.hidden = true;
       const sayBrand = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
 
@@ -5461,9 +5498,13 @@
           if (state !== clients || bState.saving || state.readOnly) return;
           bookingErr.textContent = ''; bookingErr.hidden = true;
           hexErr.textContent = ''; hexErr.hidden = true;
+          avatarErr.textContent = ''; avatarErr.hidden = true;
+          logoErr.textContent = ''; logoErr.hidden = true;
 
           const rawBooking = String(bookingInput.value || '').trim();
           const rawHex = String(hexInput.value || '').trim();
+          const rawAvatar = String(avatarInput.value || '').trim();
+          const rawLogo = String(logoInput.value || '').trim();
           if (rawBooking && (!/^https:\/\/\S+$/.test(rawBooking) || rawBooking.length < 10 || rawBooking.length > 240)) {
             bookingErr.textContent = 'Use an https:// address between 10 and 240 characters.';
             bookingErr.hidden = false;
@@ -5476,6 +5517,18 @@
             hexInput.focus?.();
             return;
           }
+          if (!validBrandHttpsUrl(rawAvatar)) {
+            avatarErr.textContent = 'Use an https:// URL up to 500 characters.';
+            avatarErr.hidden = false;
+            avatarInput.focus?.();
+            return;
+          }
+          if (!validBrandHttpsUrl(rawLogo)) {
+            logoErr.textContent = 'Use an https:// URL up to 500 characters.';
+            logoErr.hidden = false;
+            logoInput.focus?.();
+            return;
+          }
           const cleanHex = rawHex ? rawHex.toLowerCase() : null;
           bState.saving = true; saveBtn.disabled = true;
           sayBrand('Saving brand settings…');
@@ -5484,8 +5537,8 @@
             p_booking_url: rawBooking || null,
             p_allow_viewing_request: Boolean(allowInput.checked),
             p_agency_brand_hex: cleanHex,
-            p_avatar_url: typeof bState.row.avatar_url === 'string' ? bState.row.avatar_url : null,
-            p_agency_logo_url: typeof bState.row.agency_logo_url === 'string' ? bState.row.agency_logo_url : null,
+            p_avatar_url: rawAvatar || null,
+            p_agency_logo_url: rawLogo || null,
           })));
           if (state !== clients) return;
           bState.saving = false; saveBtn.disabled = false;
@@ -5496,6 +5549,7 @@
           if (words.includes('contact permission required')) {
             state.readOnly = true;
             allowInput.disabled = true; bookingInput.readOnly = true; hexInput.readOnly = true;
+            avatarInput.readOnly = true; logoInput.readOnly = true;
             saveBtn.hidden = true;
             sayBrand('Brand settings weren’t saved. ' + CLIENTS_ASK);
             return;
@@ -5510,6 +5564,8 @@
           allowInput.checked = Boolean(saved.allow_viewing_request);
           bookingInput.value = typeof saved.booking_url === 'string' ? saved.booking_url : '';
           hexInput.value = typeof saved.agency_brand_hex === 'string' ? saved.agency_brand_hex : '';
+          avatarInput.value = typeof saved.avatar_url === 'string' ? saved.avatar_url : '';
+          logoInput.value = typeof saved.agency_logo_url === 'string' ? saved.agency_logo_url : '';
           sayBrand(allowInput.checked && state.saved && !state.saved.show
             ? (state.draft?.show
               ? 'Brand and booking settings saved. Click Save above so buyers see your shared contact card and viewing request button.'

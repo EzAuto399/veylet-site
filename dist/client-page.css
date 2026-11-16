@@ -72,12 +72,19 @@
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+.handoff-facts.handoff-facts-branded {
+  padding-left: 10px;
+  border-left: 3px solid var(--agent-brand, var(--accent));
+}
 .handoff-fact-badge {
   padding: 2px 8px;
   font-size: 12px;
   font-weight: 500;
   border: 1px solid var(--line);
   border-radius: 999px;
+}
+.handoff-facts.handoff-facts-branded .handoff-fact-badge {
+  border-color: var(--agent-brand, var(--accent));
 }
 .handoff-fact-cal {
   font-size: 13.5px;
@@ -88,6 +95,9 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+.agent-enquiry-sheet.agent-sheet-branded {
+  border-top: 3px solid var(--agent-brand, var(--accent));
 }
 .enquiry-sheet-title {
   margin: 0;
@@ -134,6 +144,16 @@
   font-size: 14px;
   color: var(--ink);
 }
+.enquiry-sent-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.enquiry-sent-row .enquiry-sent {
+  margin: 0;
+}
 .agent-who {
   min-width: 0;
 }
@@ -169,6 +189,8 @@
   padding: 10px 20px;
   font-size: 15px;
   border-radius: 2px;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 .agent-card .agent-action {
   min-width: 104px;
@@ -186,8 +208,9 @@
     padding: 14px;
   }
   .agent-card .agent-action {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
+    padding-inline: 14px;
   }
 }
 
@@ -418,8 +441,9 @@
     min-height: 161px;
   }
   .client-side .agent-card .agent-action {
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
+    padding-inline: 14px;
   }
   .client-side .client-extras {
     margin-top: 12px;
@@ -474,7 +498,7 @@
   }
 }
 .agent-bar-name {
-  flex: 1 1 auto;
+  flex: 1 1 120px;
   min-width: 0;
   margin: 0;
   font-size: 15px;
@@ -484,11 +508,68 @@
   text-overflow: ellipsis;
 }
 .agent-bar .agent-actions {
-  flex: none;
-  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
 }
 .agent-bar .agent-action {
-  padding-inline: 16px;
+  padding-inline: 14px;
+}
+@media (max-width: 768px) {
+  .agent-bar:not([hidden]) {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .agent-bar.agent-bar-branded:not([hidden]) {
+    border-top: 3px solid var(--agent-brand, var(--accent));
+  }
+  body.has-agent-bar.has-agent-bar-multi {
+    padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px));
+  }
+  body.has-agent-bar.has-agent-bar-wrap {
+    padding-bottom: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
+  html.client-has-bar.client-has-bar-multi {
+    scroll-padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+  }
+  .client-side #agent-enquiry-sheet:not([hidden]) {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    margin: 0;
+    max-height: 82vh;
+    overflow: auto;
+    box-shadow: 0 16px 40px rgba(16, 35, 29, 0.24);
+  }
+}
+@media (max-width: 560px) {
+  .agent-bar:not([hidden]) {
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px))
+      max(12px, env(safe-area-inset-left, 0px));
+    gap: 6px 10px;
+  }
+  .agent-bar .agent-actions {
+    flex: 1 1 auto;
+  }
+  .agent-bar.agent-bar-multi .agent-bar-name {
+    flex: 1 1 100%;
+  }
+  .agent-bar.agent-bar-multi .agent-actions {
+    width: 100%;
+  }
+  .agent-bar .agent-action {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
+@media (max-width: 380px) {
+  .agent-bar .agent-action {
+    padding: 8px 10px;
+    font-size: 13.5px;
+  }
 }
 @keyframes agent-bar-in {
   from {

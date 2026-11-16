@@ -48,9 +48,11 @@
   // address, Share and the Email to the agent all point at that stop. One page, one visit.
   let place = null;
   function stopFromHash(hash) {
-    const match = /^#stop=(\d{1,2})$/.exec(hash || '');
-    const number = match ? Number(match[1]) : 0;
-    return number >= 1 ? number : null;
+    if (typeof hash !== 'string' || hash.length > 64) return null;
+    const match = /^#(?:[A-Za-z0-9_=&.-]*&)?stop=([1-9]\d?)(?:&[A-Za-z0-9_=&.-]*)?$/.exec(hash);
+    if (!match) return null;
+    const number = Number(match[1]);
+    return number >= 1 && number <= 99 ? number : null;
   }
 
   /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
@@ -604,9 +606,20 @@
     };
     add(telHref(contact.phone), 'Call', 'Call', 'call_tap');
     add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
-    if (contact.bookingUrl) {
-      add(bookingHref(contact.bookingUrl), 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
-    } else if (contact.allowViewingRequest && enquiryOpts && enquiryOpts.enquiryClient && doc.getElementById('agent-enquiry-sheet')) {
+    const booking = bookingHref(contact.bookingUrl);
+    const canInlineSheet = Boolean(contact.allowViewingRequest && enquiryOpts && enquiryOpts.enquiryClient && doc.getElementById('agent-enquiry-sheet'));
+    if (booking) {
+      add(booking, 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
+      if (canInlineSheet) {
+        const askBtn = element(doc, 'button', 'button button-ghost agent-action', 'Ask a question');
+        askBtn.type = 'button';
+        askBtn.setAttribute('aria-label', 'Ask ' + contact.name + ' a question');
+        askBtn.addEventListener('click', () => {
+          openEnquirySheet(doc, contact, title, enquiryOpts);
+        });
+        actions.append(askBtn);
+      }
+    } else if (canInlineSheet) {
       const btn = element(doc, 'button', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', 'Book viewing');
       btn.type = 'button';
       btn.setAttribute('aria-label', 'Book viewing with ' + contact.name);
@@ -623,7 +636,28 @@
   function openEnquirySheet(doc, contact, title, opts) {
     const sheet = doc.getElementById('agent-enquiry-sheet');
     if (!sheet) return;
+    opts = opts || {};
     const opener = doc.activeElement || null;
+    if (typeof sheet._veyletEscCleanup === 'function') sheet._veyletEscCleanup();
+    const closeSheet = () => {
+      if (sheet.hidden) return;
+      sheet.hidden = true;
+      if (typeof sheet._veyletEscCleanup === 'function') sheet._veyletEscCleanup();
+      opener?.focus?.();
+    };
+    const onKeyDown = event => {
+      if (!event || event.key !== 'Escape' || sheet.hidden) return;
+      if (typeof event.preventDefault === 'function') event.preventDefault();
+      closeSheet();
+    };
+    if (typeof doc.addEventListener === 'function') {
+      doc.addEventListener('keydown', onKeyDown);
+      sheet._veyletEscCleanup = () => {
+        doc.removeEventListener?.('keydown', onKeyDown);
+        sheet._veyletEscCleanup = null;
+      };
+    }
+
     const stopNum = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
     const heading = element(doc, 'p', 'enquiry-sheet-title', 'Ask ' + contact.name + ' or request a viewing');
     const sub = element(
@@ -673,11 +707,21 @@
     sendBtn.type = 'submit';
     const closeBtn = element(doc, 'button', 'button button-ghost agent-action', 'Cancel');
     closeBtn.type = 'button';
-    closeBtn.addEventListener('click', () => { sheet.hidden = true; opener?.focus?.(); });
+    closeBtn.addEventListener('click', closeSheet);
     row.append(sendBtn, closeBtn);
 
     form.append(nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
     let busy = false;
+    const showSent = () => {
+      const sentMsg = element(doc, 'p', 'enquiry-sent', 'Sent. ' + contact.name + ' has your enquiry.');
+      const doneBtn = element(doc, 'button', 'button button-ghost agent-action', 'Done');
+      doneBtn.type = 'button';
+      doneBtn.addEventListener('click', closeSheet);
+      const doneRow = element(doc, 'div', 'enquiry-sent-row');
+      doneRow.append(sentMsg, doneBtn);
+      sheet.replaceChildren(doneRow);
+      doneBtn.focus?.();
+    };
     const submitNow = async event => {
       if (event && typeof event.preventDefault === 'function') event.preventDefault();
       if (busy) return;
@@ -692,18 +736,70 @@
       say(status, 'Sending…');
       try {
         const currentStop = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
-        const reply = await opts.enquiryClient.rpc('submit_tour_enquiry', {
-          p_token: opts.token,
-          p_name: vName,
-          p_email: vEmail || null,
-          p_phone: vPhone || null,
-          p_stop_number: currentStop || null,
-          p_message: vMsg || null,
-          p_honeypot: trap.value || '',
-        });
-        if (reply && !reply.error && reply.data && reply.data.accepted) {
-          sheet.replaceChildren(element(doc, 'p', 'enquiry-sent', 'Sent. ' + contact.name + ' has your enquiry.'));
-          return;
+        const request = typeof opts.fetch === 'function'
+          ? opts.fetch
+          : (typeof fetch === 'function' ? fetch : (typeof window !== 'undefined' && typeof window.fetch === 'function' ? window.fetch : null));
+        const hooksBase = typeof opts.hooksUrl === 'string' ? opts.hooksUrl.trim().replace(/\/+$/, '') : '';
+        if (/^https?:\/\/[^/\s]+$/.test(hooksBase) && request) {
+          let fallBackToRpc = false;
+          try {
+            const response = await request(hooksBase + '/tour-enquiry', {
+              method: 'POST',
+              credentials: 'omit',
+              referrerPolicy: 'no-referrer',
+              cache: 'no-store',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({
+                token: opts.token,
+                title: title || '',
+                name: vName,
+                email: vEmail || null,
+                phone: vPhone || null,
+                stop_number: currentStop || null,
+                message: vMsg || null,
+                website: trap.value || '',
+              }),
+            });
+            const code = response ? (typeof response.status === 'number' ? response.status : (response.ok ? 200 : 500)) : 0;
+            if (code >= 200 && code < 300) {
+              let body = null;
+              try { body = await response.json(); } catch { body = null; }
+              if (body && body.accepted) {
+                showSent();
+                return;
+              }
+              fallBackToRpc = true;
+            } else if (code === 429) {
+              say(status, 'Too many enquiries right now. Use Call or Email above instead.');
+              return;
+            } else if (code === 404) {
+              say(status, 'This walkthrough is no longer available.');
+              return;
+            } else if (code === 400) {
+              say(status, 'Check your details and try again.');
+              return;
+            } else {
+              fallBackToRpc = true;
+            }
+          } catch {
+            fallBackToRpc = true;
+          }
+          if (!fallBackToRpc) return;
+        }
+        if (opts.enquiryClient && typeof opts.enquiryClient.rpc === 'function') {
+          const reply = await opts.enquiryClient.rpc('submit_tour_enquiry', {
+            p_token: opts.token,
+            p_name: vName,
+            p_email: vEmail || null,
+            p_phone: vPhone || null,
+            p_stop_number: currentStop || null,
+            p_message: vMsg || null,
+            p_honeypot: trap.value || '',
+          });
+          if (reply && !reply.error && reply.data && reply.data.accepted) {
+            showSent();
+            return;
+          }
         }
         say(status, 'Couldn’t send right now. Use Call or Email above instead.');
       } catch {
@@ -718,33 +814,49 @@
 
     sheet.replaceChildren(heading, sub, form);
     sheet.hidden = false;
-    sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+    const isMobileViewport = Boolean(doc.defaultView && typeof doc.defaultView.matchMedia === 'function' && doc.defaultView.matchMedia('(max-width: 768px)').matches);
+    if (!isMobileViewport) sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
     if (typeof nameField.input.focus === 'function') nameField.input.focus();
   }
 
   function applyBrand(doc, brand) {
-    if (!brand) return;
+    if (!brand || !doc) return;
     const card = doc.getElementById('agent-card');
-    if (!card) return;
-    if (brand.brandHex && card.style && typeof card.style.setProperty === 'function') {
-      card.style.setProperty('--agent-brand', brand.brandHex);
-      card.classList?.add('agent-card-branded');
+    const bar = doc.getElementById('agent-bar');
+    const sheet = doc.getElementById('agent-enquiry-sheet');
+    const facts = doc.getElementById('handoff-facts');
+    if (brand.brandHex) {
+      for (const [el, cls] of [
+        [card, 'agent-card-branded'],
+        [bar, 'agent-bar-branded'],
+        [sheet, 'agent-sheet-branded'],
+        [facts, 'handoff-facts-branded'],
+      ]) {
+        if (el && el.style && typeof el.style.setProperty === 'function') {
+          el.style.setProperty('--agent-brand', brand.brandHex);
+          el.classList?.add(cls);
+        }
+      }
     }
-    const who = card.querySelector && card.querySelector('.agent-who');
-    if (who && brand.avatarUrl) {
-      const img = element(doc, 'img', 'agent-avatar');
-      img.setAttribute('src', brand.avatarUrl);
-      img.setAttribute('alt', '');
-      img.setAttribute('width', '44');
-      img.setAttribute('height', '44');
-      who.prepend ? who.prepend(img) : who.append(img);
-    }
-    if (who && brand.logoUrl) {
-      const logo = element(doc, 'img', 'agent-logo');
-      logo.setAttribute('src', brand.logoUrl);
-      logo.setAttribute('alt', '');
-      logo.setAttribute('height', '22');
-      who.append(logo);
+    const who = card && card.querySelector && card.querySelector('.agent-who');
+    if (who) {
+      for (const old of who.querySelectorAll?.('.agent-avatar, .agent-logo') || []) old.remove?.();
+      if (brand.avatarUrl) {
+        const img = element(doc, 'img', 'agent-avatar');
+        img.setAttribute('src', brand.avatarUrl);
+        img.setAttribute('alt', '');
+        img.setAttribute('width', '44');
+        img.setAttribute('height', '44');
+        if (who.prepend) who.prepend(img);
+        else who.replaceChildren(img, ...(who.children || []));
+      }
+      if (brand.logoUrl) {
+        const logo = element(doc, 'img', 'agent-logo');
+        logo.setAttribute('src', brand.logoUrl);
+        logo.setAttribute('alt', '');
+        logo.setAttribute('height', '22');
+        who.append(logo);
+      }
     }
   }
 
@@ -790,17 +902,28 @@
     host.setAttribute('aria-labelledby', 'agent-card-name');
     // Late (its held place already went): shown only where it cannot move the stage (client-page.css).
     if (late) host.classList?.add('agent-card-late');
+    else host.classList?.remove('agent-card-late');
     host.hidden = false;
   }
 
   function renderBar(doc, host, contact, title, beacon, enquiryOpts) {
     if (!host) return;
-    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), contactActions(doc, contact, title, beacon, enquiryOpts));
+    const actions = contactActions(doc, contact, title, beacon, enquiryOpts);
+    const count = actions.children.length;
+    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), actions);
+    if (count > 2) host.classList?.add('agent-bar-multi');
+    else host.classList?.remove('agent-bar-multi');
     host.setAttribute('aria-label', 'Contact ' + contact.name);
     host.hidden = false;
     doc.body?.classList.add('has-agent-bar');
+    if (count > 2) doc.body?.classList.add('has-agent-bar-multi');
+    else doc.body?.classList.remove('has-agent-bar-multi');
+    if (count > 3) doc.body?.classList.add('has-agent-bar-wrap');
+    else doc.body?.classList.remove('has-agent-bar-wrap');
     // Focus that scrolls into view stops above the bar, not under it (client-page.css).
     doc.documentElement?.classList?.add('client-has-bar');
+    if (count > 2) doc.documentElement?.classList?.add('client-has-bar-multi');
+    else doc.documentElement?.classList?.remove('client-has-bar-multi');
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
@@ -934,6 +1057,13 @@
         if (tel) actions.push({ label: 'Call', href: tel, press: () => { if (beacon) beacon.send('call_tap'); } });
         const mail = mailtoHref(found.email, title);
         if (mail) actions.push({ label: 'Email', href: mail, hrefNow: () => mailtoHref(found.email, title, place), press: () => { if (beacon) beacon.send('email_tap'); } });
+        const booking = bookingHref(found.bookingUrl);
+        if (booking) {
+          actions.push({ label: 'Book inspection', href: booking, external: true, press: () => { if (beacon) beacon.send('email_tap', { booking: true }); } });
+        } else if (found.allowViewingRequest && found.email) {
+          const viewing = viewingRequestHref(found.email, title, found.name);
+          if (viewing) actions.push({ label: 'Book viewing', href: viewing, press: () => { if (beacon) beacon.send('email_tap', { booking: true }); } });
+        }
         giveContact(actions.length ? { name: found.name, actions } : null);
       },
     };
@@ -976,9 +1106,14 @@
     const lookup = options.contact || lookupContact(options.client, options.token, options);
     return Promise.resolve(lookup).then(contact => {
       clearTimeout(grace);
+      if (typeof options.shouldApplyContact === 'function' && !options.shouldApplyContact(contact)) {
+        release();
+        return false;
+      }
       const late = Boolean(held) && !held.contains('client-contact-pending');
-      const shown = showContact(doc, contact, options.title, options.beacon, late);
-      if (visit) visit.setContact(contact);
+      const shown = showContact(doc, contact, options.title, options.beacon, late, options.enquiryOpts);
+      if (typeof options.onContactShown === 'function') options.onContactShown(contact, shown);
+      if (visit && !options.deferVisitContact) visit.setContact(contact);
       // The held place goes in the same step the card fills it, or not.
       release();
       return shown;
@@ -1023,7 +1158,7 @@
     let token = raw.trim().replace(/[.,;:!?)\]}>'"_-]+$/, '');
     if (/^[0-9a-f]+$/i.test(token)) token = token.toLowerCase();
     const hex = /^[0-9a-f]+$/.test(token);
-    const complete = hex ? token.length === 32 : token.length >= 16 && token.length <= 64 && /^[A-Za-z0-9_-]+$/.test(token);
+    const complete = hex ? token.length === 32 : token.length >= 16 && token.length <= 256 && /^[A-Za-z0-9_-]+$/.test(token);
     return { token, complete };
   }
 

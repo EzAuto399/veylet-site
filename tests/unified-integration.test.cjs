@@ -235,7 +235,11 @@ test('client-page visitLink preserves initial #stop=N&yaw=D&pitch=P deep link on
     },
   };
   const visit = page.visitLink({ window: win, location: loc, navigator: {}, document: {}, token: TOKEN });
-  assert.equal(visit.startAt, null);
+  assert.equal(visit.startAt, 2);
+  assert.equal(page.stopFromHash('#stop=2&yaw=90'), 2);
+  assert.equal(page.stopFromHash('#yaw=90&stop=12'), 12);
+  assert.equal(page.stopFromHash('#stop=0&yaw=90'), null);
+  assert.equal(page.stopFromHash('#stop=2&bad=<script>'), null);
   visit.onStop(2, 5);
   assert.deepEqual(states, [], 'initial camera deep link is not overwritten on arrival');
   assert.equal(visit.url(), `https://veylet.com/handoff?t=${TOKEN}#stop=2&yaw=135&pitch=-20`);
@@ -320,4 +324,232 @@ test('dist/stage.js QR modal traps outside Tab focus back in and dist/conversion
   assert.equal(escPrevented, true);
   assert.equal(modal.hidden, true);
   assert.equal(doc.activeElement, cta);
+});
+
+test('visitLink.setContact includes Book inspection or Book viewing up to 3 actions and tracks booking taps', async () => {
+  const windowObj = {};
+  const doc = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
+  vm.runInNewContext(read('dist/client-page.js'), {
+    window: windowObj, document: doc, URLSearchParams, URL, setTimeout, clearTimeout, navigator: {}, location: { search: '' },
+  });
+  const sent = [];
+  const beacon = { send: (...args) => sent.push(args) };
+  const loc = { origin: 'https://veylet.com', pathname: '/handoff', search: '?t=' + TOKEN, hash: '' };
+  const page = windowObj.VeyletClientPage;
+
+  const v1 = page.visitLink({ window: { history: { replaceState() {} } }, location: loc, navigator: {}, document: doc, token: TOKEN, beacon });
+  v1.setTitle('14 River St');
+  v1.setContact({ name: 'Sarah Chen', phone: '+61 400 123 456', email: 'sarah@harbour.test', bookingUrl: 'https://cal.example/sarah', allowViewingRequest: true });
+  const c1 = await v1.contact;
+  assert.deepEqual(JSON.parse(JSON.stringify(c1.actions.map(a => [a.label, Boolean(a.external)]))), [
+    ['Call', false],
+    ['Email', false],
+    ['Book inspection', true],
+  ]);
+  c1.actions[2].press();
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [['email_tap', { booking: true }]]);
+
+  const v2 = page.visitLink({ window: { history: { replaceState() {} } }, location: loc, navigator: {}, document: doc, token: TOKEN, beacon });
+  v2.setTitle('14 River St');
+  v2.setContact({ name: 'Sarah Chen', phone: '+61 400 123 456', email: 'sarah@harbour.test', allowViewingRequest: true });
+  const c2 = await v2.contact;
+  assert.equal(c2.actions[2].label, 'Book viewing');
+  assert.match(c2.actions[2].href, /^mailto:sarah@harbour\.test\?subject=Book%20a%20viewing/);
+  c2.actions[2].press();
+  assert.deepEqual(JSON.parse(JSON.stringify(sent)), [['email_tap', { booking: true }], ['email_tap', { booking: true }]]);
+});
+
+test('/embed and /tour preserve safe #stop=N&yaw=D&pitch=P hashes on fullscreen links and update /embed open.href on hashchange', () => {
+  const clientSrc = read('dist/client-page.js');
+  const embedHtml = read('dist/embed/index.html');
+  const tourHtml = read('dist/tour/index.html');
+  const { withClientHelpers } = require('./client-words.cjs');
+
+  // /embed preserves initial safe hash and updates on hashchange
+  const ids = {};
+  for (const match of embedHtml.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
+    ids[match[2]] = { hidden: /\bhidden\b/.test(match[0]), dataset: {}, events: {}, style: { setProperty() {} }, addEventListener(n, f) { this.events[n] = f; } };
+  }
+  const winListeners = {};
+  let embedBoot = null;
+  const embedWin = {
+    VeyletPlayer: withClientHelpers({ boot: o => { embedBoot = o; return new Promise(() => {}); }, showFailure() {} }),
+    VeyletClientPage: (() => { const w = {}; vm.runInNewContext(clientSrc, { window: w, setTimeout, clearTimeout, URLSearchParams, URL }); return w.VeyletClientPage; })(),
+    addEventListener(n, f) { winListeners[n] = f; },
+  };
+  const embedLoc = { search: '?t=' + TOKEN, hash: '#stop=2&yaw=135&pitch=-20' };
+  vm.runInNewContext(embedHtml.match(/<script>([\s\S]*?)<\/script>/)[1], {
+    window: embedWin, document: { getElementById: id => ids[id] }, location: embedLoc, URLSearchParams, setTimeout, Promise,
+  });
+  assert.equal(ids['embed-open'].href, `https://veylet.com/handoff?t=${TOKEN}#stop=2&yaw=135&pitch=-20`);
+  embedLoc.hash = '#stop=3&yaw=45';
+  winListeners.hashchange();
+  assert.equal(ids['embed-open'].href, `https://veylet.com/handoff?t=${TOKEN}#stop=3&yaw=45`);
+  embedLoc.hash = '#<script>';
+  winListeners.hashchange();
+  assert.equal(ids['embed-open'].href, `https://veylet.com/handoff?t=${TOKEN}`);
+  ids['embed-start'].events.click();
+  assert.equal(embedBoot.fullscreenUrl, `https://veylet.com/handoff?t=${TOKEN}`);
+
+  // /tour preserves safe hash in fullscreenUrl and drops unsafe hashes
+  const runTour = hash => {
+    const tIds = {};
+    for (const match of tourHtml.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {
+      tIds[match[2]] = { hidden: /\bhidden\b/.test(match[0]), dataset: {}, textContent: '' };
+    }
+    let tourBoot = null;
+    const w = {
+      VeyletPlayer: withClientHelpers({ TourFailure: Error, boot: o => { tourBoot = o; return new Promise(() => {}); }, showFailure() {} }),
+      VeyletClientPage: (() => { const c = {}; vm.runInNewContext(clientSrc, { window: c, setTimeout, clearTimeout, URLSearchParams, URL }); return c.VeyletClientPage; })(),
+    };
+    w.self = w; w.top = w;
+    vm.runInNewContext(tourHtml.match(/<script>([\s\S]*?)<\/script>/)[1], {
+      window: w,
+      document: { getElementById: id => tIds[id], querySelector: () => null, title: 'Property walkthrough', referrer: '' },
+      location: { origin: 'https://veylet.com', pathname: '/tour', search: '?t=' + TOKEN, hash },
+      URLSearchParams, URL, setTimeout, clearTimeout,
+    });
+    return tourBoot.fullscreenUrl;
+  };
+  assert.equal(runTour('#stop=2&yaw=90&pitch=10'), `https://veylet.com/tour?t=${TOKEN}#stop=2&yaw=90&pitch=10`);
+  assert.equal(runTour('#<script>'), `https://veylet.com/tour?t=${TOKEN}`);
+});
+
+test('tour-sharing embedCode and embedFrame reject invalid tokens cleanly', () => {
+  const window = {};
+  vm.runInNewContext(read('dist/tour-sharing.js'), { window, URL, navigator: {} });
+  const share = window.VeyletSharing;
+  for (const bad of ['', null, undefined, 'short', 'a" onclick="alert(1)', 'a'.repeat(257)]) {
+    assert.equal(share.embedCode(bad), '');
+    let created = false;
+    assert.equal(share.embedFrame(bad, { createElement() { created = true; return {}; } }), null);
+    assert.equal(created, false);
+  }
+});
+
+test('dist/account.js mounts tourCampaignSync on paused/unshared approved ready tours with p_limit 200 and exposes avatar/logo URL inputs', async () => {
+  const { createDocument } = require('./fake-dom.cjs');
+  const runDesk = async (role = 'owner') => {
+    const doc = createDocument();
+    doc.FakeNode.prototype.reset = function () {};
+    doc.FakeNode.prototype.select = function () {};
+    doc.FakeNode.prototype.scrollIntoView = function () {};
+    doc.FakeNode.prototype.getContext = function () { return this.tagName === 'CANVAS' ? { fillStyle: '', fillRect() {}, fillText() {} } : null; };
+    doc.FakeNode.prototype.toBlob = function (done, type) { done({ type, size: 1 }); };
+    doc.documentElement = doc.createElement('html');
+    const markup = read('dist/account/index.html');
+    for (const match of markup.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([\w-]+)\b([^>]*)\bid="([^"]+)"([^>]*)>/g)) {
+      const el = doc.createElement(match[1]);
+      el.id = match[3];
+      el.hidden = /\shidden\b/.test(match[2] + ' ' + match[4]);
+      doc.body.append(el);
+    }
+    const calls = [];
+    const tours = [
+      { id: 't-paused', property_id: 'p1', status: 'ready', storage_path: 'w1/t-paused/package.zip', created_by: 'u1', share_token: TOKEN, share_paused_at: '2026-11-16T00:00:00Z' },
+      { id: 't-unshared', property_id: 'p1', status: 'ready', storage_path: 'w1/t-unshared/package.zip', created_by: 'u1', share_token: null, share_paused_at: null },
+    ];
+    const supabase = {
+      auth: { getSession: async () => ({ data: { session: { user: { id: 'u1', email: 'a@b.invalid' }, access_token: 'tok' } } }), onAuthStateChange() {} },
+      from(name) {
+        const table = {
+          properties: { data: [{ id: 'p1', title: '14 River St', workspace_id: 'w1' }] },
+          tours: { data: tours },
+          memberships: { data: [{ workspace_id: 'w1', role, status: 'active' }] },
+        };
+        const b = {
+          select() { return b; }, order() { return b; }, eq() { return b; },
+          single() { const r = table[name] || { data: [] }; return Promise.resolve({ data: r.data?.[0] || null }); },
+          then(res, rej) { return Promise.resolve(table[name] || { data: [] }).then(res, rej); },
+        };
+        return b;
+      },
+      async rpc(name, args) {
+        calls.push([name, args ? JSON.parse(JSON.stringify(args)) : undefined]);
+        if (name === 'can_produce_tours') return { data: true };
+        if (name === 'get_account_deletion') return { data: [] };
+        if (name === 'get_tour_review') return { data: [{ approved: true }] };
+        if (name === 'get_tour_hosting') return { data: [] };
+        if (name === 'get_property_campaign_details') return { data: [{ show_on_handoff: true, campaign_mode: 'sale' }] };
+        if (name === 'list_workspace_tour_enquiries') return { data: [] };
+        if (name === 'get_workspace_public_contact') return { data: [{ show_on_shared: true, display_name: 'Sarah', agency: 'Harbour', phone: '0400 000 000', email: 's@h.invalid' }] };
+        if (name === 'get_workspace_handoff_brand') return { data: [{ allow_viewing_request: true, booking_url: null, agency_brand_hex: '#10231d', avatar_url: null, agency_logo_url: null }] };
+        if (name === 'set_workspace_handoff_brand') return { data: [{ allow_viewing_request: args.p_allow_viewing_request, booking_url: args.p_booking_url, agency_brand_hex: args.p_agency_brand_hex, avatar_url: args.p_avatar_url, agency_logo_url: args.p_agency_logo_url }] };
+        return { data: null, error: { code: 'PGRST202' } };
+      },
+    };
+    const window = {
+      VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'public' },
+      supabase: { createClient: () => supabase },
+      VeyletPlace: { generalLocationProblem: () => '' },
+      VEYLET_HOOKS: { url: 'https://hooks.example.invalid' },
+      addEventListener() {},
+    };
+    const ctx = {
+      window, document: doc, Date, URL, URLSearchParams, Intl, TextEncoder, atob, TypeError, console,
+      Blob: class { constructor(parts, init) { this.parts = parts; this.type = init?.type; } },
+      navigator: { onLine: true, clipboard: { writeText: async () => {} } },
+      location: { pathname: '/account', search: '', hash: '', replace() {}, assign() {} },
+      setTimeout: (fn, ms) => { if (!ms) setImmediate(fn); return 0; },
+      clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+      FormData: class { get() { return ''; } },
+    };
+    vm.runInNewContext(read('dist/vendor/qrcode-1.5.4.min.js'), ctx);
+    vm.runInNewContext(read('dist/tour-sharing.js'), ctx);
+    await vm.runInNewContext(read('dist/account.js'), ctx);
+    for (let i = 0; i < 20; i++) await new Promise(r => setImmediate(r));
+    return { doc, calls };
+  };
+
+  const { doc, calls } = await runDesk('owner');
+  for (const id of ['t-paused', 't-unshared']) {
+    const card = doc.querySelectorAll('.dash-tour').find(el => el.dataset.tour === id);
+    const sync = card.querySelector('.tour-campaign-sync');
+    assert.ok(sync, `${id} mounts tourCampaignSync`);
+    sync.open = true;
+    sync.dispatch('toggle');
+  }
+  for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r));
+  const enqCalls = calls.filter(([n]) => n === 'list_workspace_tour_enquiries');
+  assert.equal(enqCalls.length, 2);
+  assert.equal(enqCalls[0][1].p_limit, 200);
+
+  const brandMore = doc.getElementById('account-contact-body').querySelector('.clients-brand-more');
+  brandMore.open = true;
+  brandMore.dispatch('toggle');
+  for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r));
+  const avatarInput = brandMore.querySelectorAll('input').find(i => i.name === 'avatar_url');
+  const logoInput = brandMore.querySelectorAll('input').find(i => i.name === 'agency_logo_url');
+  assert.equal(avatarInput.type, 'url');
+  assert.equal(avatarInput.maxLength, 500);
+  assert.equal(avatarInput.readOnly, false);
+  assert.equal(logoInput.type, 'url');
+  assert.equal(logoInput.maxLength, 500);
+  assert.equal(logoInput.readOnly, false);
+
+  // Invalid avatar/logo URLs are rejected client-side
+  for (const bad of ['http://insecure.example/a.png', 'javascript:alert(1)', 'https://cdn.example/' + 'a'.repeat(490)]) {
+    avatarInput.value = bad;
+    brandMore.querySelector('form').dispatch('submit');
+    for (let i = 0; i < 6; i++) await new Promise(r => setImmediate(r));
+    assert.equal(calls.filter(([n]) => n === 'set_workspace_handoff_brand').length, 0, `rejects ${bad}`);
+  }
+
+  avatarInput.value = 'https://cdn.veylet.com/headshot.webp';
+  logoInput.value = 'https://cdn.veylet.com/logo.webp';
+  brandMore.querySelector('form').dispatch('submit');
+  for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r));
+  const saved = calls.find(([n]) => n === 'set_workspace_handoff_brand');
+  assert.ok(saved);
+  assert.equal(saved[1].p_avatar_url, 'https://cdn.veylet.com/headshot.webp');
+  assert.equal(saved[1].p_agency_logo_url, 'https://cdn.veylet.com/logo.webp');
+
+  // Read-only role renders avatar_url and agency_logo_url as readOnly
+  const ro = await runDesk('operator');
+  const roMore = ro.doc.getElementById('account-contact-body').querySelector('.clients-brand-more');
+  roMore.open = true;
+  roMore.dispatch('toggle');
+  for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r));
+  assert.equal(roMore.querySelectorAll('input').find(i => i.name === 'avatar_url').readOnly, true);
+  assert.equal(roMore.querySelectorAll('input').find(i => i.name === 'agency_logo_url').readOnly, true);
 });

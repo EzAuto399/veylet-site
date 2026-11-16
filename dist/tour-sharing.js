@@ -22,7 +22,12 @@ window.VeyletSharing = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+  const TOKEN_RE = /^[A-Za-z0-9_-]{16,256}$/;
+  function validToken(token) {
+    return typeof token === 'string' && TOKEN_RE.test(token);
+  }
   function embedCode(token, opts) {
+    if (!validToken(token)) return '';
     return '<iframe src="' + embedUrl(token, opts) +
       '" title="Explore this property in 3D" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen; xr-spatial-tracking" loading="lazy" referrerpolicy="strict-origin"></iframe>' +
       '\n<p><a href="' + handoffUrl(token) + '" target="_blank" rel="noopener noreferrer">Open the property walkthrough in a new tab</a></p>';
@@ -33,6 +38,7 @@ window.VeyletSharing = (() => {
    * paste. If they would differ, there is nothing to preview.
    */
   function embedFrame(token, doc, opts) {
+    if (!validToken(token) || !doc || typeof doc.createElement !== 'function') return null;
     const host = doc.createElement('div');
     host.innerHTML = embedCode(token, opts);
     return host.querySelector('iframe');
