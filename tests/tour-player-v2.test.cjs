@@ -74,6 +74,7 @@ function load({ files = {}, reduced = true, context: extra = {}, size = [390, 70
   const storage = new Map();
   const window = {
     matchMedia: () => ({ matches: reduced }), screen: { width: 390, height: 844 }, devicePixelRatio: 3,
+    ...extra.windowProps,
   };
   const fetch = async url => {
     log.push('fetch:' + url);
@@ -1512,3 +1513,29 @@ function heldChunks(log) {
   }
   return held;
 }
+
+// Audit 16 November 2026 (H1, H3): a move by hand fades in from dark; loading progress is said to the window
+// as a whole percent that never goes back, and never joins the page's document events.
+test('a stop jump by hand fades in from dark, and loading progress is said on window only', async () => {
+  const said = [], documentEvents = [];
+  const windowProps = { dispatchEvent: event => { said.push(event.type === 'veylet-viewer-progress' ? event.detail.percent : event.type); } };
+  const x = await started({ reduced: false, context: { windowProps, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } } } });
+  x.document.dispatchEvent = event => { documentEvents.push(event.type); };
+  const app = x.engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await x.pending;
+  assert.ok(said.length > 0, 'progress was said');
+  assert.ok(said.every(value => Number.isInteger(value) && value >= 0 && value <= 100), JSON.stringify(said));
+  assert.deepEqual(said, [...said].sort((a, b) => a - b), 'never goes back');
+  assert.ok(!documentEvents.includes('veylet-viewer-progress'));
+  const veil = byClass(x.stage, 'v2-veil');
+  assert.ok(veil, 'the veil sits over the scene');
+  assert.equal(veil.getAttribute?.('aria-hidden') ?? 'true', 'true');
+  const fades = [];
+  veil.animate = (frames, options) => { fades.push([frames.map(frame => frame.opacity), options.duration]); return {}; };
+  byClass(x.stage, 'v2-next').click();
+  assert.equal(controller(x).view().stop, 1, 'the jump itself is instant');
+  assert.deepEqual(JSON.parse(JSON.stringify(fades)), [[[0.55, 0], 280]]);
+});
+const controller = x => x.window.VeyletPlayerV2.current;
