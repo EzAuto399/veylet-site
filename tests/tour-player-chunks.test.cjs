@@ -354,6 +354,11 @@ test('chunked with Save-Data: the neighbours still load for walking, but nothing
 const SESSION_FILE = path.join(__dirname, 'tour-player-single-scene-session.json');
 async function singleSceneSession(source) {
   const x = await started({ manifest: singleManifest(), source });
+  // Wait for the opening download/engine setup, rather than whichever async phase twelve ticks reach.
+  for (let i = 0; i < 100 && !x.log.includes('app.start'); i++) await tick();
+  assert.ok(x.log.includes('app.start'), 'the engine is ready for its first rendered frame');
+  assert.equal(byClass(x.stage, 'v2').dataset.state, 'opening');
+  assert.equal(byClass(x.stage, 'v2-progress').hidden, false, 'the opening wait has visible progress');
   const screens = [];
   const note = label => screens.push(`${label} | ${byClass(x.stage, 'v2').dataset.state} | ${byClass(x.stage, 'v2-status').textContent} | `
     + `${byClass(x.stage, 'v2-stop').textContent} | progress ${byClass(x.stage, 'v2-progress').hidden ? 'hidden' : byClass(x.stage, 'v2-progress').firstChild.style.transform}`);
@@ -372,8 +377,12 @@ async function singleSceneSession(source) {
   return { screens, stats: { keys: Object.keys(s).sort(), level: s.level, phase: s.phase, budget: s.budget, stop: s.stop }, log: x.log };
 }
 
-test('a single-scene package plays exactly as it did before chunk support', async () => {
-  assert.deepEqual(await singleSceneSession(), JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')));
+test('a single-scene package preserves playback while showing its opening download progress', async () => {
+  const expected = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+  // The approved player now shows first-file progress beside the engine download. Keep every later
+  // playback state, engine request, navigation result and budget equal to the retained session.
+  expected.screens[0] = 'opening | opening | Loading 3D… | Stop 1 of 5 | progress scaleX(0.500)';
+  assert.deepEqual(await singleSceneSession(), expected);
 });
 
 // ---------- chunked packages as the tours Worker serves them (VIEWER-03) ----------

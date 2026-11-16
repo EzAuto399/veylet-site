@@ -9,15 +9,17 @@
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
     <link rel="stylesheet" href="/style.css?v=71e227ed29237165" />
-    <link rel="stylesheet" href="/account-guide.css?v=f42c7a06e3fe985d" />
+    <link rel="stylesheet" href="/account-guide.css?v=43f2c9302c0641bc" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/place-fields.js?v=b597ac72159bd08e"></script>
-    <script src="/tour-sharing.js?v=d782f0da91c14179" defer></script>
+    <script src="/tour-sharing.js?v=25575e879fbea9c4" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
     <!-- data-app-mode on <html> is read by the desk script: every money block stays out. -->
-    <script src="/account.js?v=f6cb5acb21e895a7" defer></script>
+    <link rel="stylesheet" href="/account-journey.css?v=02cfbb13f5adecda" />
+    <script src="/account-journey.js?v=17edce3a8181bd4e" defer></script>
+    <script src="/account.js?v=ff5fab5bf83f9e38" defer></script>
     <noscript><style>#account-sign-in, #account-verify { display: none !important; }</style></noscript>
   </head>
   <body>
@@ -99,8 +101,9 @@
            review and sharing, what clients see, the plan's state in words, and
            the account and its deletion. -->
       <section id="account-home" class="desk" hidden>
-        <p class="desk-who" id="account-who"></p>
+        <div class="journey-launch"><p class="desk-who" id="account-who"></p><button class="tour-action" id="account-activity-open" type="button" aria-controls="account-activity" aria-expanded="false">Activity</button></div>
         <div class="desk-main">
+          <section id="account-activity" class="journey-activity" aria-labelledby="account-activity-title" hidden></section>
           <section id="account-next-step" class="account-next" aria-label="Your next step" aria-live="polite"></section>
           <section class="desk-section" aria-labelledby="account-work-title">
             <div class="desk-section-head">
@@ -169,5 +172,6 @@
     <footer class="wrap app-footer">
       <nav aria-label="Account and help"><a href="/app/account" aria-current="page">Account</a><a href="/app/support">Support</a><a href="/app/privacy">Privacy</a><a href="/app/terms">Terms</a></nav>
     </footer>
+  <div id="journey-toast" class="journey-toast" hidden></div>
   </body>
 </html>

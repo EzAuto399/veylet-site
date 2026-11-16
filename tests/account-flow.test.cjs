@@ -118,12 +118,29 @@ async function load(options = {}) {
   const context = { window, document: documentStub, Blob: class { constructor(parts, init) { this.parts = parts; this.type = init?.type; } }, URL: FileURL, Date, navigator: { clipboard: { writeText: async () => { if (options.clipboardBlocked) throw new Error('blocked'); } } }, location: { pathname: options.pathname || '/account', search: options.search || '', replace: value => redirects.push(value), assign: value => redirects.push(value) }, URLSearchParams, setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: fn => { intervals.set(++intervalId, fn); return intervalId; }, clearInterval: id => intervals.delete(id), FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
   if (options.Date) context.Date = options.Date;
   vm.runInNewContext(sharing, context);
-  await vm.runInNewContext(options.accountScript || account, context);
+  if (options.journey) { window.navigator = context.navigator; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../dist/account-journey.js'), 'utf8'), context); }
+  const journeyBaseline = options.journey && process.env.VEYLET_JOURNEY_BASELINE ? fs.readFileSync(process.env.VEYLET_JOURNEY_BASELINE, 'utf8') : null;
+  await vm.runInNewContext(options.accountScript || journeyBaseline || account, context);
   await new Promise(resolve => setImmediate(resolve));
   return { billingHooks: window.__billingTest, ids, calls, queries, selects, redirects, supabase, verifySubmit, exported, documentStub, documentEvents, windowEvents, scripts, pollCount: () => pollTimers.size, async firePolls() { for (const timer of [...pollTimers]) { pollTimers.delete(timer); timer.fire(); } await new Promise(resolve => setImmediate(resolve)); }, expireRequests() { for (const timer of [...requestTimers]) { requestTimers.delete(timer); timer.fire(); } }, tickSeconds(count) { for (let i=0;i<count;i++) for (const fn of [...intervals.values()]) fn(); }, all: () => Object.values(ids).flatMap(el => el.all()), text: () => Object.values(ids).flatMap(el => [el, ...el.all()]).map(el => el.textContent).join('\n') };
 }
 const tour = { id: 't1', property_id: 'p1', status: 'ready', storage_path: 'w1/t1/original.zip', created_by: 'user-1' };
 const requestedID = 'dddddddd-2222-4333-8444-555555555555';
+const journeyEventID = 'aaaaaaaa-2222-4333-8444-555555555555';
+function journeyRPC(overrides = {}) {
+  return { list_activity: async () => ({ data: { items: [{ id: journeyEventID, kind: 'ready_for_review', needs_attention: true, action: 'review', read_at: null, tour_id: requestedID, space_name: 'Synthetic apartment', occurred_at: '2026-11-01T00:00:00Z' }], unread_count: 1, attention_count: 1, next_cursor: null, snapshot_token: requestedID, as_of: '2026-11-13T00:00:00Z' } }),
+    mark_activity_read: async () => ({ data: { read_ids: [journeyEventID], unread_count: 0 } }),
+    get_walkthrough_insights: async () => ({ data: { schema_version: 1, tour_id: requestedID, revision: 2, availability: 'disabled', totals: { scope: 'revision_period', opens: 14, explores: 8, call_taps: 2, email_taps: 1, share_taps: 0 }, coverage: { observed_visits: 0, complete_visits: 0, minimum_visits: 20, layout_available: false, historical_event_coverage: 'unknown' }, stops: [{ id: 's0', label: 'Stop 1', visits: 0, active_seconds: 0, exits: 0 }], period_start: '2026-10-14T00:00:00Z', period_end: '2026-11-13T00:00:00Z', as_of: '2026-11-13T00:00:00Z' } }), ...overrides };
+}
+test('Activity journey marks read while retaining the task and clears on sign out', async () => {
+  const h = await load({ journey: true, tours: [{ ...tour, id: requestedID }], rpc: journeyRPC() });
+  await new Promise(resolve => setImmediate(resolve));
+  await h.ids['account-activity-open'].fire('click');
+  const hub = h.ids['account-activity']; assert.equal(hub.hidden, false); assert.match(hub.all().map(n => n.textContent).join(' '), /Ready to review/);
+  await hub.all().find(n => n.textContent === 'Mark read').fire('click'); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.ids['account-activity-open'].textContent, 'Activity'); assert.ok(hub.all().some(n => n.textContent === 'Review walkthrough'));
+  h.supabase.auth.callback('SIGNED_OUT', null); assert.equal(hub.hidden, true); assert.equal(h.ids['account-activity-open'].textContent, 'Activity');
+});
 test('a new account gets one setup action without changing access or creating a space', async () => {
   const h = await load({ tables: { properties: { data: [] } } });
   const panel = h.ids['account-next-step'];
@@ -144,12 +161,12 @@ test('an owner with a saved space gets self-capture preparation without an unava
 test('an approved operator sees capture preparation only from confirmed production access', async () => {
   const h = await load({ rpc: { can_produce_tours: () => ({ data: true }) } });
   const guidance = h.ids['account-next-step'].all().map(el => el.textContent).join(' ');
-  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#first-session');
+  assert.equal(h.ids['account-next-step'].all().find(el => el.tagName === 'A').href, '/start#capture-preparation');
   assert.match(guidance, /Send from the app: it uploads in the background\. Check your account for rendering status\./);
   assert.doesNotMatch(guidance, /usually (?:ready(?: in| within)?|within) 1.?2 hours/i);
   const unavailable = await load({ rpc: { can_produce_tours: () => ({ error: { message: 'offline' } }) } });
   assert.match(unavailable.ids['account-next-step'].all().map(el => el.textContent).join(' '), /approval could not be checked/);
-  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#first-session'), false);
+  assert.equal(unavailable.ids['account-next-step'].all().some(el => el.href === '/start#capture-preparation'), false);
 });
 test('processing guidance gives no turnaround time and promises no pilot target', async () => {
   const h = await load({ tours: [{ ...tour, status: 'processing' }] });
@@ -1417,7 +1434,7 @@ test('the terms and the privacy notice tell one story about deletion', () => {
 test('the privacy notice says what is collected and what is never sold', () => {
   const flat = privacy.replace(/\s+/g, ' ');
   for (const phrase of [
-    'Last updated 30 September 2026',
+    'Last updated 14 November 2026',
     'Your email address, which is how you sign in',
     'The captures you send us',
     'Your plan\u2019s purchase state from the App Store',
@@ -1678,7 +1695,7 @@ test('a live walkthrough shows Live, its hosting line, the link and the website 
   assert.equal(link.value, share.handoffUrl(TOKEN) + '&src=link');
   assert.equal(link.readOnly, true);
   assert.ok(byText(h, 'Copy link'));
-  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN));
+  assert.equal(byText(h, 'Open as your client').href, share.handoffUrl(TOKEN) + '&preview=owner');
   assert.equal(byText(h, 'Website').dataset.disclosure, 'website');
   assert.deepEqual(radios(h).map(el => el.value), ['wordpress', 'squarespace', 'wix', 'webflow', 'other']);
   assert.deepEqual(radios(h).filter(el => el.checked).map(el => el.value), ['wordpress']);
@@ -3291,4 +3308,22 @@ test('checking an older trial_limit hold only reloads status and never starts or
   assert.ok(h.reads() > before, 'render status is read again');
   assert.equal(h.calls.some(call => ['get_start_plan_now', 'start_plan_now'].includes(call[0])), false);
   assert.equal(h.requests.some(request => request.path === '/square/trial/start-now'), false);
+});
+
+test('journey clipboard success announces only in the toast while copy failures stay inline', async () => {
+  const h = await load({ journey: true, approved: true, tours: [{ ...liveTour, id: requestedID }] });
+  await h.all().find(n => n.dataset.control === 'copy-link').fire('click');
+  const toast = h.ids['journey-toast']; assert.equal(toast.hidden, false); assert.match(toast.all().map(n => n.textContent).join(' '), /Link copied/);
+  assert.equal(h.ids['account-status'].textContent, '');
+  assert.equal(h.all().some(n => n.className === 'tour-row-status' && /Link copied/.test(n.textContent)), false);
+  const denied = await load({ journey: true, approved: true, tours: [{ ...liveTour, id: requestedID }], clipboardBlocked: true });
+  await denied.all().find(n => n.dataset.control === 'copy-link').fire('click');
+  assert.equal(denied.ids['journey-toast'].hidden, true); assert.match(denied.ids['account-status'].textContent, /did not allow automatic copying/);
+  assert.ok(denied.all().some(n => n.className === 'tour-row-status' && /did not allow automatic copying/.test(n.textContent) && !n.hidden));
+});
+
+test('account-journey CSS frames Insights cleanly and uses tabular numeric alignment', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../dist/account-journey.css'), 'utf8');
+  assert.match(css, /\.journey-insights\s*\{[^}]*padding:\s*20px/);
+  assert.match(css, /\.journey-metrics dd\s*\{[^}]*font-variant-numeric:\s*tabular-nums/);
 });

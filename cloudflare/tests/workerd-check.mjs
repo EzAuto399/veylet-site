@@ -36,9 +36,11 @@ function request(path, mode, options = {}) {
   });
 }
 
-async function server(mode, run) {
+async function server(mode, run, { localUpstream } = {}) {
   const production = mode === 'production';
-  const child = spawn(join(adapterRoot, 'node_modules/.bin/wrangler'), ['dev', '--local', '--config', 'wrangler.' + mode + '.jsonc', '--ip', '127.0.0.1', '--port', production ? '8897' : '8896', '--local-protocol', production ? 'https' : 'http'], {
+  const args = ['dev', '--local', '--config', 'wrangler.' + mode + '.jsonc', '--ip', '127.0.0.1', '--port', production ? '8897' : '8896', '--local-protocol', production ? 'https' : 'http'];
+  if (localUpstream) args.push('--local-upstream', localUpstream, '--upstream-protocol', 'https');
+  const child = spawn(join(adapterRoot, 'node_modules/.bin/wrangler'), args, {
     cwd: adapterRoot, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
   });
   child.stdout.on('data', chunk => logs.push(chunk.toString()));
@@ -86,7 +88,7 @@ await server('preview', async mode => {
     equal(robots.status, 200); equal(robots.body.toString(), 'User-agent: *\nDisallow: /\n');
     for (const name of ['content-range', 'accept-ranges', 'last-modified', 'etag']) equal(robots.headers[name] ?? null, null);
   }
-  receipts.push({ mode, assets: manifest.files.length, matchingOutputBodies: 349, intentionalRobotsOverride: 1, fullRobotsValidatorRangeVariants: 3, unapprovedOriginStatus: denied.status });
+  receipts.push({ mode, assets: manifest.files.length, matchingOutputBodies: manifest.files.length - 1, intentionalRobotsOverride: 1, fullRobotsValidatorRangeVariants: 3, unapprovedOriginStatus: denied.status });
 });
 
 await server('production', async mode => {
@@ -131,9 +133,17 @@ await server('production', async mode => {
   for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS']) {
     const response = await request('/request', mode, { method, body: 'synthetic local proof' }); equal(response.status, 405, 'write method ' + method); equal(response.headers.allow, 'GET, HEAD'); equal(response.headers['cache-control'], 'no-store');
   }
-  const denied = await request('/', mode, { headers: { Host: 'evil.example' } }); equal(denied.status, 403); equal(denied.headers['x-robots-tag'], 'noindex, nofollow');
-  receipts.push({ mode, canonicalHttpsHost: 'veylet.com', publicRoutes: 17, canonicalRedirects: 11, complete404Variants: 4, excludedPaths: 6, mediaRanges: 3, conditionalStatus: 304, forbiddenMethods: 4, unapprovedOriginStatus: denied.status });
+  receipts.push({ mode, canonicalHttpsHost: 'veylet.com', publicRoutes: 17, canonicalRedirects: 11, complete404Variants: 4, excludedPaths: 6, mediaRanges: 3, conditionalStatus: 304, forbiddenMethods: 4 });
 });
+
+// Wrangler infers the canonical upstream from production routes and rewrites
+// both URL and Host. Override that local upstream for this negative-origin proof.
+await server('production', async mode => {
+  const denied = await request('/', mode, { headers: { Host: 'evil.example' } });
+  equal(denied.status, 403); equal(denied.headers['x-robots-tag'], 'noindex, nofollow');
+  equal(denied.headers['cache-control'], 'no-store');
+  receipts.push({ mode: 'production-negative-origin', localUpstreamOverride: 'https://evil.example', unapprovedOriginStatus: denied.status });
+}, { localUpstream: 'evil.example' });
 
 await mkdir(join(adapterRoot, 'verification'), { recursive: true });
 const report = { checkedAt: new Date().toISOString(), proof: 'Actual local workerd and ASSETS, pinned Wrangler4.143.0, exact preview/production config; loopback only', sourceCommit: manifest.sourceCommit, manifestSha256: sha256(await readFile(join(adapterRoot, 'output/build-manifest.json'))), assertions, receipts, stoppedServers: [8896, 8897], limits: ['No hosted deployment, browser-rendered acceptance, positive auth/payment/capture integration or installed-device universal-link validation'] };

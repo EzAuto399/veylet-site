@@ -137,3 +137,23 @@ test('?render=checking is an older backend’s studio_check, ?render=walk goes f
   const full = await offer('?express=full');
   assert.deepEqual([full.daily_cap, full.taken_today, full.full_today], [5, 5, true]);
 });
+
+test('Insights visual fixtures preserve selected periods, source totals and final-summary counts', async () => {
+  const tour = 'a2222222-2222-4222-8222-222222222222';
+  for (const days of [7, 30, 90]) {
+    for (const mode of ['', '&insights=low', '&insights=no-map', '&insights=limited']) {
+      const { client } = fixture('?case=activity' + mode);
+      const value = (await client.rpc('get_walkthrough_insights', { p_tour_id: tour, p_days: days })).data;
+      assert.equal(Math.round((Date.parse(value.period_end) - Date.parse(value.period_start)) / 86400000), days);
+      assert.equal(Object.values(value.totals.by_src).reduce((n, count) => n + count, 0), value.totals.opens);
+      assert.equal(value.stops.reduce((n, stop) => n + stop.exits, 0), value.coverage.complete_visits);
+      assert.ok(value.stops.every(stop => stop.exits <= stop.visits && stop.visits <= value.coverage.observed_visits));
+      if (mode.includes('no-map')) { assert.equal(value.coverage.layout_available, false); assert.ok(value.stops.every(stop => stop.x === null && stop.y === null)); }
+      if (mode.includes('limited')) { assert.equal(value.coverage.rate_limited, true); assert.equal(value.coverage.dropped_visits, null); }
+    }
+  }
+  const { client } = fixture('?case=activity');
+  const seven = (await client.rpc('get_walkthrough_insights', { p_tour_id: tour, p_days: 7 })).data;
+  const thirty = (await client.rpc('get_walkthrough_insights', { p_tour_id: tour, p_days: 30 })).data;
+  assert.equal(seven.totals.opens, 34); assert.equal(thirty.totals.opens, 148);
+});

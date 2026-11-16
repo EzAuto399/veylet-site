@@ -94,7 +94,7 @@ test('signed out, the page keeps the invite and sends the person to sign in, whi
   const p = await page({ signedIn: false, local, sessionStore });
   assert.deepEqual(p.replaced, ['/join']);
   assert.equal(p.calls.length, 0);
-  assert.deepEqual(p.view(), { state: 'signin', title: 'Sign in to join your team', message: 'Sign in with the email address the invite was sent to. You come back here to join.',
+  assert.deepEqual(p.view(), { state: 'signin', title: 'Sign in to join your team', message: 'Use your Veylet sign-in: Apple, or your email. You come back here to join.',
     detail: '', primary: ['Sign in to join', '/account?join=1'], retry: false });
   assert.equal(JSON.parse(local.map.get('veylet-join-invite')).t, TOKEN);
   assert.equal(JSON.parse(sessionStore.map.get('veylet-join-invite')).t, TOKEN);

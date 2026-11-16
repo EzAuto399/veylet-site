@@ -1,5 +1,8 @@
 'use strict';
 // Exact QA route only. This file is outside dist and never shipped.
+// Member Insights: ?case=activity&tour=a2222222-2222-4222-8222-222222222222&panel=insights.
+// &insights=low|no-map|limited|zero|missing|error exercises sample, layout and data states.
+// The 7/30/90-day period controls return distinct, internally consistent fictional records.
 (() => {
   const params = new URLSearchParams(location.search);
   // Player v2 (streamed packages): `?format=v2` answers every tour and share
@@ -211,6 +214,23 @@
   const DAY = 86400000;
   const ago = days => new Date(Date.now() - days * DAY).toISOString();
   const addMonths = (iso, count) => { const when = new Date(iso); when.setUTCMonth(when.getUTCMonth() + count); return when.toISOString(); };
+  // Activity/Insights QA uses real-shaped, entirely fictional identities.
+  const ACTIVITY_READY = 'a1111111-1111-4111-8111-111111111111';
+  const ACTIVITY_LIVE = 'a2222222-2222-4222-8222-222222222222';
+  const ACTIVITY_SPACE = 'b1111111-1111-4111-8111-111111111111';
+  const ACTIVITY_SNAPSHOT = 'c1111111-1111-4111-8111-111111111111';
+  const activityRead = new Set((() => { try { return JSON.parse(window.sessionStorage?.getItem('veylet-qa-activity-read') || '[]'); } catch { return []; } })());
+  if (scenario === 'activity') {
+    properties.splice(0, properties.length, { id: ACTIVITY_SPACE, title: 'Fictional apartment', category: 'QA fixture', location_general: 'Example region', workspace_id: 'synthetic-workspace' });
+    tours.splice(0, tours.length,
+      { ...tours[0], id: ACTIVITY_READY, property_id: ACTIVITY_SPACE, revision: 3, storage_path: 'synthetic/fixture.zip' },
+      { ...tours[0], id: ACTIVITY_LIVE, property_id: ACTIVITY_SPACE, revision: 2, storage_path: 'synthetic/fixture.zip' });
+    approvedTours.add(ACTIVITY_LIVE); tokens.set(ACTIVITY_LIVE, 'synthetic-fixture-token-live1'); releasedAt.set(ACTIVITY_LIVE, ago(20));
+  }
+  const activityItems = () => [
+    { id: 'd1111111-1111-4111-8111-111111111111', kind: 'ready_for_review', tour_id: ACTIVITY_READY, revision: 3, needs_attention: !approvedTours.has(ACTIVITY_READY), action: 'review', occurred_at: ago(.02) },
+    { id: 'd2222222-2222-4222-8222-222222222222', kind: 'sharing_on', tour_id: ACTIVITY_LIVE, revision: 2, needs_attention: false, action: 'sharing', occurred_at: ago(1) },
+  ].map(item => ({ ...item, unread_eligible: params.get('activity') !== 'pre-membership', workspace_id: 'e1111111-1111-4111-8111-111111111111', property_id: ACTIVITY_SPACE, job_id: null, space_name: 'Fictional apartment', read_at: activityRead.has(item.id) ? ago(0) : null }));
   const hostingCase = ['review', 'hosting-errors'].includes(scenario);
   const planActiveFor = { 'synthetic-workspace': true, 'synthetic-workspace-ended': false };
   const extendedUntil = new Map();
@@ -1189,6 +1209,41 @@
     },
     async rpc(name, args) {
       window.VEYLET_QA_CALLS.push({ name, args });
+      if (name === 'list_activity') {
+        if (params.get('activity') === 'missing' || scenario !== 'activity') return { error: { code: 'PGRST202' } };
+        if (params.get('activity') === 'error') return { error: { message: 'Synthetic Activity failure' } };
+        const items = params.get('activity') === 'empty' ? [] : activityItems();
+        return { data: { items, unread_count: items.filter(item => item.unread_eligible !== false && !item.read_at).length, attention_count: items.filter(item => item.needs_attention).length, next_cursor: null, snapshot_token: ACTIVITY_SNAPSHOT, as_of: ago(0) } };
+      }
+      if (name === 'mark_activity_read') {
+        if (params.get('activity') === 'read-error') return { error: { message: 'Synthetic read save failure' } };
+        const eligible = activityItems().filter(item => item.unread_eligible !== false);
+        const ids = args.p_snapshot_token === ACTIVITY_SNAPSHOT ? eligible.map(item => item.id) : (args.p_event_ids || []).filter(id => eligible.some(item => item.id === id));
+        ids.forEach(id => activityRead.add(id)); try { window.sessionStorage?.setItem('veylet-qa-activity-read', JSON.stringify([...activityRead])); } catch { /* this synthetic visit still holds its reads */ }
+        return { data: { read_ids: ids, unread_count: activityItems().filter(item => item.unread_eligible !== false && !item.read_at).length } };
+      }
+      if (name === 'get_walkthrough_insights') {
+        if (scenario !== 'activity' || params.get('insights') === 'missing') return { error: { code: 'PGRST202' } };
+        if (params.get('insights') === 'error') return { error: { message: 'Synthetic Insights failure' } };
+        const isLive = args.p_tour_id === ACTIVITY_LIVE, zero = !isLive || params.get('insights') === 'zero', low = params.get('insights') === 'low';
+        const range = [7, 30, 90].includes(args.p_days) ? args.p_days : 30;
+        const sample = {
+          7: { opens: 34, explores: 23, calls: 1, emails: 1, shares: 1, link: 24, embed: 10, observed: 18, complete: 15, visits: [18, 13, 10], active: [96, 78, 60], endings: [3, 4, 8] },
+          30: { opens: 148, explores: 92, calls: 6, emails: 2, shares: 5, link: 100, embed: 48, observed: 92, complete: 80, visits: [92, 66, 50], active: [412, 324, 201], endings: [12, 18, 50] },
+          90: { opens: 412, explores: 248, calls: 15, emails: 6, shares: 14, link: 280, embed: 132, observed: 188, complete: 160, visits: [188, 150, 110], active: [940, 720, 480], endings: [24, 36, 100] }
+        }[range];
+        const observed = zero ? 0 : low ? 7 : sample.observed, complete = zero ? 0 : low ? 6 : sample.complete;
+        const noMap = params.get('insights') === 'no-map', limited = params.get('insights') === 'limited';
+        return { data: { schema_version: 1, tour_id: args.p_tour_id, walkthrough_id: args.p_tour_id, revision: isLive ? 2 : 3,
+          availability: !isLive ? 'not_shared' : zero ? 'no_observations' : observed < 20 ? 'insufficient_data' : 'available',
+          as_of: ago(0), period_start: ago(range), period_end: ago(0), timezone: 'UTC',
+          totals: { scope: 'revision_period', opens: zero ? 0 : sample.opens, explores: zero ? 0 : sample.explores, call_taps: zero ? 0 : sample.calls, email_taps: zero ? 0 : sample.emails, share_taps: zero ? 0 : sample.shares, by_src: zero ? {} : { link: sample.link, embed: sample.embed } },
+          coverage: { observed_visits: observed, complete_visits: complete, collection_started_at: ago(90), dropped_visits: limited ? null : 0, rate_limited: limited, minimum_visits: 20, layout_available: !noMap },
+          stops: !isLive || zero ? [] : [0, 1, 2].map(index => ({ id: 's' + index, label: 'Stop ' + (index + 1),
+            visits: low ? [7, 4, 3][index] : sample.visits[index], active_seconds: low ? [42, 20, 9][index] : sample.active[index], exits: low ? [1, 2, 3][index] : sample.endings[index],
+            x: noMap ? null : [.1, .8, .8][index], y: noMap ? null : [.1, .1, .85][index] })) } };
+      }
+      if (name === 'record_walkthrough_visit') return { data: { status: 'disabled', sequence: args.p_payload?.sequence } };
       if (name === 'get_primary_workspace') return primaryCase === 'office' ? { data: primaryNow } : { error: { code: 'PGRST202', message: 'Could not find the function public.get_primary_workspace' } };
       if (name === 'set_primary_workspace') {
         if (primaryCase !== 'office') return { error: { code: 'PGRST202', message: 'Could not find the function public.set_primary_workspace(p_workspace_id)' } };

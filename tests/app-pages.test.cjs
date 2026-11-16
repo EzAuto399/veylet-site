@@ -177,3 +177,19 @@ test('the QA fixture holds waiting captures and flags the ready one, for each do
   assert.deepEqual((await jobs('?render=ready'))[0].review_flags, []);
   assert.equal((await jobs('?render=waiting&flags=all'))[0].review_flags, null, 'only a ready capture carries flags');
 });
+
+test('both privacy notices distinguish practice reports, local journey events and requested diagnostics', () => {
+  for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
+    const notice = words(mainOf(read(file)));
+    assert.match(notice, /Last updated 14 November 2026/);
+    assert.match(notice, /Practice results\.[\s\S]*automatically[\s\S]*20/);
+    assert.match(notice, /Practice images, camera positions and depth are not included/);
+    assert.match(notice, /Local journey events\.[\s\S]*200[\s\S]*not uploaded/);
+    assert.match(notice, /capture and tour IDs and, when signed in, your account ID/);
+    assert.match(notice, /recorded while uploads are off are never sent later/);
+    assert.match(notice, /Diagnostics and support\.[\s\S]*only when you choose[\s\S]*support correspondence/);
+    assert.match(notice, /Send[\s\S]*photos, LiDAR depth and camera positions/);
+    assert.match(notice, /not your GPS location/);
+    assert.doesNotMatch(notice, /current beta does not automatically upload original room captures/);
+  }
+});

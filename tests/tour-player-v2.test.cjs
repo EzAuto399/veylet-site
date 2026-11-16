@@ -1539,3 +1539,16 @@ test('a stop jump by hand fades in from dark, and loading progress is said on wi
   assert.deepEqual(JSON.parse(JSON.stringify(fades)), [[[0.55, 0], 280]]);
 });
 const controller = x => x.window.VeyletPlayerV2.current;
+
+test('point-to-point player emits only opaque engagement stops at ready, arrival and teardown', async () => {
+  const aborter = new AbortController();
+  const x = await started({ startOptions: { signal: aborter.signal }, context: { CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } } } });
+  x.document.FakeNode.prototype.dispatchEvent = function (event) { this.dispatch(event.type, { detail: event.detail }); };
+  const events = []; x.stage.addEventListener('veylet:stop', event => events.push(event.detail));
+  const app = x.engine.apps[0]; app.systems.gsplat.fire('frame:ready', null, null, false, 1); app.systems.gsplat.fire('frame:ready', null, null, true, 0); await x.pending;
+  assert.deepEqual(JSON.parse(JSON.stringify(events)), [{ source: 'veylet-v2', stop_id: 's1' }]);
+  x.window.VeyletPlayerV2.current.goToStop(2);
+  assert.deepEqual(JSON.parse(JSON.stringify(events.slice(-2))), [{ source: 'veylet-v2', stop_id: null }, { source: 'veylet-v2', stop_id: 's3' }]);
+  aborter.abort(); assert.equal(events.at(-1).stop_id, null);
+  assert.ok(x.log.includes('app.destroy'), 'the real abort teardown ran');
+});

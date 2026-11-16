@@ -13,15 +13,17 @@
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
     <link rel="stylesheet" href="/style.css?v=71e227ed29237165" />
-    <link rel="stylesheet" href="/account-guide.css?v=f42c7a06e3fe985d" />
+    <link rel="stylesheet" href="/account-guide.css?v=43f2c9302c0641bc" />
     <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/place-fields.js?v=b597ac72159bd08e" defer></script>
-    <script src="/tour-sharing.js?v=d782f0da91c14179" defer></script>
+    <script src="/tour-sharing.js?v=25575e879fbea9c4" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <script src="/account.js?v=f6cb5acb21e895a7" defer></script>
+    <link rel="stylesheet" href="/account-journey.css?v=02cfbb13f5adecda" />
+    <script src="/account-journey.js?v=17edce3a8181bd4e" defer></script>
+    <script src="/account.js?v=ff5fab5bf83f9e38" defer></script>
     <script src="/stage.js?v=f8eb9d11b27ce120" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -149,8 +151,11 @@
         <div class="desk-view" id="view-walkthroughs">
           <div class="view-head">
             <h1 class="view-title" id="account-work-title" tabindex="-1">Walkthroughs</h1>
-            <p class="desk-refresh"><span class="tour-when" id="account-updated"></span><button class="tour-action" id="account-refresh" type="button">Refresh</button><button class="tour-action" id="account-add-open" type="button" aria-expanded="false" aria-controls="account-add-space">Add a space</button></p>
+            <p class="desk-refresh"><span class="tour-when" id="account-updated"></span><button class="tour-action" id="account-refresh" type="button">Refresh</button><button class="tour-action" id="account-activity-open" type="button" aria-controls="account-activity" aria-expanded="false">Activity</button><button class="tour-action" id="account-add-open" type="button" aria-expanded="false" aria-controls="account-add-space">Add a space</button></p>
           </div>
+          <!-- Activity: the same updates the app shows, read from list_activity. Drawn by
+               dist/account-journey.js; closed until the reader opens it. -->
+          <section id="account-activity" class="journey-activity" aria-labelledby="account-activity-title" hidden></section>
           <p id="account-target-status" class="contact-note" role="status" hidden></p>
           <p id="account-express-status" class="contact-note" role="status" hidden></p>
           <!-- Render status: a read that failed (or the page being offline) says so
@@ -304,5 +309,6 @@
     <!-- Signed in, the desk ends with the pages a customer needs, not the marketing ones. -->
     <footer class="wrap desk-footer" id="desk-footer" hidden><nav aria-label="Desk footer"><a href="/help">Help</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="mailto:support@veylet.com">Support</a></nav><span>© 2026 Veylet Studio</span></footer>
     <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/waitlist">Join the waitlist</a><a href="/offer">Offer</a><a href="/start">Get started</a><a href="/website-guide">Website guide</a><a href="/guides">Guides</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
+    <div id="journey-toast" class="journey-toast" hidden></div>
   </body>
 </html>

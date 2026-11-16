@@ -41,6 +41,8 @@
   const gateBody = document.getElementById('account-gate-body');
   const spaceForm = document.getElementById('account-space');
   const home = document.getElementById('account-home');
+  const journey = window.VeyletJourney;
+  let activity = null;
   const who = document.getElementById('account-who');
   const idEl = document.getElementById('account-id');
   const copyId = document.getElementById('account-copy-id');
@@ -146,10 +148,14 @@
   // The URL selects an already-authorized row; it never grants access or
   // supplies a storage path, review revision, or publication permission.
   const tourTargets = new URLSearchParams(location.search || '').getAll('tour');
-  const requestedTour = tourTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(tourTargets[0])
+  let requestedTour = tourTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(tourTargets[0])
     ? tourTargets[0] : null;
   const invalidTourTarget = tourTargets.length > 0 && !requestedTour;
-  const tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) : '';
+  const panelTargets = new URLSearchParams(location.search || '').getAll('panel');
+  let requestedPanel = panelTargets.length === 1 && panelTargets[0] === 'insights' && requestedTour ? 'insights' : null;
+  const spaceTargets = new URLSearchParams(location.search || '').getAll('space');
+  let requestedSpace = spaceTargets.length === 1 && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(spaceTargets[0]) ? spaceTargets[0] : null;
+  let tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : requestedSpace ? '?space=' + encodeURIComponent(requestedSpace) : '';
   let focusedTourForUser = null;
   // The walkthrough the link asked for, or, once a later version replaced it, that
   // walkthrough's current version. Worked out again on every desk load.
@@ -182,7 +188,8 @@
     const parts = [];
     if (APP_MODE) parts.push('app=1');
     if (joinReturn || appJoin) parts.push('join=1');
-    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    else if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     return parts.length ? '?' + parts.join('&') : '';
   }
   function authEditionKeep() {
@@ -197,7 +204,8 @@
     if (!authReturnsToApp()) return joinReturn ? '/join' : '/account' + tourQuery;
     try { window.sessionStorage?.removeItem(AUTH_EDITION_KEY); } catch { /* nothing kept */ }
     const parts = [];
-    if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     if (authParams.get('join') === '1') parts.push('join=1');
     return '/app/account' + (parts.length ? '?' + parts.join('&') : '');
   }
@@ -206,7 +214,8 @@
   function authRetryPath() {
     const parts = [];
     if (authParams.get('join') === '1') parts.push('join=1');
-    else if (requestedTour) parts.push('tour=' + encodeURIComponent(requestedTour));
+    else if (requestedTour) { parts.push('tour=' + encodeURIComponent(requestedTour)); if (requestedPanel) parts.push('panel=insights'); }
+    else if (requestedSpace) parts.push('space=' + encodeURIComponent(requestedSpace));
     return (authReturnsToApp() ? '/app/account' : '/account') + (parts.length ? '?' + parts.join('&') : '');
   }
   const APPLE_UNAVAILABLE = 'Apple sign-in isn’t available right now. Use email instead.';
@@ -395,7 +404,10 @@
   }
 
   function setStatus(value) {
-    if (statusEl) statusEl.textContent = value;
+    const copied = journey && /\bcopied\b/i.test(value || '') && !/not|couldn|could not|failed/i.test(value);
+    if (copied) journey.toast(document, value);
+    if (statusEl) statusEl.textContent = copied ? '' : value;
+    return copied;
   }
 
   /** Never leave the desk waiting on one unanswered request. */
@@ -483,6 +495,7 @@
   }
   function showSignedOut(message) {
     sessionChecked();
+    activity?.setUser(null); journey?.clearToast(document);
     needsCtx = null; needsDraw(); planLineSay('');
     stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
@@ -841,7 +854,7 @@
     } else if (failed(production)) {
       guide('Check your capture access.', 'Your space is saved, but production approval could not be checked. Keep your existing capture and refresh before starting production work.', 'Refresh access', () => loadDesk(supabase));
     } else if (production.value?.data === true) {
-      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#first-session');
+      guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#capture-preparation');
     } else {
       guide('Prepare your first capture.', 'Your space is saved. Use the Veylet app on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-walkthrough steps', '/start');
     }
@@ -863,9 +876,9 @@
       line.textContent = rowNotice.text; line.hidden = false; rowNotice = null;
     }
     return (value, keepAfterReload = false) => {
-      setStatus(value);
-      line.textContent = value; line.hidden = !value;
-      rowNotice = keepAfterReload && value ? { tourId: tour.id, text: value } : null;
+      const toasted = setStatus(value);
+      line.textContent = toasted ? '' : value; line.hidden = toasted || !value;
+      rowNotice = !toasted && keepAfterReload && value ? { tourId: tour.id, text: value } : null;
     };
   }
   function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
@@ -1417,7 +1430,7 @@
   function liveSharing(tour, item, title, deck) {
     const share = window.VeyletSharing;
     const page = share.handoffUrl(tour.share_token);
-    // What the agent hands out carries its channel; Open as your client is the page itself.
+    // Shared links carry their channel. The explicit owner preview suppresses analytics only.
     const url = tagged(page, 'link');
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Your walkthrough';
     const link = copyField('Link', 'input', url);
@@ -1453,7 +1466,7 @@
       actions.append(send, copyLink);
     } else { copyLink.className = 'tour-action tour-action-primary'; actions.append(copyLink); }
     cardShare.set(item, sheet ? actions.children[0] : copyLink);
-    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page; open.textContent = 'Open as your client';
+    const open = document.createElement('a'); open.className = 'tour-action'; open.href = page + '&preview=owner'; open.textContent = 'Open as your client';
     actions.append(open);
     deck.place(actions);
     // The address shows under the row once Copy link is pressed (and to select by hand
@@ -1484,8 +1497,9 @@
     const code = embedCodeTagged(share, tour.share_token);
     const embed = copyField('Embed code', 'textarea', code);
     const copyCode = button('Copy embed code', async () => {
-      await share.copy(code, embed.field, statusEl, 'Embed code copied. Paste it into your builder’s custom HTML block, then check the published page on a phone.');
-      if (statusEl?.textContent) sayWeb(statusEl.textContent);
+      const feedback = { textContent: '' };
+      await share.copy(code, embed.field, feedback, 'Embed code copied. Paste it into your builder’s custom HTML block, then check the published page on a phone.');
+      if (feedback.textContent) sayWeb(feedback.textContent);
     });
     const codeActions = document.createElement('p'); codeActions.className = 'tour-actions-row'; codeActions.append(copyCode);
     if (typeof share.modalButtonCode === 'function') {
@@ -5346,7 +5360,7 @@
       const said = annualNode('p', 'referral-said'); said.hidden = true;
       const copy = button('Copy link', async () => {
         const share = window.VeyletSharing;
-        if (share?.copy) await share.copy(url, link.field, statusEl, 'Share link copied. Send it to the office you are referring.');
+        if (share?.copy) { const feedback = { textContent: '' }; await share.copy(url, link.field, feedback, 'Share link copied. Send it to the office you are referring.'); setStatus(feedback.textContent); }
         else { link.field.focus(); link.field.select(); setStatus('Select and copy the link above.'); }
         said.textContent = statusEl?.textContent || ''; said.hidden = !said.textContent;
       });
@@ -6149,10 +6163,10 @@
     const link = copyField('Invite link', 'input', url);
     link.field.dataset.control = 'team-link';
     const said = annualNode('p', 'team-said'); said.hidden = true;
-    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const say = text => { const toasted = text && setStatus(text); said.textContent = toasted ? '' : text; said.hidden = toasted || !text; };
     const copy = async () => {
       const share = window.VeyletSharing;
-      if (share?.copy) { await share.copy(url, link.field, statusEl, TEAM_WORDS.copied); say(statusEl?.textContent || TEAM_WORDS.copied); }
+      if (share?.copy) { const feedback = { textContent: '' }; await share.copy(url, link.field, feedback, TEAM_WORDS.copied); say(feedback.textContent || TEAM_WORDS.copied); }
       else { link.field.focus?.(); link.field.select?.(); say('Select and copy the link above.'); }
     };
     const copyLink = button('Copy link', copy); copyLink.dataset.control = 'team-copy';
@@ -6198,7 +6212,7 @@
   function teamConfirmed(parent, { label, confirm, warn, keep: keepLabel, kept, control, onMissing, run }) {
     let armed = false;
     const said = annualNode('p', 'team-said'); said.hidden = true;
-    const say = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+    const say = text => { const toasted = text && setStatus(text); said.textContent = toasted ? '' : text; said.hidden = toasted || !text; };
     const reset = () => { armed = false; press.textContent = label; press.dataset.armed = 'false'; keep.hidden = true; press.disabled = false; };
     const press = button(label, async () => {
       if (press.disabled) return;
@@ -7089,11 +7103,22 @@
   function renderGuide(views) {
     if (!render?.desk.guideFree) return;
     const found = key => views.find(entry => entry.view.key === key);
-    const recapture = found('recapture'), broken = found('failed');
+    const ready = found('ready'), recapture = found('recapture'), broken = found('failed');
     const moving = views.find(entry => RENDER_ACTIVE.includes(entry.view.key));
-    const said = recapture ? 'recapture' : broken ? 'failed' : moving ? (moving.view.key === 'uploading' ? 'uploading' : moving.view.hold ? 'held-' + moving.view.hold.reason : 'moving') : '';
-    if (!said || said === renderGuideSaid) return;
+    const said = ready ? 'ready-' + ready.view.tour : recapture ? 'recapture' : broken ? 'failed' : moving ? (moving.view.key === 'uploading' ? 'uploading' : moving.view.hold ? 'held-' + moving.view.hold.reason : 'moving') : '';
+    if (!said) {
+      if (renderGuideSaid) { renderGuideSaid = ''; render.desk.restoreGuide?.(); }
+      return;
+    }
+    if (said === renderGuideSaid) return;
     renderGuideSaid = said;
+    if (ready) {
+      const space = render.desk.properties.get(ready.propertyID);
+      const canReview = ['owner', 'reviewer'].includes(render.desk.roles.get(space?.workspace_id));
+      if (canReview) guide(ready.title + ' is ready for your review.', 'Open it, check each stop, then approve and share. Nobody else can see it until you do.', 'Review walkthrough', () => renderReview(ready.view.tour));
+      else guide(ready.title + ' is ready for review.', 'The workspace owner opens it, checks each stop, then approves and shares it.');
+      return;
+    }
     if (said === 'held-trial_limit') {
       guide('Your capture is waiting to start.', renderTrialLimitWords() + ' Use Check again or Contact Veylet support on ' + moving.title + ' below.');
       return;
@@ -7492,6 +7517,7 @@
   }
   async function loadDesk(supabase) {
     if (!list || !currentUserId) return;
+    void activity?.load();
     // A drawn desk is read before it is cleared, so a lost connection never empties it.
     const shown = deskShownAt > 0;
     if (shown && offlineNow()) { deskOffline(); return; }
@@ -7629,13 +7655,18 @@
       needsCtx = failed(tours) || failed(members) ? null : { properties, rows, items, roles, hosting: hostingRows, pending: reviewsPending };
       needsDraw();
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
-      else guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
+      else {
+        guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
+        // A late review read must not overwrite a newer capture's next action.
+        if (render?.ticket === ticket && render.answers) { renderGuideSaid = ''; renderDraw(); }
+      }
     };
     if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
       const li = document.createElement('li'); li.className = 'dash-space';
+      if (row.id === requestedSpace) { li.id = 'requested-space'; li.tabIndex = -1; }
       // A space is a section of this page, so it is a heading: jumping between
       // spaces by heading is how a screen reader reads a list like this one.
       // The name is the heading; what kind of space and where are its details.
@@ -7720,8 +7751,12 @@
       // A failed tour read never lets a space read as having sent nothing.
       toursKnown: !failed(tours),
       spacesWithTours: new Set(rows.map(row => row.property_id)),
-      // Nothing on the desk to review or share yet: the next step speaks for the capture.
-      guideFree: !failed(tours) && !failed(members) && !rows.some(row => items.has(row.id)),
+      // Completed live work yields to a newer capture. Explicit arrivals and actions
+      // on a ready tour retain their destination until the person finishes them.
+      guideFree: !failed(tours) && !failed(members) && !deskTarget && !rows.some(row => items.has(row.id)
+        && row.status === 'ready' && (!row.share_token || sharePaused(row)
+          || ['offline', 'offline_on'].includes(hostingPhase(hostingRows?.get(row.id))))),
+      restoreGuide: () => guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows }),
     });
     if (renderPendingReview) {
       const pending = renderPendingReview; renderPendingReview = null;
@@ -7763,11 +7798,26 @@
     },
   });
 
+  activity = journey?.mountActivity({ document, rpc: (name, args) => supabase.rpc(name, args), open: item => {
+    // Stay in this document so the independent read acknowledgement survives navigation.
+    // A fresh desk read still rechecks membership, current revision and approval.
+    const id = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+    requestedTour = id.test(item.tour_id || '') ? item.tour_id : null;
+    requestedSpace = !requestedTour && id.test(item.property_id || '') ? item.property_id : null;
+    if (!requestedTour && !requestedSpace) return;
+    requestedPanel = requestedTour && item.kind === 'sharing_on' ? 'insights' : null;
+    tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : '?space=' + encodeURIComponent(requestedSpace);
+    deskTarget = requestedTour; focusedTourForUser = null;
+    window.history?.replaceState?.(null, '', (APP_MODE ? '/app/account' : '/account') + tourQuery);
+    void loadDesk(supabase).then(() => { if (requestedSpace) { const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
+  } });
+
   async function showSession(session) {
     sessionChecked();
     if (!session || !session.user) {
       sessionHeading(false);
       currentUserId = null;
+      activity?.setUser(null);
       currentUserEmail = ''; currentUserConfirmedAt = null;
       emailHide();
       methodsHide();
@@ -7793,6 +7843,7 @@
     // Another account's desk is never kept on the page while this one's is read.
     if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); methodsHide(); }
     currentUserId = session.user.id;
+    activity?.setUser(currentUserId);
     currentUserEmail = session.user.email || '';
     currentUserConfirmedAt = session.user.email_confirmed_at || session.user.confirmed_at || session.user.created_at || null;
     if (signupTipsRow) signupTipsRow.hidden = true;
@@ -7844,6 +7895,7 @@
   }
 
   supabase.auth.onAuthStateChange((event, session) => {
+    activity?.setUser(session?.user?.id || null);
     const version = ++authVersion;
     // Invalidate immediately, before the queued session render can run.
     if (session?.user || event === 'SIGNED_OUT') resetSignInAttempt();

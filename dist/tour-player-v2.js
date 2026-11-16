@@ -1497,6 +1497,11 @@
         if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent(type, { detail }));
       } catch { /* optional: a page that is not listening changes nothing */ }
     }
+    // The stop the viewer is on, by its id, for the optional first-party stop-engagement collector
+    // (viewer-engagement.js, off unless the deployment turns it on). null means "on no stop".
+    function engagementStop(id) {
+      try { ui.root.dispatchEvent?.(new CustomEvent('veylet:stop', { bubbles: true, detail: { source: 'veylet-v2', stop_id: id } })); } catch { /* optional first-party measurement never blocks playback */ }
+    }
     // Viewer insights (docs/data-events-20261111.md): the stops reached and the seconds spent per room TYPE,
     // said to the page as one 'veylet:visit' summary after every arrival. A room's own name is never in it,
     // only its preset type (CaptureRoomNames.presets; any other name is Other). The page decides whether
@@ -1539,6 +1544,7 @@
       }
       announceActivity('veylet:stop', { stop: index, room: label.room || null });
       announceActivity('veylet:visit', logVisit(index, label.room));
+      engagementStop(index >= 0 && (!chunked || held.get(currentChunk)?.settled) ? manifest.stops[index]?.id || null : null);
       tellStop(index);
       if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }
@@ -1614,6 +1620,7 @@
     }
     function goToStop(index, byUser = true, orientation = null) {
       if (!ready) return;
+      engagementStop(null);
       dismissHint(byUser);
       hideEnd();
       const stop = manifest.stops[index];
@@ -1991,6 +1998,7 @@
     // Everything held has arrived at its level.
     function chunksSettled() {
       for (const item of held.values()) item.settled = true;
+      if (state.stop >= 0) engagementStop(manifest.stops[state.stop]?.id || null);
       if (roomWait) {
         stats.rooms.push({ chunk: roomWait.chunk, ms: Math.round(performance.now() - roomWait.since) });
         roomWait = null;
@@ -2058,6 +2066,7 @@
           || asked !== state.stop;
         // The opening stop is an arrival too, once there is something to look at (unless immediately jumping to the asked/resumed stop).
         if (!willJump) {
+          engagementStop(manifest.stops[state.stop >= 0 ? state.stop : manifest.start]?.id || null);
           if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
           tellStop(state.stop);
         }
@@ -2201,6 +2210,7 @@
     const originalDestroy = app.destroy.bind(app);
     viewer = {
       destroy() {
+        engagementStop(null);
         observer.disconnect();
         document.removeEventListener('visibilitychange', visibility);
         document.removeEventListener('fullscreenchange', fullscreenChanged);

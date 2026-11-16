@@ -803,3 +803,17 @@ test('the QA fixture records stop and look as the beacon posts them, and answers
   assert.equal((await client('?heat=error').rpc('get_tour_view_heatmap', {})).error.code, undefined);
   assert.match(source, /`\?heat=empty` answers no visits yet/);
 });
+
+test('explicit owner previews suppress basic viewer observations without bypassing public share lookup', async () => {
+  const h = handoffPage({ search: '?t=' + TOKEN + '&preview=owner' });
+  const resolved = await h.bootOptions.resolve(client()); await settle();
+  assert.ok(resolved, 'the same authorized shared result is still resolved');
+  h.document.getElementById('agent-card').querySelectorAll('a')[0]?.click();
+  h.document.getElementById('client-share').click(); await settle();
+  assert.equal(h.net.sent.length, 0);
+  const e = embedPage({ search: '?t=' + TOKEN + '&preview=owner' }); await settle();
+  e.ids['embed-start'].events.click(); await e.bootOptions.resolve(client()); await settle();
+  assert.equal(e.net.sent.length, 0);
+  assert.match(handoff, /enabled: window\.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview/);
+  assert.match(embed, /enabled: window\.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview/);
+});

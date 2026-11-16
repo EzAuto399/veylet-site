@@ -1,0 +1,94 @@
+{
+  "activity": {
+    "as_of": "2026-11-13T07:26:24.913661+10:00",
+    "items": [
+      {
+        "id": "07b025fd-b7a4-4d7d-a48f-0082a0e8fc35",
+        "kind": "sharing_on",
+        "action": "sharing",
+        "job_id": null,
+        "read_at": null,
+        "tour_id": "a5110000-0000-4000-8000-000000000011",
+        "revision": 1,
+        "space_name": "Synthetic apartment",
+        "occurred_at": "2026-11-13T07:26:24.252711+10:00",
+        "property_id": "a5110000-0000-4000-8000-000000000010",
+        "workspace_id": "79c04865-e5c2-4391-b844-9f0dfd33d001",
+        "needs_attention": false,
+        "unread_eligible": true
+      },
+      {
+        "id": "a5110000-0000-4000-8000-000000000014",
+        "kind": "ready_for_review",
+        "action": "space",
+        "job_id": "a5110000-0000-4000-8000-000000000012",
+        "read_at": null,
+        "tour_id": "a5110000-0000-4000-8000-000000000011",
+        "revision": 1,
+        "space_name": "Synthetic apartment",
+        "occurred_at": "2026-11-13T07:26:24.069468+10:00",
+        "property_id": "a5110000-0000-4000-8000-000000000010",
+        "workspace_id": "79c04865-e5c2-4391-b844-9f0dfd33d001",
+        "needs_attention": false,
+        "unread_eligible": true
+      }
+    ],
+    "next_cursor": null,
+    "unread_count": 2,
+    "snapshot_token": "ef2a3b02-8307-406c-b146-56c84d28bc30",
+    "attention_count": 0
+  },
+  "insights": {
+    "as_of": "2026-11-12T21:12:29.433164+00:00",
+    "stops": [
+      {
+        "x": 0,
+        "y": 0.5,
+        "id": "s1",
+        "exits": 21,
+        "label": "Stop 1",
+        "visits": 21,
+        "active_seconds": 220
+      },
+      {
+        "x": 1,
+        "y": 0.5,
+        "id": "s2",
+        "exits": 0,
+        "label": "Stop 2",
+        "visits": 1,
+        "active_seconds": 5
+      }
+    ],
+    "totals": {
+      "opens": 1,
+      "scope": "revision_period",
+      "by_src": {
+        "link": 1
+      },
+      "explores": 0,
+      "call_taps": 0,
+      "email_taps": 0,
+      "share_taps": 0
+    },
+    "tour_id": "a5110000-0000-4000-8000-000000000011",
+    "coverage": {
+      "rate_limited": false,
+      "dropped_visits": 0,
+      "minimum_visits": 20,
+      "complete_visits": 21,
+      "observed_visits": 21,
+      "layout_available": true,
+      "first_observation_at": "2026-11-12T21:12:28.943629+00:00",
+      "collection_started_at": "2026-11-12T21:12:28.943629+00:00",
+      "historical_event_coverage": "unknown"
+    },
+    "revision": 1,
+    "timezone": "UTC",
+    "period_end": "2026-11-12T21:12:29.433164+00:00",
+    "availability": "available",
+    "period_start": "2026-10-13T21:12:29.433164+00:00",
+    "schema_version": 1,
+    "walkthrough_id": "a5110000-0000-4000-8000-000000000011"
+  }
+}

@@ -25,7 +25,7 @@ const insightsCss = guideCss.slice(guideCss.indexOf('/* ---- Walkthrough insight
 const settle = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 const TOKEN = 'abcdefghijklmnop';
 const HANDOFF = 'https://veylet.com/handoff?t=' + TOKEN;
-// What the desk hands out carries its channel (?src=); Open as your client is the page itself.
+// Handed-out links carry a channel; explicit owner previews suppress analytics.
 const LINK = HANDOFF + '&src=link';
 const QR = HANDOFF + '&src=qr';
 
@@ -539,7 +539,7 @@ test('the Live card: Share opens the device’s share sheet with the listing tit
   const h = await load({ tours: [readyTour({ share_token: TOKEN })], approved: true, hosting: [released()], share: async () => {} });
   const card = h.card('t1');
   assert.deepEqual(filled(card), ['Share']);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF);
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&preview=owner');
   // The row is the one filled button, Copy link (quiet) and Open as your client: no Link disclosure.
   const row = card.all().find(el => el.className === 'tour-actions-row' && el.children.some(child => child.textContent === 'Share'));
   assert.deepEqual(row.children.map(child => child.textContent), ['Share', 'Copy link', 'Open as your client']);
@@ -1004,7 +1004,7 @@ test('Copy link for portals and CRM gives portals and CRMs the unbranded /tour a
   assert.equal(code.replace(/&src=embed/g, ''), h.window.VeyletSharing.embedCode(TOKEN));
   // The link field and Open as your client.
   assert.equal(card.all().find(el => el.tagName === 'INPUT' && el.className === 'copy-field').value, LINK);
-  assert.equal(byText(card, 'Open as your client').href, HANDOFF, 'the agent’s own look is untagged');
+  assert.equal(byText(card, 'Open as your client').href, HANDOFF + '&preview=owner', 'the agent’s explicit preview does not count as a visit');
 });
 
 test('views: opens with the last day and the Call and Email taps, under the state line; hidden while the backend has none', async () => {
@@ -2095,4 +2095,34 @@ test('the Live card: Insights, Videos and stills and Manage sit behind one More;
   const quiet = approvedOnly.card('t1');
   assert.equal(toggleOf(quiet, 'more').hidden, true);
   assert.equal(quiet.all().find(el => el.className === 'tour-disclosures').children.includes(toggleOf(quiet, 'manage')), true);
+});
+
+test('a new recapture takes priority over a completed live walkthrough and clears when resolved', async () => {
+  let state = 'needs_recapture';
+  const h = await load({ tours: [liveTour()], approved: true, rpc: {
+    list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p1', job: {
+      job_id: 'new-job', property_id: 'p1', state, attempts_allowed: 2,
+    } }] } }),
+  } });
+  assert.match(textOf(h.ids['account-next-step']), /Recapture what the quality check found/);
+  state = 'live';
+  await h.ids['account-refresh'].fire('click'); await settle();
+  assert.match(textOf(h.ids['account-next-step']), /Your walkthrough is live/);
+});
+
+
+test('a newly ready capture keeps review guidance while edits defer automatic desk reload', async () => {
+  let job = { job_id: 'j2', property_id: 'p2', state: 'rendering', step: 2, attempts_allowed: 2 };
+  const h = await load({ tours: [liveTour()], approved: true,
+    properties: [{ id: 'p1', title: 'Live space', workspace_id: 'w1' }, { id: 'p2', title: 'New space', workspace_id: 'w1' }],
+    rpc: { list_workspace_render_status: async () => ({ data: { active: true, spaces: [{ property_id: 'p2', job }] } }) },
+  });
+  assert.match(textOf(h.ids['account-next-step']), /being made automatically/);
+  await h.ids['account-properties'].fire('input');
+  job = { ...job, state: 'ready_for_review', tour_id: 't2' };
+  const reads = h.tourReads();
+  await h.poll();
+  assert.equal(h.tourReads(), reads, 'in-progress edits prevent automatic desk replacement');
+  assert.match(textOf(h.ids['account-next-step']), /New space is ready for your review/);
+  assert.ok(h.ids['account-next-step'].all().some(el => el.tagName === 'BUTTON' && el.textContent === 'Review walkthrough'));
 });

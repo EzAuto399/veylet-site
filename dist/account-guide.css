@@ -4,8 +4,9 @@
    beside them from 1080px, below them on anything narrower. Source order is
    reading and focus order at every width; nothing is moved by `order`. */
 #account-status:empty { margin: 0; }
+.form-page:has(> .desk:not([hidden])) { max-width: 1456px; padding-top: 32px; }
 .form-page:has(> .desk:not([hidden])) .intro { margin-bottom: 10px; }
-.desk-who { margin: 0 0 40px; font-size: 13px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+.desk-who { margin: 0 0 24px; font-size: 13px; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
 .desk-main,
 .desk-side { min-width: 0; }
 .desk-side { display: grid; gap: 20px; margin-top: 48px; align-items: start; }
@@ -541,6 +542,7 @@
 .desk-links { margin: 12px 0 0; }
 .desk #account-id { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .desk-sign-out { width: 100%; margin-top: 18px; }
+  .desk-side .plan-list > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 @media (min-width: 1080px) {
   /* In the narrow column the plan keeps term and value side by side; the
      longer leaving answers read better under their questions. */

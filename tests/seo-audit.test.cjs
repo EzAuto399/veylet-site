@@ -61,3 +61,16 @@ test('llms.txt is Markdown with an H1 and links every guide and help page as [na
   const wanted = locs.filter((loc) => /\/(guides|help)(\/|$)/.test(loc)).concat(['https://veylet.com/offer', 'https://veylet.com/waitlist', 'https://veylet.com/start']);
   for (const loc of wanted) assert.ok(linked.has(loc), `llms.txt links ${loc}`);
 });
+
+test('searchable pages have one matching canonical URL and unique titles', () => {
+  const titles = new Set();
+  for (const loc of locs) {
+    const html = read(pageFile(loc));
+    const canonicals = [...html.matchAll(/<link\b[^>]*rel="canonical"[^>]*href="([^"]+)"[^>]*>/g)];
+    assert.equal(canonicals.length, 1, `${loc}: one canonical`);
+    assert.equal(decode(canonicals[0][1]), loc, `${loc}: canonical matches sitemap`);
+    const title = text(html.match(/<title[^>]*>([\s\S]*?)<\/title>/)[1]);
+    assert.equal(titles.has(title), false, `${loc}: unique title`);
+    titles.add(title);
+  }
+});
