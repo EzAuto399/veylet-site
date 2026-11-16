@@ -130,9 +130,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
   today.setHours(0, 0, 0, 0);
   input.min = iso(today);
   if (!input.value) input.value = iso(today);
+  let morphTimer = null;
+  const triggerMorph = () => {
+    lines.dataset.morphing = 'true';
+    if (morphTimer && typeof clearTimeout === 'function') clearTimeout(morphTimer);
+    if (typeof setTimeout === 'function') {
+      morphTimer = setTimeout(() => { delete lines.dataset.morphing; }, 190);
+    }
+  };
   input.addEventListener('input', render);
   input.addEventListener('change', render);
-  for (const control of [cadence, channel, pack]) if (control) control.addEventListener('change', render);
+  for (const control of [cadence, channel, pack]) {
+    if (control) control.addEventListener('change', () => { render(); triggerMorph(); });
+  }
   form.addEventListener('submit', event => event.preventDefault());
   render();
 })();

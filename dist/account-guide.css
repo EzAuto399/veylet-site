@@ -1010,3 +1010,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
 .desk-view .annual-option:has(input:focus-visible) { outline: none; }
 .desk-view .annual-option input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+/* Portal/CRM field picker and one-tap buyer follow-up messages inside Website panel */
+.tour-crm-guide { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 6px; max-width: 520px; }
+.tour-crm-select { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line); border-radius: 2px; max-width: 320px; }
+.tour-sms-row { margin-top: 10px; }

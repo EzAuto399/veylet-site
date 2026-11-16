@@ -1386,8 +1386,39 @@
       codeActions.append(guidePage);
     }
     // Portals and CRM take the unbranded link, not the embed: it sits here, after the code.
+    const crmWrap = document.createElement('div'); crmWrap.className = 'tour-crm-guide';
+    const crmLabel = document.createElement('label'); crmLabel.className = 'tour-field';
+    const crmTitle = document.createElement('span'); crmTitle.textContent = 'Portal or CRM';
+    const crmSelect = document.createElement('select'); crmSelect.className = 'tour-crm-select'; crmSelect.dataset.control = 'crm-select';
+    const chosenCrm = share.savedCrm ? share.savedCrm() : 'rex';
+    for (const option of (share.crms || [])) {
+      const opt = document.createElement('option'); opt.value = option.id; opt.textContent = option.name;
+      if (option.id === chosenCrm) opt.selected = true;
+      crmSelect.append(opt);
+    }
+    const crmHint = document.createElement('p'); crmHint.className = 'tour-state-help'; crmHint.dataset.crmHint = '';
+    const paintCrm = id => { if (share.crm) crmHint.textContent = share.crm(id).hint; };
+    paintCrm(chosenCrm);
+    crmSelect.addEventListener('change', () => { if (share.saveCrm) share.saveCrm(crmSelect.value); paintCrm(crmSelect.value); });
+    crmLabel.append(crmTitle, crmSelect);
+    crmWrap.append(crmLabel, crmHint);
     const portalActions = document.createElement('p'); portalActions.className = 'tour-actions-row tour-portal-row'; portalActions.append(copyListing);
-    web.append(chooser, steps, embed.label, codeActions, portalActions, listing.label);
+    // One-tap buyer follow-up messages (SMS / WhatsApp / email).
+    const smsRow = document.createElement('p'); smsRow.className = 'tour-actions-row tour-sms-row';
+    const copyAfter = button('Copy post-inspection SMS', async () => {
+      const text = share.buyerMessages ? share.buyerMessages(name, tour.share_token).afterInspection : page;
+      await share.copy(text, null, statusEl, 'Post-inspection message copied. Paste it into SMS, WhatsApp or email.');
+      if (statusEl?.textContent) sayWeb(statusEl.textContent);
+    });
+    copyAfter.dataset.control = 'copy-sms-after';
+    const copyBefore = button('Copy pre-visit SMS', async () => {
+      const text = share.buyerMessages ? share.buyerMessages(name, tour.share_token).beforeVisit : page;
+      await share.copy(text, null, statusEl, 'Pre-visit message copied. Paste it into SMS, WhatsApp or email.');
+      if (statusEl?.textContent) sayWeb(statusEl.textContent);
+    });
+    copyBefore.dataset.control = 'copy-sms-before';
+    smsRow.append(copyAfter, copyBefore);
+    web.append(chooser, steps, embed.label, codeActions, crmWrap, portalActions, listing.label, smsRow);
     deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
   }
@@ -4990,6 +5021,9 @@
     }
     card.dataset.shown = draft.show ? 'true' : 'false';
     card.replaceChildren(...parts);
+    if (state.refs.pitchLink && window.VeyletSharing?.appraisalPreviewUrl) {
+      state.refs.pitchLink.href = window.VeyletSharing.appraisalPreviewUrl(draft);
+    }
   }
   // Each field's problem beside it, in words, with aria-invalid and aria-describedby.
   function clientsPaint(state, problems) {
@@ -5041,6 +5075,17 @@
     const preview = annualNode('figure', 'clients-preview'); preview.setAttribute('aria-label', 'Preview of the card clients see');
     refs.preview = preview;
     form.append(preview);
+    if (!APP_MODE && window.VeyletSharing?.appraisalPreviewUrl) {
+      const pitchRow = annualNode('p', 'annual-note clients-pitch-row');
+      const pitchLink = annualNode('a', 'text-link', 'Open sample walkthrough with your card');
+      pitchLink.href = window.VeyletSharing.appraisalPreviewUrl(state.draft);
+      pitchLink.target = '_blank';
+      pitchLink.rel = 'noopener noreferrer';
+      pitchLink.dataset.control = 'appraisal-preview';
+      refs.pitchLink = pitchLink;
+      pitchRow.append(pitchLink);
+      form.append(pitchRow);
+    }
     const said = annualNode('p', 'clients-said'); said.hidden = true; refs.said = said;
     const parts = [lead, form];
     if (state.readOnly) {

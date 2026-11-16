@@ -118,8 +118,22 @@
 .statement-includes strong, .statement-note strong { color: var(--ink); font-weight: 500; }
 .statement-note [data-price], .statement-includes [data-price], .statement-allowance [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 @keyframes amount-settle { from { color: var(--muted); } to { color: var(--ink); } }
+@keyframes statement-morph {
+  0% { opacity: 0.55; filter: blur(1.5px); }
+  100% { opacity: 1; filter: blur(0); }
+}
 .statement-lines[data-dated] .amount { animation: amount-settle 240ms ease-out both; }
-@media (prefers-reduced-motion: reduce) { .statement-lines[data-dated] .amount { animation: none; } }
+.statement-lines[data-morphing="true"] .amount,
+.statement-lines[data-morphing="true"] [data-bill-cadence],
+.statement-lines[data-morphing="true"] [data-total-caption] {
+  animation: statement-morph 180ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .statement-lines[data-dated] .amount,
+  .statement-lines[data-morphing="true"] .amount,
+  .statement-lines[data-morphing="true"] [data-bill-cadence],
+  .statement-lines[data-morphing="true"] [data-total-caption] { animation: none; filter: none; }
+}
 /* Terms: two hairline ledgers side by side */
 .offer-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(32px, 5vw, 72px); }
 .offer-terms { margin: 0; display: grid; align-content: start; }
