@@ -7,7 +7,7 @@
  *   invitation  stage 1   "By invitation"; Ask for an invitation (the enquiry, which brings the app invitation)
  *   waitlist    stage 2   "By invitation"; Join the waitlist
  *   open        stages 3-4  open to anyone (offer 2026-09-26.3): new accounts admitted in weekly groups from the waitlist
- *   app         stage 5   the app is on the App Store (from 6 November 2026); rendering still admits new accounts weekly from the waitlist
+ *   app         stage 5   the app is on the App Store (from 15 November 2026); rendering still admits new accounts weekly from the waitlist
  *
  * Sign-in is never removed: /account signs in existing and invited accounts at every stage.
  * The pages carry the default stage's words in their markup (tests/stage.test.cjs checks
