@@ -903,11 +903,20 @@
     const win = options.window, loc = options.location;
     let title = '', giveContact = () => {};
     const contact = new Promise(resolve => { giveContact = resolve; });
+    const rawHash = typeof loc.hash === 'string' ? loc.hash : '';
+    const hasCamera = /^#[A-Za-z0-9_=&.-]{1,64}$/.test(rawHash) && /(?:^#|&)(?:yaw|pitch)=-?\d/.test(rawHash);
+    const stopInHash = hasCamera ? /(?:^#|&)stop=([1-9]\d?)(?:&|$)/.exec(rawHash) : null;
+    let cameraHash = hasCamera && (!stopInHash || Number(stopInHash[1]) >= 1) ? rawHash : '';
+    const cameraStop = stopInHash ? Number(stopInHash[1]) : 1;
     const url = () => (place ? place.url : shareUrl(loc, options.token));
     return {
       startAt: stopFromHash(loc.hash),
       onStop(number, count) {
-        const hash = number > 1 ? '#stop=' + number : '';
+        let hash = number > 1 ? '#stop=' + number : '';
+        if (cameraHash) {
+          if (number === cameraStop) hash = cameraHash;
+          cameraHash = '';
+        }
         place = { number, count, url: shareUrl(loc, options.token) + hash };
         try {
           if ((loc.hash || '') !== hash) win.history.replaceState(win.history.state, '', loc.pathname + loc.search + hash);

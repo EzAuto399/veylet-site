@@ -310,12 +310,18 @@
   max-height: max(calc(100% - 136px), min(calc(100% - 80px), 220px));
   max-height: min(max(calc(100% - 136px), min(calc(100% - 80px), 220px)), calc(100% - var(--v2-bar, 44px) - 32px));
   overflow: auto;
+  scroll-padding-top: 56px;
   padding: 8px 16px 16px;
   border: 1px solid var(--v2-edge);
   border-radius: 2px;
-  background: rgba(16, 35, 29, 0.97);
+  background: #10231d;
   user-select: text;
   -webkit-user-select: text;
+}
+@media (min-height: 360px) {
+  .v2-panel {
+    max-height: min(calc(100% - var(--v2-bar, 44px) - 88px), max(calc(100% - 136px), min(calc(100% - 80px), 220px)));
+  }
 }
 .v2-about { top: 68px; bottom: auto; max-height: min(calc(100% - 148px), calc(100% - var(--v2-bar, 44px) - 88px)); }
 .v2-panel-head {
@@ -327,8 +333,9 @@
   justify-content: space-between;
   gap: 8px;
   margin: -8px -16px 4px;
-  padding: 8px 16px 4px;
-  background: rgba(16, 35, 29, 0.97);
+  padding: 8px 16px 6px;
+  background: #10231d;
+  border-bottom: 1px solid rgba(244, 241, 233, 0.12);
 }
 .v2-panel-head .v2-icon { border-color: transparent; background: transparent; margin-right: -10px; }
 .v2-panel h2 { font-size: 16px; font-weight: 500; }
@@ -483,6 +490,20 @@
   .v2-next[data-end] { padding: 0 10px; }
   .v2-next[data-end] svg { display: block; }
 }
+@media (min-height: 360px) {
+  @container (max-width: 430px) {
+    .v2-research .v2-panel {
+      max-height: calc(100% - var(--v2-bar, 44px) - 132px);
+    }
+    .v2-research .v2-about {
+      top: 112px;
+      max-height: calc(100% - var(--v2-bar, 44px) - 132px);
+    }
+    .v2-research .v2-map {
+      max-height: calc(100% - var(--v2-bar, 44px) - 132px);
+    }
+  }
+}
 
 /* Full screen on an iPhone (the stage fills the window) or through the
    Fullscreen API: the controls stay clear of the sensor housing and the home
@@ -532,7 +553,11 @@
 .v2-rooms,
 .v2-room-pills {
   flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   min-height: 44px;

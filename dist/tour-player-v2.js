@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=b18da206f1118c2d';
+  const STYLE_URL = '/tour-player-v2.css?v=6ce5d88ffa43ae4c';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1283,7 +1283,7 @@
         ui.stopsPanel.append(group);
       }
     }
-    function markCurrent() {
+    function markCurrent(markVisited = false) {
       for (const button of ui.stopsPanel.querySelectorAll('[data-stop]')) {
         if (Number(button.dataset.stop) === state.stop) button.setAttribute('aria-current', 'true');
         else button.removeAttribute('aria-current');
@@ -1291,6 +1291,7 @@
       const activeIndex = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
       const activeRoomId = manifest.stops[activeIndex]?.room;
       const activeRoomKey = roomKeyAt(activeIndex);
+      if (markVisited && activeRoomKey) visitedRooms.add(activeRoomKey);
       for (const { pill, id, key } of roomPills) {
         const isCurrent = activeRoomKey ? key === activeRoomKey : id === activeRoomId;
         if (isCurrent) {
@@ -1528,10 +1529,8 @@
     function arrived(index) {
       // Point to point: every move ends at a stop, so index is always one.
       state.stop = index;
-      const arrivedKey = roomKeyAt(index);
-      if (arrivedKey) visitedRooms.add(arrivedKey);
       const label = labels(index);
-      markCurrent();
+      markCurrent(true);
       placeHotspots();
       ui.announce.textContent = [label.room, label.stop].filter(Boolean).join(', ');
       if (label.room && label.room !== lastRoomVisited) {
@@ -2055,9 +2054,13 @@
         phase = 'detail';
         mark('first-3d');
         ready = true;
-        // The opening stop is an arrival too, once there is something to look at.
-        if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
-        tellStop(state.stop);
+        const willJump = (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop)
+          || asked !== state.stop;
+        // The opening stop is an arrival too, once there is something to look at (unless immediately jumping to the asked/resumed stop).
+        if (!willJump) {
+          if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
+          tellStop(state.stop);
+        }
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.

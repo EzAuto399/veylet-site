@@ -33,6 +33,12 @@ function makeMiniDom() {
       },
       getAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attributes, k) ? this.attributes[k] : null; },
       hasAttribute(k) { return Object.prototype.hasOwnProperty.call(this.attributes, k); },
+      removeAttribute(k) { delete this.attributes[k]; },
+      replaceChildren(...nodes) {
+        this.children = [];
+        this.textContent = '';
+        this.append(...nodes);
+      },
       append(...nodes) {
         for (const n of nodes) {
           if (typeof n === 'string') { this.textContent += n; continue; }
@@ -65,6 +71,8 @@ function makeMiniDom() {
     documentElement: makeEl('html'),
     activeElement: null,
     createElement: (tag) => makeEl(tag),
+    querySelector: () => null,
+    querySelectorAll: () => [],
     addEventListener(type, fn) { (listeners.get(type) || listeners.set(type, []).get(type)).push(fn); },
     removeEventListener(type, fn) {
       const list = listeners.get(type);
@@ -187,4 +195,129 @@ test('handoff context enrichment computes late showContact flag and applies agen
   assert.match(clientJs, /const opener = doc\.activeElement \|\| null;/);
   assert.match(clientJs, /opener\?\.focus\?\.\(\);/);
   assert.match(clientJs, /sheet\.scrollIntoView\?\.\(/);
+});
+
+test('room-jump pills never wrap under global nav styles and panels use opaque dark backing', () => {
+  const playerCss = read('dist/tour-player-v2.css');
+  const stageCss = read('dist/tour-stage.css');
+  assert.match(playerCss, /\.v2-rooms,\s*\n\.v2-room-pills\s*\{[^}]*flex-wrap:\s*nowrap;/);
+  assert.match(stageCss, /\.v2-stage \.v2-rooms\s*\{[^}]*flex-wrap:\s*nowrap;/);
+  assert.match(playerCss, /\.v2-panel\s*\{[^}]*background:\s*#10231d;/);
+  assert.match(playerCss, /\.v2-panel-head\s*\{[^}]*background:\s*#10231d;/);
+  assert.match(playerCss, /@media \(min-height: 360px\)/);
+});
+
+test('client-page visitLink preserves initial #stop=N&yaw=D&pitch=P deep link on arrival and updates on move', () => {
+  const windowObj = {};
+  const doc = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
+  vm.runInNewContext(read('dist/client-page.js'), {
+    window: windowObj,
+    document: doc,
+    URLSearchParams,
+    URL,
+    setTimeout,
+    clearTimeout,
+    console,
+    navigator: {},
+    location: { search: '' },
+  });
+  const page = windowObj.VeyletClientPage;
+
+  const states = [];
+  const loc = { origin: 'https://veylet.com', pathname: '/handoff', search: '?t=' + TOKEN, hash: '#stop=2&yaw=135&pitch=-20' };
+  const win = {
+    history: {
+      state: { s: 1 },
+      replaceState(_st, _t, url) {
+        states.push(url);
+        loc.hash = url.includes('#') ? url.slice(url.indexOf('#')) : '';
+      },
+    },
+  };
+  const visit = page.visitLink({ window: win, location: loc, navigator: {}, document: {}, token: TOKEN });
+  assert.equal(visit.startAt, null);
+  visit.onStop(2, 5);
+  assert.deepEqual(states, [], 'initial camera deep link is not overwritten on arrival');
+  assert.equal(visit.url(), `https://veylet.com/handoff?t=${TOKEN}#stop=2&yaw=135&pitch=-20`);
+
+  visit.onStop(3, 5);
+  assert.deepEqual(states, [`/handoff?t=${TOKEN}#stop=3`]);
+  visit.onStop(2, 5);
+  assert.deepEqual(states, [`/handoff?t=${TOKEN}#stop=3`, `/handoff?t=${TOKEN}#stop=2`]);
+
+  // Also ensure stop-1 camera deep link works and tour-player-v2 skips premature opening tellStop on jump
+  const states1 = [];
+  const loc1 = { origin: 'https://veylet.com', pathname: '/handoff', search: '?t=' + TOKEN, hash: '#stop=1&yaw=90' };
+  const visit1 = page.visitLink({
+    window: { history: { state: null, replaceState(_s, _t, u) { states1.push(u); loc1.hash = ''; } } },
+    location: loc1,
+    navigator: {},
+    document: {},
+    token: TOKEN,
+  });
+  visit1.onStop(1, 5);
+  assert.deepEqual(states1, []);
+  assert.equal(visit1.url(), `https://veylet.com/handoff?t=${TOKEN}#stop=1&yaw=90`);
+  visit1.onStop(2, 5);
+  assert.deepEqual(states1, [`/handoff?t=${TOKEN}#stop=2`]);
+
+  const playerJs = read('dist/tour-player-v2.js');
+  assert.match(playerJs, /if \(!willJump\)\s*\{\s*[\s\S]*tellStop\(state\.stop\);/);
+});
+
+test('dist/stage.js QR modal traps outside Tab focus back in and dist/conversion.css carries Safari backdrop prefix', () => {
+  const css = read('dist/conversion.css');
+  assert.match(css, /-webkit-backdrop-filter:\s*blur\(6px\);/);
+
+  const { doc, body } = makeMiniDom();
+  const win = {
+    matchMedia: () => ({ matches: true }),
+    VEYLET_STAGE: 'app',
+  };
+  vm.runInNewContext(read('dist/stage.js'), {
+    window: win,
+    document: doc,
+    URL,
+    console,
+  });
+
+  const cta = doc.createElement('a');
+  cta.setAttribute('href', 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913');
+  body.append(cta);
+  doc.activeElement = cta;
+
+  let prevented = false;
+  doc.dispatch('click', {
+    target: cta,
+    button: 0,
+    defaultPrevented: false,
+    preventDefault() { prevented = true; },
+  });
+  assert.equal(prevented, true);
+
+  const modal = body.children.find((c) => c.getAttribute('data-app-qr-modal') === 'true');
+  assert.ok(modal && !modal.hidden, 'App Store QR modal should open on fine-pointer desktop');
+  const closeBtn = modal.children[0].children[3].children[1];
+  const directLink = modal.children[0].children[3].children[0];
+  assert.equal(doc.activeElement, closeBtn);
+
+  // Move focus outside modal and verify Tab / Shift+Tab pull it back inside
+  doc.activeElement = cta;
+  let tabIn = false;
+  doc.dispatch('keydown', { key: 'Tab', shiftKey: false, preventDefault() { tabIn = true; } });
+  assert.equal(tabIn, true);
+  assert.equal(doc.activeElement, directLink);
+
+  doc.activeElement = cta;
+  let shiftTabIn = false;
+  doc.dispatch('keydown', { key: 'Tab', shiftKey: true, preventDefault() { shiftTabIn = true; } });
+  assert.equal(shiftTabIn, true);
+  assert.equal(doc.activeElement, closeBtn);
+
+  // Escape closes modal and restores opener focus
+  let escPrevented = false;
+  doc.dispatch('keydown', { key: 'Escape', preventDefault() { escPrevented = true; } });
+  assert.equal(escPrevented, true);
+  assert.equal(modal.hidden, true);
+  assert.equal(doc.activeElement, cta);
 });

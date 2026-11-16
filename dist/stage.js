@@ -287,7 +287,10 @@ window.VEYLET_STAGE = 'app';
         return;
       }
       if (event.key === 'Tab' && directLink && closeBtn) {
-        if (event.shiftKey && doc.activeElement === directLink) {
+        if (!modal.contains(doc.activeElement)) {
+          event.preventDefault();
+          (event.shiftKey ? closeBtn : directLink).focus();
+        } else if (event.shiftKey && doc.activeElement === directLink) {
           event.preventDefault();
           closeBtn.focus();
         } else if (!event.shiftKey && doc.activeElement === closeBtn) {
