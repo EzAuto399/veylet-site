@@ -41,18 +41,29 @@ test('campaignFactsFrom and openHomeIcs format synced listing facts and calendar
   assert.equal(page.campaignFactsFrom([{ campaign_mode: 'none' }]), null);
 });
 
-test('brandFrom accepts only #RRGGBB colours and https:// avatar/logo URLs', () => {
+test('brandFrom accepts only #RRGGBB colours and https:// avatar/logo URLs up to 500 chars', () => {
   const page = loadModule();
+  const longAvatar = 'https://cdn.veylet.com/' + 'a'.repeat(380) + '.webp';
+  const longLogo = 'https://cdn.veylet.com/' + 'b'.repeat(460) + '.webp';
   const brand = page.brandFrom([{
     agency_brand_hex: '#18382E',
-    avatar_url: 'https://cdn.veylet.com/a.webp',
-    agency_logo_url: 'javascript:alert(1)',
+    avatar_url: longAvatar,
+    agency_logo_url: longLogo,
   }]);
   assert.deepEqual({ ...brand }, {
     brandHex: '#18382e',
-    avatarUrl: 'https://cdn.veylet.com/a.webp',
+    avatarUrl: longAvatar,
+    logoUrl: longLogo,
   });
-  assert.equal(page.brandFrom([{ agency_brand_hex: 'red', avatar_url: 'http://insecure.example/a.png' }]), null);
+  assert.equal(page.brandFrom([{
+    agency_brand_hex: 'red',
+    avatar_url: 'http://insecure.example/a.png',
+    agency_logo_url: 'javascript:alert(1)',
+  }]), null);
+  assert.equal(page.brandFrom([{
+    avatar_url: 'https://cdn.veylet.com/' + 'c'.repeat(480),
+    agency_logo_url: 'https://cdn.veylet.com/has space.webp',
+  }]), null);
 });
 
 test('inline enquiry sheet submits buyer details and stop number via submit_tour_enquiry', async () => {
@@ -217,6 +228,18 @@ test('openEnquirySheet posts to hooksUrl/tour-enquiry, handles 400/404/429 witho
   assert.equal(ok.sheet.hidden, true);
   assert.equal(ok.doc.activeElement, ok.bookBtn);
 
+  // 1b. hooksUrl with a subpath prefix posts to <hooksUrl>/tour-enquiry
+  const subpathReqs = [];
+  const subpath = await submitSheet({
+    hooksUrl: 'https://staging.example.com/hooks/',
+    fetchImpl: async url => {
+      subpathReqs.push(url);
+      return { ok: true, status: 200, json: async () => ({ accepted: true }) };
+    },
+  });
+  assert.deepEqual(subpathReqs, ['https://staging.example.com/hooks/tour-enquiry']);
+  assert.equal(subpath.rpcCalls.length, 0);
+
   // 2. 429 / 404 / 400 show exact refusal messages with NO RPC fallback
   for (const [status, expected] of [
     [429, 'Too many enquiries right now. Use Call or Email above instead.'],
@@ -270,6 +293,7 @@ test('contactActions shows Book inspection + Ask a question when both bookingUrl
   const cardBtns = card.querySelectorAll('button').map(b => b.textContent);
   assert.deepEqual(cardLinks, ['Call', 'Email', 'Book inspection']);
   assert.deepEqual(cardBtns, ['Ask a question']);
+  assert.ok(card.classList.contains('agent-card-multi'));
   assert.ok(bar.classList.contains('agent-bar-multi'));
   assert.ok(doc.body.classList.contains('has-agent-bar-multi'));
   assert.ok(doc.body.classList.contains('has-agent-bar-wrap'));
@@ -306,6 +330,20 @@ test('contactActions shows Book inspection + Ask a question when both bookingUrl
     assert.equal(el.style['--agent-brand'], '#23453b');
     assert.ok(el.classList.contains(cls));
   }
+
+  // Subsequent applyBrand without brandHex clears prior brand colour & classes idempotently
+  page.applyBrand(doc, { avatarUrl: 'https://cdn.veylet.com/avatar3.webp' });
+  for (const [el, cls] of [
+    [card, 'agent-card-branded'],
+    [bar, 'agent-bar-branded'],
+    [sheet, 'agent-sheet-branded'],
+    [facts, 'handoff-facts-branded'],
+  ]) {
+    assert.equal(el.style['--agent-brand'], undefined);
+    assert.equal(el.classList.contains(cls), false);
+  }
+  assert.equal(card.querySelectorAll('.agent-avatar').length, 1);
+  assert.equal(card.querySelectorAll('.agent-logo').length, 0);
 });
 
 test('/handoff guards lookupContact vs lookupHandoffContext race in both directions and updates visit.contact', async () => {
@@ -414,4 +452,14 @@ test('/handoff guards lookupContact vs lookupHandoffContext race in both directi
   assert.ok(cardB.querySelectorAll('button').some(b => b.textContent === 'Book viewing'));
   const visitContactB = await caseB.bootOpts.visit.contact;
   assert.deepEqual(JSON.parse(JSON.stringify(visitContactB.actions.map(a => a.label))), ['Call', 'Email', 'Book viewing']);
+
+  // Case C: contextFetch fails/rejects -> fallback still settles visit.contact from lookupContact
+  const caseC = mountHandoff({
+    contactRpc: async () => ({ data: [{ display_name: 'Sarah Chen', agency: 'Harbour Realty', phone: '+61 400 123 456', email: 'sarah@harbour.test' }] }),
+    contextFetch: async () => { throw new Error('network outage'); },
+  });
+  await caseC.bootOpts.resolve(caseC.client);
+  await settle();
+  const visitContactC = await caseC.bootOpts.visit.contact;
+  assert.deepEqual(JSON.parse(JSON.stringify(visitContactC.actions.map(a => a.label))), ['Call', 'Email']);
 });

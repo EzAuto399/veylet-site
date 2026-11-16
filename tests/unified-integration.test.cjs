@@ -195,6 +195,7 @@ test('handoff context enrichment computes late showContact flag and applies agen
   assert.match(clientJs, /const opener = doc\.activeElement \|\| null;/);
   assert.match(clientJs, /opener\?\.focus\?\.\(\);/);
   assert.match(clientJs, /sheet\.scrollIntoView\?\.\(/);
+  assert.match(read('dist/client-page.css'), /@media \(max-width: 960px\)\s*\{\s*\.agent-card\.agent-card-multi\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
 });
 
 test('room-jump pills never wrap under global nav styles and panels use opaque dark backing', () => {

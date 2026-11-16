@@ -55,16 +55,22 @@
     return number >= 1 && number <= 99 ? number : null;
   }
 
-  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
-  function bookingHref(url) {
-    const raw = clean(url, 240);
-    if (!raw) return '';
+  /** A validated HTTPS URL up to `max` chars without whitespace, or empty string. */
+  function httpsUrl(url, max) {
+    if (typeof url !== 'string') return '';
+    const raw = url.trim();
+    if (!raw || raw.length > max || /\s/.test(raw) || !raw.startsWith('https://')) return '';
     try {
       const parsed = new URL(raw);
       return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
     } catch {
       return '';
     }
+  }
+
+  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
+  function bookingHref(url) {
+    return httpsUrl(url, 240);
   }
 
   /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
@@ -163,8 +169,8 @@
     if (!row || typeof row !== 'object') return null;
     const rawHex = clean(row.agency_brand_hex, 7);
     const brandHex = /^#[0-9a-fA-F]{6}$/.test(rawHex) ? rawHex.toLowerCase() : '';
-    const avatarUrl = bookingHref(row.avatar_url);
-    const logoUrl = bookingHref(row.agency_logo_url);
+    const avatarUrl = httpsUrl(row.avatar_url, 500);
+    const logoUrl = httpsUrl(row.agency_logo_url, 500);
     if (!brandHex && !avatarUrl && !logoUrl) return null;
     return {
       ...(brandHex ? { brandHex } : {}),
@@ -738,12 +744,21 @@
         const currentStop = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
         const request = typeof opts.fetch === 'function'
           ? opts.fetch
-          : (typeof fetch === 'function' ? fetch : (typeof window !== 'undefined' && typeof window.fetch === 'function' ? window.fetch : null));
+          : (typeof fetch === 'function' ? (...args) => fetch(...args) : (typeof window !== 'undefined' && typeof window.fetch === 'function' ? (...args) => window.fetch(...args) : null));
         const hooksBase = typeof opts.hooksUrl === 'string' ? opts.hooksUrl.trim().replace(/\/+$/, '') : '';
-        if (/^https?:\/\/[^/\s]+$/.test(hooksBase) && request) {
+        let hooksEndpoint = '';
+        if (hooksBase && !/\s/.test(hooksBase)) {
+          try {
+            const parsedHooks = new URL(hooksBase);
+            if ((parsedHooks.protocol === 'https:' || parsedHooks.protocol === 'http:') && parsedHooks.hostname) {
+              hooksEndpoint = hooksBase + '/tour-enquiry';
+            }
+          } catch { hooksEndpoint = ''; }
+        }
+        if (hooksEndpoint && request) {
           let fallBackToRpc = false;
           try {
-            const response = await request(hooksBase + '/tour-enquiry', {
+            const response = await request(hooksEndpoint, {
               method: 'POST',
               credentials: 'omit',
               referrerPolicy: 'no-referrer',
@@ -816,7 +831,13 @@
     sheet.hidden = false;
     const isMobileViewport = Boolean(doc.defaultView && typeof doc.defaultView.matchMedia === 'function' && doc.defaultView.matchMedia('(max-width: 768px)').matches);
     if (!isMobileViewport) sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
-    if (typeof nameField.input.focus === 'function') nameField.input.focus();
+    if (typeof nameField.input.focus === 'function') {
+      if (isMobileViewport) {
+        try { nameField.input.focus({ preventScroll: true }); } catch { nameField.input.focus(); }
+      } else {
+        nameField.input.focus();
+      }
+    }
   }
 
   function applyBrand(doc, brand) {
@@ -825,17 +846,22 @@
     const bar = doc.getElementById('agent-bar');
     const sheet = doc.getElementById('agent-enquiry-sheet');
     const facts = doc.getElementById('handoff-facts');
-    if (brand.brandHex) {
-      for (const [el, cls] of [
-        [card, 'agent-card-branded'],
-        [bar, 'agent-bar-branded'],
-        [sheet, 'agent-sheet-branded'],
-        [facts, 'handoff-facts-branded'],
-      ]) {
-        if (el && el.style && typeof el.style.setProperty === 'function') {
-          el.style.setProperty('--agent-brand', brand.brandHex);
-          el.classList?.add(cls);
+    for (const [el, cls] of [
+      [card, 'agent-card-branded'],
+      [bar, 'agent-bar-branded'],
+      [sheet, 'agent-sheet-branded'],
+      [facts, 'handoff-facts-branded'],
+    ]) {
+      if (!el) continue;
+      if (brand.brandHex) {
+        if (el.style && typeof el.style.setProperty === 'function') el.style.setProperty('--agent-brand', brand.brandHex);
+        el.classList?.add(cls);
+      } else {
+        if (el.style) {
+          if (typeof el.style.removeProperty === 'function') el.style.removeProperty('--agent-brand');
+          else delete el.style['--agent-brand'];
         }
+        el.classList?.remove?.(cls);
       }
     }
     const who = card && card.querySelector && card.querySelector('.agent-who');
@@ -898,7 +924,10 @@
     // A desk browser often has nothing that answers tel:, so the details are readable too.
     const details = [contact.phone, contact.email].filter(Boolean).join(' · ');
     if (details) who.append(element(doc, 'p', 'agent-details', details));
-    host.replaceChildren(who, contactActions(doc, contact, title, beacon, enquiryOpts));
+    const actions = contactActions(doc, contact, title, beacon, enquiryOpts);
+    if (actions.children.length > 2) host.classList?.add('agent-card-multi');
+    else host.classList?.remove('agent-card-multi');
+    host.replaceChildren(who, actions);
     host.setAttribute('aria-labelledby', 'agent-card-name');
     // Late (its held place already went): shown only where it cannot move the stage (client-page.css).
     if (late) host.classList?.add('agent-card-late');

@@ -202,6 +202,11 @@
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
+@media (max-width: 960px) {
+  .agent-card.agent-card-multi {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 @media (max-width: 560px) {
   .agent-card {
     grid-template-columns: minmax(0, 1fr);
