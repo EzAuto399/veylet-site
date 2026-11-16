@@ -71,7 +71,7 @@ const ARTICLES = [
   },
   {
     slug: 'install-and-sign-in', group: 'getting-started', title: 'Install the app and sign in', short: 'Install and sign in',
-    description: 'Install the Veylet app from your invitation, then sign in with Apple or email using the same account as the website.',
+    description: 'Install the Veylet app from the App Store, then sign in with Apple or email using the same account as the website.',
     lead: 'Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.',
     body: [{ steps: [
       'Install **the Veylet app** on your supported Pro iPhone or iPad from the App Store. Rendering opens to new accounts in weekly groups from the waitlist.',

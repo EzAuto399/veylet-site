@@ -249,10 +249,32 @@ test('home: the App Store is asked for in the hero and the closing band only, on
   // Shorter copy that keeps what is not yet proven, said once.
   const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;
-  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Pilot status\.<\/strong>/, '')), 1);
+  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Where we are today\.<\/strong>/, '')), 1);
+  assert.doesNotMatch(text, /Pilot status|onboarding early accounts/, 'the App Store launch drops the pilot framing');
   const steps = [...main.matchAll(/<li data-walk-step[^>]*>.*?<\/button><p>([\s\S]*?)<\/p><\/li>/g)].map(match => match[1]);
   assert.equal(sentences(steps[2]), 1, 'step 3 is one sentence');
   assert.equal(sentences(steps[3]), 1, 'step 4 is one sentence');
   assert.ok(sentences(main.match(/<div class="closing-action">\s*<p>([\s\S]*?)<\/p>/)[1]) <= 2, 'closing paragraph');
   assert.match(text, /no client-accepted walkthrough to show yet/);
+});
+
+// 17 November 2026: the app has been on the App Store since 15 November 2026, so every guide's main
+// button is the same App Store button as the home page, and no guide says the app is invite-only.
+test('each guide’s main button is the App Store button, with no waitlist button or invitation-only wording', () => {
+  const STORE = 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913';
+  const guides = fs.readdirSync(path.join(dist, 'guides'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => `guides/${e.name}/index.html`);
+  assert.ok(guides.length >= 6, `guides found: ${guides}`);
+  for (const page of guides) {
+    const html = read(page);
+    const buttons = [...html.matchAll(/<a class="button"[^>]*>/g)].map(m => m[0]);
+    assert.ok(buttons.length > 0, `${page} has a main button`);
+    for (const button of buttons) {
+      assert.equal(button, `<a class="button" href="${STORE}" data-analytics-cta="app_store" data-analytics-placement="body">`, page);
+    }
+    assert.doesNotMatch(html, />Join the waitlist </, `${page} has no waitlist button`);
+    assert.doesNotMatch(flatText(html), /TestFlight|not (?:yet )?on the App Store|not listed on the App Store|invitation comes|by invitation only|from your invitation/i, page);
+  }
+  const llmsFull = read('llms-full.txt');
+  assert.doesNotMatch(llmsFull, /Pilot status|TestFlight|invitation comes|from your invitation|Join the waitlist See/, 'llms-full.txt');
+  assert.doesNotMatch(read('llms.txt'), /TestFlight|invited pilot/, 'llms.txt');
 });
