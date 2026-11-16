@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "63efd1064d408530e628f92eca3a31c0d24d9585",
+  "sourceCommit": "703acd3ea122e503e9621d6924e20d5258642a44",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -540,19 +540,19 @@
     {
       "path": "build-info.json",
       "bytes": 2408,
-      "sha256": "f3f8783b5a81d822bdbad46b97bafc2aa4a37b37e72aaa7297de0c3696f3e975",
+      "sha256": "b20e3f157fa6bdffcc22f6febe9045290a871d222b2cdc556d51f5e15c91c52e",
       "headerProfile": 6
     },
     {
       "path": "client-page.css",
-      "bytes": 14383,
-      "sha256": "fc65b5f239a1269a5d3a8bc14f39468cca6fa45c16f3138f0899da9a2a3057a7",
+      "bytes": 14493,
+      "sha256": "3222fce9f1ba124c6f7bf944959504d5e6cca74d51e468ffd79fe7c0495a64b0",
       "headerProfile": 3
     },
     {
       "path": "client-page.js",
-      "bytes": 60605,
-      "sha256": "f1b5c46abf0fe31bdc3671b01831880937fb6229ed7767941e7b37da81604835",
+      "bytes": 61817,
+      "sha256": "ff66652c1ccd45e619679fed7a66c5441cfce8e19724a133b258f883028cd0b7",
       "headerProfile": 4
     },
     {
@@ -576,7 +576,7 @@
     {
       "path": "embed/index.html",
       "bytes": 21134,
-      "sha256": "4cd0f5d58cc78ff543b07ef06bf2d94cc70b93f59fc11ad81ed59542ec002732",
+      "sha256": "0d25efe4d722c5d8767368de92472b4cf27ffda95cff028d9e17a1514591b4e0",
       "headerProfile": 7
     },
     {
@@ -641,8 +641,8 @@
     },
     {
       "path": "handoff/index.html",
-      "bytes": 18801,
-      "sha256": "4eaaf00f2518fc335cc106117b2784c8f94f13b65d6bb526bdc39ee387a40fb1",
+      "bytes": 19004,
+      "sha256": "6fafcd174d8d93dae0eb0494a2a443eb4c599d4f73412da849c07e7980a46bf6",
       "headerProfile": 1
     },
     {
@@ -2304,7 +2304,7 @@
     {
       "path": "tour/index.html",
       "bytes": 14499,
-      "sha256": "aaf5da50cf90622c0af3cce84054f4b4de1819361c8f5dfdcdd18da34fb49cc0",
+      "sha256": "3d1e187980e2f751710383a27748fbf30fabdf100b8a51daf44cd5dccc1d455b",
       "headerProfile": 19
     },
     {
