@@ -89,6 +89,7 @@
         box-sizing: border-box;
         height: 100%;
         overflow: auto;
+        touch-action: pan-y;
         z-index: 1;
         display: flex;
         flex-direction: column;
@@ -173,6 +174,51 @@
         background: linear-gradient(rgba(16, 35, 29, 0.78), rgba(16, 35, 29, 0.9)), var(--embed-poster) center / cover no-repeat, #10231d;
       }
       .embed-fallback[data-poster="shown"][data-mode="loading"] { background: transparent; }
+      html[data-theme="paper"],
+      html[data-theme="paper"] body,
+      html[data-theme="paper"] #tour-frame,
+      html[data-theme="paper"] .embed-fallback {
+        background: #f4f1e9;
+        color: #10231d;
+      }
+      html[data-theme="paper"] .embed-fallback p {
+        color: rgba(16, 35, 29, 0.8);
+      }
+      html[data-theme="paper"] .embed-fallback #embed-agent {
+        color: #10231d;
+      }
+      html[data-theme="paper"] .embed-fallback[data-mode="loading"] {
+        background: transparent;
+      }
+      html[data-theme="paper"] .embed-fallback[data-mode="loading"] #embed-status {
+        background: #f4f1e9;
+        color: #10231d;
+        border: 1px solid rgba(16, 35, 29, 0.18);
+      }
+      html[data-theme="paper"] .embed-fallback button {
+        border: 1px solid #10231d;
+        background: #10231d;
+        color: #f4f1e9;
+      }
+      html[data-theme="paper"] .embed-fallback a {
+        color: #10231d;
+        border: 1px solid rgba(16, 35, 29, 0.45);
+      }
+      html[data-theme="paper"] .embed-fallback button:focus-visible,
+      html[data-theme="paper"] .embed-fallback a:focus-visible {
+        outline: 3px solid #10231d;
+        outline-offset: 4px;
+      }
+      html[data-theme="paper"] .embed-fallback a.embed-report {
+        border: 0;
+        color: rgba(16, 35, 29, 0.78);
+      }
+      html[data-theme="paper"] .embed-fallback[data-poster="shown"] {
+        background: linear-gradient(rgba(244, 241, 233, 0.84), rgba(244, 241, 233, 0.94)), var(--embed-poster) center / cover no-repeat, #f4f1e9;
+      }
+      html[data-theme="paper"] .embed-fallback[data-poster="shown"][data-mode="loading"] {
+        background: transparent;
+      }
     </style>
   </head>
   <body>
@@ -215,7 +261,12 @@
         const open = document.getElementById('embed-open');
 
         // A cut-off or broken link reads as incomplete (client-page.js linkToken).
-        const raw = new URLSearchParams(location.search).get('t') || '';
+        const params = new URLSearchParams(location.search);
+        if (params.get('theme') === 'paper' && document.documentElement) {
+          document.documentElement.setAttribute?.('data-theme', 'paper');
+          if (document.documentElement.dataset) document.documentElement.dataset.theme = 'paper';
+        }
+        const raw = params.get('t') || '';
         const link = window.VeyletClientPage?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
         const token = link.complete ? link.token : '';
         // Views for the agent's desk: an embed's channel is embed unless its link
