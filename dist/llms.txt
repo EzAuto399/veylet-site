@@ -9,7 +9,7 @@ Short answers:
 - What it is: the product is the Veylet iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
 - Processing: automatic, with no person checking. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. The check looks at how well the photos match, coverage, stray artefacts and walkable paths. We'll email you when it's ready. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
-- The app: The Veylet app is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- The app: Veylet: 3D Property Tours is on the App Store (https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913); rendering opens to new accounts in weekly groups from the waitlist.
 - Sending: Send from the app: it uploads in the background. Check your account for rendering status.
 - Price in one line: eligible subscribers receive 1 free month with 30 rooms in total, then the Veylet plan through the App Store: A$139.99/month for 30 rooms each paid month (up to 40 banked on top of the month's 30), the same 30 as the free month, or A$1,399.99 upfront/year for a 360-room annual pool (the same 30 a month) with no annual rollover. Halls, stairs and connecting spaces are free with up to 2 standing spots. Yearly saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
@@ -19,7 +19,7 @@ Short answers:
 ## Pages
 - [Site](https://veylet.com/)
 - [Offer and prices](https://veylet.com/offer)
-- [Join the waitlist](https://veylet.com/waitlist): the way to start; new accounts are admitted in weekly groups; joining is free and creates no account
+- [Join the waitlist](https://veylet.com/waitlist): admission to rendering; new accounts are admitted in weekly groups; joining is free and creates no account
 - [First-tour guide](https://veylet.com/start)
 - [Website sharing and embed guide](https://veylet.com/website-guide)
 - [Support](https://veylet.com/support): email support; what to include; the quick answers

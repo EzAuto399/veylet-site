@@ -22,7 +22,7 @@
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
     <script src="/account.js?v=0d4c8a2dacfb377d" defer></script>
-    <script src="/stage.js?v=bdc521b740f4b892" defer></script>
+    <script src="/stage.js?v=6edb4602ea6565b7" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
          below carries the routes that still work. -->
@@ -140,7 +140,7 @@
       <!-- Arrived through another office's referral link: filled by the script. -->
       <p class="contact-note" id="account-referred" hidden></p>
       <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
-      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
+      <p class="contact-note" id="account-access-note" data-launch-account>Get the app to try the free practice room. Rendering opens to new accounts in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
       <!-- The desk: four views switched from the bar by the URL hash (#walkthroughs,
            #plan, #team, #account). Each view is its own region with its own heading;
            dist/account.js shows one and hides the rest. Source order is reading and

@@ -1187,14 +1187,15 @@ test('retired plan names appear on no public page, and the desks name them only 
   }
 });
 
-test('owner decisions of 26 September 2026 on /offer: send from the app, one main button to the waitlist, one-tick approval, no /request', () => {
+test('owner decisions of 26 September 2026 on /offer: send from the app, one main button (the App Store from 16 November 2026), one-tick approval, no /request', () => {
   const page = read('offer/index.html');
   const flat = visible('offer/index.html');
   assert.ok(flat.includes('Send from the app: it uploads in the background. Check your account for rendering status.'), 'the send-from-app sentence');
   assert.doesNotMatch(page, /href="\/request/, 'no link to the request form');
   const buttons = [...page.matchAll(/<a class="button[^"]*" href="([^"]*)"/g)].map(match => match[1]);
   assert.ok(buttons.length >= 1, 'a main button');
-  assert.deepEqual([...new Set(buttons)], ['/waitlist'], 'every main button goes to /waitlist');
+  assert.deepEqual([...new Set(buttons)], ['https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913'], 'every main button goes to the App Store');
+  assert.match(page, /href="\/waitlist"/, 'the waitlist stays for render admission');
   assert.ok(flat.includes('I have the right to share this walkthrough'), 'the one-tick approval sentence');
   assert.doesNotMatch(flat, /AirDrop|Export capture|transfer route|to your Mac/, 'no export or transfer steps');
 });
@@ -1267,7 +1268,8 @@ test('the offer page shows the buyable plan and no unavailable capacity, says wh
   assert.ok(body.indexOf('id="ways-title"') > 0, 'the real plans are on the page');
   assert.equal(body.indexOf('id="capacity-title"'), -1, 'no unavailable capacity section');
   assert.match(body, /<p class="intro">For real-estate agents and property managers across Australia\./);
-  assert.match(body, /The app is in invitation-only testing through TestFlight and is not listed on the App Store yet/);
+  assert.match(body, /<strong>On the App Store, admitted weekly\.<\/strong> Anyone can get the app and try the free practice room\./);
+  assert.doesNotMatch(body, /TestFlight|not listed on the App Store/);
   const docs = [...offer.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const product = docs.flatMap((doc) => doc['@graph'] || [doc]).find((node) => node['@type'] === 'Product');
   assert.ok(product, 'a Product node');

@@ -165,20 +165,21 @@ test('every price on the page is offer.json 2026-11-11.1, set on data-price elem
   assert.equal(offer.freeMonths.cancelAnytime, true);
 });
 
-test('the main action is Join the waitlist, to /waitlist, everywhere it appears', () => {
+test('the main action is Get the app, to the App Store, everywhere it appears', () => {
   const actions = element('data-hero-actions', 'div');
-  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="hero">Join the waitlist <span class="icon-arrow"/);
+  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="https:\/\/apps\.apple\.com\/au\/app\/veylet-3d-property-tours\/id6814273913" data-analytics-cta="app_store" data-analytics-placement="hero">Get the app <span class="icon-arrow"/);
   assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the free month<\/a>/);
   const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)"([^>]*)>([^<]+)</g)]
     .map(match => [match[1], match[3].trim(), match[2]]);
   assert.ok(buttons.length >= 3);
   for (const [href, words, attributes] of buttons) {
-    assert.deepEqual([href, words], ['/waitlist', 'Join the waitlist']);
-    assert.match(attributes, /\bdata-analytics-cta="waitlist"/);
+    assert.deepEqual([href, words], ['https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913', 'Get the app']);
+    assert.match(attributes, /\bdata-analytics-cta="app_store"/);
     assert.match(attributes, /\bdata-analytics-placement="(?:hero|body)"/);
   }
   assert.match(body, /<a class="text-link" href="\/offer" data-analytics-cta="offer" data-analytics-placement="body">See the full offer<\/a>/);
-  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="sticky">Join the waitlist<\/a>/);
+  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="https:\/\/apps\.apple\.com\/au\/app\/veylet-3d-property-tours\/id6814273913" data-analytics-cta="app_store" data-analytics-placement="sticky">Get the app<\/a>/);
+  assert.match(body, /<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="body">join the waitlist<\/a>/, 'the waitlist stays for render admission');
   assert.ok(body.includes('id="offer"'), 'the offer anchor exists');
 });
 
