@@ -101,3 +101,66 @@
     --tour-stage-height: max(200px, calc(var(--tour-vh) - var(--tour-stage-below) - 8px));
   }
 }
+
+/* Buyer room-jump pill bar: docked cleanly above the bottom controls inside
+   .v2-bar (zero layout shift), hidden in compact frames. */
+.v2-stage .v2-bar {
+  flex-wrap: wrap;
+}
+.v2-stage .v2-rooms {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  pointer-events: auto;
+}
+.v2-stage .v2-rooms[hidden] {
+  display: none;
+}
+.v2-stage .v2-rooms::-webkit-scrollbar {
+  display: none;
+}
+.v2-stage .v2-rooms .v2-room-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(244, 241, 233, 0.28);
+  border-radius: 999px;
+  background: rgba(16, 35, 29, 0.78);
+  color: #f4f1e9;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex: none;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+.v2-stage .v2-rooms .v2-room-pill:hover {
+  background: rgba(16, 35, 29, 0.94);
+  border-color: rgba(198, 220, 201, 0.65);
+}
+.v2-stage .v2-rooms .v2-room-pill[data-visited="true"] {
+  border-color: rgba(198, 220, 201, 0.55);
+}
+.v2-stage .v2-rooms .v2-room-pill[aria-current="true"] {
+  border-color: #c6dcc9;
+  background: #c6dcc9;
+  color: #10231d;
+}
+.v2-stage .v2-rooms .v2-room-pill:focus-visible {
+  outline: 3px solid #c6dcc9;
+  outline-offset: 2px;
+}
+@media (max-height: 300px) {
+  .v2-stage:not(.v2-filled, :fullscreen) .v2-rooms {
+    display: none;
+  }
+}
