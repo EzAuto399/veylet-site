@@ -648,6 +648,10 @@
       'aria-roledescription': '3D walkthrough',
       'aria-label': '3D walkthrough. Left and right arrows look, up and down go to the stop ahead or behind, N and P go to the next and previous stop, M shows the map.' });
     const hotspots = el('div', { class: 'v2-hotspots', 'aria-hidden': 'true' });
+    // A move between stops is a jump; this dark veil over the scene fades out after it, so the eye reads a cut
+    // as a step forward rather than a glitch (see goToStop). Styled here so the stylesheet and its pin stay as they are.
+    const veil = el('div', { class: 'v2-veil', 'aria-hidden': 'true' });
+    Object.assign(veil.style, { position: 'absolute', inset: '0', background: '#10231d', opacity: '0', pointerEvents: 'none' });
     const where = el('div', { class: 'v2-where' });
     const room = el('p', { class: 'v2-room' });
     const stopLine = el('p', { class: 'v2-stop' });
@@ -692,9 +696,9 @@
     const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
     // The end of the visit: a short card over the last stop (see showEnd).
     const end = el('section', { class: 'v2-end', hidden: true, 'aria-label': 'End of the walkthrough' });
-    root.append(preview, poster, canvas, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
+    root.append(preview, poster, canvas, veil, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
     stage.append(root);
-    return { root, preview, poster, canvas, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
+    return { root, preview, poster, canvas, veil, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
       prev, next, nextLabel, againLabel, restartLabel, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
   }
 
@@ -875,9 +879,19 @@
     // the browser's cache, so the engine finds it there; its bytes also drive the bar from the first second.
     const first = { started: false, total: 0, loaded: 0, engine: false };
     let progressShown = 0;
+    let progressSaid = -1;
     function setProgress(value) {
       progressShown = Math.max(progressShown, Math.min(1, value));
       ui.progress.firstChild.style.transform = `scaleX(${progressShown.toFixed(3)})`;
+      // The same share, said to the window as a whole percent (the in-app Review shows it beside its own label).
+      // On window, beside the readiness signals, so the page's own document events (veylet:stop, veylet:room)
+      // stay what they were.
+      const percent = Math.round(progressShown * 100);
+      if (percent === progressSaid) return;
+      progressSaid = percent;
+      try {
+        if (typeof CustomEvent === 'function') window.dispatchEvent?.(new CustomEvent('veylet-viewer-progress', { detail: { percent } }));
+      } catch { /* optional: a page that is not listening changes nothing */ }
     }
     function loadProgress() {
       if (ready || torndown) return;
@@ -1468,8 +1482,19 @@
       lastMove = { route: 'direct', from: state.stop, to: index, points: 2, duration: 0, cut: true };
       Object.assign(state, { position: [...stop.position], yaw: look.yaw, pitch: look.pitch });
       applyCamera();
+      // The jump itself stays instant (the camera is already there); a moved-by-hand jump fades in from dark.
+      // Reduce Motion keeps the plain cut.
+      if (byUser && !reduced()) fadeInAfterJump();
       arrived(index);
       if (chunked) releaseFarChunks();
+    }
+    // 280 ms from 55% dark to clear: long enough to read as a step, short enough that Next can be tapped again at once.
+    const JUMP_FADE = { from: 0.55, ms: 280 };
+    function fadeInAfterJump() {
+      const veil = ui.veil;
+      if (!veil || typeof veil.animate !== 'function') return;
+      veil.getAnimations?.().forEach(animation => animation.cancel());
+      veil.animate([{ opacity: JUMP_FADE.from }, { opacity: 0 }], { duration: JUMP_FADE.ms, easing: 'cubic-bezier(0.2, 0, 0, 1)' });
     }
     // Where Next and Previous count from: the stop the viewer is on.
     const hereStop = () => (state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, sameLevel)));

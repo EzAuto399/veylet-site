@@ -570,7 +570,7 @@
     {
       "path": "embed/index.html",
       "bytes": 18747,
-      "sha256": "9e69397b19f4d6facedeae4048071e09123432ca8e288fa23d4d0b5d647b47f7",
+      "sha256": "6d9cb7eb5f101cf43b3f3a23705ddfeb1b4312bb872c14b5215f073b5b7a0c95",
       "headerProfile": 7
     },
     {
@@ -636,7 +636,7 @@
     {
       "path": "handoff/index.html",
       "bytes": 14638,
-      "sha256": "4f5fc1de39c6004b805bcc1a4727134ab803112d0d22c3dd7690e4f33a1f6e07",
+      "sha256": "f8e1932727dfd66f5f00ddb49eaaf47aa51a06983bf6a26f469f508f4589eaf9",
       "headerProfile": 1
     },
     {
@@ -1386,7 +1386,7 @@
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "64ad379af0e8af79578a3b1012fe96ae2cd1b6bb8a0cc59853f79994aa3de022",
+      "sha256": "f717e2df956afb9b3045347817e083fcaf8afe0344ae293c54605b555cb25c55",
       "headerProfile": 1
     },
     {
@@ -2154,7 +2154,7 @@
     {
       "path": "see/index.html",
       "bytes": 33526,
-      "sha256": "21b90c79899dc5199ff9ddff190ae3b75df6e402c6687f98fbc408750e44042d",
+      "sha256": "8d07e3d35d55d5b4fe9237ec72fe3fe064339acbd02aaf32130a3be433c15e64",
       "headerProfile": 1
     },
     {
@@ -2166,7 +2166,7 @@
     {
       "path": "see/see.js",
       "bytes": 27194,
-      "sha256": "a94887b04da1212fa2401d290e19022d9f02b1ea0a47dfb0f6b8a13d3ae91084",
+      "sha256": "0be40af93d2a9e0ea2e96adffa2d278bca2315fac4ddf1339355e57648366060",
       "headerProfile": 4
     },
     {
@@ -2273,14 +2273,14 @@
     },
     {
       "path": "tour-player-v2.js",
-      "bytes": 117736,
-      "sha256": "ce2ffe71d754b052d712ac79789381435c12a77ba210d11a1cdc61e744ebdbdb",
+      "bytes": 119533,
+      "sha256": "648d977e1b220d998687ed90b95b40b13ead953dc50d9de0fc72f326173b65a8",
       "headerProfile": 4
     },
     {
       "path": "tour-player.js",
       "bytes": 24310,
-      "sha256": "81e5f0d59357c46d81b1891b881d5db4a63b0ff5abbe17efd5ae6fa75b6e499f",
+      "sha256": "d267ed8bde7c96abb9fb3654a274168e34fa51c824ab0abb818b430825830527",
       "headerProfile": 4
     },
     {
@@ -2298,7 +2298,7 @@
     {
       "path": "tour/index.html",
       "bytes": 14356,
-      "sha256": "b6eeb41d5972a8e6b075aef7caa18b4118dd0ac5274d28f8029f04b1b12b338f",
+      "sha256": "6a42cad3e8c2a4dc62ffb00c7474eaaf254a277616949f05e9c52fbf6e480631",
       "headerProfile": 19
     },
     {
