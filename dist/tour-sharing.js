@@ -10,9 +10,20 @@ window.VeyletSharing = (() => {
     return token && /^[A-Za-z0-9_-]{16,256}$/.test(token) ? token : null;
   }
   function handoffUrl(token) { return origin + '/handoff?t=' + encodeURIComponent(token); }
-  function embedUrl(token) { return origin + '/embed?t=' + encodeURIComponent(token); }
-  function embedCode(token) {
-    return '<iframe src="' + embedUrl(token) +
+  function embedUrl(token, opts) {
+    const base = origin + '/embed?t=' + encodeURIComponent(token);
+    return opts && opts.theme === 'paper' ? base + '&theme=paper' : base;
+  }
+  function portalUrl(token) { return origin + '/tour?t=' + encodeURIComponent(token); }
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function embedCode(token, opts) {
+    return '<iframe src="' + embedUrl(token, opts) +
       '" title="Explore this property in 3D" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen; xr-spatial-tracking" loading="lazy" referrerpolicy="strict-origin"></iframe>' +
       '\n<p><a href="' + handoffUrl(token) + '" target="_blank" rel="noopener noreferrer">Open the property walkthrough in a new tab</a></p>';
   }
@@ -21,10 +32,39 @@ window.VeyletSharing = (() => {
    * preview can never become a lookalike that behaves differently from the
    * paste. If they would differ, there is nothing to preview.
    */
-  function embedFrame(token, doc) {
+  function embedFrame(token, doc, opts) {
     const host = doc.createElement('div');
-    host.innerHTML = embedCode(token);
+    host.innerHTML = embedCode(token, opts);
     return host.querySelector('iframe');
+  }
+  function modalButtonCode(token, label = 'Explore in 3D', opts) {
+    const text = typeof label === 'string' && label.trim() ? label.trim() : 'Explore in 3D';
+    const themeAttr = opts && opts.theme === 'paper' ? ' data-veylet-theme="paper"' : '';
+    return '<a href="' + handoffUrl(token) + '" data-veylet-modal' + themeAttr + '>' + escapeHtml(text) + '</a>\n' +
+      '<script src="' + origin + '/embed.js" async></script>';
+  }
+  function developerBrief(token) {
+    return [
+      'Veylet 3D Walkthrough — Website & Listing Feed Integration Brief',
+      '',
+      '1. Australian Agency Websites & REA XML Feeds (Stepps, Agentpoint, WebIT, Propps)',
+      'Map the CRM / REA XML Virtual Tour URL field (Rex, VaultRE, Agentbox, PropertyMe) to the unbranded walkthrough-only link:',
+      portalUrl(token),
+      'This route has no agent card or external links and works across portals and agency templates.',
+      '',
+      '2. Turnkey Modal Button (zero layout shift on listing pages)',
+      modalButtonCode(token),
+      'Clicking opens a full-viewport 3D overlay; modified clicks and browsers without JavaScript fall back directly to ' + handoffUrl(token),
+      '',
+      '3. Inline Responsive Iframe (and Light Paper Theme)',
+      embedCode(token),
+      'For light listing pages, use ?theme=paper on the iframe URL:',
+      embedUrl(token, { theme: 'paper' }),
+      '',
+      '4. Content Security Policy (CSP)',
+      'If your site enforces a strict CSP header, allow:',
+      'frame-src https://veylet.com; script-src https://veylet.com',
+    ].join('\n');
   }
   async function copy(value, field, status, message) {
     if (field) { field.value = value; field.hidden = false; }
@@ -74,6 +114,51 @@ window.VeyletSharing = (() => {
   }
   function saveBuilder(id) {
     try { window.localStorage.setItem(builderKey, builder(id).id); } catch { /* nothing to keep */ }
+  }
+
+  /*
+   * Australian real-estate CRM and portal field hints for the unbranded /tour link,
+   * plus one-tap buyer follow-up SMS/WhatsApp templates using the client handoff link.
+   */
+  const crms = Object.freeze([
+    { id: 'rex', name: 'Rex', hint: 'Rex: open Listing → Marketing → Virtual Tour URL, paste the link and save.' },
+    { id: 'vaultre', name: 'VaultRE', hint: 'VaultRE: open Property → Marketing / Links → Virtual Tour / 3D Link and paste.' },
+    { id: 'agentbox', name: 'Agentbox', hint: 'Agentbox: open Listing → Marketing → External / Virtual Tour Link and paste.' },
+    { id: 'propertyme', name: 'PropertyMe', hint: 'PropertyMe: open Property → Rental Listing → Virtual Tour Link and paste.' },
+    { id: 'domain', name: 'Domain Agent Admin', hint: 'Domain: open Listing Overview → Virtual Tour field (max 255 characters) and paste.' },
+    { id: 'other', name: 'Other CRM or portal', hint: 'Paste into your CRM’s virtual tour URL field (never an HTML embed box). Portals decide whether they display it.' },
+  ].map(item => Object.freeze({ ...item })));
+  function crm(id) { return crms.find(item => item.id === id) || crms[0]; }
+  const crmKey = 'veylet-portal-crm';
+  function savedCrm() {
+    try { return crm(window.localStorage.getItem(crmKey)).id; } catch { return crms[0].id; }
+  }
+  function saveCrm(id) {
+    try { window.localStorage.setItem(crmKey, crm(id).id); } catch { /* nothing to keep */ }
+  }
+  function buyerMessages(title, token) {
+    const cleanTitle = typeof title === 'string' && title.replace(/\s+/g, ' ').trim()
+      ? title.replace(/\s+/g, ' ').trim().slice(0, 120)
+      : 'this space';
+    const link = handoffUrl(token) + '&src=link';
+    return {
+      afterInspection: 'Thanks for inspecting ' + cleanTitle + ' — look back through each room on your phone here: ' + link,
+      beforeVisit: 'Look around ' + cleanTitle + ' in 3D on your phone before you visit (no app needed): ' + link,
+    };
+  }
+  function appraisalPreviewUrl(contact = {}) {
+    const url = new URL(origin + '/handoff');
+    url.searchParams.set('sample', '1');
+    const cleanField = (val, max) => (typeof val === 'string' ? val.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+    const name = cleanField(contact.display_name ?? contact.name, 80);
+    const agency = cleanField(contact.agency, 80);
+    const phone = cleanField(contact.phone, 32);
+    const email = cleanField(contact.email, 254);
+    if (name) url.searchParams.set('name', name);
+    if (agency) url.searchParams.set('agency', agency);
+    if (phone && /^[0-9 +()-]+$/.test(phone) && /[0-9]/.test(phone)) url.searchParams.set('phone', phone);
+    if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) url.searchParams.set('email', email);
+    return url.toString();
   }
 
   /*
@@ -174,7 +259,8 @@ window.VeyletSharing = (() => {
     }
     return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + restartWords(opts) + ' and this link works again \u2014 same link, embed and QR.';
   }
-  return { tokenFromLink, handoffUrl, embedUrl, embedCode, embedFrame, copy,
+  return { tokenFromLink, handoffUrl, embedUrl, portalUrl, embedCode, embedFrame, modalButtonCode, developerBrief, copy,
     builders, builder, savedBuilder, saveBuilder,
+    crms, crm, savedCrm, saveCrm, buyerMessages, appraisalPreviewUrl,
     hostingGraceDays, hostingUnavailable, hostingDate, hostingState, planEndedLine, hostingLine };
 })();

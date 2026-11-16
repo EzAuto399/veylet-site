@@ -4,7 +4,7 @@
 // steps. Motion runs only through gsap.matchMedia, never under reduced motion, and every loop
 // stops off screen and while the tab is hidden.
 (() => {
-  const PLAYER_URL = '/tour-player-v2.js?v=648d977e1b220d99';
+  const PLAYER_URL = '/tour-player-v2.js?v=1d070a4714d5fab4';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const narrow = window.matchMedia('(max-width: 800px)');
   const hero = document.querySelector('[data-see-hero]');
@@ -451,32 +451,32 @@
   // never runs, or a reader who asks for less motion, sees it complete. Refreshed after the pin so
   // the sections under it are measured with its scroll distance included.
   media.add('(prefers-reduced-motion: no-preference)', () => {
-    const rise = (targets, trigger, stagger = 0.08) => {
+    const rise = (targets, trigger, stagger = 0.06) => {
       const list = gsap.utils.toArray(targets);
       if (!list.length) return;
-      gsap.fromTo(list, { y: 36, opacity: 0.35 }, {
+      gsap.fromTo(list, { y: 18, opacity: 0.35 }, {
         y: 0,
         opacity: 1,
-        duration: 1.1,
-        ease: 'expo.out',
+        duration: 0.65,
+        ease: 'power3.out',
         stagger,
         scrollTrigger: { trigger: trigger || list[0], start: 'top 88%', once: true, refreshPriority: -1 },
       });
     };
-    for (const head of document.querySelectorAll('.see-section-head')) rise(head.children, head, 0.1);
+    for (const head of document.querySelectorAll('.see-section-head')) rise(head.children, head, 0.08);
     rise('.see-ledger > div', '.see-ledger');
-    rise('.see-rooms li, .see-rooms figcaption', '.see-rooms', 0.1);
+    rise('.see-rooms li, .see-rooms figcaption', '.see-rooms', 0.08);
     rise('.see-table thead tr, .see-table tbody tr', '.see-table', 0.06);
     rise('.see-offer-copy > *', '.see-offer');
     rise('.see-statement > *', '.see-statement', 0.06);
     rise('.see-answers h2, .see-answers details', '.see-answers', 0.06);
-    rise('.closing-inner > *', '.closing-invitation', 0.12);
+    rise('.closing-inner > *', '.closing-invitation', 0.08);
   });
   // Without the pin (phones), each step arrives on its own.
   media.add('(max-width: 800px) and (prefers-reduced-motion: no-preference)', () => {
     for (const step of steps) {
-      gsap.fromTo(step, { y: 36, opacity: 0.35 }, {
-        y: 0, opacity: 1, duration: 1.1, ease: 'expo.out',
+      gsap.fromTo(step, { y: 18, opacity: 0.35 }, {
+        y: 0, opacity: 1, duration: 0.65, ease: 'power3.out',
         scrollTrigger: { trigger: step, start: 'top 88%', once: true, refreshPriority: -1 },
       });
     }

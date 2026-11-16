@@ -4,7 +4,7 @@
 // monthly billing through the App Store, with no pack. The plan is billed monthly or
 // annually: monthly pays each paid month after the free months; annual
 // pays one year, once, on the day the free month ends, and that year runs past month twelve.
-// Nothing is charged during the free months; the first charge is on the day they end. A
+// Nothing is charged during the free month; the first charge is on the day they end. A
 // pack of rooms is optional and bought once, at its website (card or invoice) price on
 // a separate transaction. Pack in-app purchase is unavailable in this app version and arrives in a later version.
 function offerTotal({ channel, cadence = 'monthly', monthly, annual, freeMonths = 1, packPrice = 0 }) {
@@ -73,8 +73,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
       ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years.`
       : `Then ${included} a month on the plan; unused ones carry over, up to ${banked} banked.`;
     const packPart = code
-      ? `The pack adds ${count}, used after the included ones and valid ${valid} months from purchase. You can buy it during the free months; the free-months end date stays the same.`
-      : `Need more? A pack adds ${data.pack3Rooms} or ${data.pack10Rooms} rooms, and you can buy one during the free months. The free-months end date stays the same.`;
+      ? `The pack adds ${count}, used after the included ones and valid ${valid} months from purchase. You can buy it during the free month; the free month’s end date stays the same.`
+      : `Need more? A pack adds ${data.pack3Rooms} or ${data.pack10Rooms} rooms, and you can buy one during the free month. The free month’s end date stays the same.`;
     put('[data-statement-allowance]', `${freePart} ${planPart} ${packPart}`);
     const saving = annual && savedCents > 0
       ? ` Yearly saves ${money(savedCents)} (${savedPercent}%) compared with 12 monthly payments.` : '';
@@ -130,9 +130,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
   today.setHours(0, 0, 0, 0);
   input.min = iso(today);
   if (!input.value) input.value = iso(today);
+  let morphTimer = null;
+  const triggerMorph = () => {
+    lines.dataset.morphing = 'true';
+    if (morphTimer && typeof clearTimeout === 'function') clearTimeout(morphTimer);
+    if (typeof setTimeout === 'function') {
+      morphTimer = setTimeout(() => { delete lines.dataset.morphing; }, 190);
+    }
+  };
   input.addEventListener('input', render);
   input.addEventListener('change', render);
-  for (const control of [cadence, channel, pack]) if (control) control.addEventListener('change', render);
+  for (const control of [cadence, channel, pack]) {
+    if (control) control.addEventListener('change', () => { render(); triggerMorph(); });
+  }
   form.addEventListener('submit', event => event.preventDefault());
   render();
 })();

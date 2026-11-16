@@ -98,6 +98,97 @@
     };
   }
 
+  /** Synced campaign facts from lookup_tour_handoff_context (Release 5), or null when empty. */
+  function campaignFactsFrom(data) {
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row !== 'object') return null;
+    const mode = row.campaign_mode === 'sale' ? 'For sale' : row.campaign_mode === 'lease' ? 'For lease' : '';
+    const headline = clean(row.headline, 140);
+    const count = v => (Number.isInteger(v) && v >= 0 && v <= 20 ? v : null);
+    const beds = count(row.bedrooms), baths = count(row.bathrooms), cars = count(row.car_spaces);
+    const countsLine = [
+      beds !== null ? beds + ' bed' : '',
+      baths !== null ? baths + ' bath' : '',
+      cars !== null ? cars + ' car' : '',
+    ].filter(Boolean).join(' · ');
+    const parseIso = val => {
+      if (typeof val !== 'string' || !val) return null;
+      const ms = Date.parse(val);
+      return Number.isNaN(ms) ? null : new Date(ms).toISOString();
+    };
+    const start = parseIso(row.next_open_start);
+    const end = parseIso(row.next_open_end);
+    const validWindow = start && end && Date.parse(end) > Date.parse(start);
+    if (!mode && !headline && !countsLine && !validWindow) return null;
+    return {
+      modeLabel: mode,
+      headline,
+      countsLine,
+      nextOpenStart: validWindow ? start : null,
+      nextOpenEnd: validWindow ? end : null,
+    };
+  }
+
+  function icsUtcStamp(iso) {
+    return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  }
+
+  function openHomeIcs(title, startIso, endIso, url) {
+    if (!startIso || !endIso) return '';
+    const safe = text => String(text || '').replace(/[\r\n,;\\]+/g, ' ').trim();
+    const space = safe(title) || 'Shared space';
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Veylet//Walkthrough//EN',
+      'BEGIN:VEVENT',
+      'UID:' + icsUtcStamp(startIso) + '@veylet.com',
+      'DTSTAMP:' + icsUtcStamp(startIso),
+      'DTSTART:' + icsUtcStamp(startIso),
+      'DTEND:' + icsUtcStamp(endIso),
+      'SUMMARY:Open home - ' + space,
+      ...(url ? ['DESCRIPTION:3D walkthrough: ' + safe(url)] : []),
+      'END:VEVENT',
+      'END:VCALENDAR',
+      '',
+    ];
+    return lines.join('\r\n');
+  }
+
+  /** Agency brand hex and HTTPS avatar/logo URLs from lookup_tour_handoff_context, or null. */
+  function brandFrom(data) {
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || typeof row !== 'object') return null;
+    const rawHex = clean(row.agency_brand_hex, 7);
+    const brandHex = /^#[0-9a-fA-F]{6}$/.test(rawHex) ? rawHex.toLowerCase() : '';
+    const avatarUrl = bookingHref(row.avatar_url);
+    const logoUrl = bookingHref(row.agency_logo_url);
+    if (!brandHex && !avatarUrl && !logoUrl) return null;
+    return {
+      ...(brandHex ? { brandHex } : {}),
+      ...(avatarUrl ? { avatarUrl } : {}),
+      ...(logoUrl ? { logoUrl } : {}),
+    };
+  }
+
+  async function lookupHandoffContext(client, token, options = {}) {
+    if (!client || typeof client.rpc !== 'function' || typeof token !== 'string' || token.length < 16) return null;
+    try {
+      const answer = await withTimeout(
+        Promise.resolve(client.rpc('lookup_tour_handoff_context', { p_token: token })),
+        options.timeoutMs || 8000
+      );
+      if (!answer || answer.timedOut || answer.error) return null;
+      return {
+        contact: contactFrom(answer.data),
+        facts: campaignFactsFrom(answer.data),
+        brand: brandFrom(answer.data),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   function withTimeout(promise, ms) {
     let timer;
     const late = new Promise(resolve => { timer = setTimeout(() => resolve({ timedOut: true }), ms); });
@@ -491,7 +582,7 @@
   }
 
   /** Call is the filled action when there is a phone; otherwise Email is. A tap is counted for the agent. */
-  function contactActions(doc, contact, title, beacon) {
+  function contactActions(doc, contact, title, beacon, enquiryOpts) {
     const actions = element(doc, 'div', 'agent-actions');
     const add = (href, text, verb, kind, detail, external) => {
       if (!href) return;
@@ -515,13 +606,177 @@
     add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
     if (contact.bookingUrl) {
       add(bookingHref(contact.bookingUrl), 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
+    } else if (contact.allowViewingRequest && enquiryOpts && enquiryOpts.enquiryClient && doc.getElementById('agent-enquiry-sheet')) {
+      const btn = element(doc, 'button', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', 'Book viewing');
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Book viewing with ' + contact.name);
+      btn.addEventListener('click', () => {
+        openEnquirySheet(doc, contact, title, enquiryOpts);
+      });
+      actions.append(btn);
     } else if (contact.allowViewingRequest && contact.email) {
       add(viewingRequestHref(contact.email, title, contact.name), 'Book viewing', 'Book viewing with', 'email_tap', { booking: true }, false);
     }
     return actions;
   }
 
-  function renderCard(doc, host, contact, title, beacon, late) {
+  function openEnquirySheet(doc, contact, title, opts) {
+    const sheet = doc.getElementById('agent-enquiry-sheet');
+    if (!sheet) return;
+    const opener = doc.activeElement || null;
+    const stopNum = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
+    const heading = element(doc, 'p', 'enquiry-sheet-title', 'Ask ' + contact.name + ' or request a viewing');
+    const sub = element(
+      doc,
+      'p',
+      'enquiry-sheet-note',
+      stopNum ? 'Includes your place in the walkthrough (Stop ' + stopNum + ').' : 'Sent straight to ' + contact.name + '.'
+    );
+    const form = element(doc, 'form', 'enquiry-sheet-form');
+    form.setAttribute('novalidate', '');
+
+    const makeInput = (labelText, name, type, max) => {
+      const wrap = element(doc, 'label', 'enquiry-field');
+      wrap.append(element(doc, 'span', 'enquiry-field-label', labelText));
+      const input = element(doc, 'input', 'enquiry-input');
+      input.name = name;
+      input.type = type;
+      input.setAttribute('maxlength', String(max));
+      wrap.append(input);
+      return { wrap, input };
+    };
+    const nameField = makeInput('Your name', 'visitor_name', 'text', 80);
+    const phoneField = makeInput('Mobile', 'visitor_phone', 'tel', 32);
+    const emailField = makeInput('Email', 'visitor_email', 'email', 254);
+
+    const msgWrap = element(doc, 'label', 'enquiry-field');
+    msgWrap.append(element(doc, 'span', 'enquiry-field-label', 'Question or preferred day (optional)'));
+    const msgInput = element(doc, 'textarea', 'enquiry-textarea');
+    msgInput.name = 'visitor_message';
+    msgInput.setAttribute('rows', '3');
+    msgInput.setAttribute('maxlength', '500');
+    msgWrap.append(msgInput);
+
+    // Honeypot (hidden from visitors)
+    const trap = element(doc, 'input', 'enquiry-trap');
+    trap.name = 'website';
+    trap.type = 'text';
+    trap.tabIndex = -1;
+    trap.hidden = true;
+    trap.setAttribute('autocomplete', 'off');
+
+    const status = element(doc, 'p', 'enquiry-status');
+    status.setAttribute('role', 'status');
+
+    const row = element(doc, 'div', 'enquiry-actions');
+    const sendBtn = element(doc, 'button', 'button agent-action', 'Send enquiry');
+    sendBtn.type = 'submit';
+    const closeBtn = element(doc, 'button', 'button button-ghost agent-action', 'Cancel');
+    closeBtn.type = 'button';
+    closeBtn.addEventListener('click', () => { sheet.hidden = true; opener?.focus?.(); });
+    row.append(sendBtn, closeBtn);
+
+    form.append(nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
+    let busy = false;
+    const submitNow = async event => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      if (busy) return;
+      const vName = clean(nameField.input.value || '', 80);
+      const vPhone = clean(phoneField.input.value || '', 32);
+      const vEmail = clean(emailField.input.value || '', 254);
+      const vMsg = clean(msgInput.value || '', 500);
+      if (!vName) { say(status, 'Add your name.'); return; }
+      if (!vPhone && !vEmail) { say(status, 'Add a mobile number or email address so ' + contact.name + ' can reply.'); return; }
+      busy = true;
+      sendBtn.disabled = true;
+      say(status, 'Sending…');
+      try {
+        const currentStop = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
+        const reply = await opts.enquiryClient.rpc('submit_tour_enquiry', {
+          p_token: opts.token,
+          p_name: vName,
+          p_email: vEmail || null,
+          p_phone: vPhone || null,
+          p_stop_number: currentStop || null,
+          p_message: vMsg || null,
+          p_honeypot: trap.value || '',
+        });
+        if (reply && !reply.error && reply.data && reply.data.accepted) {
+          sheet.replaceChildren(element(doc, 'p', 'enquiry-sent', 'Sent. ' + contact.name + ' has your enquiry.'));
+          return;
+        }
+        say(status, 'Couldn’t send right now. Use Call or Email above instead.');
+      } catch {
+        say(status, 'Couldn’t send right now. Use Call or Email above instead.');
+      } finally {
+        busy = false;
+        sendBtn.disabled = false;
+      }
+    };
+    form.addEventListener('submit', submitNow);
+    sendBtn.addEventListener('click', submitNow);
+
+    sheet.replaceChildren(heading, sub, form);
+    sheet.hidden = false;
+    sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+    if (typeof nameField.input.focus === 'function') nameField.input.focus();
+  }
+
+  function applyBrand(doc, brand) {
+    if (!brand) return;
+    const card = doc.getElementById('agent-card');
+    if (!card) return;
+    if (brand.brandHex && card.style && typeof card.style.setProperty === 'function') {
+      card.style.setProperty('--agent-brand', brand.brandHex);
+      card.classList?.add('agent-card-branded');
+    }
+    const who = card.querySelector && card.querySelector('.agent-who');
+    if (who && brand.avatarUrl) {
+      const img = element(doc, 'img', 'agent-avatar');
+      img.setAttribute('src', brand.avatarUrl);
+      img.setAttribute('alt', '');
+      img.setAttribute('width', '44');
+      img.setAttribute('height', '44');
+      who.prepend ? who.prepend(img) : who.append(img);
+    }
+    if (who && brand.logoUrl) {
+      const logo = element(doc, 'img', 'agent-logo');
+      logo.setAttribute('src', brand.logoUrl);
+      logo.setAttribute('alt', '');
+      logo.setAttribute('height', '22');
+      who.append(logo);
+    }
+  }
+
+  function showCampaignFacts(doc, facts, title, pageUrl) {
+    const bar = doc.getElementById('handoff-facts');
+    if (!bar || !facts) return false;
+    const parts = [];
+    if (facts.modeLabel) parts.push(element(doc, 'span', 'handoff-fact-badge', facts.modeLabel));
+    if (facts.countsLine) parts.push(element(doc, 'span', 'handoff-fact-counts', facts.countsLine));
+    if (facts.headline && facts.headline !== title) parts.push(element(doc, 'span', 'handoff-fact-headline', facts.headline));
+    if (facts.nextOpenStart && facts.nextOpenEnd) {
+      const start = new Date(facts.nextOpenStart);
+      const end = new Date(facts.nextOpenEnd);
+      const dayFmt = start.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+      const tStart = start.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+      const tEnd = end.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+      parts.push(element(doc, 'span', 'handoff-fact-open', 'Next open ' + dayFmt + ' ' + tStart + '–' + tEnd));
+      const ics = openHomeIcs(title, facts.nextOpenStart, facts.nextOpenEnd, pageUrl);
+      if (ics && typeof encodeURIComponent === 'function') {
+        const cal = element(doc, 'a', 'text-link handoff-fact-cal', 'Add to calendar');
+        cal.setAttribute('href', 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics));
+        cal.setAttribute('download', 'open-home.ics');
+        parts.push(cal);
+      }
+    }
+    if (!parts.length) return false;
+    bar.replaceChildren(...parts);
+    bar.hidden = false;
+    return true;
+  }
+
+  function renderCard(doc, host, contact, title, beacon, late, enquiryOpts) {
     if (!host) return;
     const name = element(doc, 'h2', 'agent-name', contact.name);
     name.setAttribute('id', 'agent-card-name');
@@ -531,16 +786,16 @@
     // A desk browser often has nothing that answers tel:, so the details are readable too.
     const details = [contact.phone, contact.email].filter(Boolean).join(' · ');
     if (details) who.append(element(doc, 'p', 'agent-details', details));
-    host.replaceChildren(who, contactActions(doc, contact, title, beacon));
+    host.replaceChildren(who, contactActions(doc, contact, title, beacon, enquiryOpts));
     host.setAttribute('aria-labelledby', 'agent-card-name');
     // Late (its held place already went): shown only where it cannot move the stage (client-page.css).
     if (late) host.classList?.add('agent-card-late');
     host.hidden = false;
   }
 
-  function renderBar(doc, host, contact, title, beacon) {
+  function renderBar(doc, host, contact, title, beacon, enquiryOpts) {
     if (!host) return;
-    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), contactActions(doc, contact, title, beacon));
+    host.replaceChildren(element(doc, 'p', 'agent-bar-name', contact.name), contactActions(doc, contact, title, beacon, enquiryOpts));
     host.setAttribute('aria-label', 'Contact ' + contact.name);
     host.hidden = false;
     doc.body?.classList.add('has-agent-bar');
@@ -549,10 +804,10 @@
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
-  function showContact(doc, contact, title, beacon, late) {
+  function showContact(doc, contact, title, beacon, late, enquiryOpts) {
     if (!contact) return false;
-    renderCard(doc, doc.getElementById('agent-card'), contact, title, beacon, late);
-    renderBar(doc, doc.getElementById('agent-bar'), contact, title, beacon);
+    renderCard(doc, doc.getElementById('agent-card'), contact, title, beacon, late, enquiryOpts);
+    renderBar(doc, doc.getElementById('agent-bar'), contact, title, beacon, enquiryOpts);
     const note = doc.getElementById('client-footnote');
     if (note) note.textContent = privateNote(contact);
     const trouble = doc.getElementById('client-trouble');
@@ -648,11 +903,20 @@
     const win = options.window, loc = options.location;
     let title = '', giveContact = () => {};
     const contact = new Promise(resolve => { giveContact = resolve; });
+    const rawHash = typeof loc.hash === 'string' ? loc.hash : '';
+    const hasCamera = /^#[A-Za-z0-9_=&.-]{1,64}$/.test(rawHash) && /(?:^#|&)(?:yaw|pitch)=-?\d/.test(rawHash);
+    const stopInHash = hasCamera ? /(?:^#|&)stop=([1-9]\d?)(?:&|$)/.exec(rawHash) : null;
+    let cameraHash = hasCamera && (!stopInHash || Number(stopInHash[1]) >= 1) ? rawHash : '';
+    const cameraStop = stopInHash ? Number(stopInHash[1]) : 1;
     const url = () => (place ? place.url : shareUrl(loc, options.token));
     return {
       startAt: stopFromHash(loc.hash),
       onStop(number, count) {
-        const hash = number > 1 ? '#stop=' + number : '';
+        let hash = number > 1 ? '#stop=' + number : '';
+        if (cameraHash) {
+          if (number === cameraStop) hash = cameraHash;
+          cameraHash = '';
+        }
         place = { number, count, url: shareUrl(loc, options.token) + hash };
         try {
           if ((loc.hash || '') !== hash) win.history.replaceState(win.history.state, '', loc.pathname + loc.search + hash);
@@ -859,6 +1123,7 @@
 
   window.VeyletClientPage = {
     dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
+    campaignFactsFrom, openHomeIcs, brandFrom, lookupHandoffContext, applyBrand, showCampaignFacts,
     channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
     agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
     shareUrl, copyText, mountShare, shareNow, visitLink, stopFromHash, showWalkthrough, settleStage, placeExtras, mountColumns,

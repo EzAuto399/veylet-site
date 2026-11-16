@@ -49,17 +49,17 @@ test('sending help uses status checks and makes no timing promise', () => {
   }
 });
 
-test('F04 install help follows the current Apple/email and invited app journey', () => {
+test('F04 install help follows the current App Store and Apple/email journey', () => {
   for (const base of ['help', 'app/help']) {
     const words = text(main(read(`${base}/install-and-sign-in/index.html`)));
-    assert.match(words, /invitation link Veylet sent you/, base);
-    assert.match(words, /invite-only testing through TestFlight/, base);
+    assert.match(words, /from the App Store/, base);
+    assert.match(words, /weekly groups from the waitlist/, base);
     assert.match(words, /Sign in with Apple/, base);
     assert.match(words, /Use email instead/, base);
     assert.match(words, /same sign-in.*website/, base);
     assert.match(words, /six-digit code/, base);
     assert.match(words, /After signing in.*practice room/, base);
-    assert.doesNotMatch(words, /from the App Store|Continue in browser|practice room before you sign in/, base);
+    assert.doesNotMatch(words, /TestFlight|invitation link|Continue in browser|practice room before you sign in/, base);
   }
 });
 

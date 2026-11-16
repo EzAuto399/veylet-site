@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=648d977e1b220d99" as="script" />
-    <link rel="stylesheet" href="/style.css?v=77cd95fea06762b2" />
-    <link rel="stylesheet" href="/tour-stage.css?v=a91aa260a248fb09" />
-    <link rel="stylesheet" href="/client-page.css?v=8f674aaacaaa46b0" />
+    <link rel="preload" href="/tour-player-v2.js?v=1d070a4714d5fab4" as="script" />
+    <link rel="stylesheet" href="/style.css?v=71e227ed29237165" />
+    <link rel="stylesheet" href="/tour-stage.css?v=c3e2e90965b086a1" />
+    <link rel="stylesheet" href="/client-page.css?v=213afaa7858a6158" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
          nothing is held and the page reads as it always has. The rule is
@@ -52,10 +52,10 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=80fa32cdf3f2dee3"></script>
+    <script src="/client-page.js?v=c7af2dee74d1ad94"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=d267ed8bde7c96ab"></script>
+    <script src="/tour-player.js?v=f051a1e20ee7baff"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -63,15 +63,18 @@
          and a screen reader reach them before the walkthrough, not after the footer. -->
     <aside class="agent-bar" id="agent-bar" hidden></aside>
     <main id="main" class="form-page wrap client-page">
+      <p class="handoff-sample-banner" id="handoff-sample-banner" hidden>Sample space · Client view preview</p>
       <h1 id="handoff-title">Private walkthrough</h1>
       <p class="client-truth" id="client-truth" hidden>Captured on site with an iPhone. Not to scale.</p>
       <p class="tour-meta" id="handoff-meta" hidden></p>
+      <p class="handoff-facts" id="handoff-facts" hidden></p>
       <!-- One column on phones and tablets; from 1080px the walkthrough on the
            left and the agent, Share and help in a sticky column on the right. -->
       <div class="client-layout">
         <div class="client-side" id="client-side">
           <!-- The agent who shared it, only when the server returns their opt-in contact. -->
           <section class="agent-card" id="agent-card" hidden></section>
+          <section class="agent-enquiry-sheet" id="agent-enquiry-sheet" hidden></section>
         </div>
         <div class="client-main">
           <div class="tour-frame-wrap" id="tour-frame-wrap" hidden>
@@ -177,7 +180,43 @@
         });
       }
 
-      if (!link.complete) {
+      const searchParams = new URLSearchParams(location.search);
+      const isSamplePitch = !link.complete && searchParams.get('sample') === '1';
+
+      if (isSamplePitch) {
+        releaseHeld();
+        const sampleBanner = document.getElementById('handoff-sample-banner');
+        if (sampleBanner) sampleBanner.hidden = false;
+        const sampleTitle = 'Sample two-bedroom apartment';
+        const sampleContact = page?.contactFrom?.([{
+          display_name: searchParams.get('name') || 'Your name',
+          agency: searchParams.get('agency') || '',
+          phone: searchParams.get('phone') || '+61 400 000 000',
+          email: searchParams.get('email') || '',
+        }]) || null;
+        window.VeyletPlayer.boot({
+          els,
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+          resolve: async () => {
+            if (wrap) wrap.hidden = false;
+            if (els.body) els.body.textContent = '';
+            const truth = document.getElementById('client-truth');
+            if (truth) truth.hidden = false;
+            const help = document.getElementById('client-help');
+            if (help) help.hidden = false;
+            page?.showContact?.(document, sampleContact, sampleTitle, null, false);
+            return {
+              storagePath: 'samples/eyeful-apartment/manifest.json',
+              packageFormatVersion: 2,
+              packageBaseUrl: '/samples/eyeful-apartment/',
+              title: sampleTitle,
+              intro: '',
+              footer: '',
+            };
+          },
+          client: true,
+        });
+      } else if (!link.complete) {
         releaseHeld();
         // The words for a dead or broken link are the player's, shared with /tour and /embed.
         window.VeyletPlayer.showIncomplete(els);
@@ -235,6 +274,22 @@
               contact,
               visit,
             });
+            // Optional Release 5 context enrichment (facts bar, agency brand, inline enquiry sheet) via REST.
+            const rest = page?.restClient?.(window.VEYLET_SUPABASE);
+            if (rest && page?.lookupHandoffContext) {
+              page.lookupHandoffContext(rest, token).then(ctx => {
+                if (!ctx) return;
+                if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
+                if (ctx.contact) {
+                  const late = !document.documentElement.classList.contains('client-contact-pending');
+                  const card = document.getElementById('agent-card');
+                  if (ctx.contact.bookingUrl || ctx.contact.allowViewingRequest || !card || card.hidden) {
+                    page.showContact(document, ctx.contact, title, beacon, late, { token, enquiryClient: rest });
+                  }
+                }
+                if (ctx.brand) page.applyBrand(document, ctx.brand);
+              });
+            }
             return {
               storagePath: row.storage_path,
               packageFormatVersion: row.package_format_version === 2 ? 2 : 1,

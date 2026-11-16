@@ -47,19 +47,19 @@ function fakePage() {
   return { doc, label, cta, icon, account, root };
 }
 
-test('the stage is one line, window.VEYLET_STAGE, and it is open (offer 2026-09-26.3: open to anyone, admitted weekly)', () => {
+test('the stage is one line, window.VEYLET_STAGE, and it is app (16 November 2026: on the App Store, rendering admitted weekly)', () => {
   const lines = source.split('\n').filter(line => /VEYLET_STAGE\s*=/.test(line));
-  assert.deepEqual(lines, ["window.VEYLET_STAGE = 'open';"]);
+  assert.deepEqual(lines, ["window.VEYLET_STAGE = 'app';"]);
   const window = load();
-  assert.equal(window.VEYLET_STAGE, 'open');
-  assert.equal(window.VeyletStage.DEFAULT, 'open');
-  assert.deepEqual(Object.keys(window.VeyletStage.STAGES), ['test', 'invitation', 'waitlist', 'open']);
-  assert.equal(window.VeyletStage.resolve(window.VEYLET_STAGE), 'open');
+  assert.equal(window.VEYLET_STAGE, 'app');
+  assert.equal(window.VeyletStage.DEFAULT, 'app');
+  assert.deepEqual(Object.keys(window.VeyletStage.STAGES), ['test', 'invitation', 'waitlist', 'open', 'app']);
+  assert.equal(window.VeyletStage.resolve(window.VEYLET_STAGE), 'app');
 });
 
 test('each page loads stage.js and its markup already reads as the default stage', () => {
   const { STAGES } = load().VeyletStage;
-  const words = STAGES.open;
+  const words = STAGES.app;
   for (const page of PAGES) {
     const html = read(page);
     assert.match(html, /<script src="\/stage\.js(\?v=[a-f\d]{16})?" defer><\/script>/, page);
@@ -123,9 +123,17 @@ test('test stage says Limited test with no sign-up link; open admits weekly from
   assert.match(open.account.textContent, /^Anyone can join\. New accounts are admitted in weekly groups from the waitlist\./);
   assert.doesNotMatch(open.label.textContent + open.account.textContent, /invitation|Start free/i);
 
+  const store = fakePage();
+  apply(store.doc, 'app');
+  assert.deepEqual([store.label.textContent, store.cta.textContent.trim(), store.cta.getAttribute('href'), store.cta.hidden],
+    ['On the App Store, admitted weekly', 'Get the app', 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913', false]);
+  assert.ok(store.cta.children.includes(store.icon), 'the arrow icon is kept');
+  assert.match(store.account.textContent, /Rendering opens to new accounts in weekly groups from the waitlist\..*Join the waitlist\.$/);
+  assert.equal(store.account.links()[0].getAttribute('href'), '/waitlist', 'the waitlist stays the way to be admitted');
+
   const typo = fakePage();
-  assert.equal(apply(typo.doc, 'opne'), 'open');
-  assert.equal(typo.cta.textContent.trim(), 'Join the waitlist');
+  assert.equal(apply(typo.doc, 'opne'), 'app');
+  assert.equal(typo.cta.textContent.trim(), 'Get the app');
 });
 
 test('sign-in stays at every stage: the email-link form is markup the stage script never touches', () => {
@@ -163,14 +171,15 @@ test('home and /start describe sending from the app, and no export or private-tr
   }
 });
 
-test('home and /start have one main path, the waitlist, and do not send visitors to the enquiry form', () => {
+test('home and /start have one main path, the App Store, and do not send visitors to the enquiry form', () => {
   for (const page of ['index.html', 'start/index.html']) {
     const html = read(page);
     assert.doesNotMatch(html, /href="\/request/, `${page} does not link /request`);
     assert.doesNotMatch(html, /Request a walkthrough|Tell us about your space|Ask about capture|Managed clients/i, page);
-    assert.match(flatText(html), /New accounts are admitted in weekly groups\./, page);
+    assert.match(flatText(html), /in weekly groups/, page);
     const mainButtons = [...html.matchAll(/<a class="button"[^>]*href="([^"]*)"/g)].map(m => m[1]);
-    assert.ok(mainButtons.length > 0 && mainButtons.every(href => href === '/waitlist'), `${page} main buttons: ${mainButtons}`);
+    assert.ok(mainButtons.length > 0 && mainButtons.every(href => href === 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913'), `${page} main buttons: ${mainButtons}`);
+    assert.match(html, /href="\/waitlist"/, `${page} still links the waitlist for render admission`);
   }
   assert.doesNotMatch(read('index.html'), /without the capture app/, 'the managed-option answer is gone');
 });
@@ -221,27 +230,51 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
   }
 });
 
-test('home: the waitlist is asked for in the hero and the closing band only, one See a result link per section, one stage line', () => {
+test('home: the App Store is asked for in the hero and the closing band only, one See a result link per section, one stage line', () => {
   const home = read('index.html');
   const main = home.match(/<main\b[\s\S]*?<\/main>/)[0];
-  const waitlist = [...main.matchAll(/<a [^>]*href="\/waitlist"[^>]*data-analytics-placement="(\w+)"/g)].map(match => match[1]);
-  assert.deepEqual(waitlist, ['hero', 'body'], 'hero and closing band');
-  assert.match(main.match(/<section class="closing-invitation"[\s\S]*?<\/section>/)[0], /href="\/waitlist"/, 'the body one is the closing band');
-  assert.doesNotMatch(main.match(/<div class="walk-after">[\s\S]*?<\/div>/)[0], /href="\/waitlist"/, 'no mid-page waitlist button');
-  assert.match(home, /data-analytics-placement="sticky">Join the waitlist<\/a>/, 'the mobile sticky bar stays');
+  const store = [...main.matchAll(/<a [^>]*data-analytics-cta="app_store"[^>]*data-analytics-placement="(\w+)"/g)].map(match => match[1]);
+  assert.deepEqual(store, ['hero', 'body'], 'hero and closing band');
+  const closing = main.match(/<section class="closing-invitation"[\s\S]*?<\/section>/)[0];
+  assert.match(closing, /data-analytics-cta="app_store"/, 'the body one is the closing band');
+  assert.match(closing, /href="\/waitlist"/, 'the closing band still names the waitlist for render admission');
+  assert.doesNotMatch(main.match(/<div class="walk-after">[\s\S]*?<\/div>/)[0], /app_store|href="\/waitlist"/, 'no mid-page main button');
+  assert.match(home, /data-analytics-cta="app_store" data-analytics-placement="sticky">Get the app<\/a>/, 'the mobile sticky bar stays');
   const see = main.match(/<section class="see-band[\s\S]*?<\/section>/)[0];
   assert.equal((see.match(/href="\/see"/g) || []).length, 1, 'one See a result link in the section');
   // The stage label and the weekly-groups note are one line, then the price line, unchanged.
   assert.doesNotMatch(main, /hero-admit/);
   assert.equal((main.match(/data-launch-label/g) || []).length, 1);
-  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>Open to anyone, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
+  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>On the App Store, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
   // Shorter copy that keeps what is not yet proven, said once.
   const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;
-  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Pilot status\.<\/strong>/, '')), 1);
+  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Where we are today\.<\/strong>/, '')), 1);
+  assert.doesNotMatch(text, /Pilot status|onboarding early accounts/, 'the App Store launch drops the pilot framing');
   const steps = [...main.matchAll(/<li data-walk-step[^>]*>.*?<\/button><p>([\s\S]*?)<\/p><\/li>/g)].map(match => match[1]);
   assert.equal(sentences(steps[2]), 1, 'step 3 is one sentence');
   assert.equal(sentences(steps[3]), 1, 'step 4 is one sentence');
   assert.ok(sentences(main.match(/<div class="closing-action">\s*<p>([\s\S]*?)<\/p>/)[1]) <= 2, 'closing paragraph');
   assert.match(text, /no client-accepted walkthrough to show yet/);
+});
+
+// 17 November 2026: the app has been on the App Store since 15 November 2026, so every guide's main
+// button is the same App Store button as the home page, and no guide says the app is invite-only.
+test('each guide’s main button is the App Store button, with no waitlist button or invitation-only wording', () => {
+  const STORE = 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913';
+  const guides = fs.readdirSync(path.join(dist, 'guides'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => `guides/${e.name}/index.html`);
+  assert.ok(guides.length >= 6, `guides found: ${guides}`);
+  for (const page of guides) {
+    const html = read(page);
+    const buttons = [...html.matchAll(/<a class="button"[^>]*>/g)].map(m => m[0]);
+    assert.ok(buttons.length > 0, `${page} has a main button`);
+    for (const button of buttons) {
+      assert.equal(button, `<a class="button" href="${STORE}" data-analytics-cta="app_store" data-analytics-placement="body">`, page);
+    }
+    assert.doesNotMatch(html, />Join the waitlist </, `${page} has no waitlist button`);
+    assert.doesNotMatch(flatText(html), /TestFlight|not (?:yet )?on the App Store|not listed on the App Store|invitation comes|by invitation only|from your invitation/i, page);
+  }
+  const llmsFull = read('llms-full.txt');
+  assert.doesNotMatch(llmsFull, /Pilot status|TestFlight|invitation comes|from your invitation|Join the waitlist See/, 'llms-full.txt');
+  assert.doesNotMatch(read('llms.txt'), /TestFlight|invited pilot/, 'llms.txt');
 });

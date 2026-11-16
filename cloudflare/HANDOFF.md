@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## App Store launch release — 17 November 2026
+
+User authority: "Yes, preview", then "Yes, go live" (17 Nov). Source `ba376fb` on `site/launch-fix-20261117` (pushed, not merged to `main`): `site/unified-re-20261116` plus three commits that put the App Store button on all six guides, remove the TestFlight, "not on the App Store" and pilot wording, and re-pin `public-release.json`.
+
+1. **Build:** 1030 of 1030 site tests; `npm run build` and `npm run verify` pass (362 source, 361 output files); 12 of 12 adapter tests. `npm run check:local` still fails at the known line-134 assertion described below.
+2. **Hosted release:** preview `57be42c4-ea37-433f-8f70-97d52cc41fc6`; production `7196d6ed-4b15-4fc4-8abe-af168c56f620`. Deployed with `npx wrangler deploy --config wrangler.preview.jsonc`, then `--config wrangler.production.jsonc`.
+3. **Readback on veylet.com:** all 98 `index.html` outputs match the build byte for byte; `scripts/health-check.sh` 42 passed, 0 failed; `www` still redirects 301 to the apex with the path.
+4. **Not checked:** hosted sign-in, payment, capture and player journeys. The 125 files that changed since `main` came mostly from earlier merges and had no separate release review.
+5. **Recovery:** previous production version `6f411a8c-7151-4e9e-b17e-b82bbf4f0ae7`, previous preview `ac8e9e4c-50b8-4e1e-b45b-85c3dbee6c64`: `wrangler rollback <version> --config wrangler.production.jsonc`.
+
 ## Demo sizing release — 11 October 2026
 
 User authority: “give the demo some more space in size ratio please and fix and deploy.” Integrated source `f80b5e472cf4cd0f6fe6edc036ecef98457f28f4` changes only `/see` CSS, its HTML stylesheet version and the two matching public-release pins. The stage now fills the content width beneath compact copy/actions; the height-dependent and 900 px limits are removed. Viewer/video ratios, mobile switch, player logic, sample/licence, offer, Worker, configs, DNS and integration endpoints are preserved. The decorative connector is hidden to avoid crossing the new copy band.

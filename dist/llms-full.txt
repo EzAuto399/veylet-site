@@ -7,7 +7,7 @@ Short answers:
 - What it is: the product is the Veylet iPhone app plus automatic processing. You capture; Veylet processes, checks and hosts the walkthrough automatically; you review and approve it before sharing.
 - Processing: automatic, with no person checking. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record, and asks for a recapture of the rooms it names; anything else it finds is flagged as worth a look for you to check before you approve. The check looks at how well the photos match, coverage, stray artefacts and walkable paths. We'll email you when it's ready. An AI visual check is planned and comes only once the privacy notice covers it; it does not run today.
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
-- The app: The Veylet app is distributed by invitation through TestFlight; it is not listed on the App Store yet.
+- The app: Veylet: 3D Property Tours is on the App Store (https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913); rendering opens to new accounts in weekly groups from the waitlist.
 - Sending: Send from the app: it uploads in the background. Check your account for rendering status.
 - Price in one line: eligible subscribers receive 1 free month with 30 rooms in total, then the Veylet plan through the App Store: A$139.99/month for 30 rooms each paid month (up to 40 banked on top of the month's 30), the same 30 as the free month, or A$1,399.99 upfront/year for a 360-room annual pool (the same 30 a month) with no annual rollover. Halls, stairs and connecting spaces are free with up to 2 standing spots. Yearly saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
@@ -27,7 +27,7 @@ New accounts are admitted in weekly groups.
 1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
 
 ### You capture the space. We make the walkthrough.
-Pilot status. We are onboarding early accounts while our own captures are still under quality review; we have no client-accepted tour to show yet. The app shows route checks; an automatic quality check assesses capture quality before a walkthrough is offered for your approval.
+Where we are today. Our own captures are still under quality review, so we have no client-accepted walkthrough to show yet; the app shows route checks, and an automatic quality check assesses capture quality before you approve anything.
 No camera to buy
 - Your iPhone does the capture, in about 3 minutes a room, and the app coaches you as you walk.
 Only what you approve counts
@@ -52,7 +52,7 @@ New accounts are admitted in weekly groups. 1 free month with 30 rooms included,
 
 ### The app, as it is today.
 The Veylet app signs you in with Apple or an email link, with no password. It coaches the route while you walk and checks what it saved before you send anything.
-Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is in invite-only testing through TestFlight, and we send its invitation when your account is admitted.
+Screens from the current build in the iOS Simulator; on a real iPhone the camera fills the capture screen. The app is on the App Store; rendering opens to new accounts in weekly groups from the waitlist.
 - Sign in A link to your email, no password.
 - Practise first One small room before a real space.
 - Check before sending The saved route and what the app could not see.
@@ -63,14 +63,14 @@ We do not yet have a client-accepted tour to show. Our captures are still under 
 No. Joining the waitlist creates no account and takes no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with.
 
 ### Start with one space.
-Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups. Works with recent iPhone Pro and iPad Pro models.
+Get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted. Works with recent iPhone Pro and iPad Pro models.
 
 ## Veylet offer and prices: 1 free month, then one plan
 Source: https://veylet.com/offer
 
 For real-estate agents and property managers across Australia. Buyers and tenants walk through the space on their phone before they visit. You walk it once with the Veylet app on your iPhone; Veylet checks the capture automatically, hosts it and hands you a 3D walkthrough to review, with a private link and a website embed. No camera to buy, no course, and nobody sees it before you approve it.
-Join the waitlist See how a first walkthrough runs
-Open to anyone, admitted weekly. We admit new accounts from the waitlist each week, as many as our processing budget allows. The app is in invitation-only testing through TestFlight and is not listed on the App Store yet; the prices here are the App Store prices it uses. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
+Get the app See how a first walkthrough runs
+On the App Store, admitted weekly. Anyone can get the app and try the free practice room. We admit new accounts to rendering from the waitlist each week, as many as our processing budget allows. The prices here are the App Store prices. Our own captures are still under quality review, so we have no client-accepted tour to show yet. A capture that is not good enough is never counted.
 You only use rooms when a tour passes the check and you approve it. A capture that fails the automatic quality check, or that you don’t approve for release, uses none. A correction, or a permitted recapture of every original room, keeps the same link and uses no rooms.
 If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no rooms; a new capture visit is not included.
 
@@ -82,7 +82,7 @@ Month 2 onward Veylet plan
 First twelve months 1 free month, then 11 monthly App Store payments
 - A$1,539.89
 Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.
-30 rooms in total during the 1 free month. Then 30 a month on the plan; unused ones carry over, up to 40 banked. Need more? A pack adds 30 or 100 rooms, and you can buy one during the free months. The free-months end date stays the same.
+30 rooms in total during the 1 free month. Then 30 a month on the plan; unused ones carry over, up to 40 banked. Need more? A pack adds 30 or 100 rooms, and you can buy one during the free month. The free month’s end date stays the same.
 On the Veylet plan, monthly or yearly: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no rooms.
 Illustration for the Veylet plan with an eligible 1-month App Store introductory offer, then A$139.99 each month automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase. Nothing is charged by this calculator.
 
@@ -100,7 +100,7 @@ When rooms are used
 360 a year
 - On the yearly plan, 360 rooms to use any time in the plan year: a yearly pool with no monthly limit. It resets on each plan-year anniversary, and unused ones do not carry into the next year.
 Packs
-- A pack of 30 rooms is A$169 and a pack of 100 is A$499. The account owner can buy one during the free months or on the plan. Its rooms are used after the ones your free months or plan include, and stay valid 12 months from purchase. Pack rooms are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
+- A pack of 30 rooms is A$169 and a pack of 100 is A$499. The account owner can buy one during the free month or on the plan. Its rooms are used after the ones your free month or plan includes, and stay valid 12 months from purchase. Pack rooms are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
 Your first walkthrough
 - If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no rooms; a new capture visit is not included.
 A capture that is not good enough
@@ -108,13 +108,13 @@ A capture that is not good enough
 Seats
 - One account for now. Shared accounts for everyone in your office come after launch. You pay for rooms, not people.
 Hosting
-- Every released walkthrough stays live while your account has a running plan: the free months, monthly or yearly. No cap on live tours (fair use: 100 per account). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline, and banked rooms lapse after the 14 days. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
+- Every released walkthrough stays live while your account has a running plan: the free month, monthly or yearly. No cap on live tours (fair use: 100 per account). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline, and banked rooms lapse after the 14 days. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
 Listing videos and photos
 - Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.
 Starting
 - Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 30 rooms in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
 Before the first charge
-- The first charge is on the day your free months end, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
+- The first charge is on the day your free month ends, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
 Stopping
 - Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.
 Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.
@@ -142,13 +142,13 @@ Super fast render
 - A$29 a capture, on this website
 - First in the queue on our fastest processing in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. Your account offers it when you send a capture. No daily limit and no business hours. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. Not sold in the app.
 One-time pack of 30 rooms
-- A$169 once, valid 12 months usable during the free months
+- A$169 once, valid 12 months usable during the free month
 One-time pack of 100 rooms
-- A$499 once, valid 12 months usable during the free months
-Pack rooms are used after the ones your free months or plan include. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
+- A$499 once, valid 12 months usable during the free month
+Pack rooms are used after the ones your free month or plan includes. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
 
 #### What you pay at 30, 50 or 80 rooms a month.
-On the monthly App Store plan, after the free months, plus a separately purchased one-time pack. At these rates a pack is used up long before its 12 months run out.
+On the monthly App Store plan, after the free month, plus a separately purchased one-time pack. At these rates a pack is used up long before its 12 months run out.
 30 a month
 - A$139.99 a month
 - The 30 rooms the plan includes.
@@ -182,7 +182,7 @@ Illustration of the process, not a captured space.
 
 ### Straight answers.
 iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards, on iOS 17 or later. Other iPhone and iPad models are not supported. If you are unsure, the phone’s Settings › General › About shows its model name.
-No. Your free months end on the same date. If you need more before then, the account owner can buy a pack of 30 or 100 rooms: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
+No. Your free month ends on the same date. If you need more before then, the account owner can buy a pack of 30 or 100 rooms: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
 The plan you chose starts, monthly or yearly, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
 Annual, if you list steadily: A$1,399.99 upfront a year gives the same 360 rooms as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use more. Monthly, if you want to be able to stop in any month: A$139.99 a month for 30 rooms, and unused ones carry over, up to 40 banked.
 It uses the rooms counted in the tour. Each named space the buyer can stand in is a room, including a garage and an outdoor area; halls, stairs and connecting spaces are free with up to 2 standing spots. The counting rules are under “What counts” on this page. Each capture has one link and one QR code. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no rooms.
@@ -198,8 +198,8 @@ You keep the rights to your space and its imagery. Your account states who may s
 Not yet. Our captures are still under quality review and we will not show concept artwork as proof. Veylet support can tell you what has been tested so far.
 
 ### Start with one space.
-Join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted in weekly groups, and we email you when it’s your turn. Your free months begin when you activate the plan with a payment method on file, and the first charge is on the day they end. Questions first? Write to Veylet support at support@veylet.com and a person replies.
-Join the waitlist See how a first walkthrough runs
+Get the app and try the free practice room, then join the waitlist with your iPhone model; it is free and creates no account. New accounts are admitted to rendering in weekly groups, and we email you when it’s your turn. Your free month begins when you activate the plan with a payment method on file, and the first charge is on the day it ends. Questions first? Write to Veylet support at support@veylet.com and a person replies.
+Get the app See how a first walkthrough runs
 
 ## Embed a 3D walkthrough on your website — Veylet
 Source: https://veylet.com/website-guide
@@ -322,7 +322,7 @@ A walkthrough gives visual context, not a guarantee of size or condition, so kee
 ### How does Veylet make a walkthrough?
 Veylet turns a few minutes of iPhone capture into a reviewed walkthrough: the person who controls a space captures it with their iPhone in the Veylet app, Veylet processes and checks it automatically, and the account reviews that exact version before anyone else sees it.
 A released walkthrough is shared as a browser link and a website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. Viewers need no app or account. Our website guide shows how the embed goes on a page, and the offer page sets out the plans.
-Not yet proven: The Veylet app is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review, and no client-accepted walkthrough exists yet. Veylet has no property-portal integration.
+Not yet proven: Veylet’s own captures are still under quality review, and no client-accepted walkthrough exists yet. Veylet has no property-portal integration.
 
 ### Questions people ask
 Not always. “Virtual tour” covers any online stand-in for a visit, including linked 360° photographs and video. A 3D walkthrough is one kind of virtual tour, in which every viewpoint sits inside one connected 3D space that the viewer moves through freely.
@@ -337,8 +337,8 @@ Most 3D walkthroughs open in a current web browser from a link or a website embe
 - Borderland Real Estate Media — Pricing, accessed 24 September 2026.
 
 ### Start with one space.
-Join the waitlist with your iPhone model; it is free and creates no account. Your first session is one practice capture in a small room; capture visits are not currently offered.
-Join the waitlist See the offer
+Get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted. Your first session is one practice capture in a small room; capture visits are not currently offered.
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -437,7 +437,7 @@ Compare the total for the same property, including GST, travel, any floor plan y
 ### Where does Veylet fit?
 Veylet’s plans and prices are on its offer page, not in this guide, and we make no value-for-money claim against the providers above, because Veylet has no client-accepted walkthrough yet.
 Veylet works differently from both routes: the person who controls a space captures it with their iPhone in the Veylet app, Veylet processes and checks it automatically, and the account reviews it before release. Released walkthroughs are shared as a link and a website embed, live while the office’s plan is active. Our first-walkthrough guide explains each step.
-Not yet proven: The Veylet app is in TestFlight testing, not on the App Store. Veylet’s own captures are still under quality review. Veylet has no property-portal integration.
+Not yet proven: Veylet’s own captures are still under quality review. Veylet has no property-portal integration.
 
 ### Questions people ask
 From photographers checked on 29 September 2026, a Matterport-style tour of a home cost $195 in Adelaide with six months of hosting, $215 to $359 in Brisbane with three months, $395 in Brisbane with six, and from $300 for an apartment or $400 for a standard house in Sydney with a year. To capture your own, Matterport lists the Pro3 camera at US$3,995, and it needs at least a Professional plan, from US$69 a month.
@@ -461,8 +461,8 @@ Veylet publishes its plans on its offer page at veylet.com/offer. This guide doe
 - Digital 1 QLD — Real Estate Photography Packages & Price List, accessed 24 September 2026.
 
 ### Start with one space.
-Join the waitlist with your iPhone model; it is free and creates no account. The offer page lists the plans and what each includes.
-Join the waitlist See the offer
+Get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted. The offer page lists the plans and what each includes.
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -519,14 +519,14 @@ A walkthrough from either device gives visual context. It is not a measured floo
 ### Where does Veylet fit?
 Veylet works with the supported iPhone or iPad you already have; what it adds is the automatic processing, quality check and hosting after capture, not different equipment.
 The Veylet app guides you through the space and saves the capture on your phone. Send from the app: it uploads in the background. Check your account for rendering status. Veylet builds it automatically. We’ll email you when it’s ready. An automatic quality check stops a render that cannot work, such as one where the photos or the shape of the rooms did not record; it retries once when a retry can help, then asks for a recapture of the named rooms. Other findings about photo match, coverage, stray artefacts and walkable paths do not block the render: they are flagged for you to check before approval. No person checks it; you then review the exact version on your phone before anyone else sees it. The released walkthrough is shared as a private link and website embed, and stays live while your plan is active; when the plan ends, its links keep working for 14 days, then go offline until the plan restarts. The first-walkthrough guide covers each step.
-Where we are today: The Veylet app is available by invitation through Apple’s TestFlight, not yet on the App Store. Our own captures are still under internal quality review, and no client has accepted a Veylet walkthrough yet, so we make no claim that phone capture matches a dedicated camera. For a measured survey or a very large building, a dedicated camera may be the better tool.
+Where we are today: The Veylet app is on the App Store, and rendering admits new accounts in weekly groups. Our own captures are still under internal quality review, and no client has accepted a Veylet walkthrough yet, so we make no claim that phone capture matches a dedicated camera. For a measured survey or a very large building, a dedicated camera may be the better tool.
 
 ### Questions people ask
 Yes, on a supported iPhone: The Veylet app records the shape of each room as well as photographs, and some other apps work from photographs alone on other phones. The result shows what a space looks like; it is not a measured survey.
 The Pro and Pro Max models from iPhone 12 Pro to iPhone 18 Pro, on iOS 17 or later. Standard, Plus, mini, e and SE models, iPhone Air and iPhone Duo do not work. Among iPads, only iPad Pro models released since 2020 do.
 No. Polycam is a phone app for capturing, sharing and exporting 3D files, with a free tier and paid plans. Matterport makes dedicated cameras and a tour platform, and its app can also capture with a phone. Compare them on the result you need, not only the equipment.
 Not where exact dimensions matter. In one study, an iPhone scan differed from a Matterport Pro3 scan of the same space by 4.08 cm on average and by up to 52 cm around doors. Use a measured plan or survey for dimensions.
-No. The Veylet app works with recent iPhone Pro and iPad Pro models on iOS 17 or later, and Veylet processes, checks and hosts the result automatically. The app is available by invitation through TestFlight, not yet on the App Store.
+No. The Veylet app works with recent iPhone Pro and iPad Pro models on iOS 17 or later, and Veylet processes, checks and hosts the result automatically. The app is on the App Store.
 
 ### Sources
 - Apple — iPhone: Compare Models, accessed 24 September 2026.
@@ -539,8 +539,8 @@ No. The Veylet app works with recent iPhone Pro and iPad Pro models on iOS 17 or
 - Polycam — Pricing, accessed 24 September 2026.
 
 ### Start with the phone you have.
-If you own a recent iPhone Pro or iPad Pro, join the waitlist with your model. It is free and creates no account, and the app invitation comes when your account is admitted.
-Join the waitlist See the offer
+If you own a recent iPhone Pro or iPad Pro, get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted.
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -623,7 +623,7 @@ No. We never publish or use your space in our own marketing without a separate w
 
 ### Prepare one space, then decide how it is shared.
 Plan which rooms should stay out before you capture. You review the exact walkthrough before anyone else sees it, and sharing stays off until you turn it on.
-Join the waitlist See the offer
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -715,7 +715,7 @@ It applies to REA through an enquiry form and follows REA’s integration guidel
 
 ### Share a walkthrough where you control the page.
 Veylet delivers a walkthrough you have reviewed as a private link and a website embed. Our captures are still under quality review, so check your admission date before promising a client one.
-Join the waitlist See the offer
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -784,7 +784,7 @@ Because they come from different publishers, markets and methods, and most canno
 
 ### What does Veylet claim?
 Nothing about sale or lease outcomes: Veylet has no client-accepted walkthrough yet, so it has no results of its own to report.
-Our captures are still under quality review, and the Veylet app is in testing on TestFlight, not the App Store. We do not borrow Zillow’s, Matterport’s or anyone else’s figures for our walkthroughs. What a walkthrough includes is on the offer page, and how one is captured and reviewed is in getting started.
+Our captures are still under quality review. We do not borrow Zillow’s, Matterport’s or anyone else’s figures for our walkthroughs. What a walkthrough includes is on the offer page, and how one is captured and reviewed is in getting started.
 
 ### What can you reasonably expect from a good 3D tour?
 A clearer picture of the space for people who cannot visit yet, rather than a guaranteed faster sale, higher price or quicker lease.
@@ -810,8 +810,8 @@ No. Veylet has no client-accepted walkthrough yet, so it makes no claim about sa
 - Elite Agent — iGUIDE launches in Australia to level up property search with immersive 3D technology, 25 March 2026, accessed 24 September 2026.
 
 ### Judge a walkthrough on your own space.
-Veylet makes no outcome claim. If you want to try one on your own space, join the waitlist; it is free and creates no account.
-Join the waitlist See the offer
+Veylet makes no outcome claim. If you want to try one on your own space, get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted.
+Get the app See the offer
 New accounts are admitted in weekly groups.
 
 ### Related guides
@@ -827,7 +827,7 @@ Short answers for each step, from your first capture to your client’s first vi
 ### Getting started
 The device you need, signing in, and the practice room.
 - What you need to start The iPhone or iPad the Veylet app needs, how much free space to keep, and what to have ready before your first capture.
-- Install the app and sign in Install the Veylet app from your invitation, then sign in with Apple or email using the same account as the website.
+- Install the app and sign in Install the Veylet app from the App Store, then sign in with Apple or email using the same account as the website.
 - The practice room, and how to pass it Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.
 
 ### Capturing
@@ -897,7 +897,7 @@ All help topics
 Source: https://veylet.com/help/install-and-sign-in
 
 Choose Sign in with Apple or use email. Use the same sign-in on the app and website so your spaces and walkthroughs stay together.
-- Install the Veylet app on your supported Pro iPhone or iPad using the invitation link Veylet sent you. The app is in invite-only testing through TestFlight.
+- Install the Veylet app on your supported Pro iPhone or iPad from the App Store. Rendering opens to new accounts in weekly groups from the waitlist.
 - Open it and read how it works. Choose Sign in with Apple, or Use email instead and enter the email you use on the website. Your first sign-in creates your account.
 - For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.
 - After signing in, start with the practice room from Captures before your first real capture.

@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=ccaac186bd8390c7';
+  const STYLE_URL = '/tour-player-v2.css?v=6ce5d88ffa43ae4c';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -343,6 +343,112 @@
     const stop = manifest.stops[index];
     const room = manifest.rooms.find(item => item.id === stop.room);
     return { room: room && room.name ? room.name : '', stop: 'Stop ' + visitNumber(manifest, index) + ' of ' + manifest.stops.length };
+  }
+
+  function parseFiniteNumber(raw) {
+    if (typeof raw !== 'string') return null;
+    const trimmed = raw.trim();
+    if (!trimmed || !/^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(trimmed)) return null;
+    const value = Number(trimmed);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  /** Parse #stop=N&yaw=D&pitch=P deep links, clamping yaw (-180..360) and pitch (-60..60). */
+  function parseViewHash(hash) {
+    if (typeof hash !== 'string') return null;
+    const body = hash.trim().replace(/^#/, '');
+    if (!body) return null;
+    let stop = null, yaw = null, pitch = null;
+    for (const part of body.split('&')) {
+      if (!part) continue;
+      const eq = part.indexOf('=');
+      if (eq < 0) continue;
+      let key, value;
+      try {
+        key = decodeURIComponent(part.slice(0, eq)).trim().toLowerCase();
+        value = decodeURIComponent(part.slice(eq + 1)).trim();
+      } catch {
+        continue;
+      }
+      if (key === 'stop' && /^[1-9]\d?$/.test(value)) stop = Number(value);
+      else if (key === 'yaw') {
+        const parsed = parseFiniteNumber(value);
+        if (parsed !== null) yaw = clamp(parsed, -180, 360);
+      } else if (key === 'pitch') {
+        const parsed = parseFiniteNumber(value);
+        if (parsed !== null) pitch = clamp(parsed, -60, 60);
+      }
+    }
+    if (stop === null && yaw === null && pitch === null) return null;
+    return { stop, yaw, pitch };
+  }
+
+  function hashOf(source) {
+    if (!source) return '';
+    if (typeof source.hash === 'string' && source.hash) return source.hash;
+    if (typeof source.href === 'string') {
+      const idx = source.href.indexOf('#');
+      if (idx >= 0) return source.href.slice(idx);
+    }
+    return '';
+  }
+
+  function clampOrientation(rawYaw, rawPitch) {
+    const toNum = v => (typeof v === 'number' ? (Number.isFinite(v) ? v : null) : typeof v === 'string' ? parseFiniteNumber(v) : null);
+    const y = toNum(rawYaw), p = toNum(rawPitch);
+    return { yaw: y !== null ? clamp(y, -180, 360) : null, pitch: p !== null ? clamp(p, -60, 60) : null };
+  }
+
+  function resolveStartView(manifest, visit, hash) {
+    const count = manifest.stops.length;
+    const validStop = n => (Number.isInteger(n) && n >= 1 && n <= count ? stopAtNumber(manifest, n) : null);
+    const startAt = visit && visit.startAt;
+    const hashView = parseViewHash(hash);
+    if (startAt && typeof startAt === 'object') {
+      const stop = validStop(startAt.stop);
+      const orient = clampOrientation(startAt.yaw ?? visit.yaw, startAt.pitch ?? visit.pitch);
+      return { stop: stop !== null ? stop : manifest.start, yaw: orient.yaw, pitch: orient.pitch };
+    }
+    if (Number.isInteger(startAt)) {
+      const stop = validStop(startAt);
+      if (stop === null) return { stop: manifest.start, yaw: null, pitch: null };
+      const fromHash = hashView && (hashView.stop === null || hashView.stop === startAt) ? hashView : null;
+      const orient = clampOrientation(visit?.yaw ?? fromHash?.yaw, visit?.pitch ?? fromHash?.pitch);
+      return { stop, yaw: orient.yaw, pitch: orient.pitch };
+    }
+    if (startAt === undefined || startAt === null) {
+      const stop = hashView ? validStop(hashView.stop) : null;
+      const orient = clampOrientation(visit?.yaw ?? hashView?.yaw, visit?.pitch ?? hashView?.pitch);
+      return { stop: stop !== null ? stop : manifest.start, yaw: orient.yaw, pitch: orient.pitch };
+    }
+    return { stop: manifest.start, yaw: null, pitch: null };
+  }
+
+  function roomNameForStop(manifest, stop) {
+    if (!stop || typeof stop !== 'object') return '';
+    const rooms = Array.isArray(manifest?.rooms) ? manifest.rooms : null;
+    const room = rooms ? rooms.find(item => item && item.id === stop.room) : null;
+    const raw = room ? room.name : (stop.label || stop.title || stop.room);
+    return typeof raw === 'string' ? raw.trim() : '';
+  }
+
+  /** Unique named rooms extracted in stop order from manifest.stops, each with its first stop index. */
+  function roomsFromManifest(manifest) {
+    if (!manifest || !Array.isArray(manifest.stops) || !manifest.stops.length) return [];
+    const rooms = Array.isArray(manifest.rooms) ? manifest.rooms : [];
+    const seen = new Set();
+    const result = [];
+    manifest.stops.forEach((stop, index) => {
+      const name = roomNameForStop(manifest, stop);
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      const matched = rooms.find(item => item && item.id === stop.room);
+      const id = matched ? matched.id : (typeof stop.room === 'string' && stop.room.trim() ? stop.room.trim() : name);
+      result.push({ id, name, firstStop: index });
+    });
+    return result;
   }
 
   /**
@@ -683,7 +789,7 @@
     // Not .v2-full: the stylesheet hides that class in frames of 330 px and
     // under, which is exactly where full screen is needed most.
     const full = iconButton('full', 'Full screen', 'v2-icon v2-fullscreen');
-    const roomsBar = el('div', { class: 'v2-room-pills', role: 'group', 'aria-label': 'Rooms', hidden: true });
+    const roomsBar = el('nav', { class: 'v2-rooms v2-room-pills', 'aria-label': 'Rooms', hidden: true });
     const bar = el('div', { class: 'v2-bar', role: 'toolbar', 'aria-label': 'Walkthrough controls', hidden: true });
     const moves = el('div', { class: 'v2-moves' });
     moves.append(prev, stopsToggle, next);
@@ -784,13 +890,24 @@
     // changes, Share, and who to contact. The player itself still sends nothing anywhere.
     const visit = options.visit && typeof options.visit === 'object' ? options.visit : {};
     const lastStop = stopAtNumber(manifest, manifest.stops.length);
-    const asked = Number.isInteger(visit.startAt) && visit.startAt >= 1 && visit.startAt <= manifest.stops.length ? stopAtNumber(manifest, visit.startAt) : manifest.start;
+    const startHash = typeof options.hash === 'string'
+      ? options.hash
+      : (hashOf(page) || hashOf(typeof location !== 'undefined' ? location : null));
+    const askedView = resolveStartView(manifest, visit, startHash);
+    const asked = askedView.stop;
     // A chunked home opens on the chunk its package names, and walks to the asked stop once it is drawn.
     const opening = manifest.scene.chunked ? manifest.start : asked;
     if (manifest.researchSample) ui.root.classList.add('v2-research');
     labels(opening);
 
-    const state = { stop: opening, position: [...manifest.stops[opening].position], zoom: 1, ...lookAngles(manifest.stops[opening].position, manifest.stops[opening].target) };
+    const openingLook = lookAngles(manifest.stops[opening].position, manifest.stops[opening].target);
+    const state = {
+      stop: opening,
+      position: [...manifest.stops[opening].position],
+      zoom: 1,
+      yaw: asked === opening && askedView.yaw !== null ? askedView.yaw : openingLook.yaw,
+      pitch: asked === opening && askedView.pitch !== null ? askedView.pitch : openingLook.pitch,
+    };
     let viewer = null, torndown = false, settled = false;
     let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
     let resolveReady;
@@ -1106,23 +1223,31 @@
       drawMapMarker();
     }
 
+    const roomEntries = roomsFromManifest(manifest);
+    const roomPills = [];
+    const roomKeyAt = index => roomNameForStop(manifest, manifest.stops[index]).toLowerCase();
+    const visitedRooms = new Set();
+    if (asked === opening) {
+      const openingRoomKey = roomKeyAt(opening);
+      if (openingRoomKey) visitedRooms.add(openingRoomKey);
+    }
+
     function buildRoomPills() {
       ui.roomsBar.replaceChildren();
-      if (manifest.rooms.length < 2) { ui.roomsBar.hidden = true; return; }
-      for (const room of manifest.rooms) {
-        const firstStop = manifest.stops.findIndex(stop => stop.room === room.id);
-        if (firstStop < 0) continue;
-        const name = room.name || 'Room';
-        const footprint = roomFootprint(manifest, room.id);
-        const pill = el('button', { type: 'button', class: 'v2-room-pill', 'data-room': room.id }, name);
+      roomPills.length = 0;
+      if (roomEntries.length < 2) { ui.roomsBar.hidden = true; return; }
+      for (const entry of roomEntries) {
+        const footprint = roomFootprint(manifest, entry.id);
+        const pill = el('button', { type: 'button', class: 'v2-room-pill', 'data-room': entry.id }, entry.name);
         if (footprint) {
           pill.dataset.dimensions = footprint.label;
-          pill.title = [name, footprint.label].filter(Boolean).join(' · ');
+          pill.title = [entry.name, footprint.label].filter(Boolean).join(' · ');
         }
-        pill.addEventListener('click', () => goToStop(firstStop));
+        pill.addEventListener('click', () => goToStop(entry.firstStop));
+        roomPills.push({ pill, id: entry.id, key: entry.name.toLowerCase() });
         ui.roomsBar.append(pill);
       }
-      ui.roomsBar.hidden = ui.roomsBar.children.length < 2;
+      ui.roomsBar.hidden = roomPills.length < 2;
       ui.roomsBar.addEventListener('scroll', pillsMore, { passive: true });
     }
     // More room names than fit: the row fades at its right edge until it is scrolled to the end.
@@ -1158,17 +1283,33 @@
         ui.stopsPanel.append(group);
       }
     }
-    function markCurrent() {
+    function markCurrent(markVisited = false) {
       for (const button of ui.stopsPanel.querySelectorAll('[data-stop]')) {
         if (Number(button.dataset.stop) === state.stop) button.setAttribute('aria-current', 'true');
         else button.removeAttribute('aria-current');
       }
       const activeIndex = state.stop >= 0 ? state.stop : Math.max(0, nearestStop(manifest, state.position, 99, storeys ? STOREY_METRES : Infinity));
       const activeRoomId = manifest.stops[activeIndex]?.room;
-      for (const pill of ui.roomsBar.querySelectorAll('[data-room]')) {
-        if (pill.dataset.room === activeRoomId) pill.setAttribute('aria-current', 'true');
-        else pill.removeAttribute('aria-current');
+      const activeRoomKey = roomKeyAt(activeIndex);
+      if (markVisited && activeRoomKey) visitedRooms.add(activeRoomKey);
+      for (const { pill, id, key } of roomPills) {
+        const isCurrent = activeRoomKey ? key === activeRoomKey : id === activeRoomId;
+        if (isCurrent) {
+          pill.setAttribute('aria-current', 'true');
+          const cw = ui.roomsBar.clientWidth || 0;
+          if (!ui.roomsBar.hidden && cw > 0 && pill.offsetWidth) {
+            const l = pill.offsetLeft;
+            const r = l + pill.offsetWidth;
+            if (l < ui.roomsBar.scrollLeft) ui.roomsBar.scrollLeft = l;
+            else if (r > ui.roomsBar.scrollLeft + cw) ui.roomsBar.scrollLeft = r - cw;
+          }
+        } else {
+          pill.removeAttribute('aria-current');
+        }
+        if (visitedRooms.has(key)) pill.setAttribute('data-visited', 'true');
+        else delete pill.dataset.visited;
       }
+      pillsMore();
       ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? visitNumber(manifest, state.stop) : '–') + ' of ' + manifest.stops.length;
       ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? visitNumber(manifest, state.stop) : 'none') + ' of ' + manifest.stops.length);
       // The last stop of the visit: Next offers the start again, and says so.
@@ -1389,7 +1530,7 @@
       // Point to point: every move ends at a stop, so index is always one.
       state.stop = index;
       const label = labels(index);
-      markCurrent();
+      markCurrent(true);
       placeHotspots();
       ui.announce.textContent = [label.room, label.stop].filter(Boolean).join(', ');
       if (label.room && label.room !== lastRoomVisited) {
@@ -1471,7 +1612,7 @@
       delete ui.root.dataset.end;
       if (held) ui.next.focus?.();
     }
-    function goToStop(index, byUser = true) {
+    function goToStop(index, byUser = true, orientation = null) {
       if (!ready) return;
       dismissHint(byUser);
       hideEnd();
@@ -1480,7 +1621,9 @@
       // A chunked home holds the stop's room (and the rooms beyond its doorways) first; far rooms go on arrival.
       if (chunked) enterChunk(chunked.chunkOfRoom[stop.room]);
       lastMove = { route: 'direct', from: state.stop, to: index, points: 2, duration: 0, cut: true };
-      Object.assign(state, { position: [...stop.position], yaw: look.yaw, pitch: look.pitch });
+      const yaw = orientation && orientation.yaw !== null && orientation.yaw !== undefined ? orientation.yaw : look.yaw;
+      const pitch = orientation && orientation.pitch !== null && orientation.pitch !== undefined ? orientation.pitch : look.pitch;
+      Object.assign(state, { position: [...stop.position], yaw, pitch });
       applyCamera();
       // The jump itself stays instant (the camera is already there); a moved-by-hand jump fades in from dark.
       // Reduce Motion keeps the plain cut.
@@ -1758,11 +1901,22 @@
     }
     // Under 288 px (a frame narrower than a 320 px phone's own page) the bar has room for five controls,
     // not six: the map, which would cover most of so small a view, gives way to Full screen.
+    function syncBarHeight() {
+      if (!ui.bar || ui.bar.hidden) return;
+      const h = ui.bar.offsetHeight || ui.bar.clientHeight || 0;
+      if (h) {
+        ui.root.style?.setProperty?.('--v2-bar', h + 'px');
+        ui.end?.style?.setProperty?.('--v2-bar', h + 'px');
+      }
+    }
     function fitBar() {
       const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
+      const compactHeight = stage.clientHeight > 0 && stage.clientHeight <= 300 && !isFull();
+      ui.roomsBar.hidden = roomPills.length < 2 || compactHeight;
       pillsMore();
+      syncBarHeight();
     }
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
@@ -1900,15 +2054,20 @@
         phase = 'detail';
         mark('first-3d');
         ready = true;
-        // The opening stop is an arrival too, once there is something to look at.
-        if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
-        tellStop(state.stop);
+        const willJump = (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop)
+          || asked !== state.stop;
+        // The opening stop is an arrival too, once there is something to look at (unless immediately jumping to the asked/resumed stop).
+        if (!willJump) {
+          if (state.stop >= 0) announceActivity('veylet:stop', { stop: state.stop, room: stopLabel(manifest, state.stop).room || null });
+          tellStop(state.stop);
+        }
         hideSlow();
         maxLoading = 0;
         // The canvas shows from here (tour-player-v2.css): until now the poster stayed on top of it.
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
+        fitBar();
         // From here the status hangs from the top edge of the controls (tour-player-v2.css), so no row of room
         // names, wrapped or not, can cover it.
         ui.bar.append(ui.status);
@@ -1934,7 +2093,7 @@
         settle({ readiness: 'viewer-ready', marks, stats });
         // Back where the visitor was before the graphics context was lost.
         if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop, false);
-        else if (asked !== state.stop) goToStop(asked, false);
+        else if (asked !== state.stop) goToStop(asked, false, { yaw: askedView.yaw, pitch: askedView.pitch });
         return;
       }
       if (phase === 'detail') {
@@ -2065,6 +2224,12 @@
        * pitch 0 is level, positive looks up, negative down (-80..80).
        */
       view: () => (ready ? { stop: state.stop, yaw: ((state.yaw % 360) + 360) % 360, pitch: state.pitch } : null),
+      currentView: () => (ready ? {
+        stop: visitNumber(manifest, hereStop()),
+        count: manifest.stops.length,
+        yaw: ((state.yaw % 360) + 360) % 360 || 0,
+        pitch: state.pitch || 0,
+      } : null),
       // For QA and measurement: the camera state and where each stop's floor disc projects.
       inspect: () => {
         const discs = manifest.stops.map(stop => { world.set(...stop.floor); camera.camera.worldToScreen(world, screen); return [screen.x, screen.y, screen.z]; });
@@ -2094,6 +2259,8 @@
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
     fieldOfView, posterFor, decodeWalkable, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
+    parseViewHash, roomsFromManifest,
     start, mount, current: null,
+    currentView: () => (window.VeyletPlayerV2.current ? window.VeyletPlayerV2.current.currentView() : null),
   };
 })();

@@ -35,6 +35,105 @@
   border: 1px solid var(--line);
   border-radius: 12px;
 }
+.agent-card-branded {
+  border-top: 3px solid var(--agent-brand, var(--accent));
+}
+.agent-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+.agent-logo {
+  display: block;
+  max-height: 22px;
+  width: auto;
+  margin-top: 8px;
+}
+.handoff-sample-banner {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.handoff-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 6px 0 4px;
+  font-size: 14.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.handoff-fact-badge {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.handoff-fact-cal {
+  font-size: 13.5px;
+}
+.agent-enquiry-sheet {
+  margin: 12px 0 0;
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.enquiry-sheet-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+.enquiry-sheet-note {
+  margin: 4px 0 12px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.enquiry-sheet-form {
+  display: grid;
+  gap: 10px;
+}
+.enquiry-field {
+  display: grid;
+  gap: 4px;
+}
+.enquiry-field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.enquiry-input,
+.enquiry-textarea {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--field-line, var(--line));
+  border-radius: 6px;
+}
+.enquiry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.enquiry-status,
+.enquiry-sent {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink);
+}
 .agent-who {
   min-width: 0;
 }

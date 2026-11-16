@@ -161,7 +161,10 @@ function handoffPage({ search = '?t=' + TOKEN + '&src=qr', nav = {} } = {}) {
   const net = recorder();
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: CONFIG, addEventListener() {} };
   const location = { origin: 'https://veylet.com', pathname: '/handoff', search };
-  const context = { window, document, location, navigator: nav, URLSearchParams, URL, setTimeout, clearTimeout, fetch: net.fetch };
+  // Optional context enrichment lookup is not a view beacon: only the beacon's posts are recorded.
+  const fetch = (url, init) => (String(url).endsWith('/lookup_tour_handoff_context')
+    ? Promise.resolve({ ok: false, status: 404, json: async () => ({ code: 'PGRST202' }) }) : net.fetch(url, init));
+  const context = { window, document, location, navigator: nav, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   return { document, net, get bootOptions() { return bootOptions; }, finishBoot: () => finishBoot() };

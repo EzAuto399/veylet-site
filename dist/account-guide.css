@@ -1010,3 +1010,91 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
 .desk-view .annual-option:has(input:focus-visible) { outline: none; }
 .desk-view .annual-option input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+/* Portal/CRM field picker and one-tap buyer follow-up messages inside Website panel */
+.tour-crm-guide { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 6px; max-width: 520px; }
+.tour-crm-select { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line); border-radius: 2px; max-width: 320px; }
+.tour-sms-row { margin-top: 10px; }
+
+/* ---- Release-5 listing details, enquiries, brand disclosure & print sheet ---- */
+.tour-campaign-sync,
+.clients-brand-more { margin-top: 16px; border-top: 1px solid var(--line); }
+.tour-campaign-sync > summary,
+.clients-brand-more > summary { padding-block: 12px; font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.tour-campaign-body,
+.clients-brand-body { display: grid; gap: 16px; padding-bottom: 16px; }
+.tour-campaign-form,
+.clients-brand-form { display: grid; gap: 14px; max-width: 520px; }
+.tour-campaign-check,
+.clients-brand-show { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 14px; line-height: 1.45; color: var(--ink); cursor: pointer; }
+.tour-campaign-check input,
+.clients-brand-show input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--ink); }
+.tour-campaign-field,
+.clients-brand-field { display: grid; gap: 6px; min-width: 0; }
+.tour-campaign-field > span,
+.clients-brand-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.tour-campaign-input,
+.tour-campaign-select,
+.clients-brand-field input { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1px solid var(--field-line); border-radius: 2px; min-width: 0; width: 100%; }
+.tour-campaign-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+.tour-campaign-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+@media (max-width: 520px) {
+  .tour-campaign-counts,
+  .tour-campaign-open { grid-template-columns: 1fr; }
+}
+.tour-campaign-said,
+.clients-brand-said { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.tour-enquiries { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); max-width: 62ch; }
+.tour-enquiries-title { margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.tour-enquiries-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.tour-enquiry-item { padding: 10px 0 0; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.tour-enquiry-who { margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.tour-enquiry-reach { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.tour-enquiry-msg { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+
+/* Open-home print sheet: hidden on screen, sole card printed on paper. */
+.tour-print-sheet { display: none; }
+@media print {
+  @page { size: A4 portrait; margin: 16mm; }
+  body:has(> .tour-print-sheet) > :not(.tour-print-sheet) { display: none !important; }
+  .tour-print-sheet {
+    display: grid !important;
+    place-items: center;
+    width: 100%;
+    min-height: 100%;
+    background: #ffffff;
+    color: #10231d;
+  }
+  .tour-print-card {
+    width: 100%;
+    max-width: 168mm;
+    padding: 14mm;
+    border: 1.5pt solid #10231d;
+    background: #f8f6f1;
+    display: grid;
+    gap: 8mm;
+    justify-items: center;
+    text-align: center;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .tour-print-head {
+    width: 100%;
+    padding: 5mm 8mm;
+    background: #10231d;
+    color: #f4f1e9;
+    font-size: 11pt;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-align: left;
+  }
+  .tour-print-title { margin: 0; font-size: 24pt; line-height: 1.18; font-weight: 500; color: #10231d; overflow-wrap: anywhere; }
+  .tour-print-sub { margin: 0; font-size: 14pt; line-height: 1.4; color: #10231d; }
+  .tour-print-qr { width: 82mm; padding: 4mm; border: 1pt solid #ccd2c5; background: #ffffff; }
+  .tour-print-qr svg { display: block; width: 100%; height: auto; }
+  .tour-print-hint { margin: 0; font-size: 11pt; color: #536557; }
+  .tour-print-url { margin: 0; font-size: 10.5pt; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #10231d; overflow-wrap: anywhere; }
+  .tour-print-contact { width: 100%; padding-top: 6mm; border-top: 1pt solid #ccd2c5; display: grid; gap: 1.5mm; }
+  .tour-print-contact-name { margin: 0; font-size: 13pt; font-weight: 500; color: #10231d; }
+  .tour-print-contact-agency,
+  .tour-print-contact-reach { margin: 0; font-size: 11pt; color: #536557; overflow-wrap: anywhere; }
+}

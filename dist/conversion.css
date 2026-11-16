@@ -118,8 +118,22 @@
 .statement-includes strong, .statement-note strong { color: var(--ink); font-weight: 500; }
 .statement-note [data-price], .statement-includes [data-price], .statement-allowance [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 @keyframes amount-settle { from { color: var(--muted); } to { color: var(--ink); } }
+@keyframes statement-morph {
+  0% { opacity: 0.55; filter: blur(1.5px); }
+  100% { opacity: 1; filter: blur(0); }
+}
 .statement-lines[data-dated] .amount { animation: amount-settle 240ms ease-out both; }
-@media (prefers-reduced-motion: reduce) { .statement-lines[data-dated] .amount { animation: none; } }
+.statement-lines[data-morphing="true"] .amount,
+.statement-lines[data-morphing="true"] [data-bill-cadence],
+.statement-lines[data-morphing="true"] [data-total-caption] {
+  animation: statement-morph 180ms var(--ease-out-strong, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .statement-lines[data-dated] .amount,
+  .statement-lines[data-morphing="true"] .amount,
+  .statement-lines[data-morphing="true"] [data-bill-cadence],
+  .statement-lines[data-morphing="true"] [data-total-caption] { animation: none; filter: none; }
+}
 /* Terms: two hairline ledgers side by side */
 .offer-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 clamp(32px, 5vw, 72px); }
 .offer-terms { margin: 0; display: grid; align-content: start; }
@@ -245,4 +259,40 @@
   .offer-intro { display: flex; flex-direction: column; }
   .offer-intro > h1 { order: -2; }
   .offer-intro > .offer-actions { order: -1; margin-top: 0; }
+}
+
+/* ---- Desktop App Store QR modal ------------------------------------------ */
+[data-app-qr-modal][hidden] { display: none; }
+[data-app-qr-modal] {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(16, 35, 29, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.app-qr-dialog {
+  width: min(420px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding: 28px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.app-qr-title { margin: 0; font-size: 24px; line-height: 1.2; letter-spacing: -0.02em; }
+.app-qr-note { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.app-qr-code { width: min(220px, 100%); padding: 8px; border: 1px solid var(--line); background: #ffffff; }
+.app-qr-code svg { display: block; width: 100%; height: auto; }
+.app-qr-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; width: 100%; margin-top: 4px; }
+.app-qr-direct,
+.app-qr-close { min-height: 44px; min-width: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  [data-app-qr-modal] { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
