@@ -1246,6 +1246,100 @@
     }
     return new Promise((resolve, reject) => canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('png-failed'))), 'image/png'));
   }
+  // QR SVG built cleanly via DOM nodes (zero innerHTML on user strings) for print sheets.
+  function qrSvgNode(qr, url, label) {
+    const matrix = qr.matrix(url, 'M');
+    const quiet = Number.isInteger(qr.quietZone) ? qr.quietZone : 4;
+    const size = matrix.size + quiet * 2;
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs) => {
+      const node = typeof document.createElementNS === 'function' ? document.createElementNS(ns, tag) : document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+      return node;
+    };
+    const strips = [];
+    for (let r = 0; r < matrix.size; r++) {
+      let c = 0;
+      while (c < matrix.size) {
+        if (matrix.modules[r * matrix.size + c] !== 1) { c += 1; continue; }
+        let run = 1;
+        while (c + run < matrix.size && matrix.modules[r * matrix.size + c + run] === 1) run += 1;
+        strips.push('M' + (c + quiet) + ' ' + (r + quiet) + 'h' + run + 'v1h-' + run + 'z');
+        c += run;
+      }
+    }
+    const svg = el('svg', { xmlns: ns, viewBox: '0 0 ' + size + ' ' + size, 'shape-rendering': 'crispEdges', role: 'img', 'aria-label': label });
+    svg.append(el('rect', { width: size, height: size, fill: '#ffffff' }), el('path', { fill: '#10231d', d: strips.join('') }));
+    return svg;
+  }
+  let activePrintSheet = null;
+  function clearPrintSheet() {
+    if (activePrintSheet) { activePrintSheet.remove?.(); activePrintSheet = null; }
+  }
+  function openHomePrintSheet(tour, url, name, fallbackHost) {
+    const qr = window.VeyletQR;
+    if (!qr?.matrix) return false;
+    clearPrintSheet();
+    const sheet = document.createElement('section');
+    sheet.className = 'tour-print-sheet';
+    sheet.dataset.printSheet = 'true';
+    sheet.setAttribute('aria-label', 'Open-home QR sheet');
+
+    const card = document.createElement('div');
+    card.className = 'tour-print-card';
+
+    const head = document.createElement('header');
+    head.className = 'tour-print-head';
+    const brand = document.createElement('span');
+    brand.className = 'tour-print-brand';
+    brand.textContent = 'VEYLET';
+    head.append(brand);
+
+    const titleEl = document.createElement('h1');
+    titleEl.className = 'tour-print-title';
+    titleEl.textContent = typeof name === 'string' && name.trim() ? name.trim() : 'Shared space';
+
+    const subtitle = document.createElement('p');
+    subtitle.className = 'tour-print-sub';
+    subtitle.textContent = 'Walk back through every room on your phone';
+
+    const qrWrap = document.createElement('div');
+    qrWrap.className = 'tour-print-qr';
+    qrWrap.append(qrSvgNode(qr, url, 'QR code that opens ' + titleEl.textContent));
+
+    const hint = document.createElement('p');
+    hint.className = 'tour-print-hint';
+    hint.textContent = 'Open with your phone camera — no app needed';
+
+    const shortUrl = document.createElement('p');
+    shortUrl.className = 'tour-print-url';
+    shortUrl.textContent = String(url || '').replace(/^https:\/\//, '');
+
+    card.append(head, titleEl, subtitle, qrWrap, hint, shortUrl);
+
+    const tourWs = officeIdOfProperty.get(tour.property_id);
+    const contact = clients?.saved?.show && (!tourWs || !clients.workspaceID || clients.workspaceID === tourWs) ? clients.saved : null;
+    if (contact) {
+      const who = document.createElement('div');
+      who.className = 'tour-print-contact';
+      if (contact.display_name) {
+        const whoName = document.createElement('p'); whoName.className = 'tour-print-contact-name'; whoName.textContent = contact.display_name; who.append(whoName);
+      }
+      if (contact.agency) {
+        const whoAgency = document.createElement('p'); whoAgency.className = 'tour-print-contact-agency'; whoAgency.textContent = contact.agency; who.append(whoAgency);
+      }
+      const reach = [contact.phone, contact.email].filter(Boolean).join(' · ');
+      if (reach) {
+        const whoReach = document.createElement('p'); whoReach.className = 'tour-print-contact-reach'; whoReach.textContent = reach; who.append(whoReach);
+      }
+      if (who.children.length) card.append(who);
+    }
+
+    sheet.append(card);
+    activePrintSheet = sheet;
+    (document.body || fallbackHost).append(sheet);
+    return true;
+  }
   // QR code: drawn in this browser by the vendored generator (window.VeyletQR,
   // /vendor/qrcode-1.5.4.min.js) when its panel opens. No QR service is called.
   function qrKit(tour, url, name, deck) {
@@ -1280,7 +1374,19 @@
       } catch { sayQr('The open-home sign couldn’t be saved here. Download the QR code instead.'); }
     });
     signDownload.disabled = true; signDownload.dataset.control = 'qr-sign-download';
-    const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(download, signDownload);
+    const printBtn = !APP_MODE ? button('Print open-home sheet', () => {
+      if (printBtn.disabled || !openHomePrintSheet(tour, url, name, details)) return;
+      sayQr('Open-home sheet ready to print.');
+      try {
+        if (typeof window.print === 'function') window.print();
+      } catch {
+        sayQr('Open-home sheet ready. Use your browser’s Print command to print or save as PDF.');
+      }
+    }) : null;
+    if (printBtn) { printBtn.disabled = true; printBtn.dataset.control = 'print-open-home'; }
+    const row = document.createElement('p'); row.className = 'tour-actions-row';
+    if (printBtn) row.append(download, signDownload, printBtn);
+    else row.append(download, signDownload);
     body.append(code, caption, row); details.append(body);
     let drawn = false;
     const draw = () => {
@@ -1290,6 +1396,7 @@
       try { svg = qr?.svg ? qr.svg(url, { label: 'QR code that opens ' + name }) : ''; } catch { svg = ''; }
       if (!/^<svg[\s>]/.test(svg)) { code.textContent = 'The QR code couldn’t be made here. Copy the link instead.'; return; }
       drawn = true; code.innerHTML = svg; download.disabled = false; signDownload.disabled = false;
+      if (printBtn) printBtn.disabled = false;
     };
     deck.add('qr', 'QR code', details, draw);
     const sayQr = rowSay(tour, details);
@@ -1426,6 +1533,316 @@
   function manageSharing(deck) {
     const details = document.createElement('div'); details.className = 'tour-panel tour-manage';
     deck.add('manage', 'Manage', details); return details;
+  }
+  /* ---- Release-5 listing campaign facts & buyer enquiries (lazy on open) ---- */
+  let campaignSyncAvailable = true;
+  function toLocalDateTimeInput(iso) {
+    if (typeof iso !== 'string' || !iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function parseOptionalCount(raw) {
+    const trimmed = String(raw ?? '').trim();
+    if (!trimmed) return { empty: true, invalid: false, value: null };
+    if (!/^\d+$/.test(trimmed)) return { empty: false, invalid: true, value: null };
+    const num = Number(trimmed);
+    if (!Number.isInteger(num) || num < 0 || num > 20) return { empty: false, invalid: true, value: null };
+    return { empty: false, invalid: false, value: num };
+  }
+  function parseDateTimeInput(raw) {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return { empty: true, invalid: false, ms: null, iso: null };
+    const ms = Date.parse(trimmed);
+    if (Number.isNaN(ms)) return { empty: false, invalid: true, ms: null, iso: null };
+    return { empty: false, invalid: false, ms, iso: new Date(ms).toISOString() };
+  }
+  function tourCampaignSync(tour, item, supabase, role, ticket, workspaceID) {
+    if (!campaignSyncAvailable) return;
+    const details = document.createElement('details');
+    details.className = 'account-details tour-campaign-sync';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Listing details & enquiries';
+    const body = document.createElement('div');
+    body.className = 'tour-campaign-body';
+    body.hidden = true;
+    details.append(summary, body);
+    item.append(details);
+
+    const state = { loaded: false, loading: false, saving: false };
+    const canEdit = ['owner', 'reviewer', 'operator'].includes(role);
+
+    const drawLoading = () => {
+      const msg = document.createElement('p');
+      msg.className = 'tour-state-help';
+      msg.textContent = 'Loading listing details…';
+      body.replaceChildren(msg);
+    };
+
+    const drawError = () => {
+      const msg = document.createElement('p');
+      msg.className = 'tour-state-help';
+      msg.textContent = 'Listing details couldn’t be loaded. Try again.';
+      const retry = button('Try again', () => { state.loaded = false; void load(); });
+      const row = document.createElement('p'); row.className = 'tour-actions-row'; row.append(retry);
+      body.replaceChildren(msg, row);
+    };
+
+    const drawContent = (campaign, enquiries) => {
+      const parts = [];
+      if (campaign) {
+        const form = document.createElement('form');
+        form.className = 'veylet-form tour-campaign-form';
+        form.noValidate = true; form.setAttribute('novalidate', '');
+
+        const showLabel = document.createElement('label');
+        showLabel.className = 'tour-campaign-check';
+        const showInput = document.createElement('input');
+        showInput.type = 'checkbox'; showInput.name = 'show_on_handoff';
+        showInput.checked = campaign.show_on_handoff !== false;
+        showInput.disabled = !canEdit;
+        const showText = document.createElement('span');
+        showText.textContent = 'Show campaign details on client page';
+        showLabel.append(showInput, showText);
+        form.append(showLabel);
+
+        const modeLabel = document.createElement('label');
+        modeLabel.className = 'tour-campaign-field';
+        const modeSpan = document.createElement('span'); modeSpan.textContent = 'Status';
+        const modeSelect = document.createElement('select');
+        modeSelect.name = 'campaign_mode'; modeSelect.className = 'tour-campaign-select';
+        modeSelect.disabled = !canEdit;
+        for (const [val, label] of [['none', 'Not set'], ['sale', 'For sale'], ['lease', 'For lease']]) {
+          const opt = document.createElement('option'); opt.value = val; opt.textContent = label;
+          modeSelect.append(opt);
+        }
+        modeSelect.value = ['sale', 'lease', 'none'].includes(campaign.campaign_mode) ? campaign.campaign_mode : 'none';
+        modeLabel.append(modeSpan, modeSelect);
+        form.append(modeLabel);
+
+        const headlineLabel = document.createElement('label');
+        headlineLabel.className = 'tour-campaign-field';
+        const headlineSpan = document.createElement('span'); headlineSpan.textContent = 'Headline';
+        const headlineInput = document.createElement('input');
+        headlineInput.type = 'text'; headlineInput.name = 'headline'; headlineInput.className = 'tour-campaign-input';
+        headlineInput.maxLength = 140; headlineInput.readOnly = !canEdit;
+        headlineInput.value = typeof campaign.headline === 'string' ? campaign.headline : '';
+        headlineLabel.append(headlineSpan, headlineInput);
+        form.append(headlineLabel);
+
+        const countsGrid = document.createElement('div');
+        countsGrid.className = 'tour-campaign-counts';
+        const makeCount = (fieldName, labelText, initial) => {
+          const lbl = document.createElement('label'); lbl.className = 'tour-campaign-field';
+          const sp = document.createElement('span'); sp.textContent = labelText;
+          const inp = document.createElement('input');
+          inp.type = 'number'; inp.name = fieldName; inp.className = 'tour-campaign-input';
+          inp.min = '0'; inp.max = '20'; inp.step = '1'; inp.readOnly = !canEdit;
+          inp.value = Number.isInteger(initial) ? String(initial) : '';
+          lbl.append(sp, inp);
+          countsGrid.append(lbl);
+          return inp;
+        };
+        const bedsInput = makeCount('bedrooms', 'Bedrooms', campaign.bedrooms);
+        const bathsInput = makeCount('bathrooms', 'Bathrooms', campaign.bathrooms);
+        const carsInput = makeCount('car_spaces', 'Car spaces', campaign.car_spaces);
+        form.append(countsGrid);
+
+        const openGrid = document.createElement('div');
+        openGrid.className = 'tour-campaign-open';
+        const makeTime = (fieldName, labelText, iso) => {
+          const lbl = document.createElement('label'); lbl.className = 'tour-campaign-field';
+          const sp = document.createElement('span'); sp.textContent = labelText;
+          const inp = document.createElement('input');
+          inp.type = 'datetime-local'; inp.name = fieldName; inp.className = 'tour-campaign-input';
+          inp.readOnly = !canEdit;
+          inp.value = toLocalDateTimeInput(iso);
+          lbl.append(sp, inp);
+          openGrid.append(lbl);
+          return inp;
+        };
+        const startInput = makeTime('next_open_start', 'Next open start', campaign.next_open_start);
+        const endInput = makeTime('next_open_end', 'Next open end', campaign.next_open_end);
+        form.append(openGrid);
+
+        const said = document.createElement('p');
+        said.className = 'tour-campaign-said';
+        said.hidden = true;
+
+        const sayCampaign = text => {
+          said.textContent = text;
+          said.hidden = !text;
+          if (text) setStatus(text);
+        };
+
+        if (canEdit) {
+          const saveBtn = document.createElement('button');
+          saveBtn.type = 'submit';
+          saveBtn.className = 'tour-action';
+          saveBtn.textContent = 'Save listing details';
+          saveBtn.dataset.control = 'campaign-save';
+          const saveRow = document.createElement('p');
+          saveRow.className = 'tour-actions-row';
+          saveRow.append(saveBtn);
+          form.append(saveRow, said);
+
+          form.addEventListener('submit', async event => {
+            event?.preventDefault?.();
+            if (state.saving || saveBtn.disabled) return;
+            const mode = ['sale', 'lease', 'none'].includes(modeSelect.value) ? modeSelect.value : 'none';
+            const cleanHeadline = String(headlineInput.value || '').replace(/\s+/g, ' ').trim();
+            if (cleanHeadline.length > 140) {
+              sayCampaign('Use 140 characters or fewer for the headline.');
+              headlineInput.focus?.();
+              return;
+            }
+            const beds = parseOptionalCount(bedsInput.value);
+            const baths = parseOptionalCount(bathsInput.value);
+            const cars = parseOptionalCount(carsInput.value);
+            if (beds.invalid || baths.invalid || cars.invalid) {
+              sayCampaign('Bedrooms, bathrooms and car spaces must be whole numbers from 0 to 20.');
+              return;
+            }
+            const openStart = parseDateTimeInput(startInput.value);
+            const openEnd = parseDateTimeInput(endInput.value);
+            if (openStart.empty !== openEnd.empty) {
+              sayCampaign('Enter both an open-home start and end time.');
+              return;
+            }
+            if (openStart.invalid || openEnd.invalid || (!openStart.empty && (openEnd.ms <= openStart.ms || (openEnd.ms - openStart.ms) > 12 * 3600000))) {
+              sayCampaign('Open-home end time must be within 12 hours after the start time.');
+              return;
+            }
+            state.saving = true; saveBtn.disabled = true;
+            sayCampaign('Saving listing details…');
+            const reply = await settled(Promise.resolve().then(() => supabase.rpc('set_property_campaign_details', {
+              p_property_id: tour.property_id,
+              p_show_on_handoff: Boolean(showInput.checked),
+              p_campaign_mode: mode,
+              p_headline: cleanHeadline || null,
+              p_bedrooms: beds.value,
+              p_bathrooms: baths.value,
+              p_car_spaces: cars.value,
+              p_next_open_start: openStart.iso,
+              p_next_open_end: openEnd.iso,
+            })));
+            state.saving = false; saveBtn.disabled = false;
+            if (ticket !== deskVersion) return;
+            if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to save listing details.'); return; }
+            if (missingFunction(reply)) { campaignSyncAvailable = false; details.hidden = true; return; }
+            const updated = !failed(reply) ? firstRow(reply.value?.data) : null;
+            if (!updated) {
+              const errMsg = String((reply.value?.error || reply.error || {}).message || '');
+              sayCampaign(errMsg && !/internal|sql|postgres/i.test(errMsg) ? errMsg : 'Listing details couldn’t be saved. Try again.');
+              return;
+            }
+            showInput.checked = updated.show_on_handoff !== false;
+            modeSelect.value = ['sale', 'lease', 'none'].includes(updated.campaign_mode) ? updated.campaign_mode : 'none';
+            headlineInput.value = typeof updated.headline === 'string' ? updated.headline : '';
+            bedsInput.value = Number.isInteger(updated.bedrooms) ? String(updated.bedrooms) : '';
+            bathsInput.value = Number.isInteger(updated.bathrooms) ? String(updated.bathrooms) : '';
+            carsInput.value = Number.isInteger(updated.car_spaces) ? String(updated.car_spaces) : '';
+            startInput.value = toLocalDateTimeInput(updated.next_open_start);
+            endInput.value = toLocalDateTimeInput(updated.next_open_end);
+            sayCampaign('Listing details saved.');
+          });
+        } else {
+          form.append(said);
+        }
+        parts.push(form);
+      }
+
+      if (enquiries !== null) {
+        const box = document.createElement('div');
+        box.className = 'tour-enquiries';
+        const heading = document.createElement('p');
+        heading.className = 'tour-enquiries-title';
+        heading.textContent = 'Buyer enquiries';
+        box.append(heading);
+        const matching = enquiries.filter(row => row && typeof row === 'object'
+          && (!row.tour_id || String(row.tour_id).toLowerCase() === String(tour.id).toLowerCase())).slice(0, 20);
+        if (!matching.length) {
+          const empty = document.createElement('p');
+          empty.className = 'tour-state-help';
+          empty.textContent = 'No buyer enquiries yet.';
+          box.append(empty);
+        } else {
+          const ul = document.createElement('ul');
+          ul.className = 'tour-enquiries-list';
+          for (const row of matching) {
+            const li = document.createElement('li');
+            li.className = 'tour-enquiry-item';
+            const who = document.createElement('p');
+            who.className = 'tour-enquiry-who';
+            const when = row.created_at ? window.VeyletSharing?.hostingDate?.(row.created_at) || '' : '';
+            const stopText = Number.isInteger(row.stop_number) ? 'Stop ' + row.stop_number : '';
+            who.textContent = [row.visitor_name || 'Buyer', stopText, when].filter(Boolean).join(' · ');
+            li.append(who);
+            const reach = [row.visitor_phone, row.visitor_email].filter(Boolean).join(' · ');
+            if (reach) {
+              const reachEl = document.createElement('p');
+              reachEl.className = 'tour-enquiry-reach';
+              reachEl.textContent = reach;
+              li.append(reachEl);
+            }
+            if (row.message) {
+              const msgEl = document.createElement('p');
+              msgEl.className = 'tour-enquiry-msg';
+              msgEl.textContent = row.message;
+              li.append(msgEl);
+            }
+            ul.append(li);
+          }
+          box.append(ul);
+        }
+        parts.push(box);
+      }
+
+      body.replaceChildren(...parts);
+    };
+
+    const load = async () => {
+      if (state.loading) return;
+      state.loading = true;
+      drawLoading();
+      const [campaignReply, enquiriesReply] = await Promise.all([
+        settled(Promise.resolve().then(() => supabase.rpc('get_property_campaign_details', { p_property_id: tour.property_id }))),
+        workspaceID
+          ? settled(Promise.resolve().then(() => supabase.rpc('list_workspace_tour_enquiries', { p_workspace_id: workspaceID, p_limit: 50 })))
+          : Promise.resolve(null),
+      ]);
+      state.loading = false;
+      if (ticket !== deskVersion) return;
+      if (sessionGone(campaignReply) || (enquiriesReply && sessionGone(enquiriesReply))) {
+        showSignedOut('Your sign-in has expired. Sign in again to see listing details.');
+        return;
+      }
+      const campMissing = missingFunction(campaignReply);
+      const enqMissing = !enquiriesReply || missingFunction(enquiriesReply);
+      if (campMissing && enqMissing) {
+        if (!workspaceID || missingFunction(enquiriesReply)) campaignSyncAvailable = false;
+        details.hidden = true;
+        return;
+      }
+      if (campMissing) campaignSyncAvailable = false;
+      const campaign = campMissing || failed(campaignReply) ? null : (firstRow(campaignReply.value?.data) || {});
+      const enqErr = String((enquiriesReply?.value?.error || enquiriesReply?.error || {}).message || '').toLowerCase();
+      const enquiries = !enquiriesReply || enqMissing || enqErr.includes('workspace unavailable') || failed(enquiriesReply)
+        ? null
+        : (Array.isArray(enquiriesReply.value?.data) ? enquiriesReply.value.data : []);
+      if (!campaign && enquiries === null) {
+        drawError();
+        return;
+      }
+      state.loaded = true;
+      drawContent(campaign, enquiries);
+    };
+
+    details.addEventListener('toggle', () => {
+      body.hidden = !details.open;
+      if (details.open && !state.loaded && !state.loading) void load();
+    });
   }
   // A backend without the function answers PGRST202 ("Could not find the function").
   function missingFunction(result) {
@@ -3041,6 +3458,9 @@
       if (manage && canShare && live) stopSharing(tour, supabase, ticket, manage);
       if (manage && canReview) withdrawApproval(tour, supabase, ticket, manage);
       deck.finish();
+      if (live && !paused && role) {
+        tourCampaignSync(tour, item, supabase, role, ticket, officeIdOfProperty.get(tour.property_id) || null);
+      }
       return;
     }
     // Not approved: "Ready for your review" to whoever reviews; anyone else reads whose it is.
@@ -4950,7 +5370,158 @@
     ['phone must be', { phone: 'phone' }], ['email must look like', { email: 'email' }],
     ['showing the contact needs', null],
   ];
-  let clients = null, clientsVersion = 0, clientsKept = null;
+  let clients = null, clientsVersion = 0, clientsKept = null, brandAvailable = true;
+
+  function clientsBrandMore(state) {
+    if (!brandAvailable) return null;
+    const details = annualNode('details', 'account-details clients-brand-more');
+    const summary = annualNode('summary', '', 'Booking link, viewing requests & brand colour');
+    const body = annualNode('div', 'clients-brand-body');
+    body.hidden = true;
+    details.append(summary, body);
+
+    const bState = { loaded: false, loading: false, saving: false, row: null };
+
+    const drawLoading = () => {
+      body.replaceChildren(annualNode('p', 'annual-note', 'Loading brand and booking settings…'));
+    };
+
+    const drawError = () => {
+      const retry = button('Try again', () => { bState.loaded = false; void loadBrand(); });
+      body.replaceChildren(annualNode('p', 'annual-note', 'Brand and booking settings couldn’t be loaded. Try again.'), annualRow(retry));
+    };
+
+    const drawBrandForm = row => {
+      bState.row = row || {};
+      const form = annualNode('form', 'veylet-form clients-brand-form');
+      form.noValidate = true; form.setAttribute('novalidate', '');
+
+      const allowLabel = annualNode('label', 'clients-brand-show');
+      const allowInput = annualNode('input');
+      allowInput.type = 'checkbox'; allowInput.name = 'allow_viewing_request';
+      allowInput.id = 'account-brand-viewing';
+      allowInput.checked = Boolean(bState.row.allow_viewing_request);
+      allowInput.disabled = state.readOnly;
+      allowLabel.append(allowInput, annualNode('span', '', 'Allow buyers to request a viewing from the walkthrough'));
+      form.append(allowLabel);
+
+      const bookingLabel = annualNode('label', 'clients-brand-field');
+      const bookingInput = annualNode('input');
+      bookingInput.type = 'url'; bookingInput.name = 'booking_url';
+      bookingInput.id = 'account-brand-booking';
+      bookingInput.maxLength = 240;
+      bookingInput.placeholder = 'https://calendly.com/your-name';
+      bookingInput.autocomplete = 'off';
+      bookingInput.readOnly = state.readOnly;
+      bookingInput.value = typeof bState.row.booking_url === 'string' ? bState.row.booking_url : '';
+      const bookingErr = annualNode('small', 'field-problem'); bookingErr.hidden = true;
+      bookingLabel.append(annualNode('span', 'clients-brand-label', 'Booking link (optional)'), bookingInput, bookingErr);
+      form.append(bookingLabel);
+
+      const hexLabel = annualNode('label', 'clients-brand-field');
+      const hexInput = annualNode('input');
+      hexInput.type = 'text'; hexInput.name = 'agency_brand_hex';
+      hexInput.id = 'account-brand-hex';
+      hexInput.maxLength = 7;
+      hexInput.placeholder = '#10231d';
+      hexInput.autocomplete = 'off';
+      hexInput.readOnly = state.readOnly;
+      hexInput.value = typeof bState.row.agency_brand_hex === 'string' ? bState.row.agency_brand_hex : '';
+      const hexErr = annualNode('small', 'field-problem'); hexErr.hidden = true;
+      hexLabel.append(annualNode('span', 'clients-brand-label', 'Brand colour hex (optional)'), hexInput, hexErr);
+      form.append(hexLabel);
+
+      const said = annualNode('p', 'clients-brand-said'); said.hidden = true;
+      const sayBrand = text => { said.textContent = text; said.hidden = !text; if (text) setStatus(text); };
+
+      if (!state.readOnly) {
+        const saveBtn = annualNode('button', 'tour-action', 'Save brand settings');
+        saveBtn.type = 'submit';
+        saveBtn.dataset.control = 'brand-save';
+        form.append(annualRow(saveBtn), said);
+
+        form.addEventListener('submit', async event => {
+          event?.preventDefault?.();
+          if (state !== clients || bState.saving || state.readOnly) return;
+          bookingErr.textContent = ''; bookingErr.hidden = true;
+          hexErr.textContent = ''; hexErr.hidden = true;
+
+          const rawBooking = String(bookingInput.value || '').trim();
+          const rawHex = String(hexInput.value || '').trim();
+          if (rawBooking && (!/^https:\/\/\S+$/.test(rawBooking) || rawBooking.length < 10 || rawBooking.length > 240)) {
+            bookingErr.textContent = 'Use an https:// address between 10 and 240 characters.';
+            bookingErr.hidden = false;
+            bookingInput.focus?.();
+            return;
+          }
+          if (rawHex && !/^#[0-9a-fA-F]{6}$/.test(rawHex)) {
+            hexErr.textContent = 'Use a 6-digit hex colour such as #10231d.';
+            hexErr.hidden = false;
+            hexInput.focus?.();
+            return;
+          }
+          const cleanHex = rawHex ? rawHex.toLowerCase() : null;
+          bState.saving = true; saveBtn.disabled = true;
+          sayBrand('Saving brand settings…');
+          const reply = await settled(Promise.resolve().then(() => state.supabase.rpc('set_workspace_handoff_brand', {
+            p_workspace_id: state.workspaceID,
+            p_booking_url: rawBooking || null,
+            p_allow_viewing_request: Boolean(allowInput.checked),
+            p_agency_brand_hex: cleanHex,
+            p_avatar_url: typeof bState.row.avatar_url === 'string' ? bState.row.avatar_url : null,
+            p_agency_logo_url: typeof bState.row.agency_logo_url === 'string' ? bState.row.agency_logo_url : null,
+          })));
+          if (state !== clients) return;
+          bState.saving = false; saveBtn.disabled = false;
+          if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to save brand settings.'); return; }
+          if (missingFunction(reply)) { brandAvailable = false; details.hidden = true; return; }
+          const error = reply.value?.error || reply.error || null;
+          const words = String(error?.message || '').toLowerCase();
+          if (words.includes('contact permission required')) {
+            state.readOnly = true;
+            allowInput.disabled = true; bookingInput.readOnly = true; hexInput.readOnly = true;
+            saveBtn.hidden = true;
+            sayBrand('Brand settings weren’t saved. ' + CLIENTS_ASK);
+            return;
+          }
+          const saved = !failed(reply) ? firstRow(reply.value?.data) : null;
+          if (!saved) {
+            sayBrand(networkFailed(reply) || offlineNow() ? 'You’re offline, so brand settings weren’t saved. Try again when you’re back online.'
+              : 'Brand settings couldn’t be saved. Try again.');
+            return;
+          }
+          bState.row = saved;
+          allowInput.checked = Boolean(saved.allow_viewing_request);
+          bookingInput.value = typeof saved.booking_url === 'string' ? saved.booking_url : '';
+          hexInput.value = typeof saved.agency_brand_hex === 'string' ? saved.agency_brand_hex : '';
+          sayBrand('Brand and booking settings saved.');
+        });
+      } else {
+        form.append(said);
+      }
+      body.replaceChildren(form);
+    };
+
+    const loadBrand = async () => {
+      if (bState.loading) return;
+      bState.loading = true;
+      drawLoading();
+      const reply = await settled(Promise.resolve().then(() => state.supabase.rpc('get_workspace_handoff_brand', { p_workspace_id: state.workspaceID })));
+      bState.loading = false;
+      if (state !== clients || !currentUserId) return;
+      if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to see brand settings.'); return; }
+      if (missingFunction(reply)) { brandAvailable = false; details.hidden = true; return; }
+      if (failed(reply)) { drawError(); return; }
+      bState.loaded = true;
+      drawBrandForm(firstRow(reply.value?.data) || {});
+    };
+
+    details.addEventListener('toggle', () => {
+      body.hidden = !details.open;
+      if (details.open && !bState.loaded && !bState.loading) void loadBrand();
+    });
+    return details;
+  }
 
   function clientsRow(row) {
     if (row === null || row === undefined) return { ...CLIENTS_EMPTY };
@@ -4975,7 +5546,7 @@
     return problems;
   }
   function clientsHide() {
-    clientsVersion += 1; clients = null;
+    clientsVersion += 1; clients = null; clearPrintSheet();
     if (!clientsEl) return;
     clientsEl.hidden = true; clientsEl.setAttribute('aria-busy', 'false');
     clientsBody?.replaceChildren();
@@ -5096,6 +5667,8 @@
       refs.save = save;
       form.append(annualRow(save), said);
     }
+    const brandMore = clientsBrandMore(state);
+    if (brandMore) parts.push(brandMore);
     // Typing redraws the card at once; after a first problem, every change is checked again.
     const sync = () => {
       state.draft.show = show.checked;
