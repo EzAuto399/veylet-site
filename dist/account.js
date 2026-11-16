@@ -1488,6 +1488,22 @@
       if (statusEl?.textContent) sayWeb(statusEl.textContent);
     });
     const codeActions = document.createElement('p'); codeActions.className = 'tour-actions-row'; codeActions.append(copyCode);
+    if (typeof share.modalButtonCode === 'function') {
+      const copyModal = button('Copy modal button', async () => {
+        await share.copy(share.modalButtonCode(tour.share_token), null, statusEl, 'Modal button copied. Drop it onto any listing page for a lightbox overlay.');
+        if (statusEl?.textContent) sayWeb(statusEl.textContent);
+      });
+      copyModal.dataset.control = 'copy-modal-button';
+      codeActions.append(copyModal);
+    }
+    if (typeof share.developerBrief === 'function') {
+      const copyBrief = button('Copy developer brief', async () => {
+        await share.copy(share.developerBrief(tour.share_token), null, statusEl, 'Developer brief copied with widget options and CSP host list.');
+        if (statusEl?.textContent) sayWeb(statusEl.textContent);
+      });
+      copyBrief.dataset.control = 'copy-dev-brief';
+      codeActions.append(copyBrief);
+    }
     if (!APP_MODE) {
       const guidePage = document.createElement('a'); guidePage.className = 'tour-action'; guidePage.href = '/website-guide'; guidePage.textContent = 'Full website guide';
       codeActions.append(guidePage);
@@ -5494,7 +5510,11 @@
           allowInput.checked = Boolean(saved.allow_viewing_request);
           bookingInput.value = typeof saved.booking_url === 'string' ? saved.booking_url : '';
           hexInput.value = typeof saved.agency_brand_hex === 'string' ? saved.agency_brand_hex : '';
-          sayBrand('Brand and booking settings saved.');
+          sayBrand(allowInput.checked && state.saved && !state.saved.show
+            ? (state.draft?.show
+              ? 'Brand and booking settings saved. Click Save above so buyers see your shared contact card and viewing request button.'
+              : 'Brand and booking settings saved. Turn on “Show on shared walkthroughs” above so buyers see it.')
+            : 'Brand and booking settings saved.');
         });
       } else {
         form.append(said);

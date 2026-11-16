@@ -623,6 +623,7 @@
   function openEnquirySheet(doc, contact, title, opts) {
     const sheet = doc.getElementById('agent-enquiry-sheet');
     if (!sheet) return;
+    const opener = doc.activeElement || null;
     const stopNum = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
     const heading = element(doc, 'p', 'enquiry-sheet-title', 'Ask ' + contact.name + ' or request a viewing');
     const sub = element(
@@ -672,7 +673,7 @@
     sendBtn.type = 'submit';
     const closeBtn = element(doc, 'button', 'button button-ghost agent-action', 'Cancel');
     closeBtn.type = 'button';
-    closeBtn.addEventListener('click', () => { sheet.hidden = true; });
+    closeBtn.addEventListener('click', () => { sheet.hidden = true; opener?.focus?.(); });
     row.append(sendBtn, closeBtn);
 
     form.append(nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
@@ -717,6 +718,7 @@
 
     sheet.replaceChildren(heading, sub, form);
     sheet.hidden = false;
+    sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
     if (typeof nameField.input.focus === 'function') nameField.input.focus();
   }
 

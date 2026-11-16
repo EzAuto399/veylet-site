@@ -2047,6 +2047,8 @@ footer > span {
 .guide-section summary { min-height: 56px; padding: 18px 0; font-size: 18px; cursor: pointer; }
 .guide-section details p { padding: 0 0 24px; max-width: 76ch; }
 .copy-label { display: block; margin: 20px 0 10px; font-size: 14px; }
+.copy-label:has(> input[type="checkbox"]) { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; }
+.copy-label:has(> input[type="checkbox"]) > input { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
 .copy-field { display: block; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: 13px/1.55 ui-monospace, monospace; resize: vertical; background: white; color: var(--ink); overflow-wrap: anywhere; }
 .tour-review { margin: 16px 0; padding: 18px; border: 1px solid var(--line); border-radius: 8px; }
 .tour-review label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; font-size: 14px; line-height: 1.5; }

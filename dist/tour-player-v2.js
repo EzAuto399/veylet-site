@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=ccaac186bd8390c7';
+  const STYLE_URL = '/tour-player-v2.css?v=b18da206f1118c2d';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1293,11 +1293,22 @@
       const activeRoomKey = roomKeyAt(activeIndex);
       for (const { pill, id, key } of roomPills) {
         const isCurrent = activeRoomKey ? key === activeRoomKey : id === activeRoomId;
-        if (isCurrent) pill.setAttribute('aria-current', 'true');
-        else pill.removeAttribute('aria-current');
+        if (isCurrent) {
+          pill.setAttribute('aria-current', 'true');
+          const cw = ui.roomsBar.clientWidth || 0;
+          if (!ui.roomsBar.hidden && cw > 0 && pill.offsetWidth) {
+            const l = pill.offsetLeft;
+            const r = l + pill.offsetWidth;
+            if (l < ui.roomsBar.scrollLeft) ui.roomsBar.scrollLeft = l;
+            else if (r > ui.roomsBar.scrollLeft + cw) ui.roomsBar.scrollLeft = r - cw;
+          }
+        } else {
+          pill.removeAttribute('aria-current');
+        }
         if (visitedRooms.has(key)) pill.setAttribute('data-visited', 'true');
         else delete pill.dataset.visited;
       }
+      pillsMore();
       ui.stopsToggle.querySelector('.v2-stops-text').textContent = (state.stop >= 0 ? visitNumber(manifest, state.stop) : '–') + ' of ' + manifest.stops.length;
       ui.stopsToggle.setAttribute('aria-label', 'Rooms and stops, stop ' + (state.stop >= 0 ? visitNumber(manifest, state.stop) : 'none') + ' of ' + manifest.stops.length);
       // The last stop of the visit: Next offers the start again, and says so.
@@ -1891,6 +1902,14 @@
     }
     // Under 288 px (a frame narrower than a 320 px phone's own page) the bar has room for five controls,
     // not six: the map, which would cover most of so small a view, gives way to Full screen.
+    function syncBarHeight() {
+      if (!ui.bar || ui.bar.hidden) return;
+      const h = ui.bar.offsetHeight || ui.bar.clientHeight || 0;
+      if (h) {
+        ui.root.style?.setProperty?.('--v2-bar', h + 'px');
+        ui.end?.style?.setProperty?.('--v2-bar', h + 'px');
+      }
+    }
     function fitBar() {
       const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
@@ -1898,6 +1917,7 @@
       const compactHeight = stage.clientHeight > 0 && stage.clientHeight <= 300 && !isFull();
       ui.roomsBar.hidden = roomPills.length < 2 || compactHeight;
       pillsMore();
+      syncBarHeight();
     }
     document.addEventListener('fullscreenchange', fullscreenChanged);
     document.addEventListener('webkitfullscreenchange', fullscreenChanged);
@@ -2044,6 +2064,7 @@
         ui.root.dataset.state = 'ready';
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
+        fitBar();
         // From here the status hangs from the top edge of the controls (tour-player-v2.css), so no row of room
         // names, wrapped or not, can cover it.
         ui.bar.append(ui.status);

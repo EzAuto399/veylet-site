@@ -31,9 +31,9 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=648d977e1b220d99" as="script" />
-    <link rel="stylesheet" href="/style.css?v=2f2b530db952ee55" />
-    <link rel="stylesheet" href="/tour-stage.css?v=a91aa260a248fb09" />
+    <link rel="preload" href="/tour-player-v2.js?v=a0190a0c24137017" as="script" />
+    <link rel="stylesheet" href="/style.css?v=71e227ed29237165" />
+    <link rel="stylesheet" href="/tour-stage.css?v=6dc3ecf2db5056dc" />
     <link rel="stylesheet" href="/client-page.css?v=213afaa7858a6158" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
@@ -52,10 +52,10 @@
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/client-page.js?v=a98337afed3ac66c"></script>
+    <script src="/client-page.js?v=8ca23623f2e4a256"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=d267ed8bde7c96ab"></script>
+    <script src="/tour-player.js?v=3dce245eb78f684d"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -281,7 +281,11 @@
                 if (!ctx) return;
                 if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
                 if (ctx.contact) {
-                  page.showContact(document, ctx.contact, title, beacon, false, { token, enquiryClient: rest });
+                  const late = !document.documentElement.classList.contains('client-contact-pending');
+                  const card = document.getElementById('agent-card');
+                  if (ctx.contact.bookingUrl || ctx.contact.allowViewingRequest || !card || card.hidden) {
+                    page.showContact(document, ctx.contact, title, beacon, late, { token, enquiryClient: rest });
+                  }
                 }
                 if (ctx.brand) page.applyBrand(document, ctx.brand);
               });
