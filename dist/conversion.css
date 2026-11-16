@@ -260,3 +260,38 @@
   .offer-intro > h1 { order: -2; }
   .offer-intro > .offer-actions { order: -1; margin-top: 0; }
 }
+
+/* ---- Desktop App Store QR modal ------------------------------------------ */
+[data-app-qr-modal][hidden] { display: none; }
+[data-app-qr-modal] {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(16, 35, 29, 0.72);
+  backdrop-filter: blur(6px);
+}
+.app-qr-dialog {
+  width: min(420px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  padding: 28px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+}
+.app-qr-title { margin: 0; font-size: 24px; line-height: 1.2; letter-spacing: -0.02em; }
+.app-qr-note { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.app-qr-code { width: min(220px, 100%); padding: 8px; border: 1px solid var(--line); background: #ffffff; }
+.app-qr-code svg { display: block; width: 100%; height: auto; }
+.app-qr-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; width: 100%; margin-top: 4px; }
+.app-qr-direct,
+.app-qr-close { min-height: 44px; min-width: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  [data-app-qr-modal] { backdrop-filter: none; }
+}
