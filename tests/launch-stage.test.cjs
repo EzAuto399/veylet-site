@@ -171,10 +171,15 @@ test('home and /start describe sending from the app, and no export or private-tr
   }
 });
 
-test('home and /start have one main path, the App Store, and do not send visitors to the enquiry form', () => {
+test('home and /start have one main path, the App Store, and link the enquiry form only for free capture sessions', () => {
   for (const page of ['index.html', 'start/index.html']) {
     const html = read(page);
-    assert.doesNotMatch(html, /href="\/request/, `${page} does not link /request`);
+    // Owner decision, 17 November 2026: free capture sessions in south-east Queensland, booked through /request.
+    const main = html.match(/<main\b[\s\S]*?<\/main>/)[0];
+    const requests = [...main.matchAll(/<a [^>]*href="\/request"[^>]*>([\s\S]*?)<\/a>/g)].map(m => flatText(m[1]));
+    assert.equal(requests.length, 1, `${page} links /request once in the page body`);
+    assert.match(requests[0], /Book a (?:capture )?session/, `${page}: the /request link books a session`);
+    assert.match(flatText(main), /In south-east Queensland\? We’ll come to one of your spaces and capture it with you, free\./, page);
     assert.doesNotMatch(html, /Request a walkthrough|Tell us about your space|Ask about capture|Managed clients/i, page);
     assert.match(flatText(html), /in weekly groups/, page);
     const mainButtons = [...html.matchAll(/<a class="button"[^>]*href="([^"]*)"/g)].map(m => m[1]);
@@ -226,7 +231,8 @@ test('the guides state the plan-bound hosting rule and the app send, with no stu
   assert.match(lidarGuide, /Other findings .* do not block the render: they are flagged for you to check before approval\./,
     'iPhone LiDAR guide distinguishes advisory review flags');
   for (const page of ['guides/index.html', 'guides/what-is-a-3d-walkthrough/index.html', 'guides/iphone-lidar-vs-matterport/index.html']) {
-    assert.doesNotMatch(read(page), /href="\/request/, `${page} does not link /request`);
+    // The header and footer carry Contact (owner decision, 17 November 2026); the guide bodies still send no one to /request.
+    assert.doesNotMatch(read(page).match(/<main\b[\s\S]*?<\/main>/)[0], /href="\/request/, `${page} does not link /request in its body`);
   }
 });
 

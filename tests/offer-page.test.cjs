@@ -702,19 +702,22 @@ test('the offer page head and structured description state this offer', () => {
   assert.doesNotMatch(head, /six free months|six walkthroughs/i);
 });
 
-test('unavailable in-person work is absent from the public offer and enquiry choices', () => {
+test('paid in-person work is absent from the public offer; free capture sessions are offered in south-east Queensland only', () => {
   assert.equal(record.services.visitCompactAud, undefined);
   assert.equal(record.services.visitStandardAud, undefined);
   assert.equal(record.services.whiteGloveAud, undefined);
   assert.doesNotMatch(body, /data-price="(?:visit|visit-standard|white-glove)"|white-glove/i);
   assert.doesNotMatch(body, /A\$690|A\$170|A\$230/);
-  assert.match(body, /In-person capture and office visits are not currently offered/);
+  // Owner decision, 17 November 2026: no paid visits; free capture sessions in south-east Queensland, booked through /request.
+  assert.match(body, /Paid in-person capture isn’t offered\. In south-east Queensland we’ll capture your first space with you, free/);
   const request = read('request/index.html');
   const start = read('start/index.html');
   assert.doesNotMatch(request, /capture_route" value="visit"|ask for a studio visit/i);
   assert.doesNotMatch(start, /request\?capture=visit|Ask us to capture it/i);
-  // Owner decision, 26 September 2026: /start has one main path, the waitlist; device help is the help page.
-  assert.doesNotMatch(start, /href="\/request/);
+  // Owner decision, 26 September 2026: /start has one main path; device help is the help page.
+  // Owner decision, 17 November 2026: its only /request link in the body books a free capture session.
+  assert.equal((start.match(/<main\b[\s\S]*?<\/main>/)[0].match(/href="\/request/g) || []).length, 1);
+  assert.match(start, /<a class="text-link" href="\/request">Book a capture session/);
   assert.match(start, /href="\/help\/what-you-need"/);
 });
 
@@ -1191,7 +1194,8 @@ test('owner decisions of 26 September 2026 on /offer: send from the app, one mai
   const page = read('offer/index.html');
   const flat = visible('offer/index.html');
   assert.ok(flat.includes('Send from the app: it uploads in the background. Check your account for rendering status.'), 'the send-from-app sentence');
-  assert.doesNotMatch(page, /href="\/request/, 'no link to the request form');
+  // Owner decision, 17 November 2026: the body links /request once, for free capture sessions; main buttons stay App Store only.
+  assert.equal((page.match(/<main\b[\s\S]*?<\/main>/)[0].match(/href="\/request/g) || []).length, 1, 'one link to the request form, for sessions');
   const buttons = [...page.matchAll(/<a class="button[^"]*" href="([^"]*)"/g)].map(match => match[1]);
   assert.ok(buttons.length >= 1, 'a main button');
   assert.deepEqual([...new Set(buttons)], ['https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913'], 'every main button goes to the App Store');

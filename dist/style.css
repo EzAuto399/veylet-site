@@ -2652,3 +2652,10 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 .site > footer > span {
   order: 2;
 }
+/* Six header links (Contact added 17 November 2026) stay on one row on narrow phones. */
+@media (max-width: 400px) {
+  header nav,
+  .site > header nav {
+    font-size: 12px;
+  }
+}

@@ -363,7 +363,7 @@ test('/status is public and indexable: title, description, canonical, site heade
   assert.match(html, /<meta property="og:url" content="https:\/\/veylet\.com\/status">/);
   assert.match(html, /<nav aria-label="Main">[\s\S]*?href="\/help"[\s\S]*?href="\/account"/);
   const footer = html.match(/<footer[\s\S]*?<\/footer>/)[0];
-  assert.deepEqual(hrefs(footer), ['/', '/offer', '/start', '/see', '/help', '/guides', '/website-guide', '/support', '/status', '/privacy', '/terms']);
+  assert.deepEqual(hrefs(footer), ['/', '/offer', '/start', '/see', '/help', '/guides', '/website-guide', '/support', '/request', '/status', '/privacy', '/terms']);
   assert.match(read('sitemap.xml'), /<url><loc>https:\/\/veylet\.com\/status<\/loc><lastmod>\d{4}-\d{2}-\d{2}<\/lastmod><\/url>/);
   const locs = [...read('sitemap.xml').matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
   assert.equal(locs.filter(loc => loc === 'https://veylet.com/status').length, 1);

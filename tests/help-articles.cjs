@@ -572,7 +572,7 @@ function header(edition) {
   if (edition === 'app') return '<header class="wrap app-header"><span class="brand"><span class="portal" aria-hidden="true"></span>VEYLET</span></header>';
   return '<header class="wrap"><a class="brand" href="/" aria-label="Veylet home"><span class="portal" aria-hidden="true"></span>VEYLET</a>'
     + '<nav aria-label="Main"><a href="/#process">How it works</a><a href="/see" data-analytics-cta="see" data-analytics-placement="header">See a result</a>'
-    + '<a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help" aria-current="page">Help</a><a href="/account">Sign in</a></nav></header>';
+    + '<a href="/offer" data-analytics-cta="offer" data-analytics-placement="header">Offer</a><a href="/help" aria-current="page">Help</a><a href="/request">Contact</a><a href="/account">Sign in</a></nav></header>';
 }
 
 // The app index alone links to its service status page (/app/status), from its footer.
@@ -586,7 +586,7 @@ function footer(edition, index = false) {
   // One footer on every public page, in one order (tests/site-chrome.test.cjs).
   return '<footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p>'
     + '<nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a>'
-    + '<a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>'
+    + '<a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/request">Contact</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav>'
     + '<span>© 2026 Veylet Studio</span></footer>';
 }
 

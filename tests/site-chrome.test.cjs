@@ -16,9 +16,10 @@ const path = require('node:path');
 const dist = path.join(__dirname, '../dist');
 const OTHER_OWNERS = /^(?:samples|app|account|auth|embed|handoff|tour|play|studio)\//;
 
-const HEADER = [['/#process', 'How it works'], ['/see', 'See a result'], ['/offer', 'Offer'], ['/help', 'Help'], ['/account', 'Sign in']];
+const HEADER = [['/#process', 'How it works'], ['/see', 'See a result'], ['/offer', 'Offer'], ['/help', 'Help'], ['/request', 'Contact'], ['/account', 'Sign in']];
+// Owner decision, 17 November 2026: Contact (the enquiry form) joins the header and footer, for free capture sessions in south-east Queensland.
 const FOOTER = [['/offer', 'Offer'], ['/start', 'Get started'], ['/see', 'See a result'], ['/help', 'Help'], ['/guides', 'Guides'],
-  ['/website-guide', 'Website guide'], ['/support', 'Support'], ['/status', 'Status'], ['/privacy', 'Privacy'], ['/terms', 'Terms']];
+  ['/website-guide', 'Website guide'], ['/support', 'Support'], ['/request', 'Contact'], ['/status', 'Status'], ['/privacy', 'Privacy'], ['/terms', 'Terms']];
 // /report is opened from a client's walkthrough by a visitor: brand only, and a short footer that still reaches Help.
 const SHORT = { 'report/index.html': [['/help', 'Help'], ['/privacy', 'Privacy'], ['/terms', 'Terms']] };
 
@@ -42,7 +43,7 @@ test('the sweep covers the public pages', () => {
   }
 });
 
-test('every public page has the same five header links, and marks only its own', () => {
+test('every public page has the same six header links, and marks only its own', () => {
   for (const { file, html } of pages) {
     const header = html.match(/<header class="wrap">([\s\S]*?)<\/header>/);
     assert.ok(header, `${file} has the site header`);
