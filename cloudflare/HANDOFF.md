@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Release 7 offer honesty — 19 November 2026
+
+User authority: "Yes, both" (19 Nov, website deploy and build 63). Source `c1e8378` (`main`, = `site/r7-offer-honesty-20261118`), stamped and re-pinned in `bb37a57`: offer.json auto-renews and seats one account, packs not on sale, no Super fast advert, the free-month charge line on the hero, one nav that fits at 375 px, the waitlist state and the `/app/account` plan rows.
+
+1. **Build:** 1094 of 1094 site tests; `npm run build` and `npm run verify` pass (365 source, 364 output files); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions); `scripts/check-app-pages.mjs` clean.
+2. **Hosted release:** preview `a4c5f23f-698f-4cd2-81c4-a0af652f218d`; production `d169b66f-05fe-4fa7-911d-7b7b7323ca03`.
+3. **Readback on veylet.com:** `index.html`, `offer/offer.json`, `account.js`, `build-info.json` (c1e8378) and `/app/account` match the build byte for byte; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** hosted sign-in, payment, capture and player journeys.
+5. **Recovery:** previous production version `83ccf1e1-60d0-41d0-a61f-92c2efc05499`: `wrangler rollback <version> --config wrangler.production.jsonc`.
+
 ## App Store launch release — 17 November 2026
 
 User authority: "Yes, preview", then "Yes, go live" (17 Nov). Source `ba376fb` on `site/launch-fix-20261117` (pushed, not merged to `main`): `site/unified-re-20261116` plus three commits that put the App Store button on all six guides, remove the TestFlight, "not on the App Store" and pilot wording, and re-pin `public-release.json`.
