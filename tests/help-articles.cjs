@@ -474,13 +474,13 @@ const ARTICLES = [
   },
   {
     slug: 'your-plan', group: 'account', title: 'Your plan: what each state means', short: 'Your plan',
-    description: 'The plan states your account shows (Not started, Free months, Active and Ended), and what happens to shared walkthroughs when a plan ends.',
+    description: 'The plan states your account shows (Not started, Free month, Active and Ended), and what happens to shared walkthroughs when a plan ends.',
     lead: 'Your account shows one plan state. Here is what each means for your captures and shared walkthroughs.',
     body: [{ terms: [
       ['Not started', 'Your plan has not begun yet. You can practise; renders start once it is running.'],
-      ['Free months', 'Your free months are running, with the date they end. Everything works as usual.'],
+      ['Free month', 'Your free month is running, with the date it ends. Everything works as usual.'],
       ['Active', 'Your plan is running.'],
-      ['Ended', 'Your plan or free months ended on the date shown. New captures wait until a plan is running again.'],
+      ['Ended', 'Your plan or free month ended on the date shown. New captures wait until a plan is running again.'],
     ] }, { paras: [
       'Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.',
       'A tour uses the rooms counted in it when it passes the check and you approve it; the [terms](terms) say how rooms are counted. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no rooms. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.',

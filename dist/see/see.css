@@ -818,6 +818,7 @@ html {
 .see-ui {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 3.4cqw;
@@ -992,9 +993,15 @@ html {
     opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
-/* The link opens: the browser comes in from the side, as a new page does. */
+/* The link opens: the browser comes in from the side, as a new page does. It is revealed by a
+   clip, not moved, so the hidden layer never reaches past the phone's edge (it measured 396 px
+   wide on a 375 px screen when it was translated). */
 .see-ui-layer[data-ui-layer="browser"] {
-  transform: translateX(40%);
+  transform: none;
+  clip-path: inset(0 0 0 100%);
+  transition:
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    clip-path 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 [data-state="review"] [data-ui-layer="review"],
 [data-state="shared"] [data-ui-layer="shared"],
@@ -1002,6 +1009,7 @@ html {
   opacity: 1;
   visibility: inherit;
   transform: none;
+  clip-path: inset(0);
 }
 .see-ui-thumb {
   overflow: hidden;

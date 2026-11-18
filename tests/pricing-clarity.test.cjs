@@ -14,7 +14,6 @@ const current = Object.fromEntries([
   'dist/account/index.html', 'dist/llms.txt',
 ].map((file) => [file, flat(read(file))]));
 // Packs replace the single extra: their rooms are added only once the pack's payment has settled.
-const PACK_PAID_FIRST = /Pack rooms are added once payment has settled/;
 const fmt = (n) => 'A$' + n.toLocaleString('en-AU', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const escape = (s) => s.replace(/[$.*+?()[\]{}|\\^]/g, '\\$&');
 
@@ -39,13 +38,17 @@ test('the canonical offer is 2026-11-11.1 and separates payment channels and una
   assert.deepEqual(record.history.map((entry) => [entry.version, entry.replacedBy]),
     [['2026-09-25.2', '2026-09-26.1'], ['2026-09-26.1', '2026-09-26.2'], ['2026-09-26.2', '2026-09-26.3'], ['2026-09-26.3', '2026-09-27.1'], ['2026-09-27.1', '2026-09-28.1'], ['2026-09-28.1', '2026-09-29.1'], ['2026-09-29.1', '2026-09-29.2'], ['2026-09-29.2', '2026-11-11.1'], ['2026-11-11.1', undefined]]);
   // The last entry is the current version: accepted by the owner, not released.
-  assert.deepEqual(record.history.at(-1), { version: '2026-11-11.1', on: '2026-11-11', status: 'accepted by the owner on 11 November 2026; not released' });
+  const current = record.history.at(-1);
+  assert.deepEqual({ version: current.version, on: current.on, status: current.status }, { version: '2026-11-11.1', on: '2026-11-11', status: 'accepted by the owner on 11 November 2026; not released' });
+  // UX plan 18 November 2026, item 7: the record was made to say what the pages say, with the version unchanged.
+  assert.match(current.restated, /^18 November 2026, version unchanged: .*No price, allowance or product changed\.$/);
   assert.match(record.history.at(-2).change, /the billing unit is the room, was the accepted walkthrough/);
   assert.match(record.history.at(-2).change, /Prices, hosting, the hosting extension, the first-tour redo, corrections and Super fast are unchanged\./);
   // 2026-09-29.2 was restated on 29 September 2026: no price moved.
   assert.match(record.history.at(-2).restated, /members' annual \(A\$990\) is removed; it is not sold, quoted or started/);
   assert.deepEqual(record.audience, { who: 'anyone: agents, property managers and freelancers', separateTiers: false,
-    rule: 'open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
+    rule: 'admitted weekly from the waitlist, on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget' });
+  assert.doesNotMatch(JSON.stringify(record), /open sign-up/);
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
   assert.equal(record.freeMonths.fairUse, undefined);
   assert.equal(record.expressRender.availability, 'only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
@@ -77,12 +80,14 @@ test('the canonical offer is 2026-11-11.1 and separates payment channels and una
     appStore: "Apple's 1-month free introductory offer (a payment method on the Apple Account is required)",
     web: "not offered for new subscriptions",
     invoice: 'existing agreed terms only' });
-  assert.equal(record.freeMonths.autoRenews, null);
+  // UX plan 18 November 2026, item 7: new subscriptions are Apple's, which renew automatically when the free month ends.
+  assert.equal(record.freeMonths.autoRenews, true);
   assert.deepEqual(record.freeMonths.autoRenewalByChannel, { appStore: true, websiteCard: true, studioInvoice: false });
-  assert.deepEqual(record.freeMonths.earlyPaidSwitchAvailable, { websiteCard: true, studioInvoice: true, appStore: false });
-  assert.match(record.freeMonths.earlyPaidSwitchNote, /capabilities apply only to existing agreements/);
+  assert.deepEqual(record.freeMonths.earlyPaidSwitchAvailable, { websiteCard: false, studioInvoice: true, appStore: false });
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /renew automatically on the day the free month ends unless cancelled through Apple/);
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /The website takes no card payment\./);
   assert.match(record.freeMonths.earlyPaidSwitchNote, /with separate consent/);
-  assert.match(record.freeMonths.earlyPaidSwitchNote, /never shortens the free months or starts billing automatically/);
+  assert.match(record.freeMonths.earlyPaidSwitchNote, /never shortens the free month or starts billing early/);
   assert.deepEqual(record.subscriptionCheckout.newBuyerChannels, ['appStore']);
   assert.equal(record.subscriptionCheckout.websiteCardEnabled, false);
   // The reminder has a day count but is not running: every surface says planned.
@@ -92,10 +97,14 @@ test('the canonical offer is 2026-11-11.1 and separates payment channels and una
   // The practice-room gate is the app's today, not the server's: the record says so in these words.
   assert.equal(record.freeMonths.verification, 'one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)');
   assert.match(record.freeMonths.paymentSetup, /App Store.*written studio invoice terms/);
-  assert.match(record.freeMonths.morePacks, /top-up packs can be bought during the free months(?: on the website)?; the free-months end date stays the same/);
+  assert.match(record.freeMonths.morePacks, /^top-up packs are not sold yet, in the app or on the website/);
+  assert.match(plan.webAudScope, /existing signed website card or studio invoice agreements only/);
   assert.deepEqual({ webAud: plan.webAud, appAud: plan.appAud, includedPerMonth: plan.includedPerMonth, annualAud: plan.annualAud,
-    annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked },
-  { webAud: 119.99, appAud: 139.99, includedPerMonth: 30, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 360, maxBanked: 40 });
+    annualAppAud: plan.annualAppAud, annualIncluded: plan.annualIncluded, maxBanked: plan.rollover.maxBanked, seats: plan.seats },
+  { webAud: 119.99, appAud: 139.99, includedPerMonth: 30, annualAud: 1399.99, annualAppAud: 1399.99, annualIncluded: 360, maxBanked: 40,
+    seats: 'one account for now; shared seats are not available yet' });
+  assert.match(plan.hosting.status, /enforced: released walkthroughs go offline 14 days after the plan ends/);
+  assert.doesNotMatch(plan.hosting.status, /server enforcement .* not yet released/);
   assert.deepEqual([bonus, bonusExpress], [4, 4], 'a bonus already granted keeps its terms');
   assert.match(record.earlyAnnualBonus.status, /^removed from offer 2026-09-28\.1/, 'the early-annual bonus is retired for new agreements');
   assert.deepEqual({ name: record.expressRender.name, webAud: record.expressRender.webAud, appStore: record.expressRender.appStore, dailyCap: record.expressRender.dailyCap },
@@ -109,7 +118,8 @@ test('the canonical offer is 2026-11-11.1 and separates payment channels and una
   assert.match(record.guarantee.scope, /the account's first accepted walkthrough; the redo is a correction revision \(no unit, same link\); a recapture visit is not included/);
   assert.deepEqual(record.earlyAnnualBonus.channels.sort(), ['appStore', 'invoice', 'web']);
   assert.deepEqual([record.referral.referrerRooms, record.referral.referredRooms, record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [10, 10, 10, 10]);
-  assert.match(record.packRules.channels.web, /Square card on \/account \(Sandbox until the card lane opens\) or studio invoice/);
+  assert.equal(record.packRules.sold, false);
+  assert.match(record.packRules.channels.web, /^not available: packs are not sold yet, and the website takes no card payment$/);
   assert.match(record.packRules.channels.app, /later app version/);
   assert.match(record.packRules.expires, /12 months after purchase/);
   for (const pack of record.packs) assert.equal(pack.validMonths, 12, pack.code);
@@ -189,7 +199,9 @@ test('service units: the unit is the room; correction and recapture use none', (
   assert.doesNotMatch(current['dist/offer/index.html'], RETIRED_HOME_RULE, 'the offer page drops the bedroom rule');
   assert.doesNotMatch(current['dist/offer/index.html'], /up to 8 rooms|each further 8 rooms/i);
   assert.doesNotMatch(current['dist/offer/index.html'], /12 render attempts|fair.use cap/i);
-  assert.match(current['dist/offer/index.html'], /Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged\./);
+  // UX plan 18 November 2026, item 8: the offer page no longer advertises Super fast; the record keeps its gate.
+  assert.doesNotMatch(current['dist/offer/index.html'], /data-offer-express|A\$29/);
+  assert.equal(record.expressRender.advertised, false);
   assert.match(current['dist/llms.txt'], /Corrections are free: redoing rooms in the same tour uses no rooms and keeps the same link/);
 });
 
@@ -207,13 +219,14 @@ test('human and machine summaries keep renewal and exhausted-trial recovery trut
     assert.match(current[file], /(?:studio|invoiced|invoice)[^.]{0,140}do(?:es)? not auto-renew/i,
       `${file} must distinguish explicit invoices from Apple renewal`);
   }
-  assert.match(current['dist/offer/index.html'], PACK_PAID_FIRST);
+  assert.match(current['dist/terms/index.html'].replace(/\s+/g, ' '), /a refund removes the pack’s unused rooms/);
+  assert.match(current['dist/offer/index.html'], /Packs aren’t on sale yet, in the app or on this website\./);
   assert.match(current['dist/llms.txt'], /there is no automatic debt/i);
   assert.match(current['dist/llms.txt'], /New subscriptions use Apple and have no early paid trial switch/);
   assert.match(current['dist/llms.txt'], /Existing card or invoice trials may start paid service early only with separate consent/);
   assert.match(current['dist/llms.txt'], /Existing website card subscriptions retain their agreed automatic renewal/);
   assert.match(current['dist/offer/index.html'], /A reminder email 7 days before the first charge is planned but not running yet/);
-  assert.match(current['dist/llms.txt'], /In-app purchase arrives in a later app version/);
+  assert.match(current['dist/llms.txt'], /Not on sale yet: not in the app and not on the website, which takes no card payment\./);
   assert.doesNotMatch(current['dist/llms.txt'], /plan renews afterwards unless cancelled/);
   // No page or summary offers the retired single extra.
   for (const [file, text] of Object.entries(current)) {

@@ -1058,7 +1058,9 @@ test('app mode: the plan is its state in words, and no money function is even as
   for (const name of MONEY) assert.equal(h.count(name), 0, name);
   assert.equal(h.count('get_workspace_plan'), 1);
   const body = h.ids['account-plan-body'];
-  assert.deepEqual(body.all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent), ['State', 'Active']);
+  // UX plan 18 November 2026, item 23: the rooms left and the renewal day, from the same plan row /account reads.
+  assert.deepEqual(body.all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent),
+    ['State', 'Active', 'Rooms left', '1 of 2 this month', 'Renews', '25 October 2026']);
   assert.ok(byText(body, 'See your plan in the app.'));
   // The hosting line keeps its date and names no purchase path: the plan restarts in the app.
   assert.equal(h.card('t1').all().find(el => el.className === 'tour-hosting-words').textContent,
@@ -1074,7 +1076,22 @@ test('app mode: the plan is its state in words, and no money function is even as
   assert.equal(extended.card('t1').all().find(el => el.className === 'tour-hosting-words').textContent, 'Online until 1 Oct 2027.');
   assert.doesNotMatch(extended.all().map(el => el.textContent).join('\n'), /extension|A\$|\$\d/i);
   // Every plan state reads as its word; an unreadable one says so, with a refresh.
-  for (const [status, word] of [['pending', 'Not started'], ['trial', 'Free months'], ['ended', 'Ended']]) {
+  // The free month: rooms left of its total and the day it ends; a cancelled plan says it ends, not that it renews.
+  for (const [row, rows] of [
+    [{ status: 'trial', trial_included_walkthroughs: 30, accepted_in_free_months: 4, trial_ends_at: '2026-12-17T00:00:00Z' },
+      ['State', 'Free month', 'Rooms left', '26 of 30 this free month', 'Free until', '17 December 2026']],
+    [{ status: 'active', auto_renews: false, accepted_this_period: 3 }, ['State', 'Active', 'Rooms left', '0 of 2 this month', 'Ends', '25 October 2026']],
+    [{ status: 'active', billing_interval: 'annual', included_per_month: 360, accepted_this_period: 10 }, ['State', 'Active', 'Rooms left', '350 of 360', 'Renews', '25 October 2026']],
+    [{ status: 'pending' }, ['State', 'Not started']],
+  ]) {
+    const shown = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [{ ...plan, ...row }] }) } });
+    await settle();
+    for (const name of MONEY) assert.equal(shown.count(name), 0, name);
+    const list = shown.ids['account-plan-body'].all().filter(el => el.tagName === 'DT' || el.tagName === 'DD').map(el => el.textContent);
+    assert.deepEqual(list, rows, JSON.stringify(row));
+    for (const pattern of BANNED) assert.doesNotMatch(shown.visible(), pattern);
+  }
+  for (const [status, word] of [['pending', 'Not started'], ['trial', 'Free month'], ['ended', 'Ended']]) {
     const other = await load({ markup: appMarkup, rpc: { get_workspace_plan: async () => ({ data: [{ ...plan, status }] }) } });
     await settle();
     assert.equal(other.ids['account-plan-body'].all().find(el => el.tagName === 'DD').textContent, word);

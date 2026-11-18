@@ -141,13 +141,13 @@ test('health checks cover the studio route and its two assets', () => {
 
 test('the studio desk and the account desk use one vocabulary, written once each', () => {
   const shared = [
-    "'Plan status unavailable'", "'Refresh to check your free months and allowance.'",
+    "'Plan status unavailable'", "'Refresh to check your free month and allowance.'",
     "'Plan not started'", "'Free until '", "(PLAN_NAMES[planCode(row)] || 'Plan') + ' · '",
     // Offer 2026-09-24.2: plan code solo is the Veylet plan, the one plan on sale;
     // the retired codes keep their names so existing rows still read correctly.
     "{ solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' }",
     "{ 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] }",
-    "'Free months ended '", "'Plan ended '",
+    "'Free month ended '", "'Plan ended '",
     "'Review the available plan. Eligible subscribers can start with '",
     "' free month' + (months === '1' ? '' : 's') + ' and '", "' rooms in total.'",
     // Offer 2026-09-26.1: hosting follows the plan; offline 14 days after it ends, links restored on restart.

@@ -3658,7 +3658,7 @@
   const PLAN_TERMS = ['State', 'Free rooms', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
   // The State row says the state in the app's own short words; the date belongs
   // to the Renews row, and the full sentence to the body.
-  const PLAN_STATE_WORDS = { pending: 'Not started', trial: 'Free months', active: 'Active', ended: 'Ended' };
+  const PLAN_STATE_WORDS = { pending: 'Not started', trial: 'Free month', active: 'Active', ended: 'Ended' };
   // Where the money is arranged decides which price is true for this account.
   const PLAN_SOURCES = ['studio', 'apple', 'web'];
   const PLAN_SOURCE_WORDS = { apple: 'App Store', web: 'Website', studio: 'Studio invoice' };
@@ -3825,7 +3825,7 @@
    * sentence with a hole in it.
    */
   function planVocabulary(row, sandbox = planIsSandbox(row)) {
-    const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free months and allowance.' };
+    const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free month and allowance.' };
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : null;
     const accepted = planCount(row && row.accepted_this_period) + ' of ' + planCount(row && row.included_per_month);
     if (status === 'pending') {
@@ -3847,7 +3847,7 @@
         ? 'It ends on ' + until + ' and will not renew.'
         : row.auto_renews !== true ? 'Check your renewal setting with your billing provider.'
           : billing ? free + ', then ' + billing + ' unless you cancel.'
-            : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
+            : 'Confirm the renewal amount and billing period with your billing provider before the free month ends.';
       return { status, title: free,
         body: (sandbox ? PLAN_TEST_ALLOWANCE + ' ' : used + ' of ' + allowance + ' free rooms used. ') + renewal };
     }
@@ -3860,13 +3860,13 @@
           : 'Current period ends ' + until + '; check your renewal setting.';
       return { status, title: (sandbox ? 'Test · ' : '') + (PLAN_NAMES[planCode(row)] || 'Plan') + ' · ' + (billing || 'confirm billing details'),
         // How an annual allowance counts (a yearly pool) is the capacity answer's to say, below.
-        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? 'One walkthrough included in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
+        body: sandbox ? PLAN_TEST_ALLOWANCE + ' ' + renewal : (planInterval(row) === 'once' ? accepted + ' rooms in this paid service period. ' : accepted + ' rooms this month. ') + renewal + ' Hosting included.' +
           (planInterval(row) === 'annual' ? ' Billed annually.' : '') };
     }
     if (status === 'ended') {
       const afterPlan = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined;
       const ended = planDate(afterPlan ? row.current_period_ends_at : row.trial_ends_at);
-      return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free months ended ') + ended,
+      return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free month ended ') + ended,
         body: 'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.' } : unavailable;
     }
     return unavailable;
@@ -3916,7 +3916,7 @@
     const dl = document.createElement('dl'); dl.className = 'leaving-list plan-list';
     PLAN_TERMS.forEach((term, i) => planHairline(dl, term, skeletonBar(PLAN_SKELETON_LENGTHS[i]), false));
     const note = document.createElement('p'); note.className = 'plan-body';
-    note.textContent = 'Checking your free months, what is left and when the plan renews…';
+    note.textContent = 'Checking your free month, what is left and when the plan renews…';
     const capacity = document.createElement('div'); capacity.className = 'plan-capacity';
     capacity.append(skeletonLine('p', 'plan-allowance', 44), skeletonLine('p', 'plan-scope', 150));
     const actions = document.createElement('p'); actions.className = 'tour-actions-row plan-actions';
@@ -3971,10 +3971,25 @@
     return line;
   }
   /*
-   * The app's page (/app/account): the plan's state in words and where to manage it,
-   * nothing else. No amount, allowance for sale, renewal price, card form, bundle,
-   * annual offer or referral is read or drawn here; the app is where a plan is bought.
+   * The app's page (/app/account): the plan's state in words, the rooms left and the
+   * day it renews or the free month ends, and where to manage it, nothing else. The
+   * rooms and the date come from the same plan row the public panel reads
+   * (get_workspace_plan); no amount, allowance for sale, renewal price, card form,
+   * bundle, annual offer or referral is read or drawn here; the app is where a plan is bought.
    */
+  function planAppRows(dl, status, row) {
+    if (!row || !['trial', 'active'].includes(status) || planIsSandbox(row)) return;
+    const free = status === 'trial';
+    const used = free ? row.accepted_in_free_months : row.accepted_this_period;
+    const included = free ? row.trial_included_walkthroughs : row.included_per_month;
+    if (Number.isInteger(used) && used >= 0 && Number.isInteger(included) && included >= 0) {
+      planHairline(dl, 'Rooms left', Math.max(0, included - used) + ' of ' + included + (free ? ' this free month' : planInterval(row) === 'annual' ? '' : ' this month'), true);
+    }
+    const day = planDate(free ? row.trial_ends_at : row.current_period_ends_at);
+    if (!day) return;
+    if (free) planHairline(dl, 'Free until', row.auto_renews === false ? day + ', then ends' : day, true);
+    else planHairline(dl, row.auto_renews === false ? 'Ends' : 'Renews', day, true);
+  }
   async function renderPlanApp(supabase, ticket, members, live = 0, props = null) {
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
     const workspaceID = memberships.length ? memberships[0].workspace_id : null;
@@ -3989,6 +4004,7 @@
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : !workspaceID && !failed(members) ? 'pending' : null;
     const dl = document.createElement('dl'); dl.className = 'leaving-list plan-list';
     planHairline(dl, 'State', status ? PLAN_STATE_WORDS[status] : 'Status unavailable', false);
+    planAppRows(dl, status, row);
     const body = document.createElement('p'); body.className = 'plan-body';
     body.textContent = status ? 'See your plan in the app.' : 'Your plan’s state could not be checked. Refresh to try again.';
     const parts = [dl, body];
@@ -4106,8 +4122,8 @@
         const remaining = Math.max(0, included - used);
         allowance = document.createElement('p'); allowance.className = 'plan-allowance';
         allowance.textContent = remaining > 0
-          ? remaining + ' included room' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'across your free months.' : once ? 'in this paid service period.' : 'this month.')
-          : 'Your included rooms are used for ' + (free ? 'these free months.' : once ? 'this paid service period.' : 'this month.');
+          ? remaining + ' included room' + (remaining === 1 ? '' : 's') + ' remaining ' + (free ? 'in your free month.' : once ? 'in this paid service period.' : 'this month.')
+          : 'Your included rooms are used for ' + (free ? 'this free month.' : once ? 'this paid service period.' : 'this month.');
         // Whether unused rooms carry over (monthly) or form a yearly pool (yearly)
         // is said only from the capacity answer below; an annual row claims no monthly reset.
         cadence = free ? '' : once ? ' This single walkthrough does not reset monthly.'
@@ -4115,7 +4131,7 @@
         // A pack is named here only when it is the next step; otherwise its card follows.
         baseNote = (free ? 'Saving a space or a failed capture uses none.' : cadence.trim()) + (remaining > 0 ? ''
           : ' Need more rooms? A pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
-            (free ? ' Your free-months end date stays the same.' : ''));
+            (free ? ' Your free month’s end date stays the same.' : ''));
         capacity.append(allowance);
       }
     }
@@ -4139,7 +4155,7 @@
       manageNote('Manage in Settings › Subscriptions, or with the link below from the Apple Account that bought the plan; Apple confirms any change first. Packs are unavailable in this app version. In-app purchase arrives in a later app version.');
     } else if (['pending', 'ended'].includes(view.status) && source !== 'studio' && source !== 'web') {
       manageNote('Start in the app through the App Store, where Apple checks introductory-offer eligibility: install the Veylet app and sign in with this email. ' +
-        'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free months end.');
+        'The App Store confirms the price and billing period before you subscribe, and the first charge is on the day the free month ends.');
     }
     if (view.status !== 'unavailable' && view.status !== 'ended') {
       const offer = document.createElement('a'); offer.className = 'text-link';
@@ -4155,7 +4171,7 @@
       // the card on file is not charged until they end, and cancelling first charges nothing.
       const firstCharge = view.status === 'trial' && row.auto_renews === true ? planDate(row.trial_ends_at) : '';
       manageNote(source === 'web'
-        ? (firstCharge ? 'Your card is charged first on ' + firstCharge + ', the day your free months end. Cancel before then and nothing is charged. ' : '') +
+        ? (firstCharge ? 'Your card is charged first on ' + firstCharge + ', the day your free month ends. Cancel before then and nothing is charged. ' : '') +
           'Your card plan is managed by Veylet support: email to change or cancel it; nothing changes until Veylet confirms it in writing.'
         : 'Invoiced plans are managed by Veylet support; nothing changes until Veylet confirms it in writing.');
     }
@@ -4282,13 +4298,19 @@
    * and never shows a price, a plan choice, a card field or a start action.
    */
   const trialEl = document.getElementById('account-trial');
-  const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started'];
+  // The codes get_trial_offer can give. `waitlist` (web_trial_state, offer 2026-09-29.2) is an
+  // account Veylet has not admitted yet. A code this page does not know yet is not an outage:
+  // it reads as "can't start yet", never as a hint to start in the app.
+  const TRIAL_MISSING = ['not_owner', 'trial_used', 'already_started', 'waitlist'];
+  // The app's own sentence for a waitlisted account, word for word.
+  const TRIAL_WAITLIST = 'You’re on the waitlist. You can capture and send now; your free month can start when Veylet admits your account.';
   let trial = null;
   let trialVersion = 0;
 
   function trialValid(offer) {
     return Boolean(offer) && typeof offer === 'object' && typeof offer.eligible === 'boolean' && Array.isArray(offer.missing)
-      && offer.missing.every(code => TRIAL_MISSING.includes(code)) && (offer.eligible ? !offer.missing.length : offer.missing.length > 0);
+      && offer.missing.every(code => typeof code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(code))
+      && (offer.eligible ? !offer.missing.length : offer.missing.length > 0);
   }
   function trialKind(offer) {
     if (!trialValid(offer)) return 'error';
@@ -4296,13 +4318,15 @@
     if (offer.missing.includes('already_started')) return 'hidden';
     if (offer.missing.includes('not_owner')) return 'not-owner';
     if (offer.missing.includes('trial_used')) return 'used';
+    if (offer.missing.includes('waitlist')) return 'waitlist';
+    if (offer.missing.some(code => !TRIAL_MISSING.includes(code))) return 'unknown';
     // An unfinished website card sign-up an older server still reports: retired, never finished here.
     if (offer.checkout_pending !== null && offer.checkout_pending !== undefined) return 'card-retired';
     return 'hidden';
   }
   function trialHead(refs) {
     const head = annualNode('div', 'annual-head');
-    const title = annualNode('h3', 'annual-title', 'Start your free months');
+    const title = annualNode('h3', 'annual-title', 'Start your free month');
     title.id = 'account-trial-title'; title.tabIndex = -1;
     if (refs) refs.title = title;
     head.append(title);
@@ -4315,22 +4339,29 @@
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     if (state.notice) say('annual-notice', state.notice);
     if (kind === 'error') {
-      say('annual-lead', 'Couldn’t check how to start your free months here.');
-      say('annual-note', 'Nothing has changed. You can also start them in the app through the App Store.');
+      say('annual-lead', 'Couldn’t check how to start your free month here.');
+      say('annual-note', 'Nothing has changed. You can also start it in the app through the App Store.');
       const retry = button('Try again', () => { void renderTrial(state.supabase, deskVersion, state.workspaceID, state.planRow, { focus: 'title' }); });
       refs.retry = retry; parts.push(annualRow(retry));
       return parts;
     }
-    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can start the free months here.'); return parts; }
+    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can start the free month.'); return parts; }
+    if (kind === 'waitlist') { say('annual-lead', TRIAL_WAITLIST); return parts; }
+    if (kind === 'unknown') {
+      say('annual-lead', 'Your free month can’t start for this account yet.');
+      const ask = annualNode('a', 'text-link', 'Ask Veylet support why'); ask.href = 'mailto:support@veylet.com?subject=Veylet%20free%20month';
+      refs.primary = ask; parts.push(annualRow(ask));
+      return parts;
+    }
     if (kind === 'used') {
-      say('annual-lead', 'This agency or workspace has already had its free months.');
+      say('annual-lead', 'This agency or workspace has already had its free month.');
       say('annual-note', 'A second free trial is not available. Veylet support can start the plan with you.');
       const ask = annualNode('a', 'text-link', 'Ask Veylet support about the plan'); ask.href = 'mailto:support@veylet.com?subject=Veylet%20plan';
       refs.primary = ask; parts.push(annualRow(ask));
       return parts;
     }
     // card-retired: one neutral line and the way to support; nothing to finish or pay.
-    say('annual-lead', 'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.');
+    say('annual-lead', 'An unfinished card sign-up on this website can’t be finished here. The free month starts in the app through the App Store.');
     const ask = annualNode('a', 'text-link', 'Ask Veylet support about this sign-up'); ask.href = 'mailto:support@veylet.com?subject=Veylet%20card%20sign-up';
     refs.primary = ask; parts.push(annualRow(ask));
     return parts;
@@ -4360,7 +4391,7 @@
     const version = ++trialVersion;
     const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_trial_offer', { p_workspace_id: workspaceID })));
     if (ticket !== deskVersion || version !== trialVersion) return;
-    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your free months.'); return; }
+    if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your free month.'); return; }
     // Before the backend has the function there is nothing to say here; that is not an outage.
     if (reply.value?.error?.code === 'PGRST202') return;
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
@@ -4631,7 +4662,7 @@
     }
     if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy packs.'); return parts; }
     if (kind === 'not-activated') {
-      say('annual-lead', 'Packs can be bought once your free months or plan have started.');
+      say('annual-lead', 'Packs can be bought once your free month or plan has started.');
       say('annual-note', 'A pack’s rooms are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
       return parts;
     }

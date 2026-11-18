@@ -297,7 +297,7 @@
    * fields. Keep these strings identical to the ones in the account desk.
    */
   function planVocabulary(row) {
-    const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free months and allowance.' };
+    const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free month and allowance.' };
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : null;
     const accepted = countText(row && row.accepted_this_period) + ' of ' + countText(row && row.included_per_month);
     if (status === 'pending') {
@@ -319,7 +319,7 @@
         ? 'It ends on ' + until + ' and will not renew.'
         : row.auto_renews !== true ? 'Check your renewal setting with your billing provider.'
           : billing ? free + ', then ' + billing + ' unless you cancel.'
-            : 'Confirm the renewal amount and billing period with your billing provider before the free months end.';
+            : 'Confirm the renewal amount and billing period with your billing provider before the free month ends.';
       return { status, title: free,
         body: used + ' of ' + allowance + ' free rooms used. ' + renewal };
     }
@@ -337,7 +337,7 @@
     if (status === 'ended') {
       const afterPlan = row.current_period_ends_at !== null && row.current_period_ends_at !== undefined;
       const ended = planDate(afterPlan ? row.current_period_ends_at : row.trial_ends_at);
-      return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free months ended ') + ended,
+      return ended ? { status, title: (afterPlan ? 'Plan ended ' : 'Free month ended ') + ended,
         body: 'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.' } : unavailable;
     }
     return unavailable;

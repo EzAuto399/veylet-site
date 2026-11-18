@@ -248,10 +248,11 @@ test('home: the App Store is asked for in the hero and the closing band only, on
   assert.match(home, /data-analytics-cta="app_store" data-analytics-placement="sticky">Get the app<\/a>/, 'the mobile sticky bar stays');
   const see = main.match(/<section class="see-band[\s\S]*?<\/section>/)[0];
   assert.equal((see.match(/href="\/see"/g) || []).length, 1, 'one See a result link in the section');
-  // The stage label and the weekly-groups note are one line, then the price line, unchanged.
+  // The stage label and the weekly-groups note are one line, then the price line, which says (UX plan 18 November
+  // 2026, item 9) that nothing is charged in the free month and when the first charge is.
   assert.doesNotMatch(main, /hero-admit/);
   assert.equal((main.match(/data-launch-label/g) || []).length, 1);
-  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>On the App Store, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
+  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>On the App Store, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Nothing is charged during the free month; the first charge is on the day it ends\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
   // Shorter copy that keeps what is not yet proven, said once.
   const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;

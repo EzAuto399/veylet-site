@@ -12,7 +12,7 @@
     <link rel="canonical" href="https://veylet.com/account" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=68717df6043e48cc" />
+    <link rel="stylesheet" href="/style.css?v=a354a9f7141ef2e3" />
     <link rel="stylesheet" href="/account-guide.css?v=43f2c9302c0641bc" />
     <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
@@ -23,7 +23,7 @@
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
     <link rel="stylesheet" href="/account-journey.css?v=02cfbb13f5adecda" />
     <script src="/account-journey.js?v=17edce3a8181bd4e" defer></script>
-    <script src="/account.js?v=ff5fab5bf83f9e38" defer></script>
+    <script src="/account.js?v=7b71c222aefdaa1a" defer></script>
     <script src="/stage.js?v=f8eb9d11b27ce120" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -38,7 +38,7 @@
       <a class="brand" href="/" aria-label="Veylet home"
         ><span class="portal" aria-hidden="true"></span>VEYLET</a
       >
-      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/see">See a result</a><a href="/offer">Offer</a><a href="/account" aria-current="page">Sign in</a></nav>
+      <nav aria-label="Main"><a href="/#process">How it works</a><a href="/see">See a result</a><a href="/offer">Offer</a><a href="/help">Help</a><a href="/request">Contact</a><a href="/account" aria-current="page">Sign in</a></nav>
     </header>
     <!-- Signed in, the desk has its own bar: its views, the office it shows and the
          account menu. The marketing header above is for the signed-out page. -->
@@ -194,9 +194,9 @@
           <section id="account-plan" class="plan-panel desk-section" aria-labelledby="account-plan-title">
             <h1 class="view-title" id="account-plan-title" tabindex="-1">Plan</h1>
             <div id="account-plan-body" aria-live="polite"></div>
-            <!-- Why the free months can't start here (not the owner, already used, or a
+            <!-- Why the free month can't start here (not the owner, already used, or a
                  retired card sign-up): from the server's answer (get_trial_offer), never
-                 this markup. Free months start in the app; nothing is sold here. -->
+                 this markup. The free month starts in the app; nothing is sold here. -->
             <section id="account-trial" class="trial-offer" aria-labelledby="account-trial-title" hidden></section>
             <!-- Top-up packs: filled from the server's answer (get_pack_offer),
                  never from this markup. Hidden until there is a workspace to ask about. -->

@@ -9,7 +9,7 @@ Short answers:
 - Status: early accounts are onboarding in south-east Queensland; our own captures remain under quality review and no client-accepted tour is available yet. Room images and animations on the site are labelled illustrations, not captured-property proof.
 - The app: Veylet: 3D Property Tours is on the App Store (https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913); rendering opens to new accounts in weekly groups from the waitlist.
 - Sending: Send from the app: it uploads in the background. Check your account for rendering status.
-- Price in one line: eligible subscribers receive 1 free month with 30 rooms in total, then the Veylet plan through the App Store: A$139.99/month for 30 rooms each paid month (up to 40 banked on top of the month's 30), the same 30 as the free month, or A$1,399.99 upfront/year for a 360-room annual pool (the same 30 a month) with no annual rollover. Halls, stairs and connecting spaces are free with up to 2 standing spots. Yearly saves A$279.89 (16.7%) against 12 monthly payments. Optional one-time packs and Super fast renders are separate purchases, subject to availability. Totals in AUD. Details: https://veylet.com/offer
+- Price in one line: eligible subscribers receive 1 free month with 30 rooms in total, then the Veylet plan through the App Store: A$139.99/month for 30 rooms each paid month (up to 40 banked on top of the month's 30), the same 30 as the free month, or A$1,399.99 upfront/year for a 360-room annual pool (the same 30 a month) with no annual rollover. Halls, stairs and connecting spaces are free with up to 2 standing spots. Yearly saves A$279.89 (16.7%) against 12 monthly payments. Top-up packs and Super fast renders are not on sale yet. Totals in AUD. Details: https://veylet.com/offer
 - See a result (a public research capture processed by Veylet, shown as a 3D walkthrough and as the walkthrough video; not a client property): https://veylet.com/see
 - Viewers: tour viewers need no app. Studio visits are not currently offered.
 - Contact: support@veylet.com
@@ -18,13 +18,13 @@ Short answers:
 This file is the full public text of the pages linked from https://veylet.com/llms.txt, generated from the published pages. If anything here differs from a live page, the live page is authoritative.
 
 
-## 3D virtual tours captured on your iPhone — Veylet
+## 3D walkthroughs captured on your iPhone — Veylet
 Source: https://veylet.com/
 
 Veylet makes 3D walkthroughs of homes, businesses and venues that people can look around on their phone, stop by stop, before they visit. Capture the space with your iPhone; we check it automatically, you approve it, and we host the link. Your viewers open it in a browser, with no app to install.
 Open to anyone, admitted weekly
 New accounts are admitted in weekly groups.
-1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Early accounts in south-east Queensland.
+1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store, which you can cancel any time. Nothing is charged during the free month; the first charge is on the day it ends. Early accounts in south-east Queensland.
 
 ### You capture the space. We make the walkthrough.
 Where we are today. Our own captures are still under quality review, so we have no client-accepted walkthrough to show yet; the app shows route checks, and an automatic quality check assesses capture quality before you approve anything.
@@ -48,7 +48,7 @@ One space, four steps. You walk it with the phone; Veylet builds and checks the 
 - Coverage
 - Paths between stops
 Illustration of the process, not a captured space.
-New accounts are admitted in weekly groups. 1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time. This site takes no card payment yet.
+New accounts are admitted in weekly groups. 1 free month with 30 rooms included, then the Veylet plan at A$139.99 a month or A$1,399.99 a year through the App Store; cancel any time.
 
 ### The app, as it is today.
 The Veylet app signs you in with Apple or an email link, with no password. It coaches the route while you walk and checks what it saved before you send anything.
@@ -58,7 +58,7 @@ Screens from the current build in the iOS Simulator; on a real iPhone the camera
 - Check before sending The saved route and what the app could not see.
 
 ### Before you write.
-1 free month from the day you activate the plan, with 30 rooms included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or yearly. Monthly is A$139.99 a month in the App Store, with 30 rooms a month; halls, stairs and connecting spaces are free with up to 2 standing spots (how rooms are counted), and unused rooms carry over, up to 40 banked. Yearly is A$1,399.99 upfront a year in the App Store: the same 360 rooms a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. For busier months, add a pack of 30 rooms for A$169 or 100 for A$499, each valid 12 months; for a fast one, a Super fast render is A$29, ready in about 30 minutes, any day, any time, or refunded, sold only while its availability gate is green. One account for now (shared office accounts come after launch); hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
+1 free month from the day you activate the plan, with 30 rooms included; the first charge is on the day it ends, and cancelling before then charges nothing. Then the Veylet plan, monthly or yearly. Monthly is A$139.99 a month in the App Store, with 30 rooms a month; halls, stairs and connecting spaces are free with up to 2 standing spots (how rooms are counted), and unused rooms carry over, up to 40 banked. Yearly is A$1,399.99 upfront a year in the App Store: the same 360 rooms a year, to use any time in the plan year, for A$279.89 (16.7%) less than 12 monthly payments. Top-up packs for busier months aren’t on sale yet. One account for now (shared office accounts come after launch); hosting, link and embed are included, and every released walkthrough stays live while you subscribe. If your first walkthrough isn’t listing-ready, we redo it free. App Store subscriptions renew unless cancelled through Apple; studio invoices follow your written agreement. The offer page itemises your first year, and what a 3D tour costs in Australia compares photographer and camera prices. Joining the waitlist is free.
 We do not yet have a client-accepted tour to show. Our captures are still under quality review. The room images and animations here are labelled illustrations. Veylet support can tell you what has been tested so far.
 No. Joining the waitlist creates no account and takes no payment. Anyone can join the waitlist; new accounts are admitted in weekly groups and sign in with the email they joined with.
 
@@ -82,7 +82,7 @@ Month 2 onward Veylet plan
 First twelve months 1 free month, then 11 monthly App Store payments
 - A$1,539.89
 Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.
-30 rooms in total during the 1 free month. Then 30 a month on the plan; unused ones carry over, up to 40 banked. Need more? A pack adds 30 or 100 rooms, and you can buy one during the free month. The free month’s end date stays the same.
+30 rooms in total during the 1 free month. Then 30 a month on the plan; unused ones carry over, up to 40 banked. Top-up packs aren’t on sale yet.
 On the Veylet plan, monthly or yearly: every released walkthrough kept live, a private link and a tested website embed, the automatic quality check, review before release, and a correction or a permitted whole recapture including every original room on the same link, using no rooms.
 Illustration for the Veylet plan with an eligible 1-month App Store introductory offer, then A$139.99 each month automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase. Nothing is charged by this calculator.
 
@@ -100,7 +100,7 @@ When rooms are used
 360 a year
 - On the yearly plan, 360 rooms to use any time in the plan year: a yearly pool with no monthly limit. It resets on each plan-year anniversary, and unused ones do not carry into the next year.
 Packs
-- A pack of 30 rooms is A$169 and a pack of 100 is A$499. The account owner can buy one during the free month or on the plan. Its rooms are used after the ones your free month or plan includes, and stay valid 12 months from purchase. Pack rooms are added once payment has settled: by studio invoice today, or by card in your account once card payment opens.
+- A pack of 30 rooms is A$169 and a pack of 100 is A$499. Packs aren’t on sale yet, in the app or on this website. Once they are, a pack’s rooms are used after the ones your free month or plan includes, and stay valid 12 months from purchase.
 Your first walkthrough
 - If your first walkthrough isn’t listing-ready, we redo it free. The redo corrects your account’s first accepted walkthrough on the same link and uses no rooms; a new capture visit is not included.
 A capture that is not good enough
@@ -112,15 +112,15 @@ Hosting
 Listing videos and photos
 - Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.
 Starting
-- Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 30 rooms in total. Nothing is charged during the free month unless you separately choose an optional service. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
+- Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 30 rooms in total. Nothing is charged during the free month. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
 Before the first charge
 - The first charge is on the day your free month ends, at the price of the plan you chose. Cancel before then and nothing is charged. Your account shows that date and the price. A reminder email 7 days before the first charge is planned but not running yet, so check that date in your account or in your Apple subscription settings.
 Stopping
 - Manage an App Store subscription in Settings › Subscriptions. For an invoiced plan, email us to cancel; we confirm the end date. Released walkthroughs stay live for 14 days after the plan ends, then go offline until you restart it, unless you ask us for a hosting extension for a walkthrough.
 Prices are totals in Australian dollars; if GST applies it is included, and your invoice states the exact treatment.
 
-### One plan, monthly or yearly. Super fast renders and packs when you need more.
-The Veylet plan includes 30 rooms a month, or the same 360 a year to use any time for less. Halls, stairs and connecting spaces are free with up to 2 standing spots. When you need a tour fast, add a Super fast render; when you need more rooms, add a pack. Eligible accounts get their first month free, with the same 30 rooms.
+### One plan, monthly or yearly.
+The Veylet plan includes 30 rooms a month, or the same 360 a year to use any time for less. Halls, stairs and connecting spaces are free with up to 2 standing spots. Top-up packs aren’t on sale yet. Eligible accounts get their first month free, with the same 30 rooms.
 Veylet plan, monthly
 - A$139.99 a month in the App Store
 - 30 rooms a month; unused ones carry over, up to 40 banked. One account for now; shared office accounts come after launch. Each walkthrough gets the automatic quality check, a private link and a tested embed, and every released walkthrough stays live while you subscribe. New subscriptions start in the app through Apple. Existing agreements keep their terms.
@@ -138,17 +138,14 @@ A Veylet room, monthly
 A Veylet room, annual
 - A$3.89 each
 - A$1,399.99 a year for 360 rooms, when you use all of them.
-Super fast render
-- A$29 a capture, on this website
-- First in the queue on our fastest processing in Australia: ready for your review in about 30 minutes, any day, any time, or we refund it: if it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. Your account offers it when you send a capture. No daily limit and no business hours. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. Not sold in the app.
 One-time pack of 30 rooms
-- A$169 once, valid 12 months usable during the free month
+- A$169 once, valid 12 months not on sale yet
 One-time pack of 100 rooms
-- A$499 once, valid 12 months usable during the free month
-Pack rooms are used after the ones your free month or plan includes. The account owner buys a pack: by studio invoice today, or by card in your account once card payment opens.
+- A$499 once, valid 12 months not on sale yet
+Packs aren’t on sale yet, in the app or on this website. Once they are, pack rooms are used after the ones your free month or plan includes.
 
 #### What you pay at 30, 50 or 80 rooms a month.
-On the monthly App Store plan, after the free month, plus a separately purchased one-time pack. At these rates a pack is used up long before its 12 months run out.
+On the monthly App Store plan, after the free month. Above 30 rooms the extra comes from a one-time pack, once packs are on sale; they aren’t yet. At these rates a pack is used up long before its 12 months run out.
 30 a month
 - A$139.99 a month
 - The 30 rooms the plan includes.
@@ -160,7 +157,7 @@ On the monthly App Store plan, after the free month, plus a separately purchased
 - The plan’s 30, and 50 a month from a pack of 100.
 Referrals. When an office you refer becomes a paying account, you each get 10 bonus rooms. Share your own link from your account.
 Founding agencies, by invitation only. At most five agencies, on the normal plan and pack prices, with no locked or special price. Their perks: priority rendering, a free pack of 30 rooms for each referred office that becomes a paying account (up to four), and a direct line to the founder. Veylet invites agencies directly; there is nothing to sign up for here.
-New subscriptions use the App Store. Existing signed agreements retain their terms. The App Store sells the Veylet plan monthly and yearly; Super fast renders are sold on this website only. In-app pack purchase arrives in a later app version. Card payment on this website is coming later.
+New subscriptions use the App Store. Existing signed agreements retain their terms. The App Store sells the Veylet plan monthly and yearly. Top-up packs and Super fast renders aren’t on sale yet, and this website takes no card payment.
 
 ### Other work, by agreement.
 We agree any additional work in writing before it starts. In-person capture and office visits are not currently offered.
@@ -182,12 +179,11 @@ Illustration of the process, not a captured space.
 
 ### Straight answers.
 iPhone 12 Pro and later Pro or Pro Max models, and iPad Pro models from 2020 onwards, on iOS 17 or later. Other iPhone and iPad models are not supported. If you are unsure, the phone’s Settings › General › About shows its model name.
-No. Your free month ends on the same date. If you need more before then, the account owner can buy a pack of 30 or 100 rooms: by studio invoice today, or by card in your account once card payment opens. In-app purchase arrives in a later app version. Nothing is added or charged automatically, and your released walkthroughs stay live.
+No. Your free month ends on the same date. Top-up packs aren’t on sale yet, in the app or on this website, so the 30 rooms are what the free month includes. Nothing is added or charged automatically, and your released walkthroughs stay live.
 The plan you chose starts, monthly or yearly, and its first charge is on that day. Cancel before then and nothing is charged. In the App Store, the subscription renews automatically at the App Store price unless cancelled through Apple; check the date in Settings › Subscriptions. New subscriptions use the App Store. Existing studio-invoiced agreements retain their agreed paid start date and do not auto-renew. A reminder email 7 days before the first charge is planned but not running yet. While the plan runs, every walkthrough you released stays live. If you stop, they stay live for 14 days after the plan ends, then go offline until you restart it; a hosting extension, on request, keeps a single walkthrough online. Your account and records stay yours.
 Annual, if you list steadily: A$1,399.99 upfront a year gives the same 360 rooms as 12 months of monthly for A$279.89 less (16.7%), and they can be used any time in the plan year, so a busy month can use more. Monthly, if you want to be able to stop in any month: A$139.99 a month for 30 rooms, and unused ones carry over, up to 40 banked.
 It uses the rooms counted in the tour. Each named space the buyer can stand in is a room, including a garage and an outdoor area; halls, stairs and connecting spaces are free with up to 2 standing spots. The counting rules are under “What counts” on this page. Each capture has one link and one QR code. A correction of the same walkthrough, or a permitted whole recapture including every original room, replaces it on the same link and uses no rooms.
-Add a pack: 30 rooms for A$169 or 100 for A$499, each valid 12 months and used after the ones your plan includes. On the yearly plan, the year’s 360 rooms can also go into one busy month. If you expect more than about ten tours a month, tell us first, and we will say plainly what we can process before you rely on it.
-Your capture goes first in the queue on our fastest processing in Australia, so it is ready for your review in about 30 minutes, any day, any time, for A$29. If it isn’t ready within 30 minutes of the upload finishing or your purchase, whichever is later, the A$29 is refunded automatically. There is no daily limit: your account offers it when you send a capture. Super fast is sold only while its availability gate is green: our 7-day Sydney check shows 9 in 10 captures starting within 5 minutes; until that check has data, your account says “Super fast isn’t available right now” and nothing is charged. An order already paid keeps its promise. It is sold on this website only, not in the app.
+On the yearly plan, the year’s 360 rooms can go into one busy month. Top-up packs of 30 rooms for A$169 or 100 for A$499, each valid 12 months, aren’t on sale yet. If you expect more than about ten tours a month, tell us first, and we will say plainly what we can process before you rely on it.
 We redo it free. If your first walkthrough isn’t listing-ready, we correct it on the same link, and the redo uses no rooms. It covers your account’s first accepted walkthrough; a new capture visit is not included.
 New monthly and annual subscriptions are managed by Apple and renew unless cancelled through Apple. Existing signed agreements keep their terms. Buying a separate service never automatically pauses or cancels an Apple subscription.
 The app flags route checks, but these do not prove capture quality. After you send it, an automatic quality check stops a render that cannot work; anything else it finds is flagged for you to look at before you approve. A failed capture costs nothing. Rooms are used only when a tour passes the check and you approve it. A correction to the same walkthrough, or a permitted whole recapture including every original room, keeps its link and uses no rooms.
@@ -247,7 +243,7 @@ The app says recapture advised
 - Follow the reasons it lists; each names the fix. A capture that is not good enough uses no rooms.
 The sign-in email did not arrive
 - Check the address you typed and your spam folder, then request a new link; each link works once and only on the device that asked.
-Your plan, free months or renewal
+Your plan, free month or renewal
 - Your desk at veylet.com/account shows the same record as the app. App Store subscriptions are managed in Settings › Subscriptions; the terms are at /terms.
 Putting a walkthrough on your website
 - The website guide has the paste location for each builder and a place to test the embed before you publish.
@@ -863,7 +859,7 @@ Approving, sharing, your website, and what your client sees.
 ### Privacy and your account
 Permission and privacy, your plan, and deleting your account.
 - Privacy and permission: people, documents and tenants What to clear before you capture, the permissions Veylet asks you to confirm, and where the privacy notice explains the rest.
-- Your plan: what each state means The plan states your account shows (Not started, Free months, Active and Ended), and what happens to shared walkthroughs when a plan ends.
+- Your plan: what each state means The plan states your account shows (Not started, Free month, Active and Ended), and what happens to shared walkthroughs when a plan ends.
 - Delete your account How to delete your Veylet account from the app or your account online, what is deleted within 30 days, and how to cancel a request.
 
 ### Still stuck? Email Veylet support
@@ -1498,12 +1494,12 @@ Source: https://veylet.com/help/your-plan
 Your account shows one plan state. Here is what each means for your captures and shared walkthroughs.
 Not started
 - Your plan has not begun yet. You can practise; renders start once it is running.
-Free months
-- Your free months are running, with the date they end. Everything works as usual.
+Free month
+- Your free month is running, with the date it ends. Everything works as usual.
 Active
 - Your plan is running.
 Ended
-- Your plan or free months ended on the date shown. New captures wait until a plan is running again.
+- Your plan or free month ended on the date shown. New captures wait until a plan is running again.
 Shared walkthroughs are live while your plan is active. When a plan ends, their links, embeds and QR codes keep working for 14 days, then go offline. Nothing is deleted: restart your plan and the same links work again at once.
 A tour uses the rooms counted in it when it passes the check and you approve it; the terms say how rooms are counted. Each capture has one link and one QR code. The app shows how many rooms fit in one capture; if all rooms do not fit, make more captures. Each additional capture is another walkthrough with its own link and QR code. A correction of the same walkthrough, or a permitted whole recapture containing every original room, replaces it on the same link and uses no rooms. A partial recapture of only named rooms is not a permitted whole recapture and does not receive that waiver.
 Listing videos and stills are included in your plan once exports open. Exports are not open yet. Files you already downloaded are yours to keep.

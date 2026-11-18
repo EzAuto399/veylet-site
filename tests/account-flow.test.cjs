@@ -864,7 +864,7 @@ test('a pending workspace never establishes introductory eligibility or promises
     assert.doesNotMatch(planText(h), /Start your (?:six )?free months|Free until|Renews on|A\$0/);
     if (source === null) {
       assert.match(planScopes(h).join(' '), /Start in the app through the App Store, where Apple checks introductory-offer eligibility/);
-      assert.match(planScopes(h).join(' '), /the first charge is on the day the free months end\./);
+      assert.match(planScopes(h).join(' '), /the first charge is on the day the free month ends\./);
     }
   }
 });
@@ -905,7 +905,7 @@ test('the plan panel counts the six free walkthroughs and states the renewal whi
     ', then A\\$99 a month unless you cancel\\.'));
   assert.doesNotMatch(planText(h), /Renews on/);
   assert.deepEqual(planTerms(h), FREE_TERMS);
-  assert.deepEqual(planValues(h), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'Studio invoice']);
+  assert.deepEqual(planValues(h), ['Free month', '2 of 6', until, HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.equal(planTitle(h), 'Free until ' + until);
   assert.equal(planTitle(h).split(until).length - 1, 1, 'the lead line states the date once');
   assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
@@ -917,14 +917,14 @@ test('an App Store account is shown the App Store price, and where to cancel it'
   const until = longDate(planRow.trial_ends_at);
   assert.ok(planText(h).includes('Free until ' + until + ', then ' + APP_MONTHLY + ' a month unless you cancel.'), planText(h));
   assert.doesNotMatch(planText(h), /A\$119\.99/, 'the backend’s stale price is never shown');
-  assert.deepEqual(planValues(h), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'App Store']);
+  assert.deepEqual(planValues(h), ['Free month', '2 of 6', until, HOSTING_INCLUDED, '—', 'App Store']);
   assert.doesNotMatch(planText(h), /A\$99(?![\d.])/, 'the website price is not shown to an App Store account');
   assert.match(planScopes(h).join(' '), /Manage in Settings › Subscriptions/);
   assert.match(planScopes(h).join(' '), /Packs are unavailable in this app version\. In-app purchase arrives in a later app version\./);
   // With included walkthroughs left, the packs card below is the pointer; the panel does not repeat it.
   assert.doesNotMatch(planText(h), /Need more walkthroughs\?/);
   const web = await withPlan({ source: 'web' });
-  assert.deepEqual(planValues(web), ['Free months', '2 of 6', until, HOSTING_INCLUDED, '—', 'Website']);
+  assert.deepEqual(planValues(web), ['Free month', '2 of 6', until, HOSTING_INCLUDED, '—', 'Website']);
   assert.match(planText(web), new RegExp(', then A\\$99 a month unless you cancel'));
 });
 
@@ -950,7 +950,7 @@ test('a cancelled trial says it ends, and never that it renews', async () => {
   const h = await withPlan({ auto_renews: false, cancelled_at: '2026-09-20T00:00:00Z' });
   const until = longDate(planRow.trial_ends_at);
   assert.match(planText(h), new RegExp('2 of 6 free rooms used\\. It ends on ' + until + ' and will not renew\\.'));
-  assert.deepEqual(planValues(h), ['Free months', '2 of 6', 'Does not renew', HOSTING_INCLUDED, '—', 'Studio invoice']);
+  assert.deepEqual(planValues(h), ['Free month', '2 of 6', 'Does not renew', HOSTING_INCLUDED, '—', 'Studio invoice']);
   assert.doesNotMatch(planText(h), /Renews on/);
 });
 
@@ -1002,7 +1002,7 @@ test('the plan panel names the Veylet plan from its code, and each retired plan 
 test('the panel separates free months that lapsed from a plan that ended', async () => {
   const lapsed = '2026-09-01T00:00:00Z';
   const h = await withPlan({ status: 'ended', trial_ends_at: lapsed, accepted_this_period: 0, accepted_in_free_months: 3 });
-  assert.equal(planTitle(h), 'Free months ended ' + longDate(lapsed));
+  assert.equal(planTitle(h), 'Free month ended ' + longDate(lapsed));
   assert.deepEqual(planValues(h), ['Ended', '3 of 6', '—', 'Offline 14 days after the plan ends', '—', 'Studio invoice']);
   assert.match(planText(h), /Your released walkthroughs stay online for 14 days after the plan ends, then go offline\. Restarting the plan brings the same links back at once; a second free trial is not guaranteed\./);
   assert.deepEqual(planLinks(h), ['/offer', 'mailto:support@veylet.com?subject=Veylet%20plan']);
@@ -1020,7 +1020,7 @@ test('an unanswered plan lookup is unavailable, not started and not approved', a
   for (const reply of [{ error: { message: 'offline' } }, { data: [] }, { data: [{ status: 'surprise' }] }]) {
     const h = await load({ rpc: { get_workspace_plan: async () => reply } });
     assert.match(planText(h), /Plan status unavailable/);
-    assert.match(planText(h), /Refresh to check your free months and allowance\./);
+    assert.match(planText(h), /Refresh to check your free month and allowance\./);
     // The row labels stay; no date, allowance or price is claimed from a failure.
     assert.doesNotMatch(planText(h), /Free until \d|free months: |Veylet plan ·|Team ·|A\$/);
     assert.deepEqual(planTerms(h), FREE_TERMS);
@@ -1054,7 +1054,7 @@ test('the plan panel shows the rows that are coming before any number arrives', 
   const h = await load({ rpc: { get_workspace_plan: () => new Promise(resolve => { finish = resolve; }) } });
   assert.equal(h.ids['account-plan'].attributes['aria-busy'], 'true');
   assert.deepEqual(planTerms(h), FREE_TERMS);
-  assert.match(planText(h), /Checking your free months, what is left and when the plan renews…/);
+  assert.match(planText(h), /Checking your free month, what is left and when the plan renews…/);
   assert.equal(h.ids['account-plan-body'].all().filter(el => el.className === 'plan-skeleton').length, 6);
   // The rest of the loaded panel is waiting too, in its own classes: the count, the notes and the links.
   const skeletonClasses = h.ids['account-plan-body'].all().filter(el => el.all().some(child => /plan-skeleton-(?:line|link)/.test(child.className || '')) || /plan-skeleton-link/.test(el.className || '')).map(el => el.className);
@@ -1161,7 +1161,7 @@ test('a signed-in account with no workspace is told how the free months start, n
 test('the State row says the state in short, and never repeats a date or a price', async () => {
   const cases = [
     [{ status: 'pending', trial_ends_at: null }, 'Not started'],
-    [{}, 'Free months'],
+    [{}, 'Free month'],
     [{ status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z' }, 'Active'],
     [{ status: 'ended', trial_ends_at: '2026-09-01T00:00:00Z' }, 'Ended'],
   ];
@@ -1185,7 +1185,7 @@ test('the panel leads with the vocabulary title, then the rows, then the sentenc
     [{ status: 'pending', trial_ends_at: null }, 'Plan not started'],
     [{}, 'Free until ' + longDate(planRow.trial_ends_at)],
     [{ status: 'active', current_period_ends_at: '2026-10-01T00:00:00Z' }, 'Veylet plan · A$99 a month'],
-    [{ status: 'ended', trial_ends_at: '2026-09-01T00:00:00Z' }, 'Free months ended ' + longDate('2026-09-01T00:00:00Z')],
+    [{ status: 'ended', trial_ends_at: '2026-09-01T00:00:00Z' }, 'Free month ended ' + longDate('2026-09-01T00:00:00Z')],
     [{ status: 'ended', current_period_ends_at: '2026-08-05T00:00:00Z' }, 'Plan ended ' + longDate('2026-08-05T00:00:00Z')],
   ];
   for (const [overrides, title] of titles) {
@@ -1391,7 +1391,7 @@ test('the terms state the subscription the App Store listing points at', () => {
     'Cancel any time.',
     'Settings › Subscriptions',
     'cancel by email to',
-    'Every released walkthrough stays live while your account has a running plan (free months, monthly or yearly).',
+    'Every released walkthrough stays live while your account has a running plan (free month, monthly or yearly).',
     'When the plan ends, its link, embed and QR code keep working for 14 days, then go offline, and banked rooms lapse after the 14 days; the links are not deleted or revoked, and restarting the plan brings the same links back at once.',
     'Deleting the Veylet account ends its hosting. It does not cancel an Apple subscription',
     'Apple refunds it under its own policy',
@@ -1517,8 +1517,8 @@ test('cancelled annual plans and unknown renewal settings never promise another 
 
 test('exhausted trial keeps its end date and points at a walkthrough pack without creating debt', async () => {
   const h = await withPlan({ accepted_in_free_months: 6, extras_in_free_months: 1 });
-  assert.match(planText(h), /included rooms are used for these free months/);
-  assert.match(planText(h), /free-months end date stays the same/);
+  assert.match(planText(h), /included rooms are used for this free month/);
+  assert.match(planText(h), /free month’s end date stays the same/);
   assert.match(planText(h), /Need more rooms\? A pack adds them; they are used after your included ones\./);
   assert.match(planText(h), /Saving another space does not authorize a charge/);
   assert.doesNotMatch(planText(h), /extra owed|pay now|trial ends early|agree the extra work|each, by agreement/i);
@@ -1589,7 +1589,7 @@ test('an unavailable or malformed capacity reply never invents an extra-room bal
     assert.match(capacityText(h), /could not be verified/);
     assert.doesNotMatch(capacityText(h), /0 extra walkthroughs/);
     assert.equal(planValues(h)[4], '—', 'the Extra walkthroughs row claims nothing');
-    assert.match(planText(h), /4 included rooms remaining across your free months/);
+    assert.match(planText(h), /4 included rooms remaining in your free month/);
   }
 });
 
@@ -2102,7 +2102,7 @@ test('while the answer is on its way the packs card shows its own rows, not pric
 
 test('not available: before the free months or plan start, and for a member who is not the owner, a sentence and nothing to press', async () => {
   const pending = await withPacks(packLocked(['not_activated']));
-  assert.match(packText(pending), /Packs can be bought once your free months or plan have started\./);
+  assert.match(packText(pending), /Packs can be bought once your free month or plan has started\./);
   assert.match(packText(pending), /used after your included ones and expire 12 months after purchase/);
   const member = await withPacks(packLocked(['not_owner']));
   assert.match(packText(member), /Only the workspace owner can buy packs\./);
@@ -2998,7 +2998,7 @@ test('a pending card sign-up answer never renders an amount or a start or resume
       assert.doesNotMatch(trialText(h), /A\$|\$\d|\d+ a (?:month|year)|Test ·|Start free months|Add a card|card details|ABN/i, label);
       assert.equal(trialCard(h).hidden, false, label);
       assert.equal(trialClass(h, 'annual-lead').textContent,
-        'An unfinished card sign-up on this website can’t be finished here. Free months start in the app through the App Store.', label);
+        'An unfinished card sign-up on this website can’t be finished here. The free month starts in the app through the App Store.', label);
       assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:support@veylet.com?subject=Veylet%20card%20sign-up'], label);
       assert.equal(trialNodes(h).some(el => /annual-amount|annual-card|annual-choice/.test(el.className || '')), false, label);
       assert.equal(h.scripts.length, 0, label + ': Square’s SDK is not loaded');
@@ -3012,15 +3012,15 @@ test('a pending card sign-up answer never renders an amount or a start or resume
 
 test('free months: not the owner, a used trial, an error and a missing function get words and at most one link, never a price or a control to start', async () => {
   const owner = await withTrial(trialLocked(['not_owner']));
-  assert.equal(trialClass(owner, 'annual-lead').textContent, 'Only the workspace owner can start the free months here.');
+  assert.equal(trialClass(owner, 'annual-lead').textContent, 'Only the workspace owner can start the free month.');
   assert.deepEqual(trialControls(owner), []);
   const used = await withTrial(trialLocked(['trial_used']));
-  assert.match(trialText(used), /This agency or workspace has already had its free months\.[\s\S]*A second free trial is not available/);
+  assert.match(trialText(used), /This agency or workspace has already had its free month\.[\s\S]*A second free trial is not available/);
   assert.deepEqual(trialNodes(used).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:support@veylet.com?subject=Veylet%20plan']);
   assert.deepEqual(trialControls(used), []);
-  for (const answer of [null, trialLocked([]), { eligible: true, missing: ['not_owner'] }, trialLocked(['something_else']), { eligible: 'yes', missing: [] }]) {
+  for (const answer of [null, trialLocked([]), { eligible: true, missing: ['not_owner'] }, trialLocked(['Not A Code']), trialLocked([7]), { eligible: 'yes', missing: [] }]) {
     const broken = await withTrial(answer);
-    assert.equal(trialClass(broken, 'annual-lead').textContent, 'Couldn’t check how to start your free months here.', JSON.stringify(answer));
+    assert.equal(trialClass(broken, 'annual-lead').textContent, 'Couldn’t check how to start your free month here.', JSON.stringify(answer));
     assert.deepEqual(trialControls(broken).map(el => el.textContent), ['Try again']);
     assert.doesNotMatch(trialText(broken), /A\$/);
   }
@@ -3028,6 +3028,36 @@ test('free months: not the owner, a used trial, an error and a missing function 
   assert.equal(trialCard(missing).hidden, true);
   const started = await withTrial(trialLocked(['already_started']));
   assert.equal(trialCard(started).hidden, true);
+});
+
+// UX plan 18 November 2026, item 4 (W1): the server's web_trial_state adds `waitlist` for an account Veylet has not
+// admitted yet. The page used to reject the code and show its error card, telling a waitlisted owner to start the
+// free month in the app, where they cannot. It now says the app's own waitlist sentence, with nothing to press.
+test('free month: a waitlisted account gets the app’s waitlist sentence, not the error card or a start-in-the-app hint', async () => {
+  {
+    const h = await withTrial(trialLocked(['waitlist']));
+    assert.equal(trialCard(h).hidden, false);
+    assert.equal(trialClass(h, 'annual-lead').textContent,
+      'You’re on the waitlist. You can capture and send now; your free month can start when Veylet admits your account.');
+    assert.equal(trialClass(h, 'annual-title').textContent, 'Start your free month');
+    assert.deepEqual(trialControls(h), [], 'nothing to retry, start or pay');
+    assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A'), [], 'no link');
+    assert.doesNotMatch(trialText(h), /Couldn’t check|start (?:it|them) in the app|A\$/);
+  }
+  // Not the owner still wins: only the owner can act on the free month at all.
+  const member = await withTrial(trialLocked(['not_owner', 'waitlist']));
+  assert.equal(trialClass(member, 'annual-lead').textContent, 'Only the workspace owner can start the free month.');
+});
+
+test('free month: a code this page does not know yet reads as “can’t start yet” with a support link, never the error card or the app hint', async () => {
+  for (const missing of [['something_else'], ['region_closed', 'paused_admissions']]) {
+    const h = await withTrial(trialLocked(missing));
+    assert.equal(trialCard(h).hidden, false, missing.join());
+    assert.equal(trialClass(h, 'annual-lead').textContent, 'Your free month can’t start for this account yet.', missing.join());
+    assert.deepEqual(trialNodes(h).filter(el => el.tagName === 'A').map(el => el.href), ['mailto:support@veylet.com?subject=Veylet%20free%20month']);
+    assert.deepEqual(trialControls(h), [], 'no retry: the answer was read');
+    assert.doesNotMatch(trialText(h), /Couldn’t check|in the app|A\$/, missing.join());
+  }
 });
 
 test('free months: asked only on a plan that has not started and is not an App Store plan; an eligible answer shows nothing here', async () => {

@@ -2652,10 +2652,13 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 .site > footer > span {
   order: 2;
 }
-/* Six header links (Contact added 17 November 2026) stay on one row on narrow phones. */
+/* Six header links (Contact added 17 November 2026) stay on one row on narrow phones, on every
+   page: /account and the sign-in callback are not .site pages, so their nav took the 10px gap above
+   and wrapped Sign in onto a second row at 375px (UX plan 18 November 2026, item 22). */
 @media (max-width: 400px) {
   header nav,
   .site > header nav {
+    gap: 0 4px;
     font-size: 12px;
   }
 }

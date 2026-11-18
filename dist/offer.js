@@ -59,7 +59,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const packLine = document.querySelector('[data-pack-line]');
     if (packLine) packLine.hidden = !code;
     if (code) {
-      put('[data-pack-what]', `Pack of ${count} rooms · by studio invoice (card later) · valid ${valid} months`);
+      put('[data-pack-what]', `Pack of ${count} rooms · not on sale yet · valid ${valid} months`);
       put('[data-pack-amount]', money(cost.packCents));
     }
     const payments = annual
@@ -73,8 +73,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
       ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years.`
       : `Then ${included} a month on the plan; unused ones carry over, up to ${banked} banked.`;
     const packPart = code
-      ? `The pack adds ${count}, used after the included ones and valid ${valid} months from purchase. You can buy it during the free month; the free month’s end date stays the same.`
-      : `Need more? A pack adds ${data.pack3Rooms} or ${data.pack10Rooms} rooms, and you can buy one during the free month. The free month’s end date stays the same.`;
+      ? `Once packs are on sale (they aren’t yet), this one adds ${count}, used after the included ones and valid ${valid} months from purchase.`
+      : 'Top-up packs aren’t on sale yet.';
     put('[data-statement-allowance]', `${freePart} ${planPart} ${packPart}`);
     const saving = annual && savedCents > 0
       ? ` Yearly saves ${money(savedCents)} (${savedPercent}%) compared with 12 monthly payments.` : '';

@@ -8,7 +8,7 @@
   "audience": {
     "who": "anyone: agents, property managers and freelancers",
     "separateTiers": false,
-    "rule": "open sign-up on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget"
+    "rule": "admitted weekly from the waitlist, on the same plan and prices for everyone; one trial per ABN and workspace; new accounts are admitted within the weekly admission budget"
   },
   "freeMonths": {
     "months": 1,
@@ -18,14 +18,14 @@
     "activationMeans": "the App Store subscription is activated; existing signed or invoiced agreements keep their terms",
     "websiteCardPayment": "not offered for new subscriptions",
     "cardRequired": true,
-    "autoRenews": null,
+    "autoRenews": true,
     "reminderDaysBeforeFirstCharge": 7,
     "hostingDaysAfterPlanEnds": 14,
     "cancelAnytime": true,
     "paymentSetup": "App Store payment arrangement in the app; existing written studio invoice terms are preserved",
     "renewalNotice": "Check the renewal date in your account and Apple subscription settings; Veylet email reminders are not yet operational",
     "earlyPaidSwitchAvailable": {
-      "websiteCard": true,
+      "websiteCard": false,
       "studioInvoice": true,
       "appStore": false
     },
@@ -34,8 +34,8 @@
       "websiteCard": true,
       "studioInvoice": false
     },
-    "morePacks": "top-up packs can be bought during the free months on the website; the free-months end date stays the same",
-    "earlyPaidSwitchNote": "Using the trial allowance never shortens the free months or starts billing automatically. New subscriptions use the App Store and have no early paid trial switch. The website card and invoice capabilities apply only to existing agreements: a trial may start paid service early with separate consent, and existing card subscriptions retain their agreed automatic renewal.",
+    "morePacks": "top-up packs are not sold yet, in the app or on the website; when they are, buying one during the free month keeps the free month's end date the same",
+    "earlyPaidSwitchNote": "Using the trial allowance never shortens the free month or starts billing early. New subscriptions use the App Store, renew automatically on the day the free month ends unless cancelled through Apple, and have no early paid trial switch. The website takes no card payment. Existing studio-invoiced agreements keep their terms, including any agreed early paid start with separate consent; existing card subscriptions retain their agreed automatic renewal.",
     "verification": "one trial per agency (ABN) and workspace; the app unlocks real captures once the practice room passes (checked in the app, not yet enforced on the server)",
     "reminderStatus": "planned: reminder email 7 days before the first charge (not yet operational)",
     "cardOnFile": {
@@ -52,9 +52,10 @@
       "name": "Veylet plan",
       "kind": "monthly",
       "webAud": 119.99,
+      "webAudScope": "existing signed website card or studio invoice agreements only; not offered to new buyers, who subscribe through the App Store at appAud",
       "appAud": 139.99,
       "includedPerMonth": 30,
-      "seats": "unlimited",
+      "seats": "one account for now; shared seats are not available yet",
       "hostingIncluded": true,
       "hostingWhileSubscribed": true,
       "whiteLabel": true,
@@ -91,7 +92,7 @@
           "7 days before going offline",
           "1 day before going offline"
         ],
-        "status": "offer terms from 2026-09-26.1, the extension from 2026-09-26.2; server enforcement (including keeping extended walkthroughs online) and the warning emails are not yet released; the terms still need legal review"
+        "status": "offer terms from 2026-09-26.1, the extension from 2026-09-26.2; enforced: released walkthroughs go offline 14 days after the plan ends and come back when it restarts; the warning emails are not yet released; the terms still need legal review"
       },
       "listingExports": {
         "included": true,
@@ -246,15 +247,16 @@
     }
   ],
   "packRules": {
-    "availableTo": "any activated account: during the free months or on the plan",
+    "availableTo": "not sold yet; once packs are sold: any activated account, during the free month or on the plan",
     "usedAfter": "the free-months, monthly (including banked) or annual-pool included rooms",
     "expires": "12 months after purchase; unused rooms are not refunded after that",
     "channels": {
-      "web": "Square card on /account (Sandbox until the card lane opens) or studio invoice",
+      "web": "not available: packs are not sold yet, and the website takes no card payment",
       "app": "in-app purchase arrives in a later app version"
     },
     "unit": "one counted room per pack room; a capture that is not good enough uses none",
-    "kind": "one-time purchase, not recurring capacity"
+    "kind": "one-time purchase, not recurring capacity",
+    "sold": false
   },
   "earlyAnnualBonus": {
     "walkthroughs": 4,
@@ -298,7 +300,8 @@
     "availabilityRule": "sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data the account says \"Super fast isn't available right now\" and nothing is charged",
     "unavailableText": "Super fast isn't available right now",
     "refundPromise": "unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically",
-    "operationalStatus": "availability is gated by the 7-day Sydney GPU-start probe (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability"
+    "operationalStatus": "availability is gated by the 7-day Sydney GPU-start probe (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability",
+    "advertised": false
   },
   "anchor": {
     "text": "A photographer's 3D tour costs A$195–400 each",
@@ -397,7 +400,8 @@
     {
       "version": "2026-11-11.1",
       "on": "2026-11-11",
-      "status": "accepted by the owner on 11 November 2026; not released"
+      "status": "accepted by the owner on 11 November 2026; not released",
+      "restated": "18 November 2026, version unchanged: the record now says what the pages say. New buyers subscribe only through the App Store, which renews automatically when the free month ends; plans[0].webAud (A$119.99 a month) is scoped to existing agreements only (webAudScope); accounts are admitted weekly from the waitlist; one account for now (no shared seats); top-up packs and Super fast renders are not sold or advertised yet; hosting goes offline 14 days after the plan ends. No price, allowance or product changed."
     }
   ],
   "subscriptionCheckout": {

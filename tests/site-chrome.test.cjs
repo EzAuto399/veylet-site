@@ -109,3 +109,16 @@ test('no public page blocks its first paint on a script in the head, except the 
     assert.deepEqual(blocking, file === 'request/index.html' ? ['/place-fields.js'] : [], file);
   }
 });
+
+// UX plan 18 November 2026, item 22: the signed-out /account page and the sign-in callback had a
+// shorter header (4 and 3 links) than every other page. They now carry the same six links, with
+// Sign in marked as theirs.
+test('the signed-out account page and the sign-in callback use the same six header links', () => {
+  for (const file of ['account/index.html', 'auth/callback/index.html']) {
+    const html = fs.readFileSync(path.join(dist, file), 'utf8');
+    const nav = html.match(/<header class="wrap"[^>]*>[\s\S]*?<nav aria-label="Main">([\s\S]*?)<\/nav>/);
+    assert.ok(nav, `${file} has the main navigation`);
+    assert.deepEqual(links(nav[1]), HEADER, file);
+    assert.deepEqual([...nav[1].matchAll(/<a href="([^"]+)" aria-current="page"/g)].map(match => match[1]), ['/account'], file);
+  }
+});
