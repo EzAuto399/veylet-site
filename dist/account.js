@@ -3973,22 +3973,27 @@
   /*
    * The app's page (/app/account): the plan's state in words, the rooms left and the
    * day it renews or the free month ends, and where to manage it, nothing else. The
-   * rooms and the date come from the same plan row the public panel reads
-   * (get_workspace_plan); no amount, allowance for sale, renewal price, card form,
+   * free month's rooms and every date come from the same plan row the public panel
+   * reads (get_workspace_plan). A running plan's rooms left depend on banked rooms or
+   * the yearly pool, which only get_walkthrough_capacity knows, and this page asks no
+   * money function, so it states none rather than a wrong count. It says "Renews"
+   * only when the row says auto_renews is true; otherwise "Ends". No amount,
+   * allowance for sale, renewal price, card form,
    * bundle, annual offer or referral is read or drawn here; the app is where a plan is bought.
    */
   function planAppRows(dl, status, row) {
     if (!row || !['trial', 'active'].includes(status) || planIsSandbox(row)) return;
     const free = status === 'trial';
-    const used = free ? row.accepted_in_free_months : row.accepted_this_period;
-    const included = free ? row.trial_included_walkthroughs : row.included_per_month;
-    if (Number.isInteger(used) && used >= 0 && Number.isInteger(included) && included >= 0) {
-      planHairline(dl, 'Rooms left', Math.max(0, included - used) + ' of ' + included + (free ? ' this free month' : planInterval(row) === 'annual' ? '' : ' this month'), true);
+    const used = row.accepted_in_free_months;
+    const included = row.trial_included_walkthroughs;
+    if (free && Number.isInteger(used) && used >= 0 && Number.isInteger(included) && included >= 0) {
+      planHairline(dl, 'Rooms left', Math.max(0, included - used) + ' of ' + included + ' this free month', true);
     }
     const day = planDate(free ? row.trial_ends_at : row.current_period_ends_at);
     if (!day) return;
-    if (free) planHairline(dl, 'Free until', row.auto_renews === false ? day + ', then ends' : day, true);
-    else planHairline(dl, row.auto_renews === false ? 'Ends' : 'Renews', day, true);
+    const renews = row.auto_renews === true && planInterval(row) !== 'once';
+    if (free) planHairline(dl, 'Free until', renews ? day : day + ', then ends', true);
+    else planHairline(dl, renews ? 'Renews' : 'Ends', day, true);
   }
   async function renderPlanApp(supabase, ticket, members, live = 0, props = null) {
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
@@ -4130,8 +4135,8 @@
           : planInterval(row) === 'annual' ? '' : ' The allowance resets monthly.';
         // A pack is named here only when it is the next step; otherwise its card follows.
         baseNote = (free ? 'Saving a space or a failed capture uses none.' : cadence.trim()) + (remaining > 0 ? ''
-          : ' Need more rooms? A pack adds them; they are used after your included ones. Saving another space does not authorize a charge.' +
-            (free ? ' Your free month’s end date stays the same.' : ''));
+          : (PACKS_ON_SALE ? ' Need more rooms? A pack adds them; they are used after your included ones.' : ' ' + PACKS_NOT_ON_SALE) +
+            ' Saving another space does not authorize a charge.' + (free ? ' Your free month’s end date stays the same.' : ''));
         capacity.append(allowance);
       }
     }
@@ -4527,6 +4532,10 @@
   // same room count, with `rooms` beside it (offer 2026-11-11.1).
   const PACK_ROOMS = { pack3: 30, pack10: 100 };
   const PACK_MISSING = ['not_owner', 'not_activated'];
+  // offer.json packRules.sold. While it is false, the packs card and the plan panel say so in one
+  // line and offer no way to buy, by card or invoice, whatever an older server answers.
+  const PACKS_ON_SALE = false;
+  const PACKS_NOT_ON_SALE = 'Top-up packs aren’t on sale yet.';
   // offer.json packs[].validMonths.
   const PACK_VALID_MONTHS = 12;
   const PACK_CARD_FIELD = 'account-packs-card-field';
@@ -4658,6 +4667,12 @@
       say('annual-note', 'Nothing has changed, and your plan above is not affected.');
       const retry = button('Try again', () => { void renderPacks(state.supabase, deskVersion, state.workspaceID, { focus: 'title' }); });
       refs.retry = retry; parts.push(annualRow(retry));
+      return parts;
+    }
+    if (!PACKS_ON_SALE && kind !== 'bought') {
+      say('annual-lead', PACKS_NOT_ON_SALE);
+      // Rooms already credited (an earlier pack or a referral bonus) still count, so the balance stays.
+      if (['choose', 'lane-closed'].includes(kind)) { refs.balance = say('packs-balance', packBalance(offer)); packBalanceSync(refs.balance, offer); }
       return parts;
     }
     if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy packs.'); return parts; }

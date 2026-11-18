@@ -1515,11 +1515,13 @@ test('cancelled annual plans and unknown renewal settings never promise another 
   assert.doesNotMatch(planText(unknown), /Renews on/);
 });
 
-test('exhausted trial keeps its end date and points at a walkthrough pack without creating debt', async () => {
+test('exhausted trial keeps its end date and says packs are not on sale, without creating debt', async () => {
   const h = await withPlan({ accepted_in_free_months: 6, extras_in_free_months: 1 });
   assert.match(planText(h), /included rooms are used for this free month/);
   assert.match(planText(h), /free month’s end date stays the same/);
-  assert.match(planText(h), /Need more rooms\? A pack adds them; they are used after your included ones\./);
+  // UX review 18 November 2026: offer.json packRules.sold is false, so no pack is offered as the next step.
+  assert.match(planText(h), /Top-up packs aren’t on sale yet\./);
+  assert.doesNotMatch(planText(h), /Need more rooms\? A pack adds them/);
   assert.match(planText(h), /Saving another space does not authorize a charge/);
   assert.doesNotMatch(planText(h), /extra owed|pay now|trial ends early|agree the extra work|each, by agreement/i);
   assert.equal(h.calls.some(([name]) => /purchase|charge|extra|set_plan/.test(name)), false);
@@ -2038,7 +2040,14 @@ const packOffer = (overrides = {}) => ({ available: true, missing: [], packs: PA
 const packLocked = (missing, overrides = {}) => packOffer({ available: false, missing, packs: [], ...overrides });
 const capacityOf = extra => ({ data: [{ plan_status: 'trial', included_limit: 6, included_used: 2, included_remaining: 4,
   extra_credits_available: extra, can_accept: true, reason_code: null }] });
+// offer.json packRules.sold is false, so account.js ships with PACKS_ON_SALE = false and the packs card says so.
+// The buy flow below stays built for when packs go on sale; these tests run it with the flag on, unless a test
+// asks for the shipped state with `packsOnSale: false`.
+const SOLD_FLAG = 'const PACKS_ON_SALE = false;';
+assert.equal(account.split(SOLD_FLAG).length - 1, 1, 'account.js ships packs as not on sale');
+const accountPacksOnSale = account.replace(SOLD_FLAG, 'const PACKS_ON_SALE = true;');
 async function withPacks(offers, options = {}) {
+  if (options.packsOnSale !== false && !options.accountScript) options = { ...options, accountScript: accountPacksOnSale };
   const service = hooksService(options.hooks);
   const square = options.square === undefined ? fakeSquare(options.squareOptions) : options.square;
   const counter = { reads: 0 };
@@ -2098,6 +2107,25 @@ test('while the answer is on its way the packs card shows its own rows, not pric
   assert.ok(packClass(h, 'annual-skeleton-action'));
   assert.doesNotMatch(packText(h), /A\$/);
   assert.equal(packNodes(h).some(el => el.tagName === 'BUTTON'), false);
+});
+
+// UX review 18 November 2026: while offer.json packRules.sold is false, every pack state the server can answer reads
+// one line, with no price, choice, Buy, card field, invoice link or "opens soon"; a balance already credited stays.
+test('packs not on sale: one line in every state, no way to buy by card or invoice, and the balance kept', async () => {
+  assert.equal(OFFER_RECORD.packRules.sold, false, 'the shipped flag follows offer.json');
+  const lane = { hooks: { '/square/lane': () => [200, { open: true, sandbox: false, card_form: CARD_FORM }] } };
+  const closed = { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } };
+  for (const [label, answer, options] of [['open lane', packOffer(), lane], ['closed lane', packOffer(), closed],
+    ['not activated', packLocked(['not_activated']), lane], ['not owner', packLocked(['not_owner']), lane]]) {
+    const h = await withPacks(answer, { ...options, packsOnSale: false });
+    assert.equal(packsCard(h).hidden, false, label);
+    assert.equal(packClass(h, 'annual-lead').textContent, 'Top-up packs aren’t on sale yet.', label);
+    assert.doesNotMatch(packText(h), /A\$|Buy|Pay |Card payment|opens soon|invoice|Choose a pack|can be bought/i, label);
+    assert.deepEqual(packNodes(h).filter(el => ['BUTTON', 'INPUT', 'A'].includes(el.tagName)), [], `${label}: nothing to press`);
+    assert.equal(h.scripts.length, 0, `${label}: Square's SDK is not loaded`);
+  }
+  const credited = await withPacks(packOffer(), { ...lane, packsOnSale: false });
+  assert.ok(packClass(credited, 'packs-balance'), 'rooms already credited are still shown');
 });
 
 test('not available: before the free months or plan start, and for a member who is not the owner, a sentence and nothing to press', async () => {
