@@ -832,16 +832,14 @@
    * get_pack_offer: choose (the default on an activated desk), credits (two
    * available, the next expiring 2 March 2027), not-activated (the default on a
    * pending or ended plan), not-owner (the default for `case=operator`), error,
-   * loading, or missing (the function does not exist yet, so no card).
-   * `?pack-checkout=<error code>|fail` refuses the next purchase; `?tokenize=fail`
-   * declines the card in Square's stand-in; `?packs-card=open` presses the buy
-   * button once. Prices follow offer.json packs (web). A purchase adds its
-   * walkthroughs to the same balance the plan panel's capacity reads. */
+   * loading, or missing (the function does not exist yet, so no card). The website
+   * sells no packs (owner decision, 19 November 2026): the card says so and shows
+   * the same balance the plan panel's capacity reads. */
   const packsCase = params.get('packs') || (scenario === 'operator' ? 'not-owner'
     : ['pending', 'ended', 'ended-after-active', 'nomembership'].includes(planCase) ? 'not-activated' : 'choose');
   const PACKS = [{ code: 'pack3', walkthroughs: 30, rooms: 30, price_cents: 16900 }, { code: 'pack10', walkthroughs: 100, rooms: 100, price_cents: 49900 }];
-  let extraCredits = planCase === 'trial-credits' || packsCase === 'credits' ? 2 : 0;
-  let packExpiry = extraCredits ? '2027-03-02' : null;
+  const extraCredits = planCase === 'trial-credits' || packsCase === 'credits' ? 2 : 0;
+  const packExpiry = extraCredits ? '2027-03-02' : null;
   const packOffer = () => {
     const missing = packsCase === 'not-owner' ? ['not_owner'] : packsCase === 'not-activated' ? ['not_activated'] : [];
     return { available: !missing.length, missing, packs: missing.length ? [] : PACKS.map(pack => ({ ...pack })),
@@ -1053,22 +1051,6 @@
       const file = EXPORT_FILES[body.kind];
       return reply(200, { url: DOWNLOAD_HOST + EXPORT_NAMES[body.kind] + '?expires=600', filename: EXPORT_NAMES[body.kind],
         bytes: file.bytes, content_type: file.content_type, expires_in: 600 });
-    }
-    if (method === 'POST' && path === '/square/packs/checkout') {
-      const refusal = params.get('pack-checkout');
-      if (refusal === 'fail') return reply(500, { error: 'server_error' });
-      const statuses = { unauthorized: 401, not_eligible: 403, lane_closed: 503, checkout_failed: 502, invalid_request: 400, payment_declined: 402 };
-      if (refusal) return reply(statuses[refusal] || 409, { error: refusal });
-      const pack = PACKS.find(entry => entry.code === (body && body.pack_code));
-      if (!pack || body.workspace_id !== 'synthetic-workspace' || !/^[A-Za-z0-9:_-]{8,512}$/.test(body.source_id || '')) return reply(400, { error: 'invalid_request' });
-      if (packOffer().missing.length) return reply(403, { error: 'not_eligible' });
-      // The server fixes the terms: the pack's own count and price, charged now.
-      extraCredits += pack.walkthroughs;
-      if (!packExpiry) {
-        const when = new Date(brisbaneToday + 'T00:00:00Z'); when.setUTCFullYear(when.getUTCFullYear() + 1);
-        packExpiry = when.toISOString().slice(0, 10);
-      }
-      return reply(200, { credited: pack.walkthroughs, credits_available: extraCredits, amount_cents: pack.price_cents, sandbox: laneCase === 'sandbox' });
     }
     if (method === 'POST' && path === '/square/express/checkout') {
       const refusal = params.get('express-checkout');
@@ -1993,16 +1975,6 @@
         const leaving = document.getElementById('account-leaving');
         if (leaving) leaving.open = true;
         if (leaving || ++tries > 30) clearInterval(open);
-      }, 100);
-    }
-    // Review affordance only: `?packs-card=open` presses the pack's buy button
-    // once, so a capture can show Square's card step. It never pays.
-    if (location.pathname === '/__qa/account/' && params.get('packs-card') === 'open') {
-      let tries = 0;
-      const press = setInterval(() => {
-        const buy = [...document.querySelectorAll('#account-packs .tour-action-primary')].find(el => /^(?:Test · )?Buy \d+ walkthroughs?$/.test(el.textContent));
-        if (buy) buy.click();
-        if (buy || ++tries > 40) clearInterval(press);
       }, 100);
     }
     // Review affordance only: `?express-card=open` presses Super fast for A$29 once.

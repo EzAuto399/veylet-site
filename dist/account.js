@@ -14,7 +14,7 @@
   // renders it and fails on any amount or purchase word.
   const APP_MODE = document.documentElement?.dataset?.appMode === 'true';
   // Subscriptions are Apple-only: this page never starts, resumes or shows a website
-  // card plan (owner decision, 29 September 2026). Square takes only one-off pack and
+  // card plan (owner decision, 29 September 2026). Square takes only one-off
   // Super fast payments; the hooks service enforces the same at its boundary.
   const statusEl = document.getElementById('account-status');
   const signInForm = document.getElementById('account-sign-in');
@@ -4236,7 +4236,7 @@
           : planInterval(row) === 'annual' ? '' : ' The allowance resets monthly.';
         // A pack is named here only when it is the next step; otherwise its card follows.
         baseNote = (free ? 'Saving a space or a failed capture uses none.' : cadence.trim()) + (remaining > 0 ? ''
-          : (PACKS_ON_SALE ? ' Need more rooms? A pack adds them; they are used after your included ones.' : ' ' + PACKS_NOT_ON_SALE) +
+          : ' ' + PACKS_NOT_ON_SALE +
             ' Saving another space does not authorize a charge.' + (free ? ' Your free month’s end date stays the same.' : ''));
         capacity.append(allowance);
       }
@@ -4578,7 +4578,7 @@
       .then(() => window.fetch(base + path, { credentials: 'omit', cache: 'no-store', ...init }))
       .then(response => response.json().catch(() => null).then(body => ({ status: response.status, ok: response.ok, body })));
   }
-  // The card lane, read once per desk load for both cards that take a card; an
+  // The card lane, read once per desk load for the Super fast card; an
   // unreadable lane is not kept, and a card form with no usable identifiers asks afresh.
   let laneCache = null;
   function squareLane(fresh) {
@@ -4596,6 +4596,17 @@
   async function annualToken(supabase) {
     const reply = await settled(Promise.resolve().then(() => supabase.auth.getSession()));
     return failed(reply) ? null : reply.value?.data?.session?.access_token || null;
+  }
+  // A version 4 UUID naming one purchase intent; it is an idempotency key, not a secret.
+  function paymentAttemptID() {
+    const cryptoAPI = window.crypto || globalThis.crypto;
+    if (cryptoAPI && typeof cryptoAPI.randomUUID === 'function') return cryptoAPI.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (cryptoAPI && typeof cryptoAPI.getRandomValues === 'function') cryptoAPI.getRandomValues(bytes);
+    else for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
   }
   function annualRow(...controls) {
     const row = annualNode('p', 'annual-actions'); row.append(...controls); return row;
@@ -4623,14 +4634,10 @@
 
   /* ---- Top-up packs --------------------------------------------------------
    * More accepted walkthroughs for a busy month (offer 2026-09-24.2; docs/design/
-   * one-plan-and-packs-20260924.md). A pack's rooms are used after the
-   * free-months or monthly included ones and expire 12 months after purchase.
-   * Who may buy, the packs, their prices and the balance are the server's answer
-   * (get_pack_offer); whether card payment is open, and whether it is Square
-   * Sandbox, is the hooks lane's answer. Paying charges the card at once, so this
-   * card never says that nothing is charged before it knows. Card entry is
-   * Square's own field; only its single-use token is sent, the purchase is shown
-   * from the server's answer, and every state has at most one filled action.
+   * one-plan-and-packs-20260924.md). The website sells no packs (owner decision,
+   * 19 November 2026): this card says so in one line and keeps the balance of
+   * rooms already bought or granted, which is the server's answer
+   * (get_pack_offer). Rooms credited earlier still count.
    */
   const packsEl = document.getElementById('account-packs');
   const PACK_CODES = ['pack3', 'pack10'];
@@ -4640,22 +4647,7 @@
   const PACK_MISSING = ['not_owner', 'not_activated'];
   // offer.json packRules.sold. While it is false, the packs card and the plan panel say so in one
   // line and offer no way to buy, by card or invoice, whatever an older server answers.
-  const PACKS_ON_SALE = false;
   const PACKS_NOT_ON_SALE = 'Top-up packs aren’t on sale yet.';
-  // offer.json packs[].validMonths.
-  const PACK_VALID_MONTHS = 12;
-  const PACK_CARD_FIELD = 'account-packs-card-field';
-  const PACK_TEST_LINE = 'Test · Square Sandbox: a test payment, not a live charge.';
-  // What each refusal means. Each of these is refused before Square takes a payment.
-  const PACK_REFUSALS = {
-    payment_declined: 'Your card was declined, so nothing was charged. Check the details or use another card, then try again.',
-    not_eligible: 'Packs aren’t available for this workspace right now, so nothing was charged.',
-    lane_closed: 'Card payment for packs is closed right now, so nothing was charged.',
-    invalid_request: 'The purchase wasn’t accepted, so nothing was charged. Try again.',
-  };
-  // No answer, or checkout_failed: the card may have been charged, and the server
-  // adds the walkthroughs once Square confirms it. The balance above is re-read.
-  const PACK_UNCONFIRMED = 'We couldn’t confirm the purchase. If your card was charged, the rooms are added when the payment clears. Check the count above in a few minutes before you try again.';
   let packs = null;
   let packsVersion = 0;
 
@@ -4674,27 +4666,10 @@
     // Open, it names its packs and misses nothing; closed, it says why.
     return offer.available ? !offer.missing.length && offer.packs.length > 0 : offer.missing.length > 0;
   }
-  function packsKind(offer, lane) {
+  function packsKind(offer) {
     if (!packsValid(offer)) return 'error';
-    if (offer.missing.includes('not_owner')) return 'not-owner';
-    if (offer.missing.includes('not_activated')) return 'not-activated';
-    if (!lane) return 'error';
-    return lane.open ? 'choose' : 'lane-closed';
-  }
-  function packWords(count) { return count + (count === 1 ? ' room' : ' rooms'); }
-  // Square Sandbox labels every price and payment action, as the Super fast card does.
-  function packTest(state) { return state.lane?.sandbox === true || state.sandbox === true ? 'Test · ' : ''; }
-  function packChosen(state) {
-    return state.offer.packs.find(pack => pack.code === state.selected) || state.offer.packs[0];
-  }
-  function packCharge(state) {
-    const pack = packChosen(state);
-    return packTest(state) + 'Charged today: ' + planMoney(pack.price_cents) + ' for ' + packWords(pack.walkthroughs) +
-      ', to use within ' + PACK_VALID_MONTHS + ' months.';
-  }
-  function packPrimaryLabel(state) {
-    const pack = packChosen(state);
-    return packTest(state) + (state.problem ? 'Try again' : state.card ? 'Pay ' + planMoney(pack.price_cents) : 'Buy ' + packWords(pack.walkthroughs));
+    // The balance is shown only for a workspace that could hold packs at all.
+    return offer.available ? 'open' : 'locked';
   }
   // On the web desk the plan table's "Extra rooms" row already says there are none.
   // (Marked here; the stylesheet hides it while that row is on the page.)
@@ -4705,27 +4680,6 @@
     const next = annualDay(offer.next_expiry);
     return (count === 1 ? '1 extra room' : count + ' extra rooms') + ' available' + (next ? '; the next expiry is ' + next + '.' : '.');
   }
-  /** Brisbane's today plus the pack's validity, clamped to the month's last day. */
-  function packExpiry() {
-    const [year, month, day] = annualToday().split('-').map(Number);
-    const total = month - 1 + PACK_VALID_MONTHS;
-    const y = year + Math.floor(total / 12), m = total % 12 + 1;
-    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-    return y + '-' + String(m).padStart(2, '0') + '-' + String(Math.min(day, last)).padStart(2, '0');
-  }
-  // Money is a statement: the walkthroughs, then the price, then how long they last.
-  function packOption(state, pack) {
-    const body = annualNode('span', 'annual-option-body');
-    body.append(annualNode('span', 'annual-option-name', packWords(pack.walkthroughs)),
-      annualNode('span', 'annual-amount', packTest(state) + planMoney(pack.price_cents)),
-      annualNode('span', 'annual-qualifier', 'Use within ' + PACK_VALID_MONTHS + ' months of purchase'));
-    return body;
-  }
-  function packList(state) {
-    const list = annualNode('ul', 'annual-plans');
-    for (const pack of state.offer.packs) { const item = annualNode('li'); item.append(packOption(state, pack)); list.append(item); }
-    return list;
-  }
   function packsHead(refs) {
     const head = annualNode('div', 'annual-head');
     const title = annualNode(deskBar ? 'h2' : 'h3', 'annual-title', 'Top-up packs');
@@ -4734,39 +4688,9 @@
     head.append(title);
     return head;
   }
-  // Choosing changes only the words beside the button, so focus stays on the choice.
-  function packsSync(state, refs) {
-    if (refs.charge) refs.charge.textContent = packCharge(state);
-    if (refs.pay) refs.pay.textContent = packPrimaryLabel(state);
-    if (refs.problem) refs.problem.hidden = true;
-  }
-  // A failure (or its clearing) is written into the drawn card, so Square's field is never redrawn.
-  function packsProblem(state, text) {
-    state.problem = text || null;
-    const refs = state.refs || {};
-    if (refs.problemText) refs.problemText.textContent = text || '';
-    if (refs.problem) refs.problem.hidden = !text;
-    if (refs.pay) { refs.pay.textContent = packPrimaryLabel(state); refs.pay.disabled = false; }
-    if (text) setStatus(text);
-  }
-  function packsDropCard(state) {
-    const card = state?.card;
-    if (!card) return;
-    state.card = null;
-    Promise.resolve().then(() => card.destroy?.()).catch(() => {});
-  }
-  function packsCloseOther() {
-    const state = packs;
-    if (!state || state.busy || !state.card) return;
-    packsDropCard(state); state.problem = null; packsDraw();
-  }
-
   function packsParts(state, refs) {
     const { kind, offer } = state;
     const parts = [packsHead(refs)];
-    // Sandbox is said once, under the heading, before any "Test ·" price or button.
-    if (packTest(state) && ['choose', 'bought', 'lane-closed'].includes(kind)) parts.push(annualNode('p', 'plan-scope plan-test', PACK_TEST_LINE));
-    if (state.notice) parts.push(annualNode('p', 'annual-notice', state.notice));
     const say = (className, text) => { const node = annualNode('p', className, text); parts.push(node); return node; };
     if (kind === 'error') {
       say('annual-lead', 'Couldn’t check packs.');
@@ -4775,57 +4699,9 @@
       refs.retry = retry; parts.push(annualRow(retry));
       return parts;
     }
-    if (!PACKS_ON_SALE && kind !== 'bought') {
-      say('annual-lead', PACKS_NOT_ON_SALE);
-      // Rooms already credited (an earlier pack or a referral bonus) still count, so the balance stays.
-      if (['choose', 'lane-closed'].includes(kind)) { refs.balance = say('packs-balance', packBalance(offer)); packBalanceSync(refs.balance, offer); }
-      return parts;
-    }
-    if (kind === 'not-owner') { say('annual-lead', 'Only the workspace owner can buy packs.'); return parts; }
-    if (kind === 'not-activated') {
-      say('annual-lead', 'Packs can be bought once your free month or plan has started.');
-      say('annual-note', 'A pack’s rooms are used after your included ones and expire ' + PACK_VALID_MONTHS + ' months after purchase.');
-      return parts;
-    }
-    if (kind === 'bought') {
-      // The answer's own terms: what was added, the balance now and the date to use them by.
-      const done = state.done;
-      say('annual-lead', packTest(state) + packWords(done.credited) + ' added; ' + done.credits_available + ' available; use by ' + done.useBy + '.');
-      say('annual-charge', packTest(state) + planMoney(done.amount_cents) + ' charged today.');
-      say('annual-note', 'They are used after your included rooms, oldest pack first.');
-      const again = button('Buy another pack', () => { Object.assign(state, { kind: 'choose', done: null, notice: null, problem: null }); packsDraw('primary'); });
-      refs.again = again; parts.push(annualRow(again));
-      return parts;
-    }
-    say('annual-lead', 'More rooms for a busy month, used after your included ones.');
-    refs.balance = say('packs-balance', packBalance(offer));
-    packBalanceSync(refs.balance, offer);
-    if (kind === 'lane-closed') {
-      parts.push(packList(state));
-      say('annual-lead annual-soon', 'Card payment for packs opens soon.');
-      const ask = annualNode('a', 'text-link', 'Ask Veylet support to invoice a pack');
-      ask.href = 'mailto:support@veylet.com?subject=Veylet%20pack'; refs.primary = ask;
-      parts.push(annualRow(ask));
-      return parts;
-    }
-    parts.push(annualChoice(state, refs, 'Choose a pack', 'account-pack', offer.packs.map(pack => [pack.code, packOption(state, pack)]),
-      packChosen(state).code, value => { state.selected = value; }, packsSync));
-    const charge = say('annual-charge', packCharge(state)); charge.id = 'account-packs-charge';
-    if (state.card) {
-      const label = annualNode('p', 'annual-card-label', 'Card details'); label.id = PACK_CARD_FIELD + '-label';
-      const field = annualNode('div', 'annual-card-field'); field.id = PACK_CARD_FIELD;
-      field.setAttribute('role', 'group'); field.setAttribute('aria-labelledby', label.id); field.tabIndex = -1;
-      refs.field = field;
-      const block = annualNode('div', 'annual-card'); block.append(label, field); parts.push(block);
-    }
-    const primary = button(packPrimaryLabel(state), () => { void (state.card ? packsConfirmCard(primary) : packsOpenCard(primary)); });
-    primary.className = 'tour-action tour-action-primary';
-    primary.setAttribute('aria-describedby', 'account-packs-charge');
-    refs.charge = charge; refs.primary = primary; refs.pay = primary;
-    parts.push(state.card ? annualRow(primary, button('Not now', () => packsCloseCard())) : annualRow(primary));
-    const problem = annualAlert(state.problem || '', 'annual-alert annual-problem', refs);
-    problem.hidden = !state.problem; refs.problem = problem; parts.push(problem);
-    say('annual-note', 'Your card goes into Square’s secure form on this page; Veylet never sees it.');
+    say('annual-lead', PACKS_NOT_ON_SALE);
+    // Rooms already credited (an earlier pack or a referral bonus) still count, so the balance stays.
+    if (kind === 'open') { refs.balance = say('packs-balance', packBalance(offer)); packBalanceSync(refs.balance, offer); }
     return parts;
   }
   function packsDraw(focus) {
@@ -4839,30 +4715,17 @@
     if (focus && refs[focus]) refs[focus].focus();
   }
   function packsHide() {
-    packsDropCard(packs);
     packsVersion += 1; packs = null;
     if (!packsEl) return;
     packsEl.hidden = true; packsEl.setAttribute('aria-busy', 'false'); packsEl.replaceChildren();
   }
-  // Waiting keeps the card's own shape: the lead, the balance, the two pack rows,
-  // the charge line, the action and the note, each at the length it usually is.
+  // Waiting keeps the card's own shape: the heading, the lead and the balance line.
   function packsSkeleton() {
     if (!packsEl) return;
-    packsDropCard(packs);
     packsVersion += 1; packs = null;
     packsEl.hidden = false; packsEl.setAttribute('aria-busy', 'true');
-    const choice = annualNode('div', 'annual-choice');
-    choice.append(skeletonLine('p', 'annual-skeleton-legend', 13));
-    for (const name of [14, 15]) {
-      const row = annualNode('div', 'annual-option annual-skeleton-row');
-      const body = annualNode('span', 'annual-option-body');
-      body.append(skeletonLine('span', 'annual-option-name', name), skeletonLine('span', 'annual-amount', 5), skeletonLine('span', 'annual-qualifier', 32));
-      row.append(annualNode('span', 'annual-skeleton-radio'), body);
-      choice.append(row);
-    }
-    const action = annualNode('span', 'plan-skeleton annual-skeleton-action'); action.setAttribute('aria-hidden', 'true');
     packsEl.replaceChildren(packsHead(), annualNode('p', 'annual-lead', 'Checking packs and how many extra rooms you have…'),
-      skeletonLine('p', 'packs-balance', 32), choice, skeletonLine('p', 'annual-charge', 66), annualRow(action), skeletonLine('p', 'annual-note', 77));
+      skeletonLine('p', 'packs-balance', 32));
   }
   async function renderPacks(supabase, ticket, workspaceID, options = {}) {
     if (!packsEl) return;
@@ -4870,147 +4733,15 @@
     if (options.quiet && packs) packsEl.setAttribute('aria-busy', 'true');
     else packsSkeleton();
     const version = ++packsVersion;
-    const [reply, lane] = await Promise.all([
-      settled(Promise.resolve().then(() => supabase.rpc('get_pack_offer', { p_workspace_id: workspaceID }))),
-      squareLane(),
-    ]);
+    const reply = await settled(Promise.resolve().then(() => supabase.rpc('get_pack_offer', { p_workspace_id: workspaceID })));
     if (ticket !== deskVersion || version !== packsVersion) return;
     packsEl.setAttribute('aria-busy', 'false');
     if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check packs.'); return; }
     // Before the backend has the function there are no packs to show; that is not an outage.
     if (missingFunction(reply)) { packsHide(); return; }
-    const previous = packs && packs.workspaceID === workspaceID ? packs : null;
-    packsDropCard(packs);
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    packs = { supabase, workspaceID, offer, lane, kind: packsKind(offer, lane), selected: previous?.selected || null,
-      busy: false, card: null, problem: null, done: null, sandbox: false, notice: options.notice || null };
+    packs = { supabase, workspaceID, offer, kind: packsKind(offer) };
     packsDraw(options.focus);
-  }
-  // After an unconfirmed purchase, the balance line is read again in place, so the
-  // card field and the sentence under the button stay where they are.
-  async function packsRecount(state) {
-    const reply = await settled(Promise.resolve().then(() => state.supabase.rpc('get_pack_offer', { p_workspace_id: state.workspaceID })));
-    if (packs !== state) return;
-    const offer = failed(reply) ? null : firstRow(reply.value?.data);
-    if (!packsValid(offer)) return;
-    state.offer = { ...state.offer, credits_available: offer.credits_available, next_expiry: offer.next_expiry ?? null };
-    if (state.refs?.balance) { state.refs.balance.textContent = packBalance(state.offer); packBalanceSync(state.refs.balance, state.offer); }
-    void planCapacityRefresh?.();
-  }
-  // "Buy" (the chosen pack's rooms): load Square's SDK once, open its card field in the card, and move focus into it.
-  async function packsOpenCard(control) {
-    const state = packs;
-    if (!state || state.busy || state.card || state.kind !== 'choose') return;
-    // One card form on the desk at a time: any other open card form is closed first.
-    closeCardForms('packs');
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Loading card form…';
-    setStatus('Loading Square’s card form…');
-    let form = annualCardForm(state.lane);
-    if (!form) {
-      const lane = await squareLane(true);
-      if (packs !== state) return;
-      if (lane) state.lane = lane;
-      form = annualCardForm(lane);
-    }
-    const made = form ? await settled(annualSdk(form.sdk_url).then(Square => Square.payments(form.application_id, form.location_id).card({ style: SQUARE_CARD_STYLE })))
-      : { error: new Error('No card form') };
-    if (made.timedOut) annualSdkLoad = null;
-    const card = made.timedOut || made.error ? null : made.value;
-    if (packs !== state) { Promise.resolve().then(() => card?.destroy?.()).catch(() => {}); return; }
-    if (!card || typeof card.attach !== 'function' || typeof card.tokenize !== 'function') {
-      state.busy = false; packsProblem(state, ANNUAL_SDK_FAILED); control.focus?.(); return;
-    }
-    state.card = card;
-    packsDraw();
-    const attached = await settled(Promise.resolve().then(() => card.attach('#' + PACK_CARD_FIELD)));
-    if (packs !== state) return;
-    state.busy = false;
-    if (attached.timedOut || attached.error) {
-      packsDropCard(state); state.problem = ANNUAL_SDK_FAILED; packsDraw('pay'); setStatus(ANNUAL_SDK_FAILED); return;
-    }
-    setStatus('Enter your card in Square’s card form, then pay.');
-    if (typeof card.focus === 'function') { try { await card.focus('cardNumber'); return; } catch { /* the field itself, below */ } }
-    state.refs?.field?.focus();
-  }
-  function packsCloseCard() {
-    const state = packs;
-    if (!state || state.busy) return;
-    packsDropCard(state); state.problem = null;
-    packsDraw('pay');
-    setStatus('Card form closed. Nothing was charged.');
-  }
-  // A version 4 UUID naming one purchase intent; it is an idempotency key, not a secret.
-  function packAttemptID() {
-    const cryptoAPI = window.crypto || globalThis.crypto;
-    if (cryptoAPI && typeof cryptoAPI.randomUUID === 'function') return cryptoAPI.randomUUID();
-    const bytes = new Uint8Array(16);
-    if (cryptoAPI && typeof cryptoAPI.getRandomValues === 'function') cryptoAPI.getRandomValues(bytes);
-    else for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
-    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
-  }
-  // "Pay" (the chosen pack's price): Square tokenizes the card in its iframe; only that single-use token is sent.
-  async function packsConfirmCard(control) {
-    const state = packs;
-    if (!state || state.busy || !state.card) return;
-    const pack = packChosen(state);
-    const expected = { credited: pack.walkthroughs, amount_cents: pack.price_cents };
-    state.busy = true; state.problem = null;
-    if (state.refs?.problem) state.refs.problem.hidden = true;
-    control.disabled = true; control.textContent = 'Paying…';
-    setStatus('Paying ' + planMoney(pack.price_cents) + ' for ' + packWords(pack.walkthroughs) + '…');
-    const tokenized = await settled(Promise.resolve().then(() => state.card.tokenize()));
-    if (packs !== state) return;
-    const result = tokenized.timedOut || tokenized.error ? null : tokenized.value;
-    const sourceID = result?.status === 'OK' ? result.token : null;
-    if (typeof sourceID !== 'string' || !/^[A-Za-z0-9:_-]{8,512}$/.test(sourceID)) {
-      state.busy = false;
-      packsProblem(state, 'Square couldn’t use those card details. Check them and try again. Nothing was charged.');
-      control.focus?.();
-      return;
-    }
-    const token = await annualToken(state.supabase);
-    if (packs !== state) return;
-    if (!token) { showSignedOut('Your sign-in has expired. Sign in again to buy a pack. Nothing was charged.'); return; }
-    // One purchase intent keeps one attempt id across every Try again, even with a fresh card
-    // token, so the server returns an attempt Square already completed instead of charging twice.
-    const attempts = state.attempts || (state.attempts = {});
-    const attemptID = attempts[pack.code] || (attempts[pack.code] = packAttemptID());
-    const reply = await settled(annualHooks('/square/packs/checkout', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ workspace_id: state.workspaceID, pack_code: pack.code, source_id: sourceID, attempt_id: attemptID }) }), 30000);
-    if (packs !== state) return;
-    state.busy = false;
-    const answer = reply.timedOut || reply.error ? null : reply.value;
-    const done = answer?.ok ? answer.body : null;
-    if (done && typeof done === 'object' && Number.isInteger(done.credited) && done.credited > 0 && Number.isInteger(done.credits_available)
-      && done.credits_available >= done.credited && Number.isInteger(done.amount_cents) && done.amount_cents > 0) {
-      delete attempts[pack.code];
-      packsBought(state, done, expected);
-      return;
-    }
-    const code = answer?.body?.error || (answer?.status === 401 ? 'unauthorized' : null);
-    if (code === 'unauthorized') { showSignedOut('Your sign-in has expired. Sign in again to buy a pack. Nothing was charged.'); return; }
-    packsProblem(state, PACK_REFUSALS[code] || PACK_UNCONFIRMED);
-    control.focus?.();
-    if (!PACK_REFUSALS[code]) void packsRecount(state);
-  }
-  // The bought state is drawn from the server's answer: the walkthroughs, price and balance it states.
-  function packsBought(state, done, expected) {
-    packsDropCard(state);
-    const useBy = annualDay(done.expires_on) ? done.expires_on : packExpiry();
-    const differs = done.credited !== expected.credited || done.amount_cents !== expected.amount_cents;
-    state.done = { credited: done.credited, credits_available: done.credits_available, amount_cents: done.amount_cents, useBy: annualDay(useBy) };
-    state.offer = { ...state.offer, credits_available: done.credits_available, next_expiry: state.offer.next_expiry || useBy };
-    Object.assign(state, { kind: 'bought', sandbox: done.sandbox === true, problem: null,
-      notice: differs ? 'These are the terms your purchase went through with; they differ from what was shown before you paid.' : null });
-    packsDraw('title');
-    setStatus(packTest(state) + packWords(done.credited) + ' added. ' + planMoney(done.amount_cents) + ' charged today.');
-    // The plan panel above counts the same ledger.
-    void planCapacityRefresh?.();
   }
 
   /* ---- Super fast render (code: express) ----------------------------------
@@ -5346,7 +5077,7 @@
     if (express !== state) return;
     if (!token) { showSignedOut('Your sign-in has expired. Sign in again to order a super fast render. Nothing was charged.'); return; }
     // One order intent keeps one attempt id across every Try again, even with a fresh card token.
-    const attemptID = state.attempts.get(jobID) || packAttemptID();
+    const attemptID = state.attempts.get(jobID) || paymentAttemptID();
     state.attempts.set(jobID, attemptID);
     const reply = await settled(annualHooks('/square/express/checkout', { method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
@@ -5394,7 +5125,6 @@
 
   // One card form on the desk at a time: opening one closes the others, quietly.
   function closeCardForms(except) {
-    if (except !== 'packs') packsCloseOther();
     if (except !== 'express') expressCloseOther();
   }
 

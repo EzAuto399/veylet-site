@@ -1927,21 +1927,11 @@ test('the signed-in desk puts walkthroughs first and leaving last', () => {
  * hooks, has no annual card, and ignores whatever an older server still answers.
  * The helpers below serve the pack, free-months and Super fast card tests.
  */
-const brisbaneToday = () => {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Brisbane', year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(new Date()).map(part => [part.type, part.value]));
-  return parts.year + '-' + parts.month + '-' + parts.day;
-};
 const HOOKS_URL = 'https://hooks.example.invalid';
 const SQUARE_SDK = 'https://sandbox.web.squarecdn.com/v1/square.js';
 const CARD_FORM = { sdk_url: SQUARE_SDK, application_id: 'sandbox-sq0idb-test-application', location_id: 'LTEST123' };
 // Offer 2026-11-11.1: the codes keep their names; `walkthroughs` carries the room count, with `rooms` beside it.
 const PACKS = [{ code: 'pack3', walkthroughs: 30, rooms: 30, price_cents: 16900 }, { code: 'pack10', walkthroughs: 100, rooms: 100, price_cents: 49900 }];
-// The server's answers: they fix the walkthroughs added, whatever the page shows.
-const boughtAnswer = (body, overrides = {}) => {
-  const pack = PACKS.find(entry => entry.code === body.pack_code);
-  return [200, { credited: pack.walkthroughs, credits_available: pack.walkthroughs, amount_cents: pack.price_cents, sandbox: false, ...overrides }];
-};
 function hooksService(routes = {}) {
   const requests = [];
   const fetch = async (url, init = {}) => {
@@ -1951,7 +1941,7 @@ function hooksService(routes = {}) {
     const route = routes[path];
     if (route === 'reject') throw new TypeError('offline');
     const [status, value] = route ? route(body, requests) : path === '/square/lane' ? [200, { open: true, sandbox: false, card_form: CARD_FORM }]
-      : path === '/square/packs/checkout' ? boughtAnswer(body) : [404, { error: 'invalid_request' }];
+      : [404, { error: 'invalid_request' }];
     return { status, ok: status >= 200 && status < 300, json: async () => value };
   };
   return { fetch, requests };
@@ -2042,14 +2032,7 @@ const packOffer = (overrides = {}) => ({ available: true, missing: [], packs: PA
 const packLocked = (missing, overrides = {}) => packOffer({ available: false, missing, packs: [], ...overrides });
 const capacityOf = extra => ({ data: [{ plan_status: 'trial', included_limit: 6, included_used: 2, included_remaining: 4,
   extra_credits_available: extra, can_accept: true, reason_code: null }] });
-// offer.json packRules.sold is false, so account.js ships with PACKS_ON_SALE = false and the packs card says so.
-// The buy flow below stays built for when packs go on sale; these tests run it with the flag on, unless a test
-// asks for the shipped state with `packsOnSale: false`.
-const SOLD_FLAG = 'const PACKS_ON_SALE = false;';
-assert.equal(account.split(SOLD_FLAG).length - 1, 1, 'account.js ships packs as not on sale');
-const accountPacksOnSale = account.replace(SOLD_FLAG, 'const PACKS_ON_SALE = true;');
 async function withPacks(offers, options = {}) {
-  if (options.packsOnSale !== false && !options.accountScript) options = { ...options, accountScript: accountPacksOnSale };
   const service = hooksService(options.hooks);
   const square = options.square === undefined ? fakeSquare(options.squareOptions) : options.square;
   const counter = { reads: 0 };
@@ -2067,21 +2050,10 @@ async function withPacks(offers, options = {}) {
 const packsCard = h => h.ids['account-packs'];
 const packNodes = h => packsCard(h).all();
 const packText = h => packNodes(h).filter(el => !el.hidden).map(el => el.textContent).join('\n');
-const packFilled = h => packNodes(h).filter(el => /\btour-action-primary\b/.test(el.className || ''));
 const packButton = (h, text) => packNodes(h).find(el => el.tagName === 'BUTTON' && el.textContent === text);
 const packClass = (h, name) => packNodes(h).find(el => (el.className || '').split(' ').includes(name));
 const packAll = (h, name) => packNodes(h).filter(el => (el.className || '').split(' ').includes(name));
-const packRadio = (h, value) => packNodes(h).find(el => el.tagName === 'INPUT' && el.value === value);
-const packProblem = h => { const box = packClass(h, 'annual-problem'); return box && !box.hidden ? box.all().find(el => el.className === 'annual-alert-text').textContent : null; };
 const pressPack = async (h, text) => { await packButton(h, text).fire('click'); await settle(); };
-const choosePack = async (h, value) => { const radio = packRadio(h, value); radio.checked = true; await radio.fire('change'); };
-// A pack bought today is used by the same day twelve months on, in Brisbane.
-const useBy = () => {
-  const [year, month, day] = brisbaneToday().split('-').map(Number);
-  const last = new Date(Date.UTC(year + 1, month, 0)).getUTCDate();
-  return new Date(Date.UTC(year + 1, month - 1, Math.min(day, last))).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
-};
-const NO_CHARGE_PROMISE = /Nothing (?:is|will be) charged/;
 
 test('walkthrough packs read their own answer for the plan’s workspace and sit between the plan and Refer an office', async () => {
   const h = await withPacks(packOffer());
@@ -2102,11 +2074,9 @@ test('while the answer is on its way the packs card shows its own rows, not pric
   const h = await withPacks(() => new Promise(() => {}));
   assert.equal(packsCard(h).attributes['aria-busy'], 'true');
   assert.match(packText(h), /Checking packs and how many extra rooms you have…/);
-  assert.equal(packAll(h, 'annual-skeleton-row').length, 2);
-  // The two pack rows are the loaded choice rows' own boxes, between the balance and the charge line.
-  assert.equal(packAll(h, 'annual-option').length, 2);
-  for (const name of ['packs-balance', 'annual-choice', 'annual-charge', 'annual-actions', 'annual-note']) assert.ok(packClass(h, name), name);
-  assert.ok(packClass(h, 'annual-skeleton-action'));
+  // The heading is already there and the balance line waits in place.
+  assert.ok(packClass(h, 'annual-title'), 'annual-title');
+  assert.ok(packClass(h, 'packs-balance'), 'packs-balance');
   assert.doesNotMatch(packText(h), /A\$/);
   assert.equal(packNodes(h).some(el => el.tagName === 'BUTTON'), false);
 });
@@ -2115,211 +2085,27 @@ test('while the answer is on its way the packs card shows its own rows, not pric
 // one line, with no price, choice, Buy, card field, invoice link or "opens soon"; a balance already credited stays.
 test('packs not on sale: one line in every state, no way to buy by card or invoice, and the balance kept', async () => {
   assert.equal(OFFER_RECORD.packRules.sold, false, 'the shipped flag follows offer.json');
-  const lane = { hooks: { '/square/lane': () => [200, { open: true, sandbox: false, card_form: CARD_FORM }] } };
-  const closed = { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } };
-  for (const [label, answer, options] of [['open lane', packOffer(), lane], ['closed lane', packOffer(), closed],
-    ['not activated', packLocked(['not_activated']), lane], ['not owner', packLocked(['not_owner']), lane]]) {
-    const h = await withPacks(answer, { ...options, packsOnSale: false });
+  for (const [label, answer] of [['open', packOffer()], ['credited', packOffer({ credits_available: 2 })],
+    ['not activated', packLocked(['not_activated'])], ['not owner', packLocked(['not_owner'])]]) {
+    const h = await withPacks(answer);
     assert.equal(packsCard(h).hidden, false, label);
     assert.equal(packClass(h, 'annual-lead').textContent, 'Top-up packs aren’t on sale yet.', label);
     assert.doesNotMatch(packText(h), /A\$|Buy|Pay |Card payment|opens soon|invoice|Choose a pack|can be bought/i, label);
     assert.deepEqual(packNodes(h).filter(el => ['BUTTON', 'INPUT', 'A'].includes(el.tagName)), [], `${label}: nothing to press`);
     assert.equal(h.scripts.length, 0, `${label}: Square's SDK is not loaded`);
   }
-  const credited = await withPacks(packOffer(), { ...lane, packsOnSale: false });
-  assert.ok(packClass(credited, 'packs-balance'), 'rooms already credited are still shown');
+  const credited = await withPacks(packOffer({ credits_available: 2 }));
+  assert.equal(packClass(credited, 'packs-balance').textContent, '2 extra rooms available.', 'rooms already credited are still shown');
 });
 
-test('not available: before the free months or plan start, and for a member who is not the owner, a sentence and nothing to press', async () => {
-  const pending = await withPacks(packLocked(['not_activated']));
-  assert.match(packText(pending), /Packs can be bought once your free month or plan has started\./);
-  assert.match(packText(pending), /used after your included ones and expire 12 months after purchase/);
-  const member = await withPacks(packLocked(['not_owner']));
-  assert.match(packText(member), /Only the workspace owner can buy packs\./);
-  // Both reasons at once: the owner question is answered first.
-  const both = await withPacks(packLocked(['not_owner', 'not_activated']));
-  assert.match(packText(both), /Only the workspace owner can buy packs\./);
-  for (const h of [pending, member, both]) {
-    assert.doesNotMatch(packText(h), /A\$/);
-    assert.equal(packNodes(h).some(el => ['A', 'BUTTON', 'INPUT'].includes(el.tagName)), false);
-  }
-});
-
-test('choose a pack: prices as statements, the charge beside the one filled button, and choosing changes only those words', async () => {
-  const h = await withPacks(packOffer());
-  assert.deepEqual(packAll(h, 'annual-option-name').map(el => el.textContent), ['30 rooms', '100 rooms']);
-  assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['A$169', 'A$499']);
-  assert.deepEqual(packAll(h, 'annual-qualifier').map(el => el.textContent), ['Use within 12 months of purchase', 'Use within 12 months of purchase']);
-  assert.equal(packRadio(h, 'pack3').checked, true, 'the smaller pack is chosen first');
-  assert.equal(packClass(h, 'packs-balance').textContent, 'No extra rooms available.');
-  const charge = packClass(h, 'annual-charge');
-  assert.equal(charge.textContent, 'Charged today: A$169 for 30 rooms, to use within 12 months.');
-  const [buy] = packFilled(h);
-  assert.equal(packFilled(h).length, 1);
-  assert.equal(buy.textContent, 'Buy 30 rooms');
-  assert.equal(buy.attributes['aria-describedby'], charge.id);
-  assert.equal(charge.id, 'account-packs-charge');
-  assert.doesNotMatch(packText(h), NO_CHARGE_PROMISE);
-  await choosePack(h, 'pack10');
-  assert.equal(packButton(h, 'Buy 100 rooms'), buy, 'the card was not redrawn under the choice');
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$499 for 100 rooms, to use within 12 months.');
-  // A balance and its next expiry, from the answer.
-  const credits = await withPacks(packOffer({ credits_available: 2, next_expiry: '2027-03-02' }));
-  assert.equal(packClass(credits, 'packs-balance').textContent, '2 extra rooms available; the next expiry is 2 March 2027.');
-});
-
-test('Buy loads Square’s SDK once, on demand, opens its labelled card field in the card and moves focus into it', async () => {
-  const h = await withPacks(packOffer());
-  await pressPack(h, 'Buy 30 rooms');
-  assert.equal(h.scripts.length, 1);
-  assert.equal(h.scripts[0].src, SQUARE_SDK);
-  assert.deepEqual(squareLog(h, 'attach'), [['attach', '#account-packs-card-field']]);
-  assert.deepEqual(squareLog(h, 'focus'), [['focus', 'cardNumber']]);
-  const field = packClass(h, 'annual-card-field');
-  assert.equal(field.id, 'account-packs-card-field');
-  assert.equal(field.attributes.role, 'group');
-  assert.equal(packNodes(h).find(el => el.id === field.attributes['aria-labelledby']).textContent, 'Card details');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Pay A$169']);
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Charged today: A$169 for 30 rooms, to use within 12 months.');
-  assert.equal(posts(h, '/square/packs/checkout').length, 0, 'opening the form sends nothing');
-  await pressPack(h, 'Not now');
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  assert.equal(packButton(h, 'Buy 30 rooms').wasFocused, true);
-  assert.match(h.ids['account-status'].textContent, /Card form closed\. Nothing was charged\./);
-  await pressPack(h, 'Buy 30 rooms');
-  assert.equal(h.scripts.length, 1, 'the SDK is loaded once');
-});
-
-test('Pay sends only Square’s token and shows what the server added, the balance and the date to use them by', async () => {
-  const h = await withPacks(packOffer(), { capacity: [0, 30] });
-  await pressPack(h, 'Buy 30 rooms');
-  await pressPack(h, 'Pay A$169');
-  const [checkout] = posts(h, '/square/packs/checkout');
-  assert.equal(checkout.method, 'POST');
-  assert.equal(checkout.auth, 'Bearer token-1');
-  assert.equal(checkout.credentials, 'omit');
-  const { attempt_id: attemptID, ...rest } = checkout.body;
-  assert.deepEqual(rest, { workspace_id: 'w1', pack_code: 'pack3', source_id: 'cnon:card-nonce-ok' });
-  assert.match(attemptID, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, 'one attempt id per purchase intent');
-  assert.equal(packClass(h, 'annual-lead').textContent, '30 rooms added; 30 available; use by ' + useBy() + '.');
-  assert.equal(packClass(h, 'annual-charge').textContent, 'A$169 charged today.');
-  assert.match(packText(h), /They are used after your included rooms, oldest pack first\./);
-  assert.equal(packClass(h, 'annual-title').wasFocused, true);
-  assert.equal(squareLog(h, 'destroy').length, 1);
-  assert.equal(packFilled(h).length, 0, 'done: nothing filled');
-  assert.match(h.ids['account-status'].textContent, /30 rooms added\. A\$169 charged today\./);
-  assert.equal(h.reads(), 1, 'the bought state is the answer itself');
-  // The plan panel above re-reads the ledger, so both state the same balance.
-  assert.equal(h.capacityReads(), 2);
-  assert.ok(planValues(h).includes('2 of 6 used'), planValues(h).join(' | '));
-  assert.ok(planValues(h).includes('30 available'));
-  // Buy another pack goes back to the choice, with the balance the answer stated.
-  await pressPack(h, 'Buy another pack');
-  assert.equal(packClass(h, 'packs-balance').textContent, '30 extra rooms available; the next expiry is ' + useBy() + '.');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Buy 30 rooms']);
-  assert.equal(packFilled(h)[0].wasFocused, true);
-  // The server's own expiry is used when it gives one.
-  const dated = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => boughtAnswer(body, { expires_on: '2027-09-30' }) } });
-  await pressPack(dated, 'Buy 30 rooms');
-  await pressPack(dated, 'Pay A$169');
-  assert.match(packClass(dated, 'annual-lead').textContent, /use by 30 September 2027\.$/);
-});
-
-test('a declined card is a plain sentence under the button, the card field kept, and Try again pays with a fresh token', async () => {
-  let attempt = 0;
-  const h = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => (++attempt === 1 ? [402, { error: 'payment_declined' }] : boughtAnswer(body)) } });
-  await pressPack(h, 'Buy 30 rooms');
-  const charge = packClass(h, 'annual-charge').textContent;
-  await pressPack(h, 'Pay A$169');
-  assert.equal(packProblem(h), 'Your card was declined, so nothing was charged. Check the details or use another card, then try again.');
-  const box = packClass(h, 'annual-problem');
-  assert.equal(box.all().find(el => el.className === 'annual-alert-icon').attributes['aria-hidden'], 'true', 'an icon and words, never colour alone');
-  assert.ok(packClass(h, 'annual-card-field'), 'the card field stays');
-  assert.equal(squareLog(h, 'destroy').length, 0);
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Try again']);
-  assert.equal(packFilled(h)[0].wasFocused, true);
-  assert.equal(packClass(h, 'annual-charge').textContent, charge, 'the price and count are unchanged');
-  assert.match(h.ids['account-status'].textContent, /Your card was declined/);
-  await pressPack(h, 'Try again');
-  assert.equal(squareLog(h, 'tokenize').length, 2, 'a fresh token each time');
-  const tries = posts(h, '/square/packs/checkout');
-  assert.equal(tries.length, 2);
-  assert.ok(tries[0].body.attempt_id, 'the first try names its attempt');
-  assert.equal(tries[1].body.attempt_id, tries[0].body.attempt_id, 'Try again keeps the same attempt, so a charge Square already took is never repeated');
-  assert.match(packClass(h, 'annual-lead').textContent, /^30 rooms added; 30 available/);
-});
-
-test('each refusal made before a payment says nothing was charged; the card field and Try again stay', async () => {
-  const sentences = {
-    not_eligible: [403, 'Packs aren’t available for this workspace right now, so nothing was charged.'],
-    lane_closed: [503, 'Card payment for packs is closed right now, so nothing was charged.'],
-    invalid_request: [400, 'The purchase wasn’t accepted, so nothing was charged. Try again.'],
-  };
-  for (const [code, [status, sentence]] of Object.entries(sentences)) {
-    const h = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [status, { error: code }] } });
-    await pressPack(h, 'Buy 30 rooms');
-    await pressPack(h, 'Pay A$169');
-    assert.equal(packProblem(h), sentence, code);
-    assert.ok(packClass(h, 'annual-card-field'), `${code} keeps the card field`);
-    assert.deepEqual(packFilled(h).map(el => el.textContent), ['Try again'], code);
-    assert.equal(h.reads(), 1, `${code} is certain, so the balance is not re-read`);
-  }
-});
-
-test('an unconfirmed purchase never claims nothing was charged; it re-reads the balance in place and keeps the card field', async () => {
-  for (const route of [() => [502, { error: 'checkout_failed' }], 'reject', () => [200, { receipt: 'unreadable' }], () => [500, { error: 'server_error' }]]) {
-    const h = await withPacks([packOffer(), packOffer({ credits_available: 3, next_expiry: '2027-09-24' })], { hooks: { '/square/packs/checkout': route } });
-    await pressPack(h, 'Buy 30 rooms');
-    const field = packClass(h, 'annual-card-field');
-    await pressPack(h, 'Pay A$169');
-    assert.equal(packProblem(h), 'We couldn’t confirm the purchase. If your card was charged, the rooms are added when the payment clears. Check the count above in a few minutes before you try again.');
-    assert.doesNotMatch(packText(h), /nothing was charged/i);
-    assert.equal(packClass(h, 'annual-card-field'), field, 'Square’s field was not redrawn');
-    assert.equal(h.reads(), 2, 'the balance is read again');
-    assert.equal(packClass(h, 'packs-balance').textContent, '3 extra rooms available; the next expiry is 24 September 2027.');
-    assert.deepEqual(packFilled(h).map(el => el.textContent), ['Try again']);
-  }
-});
-
-test('card details Square cannot use, an expired session and a missing token send nothing to the checkout', async () => {
-  const declined = await withPacks(packOffer(), { squareOptions: { tokenize: () => ({ status: 'Invalid', errors: [{ field: 'cardNumber' }] }) } });
-  await pressPack(declined, 'Buy 30 rooms');
-  await pressPack(declined, 'Pay A$169');
-  assert.equal(packProblem(declined), 'Square couldn’t use those card details. Check them and try again. Nothing was charged.');
-  assert.equal(posts(declined, '/square/packs/checkout').length, 0);
-  assert.ok(packClass(declined, 'annual-card-field'));
-  const expired = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [401, { error: 'unauthorized' }] } });
-  await pressPack(expired, 'Buy 30 rooms');
-  await pressPack(expired, 'Pay A$169');
-  assert.equal(expired.ids['account-home'].hidden, true);
-  assert.match(expired.ids['account-status'].textContent, /sign-in has expired\. Sign in again to buy a pack\. Nothing was charged\./);
-  assert.equal(packsCard(expired).hidden, true);
-  assert.equal(squareLog(expired, 'destroy').length, 1, 'Square’s field is let go');
-  const tokenless = await withPacks(packOffer(), { accessToken: null });
-  await pressPack(tokenless, 'Buy 30 rooms');
-  await pressPack(tokenless, 'Pay A$169');
-  assert.equal(posts(tokenless, '/square/packs/checkout').length, 0, 'no request without a bearer token');
-});
-
-test('card lane closed: the packs as statements, “opens soon” and the studio invoice route, with nothing filled', async () => {
-  const h = await withPacks(packOffer(), { hooks: { '/square/lane': () => [200, { open: false, sandbox: false }] } });
-  assert.match(packText(h), /Card payment for packs opens soon\./);
-  assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['A$169', 'A$499']);
-  assert.deepEqual(packNodes(h).filter(el => el.tagName === 'A').map(link => [link.textContent, link.href]),
-    [['Ask Veylet support to invoice a pack', 'mailto:support@veylet.com?subject=Veylet%20pack']]);
-  assert.equal(packNodes(h).some(el => ['BUTTON', 'INPUT'].includes(el.tagName)), false);
-  assert.equal(packFilled(h).length, 0);
-});
-
-test('an unreadable pack answer or lane is an error with Try again; a missing function or workspace shows no card', async () => {
+test('an unreadable pack answer is an error with Try again; a missing function or workspace shows no card', async () => {
   const h = await withPacks([() => ({ error: { message: 'offline' } }), packOffer()]);
   assert.equal(packClass(h, 'annual-lead').textContent, 'Couldn’t check packs.');
   assert.match(packText(h), /Nothing has changed, and your plan above is not affected\./);
   assert.doesNotMatch(packText(h), /A\$/);
-  assert.equal(packFilled(h).length, 0);
   await pressPack(h, 'Try again');
   assert.equal(h.reads(), 2);
-  assert.ok(packButton(h, 'Buy 30 rooms'), 'the second answer is shown');
+  assert.equal(packClass(h, 'annual-lead').textContent, 'Top-up packs aren’t on sale yet.', 'the second answer is shown');
   assert.equal(packClass(h, 'annual-title').wasFocused, true);
   const broken = [
     packOffer({ packs: [{ code: 'pack3', walkthroughs: 4, price_cents: 16900 }] }),
@@ -2340,10 +2126,6 @@ test('an unreadable pack answer or lane is an error with Try again; a missing fu
     const bad = await withPacks(offer);
     assert.match(packText(bad), /Couldn’t check packs\./, JSON.stringify(offer).slice(0, 90));
   }
-  const noLane = await withPacks(packOffer(), { hooks: { '/square/lane': 'reject' } });
-  assert.match(packText(noLane), /Couldn’t check packs\./);
-  const lockedNoLane = await withPacks(packLocked(['not_owner']), { hooks: { '/square/lane': 'reject' } });
-  assert.match(packText(lockedNoLane), /Only the workspace owner can buy packs\./);
   const missing = await withPacks(() => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }));
   assert.equal(packsCard(missing).hidden, true);
   const none = await load({ tables: { memberships: { data: [] } } });
@@ -2352,90 +2134,12 @@ test('an unreadable pack answer or lane is an error with Try again; a missing fu
   assert.equal(none.calls.some(call => call[0] === 'get_pack_offer'), false);
 });
 
-test('Square Sandbox labels every pack price and payment action Test, before and after paying', async () => {
-  const sandbox = { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }],
-    '/square/packs/checkout': body => boughtAnswer(body, { sandbox: true }) };
-  const h = await withPacks(packOffer(), { hooks: sandbox });
-  assert.deepEqual(packAll(h, 'annual-amount').map(el => el.textContent), ['Test · A$169', 'Test · A$499']);
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Test · Charged today: A$169 for 30 rooms, to use within 12 months.');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Test · Buy 30 rooms']);
-  assert.match(packText(h), /Square Sandbox: a test payment, not a live charge\./);
-  await pressPack(h, 'Test · Buy 30 rooms');
-  assert.deepEqual(packFilled(h).map(el => el.textContent), ['Test · Pay A$169']);
-  await pressPack(h, 'Test · Pay A$169');
-  assert.match(packClass(h, 'annual-lead').textContent, /^Test · 30 rooms added;/);
-  assert.equal(packClass(h, 'annual-charge').textContent, 'Test · A$169 charged today.');
-  assert.match(packText(h), /Square Sandbox: a test payment, not a live charge\./);
-  // The answer's own sandbox flag labels the result even if the lane said nothing.
-  const flagged = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': body => boughtAnswer(body, { sandbox: true }) } });
-  await pressPack(flagged, 'Buy 30 rooms');
-  await pressPack(flagged, 'Pay A$169');
-  assert.match(packClass(flagged, 'annual-lead').textContent, /^Test · /);
-  const live = await withPacks(packOffer());
-  assert.doesNotMatch(packText(live), /Test|Sandbox/);
-});
-
-test('every pack state has at most one filled action, and none promises that nothing is charged', async () => {
-  const states = [
-    [packLocked(['not_activated']), 0],
-    [packLocked(['not_owner']), 0],
-    [packOffer(), 1],
-    [packOffer({ credits_available: 4, next_expiry: '2027-01-10' }), 1],
-    [() => ({ error: { message: 'offline' } }), 0],
-  ];
-  for (const [offer, filled] of states) {
-    const h = await withPacks(offer);
-    assert.equal(packFilled(h).length, filled, packText(h).slice(0, 120));
-    assert.doesNotMatch(packText(h), NO_CHARGE_PROMISE);
-  }
-  const open = await withPacks(packOffer());
-  await pressPack(open, 'Buy 30 rooms');
-  assert.equal(packFilled(open).length, 1, 'the card form has one filled action');
-  assert.doesNotMatch(packText(open), NO_CHARGE_PROMISE);
-  await pressPack(open, 'Pay A$169');
-  assert.equal(packFilled(open).length, 0, 'bought: nothing filled');
-});
-
-test('truth check: the pack’s price and walkthrough count read the same in the choice, on both buttons, beside them and when bought', async () => {
-  for (const pack of PACKS) {
-    const h = await withPacks(packOffer());
-    if (pack.code !== 'pack3') await choosePack(h, pack.code);
-    const option = packRadio(h, pack.code).checked && packAll(h, 'annual-option-body')[PACKS.indexOf(pack)];
-    const optionCount = Number(option.all().find(el => el.className === 'annual-option-name').textContent.match(/^(\d+) rooms$/)[1]);
-    const optionPrice = option.all().find(el => el.className === 'annual-amount').textContent;
-    const buy = packFilled(h)[0].textContent.match(/^Buy (\d+) rooms$/);
-    const before = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) rooms, to use within 12 months\.$/);
-    await pressPack(h, buy[0]);
-    const pay = packFilled(h)[0].textContent.match(/^Pay (A\$[\d,]+)$/);
-    const beside = packClass(h, 'annual-charge').textContent.match(/^Charged today: (A\$[\d,]+) for (\d+) rooms/);
-    await pressPack(h, pay[0]);
-    const lead = packClass(h, 'annual-lead').textContent.match(/^(\d+) rooms added; (\d+) available; use by (.+)\.$/);
-    const charged = packClass(h, 'annual-charge').textContent.match(/^(A\$[\d,]+) charged today\.$/);
-    const price = 'A$' + (pack.price_cents / 100).toLocaleString('en-AU');
-    assert.deepEqual([optionPrice, before[1], pay[1], beside[1], charged[1]], [price, price, price, price, price], pack.code + ' price');
-    assert.deepEqual([optionCount, Number(buy[1]), Number(before[2]), Number(beside[2]), Number(lead[1])],
-      Array(5).fill(pack.rooms), pack.code + ' rooms');
-    assert.equal(posts(h, '/square/packs/checkout')[0].body.pack_code, pack.code);
-    assert.equal(lead[3], useBy());
-    assert.equal(packClass(h, 'annual-notice'), undefined, 'nothing differs, so nothing is flagged');
-  }
-  // When the server's terms differ from what was shown, its terms are stated, and said to differ.
-  const moved = await withPacks(packOffer(), { hooks: { '/square/packs/checkout': () => [200, { credited: 100, credits_available: 100, amount_cents: 49900, sandbox: false }] } });
-  await pressPack(moved, 'Buy 30 rooms');
-  await pressPack(moved, 'Pay A$169');
-  assert.match(packClass(moved, 'annual-lead').textContent, /^100 rooms added; 100 available;/);
-  assert.equal(packClass(moved, 'annual-charge').textContent, 'A$499 charged today.');
-  assert.match(packClass(moved, 'annual-notice').textContent, /they differ from what was shown before you paid/);
-});
-
-test('signing out hides walkthrough packs and lets go of Square’s card field', async () => {
+test('signing out hides walkthrough packs', async () => {
   const h = await withPacks(packOffer());
-  await pressPack(h, 'Buy 30 rooms');
   h.supabase.auth.callback('SIGNED_OUT', null);
   await settle();
   assert.equal(packsCard(h).hidden, true);
   assert.equal(packsCard(h).children.length, 0);
-  assert.equal(squareLog(h, 'destroy').length, 1);
 });
 
 /* ---- Your plan, tightened (design pass, 24 September 2026) ----------------
@@ -2469,20 +2173,16 @@ test('what is left follows the sentence, then how the plan is managed, then its 
   assert.ok(planLinks(used).includes('mailto:support@veylet.com?subject=Veylet%20room%20capacity'));
 });
 
-test('existing checkout recovery: Sandbox reads “Test ·” on the plan and on the packs card, said once under each heading', async () => {
+test('existing checkout recovery: Sandbox reads “Test ·” on the plan, said once under its heading', async () => {
   const plan = await withPlan({ source: 'apple', apple_environment: 'Sandbox', apple_verified: true, status: 'active',
     apple_product_id: 'dev.property3d.capture.solo.monthly', current_period_ends_at: '2026-10-01T00:00:00Z' });
   assert.equal(planTitle(plan), 'Test · Veylet plan · ' + APP_MONTHLY + ' a month');
   assert.equal(plan.ids['account-plan-body'].children[1].textContent, 'Test · App Store Sandbox: a test subscription, not a live payment.');
-  const lane = { '/square/lane': () => [200, { open: true, sandbox: true, card_form: CARD_FORM }] };
-  const packs = await withPacks(packOffer(), { hooks: lane });
-  assert.equal(packsCard(packs).children[1].textContent, 'Test · Square Sandbox: a test payment, not a live charge.');
-  for (const [name, words] of [['plan', planText(plan)], ['packs', packText(packs)]]) {
-    assert.doesNotMatch(words, /Sandbox purchase|Test purchase|Test subscription ·/, `${name} uses one Sandbox wording`);
-    assert.equal(words.split(/Sandbox:/).length - 1, 1, `${name} says Sandbox once`);
-    // Every "Test" label leads its line.
-    for (const line of words.split('\n').filter(entry => /\bTest\b/.test(entry) && !/Test subscription$/.test(entry))) assert.match(line, /^Test · /, `${name}: ${line}`);
-  }
+  const words = planText(plan);
+  assert.doesNotMatch(words, /Sandbox purchase|Test purchase|Test subscription ·/, 'the plan uses one Sandbox wording');
+  assert.equal(words.split(/Sandbox:/).length - 1, 1, 'the plan says Sandbox once');
+  // Every "Test" label leads its line.
+  for (const line of words.split('\n').filter(entry => /\bTest\b/.test(entry) && !/Test subscription$/.test(entry))) assert.match(line, /^Test · /, `plan: ${line}`);
 });
 
 /* ---- Corrections on one walkthrough (20260924140000) -------------------
