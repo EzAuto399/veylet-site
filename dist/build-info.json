@@ -1,14 +1,14 @@
 {
   "name": "veylet-site",
   "version": "0.0.0",
-  "commit": "38be91e75ac4a444d154ef4cdc4d076229522c14",
-  "shortCommit": "38be91e",
+  "commit": "bfc163420f296839a9982ec875c05da3dbb42dc8",
+  "shortCommit": "bfc1634",
   "dirty": false,
-  "builtAt": "2026-11-19T08:42:23.359Z",
+  "builtAt": "2026-11-19T10:16:51.856Z",
   "environment": "local",
-  "publicContentSha256": "86ba796cb7fc192d24f91008f2765d308e7073da94de5433256b138aca366080",
+  "publicContentSha256": "6abdac31e54f3c7614cfd7b815bf421f2978b4aa82b03b3c5d9e75842fdb5695",
   "publicFileCount": 363,
-  "publicBytes": 56959603,
+  "publicBytes": 56960334,
   "assetVersions": {
     "account-guide.css": "1edd2d85e3cf89aa",
     "account-journey.css": "02cfbb13f5adecda",
@@ -22,7 +22,7 @@
     "client-page.css": "0101ad69975e4bab",
     "client-page.js": "3933183e5b60a85e",
     "conversion.css": "1bdff6243b277902",
-    "embed.js": "b4717b6f73ad3732",
+    "embed.js": "c55c9db2729f4d8c",
     "enquiry.js": "c95a4aeebe5b721a",
     "first-touch.js": "2a2b56b660ab0f8f",
     "guides.css": "ed8c2dd3f47609ce",
@@ -48,7 +48,7 @@
     "tour-player-v2.css": "6ce5d88ffa43ae4c",
     "tour-player-v2.js": "677c0e7133c120b6",
     "tour-player.js": "9cc17d6bca409ac7",
-    "tour-sharing.js": "25575e879fbea9c4",
+    "tour-sharing.js": "8c70915175a7c08c",
     "tour-stage.css": "423e591f9831ff64",
     "unsubscribe.js": "e058c0b388ee5086",
     "vendor/ScrollTrigger-3.15.0.min.js": "b0b14d67b55b0c43",
@@ -59,6 +59,6 @@
     "vendor/supabase-js-2.116.0.min.js": "84ee9bf45695c1dd",
     "viewer-engagement.js": "5b71cc315b651927",
     "waitlist/waitlist.js": "324eaa8062626e5f",
-    "website-guide.js": "75fee84af7c35e72"
+    "website-guide.js": "55d8c4f5f73e63a9"
   }
 }

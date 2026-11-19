@@ -5,9 +5,8 @@ window.VeyletSharing = (() => {
   function tokenFromLink(value) {
     let url;
     try { url = new URL(String(value).trim()); } catch { return null; }
-    if (url.origin !== origin || !/^\/(handoff|embed)\/?$/.test(url.pathname)) return null;
-    const token = url.searchParams.get('t');
-    return token && /^[A-Za-z0-9_-]{16,256}$/.test(token) ? token : null;
+    if (url.origin !== origin || !/^\/(handoff|embed|tour)\/?$/.test(url.pathname) || url.searchParams.getAll('preview').includes('owner')) return null;
+    return cleanToken(url.searchParams.get('t'));
   }
   function handoffUrl(token) { return origin + '/handoff?t=' + encodeURIComponent(token); }
   function embedUrl(token, opts) {
@@ -22,12 +21,19 @@ window.VeyletSharing = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
-  const TOKEN_RE = /^[A-Za-z0-9_-]{16,256}$/;
+  function cleanToken(value) {
+    if (typeof value !== 'string') return null;
+    let token = value.trim().replace(/[.,;:!?)\]}>'"_-]+$/, '');
+    if (/^[0-9a-f]+$/i.test(token)) token = token.toLowerCase();
+    const hex = /^[0-9a-f]+$/.test(token);
+    return (hex ? token.length === 32 : token.length >= 16 && token.length <= 256 && /^[A-Za-z0-9_-]+$/.test(token)) ? token : null;
+  }
   function validToken(token) {
-    return typeof token === 'string' && TOKEN_RE.test(token);
+    return cleanToken(token) !== null;
   }
   function embedCode(token, opts) {
     if (!validToken(token)) return '';
+    token = cleanToken(token);
     return '<iframe src="' + embedUrl(token, opts) +
       '" title="Explore this property in 3D" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen; xr-spatial-tracking" loading="lazy" referrerpolicy="strict-origin"></iframe>' +
       '\n<p><a href="' + handoffUrl(token) + '" target="_blank" rel="noopener noreferrer">Open the property walkthrough in a new tab</a></p>';
@@ -44,6 +50,8 @@ window.VeyletSharing = (() => {
     return host.querySelector('iframe');
   }
   function modalButtonCode(token, label = 'Explore in 3D', opts) {
+    token = cleanToken(token);
+    if (!token) return '';
     const text = typeof label === 'string' && label.trim() ? label.trim() : 'Explore in 3D';
     const themeAttr = opts && opts.theme === 'paper' ? ' data-veylet-theme="paper"' : '';
     return '<a href="' + handoffUrl(token) + '" data-veylet-modal' + themeAttr + '>' + escapeHtml(text) + '</a>\n' +

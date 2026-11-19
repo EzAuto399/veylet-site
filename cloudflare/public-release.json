@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "38be91e75ac4a444d154ef4cdc4d076229522c14",
+  "sourceCommit": "bfc163420f296839a9982ec875c05da3dbb42dc8",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -288,7 +288,7 @@
     {
       "path": "account/index.html",
       "bytes": 24061,
-      "sha256": "2206d7782a2e2a40a0e5db60d940c44447ff71a1b4bcd7ee234ec869141ed5cc",
+      "sha256": "53e79cf0323586538bd63e1af0bf4ea49873675840a4f5de84680fd6ce3c24cf",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "b855fd0fb885d5d3b1bfb0904e15fb9cafe7cecf348febdf590c8a9fd1e6cfae",
+      "sha256": "495c8172614287e6655b44e0f445b9c3d348a30751d7eb15e65cfe30996b7690",
       "headerProfile": 5
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2549,
-      "sha256": "349d8583ef2921c50b1520151cae8e99642f67fa72a8beca88f6bc9f0cce112c",
+      "sha256": "d6bf1be3f1e0dfa20fa27a4e10c8cf7bf2e7e7152a0dfd1ee228d51ffc5eaf50",
       "headerProfile": 6
     },
     {
@@ -581,14 +581,14 @@
     },
     {
       "path": "embed.js",
-      "bytes": 3455,
-      "sha256": "b4717b6f73ad37320efb7ac15dcd4b5b46a586e2461f2e4783a0c9ea4789996e",
+      "bytes": 3533,
+      "sha256": "c55c9db2729f4d8c7cbde7288ca860b154593d571f0ab17d1eef809ef50ad5b3",
       "headerProfile": 4
     },
     {
       "path": "embed/index.html",
-      "bytes": 22003,
-      "sha256": "b0ecd2376b32a3e6b7145baf1b09d1d5978137302ce0232161d83df5f4c0ed03",
+      "bytes": 22063,
+      "sha256": "4100507fa4ee5211f2b53dd74b0d2315c4d4d40696899068d802ef0ebffc0fc8",
       "headerProfile": 7
     },
     {
@@ -2303,8 +2303,8 @@
     },
     {
       "path": "tour-sharing.js",
-      "bytes": 16294,
-      "sha256": "25575e879fbea9c41f1a76f4abb9c180643ca1da364287cd586a75b9a37c694f",
+      "bytes": 16695,
+      "sha256": "8c70915175a7c08c8311962e5588f343fb121538c1a401c5ac9308fc52b74e7a",
       "headerProfile": 4
     },
     {
@@ -2315,8 +2315,8 @@
     },
     {
       "path": "tour/index.html",
-      "bytes": 14639,
-      "sha256": "33315d75268d93fa9fecfdc9e51c2c50d32180c2c0ffaa24b0024ef127fe726c",
+      "bytes": 14699,
+      "sha256": "19e2c7684b5ddc9aa64dd00afb04a66f69bd005f9b6744095a25f7250fa98c45",
       "headerProfile": 19
     },
     {
@@ -2417,14 +2417,14 @@
     },
     {
       "path": "website-guide.js",
-      "bytes": 3794,
-      "sha256": "75fee84af7c35e7209444df5ebe2575a93649bd86e1468c6e7aec971965354cd",
+      "bytes": 3926,
+      "sha256": "55d8c4f5f73e63a99ff69fcc8bff0a0a426e1c73dd6cf73588064c1d24fb15ac",
       "headerProfile": 4
     },
     {
       "path": "website-guide/index.html",
       "bytes": 14410,
-      "sha256": "243bfd1092b6a89c20c97bf5e4f28db933fe04338c628b14fe528970a7fe37e2",
+      "sha256": "c997fd0a8c0d9c62c21c127799b2ec8dda3add22aa36f59c756d66e3d7ad115e",
       "headerProfile": 1
     }
   ],

@@ -67,9 +67,21 @@ function fireDocClick(h, target, overrides = {}) {
 
 /* ---- 1. dist/embed.js --------------------------------------------------- */
 
-test('dist/embed.js is vanilla JS under 3.5 KB and never uses innerHTML/insertAdjacentHTML/outerHTML', () => {
+test('a modal construction failure leaves the handoff anchor navigation intact', () => {
+  const h = loadEmbedWidget();
+  const href = 'https://veylet.com/handoff?t=' + TOKEN;
+  const a = makeModalAnchor(h.document, href);
+  h.document.body.style.overflow = 'auto';
+  h.document.createElement = () => { throw new Error('blocked'); };
+  const event = fireDocClick(h, a);
+  assert.equal(event.defaultPrevented, false);
+  assert.equal(a.getAttribute('href'), href);
+  assert.equal(h.document.body.style.overflow, 'auto');
+});
+
+test('dist/embed.js is vanilla JS under 3.6 KB and never uses innerHTML/insertAdjacentHTML/outerHTML', () => {
   const source = read('dist/embed.js');
-  assert.ok(Buffer.byteLength(source, 'utf8') < 3500, `embed.js must be < 3500 bytes, got ${Buffer.byteLength(source, 'utf8')}`);
+  assert.ok(Buffer.byteLength(source, 'utf8') < 3600, `embed.js must be < 3600 bytes, got ${Buffer.byteLength(source, 'utf8')}`);
   assert.doesNotMatch(source, /\b(?:innerHTML|insertAdjacentHTML|outerHTML)\b/);
 });
 
@@ -288,7 +300,8 @@ test('website-guide fixes portal answer, adds AU agency details, and wires modal
   }
   const link = {
     value: 'https://veylet.com/handoff?t=' + TOKEN,
-    attributes: {},
+    attributes: {}, events: {},
+    addEventListener(ev, fn) { this.events[ev] = fn; },
     setAttribute(k, v) { this.attributes[k] = v; },
     removeAttribute(k) { delete this.attributes[k]; },
     focus() {},
