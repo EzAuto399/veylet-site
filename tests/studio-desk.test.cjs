@@ -365,6 +365,7 @@ async function load(options = {}) {
     invoiceFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-invoice-form')),
     grantFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-grant-form')),
     referralFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-referral-form')),
+    admitFormFor: index => body()[index * 2 + 1].all().find(el => el.className.includes('studio-admit-form')),
     text: () => Object.values(ids).flatMap(el => [el, ...el.all()]).map(el => el.textContent).filter(Boolean).join(' | '),
     settle: () => new Promise(resolve => setImmediate(resolve)),
   };
@@ -1434,7 +1435,8 @@ test('each Set plan form has one filled button, labelled native fields and a liv
   const h = await load({ accounts: foundingRow() });
   const forms = h.ids['studio-rows'].children[1].all().filter(el => el.tagName === 'FORM');
   assert.deepEqual(forms.map(form => form.className), ['veylet-form studio-plan-form', 'veylet-form studio-plan-form studio-invoice-form',
-    'veylet-form studio-plan-form studio-grant-form', 'veylet-form studio-plan-form studio-referral-form']);
+    'veylet-form studio-plan-form studio-grant-form', 'veylet-form studio-plan-form studio-referral-form',
+    'veylet-form studio-plan-form studio-admit-form']);
   for (const form of forms) {
     assert.equal(form.all().filter(el => el.tagName === 'BUTTON' && el.className === 'button').length, 1, form.className);
     for (const field of form.all().filter(el => ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName) && !['radio', 'checkbox'].includes(el.type))) {
@@ -2434,4 +2436,76 @@ test('offer v9: the Super fast band names each job’s account once the accounts
 test('a qualifier under a phone row wraps, so a long one never widens a 320px page (launch audit, 11 Nov 2026)', () => {
   const phone = styles.slice(styles.indexOf('@media (max-width: 720px)'));
   assert.match(phone, /\.studio-table tbody td \.studio-sub \{\s*grid-column: 2;\s*white-space: normal;\s*\}/);
+});
+
+// studio_admit_for_purchase answers one jsonb object: the admission plus what it did to the starter count.
+const pendingRow = (extra = {}) => oneAccount({ status: 'pending', trial_started_at: null, trial_ends_at: null, ...extra });
+const admitAnswer = (extra = {}) => ({ data: { state: 'admitted', granted: true, ceiling_raised: true, ...extra } });
+
+test('a pending account can be admitted to start its free month, with a reason and one confirmation', async () => {
+  const h = await load({ accounts: pendingRow(), rpc: { studio_admit_for_purchase: async () => admitAnswer() } });
+  const form = h.admitFormFor(0);
+  assert.equal(form.hidden, false);
+  const fields = fieldsOf(form);
+  fields.admit_reason.value = '  Asked on the phone, Brisbane agent.  ';
+  await form.fire('submit');
+  assert.equal(h.confirms.length, 1);
+  assert.ok(h.confirms[0].includes('Harbour Realty'));
+  const calls = h.calls.filter(([name]) => name === 'studio_admit_for_purchase');
+  assert.equal(calls.length, 1);
+  assert.deepEqual({ ...calls[0][1] }, { p_workspace_id: 'ws-harbour', p_reason: 'Asked on the phone, Brisbane agent.' });
+  assert.equal(resultOf(form), 'Admitted: Harbour Realty can now start its free month. One funded starter was added.');
+  assert.equal(fields.admit_reason.value, '');
+});
+
+test('admitting an account that already holds a starter says no starter was added', async () => {
+  const h = await load({ accounts: pendingRow(), rpc: { studio_admit_for_purchase: async () => admitAnswer({ ceiling_raised: false }) } });
+  const form = h.admitFormFor(0);
+  fieldsOf(form).admit_reason.value = 'Second request.';
+  await form.fire('submit');
+  assert.equal(resultOf(form), 'Admitted: Harbour Realty can now start its free month. No funded starter was added; it already held one.');
+});
+
+test('the admit form is offered only while the plan has not started', async () => {
+  for (const row of [oneAccount(activePlan), oneAccount(runningFreeMonths)]) {
+    const h = await load({ accounts: row, rpc: { studio_admit_for_purchase: async () => admitAnswer() } });
+    const form = h.admitFormFor(0);
+    assert.equal(form.hidden, true);
+    assert.equal(submitOf(form).disabled, true);
+    await form.fire('submit');
+    assert.equal(h.calls.filter(([name]) => name === 'studio_admit_for_purchase').length, 0);
+  }
+});
+
+test('admitting asks nothing of the server without a usable reason or a yes', async () => {
+  const short = await load({ accounts: pendingRow(), rpc: { studio_admit_for_purchase: async () => admitAnswer() } });
+  fieldsOf(short.admitFormFor(0)).admit_reason.value = ' a ';
+  await short.admitFormFor(0).fire('submit');
+  assert.equal(resultOf(short.admitFormFor(0)), 'Give a reason of 3 to 280 characters.');
+  assert.equal(short.confirms.length, 0);
+  for (const options of [{ confirm: false }, { noConfirm: true }]) {
+    const h = await load({ accounts: pendingRow(), rpc: { studio_admit_for_purchase: async () => admitAnswer() }, ...options });
+    fieldsOf(h.admitFormFor(0)).admit_reason.value = 'Asked by email.';
+    await h.admitFormFor(0).fire('submit');
+    assert.equal(resultOf(h.admitFormFor(0)), 'Left unchanged.');
+    assert.equal(h.calls.filter(([name]) => name === 'studio_admit_for_purchase').length, 0);
+  }
+});
+
+test('a refused or unconfirmed admission keeps the reason and never shows the server text', async () => {
+  const answers = [
+    async () => ({ data: null, error: { code: 'P0001', message: 'workspace could not be admitted (capacity)' } }),
+    async () => { throw new Error('network down'); },
+    async () => ({ data: { state: 'waitlisted' } }),
+  ];
+  for (const answer of answers) {
+    const h = await load({ accounts: pendingRow(), rpc: { studio_admit_for_purchase: answer } });
+    const form = h.admitFormFor(0);
+    fieldsOf(form).admit_reason.value = 'Asked by email.';
+    await form.fire('submit');
+    assert.equal(resultOf(form), 'Not admitted, or the result could not be confirmed. Refresh the accounts and check this one before trying again.');
+    assert.ok(!h.text().includes('capacity') && !h.text().includes('network down'));
+    assert.equal(fieldsOf(form).admit_reason.value, 'Asked by email.');
+    assert.equal(submitOf(form).disabled, false);
+  }
 });

@@ -897,7 +897,60 @@
             : 'Not granted' + (typeof answer.reason === 'string' && answer.reason ? ': ' + answer.reason.replace(/_/g, ' ') + '.' : '.');
     });
 
-    details.append(summary, form, invoice, grant, referral);
+    /*
+     * Admit to start the free month (studio_admit_for_purchase, release 7). A pending account cannot
+     * start its free month in the App Store until it is admitted; this is the only place that does it.
+     * The server adds one funded starter unless the workspace already holds one, admits it, and keeps an
+     * audit row with the reason. It appears only on a pending row. What was typed stays after a failure.
+     */
+    const admit = element('form', 'veylet-form studio-plan-form studio-admit-form');
+    const admitHeading = element('h3', undefined, 'Admit to start the free month');
+    const admitTerms = element('p', 'studio-warning', 'Lets this account start its free month in the App Store and render. ' +
+      'It adds one funded starter unless the account already holds one, and the server keeps an audit row with your reason. ' +
+      'No payment is taken. The account is emailed only if the admitted notice is switched on.');
+    const admitTermsRow = element('div', 'studio-form-row');
+    admitTermsRow.append(admitTerms);
+    const admitReasonLabel = element('label', 'studio-inline-field', 'Reason (3 to 280 characters)');
+    const admitReason = document.createElement('input');
+    admitReason.name = 'admit_reason'; admitReason.type = 'text'; admitReason.required = true;
+    admitReason.minLength = 3; admitReason.maxLength = 280; admitReason.autocomplete = 'off';
+    admitReasonLabel.append(admitReason);
+    const admitSave = element('button', 'button', 'Admit this account'); admitSave.type = 'submit';
+    const admitResult = element('span', 'studio-result'); admitResult.setAttribute('role', 'status');
+    const admitSaveRow = element('p', 'studio-save-row'); admitSaveRow.append(admitSave, admitResult);
+    admit.append(admitHeading, admitTermsRow, admitReasonLabel, admitSaveRow);
+    let admitBusy = false;
+    function paintAdmit() {
+      admit.hidden = shown.status !== 'pending';
+      for (const input of [admitReason, admitSave]) input.disabled = admit.hidden || admitBusy;
+    }
+    admit.addEventListener('submit', async event => {
+      event.preventDefault(); if (admitSave.disabled) return;
+      const current = accounts.find(entry => entry.workspace_id === workspaceID) || shown;
+      if (current.status !== 'pending') { admitResult.textContent = 'Only an account whose plan has not started can be admitted here.'; return; }
+      const reason = String(admitReason.value || '').trim();
+      if (reason.length < 3 || reason.length > 280) { admitResult.textContent = 'Give a reason of 3 to 280 characters.'; return; }
+      const named = current.workspace_name || 'this account';
+      if (typeof confirm !== 'function' || !confirm('Admit ' + named + ' to start its free month? This can add one funded starter.')) {
+        admitResult.textContent = 'Left unchanged.'; return;
+      }
+      const version = listVersion;
+      admitBusy = true; paintAdmit();
+      admitResult.textContent = 'Admitting…';
+      const reply = await settled(client.rpc('studio_admit_for_purchase', { p_workspace_id: workspaceID, p_reason: reason }));
+      if (version !== listVersion) return;
+      admitBusy = false; paintAdmit();
+      const answer = failed(reply) ? null : firstRow(reply.value?.data);
+      if (!answer || typeof answer !== 'object' || answer.state !== 'admitted') {
+        admitResult.textContent = 'Not admitted, or the result could not be confirmed. Refresh the accounts and check this one before trying again.';
+        return;
+      }
+      admitReason.value = '';
+      admitResult.textContent = 'Admitted: ' + named + ' can now start its free month. ' +
+        (answer.ceiling_raised === true ? 'One funded starter was added.' : 'No funded starter was added; it already held one.');
+    });
+
+    details.append(summary, form, invoice, grant, referral, admit);
     planCell.append(details);
 
     function paint(next) {
@@ -965,6 +1018,7 @@
       paintInvoice();
       paintGrant();
       paintReferral();
+      paintAdmit();
     }
 
     form.addEventListener('submit', async event => {
