@@ -288,7 +288,7 @@
     {
       "path": "account/index.html",
       "bytes": 24061,
-      "sha256": "50bba3780e9a95e3042a405c7b48a6858db963992157605ac21770350c506840",
+      "sha256": "53e79cf0323586538bd63e1af0bf4ea49873675840a4f5de84680fd6ce3c24cf",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "bb62c69eb54e20d1b62cef967d7c718c2d94388f4911a791663efac1dbd64abb",
+      "sha256": "495c8172614287e6655b44e0f445b9c3d348a30751d7eb15e65cfe30996b7690",
       "headerProfile": 5
     },
     {
@@ -1397,14 +1397,14 @@
     },
     {
       "path": "place-fields.js",
-      "bytes": 17225,
-      "sha256": "b597ac72159bd08e2eb96c8a6a52916dbb7502076c68b715eeccbd5d1bc16b1f",
+      "bytes": 17541,
+      "sha256": "c87496395841d9cd90331e28fbe3a9f6e70b576e8c8a317c1034c531f8b7b31b",
       "headerProfile": 4
     },
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "2505e9cdd6be55f2c965b8665a495a0829799890369711585ee54f12b84f20c7",
+      "sha256": "809ab596d2142cb76ae52ab7285079264dde0a3eb40736826a1c8bb5d1d714ae",
       "headerProfile": 1
     },
     {
@@ -1422,7 +1422,7 @@
     {
       "path": "report/index.html",
       "bytes": 6180,
-      "sha256": "5d7617184018cd3a1fcf9880d2349d2b0fd9e4f0172f2438566730583e96ed19",
+      "sha256": "ead1f5a046fe67d107ac55acfe69debed15e3b71c82e5f7a7c65d6ab3757f48b",
       "headerProfile": 1
     },
     {
@@ -1434,7 +1434,7 @@
     {
       "path": "request/index.html",
       "bytes": 14301,
-      "sha256": "87909aee793fceabd7e1e3bc6da644d59ef32346b1cf9d8dd39dbc662979c8e5",
+      "sha256": "f2e7ea3282fc4df2f02d316d1279ff96bb5ff4dd66511540ed642a6367a9b12a",
       "headerProfile": 1
     },
     {
@@ -2406,7 +2406,7 @@
     {
       "path": "waitlist/index.html",
       "bytes": 12749,
-      "sha256": "a4ea954995f2ec29ccbcf2edec0245ddff3b8112199467a3710987176152911b",
+      "sha256": "10419cab3ccc58b0c8746f0800622e1de046fbf164968c050fbcd3cdf2b47c6d",
       "headerProfile": 1
     },
     {
