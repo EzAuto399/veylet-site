@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Super fast gate wording — 19 November 2026
+
+User authority: "just mention fasteset GPU avaliable instead of Australia" (19 Nov). Source `8582aec` (`main`), frozen in the following commit: the Super fast availability gate in `/terms` and the live fields of `offer/offer.json` now say "GPU-start probe on the fastest GPU available" instead of "Sydney GPU-start probe"; offer `history[]` records are unchanged.
+
+1. **Build:** 1130 of 1130 site tests; `check-app-pages.mjs` clean; `npm run build` and `npm run verify` pass (365 source, 364 output files); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions).
+2. **Hosted release:** preview `ffe3c41a-1e97-4146-8265-2fd45c6dcdc6`; production `5cc9e1a7-6c91-4f19-9961-62bbafce4214`.
+3. **Readback on veylet.com:** `/terms`, `offer/offer.json`, `account.js` and `build-info.json` match the built output byte for byte; no "Sydney GPU" left on `/terms`; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** owner legal review of the new terms wording; hosted sign-in/payment/capture journeys.
+5. **Recovery:** previous production version `3d33582b-9cd9-4ad8-8b40-f1ed589ea302`: `wrangler rollback 3d33582b-9cd9-4ad8-8b40-f1ed589ea302 --config wrangler.production.jsonc`.
+
 ## Merged release lines — 19 November 2026
 
 User authority: "we need to merge all banches and what not to main and deploy the latest improvemnts" (19 Nov). Source `be09999` (`site/main-release-20261119`, `main` `4f2cf26` plus the unmerged lines `codex/rc60-rooms-integration-20261114`, `codex/veylet-home-release-20261112`, `ui/craft-20261110` and the draft `site/privacy-20261112`), reconciled in `be09999` and frozen in `52be5b0`: server-declared allowance units end-to-end (unmarked captures say "of your allowance" and never borrow another workspace's room denominator; the studio desk reads yearly-pool counts from the account row instead of a hardcoded 360), the "Banked rooms after stopping" terms paragraph restored to public terms, and the duplicated sign-in notes block removed. ui/craft's station-tether spec was dropped: the shipped player is point-to-point only.
