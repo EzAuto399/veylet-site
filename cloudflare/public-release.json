@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "eaba8cf11cdc7981827bf442beddd4704fd6a00f",
+  "sourceCommit": "bfc163420f296839a9982ec875c05da3dbb42dc8",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2549,
-      "sha256": "f636f2136a0f8c7e29652d4b7ba1618df4929982ef855f191bc38668c00932c7",
+      "sha256": "d6bf1be3f1e0dfa20fa27a4e10c8cf7bf2e7e7152a0dfd1ee228d51ffc5eaf50",
       "headerProfile": 6
     },
     {
