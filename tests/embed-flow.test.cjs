@@ -17,6 +17,7 @@ function load(options = {}) {
   }
   let finish, reject, bootCalls = 0, bootOptions = null;
   const player = withClientHelpers({
+    TourFailure: Error,
     boot: (options) => { bootCalls++; bootOptions = options; return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
     showFailure: (els, options) => { els.frame.hidden = true; if (els.title && options.heading) els.title.textContent = options.heading; els.body.textContent = options.body; if (els.actions) els.actions.hidden = !options.retry; if (els.retry) els.retry.hidden = !options.retry; },
   });
@@ -122,6 +123,33 @@ test('the share row decides the package version; a v1 row stays on the ZIP path'
   assert.deepEqual([v2.packageFormatVersion, v2.packageBaseUrl, v2.storagePath], [2, 'https://tours.veylet.com/t/abc/', 'p/manifest.json']);
   const v1 = await h.bootOptions.resolve(rpc({ storage_path: 'p/package.zip', space_title: 'Space' }));
   assert.deepEqual([v1.packageFormatVersion, v1.packageBaseUrl, v1.storagePath], [1, null, 'p/package.zip']);
+});
+
+test('embed and portal resolve V2 package URLs without a legacy ZIP path', async () => {
+  const embed = load(); embed.start();
+  const portal = tourPage('?t=' + HEX);
+  for (const h of [embed, portal]) {
+    const resolve = row => h.bootOptions.resolve({ rpc: async () => ({ data: row ? [row] : [] }) });
+    const base = 'https://tours.veylet.com/t/streamed/';
+    const v2 = await resolve({ package_format_version: 2, package_base_url: base });
+    assert.equal(v2.packageFormatVersion, 2);
+    assert.equal(v2.packageBaseUrl, base);
+    assert.equal(v2.storagePath, undefined);
+    const v1 = await resolve({ storage_path: 'tour.zip' });
+    assert.equal(v1.packageFormatVersion, 1);
+    assert.equal(v1.storagePath, 'tour.zip');
+    for (const row of [null, {}, { package_base_url: base }, { package_format_version: 2, storage_path: 'old.zip' }]) {
+      await assert.rejects(resolve(row), /share-not-found/);
+    }
+    await assert.rejects(h.bootOptions.resolve({ rpc: async () => ({ error: { message: 'offline' } }) }), /share-unavailable/);
+  }
+});
+
+test('a V2-only share offers Explore before resolving playback', async () => {
+  const h = load({ share: Promise.resolve({ data: [{ package_format_version: 2, package_base_url: 'https://tours.veylet.com/t/streamed/' }] }) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(h.ids['embed-start'].hidden, false);
+  assert.equal(h.ids['embed-open'].hidden, false);
 });
 
 test('the share is looked up before Explore: a dead or unknown link reads as the handoff page, with nothing to press', async () => {

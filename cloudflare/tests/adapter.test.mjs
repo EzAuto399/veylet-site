@@ -160,6 +160,9 @@ test('production framing, app association, studio privacy and v-query caches ret
     assert.equal(response.headers.get('X-Frame-Options'), null);
     assert.equal(response.headers.get('Content-Security-Policy'), 'frame-ancestors *');
   }
+  for (const path of ['/handoff', '/play', '/account']) {
+    assert.equal((await call(path)).headers.get('X-Frame-Options'), 'DENY');
+  }
   const studio = await call('/studio');
   assert.equal(studio.headers.get('Cache-Control'), 'private, no-store');
   assert.equal(studio.headers.get('X-Robots-Tag'), 'noindex, nofollow');

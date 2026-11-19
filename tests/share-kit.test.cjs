@@ -46,6 +46,18 @@ test('the embed snippet is a titled, responsive iframe that allows fullscreen an
   assert.equal(attrs.loading, 'lazy');
 });
 
+test('the desk snippet tags both the absolute iframe and direct fallback as embed', () => {
+  const account = read('dist/account.js');
+  const tagged = account.match(/function tagged\(url, src\) \{[^\n]+\}/)[0];
+  const codeTagged = account.match(/function embedCodeTagged\(share, token\) \{[\s\S]*?\n  \}/)[0];
+  const context = { share: sharing() };
+  vm.runInNewContext(tagged + '\n' + codeTagged + '\ncode = embedCodeTagged(share, "abcdefghijklmnop");', context);
+  assert.match(context.code, /src="https:\/\/veylet.com\/embed\?t=abcdefghijklmnop&src=embed"/);
+  assert.match(context.code, /href="https:\/\/veylet.com\/handoff\?t=abcdefghijklmnop&src=embed"/);
+  assert.match(context.code, /allow="fullscreen; xr-spatial-tracking"/);
+  assert.match(context.code, /target="_blank" rel="noopener noreferrer"/);
+});
+
 /* ---- Released walkthroughs only --------------------------------------------------- */
 
 test('the frameable pages open released walkthroughs only, never an owner preview', () => {
