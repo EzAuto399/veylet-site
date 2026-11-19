@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "c1e8378ae8c1f78afedc3452596d258e5d0f70a7",
+  "sourceCommit": "4b3dfe8b4076fcba89301560e19336e223e9c60c",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -515,8 +515,8 @@
     },
     {
       "path": "app/privacy/index.html",
-      "bytes": 15371,
-      "sha256": "9ccd0f44f67219732389080bd1fa7ccff1611bf43efd536b75938262f553fe9c",
+      "bytes": 15535,
+      "sha256": "99e183e6591517f6ecedd10524260916c4a090551e65c6105b77ac84d741dd59",
       "headerProfile": 5
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2549,
-      "sha256": "dd8408e6952c64b2a4e6123e6b493c8976278a749d1778d1bc6114fffd34aaa7",
+      "sha256": "1049b8b569d65614838ec779bcf8e18f929e4720cd1a7cbdd0f67035b086985f",
       "headerProfile": 6
     },
     {
@@ -641,8 +641,8 @@
     },
     {
       "path": "guides/privacy-3d-home-tour/index.html",
-      "bytes": 21672,
-      "sha256": "c161cbb4006f737a7da0f651e7f91c6fc560e9b76e183ffa84e5dc9388edcedb",
+      "bytes": 21735,
+      "sha256": "0538e943517ffa7fff02e63c0158b80e06e53e2f56c46c67a2472dd7fda3b86d",
       "headerProfile": 1
     },
     {
@@ -887,8 +887,8 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 132995,
-      "sha256": "3ae3661af2793221340eb7e0925e906ef6c9fe1a44fdf2388c5e02f6fbdfef71",
+      "bytes": 133058,
+      "sha256": "5e9135d31c7e9234efc5f6f0f8aa503a2b4dea2f25e79be8854e373195bc6e57",
       "headerProfile": 2
     },
     {
@@ -1409,8 +1409,8 @@
     },
     {
       "path": "privacy/index.html",
-      "bytes": 19326,
-      "sha256": "e98fe6d92855a78465a7397bd6d0aea9152cdb25d651a2de231b8ca9e15f58da",
+      "bytes": 19490,
+      "sha256": "0c53e26d660efbe17293437de3c4e7ab24e8fc801affd590faaef21edc420f2c",
       "headerProfile": 1
     },
     {
