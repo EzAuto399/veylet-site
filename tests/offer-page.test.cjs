@@ -1217,14 +1217,9 @@ test('owner decisions of 26 September 2026 on /offer: send from the app, one mai
 
 test('capacity stays unavailable in the record and, until it is repriced, appears on no public page', () => {
   assert.equal(record.recurringCapacity.available, false);
-  assert.deepEqual(record.recurringCapacity.monthly.map(p => [p.totalAud, p.includedPerMonth, p.maxBanked, p.available]),
-    [[219.99, 4, 8, false], [319.99, 6, 12, false]]);
+  // Owner decision, 19 November 2026: the planned capacity products are removed until repriced.
+  assert.deepEqual(record.recurringCapacity.monthly, []);
   assert.deepEqual([record.recurringCapacity.annual.available, record.recurringCapacity.annual.totalAud], [false, null]);
-  assert.ok(record.recurringCapacity.monthly.every(p => !Object.values(record.appStore.productIds).includes(p.appProductId)), 'legacy product IDs are never repurposed');
-  // Owner decision, 29 September 2026 (offer 2026-09-29.2): at 3 a month for A$139.99 the planned totals cost
-  // more per walkthrough than the plan, so the section and every public mention leave until the owner reprices them.
-  assert.ok(record.recurringCapacity.monthly.every(p => p.totalAud / p.includedPerMonth > plan.appAud / plan.includedPerMonth),
-    'the planned totals cost more per walkthrough than the plan; if a repricing changes that, this test and the page are revisited');
   assert.doesNotMatch(body, /data-recurring-capacity|id="capacity-title"|data-price="capacity\d|More monthly capacity|Monthly with \d+ more walkthroughs/);
   assert.doesNotMatch(body, /href="#capacity-title"/, 'no contents link to a removed section');
   for (const file of walk(/\.(?:html|txt)$/)) {

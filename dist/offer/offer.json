@@ -415,24 +415,7 @@
     "available": false,
     "reason": "Billing-cycle reconciliation, fair switching rules and App Store lifecycle verification are not released.",
     "billingRule": "One combined subscription replaces the current capacity choice; these totals are not separate charges.",
-    "monthly": [
-      {
-        "code": "capacity4",
-        "appProductId": "dev.property3d.capture.capacity4.monthly",
-        "totalAud": 219.99,
-        "includedPerMonth": 4,
-        "maxBanked": 8,
-        "available": false
-      },
-      {
-        "code": "capacity6",
-        "appProductId": "dev.property3d.capture.capacity6.monthly",
-        "totalAud": 319.99,
-        "includedPerMonth": 6,
-        "maxBanked": 12,
-        "available": false
-      }
-    ],
+    "monthly": [],
     "annual": {
       "available": false,
       "totalAud": null,
