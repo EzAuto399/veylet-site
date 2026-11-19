@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "eaba8cf11cdc7981827bf442beddd4704fd6a00f",
+  "sourceCommit": "38be91e75ac4a444d154ef4cdc4d076229522c14",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -288,7 +288,7 @@
     {
       "path": "account/index.html",
       "bytes": 24061,
-      "sha256": "cc45de04d27919fb4934d98db12970cbbd7e0a44c7acd1229b719d08ca0f4cc1",
+      "sha256": "2206d7782a2e2a40a0e5db60d940c44447ff71a1b4bcd7ee234ec869141ed5cc",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "b9bce3a872a7fb871a2bc5f1b157bf2b0f5ae076c8e0542df7d3bb54bdcfefb9",
+      "sha256": "b855fd0fb885d5d3b1bfb0904e15fb9cafe7cecf348febdf590c8a9fd1e6cfae",
       "headerProfile": 5
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2549,
-      "sha256": "f636f2136a0f8c7e29652d4b7ba1618df4929982ef855f191bc38668c00932c7",
+      "sha256": "349d8583ef2921c50b1520151cae8e99642f67fa72a8beca88f6bc9f0cce112c",
       "headerProfile": 6
     },
     {
@@ -1397,14 +1397,14 @@
     },
     {
       "path": "place-fields.js",
-      "bytes": 17225,
-      "sha256": "b597ac72159bd08e2eb96c8a6a52916dbb7502076c68b715eeccbd5d1bc16b1f",
+      "bytes": 17541,
+      "sha256": "c87496395841d9cd90331e28fbe3a9f6e70b576e8c8a317c1034c531f8b7b31b",
       "headerProfile": 4
     },
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "2505e9cdd6be55f2c965b8665a495a0829799890369711585ee54f12b84f20c7",
+      "sha256": "809ab596d2142cb76ae52ab7285079264dde0a3eb40736826a1c8bb5d1d714ae",
       "headerProfile": 1
     },
     {
@@ -1422,7 +1422,7 @@
     {
       "path": "report/index.html",
       "bytes": 6180,
-      "sha256": "5d7617184018cd3a1fcf9880d2349d2b0fd9e4f0172f2438566730583e96ed19",
+      "sha256": "ead1f5a046fe67d107ac55acfe69debed15e3b71c82e5f7a7c65d6ab3757f48b",
       "headerProfile": 1
     },
     {
@@ -1434,7 +1434,7 @@
     {
       "path": "request/index.html",
       "bytes": 14301,
-      "sha256": "87909aee793fceabd7e1e3bc6da644d59ef32346b1cf9d8dd39dbc662979c8e5",
+      "sha256": "f2e7ea3282fc4df2f02d316d1279ff96bb5ff4dd66511540ed642a6367a9b12a",
       "headerProfile": 1
     },
     {
@@ -2406,7 +2406,7 @@
     {
       "path": "waitlist/index.html",
       "bytes": 12749,
-      "sha256": "a4ea954995f2ec29ccbcf2edec0245ddff3b8112199467a3710987176152911b",
+      "sha256": "10419cab3ccc58b0c8746f0800622e1de046fbf164968c050fbcd3cdf2b47c6d",
       "headerProfile": 1
     },
     {
