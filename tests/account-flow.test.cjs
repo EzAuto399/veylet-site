@@ -1434,7 +1434,7 @@ test('the terms and the privacy notice tell one story about deletion', () => {
 test('the privacy notice says what is collected and what is never sold', () => {
   const flat = privacy.replace(/\s+/g, ' ');
   for (const phrase of [
-    'Last updated 14 November 2026',
+    'Last updated 19 November 2026',
     'Your email address, which is how you sign in',
     'The captures you send us',
     'Your plan\u2019s purchase state from the App Store',

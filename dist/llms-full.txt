@@ -575,7 +575,7 @@ A walkthrough is built from photographs, so get the same written permission befo
 ### How do Veylet’s privacy controls work?
 A Veylet walkthrough stays private until you have reviewed the exact version and turned sharing on, and turning sharing off stops new access at once.
 - Private areas left out: before capture, you decide the rooms, any private areas to leave out and who reviews.
-- Automatic processing: walkthroughs are processed automatically on computers in Australia, and no Veylet staff member views a capture as part of normal processing. An automatic quality check decides whether it is ready; it tests quality, not privacy, so clear private items before capture. An AI visual check is planned and will be listed in the privacy notice before it is switched on.
+- Automatic processing: walkthroughs are processed automatically on computers in the United States, so a capture is sent outside Australia for processing, and no Veylet staff member views a capture as part of normal processing. An automatic quality check decides whether it is ready; it tests quality, not privacy, so clear private items before capture. An AI visual check is planned and will be listed in the privacy notice before it is switched on.
 - Review before release: you open the exact version on your phone, then approve it or send one list of corrections.
 - An unlisted link: sharing creates a link that is not in a public gallery and is kept out of search engines. Anyone who has it can open and forward it.
 - Sharing you can turn off: new visitors are blocked at once. Copies someone already downloaded cannot be recalled, so remove the link or embed from your listing too.

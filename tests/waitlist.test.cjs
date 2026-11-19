@@ -312,7 +312,7 @@ test('both privacy notices say waitlist sign-ups and /request enquiries are stor
     assert.ok(enquiries.includes('<!-- LEGAL REVIEW 2026-09-30: enquiry storage and notification -->Walkthrough enquiries from /request are stored in our database with Supabase in Sydney (ap-southeast-2), and Resend emails us a copy and emails you a confirmation. <!-- LEGAL REVIEW 2026-09-30: waitlist storage and notification -->Waitlist sign-ups are stored in our database with Supabase in Sydney (ap-southeast-2). Resend, an email service that may process information outside Australia, emails us a copy of your answers and emails you a confirmation.'), file);
     assert.doesNotMatch(privacy, /waitlist sign-ups while|waitlist database is not yet live/i, file);
     assert.doesNotMatch(privacy, /formsubmit|yodalai/i, file);
-    assert.match(privacy, /Last updated 14 November 2026\./, file);
+    assert.match(privacy, /Last updated 19 November 2026\./, file);
   }
 });
 

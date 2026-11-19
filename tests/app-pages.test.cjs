@@ -181,7 +181,7 @@ test('the QA fixture holds waiting captures and flags the ready one, for each do
 test('both privacy notices distinguish practice reports, local journey events and requested diagnostics', () => {
   for (const file of ['privacy/index.html', 'app/privacy/index.html']) {
     const notice = words(mainOf(read(file)));
-    assert.match(notice, /Last updated 14 November 2026/);
+    assert.match(notice, /Last updated 19 November 2026/);
     assert.match(notice, /Practice results\.[\s\S]*automatically[\s\S]*20/);
     assert.match(notice, /Practice images, camera positions and depth are not included/);
     assert.match(notice, /Local journey events\.[\s\S]*200[\s\S]*not uploaded/);
