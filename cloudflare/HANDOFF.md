@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Main release — 19 November 2026
+
+User authority: "deploy latest changes live" (19 Nov). Source `main` `4f2cf26` (merged PRs #10–#15: desk today-first index and space views, home hero MP4 wording, SEQ capture-session booking form, enquiry route naming, QA fixes), stamped and re-pinned in `7c59375`. The public `/privacy` Vercel page-count paragraph now sits under an `h2`; the adapter's per-path paragraph transform removes it exactly (`privacyParagraphByPath`).
+
+1. **Build:** 1123 of 1123 site tests; `check-app-pages.mjs` clean (43 states, 42,377 strings); `npm run build` and `npm run verify` pass (365 source, 364 output files, 322 unchanged, 42 transformed); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions).
+2. **Hosted release:** preview `a4f054db-2725-4f83-88ad-7a458466b93b`; production `4e36b0a8-f9e3-479e-965e-b0ee4e8ca9ef`.
+3. **Readback on veylet.com:** `build-info.json` names `4f2cf26` (2026-11-19T11:35:03Z); `/`, `/privacy`, `/request` and `/see` match the built output byte for byte; `www` 301s to the apex; AASA is JSON; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** rendered appearance on a real phone, the booking form end to end, hosted sign-in/payment/capture/player journeys.
+5. **Recovery:** previous production version `4e1356cc-0bb1-45fe-b93e-118e703811e0`: `wrangler rollback 4e1356cc-0bb1-45fe-b93e-118e703811e0 --config wrangler.production.jsonc`.
+
 ## Buyer paused name and design-spec release — 19 November 2026
 
 User authority: "Push the website branch too, merge and get all into main and live operating" (19 Nov). Source `main` `a617bd2` (the `site/launch-fixes-20261119` line, `eaba8cf`), stamped and re-pinned in `a617bd2`.
