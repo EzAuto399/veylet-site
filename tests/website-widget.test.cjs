@@ -67,6 +67,18 @@ function fireDocClick(h, target, overrides = {}) {
 
 /* ---- 1. dist/embed.js --------------------------------------------------- */
 
+test('a modal construction failure leaves the handoff anchor navigation intact', () => {
+  const h = loadEmbedWidget();
+  const href = 'https://veylet.com/handoff?t=' + TOKEN;
+  const a = makeModalAnchor(h.document, href);
+  h.document.body.style.overflow = 'auto';
+  h.document.createElement = () => { throw new Error('blocked'); };
+  const event = fireDocClick(h, a);
+  assert.equal(event.defaultPrevented, false);
+  assert.equal(a.getAttribute('href'), href);
+  assert.equal(h.document.body.style.overflow, 'auto');
+});
+
 test('dist/embed.js is vanilla JS under 3.5 KB and never uses innerHTML/insertAdjacentHTML/outerHTML', () => {
   const source = read('dist/embed.js');
   assert.ok(Buffer.byteLength(source, 'utf8') < 3500, `embed.js must be < 3500 bytes, got ${Buffer.byteLength(source, 'utf8')}`);

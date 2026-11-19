@@ -82,6 +82,17 @@ test('a good link yields the code and a live test embed built from that same cod
   assert.match(h.ids['share-guide-status'].textContent, /Explore in 3D/);
 });
 
+test('owner-preview hints never yield code, including after a valid preview', () => {
+  for (const path of ['/handoff?t=' + TOKEN + '&preview=owner', '/embed?t=' + TOKEN + '&preview=owner', '/tour?t=' + TOKEN + '&preview=owner', '/play?id=' + TOKEN]) {
+    const h = load();
+    h.link.value = 'https://veylet.com/handoff?t=' + TOKEN; h.submit();
+    h.link.value = 'https://veylet.com' + path; h.submit();
+    assert.equal(h.ids['share-code'].value, '');
+    assert.equal(h.ids['share-guide-output'].hidden, true);
+    assert.match(h.ids['share-guide-status'].textContent, /owner preview.*cannot be embedded/);
+  }
+});
+
 test('a later refusal clears the prepared code and its test embed', () => {
   const h = load();
   h.link.value = 'https://veylet.com/handoff?t=' + TOKEN;

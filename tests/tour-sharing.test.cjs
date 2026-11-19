@@ -9,6 +9,30 @@ test('only complete Veylet client links can become embeds', () => {
   assert.equal(share.tokenFromLink('https://veylet.com/handoff?t=abcdefghijklmnop'), 'abcdefghijklmnop');
   for (const link of ['https://evil.invalid/handoff?t=abcdefghijklmnop', 'https://veylet.com/play?id=abcdefghijklmnop', 'javascript:alert(1)', 'https://veylet.com/handoff?t=abc', 'https://veylet.com/handoff?t=abcdefghijklmnop%22%20onload%3Dalert(1)']) assert.equal(share.tokenFromLink(link), null);
 });
+
+test('pasted client URLs and generated code use the public page token rule', () => {
+  const share = load(), window = {};
+  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../dist/client-page.js'), 'utf8'), { window, URLSearchParams, URL });
+  const hex = 'ABCDEF0123456789ABCDEF0123456789';
+  const cases = [hex, '  ' + hex + '.)  ', 'synthetic-fixture-token', 'synthetic-fixture-token_-', '', 'short', 'a'.repeat(31), 'a'.repeat(33), 'x'.repeat(257), 'has a space in token', 'synthetic-token<script>'];
+  for (const raw of cases) {
+    const parsed = window.VeyletClientPage.linkToken('?t=' + encodeURIComponent(raw));
+    const expected = parsed.complete ? parsed.token : null;
+    for (const route of ['handoff', 'embed', 'tour']) {
+      const url = 'https://veylet.com/' + route + '?t=' + encodeURIComponent(raw);
+      assert.equal(share.tokenFromLink('  ' + url + '  '), expected, url);
+      assert.equal(share.tokenFromLink(url + '&preview=owner'), null);
+    }
+    assert.equal(Boolean(share.embedCode(raw)), Boolean(expected), raw);
+    if (expected) assert.ok(share.embedCode(raw).includes('?t=' + expected + '"'));
+  }
+  assert.equal(share.tokenFromLink(hex), null);
+  for (const url of ['', 'http://veylet.com/handoff?t=' + hex, 'https://veylet.com/play?id=' + hex, 'https://evil.example/embed?t=' + hex, 'https://veylet.com/handoff?t=' + hex + '&preview=client&preview=owner']) {
+    assert.equal(share.tokenFromLink(url), null, url);
+    assert.equal(share.embedCode(url), '', url);
+    assert.equal(share.modalButtonCode(url), '', url);
+  }
+});
 test('embed includes a named lazy iframe and a direct fallback without fixed desktop width', () => {
   const code = load().embedCode('abcdefghijklmnop');
   assert.match(code, /loading="lazy"/); assert.match(code, /title="Explore this property in 3D"/);

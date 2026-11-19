@@ -288,7 +288,7 @@
     {
       "path": "account/index.html",
       "bytes": 24061,
-      "sha256": "cc45de04d27919fb4934d98db12970cbbd7e0a44c7acd1229b719d08ca0f4cc1",
+      "sha256": "50bba3780e9a95e3042a405c7b48a6858db963992157605ac21770350c506840",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "b9bce3a872a7fb871a2bc5f1b157bf2b0f5ae076c8e0542df7d3bb54bdcfefb9",
+      "sha256": "bb62c69eb54e20d1b62cef967d7c718c2d94388f4911a791663efac1dbd64abb",
       "headerProfile": 5
     },
     {
@@ -581,14 +581,14 @@
     },
     {
       "path": "embed.js",
-      "bytes": 3455,
-      "sha256": "b4717b6f73ad37320efb7ac15dcd4b5b46a586e2461f2e4783a0c9ea4789996e",
+      "bytes": 3390,
+      "sha256": "b3e0d684de61444223678a20d7ae41416d8c7ca806bf679aee5d8296bfae5c9c",
       "headerProfile": 4
     },
     {
       "path": "embed/index.html",
-      "bytes": 22003,
-      "sha256": "b0ecd2376b32a3e6b7145baf1b09d1d5978137302ce0232161d83df5f4c0ed03",
+      "bytes": 22063,
+      "sha256": "4100507fa4ee5211f2b53dd74b0d2315c4d4d40696899068d802ef0ebffc0fc8",
       "headerProfile": 7
     },
     {
@@ -2303,8 +2303,8 @@
     },
     {
       "path": "tour-sharing.js",
-      "bytes": 16294,
-      "sha256": "25575e879fbea9c41f1a76f4abb9c180643ca1da364287cd586a75b9a37c694f",
+      "bytes": 16695,
+      "sha256": "8c70915175a7c08c8311962e5588f343fb121538c1a401c5ac9308fc52b74e7a",
       "headerProfile": 4
     },
     {
@@ -2315,8 +2315,8 @@
     },
     {
       "path": "tour/index.html",
-      "bytes": 14639,
-      "sha256": "33315d75268d93fa9fecfdc9e51c2c50d32180c2c0ffaa24b0024ef127fe726c",
+      "bytes": 14699,
+      "sha256": "19e2c7684b5ddc9aa64dd00afb04a66f69bd005f9b6744095a25f7250fa98c45",
       "headerProfile": 19
     },
     {
@@ -2424,7 +2424,7 @@
     {
       "path": "website-guide/index.html",
       "bytes": 14410,
-      "sha256": "243bfd1092b6a89c20c97bf5e4f28db933fe04338c628b14fe528970a7fe37e2",
+      "sha256": "015d92f54e47736d4209683438878ae2ac1411c990a2b954fccba3aa1614c725",
       "headerProfile": 1
     }
   ],
