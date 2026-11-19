@@ -28,7 +28,7 @@ function element(id) {
 function load({ writeText = async () => {} } = {}) {
   const ids = {};
   for (const name of ['share-guide', 'share-guide-output', 'share-code', 'share-guide-status',
-    'share-open', 'share-preview', 'share-copy-code', 'share-copy-link']) ids[name] = element(name);
+    'share-open', 'share-preview', 'share-copy-code', 'share-copy-link', 'share-modal-code', 'share-theme-paper']) ids[name] = element(name);
   const link = element('link');
   ids['share-guide'].elements = { link };
   let submit;
@@ -82,6 +82,17 @@ test('a good link yields the code and a live test embed built from that same cod
   assert.match(h.ids['share-guide-status'].textContent, /Explore in 3D/);
 });
 
+test('owner-preview hints never yield code, including after a valid preview', () => {
+  for (const path of ['/handoff?t=' + TOKEN + '&preview=owner', '/embed?t=' + TOKEN + '&preview=owner', '/tour?t=' + TOKEN + '&preview=owner', '/play?id=' + TOKEN]) {
+    const h = load();
+    h.link.value = 'https://veylet.com/handoff?t=' + TOKEN; h.submit();
+    h.link.value = 'https://veylet.com' + path; h.submit();
+    assert.equal(h.ids['share-code'].value, '');
+    assert.equal(h.ids['share-guide-output'].hidden, true);
+    assert.match(h.ids['share-guide-status'].textContent, /owner preview.*cannot be embedded/);
+  }
+});
+
 test('a later refusal clears the prepared code and its test embed', () => {
   const h = load();
   h.link.value = 'https://veylet.com/handoff?t=' + TOKEN;
@@ -92,6 +103,33 @@ test('a later refusal clears the prepared code and its test embed', () => {
   assert.equal(h.ids['share-guide-output'].hidden, true);
   assert.equal(h.ids['share-preview'].textContent, '');
   assert.equal(h.ids['share-preview'].children.length, 1); // cleared by textContent, never re-added
+});
+
+test('editing the link clears prepared output before native URL validation can block submit', () => {
+  for (const value of ['', 'not a URL', 'https://veylet.com/handoff?t=another-fixture-token']) {
+    const h = load();
+    h.link.value = 'https://veylet.com/handoff?t=' + TOKEN;
+    h.submit();
+    assert.ok(h.ids['share-modal-code'].value);
+    h.ids['share-preview'].textContent = 'seeded';
+    h.link.setAttribute('aria-invalid', 'true');
+    h.link.value = value;
+    h.link.events.input();
+    assert.equal(h.ids['share-guide-output'].hidden, true);
+    assert.equal(h.ids['share-code'].value, '');
+    assert.equal(h.ids['share-modal-code'].value, '');
+    assert.equal(h.ids['share-preview'].textContent, '');
+    assert.equal(h.ids['share-guide-status'].textContent, '');
+    assert.equal(h.link.attributes['aria-invalid'], undefined);
+    h.ids['share-theme-paper'].events.change();
+    assert.equal(h.ids['share-code'].value, '', 'theme changes cannot revive the old token');
+    assert.equal(h.ids['share-guide-status'].textContent, '');
+    h.link.value = 'https://veylet.com/handoff?t=' + TOKEN;
+    h.submit();
+    assert.equal(h.ids['share-guide-output'].hidden, false);
+    assert.equal(h.ids['share-code'].value, h.sharing.embedCode(TOKEN));
+    assert.match(h.ids['share-guide-status'].textContent, /Code prepared/);
+  }
 });
 
 test('the client link can be copied on its own, not only the embed code', async () => {

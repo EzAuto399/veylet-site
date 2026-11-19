@@ -377,7 +377,7 @@
                   transient: true,
                 });
               }
-              if (!row || !row.storage_path) {
+              if (!row || !(row.package_format_version === 2 ? row.package_base_url : row.storage_path)) {
                 throw new window.VeyletPlayer.TourFailure('share-not-found', {
                   transient: false,
                 });

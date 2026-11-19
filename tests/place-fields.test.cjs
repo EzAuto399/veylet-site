@@ -369,3 +369,17 @@ test('the intake page checks its answers and keeps its brief, and the partner in
     assert.match(source, /kept in this browser as you type/);
   }
 });
+
+test('suburbs named like streets pass; street and unit addresses are still refused', () => {
+  const window = { addEventListener() {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../dist/place-fields.js'), 'utf8'), { window });
+  const check = window.VeyletPlace.generalLocationProblem;
+  for (const suburb of ['St Lucia', 'St Kilda East', 'St. Ives', 'Lane Cove', 'Kelvin Grove', 'Ferny Grove', 'Ocean Grove', 'Court', 'Paddington', 'Newstead', 'Brisbane']) {
+    assert.equal(check(suburb), '', suburb);
+  }
+  for (const address of ['Smith Street', 'Smith St', 'St Kilda Road', 'Queen St Mall', 'Kingsford Smith Dr', 'Unit 4', 'Level 2', 'Shop 3 Westfield', 'PO Box 99']) {
+    assert.match(check(address), /suburb or city only/, address);
+  }
+  assert.match(check('12 Smith Street'), /street address/);
+  assert.match(check('3/14 Main Rd'), /unit and street number/);
+});

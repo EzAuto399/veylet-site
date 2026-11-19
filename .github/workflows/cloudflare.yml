@@ -1,0 +1,32 @@
+name: Cloudflare adapter
+
+# A dist/ change fails the frozen-source check until a release commit refreezes
+# cloudflare/public-release.json, so this runs only when cloudflare/ changes.
+on:
+  pull_request:
+    paths: ['cloudflare/**', '.github/workflows/cloudflare.yml']
+  push:
+    branches: [main]
+    paths: ['cloudflare/**', '.github/workflows/cloudflare.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  cloudflare:
+    name: Build, verify and local Worker check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloudflare/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run verify
+      - run: npm run check:local
