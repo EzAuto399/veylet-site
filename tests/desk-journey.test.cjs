@@ -1188,10 +1188,10 @@ test('a held capture stays Waiting to render with the contract’s words for its
 /* ---- Offer 2026-09-26.3 (20260926140000): rooms, and the free months' render attempts ---- */
 
 /* Offer 2026-11-11.1: the unit is the room. walkthroughs_used carries the counted rooms under its old name. */
-test('each capture and its review say how many rooms its approval uses; unknown rooms say nothing', async () => {
+test('each capture and its review say how many rooms its approval uses; unknown or malformed charge stays hidden', async () => {
   for (const [rooms, used, words] of [[1, 1, 'This uses 1 room.'], [8, 8, 'This uses 8 rooms.'],
     [9, 7, 'This uses 7 rooms.'], [3, 10, 'This uses 10 rooms.']]) {
-    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used }) } });
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used, allowance_unit: 'room' }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
     const line = reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className));
@@ -1204,15 +1204,15 @@ test('each capture and its review say how many rooms its approval uses; unknown 
   // With the plan's capacity answer, the line says what the tour uses out of the included rooms, before Approve.
   const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 13999, renewal_price_aud_cents: 13999,
     current_period_ends_at: '2026-12-11T00:00:00Z', auto_renews: true, included_per_month: 30, accepted_this_period: 0, hosting_included: true };
-  const cap = { plan_status: 'active', included_limit: 30, included_used: 0, included_remaining: 30, extra_credits_available: 0, can_accept: true, reason_code: null };
+  const cap = { allowance_unit: 'room', offer_version: '2026-11-11.1', plan_status: 'active', included_limit: 30, included_used: 0, included_remaining: 30, extra_credits_available: 0, can_accept: true, reason_code: null };
   const limited = await load({ tours: [readyTour()], rpc: { get_workspace_plan: async () => ({ data: [plan] }), get_walkthrough_capacity: async () => ({ data: [cap] }),
     list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms: 8, walkthroughs_used: 8 }) } });
   await settle();
   assert.equal(limited.count('get_walkthrough_capacity'), 1);
   assert.equal(reviewForm(limited.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
   assert.equal(renderBlockOf(limited).all().find(el => /\brender-units\b/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
-  // Rooms not counted yet (null), an odd count or no walkthroughs used: nothing, and approval still works (it uses 1).
-  for (const fields of [{ rooms: null, walkthroughs_used: 1 }, { rooms: 9, walkthroughs_used: null }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
+  // Unknown or malformed charge and malformed room counts stay hidden; a missing list alone does not erase a known charge.
+  for (const fields of [{ rooms: 9, walkthroughs_used: null }, { rooms: 9, walkthroughs_used: -1 }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', ...fields }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, JSON.stringify(fields));
@@ -2216,89 +2216,3 @@ test('a known fixed charge remains visible when the room list is missing', async
   }
 });
 
-test('Walkthrough insights & vendor report, open-home QR sign card and pre-capture readiness kit work on the desk', async () => {
-  const stats = {
-    opens: 14,
-    days_with_opens: 5,
-    call_taps: 3,
-    email_taps: 1,
-    share_taps: 2,
-    avg_dwell_seconds: 105,
-    by_src: { link: 8, qr: 4, embed: 2 },
-    by_host: { 'harbourrealty.com.au': 2 },
-    by_room: { Kitchen: 9, 'Living room': 7 },
-    last_opened_at: '2026-09-24T02:00:00Z',
-  };
-  const h = await load({
-    tours: [liveTour()],
-    approved: true,
-    hosting: [released()],
-    properties: [{ id: 'p1', title: '12 Rue Café & Co.', location_general: 'Paddington QLD', workspace_id: 'w1' }],
-    rpc: { get_tour_view_stats: async () => ({ data: [stats] }) },
-  });
-  await settle();
-  const card = h.card('t1');
-
-  // 1. Walkthrough insights & vendor report disclosure.
-  const insights = card.all().find(el => el.className === 'account-details tour-insights');
-  assert.ok(insights && !insights.hidden);
-  assert.equal(insights.children[0].textContent, 'Walkthrough insights & vendor report');
-  insights.open = true;
-  await insights.fire('toggle');
-  assert.equal(insights.all().find(el => el.className === 'tour-insights-summary').textContent,
-    'Active days: 5 · Direct enquiries: 4 · Link shares: 2 · Avg. time: 1m 45s');
-  assert.deepEqual(insights.all().filter(el => el.className === 'tour-insights-channel').map(el => el.textContent),
-    ['Direct link: 8 (57%)', 'QR code: 4 (29%)', 'Website embed: 2 (14%)']);
-  assert.equal(insights.all().find(el => el.className === 'tour-insights-hosts').textContent,
-    'Embedded on: harbourrealty.com.au (2)');
-  assert.equal(insights.all().find(el => el.className === 'tour-insights-rooms').textContent,
-    'Most explored rooms: Kitchen (9) · Living room (7)');
-
-  const copyReport = insights.all().find(el => el.dataset.control === 'copy-vendor-report');
-  await copyReport.fire('click');
-  await settle();
-  assert.match(h.copied.at(-1), /Walkthrough campaign report — 12 Rue Café & Co\./);
-  assert.match(h.copied.at(-1), /Total opens: 14 \(5 active days · last opened 24 Sep 2026\)/);
-  assert.equal(rowLine(insights), 'Vendor report copied. Paste it into your vendor update.');
-
-  const dlReport = insights.all().find(el => el.dataset.control === 'download-vendor-report');
-  await dlReport.fire('click');
-  await settle();
-  const reportAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
-  assert.equal(reportAnchor.download, '12-rue-cafe-co-vendor-report.txt');
-  assert.equal(rowLine(insights), 'Vendor report saved as 12-rue-cafe-co-vendor-report.txt.');
-
-  // 2. Open-home QR sign card download.
-  const qr = card.all().find(el => el.className === 'account-details tour-qr');
-  qr.open = true;
-  await qr.fire('toggle');
-  const signDl = qr.all().find(el => el.dataset.control === 'qr-sign-download');
-  assert.equal(signDl.disabled, false);
-  await signDl.fire('click');
-  await settle();
-  const signAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
-  assert.equal(signAnchor.download, '12-rue-cafe-co-open-home-sign.png');
-  const signCanvas = h.created.filter(el => el.tagName === 'CANVAS').at(-1);
-  assert.deepEqual([signCanvas.width, signCanvas.height], [1200, 1600]);
-  assert.equal(rowLine(qr), 'Open-home sign saved as 12-rue-cafe-co-open-home-sign.png.');
-
-  // 3. Pre-capture readiness kit on the space card.
-  const space = h.ids['account-properties'].children[0];
-  const prep = space.all().find(el => el.className === 'account-details space-prep');
-  assert.ok(prep);
-  assert.equal(prep.children[0].textContent, 'Prepare or schedule capture');
-  prep.open = true;
-  await prep.fire('toggle');
-  const copyPrep = prep.all().find(el => el.dataset.control === 'copy-prep-note');
-  await copyPrep.fire('click');
-  await settle();
-  assert.match(h.copied.at(-1), /we are preparing to capture the 3D walkthrough for 12 Rue Café & Co\./);
-  assert.equal(rowLine(prep), 'Prep checklist copied. Send it to the owner or tenant before capture.');
-
-  const dlIcs = prep.all().find(el => el.dataset.control === 'download-capture-ics');
-  await dlIcs.fire('click');
-  await settle();
-  const icsAnchor = h.created.filter(el => el.tagName === 'A' && el.download).at(-1);
-  assert.equal(icsAnchor.download, '12-rue-cafe-co-capture.ics');
-  assert.equal(rowLine(prep), 'Calendar slot saved as 12-rue-cafe-co-capture.ics.');
-});

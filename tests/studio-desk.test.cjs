@@ -387,7 +387,7 @@ test('a studio member sees the summary, the three accounts and the shared status
   assert.deepEqual(rows.map(row => row.children[COL.account].children[0].textContent),
     ['Northgate Property Co', 'Wren & Fielding', 'Kelvin Grove Dental']);
   assert.match(rows[2].children[COL.account].children[1].textContent, /^— · 2 members$/);
-  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with 6 rooms']);
+  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with an included allowance of 6']);
   assert.deepEqual(rows[0].children[COL.thisMonth].children.map(el => el.textContent), ['2 / 3', ''], 'a retired plan states no v8 allowance rule');
   assert.equal(rows[1].children[COL.total].textContent, '18');
   assert.equal(rows[1].children[COL.walkthroughs].textContent, '2 / 0');
@@ -1093,9 +1093,9 @@ test('Set plan falls back to 1 free month and 30 free rooms when the row cannot 
 test('each row states its own free-months terms in digits, and a running row keeps its longer terms', async () => {
   const h = await load();
   const terms = h.dataRows().map(row => row.children[COL.freeMonths].children[1].textContent);
-  assert.deepEqual(terms, ['6 free months with 6 rooms', '6 free months with 4 rooms', '3 free months with 6 rooms']);
+  assert.deepEqual(terms, ['6 free months with an included allowance of 6', '6 free months with an included allowance of 4', '3 free months with an included allowance of 6']);
   const single = await load({ accounts: oneAccount({ trial_months: 1, trial_included_walkthroughs: 1 }) });
-  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with 1 room');
+  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with an included allowance of 1');
   for (const odd of [{ trial_months: '3' }, { trial_months: 0 }, { trial_months: 13 }, { trial_included_walkthroughs: 2.5 }, { trial_included_walkthroughs: undefined }]) {
     const other = await load({ accounts: oneAccount(odd) });
     assert.equal(other.dataRows()[0].children[COL.freeMonths].children[1].textContent, '', JSON.stringify(odd));
@@ -1131,9 +1131,9 @@ test('the This month column never prints an allowance rule the row does not carr
   // A row that does carry its cadence (an invoice answer, or an App Store product)
   // and is annual shows the pool rule in place of a monthly figure.
   const rows = [
-    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
+    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', 'Yearly pool · count unavailable']],
     ['App Store annual', { source: 'apple', apple_verified: true, plan_code: 'solo', apple_product_id: 'dev.property3d.capture.solo.annual',
-      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
+      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', 'Yearly pool · count unavailable']],
     ['Monthly invoice', { plan_code: 'solo', billing_interval: 'monthly', renewal_price_aud_cents: OFFER.month }, 'Veylet plan · ' + aud(OFFER.month) + ' a month', ['0 / 3', '']],
     ['Team annual', { source: 'apple', apple_verified: true, plan_code: 'studio', apple_product_id: 'dev.property3d.capture.plan.annual',
       billing_interval: 'annual', renewal_price_aud_cents: 318999 }, 'Team · A$3,189.99 a year', ['0 / 3', '']],

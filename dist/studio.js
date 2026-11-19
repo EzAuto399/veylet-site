@@ -70,9 +70,7 @@
   // room counts: pack3 is 30 rooms and pack10 is 100.
   const PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
   const PACK_VALID_MONTHS = 12;
-  // Annual rows use a yearly pool of 360 rooms (offer 2026-11-11.1). Existing rows continue to display the
-  // exact cadence, price and allowance already recorded for them.
-  const YEARLY_POOL = 360;
+  // Annual pool counts come only from the account reader; the current offer cannot replace an existing allowance.
   const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free pack of 30 rooms for each referred office that
   // becomes a paying account, at most four, granted here with an audit row.
@@ -291,7 +289,8 @@
     const months = row && row.trial_months;
     const included = row && row.trial_included_walkthroughs;
     if (!Number.isInteger(months) || months < 1 || months > 12 || !Number.isInteger(included) || included < 1) return '';
-    return plural(months, 'free month') + ' with ' + plural(included, 'room');
+    const unit = allowanceUnit(row);
+    return plural(months, 'free month') + (unit ? ' with ' + plural(included, unit) : ' with an included allowance of ' + included);
   }
   // Cadence identifies the pool, but only the reader's actual annual allowance may supply its size.
   function annualPoolRow(row) {
@@ -994,7 +993,7 @@
       // A yearly pool has no monthly figure, and the list carries no pool counts.
       const pool = annualPoolRow(next);
       monthCount.textContent = pool ? DASH : countText(next.accepted_this_period) + ' / ' + countText(next.included_per_month);
-      monthRule.textContent = pool ? YEARLY_POOL + '-room yearly pool' : '';
+      monthRule.textContent = pool ? annualPoolWords(next) : '';
       totalCell.textContent = countText(next.accepted_total);
       renewsCell.textContent = shortDate(next.current_period_ends_at) || shortDate(next.trial_ends_at) || DASH;
       renewCell.textContent = next.auto_renews === true ? 'yes' : next.auto_renews === false ? 'no' : DASH;

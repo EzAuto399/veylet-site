@@ -144,7 +144,7 @@ test('with nothing waiting, Needs you stays away and the next step speaks', asyn
 
 test('the plan in one line uses the Plan view’s own title, count and price, and links to it', async () => {
   const h = await loadDesk({ rpc: { get_workspace_plan: async () => ({ data: [planRow] }),
-    get_walkthrough_capacity: async () => ({ data: [{ included_limit: 3, included_used: 2, included_remaining: 1, extra_credits_available: 0, can_accept: true, reason_code: null, plan_status: 'trial' }] }) } });
+    get_walkthrough_capacity: async () => ({ data: [{ allowance_unit: 'room', included_limit: 3, included_used: 2, included_remaining: 1, extra_credits_available: 0, can_accept: true, reason_code: null, plan_status: 'trial' }] }) } });
   const line = h.ids['account-plan-line'];
   assert.equal(line.hidden, false);
   assert.equal(line.children[0].textContent, 'Free until 1 January 2027 · Free rooms: 2 of 3 used · then A$99 a month');

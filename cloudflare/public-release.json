@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "4f2cf260d8d930ea8fa47f0d1007ec651b366ed2",
+  "sourceCommit": "c745d4c050a2a70bafcd05e86549cbbe43e51c51",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -148,7 +148,7 @@
       "x-robots-tag": null
     },
     {
-      "content-type": "video/mp4",
+      "content-type": "image/svg+xml",
       "cache-control": "public, max-age=14400, must-revalidate",
       "content-security-policy": null,
       "x-content-type-options": "nosniff",
@@ -159,7 +159,7 @@
       "x-robots-tag": null
     },
     {
-      "content-type": "image/svg+xml",
+      "content-type": "video/mp4",
       "cache-control": "public, max-age=14400, must-revalidate",
       "content-security-policy": null,
       "x-content-type-options": "nosniff",
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 535899,
-      "sha256": "11053f06bdb8faad037065d32bdb6b6eacd381ed7210ad3ccd0c00360cdd963c",
+      "bytes": 537532,
+      "sha256": "7a38f659bdfd35a12ca28ca83668dfa736c24052a0539ef85565c16f52197d52",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 24660,
-      "sha256": "2118f1a9847a0c9c950d175c1223c13ee9cb3b0636f6a2ae941ba10b68d535d6",
+      "sha256": "f8182f1ca53c8711d2d850098f90e4d64b275c77c229fee8634c28a3cbd385fb",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "6d2d3dafdad7a6da34adefc4919936cd65f3ee354e30f5971de8c64a56f7625c",
+      "sha256": "2c951784faa08aa7a35152bdd383d488a737c81cf9c07c027d46b85c5748b3ab",
       "headerProfile": 5
     },
     {
@@ -533,14 +533,14 @@
     },
     {
       "path": "app/terms/index.html",
-      "bytes": 11326,
-      "sha256": "0b7c185b4e39bdb9bc6feece6d12121aa912f50435a95a5f9c940a56832c0773",
+      "bytes": 11759,
+      "sha256": "fb17fd3851a9e6e61a3ccbf2a522fb9be607a2428f925ade01b951965d6fa63d",
       "headerProfile": 5
     },
     {
       "path": "auth/callback/index.html",
       "bytes": 2783,
-      "sha256": "1da5f02b933cac42852440ed35b9a6a6fcf31803109bdee8f6a304f086622485",
+      "sha256": "681ffd0871d40c59c4b6dd79a7049ab28fcbeab4f579c7302d32e3664a0aa449",
       "headerProfile": 1
     },
     {
@@ -551,8 +551,8 @@
     },
     {
       "path": "build-info.json",
-      "bytes": 2549,
-      "sha256": "a7ce9aee4d4550344595ce41f467107e72081392620340219fc46182247b7204",
+      "bytes": 2548,
+      "sha256": "2de171b3f9bababc556ec5097aca9c726f62d8ef4f9b84f78185432326d8274a",
       "headerProfile": 6
     },
     {
@@ -563,8 +563,8 @@
     },
     {
       "path": "client-page.js",
-      "bytes": 63280,
-      "sha256": "3933183e5b60a85ef782e328972231c915432b2e2c54cf43731f2f151c2b0dd1",
+      "bytes": 64462,
+      "sha256": "6d166828b3dce840c1fa17cf1b74dcf76bfe2c25d24b4aa99278b93341a293e3",
       "headerProfile": 4
     },
     {
@@ -588,7 +588,7 @@
     {
       "path": "embed/index.html",
       "bytes": 22063,
-      "sha256": "4100507fa4ee5211f2b53dd74b0d2315c4d4d40696899068d802ef0ebffc0fc8",
+      "sha256": "78c63f4a23b9d1f99dbd2e3d06b79625ad15266c5785352bd55d7a00546b1be5",
       "headerProfile": 7
     },
     {
@@ -654,7 +654,7 @@
     {
       "path": "handoff/index.html",
       "bytes": 19735,
-      "sha256": "1b933e7fead7ff8911600c366c303899516e6a06075f7e9039e04cbbee482358",
+      "sha256": "5cb9c2f2a1219fc6a26f34e500aeccf25d163df912e1e22822b60991a248280c",
       "headerProfile": 1
     },
     {
@@ -864,7 +864,7 @@
     {
       "path": "index.html",
       "bytes": 26640,
-      "sha256": "1fcbb27bc306796c33769e5f7c1917937bf2955e432c574824c6a496a1610026",
+      "sha256": "cfe2a1abd7e7f5031888c3ce79ae0837aa49f2813d780a0144877fe3c81fd169",
       "headerProfile": 1
     },
     {
@@ -1021,7 +1021,7 @@
       "path": "media/favicon.svg",
       "bytes": 415,
       "sha256": "3983d11950a9fb3f6bdf6a8653384b884f3cf51c7db016756dc662a16b6278be",
-      "headerProfile": 13
+      "headerProfile": 12
     },
     {
       "path": "media/guide-cost-400.webp",
@@ -1219,7 +1219,7 @@
       "path": "media/launch-reel.mp4",
       "bytes": 2864630,
       "sha256": "b4079f50cb90163e2da1577dac63df2f21651b1e8c1c082a49d9be9042ba7ec7",
-      "headerProfile": 12
+      "headerProfile": 13
     },
     {
       "path": "media/og-cost.jpg",
@@ -1261,7 +1261,7 @@
       "path": "media/result-listing-16x9.mp4",
       "bytes": 4426278,
       "sha256": "f3ceba6ef27ed3eb4892c1c795777a1b141630cba449efcb8f0c53a548ccaa94",
-      "headerProfile": 12
+      "headerProfile": 13
     },
     {
       "path": "media/result-poster-16x9.webp",
@@ -1315,13 +1315,13 @@
       "path": "media/result-share-qr.svg",
       "bytes": 2332,
       "sha256": "fa9f9ee593af4f15a33b4e1897cabb0b50e26a6e9a0de0b49f90f2344df26742",
-      "headerProfile": 13
+      "headerProfile": 12
     },
     {
       "path": "media/result-social-9x16.mp4",
       "bytes": 1170216,
       "sha256": "fae6d7a83e630cea5e5ebe30c45cf6630781b2a227f247ebee3b9dd136d76349",
-      "headerProfile": 12
+      "headerProfile": 13
     },
     {
       "path": "media/share-card.jpg",
@@ -1369,7 +1369,7 @@
       "path": "media/walk-demo.svg",
       "bytes": 4378,
       "sha256": "85aa04e9830c9904060c44fdb4bfadc7cf1fae950ee67a750811cfb2c6b97752",
-      "headerProfile": 13
+      "headerProfile": 12
     },
     {
       "path": "media/walkthrough-card.png",
@@ -1386,7 +1386,7 @@
     {
       "path": "offer/index.html",
       "bytes": 49674,
-      "sha256": "3e1c67eac59161e1fb9731033fd8e58baaac5b0cc6e5bad807e8ec261fa176e6",
+      "sha256": "899457b715b3cc91ed56d6f4879d174bbd949d99d3a18f40389c976d01dc0b6f",
       "headerProfile": 1
     },
     {
@@ -1404,19 +1404,19 @@
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "fe79397b59a3e559d071874ca3cd18ea7b53cfdcc293f88bc0a4189efe35ea3f",
+      "sha256": "2f72e997af892963c87784d14d85325f9233d170e92476d4460ad241178f7b36",
       "headerProfile": 1
     },
     {
       "path": "privacy/index.html",
-      "bytes": 19490,
-      "sha256": "051929a26f018707f175f5df4cc0006f5e73a4198913f3a1d09560bf39b1d9e7",
+      "bytes": 28245,
+      "sha256": "b8814460da943260da17ece01055e396be44b1528bc6513d437ce0d7bf989a78",
       "headerProfile": 1
     },
     {
       "path": "refinement.css",
-      "bytes": 14306,
-      "sha256": "88f4ea8f57a5f48a5ba27a681e1d88f9e7d3fa154e60aefa129bb6d963eee2cb",
+      "bytes": 14349,
+      "sha256": "1283268a4bf2338c17f3b581b1064bb8972d67431aafdf3a99677a7b4ac58529",
       "headerProfile": 3
     },
     {
@@ -1434,7 +1434,7 @@
     {
       "path": "request/index.html",
       "bytes": 14532,
-      "sha256": "b1561fb12f5f0bce2fcd3d4722f14fa541f970d488b935ccae3504d874d5e2bb",
+      "sha256": "a21c1961782c68aa66fc226519c5c08ffe9bd9afc5352df522f2f38c3f38efb3",
       "headerProfile": 1
     },
     {
@@ -2172,7 +2172,7 @@
     {
       "path": "see/index.html",
       "bytes": 34091,
-      "sha256": "aef9fe114c97c97f02458f1cc865230f1604ab930a1e973c82f95a4ac578b69e",
+      "sha256": "8432bf8de8c8738e680d49fa323d975cc2c12d61ccbbec5fd8d9dc630e8b9597",
       "headerProfile": 1
     },
     {
@@ -2184,7 +2184,7 @@
     {
       "path": "see/see.js",
       "bytes": 27202,
-      "sha256": "44615eeee31e9e7611bacac54f9f3365e748236ab8598ec4bed3e5b05887996d",
+      "sha256": "b38e955f8d730df9f879a244d5cac9c6fe3f7ff0ed6e56325e44bb136b99ed62",
       "headerProfile": 4
     },
     {
@@ -2214,7 +2214,7 @@
     {
       "path": "start/index.html",
       "bytes": 22416,
-      "sha256": "0e223463bdcfea416327fab2ae88dd5dc1d0666f172056e380606e4c49bf9da7",
+      "sha256": "cb8c63155e03d5eedca290efc46a609bf054d8d1a3c5364c60beb8eacebc47f3",
       "headerProfile": 1
     },
     {
@@ -2237,20 +2237,20 @@
     },
     {
       "path": "studio.css",
-      "bytes": 22763,
-      "sha256": "872dbe985f71694c4dcae78c09cd4e70ccab74c6035fa8ecb4bd157855a7b192",
+      "bytes": 22791,
+      "sha256": "ca744efed8e17a04a9dca369cf5c6b6b80543b8a4b21f8e5fa271d278bf1d81f",
       "headerProfile": 3
     },
     {
       "path": "studio.js",
-      "bytes": 135394,
-      "sha256": "c2fa08a584714cb28fb0d9e18c286e888537da9470861cf96a0f9d7a79837e43",
+      "bytes": 136432,
+      "sha256": "929df89a9a8c32b94565ae00300e8e90bc089867a3b4b310b14e68cfd3f2d58a",
       "headerProfile": 4
     },
     {
       "path": "studio/index.html",
-      "bytes": 14031,
-      "sha256": "f83b1a5da062af6dd1365c67a44606927d3677c8b93c7efb824575c9548e7f42",
+      "bytes": 14037,
+      "sha256": "e8ccf6158a28bfabfdad5245c36519b6b6719db25d4d3b69fab9ee7ee985058e",
       "headerProfile": 18
     },
     {
@@ -2273,8 +2273,8 @@
     },
     {
       "path": "terms/index.html",
-      "bytes": 17466,
-      "sha256": "8474a2ab3847c622097b70fedaef9dc35d47e2b4a2849886f0fa28edf3cfb40e",
+      "bytes": 17899,
+      "sha256": "e49480ef633c4d56f6faa33c7a4fab4fea0662340cffb3c111d98dfa7565b164",
       "headerProfile": 1
     },
     {
@@ -2291,14 +2291,14 @@
     },
     {
       "path": "tour-player-v2.js",
-      "bytes": 127844,
-      "sha256": "677c0e7133c120b6a9bb3ebd6efdd86b1fad38098f645625f60db39719a78364",
+      "bytes": 129284,
+      "sha256": "f1f466f9edea30b56b3468d49fca5619c84be75a8abf38c11e4df2fd13a852ef",
       "headerProfile": 4
     },
     {
       "path": "tour-player.js",
       "bytes": 26880,
-      "sha256": "9cc17d6bca409ac7c06f50a1a0bea0534adb85e3b125166f829a79c395adcfb4",
+      "sha256": "7f1f6d044222a9edb04c6f656eb26ca3f6649355314a7162a4520fe07a2501d9",
       "headerProfile": 4
     },
     {
@@ -2316,7 +2316,7 @@
     {
       "path": "tour/index.html",
       "bytes": 14699,
-      "sha256": "19e2c7684b5ddc9aa64dd00afb04a66f69bd005f9b6744095a25f7250fa98c45",
+      "sha256": "094648a7d2c419ad1d808ee45d81a507efc767ba7a666fc5ce3a9dc9d06f313b",
       "headerProfile": 19
     },
     {
@@ -2476,8 +2476,8 @@
     ],
     "privacyParagraph": "      <!-- LEGAL REVIEW 2026-09-29: cookieless page counts (Vercel Web Analytics) -->\n      <p>\n        <strong>Page counts.</strong> veylet.com counts page views with Vercel\n        Web Analytics, which uses no cookies and stores no personal identifiers:\n        it counts the page address (without query strings or fragments), the\n        referrer, the country and the device type in aggregate. Vercel\n        may process this outside Australia. Google Analytics still runs only\n        after you allow it.\n      </p>",
     "privacyPaths": [
-      "privacy/index.html",
-      "app/privacy/index.html"
+      "app/privacy/index.html",
+      "privacy/index.html"
     ],
     "privacyParagraphByPath": {
       "privacy/index.html": "      <!-- LEGAL REVIEW 2026-09-29: cookieless page counts (Vercel Web Analytics) -->\n      <h2>Page counts.</h2>\n      <p> veylet.com counts page views with Vercel\n        Web Analytics, which uses no cookies and stores no personal identifiers:\n        it counts the page address (without query strings or fragments), the\n        referrer, the country and the device type in aggregate. Vercel\n        may process this outside Australia. Google Analytics still runs only\n        after you allow it.\n      </p>"

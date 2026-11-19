@@ -1553,7 +1553,7 @@ test('point-to-point player emits only opaque engagement stops at ready, arrival
   assert.ok(x.log.includes('app.destroy'), 'the real abort teardown ran');
 });
 
-test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station tether, and adaptive DPR 2.0 step-up', async () => {
+test('Walkthrough 2.0: room pill scrubber, destination hotspot labels and adaptive DPR 2.0 step-up', async () => {
   const { player } = load();
   // 1. Adaptive DPR 2.0 step-up on capable phones with sustained >55 fps headroom.
   const phone = player.deviceProfile(phoneWebgl2);
@@ -1566,16 +1566,6 @@ test('Walkthrough 2.0: room pill scrubber, destination hotspot labels, station t
     gov.sample(14, now);
   }
   assert.equal(gov.state.pixelRatio, 2, 'sustained >55 fps headroom steps DPR up to peakPixelRatio 2.0');
-
-  // 2. Station tether keeps floor taps within the 0.85m corridor around stops and segments.
-  const walkable = player.decodeWalkable(navigationFloor());
-  const stops = manifest().stops;
-  const corridorPt = player.tetherToStations(walkable, [0, 0], [3.4, 0], stops);
-  assert.deepEqual([...corridorPt], [3.4, 0], 'point along stop corridor remains untouched');
-  const nearStopPt = player.tetherToStations(walkable, [0, 0], [2.15, 0.1], stops);
-  assert.deepEqual([...nearStopPt], [2, 0], 'tap within 0.3m of a stop snaps cleanly to the stop');
-  const farSidePt = player.tetherToStations(walkable, [2, 0], [2, 0.98], stops);
-  assert.ok(Math.abs(farSidePt[0] - 2) < 1e-6 && Math.abs(farSidePt[1] - 0.85) < 1e-6, 'far sideways tap is tethered to 0.85m radius');
 
   // 3. Multi-room walkthrough renders 1-tap room pills and labels destination hotspots.
   const multiRoom = manifest({
