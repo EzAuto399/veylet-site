@@ -6,8 +6,12 @@
  * street address, so the forms enforce that instead of trusting the field hint.
  */
 window.VeyletPlace = (() => {
-  const STREET_WORDS =
-    /\b(street|st|road|rd|avenue|ave|drive|dr|lane|ln|court|ct|place|pl|crescent|cres|terrace|tce|parade|pde|highway|hwy|boulevard|blvd|close|circuit|cct|way|esplanade|grove|rise|walk|mews|unit|apt|apartment|suite|level|floor|shop|po box)\b\.?/i;
+  // Unit words mark an address wherever they appear. A street type only counts
+  // after another word ("Smith St"), so suburbs that start with one ("St Kilda",
+  // "Lane Cove") pass. "Grove" names too many suburbs (Kelvin Grove, Ocean Grove).
+  const UNIT_WORDS = /\b(unit|apt|apartment|suite|level|floor|shop|po box)\b/i;
+  const STREET_TYPE_AFTER_NAME =
+    /\S\s+(street|st|road|rd|avenue|ave|drive|dr|lane|ln|court|ct|place|pl|crescent|cres|terrace|tce|parade|pde|highway|hwy|boulevard|blvd|close|circuit|cct|way|esplanade|rise|walk|mews)\b/i;
 
   const UNIT_AND_NUMBER = /\b\d+[a-z]?\s*\/\s*\d+/i;
   const NUMBER_THEN_NAME = /^\s*\d+[a-z]?\s+\S/i;
@@ -22,7 +26,7 @@ window.VeyletPlace = (() => {
     if (NUMBER_THEN_NAME.test(text)) {
       return 'That looks like a street address. Use the suburb or city only.';
     }
-    if (STREET_WORDS.test(text)) {
+    if (UNIT_WORDS.test(text) || STREET_TYPE_AFTER_NAME.test(text)) {
       return 'Street names and unit numbers do not belong on a Veylet record. Use the suburb or city only.';
     }
     return '';
