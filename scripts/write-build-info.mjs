@@ -9,9 +9,17 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { versionAssets } from './asset-versions.mjs';
+import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
+
+// Derived pages render from their single sources before fingerprints are taken:
+// the help centre (/help and /app/help) and the app legal copies (/app/terms,
+// /app/privacy from /terms and /privacy).
+const require = createRequire(import.meta.url);
+require('./help-articles.cjs').write();
+require('./app-legal.cjs').write();
 // Resolve dependency fingerprints before identifying the final public bytes.
 // Repeated builds reuse URLs; changing a dependency also versions its loader.
 const assetVersions = versionAssets(join(root, 'dist'));

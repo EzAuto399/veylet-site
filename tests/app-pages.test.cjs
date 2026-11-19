@@ -113,13 +113,11 @@ test('/app/privacy is the public notice word for word; only its account link sta
   const site = mainOf(read('privacy/index.html').replace(DRAFT, '').replace(DRAFT_1112, ''));
   assert.equal(site.split(GOOGLE_POLICY_LINK).length - 1, 1, 'the public notice links Google\u2019s policy once');
   assert.ok(!app.includes('policies.google.com'), 'the app copy links nothing outside /app');
-  // The public notice opens each section with a real heading (site audit 10 Nov 2026, finding 10); the app copy
-  // still runs the same words in as bold leads. Words, links, comments and order must match exactly; only that
-  // heading element and whitespace may differ.
+  // The public notice opens each section with a real heading and the app copy runs
+  // each in as a bold lead; scripts/app-legal.cjs renders the copy and
+  // tests/app-legal.test.cjs holds dist to it word for word.
   const flat = html => html.replace(/\s+/g, ' ');
-  const asRunIn = html => flat(html).replace(/<h2>([^<]+)<\/h2> <p>/g, '<p> <strong>$1</strong>');
   assert.equal((flat(site).match(/<h2>/g) || []).length, (flat(app).match(/<p> <strong>/g) || []).length, 'one heading per run-in lead');
-  assert.equal(flat(app).replace('<a href="/app/account">', '<a href="/account">'), asRunIn(site).replace(GOOGLE_POLICY_LINK, 'Privacy Policy'));
 });
 
 test('/app/terms is the public terms word for word, less the sentences that name an amount or a purchase the app does not sell', () => {
@@ -127,10 +125,8 @@ test('/app/terms is the public terms word for word, less the sentences that name
   const NOTE = 'This copy of the terms is the one shown in the app. It leaves out sections about purchases that are not available in the app.';
   const site = words(mainOf(read('terms/index.html')));
   const app = words(mainOf(read('app/terms/index.html')));
-  // Every sentence of the app copy is a sentence of the public terms, the stand-in, or the note.
-  const sentences = app.replace(NOTE, '').split(/(?<=[.!?])\s+(?=[A-Z0-9“])/).map(item => item.trim()).filter(Boolean);
-  const unknown = sentences.filter(sentence => sentence !== REPLACED && !site.includes(sentence));
-  assert.deepEqual(unknown, []);
+  // scripts/app-legal.cjs renders the copy and tests/app-legal.test.cjs holds dist to
+  // it word for word; what is left here is what the app must still say.
   assert.equal(app.split(REPLACED).length - 1, 5, 'five sentences stand in for amounts (listed for legal review)');
   assert.ok(app.includes(NOTE));
   // What was left out, by heading.

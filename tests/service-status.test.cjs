@@ -14,7 +14,7 @@ const vm = require('node:vm');
 const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const help = require('./help-articles.cjs');
+const help = require('../scripts/help-articles.cjs');
 
 const DIST = path.join(__dirname, '../dist');
 const read = file => fs.readFileSync(path.join(DIST, file), 'utf8');

@@ -1,7 +1,7 @@
 /*
  * The help centre: /help (public, indexable) and /app/help (the same articles for the
  * Veylet app: noindex, price-free, links only to /app pages). Both are rendered
- * from tests/help-articles.cjs; these tests hold dist to that source, run the app-page
+ * from scripts/help-articles.cjs; these tests hold dist to that source, run the app-page
  * checker over /app/help, and keep the words, rule ids and links in step with the desk.
  */
 const test = require('node:test');
@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const help = require('./help-articles.cjs');
+const help = require('../scripts/help-articles.cjs');
 
 const DIST = path.join(__dirname, '../dist');
 const checker = import(pathToFileURL(path.join(__dirname, '../scripts/check-app-pages.mjs')));
@@ -28,7 +28,7 @@ function files(root) {
     ? files(path.join(root, entry.name)) : [path.relative(DIST, path.join(root, entry.name))]);
 }
 
-test('dist/help and dist/app/help are exactly what tests/help-articles.cjs renders (run it with --write after editing)', () => {
+test('dist/help and dist/app/help are exactly what scripts/help-articles.cjs renders (run it with --write after editing)', () => {
   const expected = new Set(pages.map(page => page.file));
   for (const page of pages) {
     assert.ok(fs.existsSync(path.join(DIST, page.file)), page.file + ' is missing');

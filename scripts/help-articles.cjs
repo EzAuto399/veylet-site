@@ -16,7 +16,7 @@
  * checks a walkthrough.
  *
  * tests/help-pages.test.cjs fails when dist differs from what this renders. After editing:
- *   node tests/help-articles.cjs --write
+ *   node scripts/help-articles.cjs --write
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -754,13 +754,13 @@ function write() {
   }
 }
 
-module.exports = { ARTICLES, GROUPS, EDITIONS, RECAPTURE_RULES, FLAG_RULES, FLAG_ARTICLE, SUPPORT, ORIGIN, pages, plain, assetHash };
+module.exports = { ARTICLES, GROUPS, EDITIONS, RECAPTURE_RULES, FLAG_RULES, FLAG_ARTICLE, SUPPORT, ORIGIN, pages, plain, assetHash, write };
 
 if (require.main === module) {
   if (process.argv.includes('--write')) {
     write();
     console.log(`Wrote ${pages().length} help pages under dist/help and dist/app/help.`);
   } else {
-    console.log('Usage: node tests/help-articles.cjs --write');
+    console.log('Usage: node scripts/help-articles.cjs --write');
   }
 }

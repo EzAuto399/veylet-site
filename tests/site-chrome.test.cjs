@@ -3,7 +3,7 @@
  * One header and one footer on every public page (site audit 10 Nov 2026, findings 1, 2 and 16).
  * This fails when any public page's header or footer link set drifts from the one below, so help,
  * support and status stay reachable from every page. Static pages carry the markup directly; the
- * help centre takes it from tests/help-articles.cjs.
+ * help centre takes it from scripts/help-articles.cjs.
  *
  * Out of scope: the account desk, the in-app pages, the tour surfaces and the staff desk (their own
  * owners), and the one-line /help/fix/<flag> redirects, which have no header or footer.

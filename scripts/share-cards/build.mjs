@@ -9,8 +9,8 @@
 // headless Chrome, converted to an sRGB JPEG with macOS `sips`, and written to dist/media/share/.
 // The page heads carry https://veylet.com/media/share/<card>.jpg?v=<first 16 hex of SHA-256>,
 // the same fingerprint scripts/asset-versions.mjs uses. The /help index head is rendered by
-// tests/help-articles.cjs, which fingerprints dist/media/share/help.jpg itself; rerun
-// `node tests/help-articles.cjs --write` after rebuilding the help card.
+// scripts/help-articles.cjs, which fingerprints dist/media/share/help.jpg itself; rerun
+// `node scripts/help-articles.cjs --write` after rebuilding the help card.
 // No network: templates load only files from this folder and dist/media.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
