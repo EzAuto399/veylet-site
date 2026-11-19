@@ -38,7 +38,7 @@ test('maintained deployment rejects route removal, HTTP/broad routes and tenant/
 
 test('build preserves the complete reviewed public selection and is deterministic', async () => {
   const first = await verify();
-  assert.deepEqual(first.totals, { sourceFiles: 365, outputFiles: 364, unchangedFiles: 322, transformedHtmlFiles: 42, omittedProviderFiles: 1 });
+  assert.deepEqual(first.totals, { sourceFiles: 367, outputFiles: 366, unchangedFiles: 324, transformedHtmlFiles: 42, omittedProviderFiles: 1 });
   const second = await build();
   assert.deepEqual(second, first);
   await verify();
