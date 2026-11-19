@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "287094fc7021c8cbe44809bd26100bd6fd6b1b6d",
+  "sourceCommit": "eaba8cf11cdc7981827bf442beddd4704fd6a00f",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2549,
-      "sha256": "3d0d4c2872362c590e41c3ab209dea5181371e4e026e8eb7e85ab48d57f8076e",
+      "sha256": "f636f2136a0f8c7e29652d4b7ba1618df4929982ef855f191bc38668c00932c7",
       "headerProfile": 6
     },
     {
@@ -587,8 +587,8 @@
     },
     {
       "path": "embed/index.html",
-      "bytes": 21725,
-      "sha256": "527b81855d86c4f373a0f95089171c1aa6b952ce91990c9fa186af638af97178",
+      "bytes": 22003,
+      "sha256": "b0ecd2376b32a3e6b7145baf1b09d1d5978137302ce0232161d83df5f4c0ed03",
       "headerProfile": 7
     },
     {
@@ -653,8 +653,8 @@
     },
     {
       "path": "handoff/index.html",
-      "bytes": 19595,
-      "sha256": "5df235c7db38f9473a75f01ebfb3e074353ee6f478278445218cf30e9a9f853a",
+      "bytes": 19735,
+      "sha256": "097d663860af956ef4e33da1f335f30f38493e171c8e4f407d18705bf28fd5ec",
       "headerProfile": 1
     },
     {
@@ -1404,7 +1404,7 @@
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "8c20112a235b30185e0aefde41fb97db812dcbab2e0588a3b2196d282a3192dc",
+      "sha256": "2505e9cdd6be55f2c965b8665a495a0829799890369711585ee54f12b84f20c7",
       "headerProfile": 1
     },
     {
@@ -2297,8 +2297,8 @@
     },
     {
       "path": "tour-player.js",
-      "bytes": 24310,
-      "sha256": "7e8af8cfac549ecde1f23c89f125e504b32a5e8f6567c8190c8eb6e601fa5fea",
+      "bytes": 26880,
+      "sha256": "9cc17d6bca409ac7c06f50a1a0bea0534adb85e3b125166f829a79c395adcfb4",
       "headerProfile": 4
     },
     {
@@ -2315,8 +2315,8 @@
     },
     {
       "path": "tour/index.html",
-      "bytes": 14499,
-      "sha256": "4d97cfc04ab9f7910f2bb20521dac4b8c8d17189a6f0385a74a24714608aa4df",
+      "bytes": 14639,
+      "sha256": "33315d75268d93fa9fecfdc9e51c2c50d32180c2c0ffaa24b0024ef127fe726c",
       "headerProfile": 19
     },
     {
