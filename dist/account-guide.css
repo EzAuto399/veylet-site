@@ -1112,7 +1112,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 
 /* Today first: what waits, the totals, then one row per space. A space opens on its own (#space-<id>). */
 #view-walkthroughs:has(#account-space-index:not([hidden])):not([data-space]) .account-list > .dash-space { display: none; }
-#view-walkthroughs[data-space] :is(#account-needs, #account-next-step, #account-totals, #account-space-index, #account-plan-line, #account-add-space, #account-activity) { display: none; }
+#view-walkthroughs[data-space] :is(#account-needs, #account-next-step, #account-totals, #account-space-index, #account-plan-line) { display: none; }
 .dash-space > .space-back { display: none; }
 #view-walkthroughs[data-space] .dash-space > .space-back { display: inline-flex; margin: 0 0 12px; }
 .desk-totals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 40px; margin: 20px 0 0; padding: 16px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
