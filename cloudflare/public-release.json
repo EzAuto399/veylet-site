@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "c904d1874199037f546b679bc184609ee68f64ed",
+  "sourceCommit": "85085d12c3c6a3583c92fdc9bc971de6d1cb7d3d",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 519628,
-      "sha256": "90901ececacd4e9a7afdf99b38a20de8a8ac63847406e846dee91a72b29feae5",
+      "bytes": 518672,
+      "sha256": "c9af07afc48ea8c9a957afdb0be58d447fff9b84017a6a2a3f7a4803df713604",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
-      "bytes": 24726,
-      "sha256": "0f61c3e0f7e4e11c992af739cd9fd60a1f55f42dc924841c40120ecb3911b0c9",
+      "bytes": 24794,
+      "sha256": "3826c356f492bf1e06ef48c93be780c3b625062a901a72253c51608520305cb6",
       "headerProfile": 1
     },
     {
@@ -317,8 +317,8 @@
     },
     {
       "path": "app/account/index.html",
-      "bytes": 11971,
-      "sha256": "809f55a332c21d72b71d66f6e69d660ae84eba08dbd0546f9fadcebb388ed43e",
+      "bytes": 12039,
+      "sha256": "7b192d59ac8073605290a7c3d76804594592b9aa5e7b417a18ed21519c2a0627",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2849,
-      "sha256": "309628c3708362261e7e79e5e4fbbf8c7983966de2cc803b8c928d325e1ccef1",
+      "sha256": "c609f68c217d0ea34c12bdd8bca9c611ad834c522c488d6a4fb4adb872cc074d",
       "headerProfile": 1
     },
     {
@@ -551,8 +551,8 @@
     },
     {
       "path": "build-info.json",
-      "bytes": 2627,
-      "sha256": "299514bb4f6609c3bb8567e64e139688925a4054b90bc478a1049896ccc36ed8",
+      "bytes": 2668,
+      "sha256": "7cc99359a84107d06dfbdc95c91d3621c2b9b1638875722984986ee1cdfba4bc",
       "headerProfile": 6
     },
     {
@@ -1399,6 +1399,12 @@
       "path": "place-fields.js",
       "bytes": 17541,
       "sha256": "c87496395841d9cd90331e28fbe3a9f6e70b576e8c8a317c1034c531f8b7b31b",
+      "headerProfile": 4
+    },
+    {
+      "path": "plan-terms.js",
+      "bytes": 1283,
+      "sha256": "6b260a957d47d82ed05b944eca3bd38c1dd185c4d1833e84375d4b174187c22b",
       "headerProfile": 4
     },
     {
@@ -2249,14 +2255,14 @@
     },
     {
       "path": "studio.js",
-      "bytes": 135461,
-      "sha256": "1ffef4b7130b37a8260be249d3dd4f15cf3ad6f20abc3f95624f05aeaf1ee1a9",
+      "bytes": 134319,
+      "sha256": "1feaac80e3fe3a78306593a10eeea542d6b8475ced057bb181245f8108fd60ae",
       "headerProfile": 4
     },
     {
       "path": "studio/index.html",
-      "bytes": 14103,
-      "sha256": "09e7fae36b12a6e71864b86fcc2f602d012f38d0d2cf3409cb690f988c17aecc",
+      "bytes": 14171,
+      "sha256": "496a662851216cf53f1144b371ea63aefc72be42165e2874578868cb73db593b",
       "headerProfile": 18
     },
     {
