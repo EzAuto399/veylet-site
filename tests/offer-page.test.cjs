@@ -1094,11 +1094,9 @@ test('the App Store sells the Veylet plan monthly and yearly, and both desks sti
   // Retired App Store products stay in the record and both desks map them, so a verified row still reads correctly.
   const products = record.appStore.productIds;
   assert.deepEqual(record.appStore.productPlans, { soloMonthly: 'solo', soloAnnual: 'solo', monthly: 'studio', annual: 'studio' });
-  for (const script of ['account.js', 'studio.js']) {
-    const content = read(script);
-    for (const [key, code, interval] of [['monthly', 'studio', 'monthly'], ['annual', 'studio', 'annual'], ['soloMonthly', 'solo', 'monthly'], ['soloAnnual', 'solo', 'annual']]) {
-      assert.match(content, new RegExp(`'${escape(products[key])}': \\['${code}', '${interval}'\\]`), `${script} maps ${products[key]}`);
-    }
+  const generated = read('plan-terms.js');
+  for (const [key, code, interval] of [['monthly', 'studio', 'monthly'], ['annual', 'studio', 'annual'], ['soloMonthly', 'solo', 'monthly'], ['soloAnnual', 'solo', 'annual']]) {
+    assert.match(generated, new RegExp(`'${escape(products[key])}': \\['${code}', '${interval}'\\]`), `plan-terms.js maps ${products[key]}`);
   }
 });
 
@@ -1177,7 +1175,7 @@ test('the website guide gives a paste location for each major builder and does n
 });
 
 // Names retired for new buyers by offer 2026-09-24.2. Existing rows still read correctly on the
-// desks, which name the retired plans in one shared constant and nowhere else.
+// desks, which share the retired names in one generated constant (dist/plan-terms.js) and nowhere else.
 const SHARED_PLAN_NAMES = "{ solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' }";
 // "One walkthrough" as a product name: mid-sentence, or ending a name (a quote, tag, bracket, comma or "once", "at", "plan").
 const retiredNames = [/\bSolo\b/, /\bTeam\b/, /\bOffice\b/,
@@ -1192,12 +1190,15 @@ test('retired plan names appear on no public page, and the desks name them only 
     for (const name of retiredNames) assert.doesNotMatch(content, name, `${rel(file)} names a retired plan (${name})`);
   }
   assert.ok(read('terms/index.html').replace(/\s+/g, ' ').includes('Existing Team or Office plans keep their agreed allowance'), 'the terms keep existing plans on their agreed allowance');
+  const planTerms = read('plan-terms.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.equal(planTerms.split(SHARED_PLAN_NAMES).length - 1, 1, 'plan-terms.js keeps the shared plan names exactly once');
+  const shared = planTerms.replace(SHARED_PLAN_NAMES, '');
+  for (const name of retiredNames) assert.doesNotMatch(shared, name, `plan-terms.js names a retired plan outside the shared constant (${name})`);
   for (const script of ['account.js', 'studio.js']) {
     // Comments are shown to nobody; every string is.
     const code = read(script).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    assert.equal(code.split(SHARED_PLAN_NAMES).length - 1, 1, `${script} keeps the shared plan names exactly once`);
-    const rest = code.replace(SHARED_PLAN_NAMES, '');
-    for (const name of retiredNames) assert.doesNotMatch(rest, name, `${script} names a retired plan outside the shared constant (${name})`);
+    assert.equal(code.split(SHARED_PLAN_NAMES).length - 1, 0, `${script} keeps no plan names of its own`);
+    for (const name of retiredNames) assert.doesNotMatch(code, name, `${script} names a retired plan (${name})`);
   }
 });
 

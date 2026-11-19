@@ -45,32 +45,21 @@
 
   const COLUMNS = 12;
   const DASH = '—';
-  const PLAN_STATUSES = ['pending', 'trial', 'active', 'ended'];
+  // The shared plan facts (dist/plan-terms.js, rendered from offer.json);
+  // the desk keeps only its own words and studio-only rules.
+  const { PLAN_STATUSES, PLAN_SOURCES, PLAN_NAMES, APPLE_PRODUCTS, TRIAL_INCLUDED_MAX,
+    TRIAL_DEFAULT_MONTHS: FREE_MONTHS_DEFAULT, TRIAL_DEFAULT_ROOMS: FREE_WALKTHROUGHS_DEFAULT,
+    PACKS, PACK_VALID_MONTHS, REFERRAL_ROOMS: REFERRAL_WALKTHROUGHS, RETIRED_PLANS } = window.VeyletPlanTerms;
   // One vocabulary. These are the same short state words the app and the account
   // desk put in their State row; the Status cell keeps the full title and date.
   const STATUS_CHOICES = { pending: 'Not started', trial: 'Free months', active: 'Active', ended: 'Ended' };
-  // Where the money is arranged decides which price is true for this account.
-  // An App Store subscription belongs to Apple, so this desk may not move it.
-  const PLAN_SOURCES = ['studio', 'apple', 'web'];
   const SOURCE_CHOICES = { studio: 'Studio', web: 'Website', apple: 'App Store' };
-  // Plan code to the name customers see. Offer 2026-09-25.2 sells one plan, the
-  // Veylet plan (code solo), monthly or yearly; the retired codes keep their
-  // names so an existing row still reads as the plan it was agreed on (plan code
-  // 'studio' is Team). The account desk states the same names from the same table.
-  const PLAN_NAMES = { solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' };
   const PLAN_ON_SALE = 'solo';
-  const RETIRED_PLANS = ['studio', 'founding', 'office', 'one'];
-  // App Store product to plan and cadence, as offer.json lists the product IDs.
-  // The App Store sells the Veylet plan monthly and yearly; the two Team IDs stay
-  // mapped so an existing verified row still reads correctly.
-  const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
   // Offer 2026-09-27.1 closes new invoice subscriptions. The studio desk records
   // only the two one-time packs of rooms; existing subscription rows retain
   // the provider, price, allowance and dates already stored for their agreement.
   // Offer 2026-11-11.1: the unit is the room. The keys keep their names, as the server's do, and carry
   // room counts: pack3 is 30 rooms and pack10 is 100.
-  const PACKS = { pack3: { walkthroughs: 30, cents: 16900 }, pack10: { walkthroughs: 100, cents: 49900 } };
-  const PACK_VALID_MONTHS = 12;
   // Annual pool counts come only from the account reader; the current offer cannot replace an existing allowance.
   const INVOICE_ITEMS = ['pack3', 'pack10'];
   // A founding workspace gets one free pack of 30 rooms for each referred office that
@@ -78,18 +67,14 @@
   const FOUNDING_GRANT_PACK = PACKS.pack3;
   const FOUNDING_GRANTS_MAX = 4;
   // Any referral: when a referred office becomes a paying account, it and the
-  // office that referred it each get 10 bonus rooms, once per referred office.
+  // office that referred it each get the shared bonus rooms, once per referred office.
   // The server grants them when its plan first turns active; the desk is the fallback.
-  const REFERRAL_WALKTHROUGHS = 10;
-  const FREE_MONTHS_DEFAULT = 1;
-  const FREE_WALKTHROUGHS_DEFAULT = 30;
   // Retired whole-home rule (offer.json retiredTerms): 5 or more bedrooms, a
   // second dwelling or more than 350 m² of floor area counted as 2. Offer
   // 2026-09-27.1 supersedes both this and the later rooms rule for new captures;
   // this remains only to correct historical declarations for older listings.
   const HOME_BEDROOMS_FOR_TWO = 5;
   const HOME_AREA_OVER_M2 = 350;
-  const TRIAL_INCLUDED_MAX = 240;
   // An opaque agreement, invoice or receipt reference: never a name or an email.
   const REFERENCE = /^[A-Za-z0-9][A-Za-z0-9._:/-]{2,159}$/;
   // The same rule as a pattern attribute. Browsers compile patterns with the v

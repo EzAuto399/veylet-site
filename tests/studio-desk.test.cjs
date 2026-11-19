@@ -10,6 +10,8 @@ const script = read('dist/studio.js');
 const styles = read('dist/studio.css');
 const accountScript = read('dist/account.js');
 const accountMarkup = read('dist/account/index.html');
+// The shared plan facts both desks load (dist/plan-terms.js, rendered from offer.json).
+const PLAN_TERMS = (() => { const shared = {}; vm.runInNewContext(read('dist/plan-terms.js'), { window: shared }); return shared.VeyletPlanTerms; })();
 const homeMarkup = read('dist/index.html');
 // The canonical offer record (2026-09-27.1): every current amount the desk uses
 // is checked against it rather than typed into these tests.
@@ -144,10 +146,6 @@ test('the studio desk and the account desk use one vocabulary, written once each
   const shared = [
     "'Plan status unavailable'", "'Refresh to check your free month and allowance.'",
     "'Plan not started'", "'Free until '", "(PLAN_NAMES[planCode(row)] || 'Plan') + ' · '",
-    // Offer 2026-09-24.2: plan code solo is the Veylet plan, the one plan on sale;
-    // the retired codes keep their names so existing rows still read correctly.
-    "{ solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' }",
-    "{ 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] }",
     "'Free month ended '", "'Plan ended '",
     "'Review the available plan. Eligible subscribers can start with '",
     "' free month' + (months === '1' ? '' : 's') + ' and '", "' rooms in total.'",
@@ -162,6 +160,16 @@ test('the studio desk and the account desk use one vocabulary, written once each
   for (const phrase of shared) {
     assert.equal(script.split(phrase).length - 1, 1, `studio.js states ${phrase} once`);
     assert.equal(accountScript.split(phrase).length - 1, 1, `account.js states ${phrase} once`);
+  }
+  // Offer 2026-09-24.2: plan code solo is the Veylet plan, the one plan on sale;
+  // the retired codes keep their names so existing rows still read correctly.
+  // The desks' shared literals live once in the generated dist/plan-terms.js.
+  const generated = read('dist/plan-terms.js');
+  for (const sharedLiteral of [
+    "{ solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' }",
+    "{ 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] }",
+  ]) {
+    assert.equal(generated.split(sharedLiteral).length - 1, 1, `plan-terms.js states ${sharedLiteral} once`);
   }
   // The withdrawn promises are gone from both, not merely unused: the old renewal
   // sentence, the monthly reset of an annual allowance, and month words for offer counts.
@@ -205,15 +213,19 @@ test('the studio desk carries no new subscription price or checkout path; only p
   assert.deepEqual(offer.subscriptionCheckout.newBuyerChannels, ['appStore']);
   assert.doesNotMatch(script, /PLAN_MONTH_CENTS|PLAN_YEAR_CENTS|studio_activate_invoice_plan|solo-monthly|solo-annual/);
   assert.doesNotMatch(script, /const YEARLY_POOL\s*=/, 'an offer constant cannot replace a returned account allowance');
-  assert.match(script, new RegExp(`const REFERRAL_WALKTHROUGHS = ${offer.referral.referrerWalkthroughs};`));
+  assert.equal(PLAN_TERMS.REFERRAL_ROOMS, offer.referral.referrerWalkthroughs);
   assert.equal(offer.referral.referredWalkthroughs, offer.referral.referrerWalkthroughs, 'each office gets the same');
   for (const pack of offer.packs) {
-    assert.match(script, new RegExp(`${pack.code}: \\{ walkthroughs: ${pack.walkthroughs}, cents: ${cents(pack.webAud)} \\}`));
+    assert.deepEqual(JSON.parse(JSON.stringify(PLAN_TERMS.PACKS[pack.code])), { walkthroughs: pack.walkthroughs, cents: cents(pack.webAud) });
     assert.equal(pack.validMonths, 12);
   }
-  assert.match(script, /const PACK_VALID_MONTHS = 12;/);
+  assert.equal(PLAN_TERMS.PACK_VALID_MONTHS, 12);
   // The four App Store product IDs stay mapped for existing rows.
-  assert.equal((script.match(/'dev\.property3d\.capture\.[a-z]+\.(?:monthly|annual)': \['(?:solo|studio)', '(?:monthly|annual)'\]/g) || []).length, 4);
+  assert.equal(Object.keys(PLAN_TERMS.APPLE_PRODUCTS).length, 4);
+  for (const [product, [plan, cadence]] of Object.entries(PLAN_TERMS.APPLE_PRODUCTS)) {
+    assert.match(product, /^dev\.property3d\.capture\.[a-z]+\.(?:monthly|annual)$/);
+    assert.ok(['solo', 'studio'].includes(plan) && ['monthly', 'annual'].includes(cadence));
+  }
 });
 
 /* ---- Behaviour ------------------------------------------------------- */
@@ -1083,8 +1095,8 @@ test('a forged plan migration is refused before any write', async () => {
 
 test('Set plan falls back to 1 free month and 30 free rooms when the row cannot say', async () => {
   assert.deepEqual([offer.freeMonths.months, offer.freeMonths.includedRooms, offer.freeMonths.includedWalkthroughs], [1, 30, 30]);
-  assert.match(script, new RegExp(`const FREE_MONTHS_DEFAULT = ${offer.freeMonths.months};`));
-  assert.match(script, new RegExp(`const FREE_WALKTHROUGHS_DEFAULT = ${offer.freeMonths.includedWalkthroughs};`));
+  assert.equal(PLAN_TERMS.TRIAL_DEFAULT_MONTHS, offer.freeMonths.months);
+  assert.equal(PLAN_TERMS.TRIAL_DEFAULT_ROOMS, offer.freeMonths.includedWalkthroughs);
   const h = await load({ accounts: oneAccount({ source: 'studio', trial_months: null, trial_included_walkthroughs: null }) });
   const [months, included] = h.formFor(0).all().filter(el => el.type === 'number');
   assert.deepEqual([months.value, included.value], ['1', '30']);

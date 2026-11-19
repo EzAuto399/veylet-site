@@ -20,6 +20,7 @@ const root = join(here, '..');
 const require = createRequire(import.meta.url);
 require('./help-articles.cjs').write();
 require('./app-legal.cjs').write();
+require('./plan-terms.cjs').write();
 // Resolve dependency fingerprints before identifying the final public bytes.
 // Repeated builds reuse URLs; changing a dependency also versions its loader.
 const assetVersions = versionAssets(join(root, 'dist'));

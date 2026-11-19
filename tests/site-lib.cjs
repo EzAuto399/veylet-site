@@ -10,8 +10,10 @@ const path = require('node:path');
 const dist = path.join(__dirname, '../dist');
 const source = fs.readFileSync(path.join(dist, 'site-lib.js'), 'utf8');
 const tourPageSource = fs.readFileSync(path.join(dist, 'tour-page.js'), 'utf8');
+const planTermsSource = fs.readFileSync(path.join(dist, 'plan-terms.js'), 'utf8');
 
-const load = sandbox => vm.runInNewContext(source, sandbox);
+// Pages load site-lib.js and plan-terms.js before their desk scripts.
+const load = sandbox => { vm.runInNewContext(source, sandbox); vm.runInNewContext(planTermsSource, sandbox); };
 const loadTourPage = sandbox => vm.runInNewContext(tourPageSource, sandbox);
 
-module.exports = { source, tourPageSource, load, loadTourPage };
+module.exports = { source, tourPageSource, planTermsSource, load, loadTourPage };

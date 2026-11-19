@@ -3748,27 +3748,15 @@
   const planPanel = document.getElementById('account-plan');
   const planBody = document.getElementById('account-plan-body');
   const deletionPanel = document.getElementById('account-deletion');
-  const PLAN_STATUSES = ['pending', 'trial', 'active', 'ended'];
+  // The shared plan facts (dist/plan-terms.js, rendered from offer.json);
+  // the desk keeps only its own words.
+  const { PLAN_STATUSES, PLAN_SOURCES, PLAN_NAMES, APPLE_PRODUCTS, TRIAL_INCLUDED_MAX,
+    TRIAL_DEFAULT_MONTHS: PLAN_DEFAULT_TRIAL_MONTHS, TRIAL_DEFAULT_ROOMS: PLAN_DEFAULT_TRIAL_ROOMS } = window.VeyletPlanTerms;
   const PLAN_TERMS = ['State', 'Free rooms', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'];
   // The State row says the state in the app's own short words; the date belongs
   // to the Renews row, and the full sentence to the body.
   const PLAN_STATE_WORDS = { pending: 'Not started', trial: 'Free month', active: 'Active', ended: 'Ended' };
-  // Where the money is arranged decides which price is true for this account.
-  const PLAN_SOURCES = ['studio', 'apple', 'web'];
   const PLAN_SOURCE_WORDS = { apple: 'App Store', web: 'Website', studio: 'Studio invoice' };
-  // Plan code to the name customers see. Offer 2026-09-25.2 sells one plan, the
-  // Veylet plan (code solo), monthly or yearly; Team (studio), Office, One
-  // walkthrough and the founding rate are retired for new buyers, and an existing
-  // row on one of them still reads by its own name. The studio desk states the
-  // same names from the same table.
-  const PLAN_NAMES = { solo: 'Veylet plan', studio: 'Team', founding: 'Team, founding rate', office: 'Office', one: 'One walkthrough' };
-  // App Store product to plan and cadence, as offer.json lists the product IDs.
-  // The App Store sells the Veylet plan monthly and yearly (appStore.sold); the
-  // two Team IDs stay mapped so an existing verified row still reads correctly.
-  const APPLE_PRODUCTS = { 'dev.property3d.capture.plan.monthly': ['studio', 'monthly'], 'dev.property3d.capture.plan.annual': ['studio', 'annual'], 'dev.property3d.capture.solo.monthly': ['solo', 'monthly'], 'dev.property3d.capture.solo.annual': ['solo', 'annual'] };
-  // offer.json freeMonths: 1 month, 30 rooms in total.
-  const PLAN_DEFAULT_TRIAL_MONTHS = 1;
-  const PLAN_DEFAULT_TRIAL_ROOMS = 30;
   const PLAN_DASH = '—';
   const PLAN_TEST_ALLOWANCE = 'Production walkthroughs are not included in a sandbox subscription.';
   // Sandbox reads the same way on the plan and on both cards: "Test ·", then what is not live.
@@ -3783,10 +3771,10 @@
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
     return value !== '' && Number.isInteger(count) && count >= 1 && count <= 24 ? String(count) : '';
   }
-  // A free-month room allowance: a whole number from 1 to 240, the most the studio desk may set.
+  // A free-month room allowance: a whole number up to TRIAL_INCLUDED_MAX, the most the studio desk may set.
   function planRooms(value) {
     const count = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
-    return value !== '' && Number.isInteger(count) && count >= 1 && count <= 240 ? String(count) : '';
+    return value !== '' && Number.isInteger(count) && count >= 1 && count <= TRIAL_INCLUDED_MAX ? String(count) : '';
   }
   function planCount(value) {
     if (value === null || value === undefined || value === '') return PLAN_DASH;
@@ -5140,7 +5128,7 @@
    */
   const referralEl = document.getElementById('account-referral');
   // offer.json referral.referrerRooms and referredRooms.
-  const REFERRAL_ROOMS = 10;
+  const { REFERRAL_ROOMS } = window.VeyletPlanTerms;
   const REFERRAL_RULE = 'When an office you refer becomes a paying account, you each get ' + REFERRAL_ROOMS + ' bonus rooms.';
   const REFERRAL_WAITING = 'Your share link appears here once referral links open.';
   const REFERRAL_EACH = 'you and the office that referred you each get ' + REFERRAL_ROOMS + ' bonus rooms';
