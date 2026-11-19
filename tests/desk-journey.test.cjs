@@ -80,7 +80,7 @@ function harness(options = {}) {
   const table = {
     properties: { data: options.properties || [{ id: 'p1', title: 'Sample space', workspace_id: 'w1' }] },
     tours: { data: tours },
-    memberships: { data: [{ workspace_id: 'w1', role: options.role || 'owner', status: 'active' }] },
+    memberships: { data: options.memberships || [{ workspace_id: 'w1', role: options.role || 'owner', status: 'active' }] },
   };
   const approved = new Set(options.approved === true ? tours.map(row => row.id) : options.approved || []);
   const missing = { error: { code: 'PGRST202', message: 'Could not find the function' } };
@@ -1188,31 +1188,31 @@ test('a held capture stays Waiting to render with the contract’s words for its
 /* ---- Offer 2026-09-26.3 (20260926140000): rooms, and the free months' render attempts ---- */
 
 /* Offer 2026-11-11.1: the unit is the room. walkthroughs_used carries the counted rooms under its old name. */
-test('each capture and its review say how many rooms its approval uses; unknown rooms say nothing', async () => {
+test('each capture and its review say how many rooms its approval uses; unknown or malformed charge stays hidden', async () => {
   for (const [rooms, used, words] of [[1, 1, 'This uses 1 room.'], [8, 8, 'This uses 8 rooms.'],
     [9, 7, 'This uses 7 rooms.'], [3, 10, 'This uses 10 rooms.']]) {
-    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used }) } });
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms, walkthroughs_used: used, allowance_unit: 'room' }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
     const line = reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className));
     assert.equal(line.hidden, false, words);
     assert.equal(line.textContent, words);
     // Also on a capture still on its way.
-    const waiting = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2, rooms, walkthroughs_used: used }) } });
+    const waiting = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2, rooms, walkthroughs_used: used, allowance_unit: 'room' }) } });
     assert.equal(renderBlockOf(waiting).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
   }
   // With the plan's capacity answer, the line says what the tour uses out of the included rooms, before Approve.
   const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 13999, renewal_price_aud_cents: 13999,
     current_period_ends_at: '2026-12-11T00:00:00Z', auto_renews: true, included_per_month: 30, accepted_this_period: 0, hosting_included: true };
-  const cap = { plan_status: 'active', included_limit: 30, included_used: 0, included_remaining: 30, extra_credits_available: 0, can_accept: true, reason_code: null };
+  const cap = { allowance_unit: 'room', offer_version: '2026-11-11.1', plan_status: 'active', included_limit: 30, included_used: 0, included_remaining: 30, extra_credits_available: 0, can_accept: true, reason_code: null };
   const limited = await load({ tours: [readyTour()], rpc: { get_workspace_plan: async () => ({ data: [plan] }), get_walkthrough_capacity: async () => ({ data: [cap] }),
     list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', rooms: 8, walkthroughs_used: 8 }) } });
   await settle();
   assert.equal(limited.count('get_walkthrough_capacity'), 1);
   assert.equal(reviewForm(limited.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
   assert.equal(renderBlockOf(limited).all().find(el => /\brender-units\b/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
-  // Rooms not counted yet (null), an odd count or no walkthroughs used: nothing, and approval still works (it uses 1).
-  for (const fields of [{ rooms: null, walkthroughs_used: 1 }, { rooms: 9, walkthroughs_used: null }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
+  // Unknown or malformed charge and malformed room counts stay hidden; a missing list alone does not erase a known charge.
+  for (const fields of [{ rooms: 9, walkthroughs_used: null }, { rooms: 9, walkthroughs_used: -1 }, { rooms: -1, walkthroughs_used: 1 }, { rooms: 3, walkthroughs_used: 0 }, {}]) {
     const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review', status: 'awaiting_review', tour_id: 't1', ...fields }) } });
     await settle();
     assert.equal(renderBlockOf(h).all().some(el => /\brender-units\b/.test(el.className)), false, JSON.stringify(fields));
@@ -2168,3 +2168,51 @@ test('a newly ready capture keeps review guidance while edits defer automatic de
   assert.match(textOf(h.ids['account-next-step']), /New space is ready for your review/);
   assert.ok(h.ids['account-next-step'].all().some(el => el.tagName === 'BUTTON' && el.textContent === 'Review walkthrough'));
 });
+
+test('an unmarked capture never calls historic or unknown allowance units rooms', async () => {
+  const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review',
+    status: 'awaiting_review', tour_id: 't1', rooms: 8, walkthroughs_used: 1 }) } });
+  await settle();
+  const words = renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent;
+  assert.equal(words, 'This uses 1 of your allowance.');
+  assert.equal(reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, words);
+  assert.doesNotMatch(words, /rooms|of your 30/);
+});
+
+test('a capture never borrows another workspace room denominator or scales its server count', async () => {
+  const plan = { allowance_unit: 'room', offer_version: '2026-11-11.1', status: 'active', plan_code: 'solo', source: 'web',
+    billing_interval: 'monthly', renewal_price_aud_cents: 13999, current_period_ends_at: '2026-12-11T00:00:00Z',
+    auto_renews: true, included_per_month: 30, accepted_this_period: 0, hosting_included: true };
+  const cap = { allowance_unit: 'room', included_limit: 30, included_used: 0, included_remaining: 30,
+    extra_credits_available: 0, can_accept: true, reason_code: null, plan_status: 'active' };
+  for (const [marker, words] of [['room', 'This uses 8 rooms.'], [undefined, 'This uses 8 of your allowance.']]) {
+    const h = await load({ properties: [{ id: 'p1', title: 'Main office space', workspace_id: 'w1' }, { id: 'p2', title: 'Other office space', workspace_id: 'w2' }],
+      memberships: [{ workspace_id: 'w1', role: 'owner', status: 'active' }, { workspace_id: 'w2', role: 'owner', status: 'active' }],
+      tours: [readyTour(), readyTour({ id: 't2', property_id: 'p2' })], rpc: {
+        get_workspace_plan: async () => ({ data: [plan] }), get_walkthrough_capacity: async () => ({ data: [cap] }),
+        list_workspace_render_status: async args => {
+          const first = args.p_workspace_id === 'w1';
+          return { data: { active: false, spaces: [{ property_id: first ? 'p1' : 'p2', job: { job_id: first ? 'j1' : 'j2', property_id: first ? 'p1' : 'p2',
+            state: 'ready_for_review', status: 'awaiting_review', tour_id: first ? 't1' : 't2', rooms: 8, walkthroughs_used: 8,
+            allowance_unit: first ? 'room' : marker } }] } };
+        },
+      } });
+    await settle();
+    const blocks = h.ids['account-properties'].all().filter(el => el.className === 'render-block');
+    assert.equal(blocks.find(el => el.dataset.job === 'j1').all().find(el => /\brender-units\b/.test(el.className)).textContent, 'This uses 8 of your 30 rooms.');
+    assert.equal(blocks.find(el => el.dataset.job === 'j2').all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+    assert.equal(reviewForm(h.card('t2')).all().find(el => /tour-review-units/.test(el.className)).textContent, words);
+    assert.doesNotMatch(words, /of your 30|80/);
+  }
+});
+
+test('a known fixed charge remains visible when the room list is missing', async () => {
+  for (const [unit, words] of [['room', 'This uses 10 rooms.'], [undefined, 'This uses 10 of your allowance.']]) {
+    const h = await load({ tours: [readyTour()], rpc: { list_workspace_render_status: renderAnswer({ state: 'ready_for_review',
+      status: 'awaiting_review', tour_id: 't1', rooms: null, walkthroughs_used: 10, allowance_unit: unit }) } });
+    await settle();
+    assert.equal(renderBlockOf(h).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+    assert.equal(reviewForm(h.card('t1')).all().find(el => /tour-review-units/.test(el.className)).textContent, words);
+  }
+});
+

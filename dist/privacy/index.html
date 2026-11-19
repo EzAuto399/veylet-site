@@ -70,7 +70,7 @@
       }
     </script>
 
-    <link rel="stylesheet" href="/analytics.css?v=2ec160f6f99c9bfa">
+    <link rel="stylesheet" href="/analytics.css?v=44fab8f92142d1f8">
     <script src="/analytics-config.js?v=46c7ebe5f00cc79d" defer></script>
     <script src="/analytics.js?v=669962340f51cb1c" defer></script>
     <script src="/insights.js?v=8d217f3362eb989f" defer></script>
@@ -85,6 +85,17 @@
         This notice is a plain-language summary for Veylet Studio (Australia).
         Last updated 19 November 2026. It is not legal advice.
       </p>
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Changes in this version.</h2>
+      <p> This version of the notice takes effect on
+        [effective date — owner sets at release]. It adds what the app records
+        about captures, practice-room results, what shared walkthrough pages
+        count for the agent, crash reports, notifications, room names, listing
+        details, how long we keep these records and how to delete them. The app
+        does not send the new capture records, and shared walkthrough pages do
+        not send viewer insights, before this version takes effect.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <h2>What we collect.</h2>
       <p> Your email address, which is how you
         sign in and how we reach you. The captures you send us, and the
@@ -216,6 +227,18 @@
         Device backups and third-party sharing services follow your settings
         with those services.
       </p>
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Listing details and photos.</h2>
+      <p> The headline, description, bedroom,
+        bathroom and car-space numbers and photos you add to a listing in the
+        app are saved on this iPhone only; Veylet does not upload them. Photos
+        come only from your own photo library, after you confirm you own or are
+        licensed to use them. Veylet never copies photos or text from a listing
+        website. When a walkthrough is embedded on a website, the embed tells us
+        only that website’s address, never the page it is on, so views can be
+        counted per website.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <h2>Tour files.</h2>
       <p> When you send a reconstructed tour from
         Veylet Capture, the package is stored privately for the property's
@@ -226,6 +249,16 @@
         Street addresses, access codes and ID documents do not belong in these
         records.
       </p>
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Room names.</h2>
+      <p> You can rename a room while you review a
+        walkthrough. The name is stored with that walkthrough and shown to
+        anyone who opens its link. Name the room only (for example Main
+        bedroom): never a person’s name, a street address or an access code.
+        The capture records below use the room’s type, never the name you give
+        it.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <!-- legal review: 2026-09-25 automatic processing -->
       <!-- 2026-11-19: processing location corrected to the United States; owner legal review required -->
       <h2>How walkthroughs are processed.</h2>
@@ -236,6 +269,53 @@
         ready for your review. An AI visual check is planned; it will be listed
         here before it is switched on.
       </p>
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>What the app records about captures.</h2>
+      <p> To see where capturing gets hard, and to
+        check the rooms the app shows you against the rooms we count, Veylet
+        Capture records a short note at each step below. These records are
+        linked to your Veylet account, never include addresses, names, text you
+        type, photos or your location, and are deleted after 13 months or when
+        you delete your account.
+      </p>
+      <ul>
+        <li>When you start a capture, the app records that a capture started,
+          with a random capture number and whether it is room by room.</li>
+        <li>When a room starts, the app records its type from our list (for
+          example Bedroom or Hall, never a name you type) and its number in the
+          capture.</li>
+        <li>When a room ends, the app records its type, how many photos and
+          standing spots it saved and how many seconds it took.</li>
+        <li>When you finish a capture, the app records how many rooms and photos
+          it has, the number of rooms it expects to use and how long it took.</li>
+        <li>When a capture ends without being finished, the app records the step
+          it ended at, the app’s reason code, the type of room you were in and
+          the counts so far.</li>
+        <li>When you send a capture, the app records the number of rooms it
+          showed you, so we can compare it with the rooms we count.</li>
+        <li>When you approve a walkthrough, the app records that it was
+          approved, with the walkthrough’s random identifier.</li>
+        <li>When you use the share kit, the app records which option you used
+          (link, embed code, QR code or video), with the walkthrough’s random
+          identifier.</li>
+      </ul>
+      <p> Each note holds only counts, seconds, yes or
+        no, and words from a fixed list. Notes wait on this iPhone, outside
+        device backups, until they are sent, and are stored with Supabase in
+        Sydney (ap-southeast-2).
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Practice-room results.</h2>
+      <p> When you finish a practice room, the app
+        sends the result to your account: whether it passed, the reasons it did
+        not, how long it took, how many views it saved, how many directions it
+        covered, the app build and the iPhone model. It never sends the practice
+        photos, depth or camera positions. Up to 20 results wait on this iPhone
+        until someone is signed in; a result made while nobody was signed in is
+        sent with the next account that signs in.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <h2>Client handoff links.</h2>
       <p> A handoff is an unlisted link you
         choose to create for one tour. Anyone holding that link can open the
@@ -255,6 +335,52 @@
         else that identifies the viewer.
       </p>
       <!-- /DRAFT 2026-11-10 -->
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Viewer insights.</h2>
+      <p> When someone views a walkthrough, the page
+        records how many stops they reached, the stop they left on and the
+        seconds spent in each type of room, with no cookie and nothing that
+        identifies the viewer. Room types come from the app’s fixed list (for
+        example Bedroom or Hall), never a room’s own name. The summary is added
+        to the one time-on-page record a visit already sends, for the agent who
+        shared the walkthrough. Adding ?analytics=off to a walkthrough link
+        stops this summary for that browser tab; the usage described under
+        Shared walkthrough usage is still counted.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Crash reports.</h2>
+      <p> If you have chosen to share analytics with
+        app developers in your iPhone’s settings (Privacy &amp; Security ›
+        Analytics &amp; Improvements), Apple sends us crash reports for Veylet
+        Capture. Apple decides what they hold, and we do not link them to your
+        Veylet account. The app also keeps short crash and performance summaries
+        on this iPhone; they leave it only when you choose Send diagnostics to
+        Veylet support under Account › About.
+      </p>
+      <p> A later app version may add a switch to send
+        crash reports to us automatically. It will be off until you turn it on.
+        If you turn on crash reports, Veylet Capture sends a short report when
+        the app crashes, hangs or uses too much power: the app and iOS version,
+        the device model and where in the app’s code it happened. It contains
+        no photos, captures, addresses, space names or account details, is not
+        linked to your account, and is deleted after 90 days. You can turn it
+        off in Account › About.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Notifications.</h2>
+      <p> After your first send, if you allow
+        notifications, the app gives us the push token Apple assigns to Veylet
+        Capture on this iPhone. It is linked to your account and used only to
+        tell you when a walkthrough is ready for review. The notification goes
+        through Apple’s push notification service, which may process it outside
+        Australia, and never shows a listing’s title or address. We stop using a
+        token once Apple tells us it no longer works, and it is deleted with your
+        account. To stop notifications, turn them off for Veylet Capture in your
+        iPhone’s Settings.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <h2>Deleting your account.</h2>
       <p> Ask in the app or on your desk at
         <a href="/account">veylet.com/account</a>. We complete the deletion
@@ -274,6 +400,27 @@
         by someone else are outside this account deletion. Contact us about
         any copies held separately by the studio.
       </p>
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>How long we keep these records.</h2>
+      <p> Capture records and practice-room results:
+        13 months, or until you delete your account if that is sooner. Viewer
+        usage and viewer insights on shared walkthroughs: 13 months, or until
+        the walkthrough is deleted if that is sooner. Crash reports sent to us
+        automatically: 90 days. Push tokens: until Apple tells us a token no
+        longer works, or until you delete your account. Records still waiting on
+        your iPhone are removed when you delete the app.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
+      <!-- DRAFT 2026-11-12: owner legal review required before release -->
+      <h2>Deleting these records.</h2>
+      <p> Delete my account, under Account in the app,
+        or the deletion request on your desk removes the capture records,
+        practice-room results, push tokens and room names described here with
+        the rest of your account, as set out under Deleting your account. To see
+        or correct these records, or to ask about this notice, write to
+        support@veylet.com.
+      </p>
+      <!-- /DRAFT 2026-11-12 -->
       <h2>Limited records we retain.</h2>
       <p> Invoices, receipts and minimal
         records of payments, accepted services and deletion may be retained for

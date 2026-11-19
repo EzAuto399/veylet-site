@@ -154,12 +154,16 @@ main.studio-page noscript p,
   border-bottom: 2px solid var(--ink);
   white-space: nowrap;
 }
-/* Above the stacked layout a two-word column heading wraps rather than pushing
-   the Note column out of the window, and the account name keeps enough width
-   to read. Below it the head is hidden and must not set any width at all. */
+/* Keep twelve desktop columns readable inside the existing keyboard-accessible
+   scroll region. Headings may wrap between words; phone cards keep their own width. */
 @media (min-width: 721px) {
+  #studio-table {
+    min-width: 1440px;
+  }
   .studio-table thead th {
     white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
   }
   .studio-table thead th:first-child {
     min-width: 11ch;

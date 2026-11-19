@@ -537,7 +537,7 @@
     nextStep?.replaceChildren();
     planBody?.replaceChildren();
     planPanel?.setAttribute('aria-busy', 'false');
-    planCapacityRefresh = null; planRoomsLimit = null;
+    planCapacityRefresh = null; planRoomsLimit = null; planRoomsWorkspaceID = null;
     trialHide();
     expressHide();
     renderForget();
@@ -3936,6 +3936,11 @@
    * that cannot state its own date, price or length is unavailable rather than a
    * sentence with a hole in it.
    */
+  // The server owns both counts and their unit. Unmarked historic agreements retain walkthroughs.
+  function planRoomUnit(row, cap) { return (cap?.allowance_unit ?? row?.allowance_unit) === 'room'; }
+  function allowanceWords(row, words, cap) {
+    return planRoomUnit(row, cap) ? words : words.replace(/\bRooms\b/g, 'Walkthroughs').replace(/\broom(s?)\b/g, 'walkthrough$1');
+  }
   function planVocabulary(row, sandbox = planIsSandbox(row)) {
     const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free month and allowance.' };
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : null;
@@ -4048,7 +4053,7 @@
   // The current desk's capacity read, so a bought pack can re-read the ledger.
   let planCapacityRefresh = null;
   // The included limit of the last capacity answer, for "This uses 8 of your 30 rooms."
-  let planRoomsLimit = null;
+  let planRoomsLimit = null, planRoomsWorkspaceID = null;
   // The day an ended plan ended: its paid period, else its free months.
   function planEndDay(row) {
     if (!row || typeof row !== 'object' || row.status !== 'ended') return null;
@@ -4135,7 +4140,7 @@
   async function renderPlan(supabase, ticket, props, members, live = 0) {
     // No plan panel on this page: no restart at the top, so a card keeps its own.
     if (!planPanel || !planBody) { planFixKnown(null); return; }
-    planCapacityRefresh = null; planRoomsLimit = null;
+    planCapacityRefresh = null; planRoomsLimit = null; planRoomsWorkspaceID = null;
     planPrimaryButtons.clear(); planPrimarySaid = null; planRestartLink = null; planShownOffice = null;
     if (APP_MODE) { await renderPlanApp(supabase, ticket, members, live, props); return; }
     const memberships = (failed(members) ? [] : members.value?.data || []).filter(row => row && row.workspace_id);
@@ -4189,6 +4194,7 @@
     let usageCell = null;
     let usageTerm = null;
     let extraCell = null;
+    let extraTerm = null;
     if (view.status === 'unavailable' || !row) {
       planHairline(dl, 'Free rooms', PLAN_DASH, true);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started' : PLAN_DASH, true);
@@ -4207,6 +4213,7 @@
         usageCell = planHairline(dl, 'Free rooms',
           planCount(row.accepted_in_free_months) + ' of ' + planCount(row.trial_included_walkthroughs), true);
       }
+      usageTerm = dl.children[dl.children.length - 1].children[0];
       const renewsOn = planDate(view.status === 'active' ? row.current_period_ends_at : row.trial_ends_at);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started'
         : view.status === 'ended' ? PLAN_DASH
@@ -4318,6 +4325,8 @@
       const reply = await settled(supabase.rpc('get_walkthrough_capacity', { p_workspace_id: workspaceID }));
       if (ticket !== deskVersion) return;
       const cap = !failed(reply) ? firstRow(reply.value?.data) : null;
+      const roomUnit = planRoomUnit(row, cap);
+      const unitWords = words => allowanceWords(row, words, cap);
       const numbers = ['included_limit', 'included_used', 'included_remaining', 'extra_credits_available'];
       const valid = cap && typeof cap === 'object' && numbers.every(key => Number.isInteger(cap[key]) && cap[key] >= 0) &&
         typeof cap.can_accept === 'boolean' && (cap.reason_code === null || typeof cap.reason_code === 'string') &&
@@ -4329,6 +4338,9 @@
           : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-room balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
         capacity.replaceChildren(...[allowance, capacityNote].filter(Boolean)); return;
       }
+      const capacityBody = planVocabulary({ ...row, allowance_unit: roomUnit ? 'room' : 'walkthrough' }).body;
+      if (usageTerm && ['trial', 'pending', 'ended'].includes(view.status)) usageTerm.textContent = unitWords('Free rooms');
+      if (extraTerm) extraTerm.textContent = unitWords('Extra rooms');
       // The acceptance ledger is authoritative. A plan count alone does not
       // distinguish an included unit from a previously settled extra.
       if (planIsSandbox(row, cap)) {
@@ -4340,7 +4352,7 @@
       // Offer 2026-09-25.1, only where the answer carries it (older servers do not):
       // a monthly plan's banked rollover, and an annual plan's yearly pool.
       const { banked, rollover, maxBanked, pool, poolEnds, bonus } = planAllowance(row, cap);
-      planRoomsLimitSet(['trial', 'active'].includes(cap.plan_status) ? cap.included_limit : null);
+      planRoomsLimitSet(['trial', 'active'].includes(cap.plan_status) ? cap.included_limit : null, workspaceID);
       // One count per panel, from the capacity answer (the plan row's per-month figure leaves out
       // banked rooms): the cell and the sentence say the same numbers.
       if (usageCell && ['trial', 'active'].includes(cap.plan_status)) usageCell.textContent = cap.included_used + ' of ' + cap.included_limit + ' used';
@@ -6976,20 +6988,24 @@
    * and "your 30" is the included limit of the last capacity answer; without one the line says only
    * the count. Rooms not counted yet (null) say nothing.
    */
-  function renderRoomsUse(job) {
-    const rooms = renderInt(job?.rooms, 0, 1000), used = renderInt(job?.walkthroughs_used, 1, 1000);
-    if (rooms === null || used === null) return '';
-    return planRoomsLimit === null ? 'This uses ' + used + (used === 1 ? ' room.' : ' rooms.')
-      : 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.';
+  function renderRoomsUse(job, workspaceID = null) {
+    const used = renderInt(job?.walkthroughs_used, 1, 1000);
+    // A missing room list can still carry the server's fixed charge; a malformed list/count is not trusted.
+    if (used === null || (job?.rooms != null && renderInt(job.rooms, 0, 1000) === null)) return '';
+    const matchingPlan = workspaceID && workspaceID === planRoomsWorkspaceID && planRoomsLimit !== null;
+    if (job?.allowance_unit !== 'room' && (job?.allowance_unit || !matchingPlan)) return 'This uses ' + used + ' of your allowance.';
+    return matchingPlan ? 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.'
+      : 'This uses ' + used + (used === 1 ? ' room.' : ' rooms.');
   }
   // Per walkthrough: the rooms line from its capture, and the review form's slot for it.
   const reviewUnits = new Map(), reviewUnitSlots = new Map();
   // A capacity answer that arrives after the lines were drawn restates them with "of your N":
   // redrawing the render status repaints each capture's line and its review's.
-  function planRoomsLimitSet(limit) {
+  function planRoomsLimitSet(limit, workspaceID = null) {
     const next = Number.isInteger(limit) && limit > 0 ? limit : null;
-    if (next === planRoomsLimit) return;
-    planRoomsLimit = next;
+    const nextWorkspace = next !== null && typeof workspaceID === 'string' ? workspaceID : null;
+    if (next === planRoomsLimit && nextWorkspace === planRoomsWorkspaceID) return;
+    planRoomsLimit = next; planRoomsWorkspaceID = nextWorkspace;
     renderDraw();
   }
   function paintReviewUnits(slot, words) {
@@ -7049,7 +7065,7 @@
     else view = { key };
     if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
     // What approving uses; never on a card that says nothing was used (Failed, Needs recapture).
-    if (view && !['failed', 'recapture'].includes(view.key)) { const units = renderRoomsUse(job); if (units) view.units = units; }
+    if (view && !['failed', 'recapture'].includes(view.key)) { const units = renderRoomsUse(job, desk?.properties?.get?.(job.property_id)?.workspace_id); if (units) view.units = units; }
     return view;
   }
   function renderStepWords(step) { return 'Step ' + step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[step - 1] + '.'; }
@@ -7313,7 +7329,7 @@
       const row = answer.spaces.get(propertyID);
       // The quality check's advice travels with the capture; its walkthrough's review shows it.
       if (row && typeof row === 'object' && typeof row.tour_id === 'string' && row.tour_id) {
-        reviewFlagsFor(row.tour_id, row.review_flags); reviewUnitsFor(row.tour_id, renderRoomsUse(row));
+        reviewFlagsFor(row.tour_id, row.review_flags); reviewUnitsFor(row.tour_id, renderRoomsUse(row, space?.workspace_id));
       }
       const view = row && renderJobValid(row) ? renderView(row, desk) : null;
       const title = space?.title || 'Untitled space';

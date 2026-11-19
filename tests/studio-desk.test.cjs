@@ -82,12 +82,12 @@ test('the accounts list is a real table a screen reader can read', () => {
   assert.match(markup, /<caption>/);
   const accountsTable = markup.slice(markup.indexOf('<table class="studio-table" id="studio-table">'), markup.indexOf('id="studio-rows"'));
   const headers = [...accountsTable.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/gs)].map(match => match[1].replace(/<[^>]+>[^<]*<\/[^>]+>/g, '').trim());
-  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Free walkthroughs',
+  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Included free allowance',
     'This month', 'Total', 'Renews', 'Auto-renew', 'Walkthroughs', 'Last activity', 'Note']);
   // The assertions below index by name, so the map must follow the markup.
   assert.equal(headers.length, 12);
   assert.equal(headers[COL.source], 'Source');
-  assert.equal(headers[COL.freeWalkthroughs], 'Free walkthroughs');
+  assert.equal(headers[COL.freeWalkthroughs], 'Included free allowance');
   assert.equal(headers[COL.renews], 'Renews');
   assert.equal(headers[COL.autoRenew], 'Auto-renew');
   assert.match(markup, /<tbody id="studio-rows"><\/tbody>/);
@@ -122,7 +122,7 @@ test('the twelve columns are reachable without a mouse when the desk scrolls', (
   assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-set-plan summary,\s*\.studio-plan-form \{[^}]*position: sticky;[^}]*max-width: var\(--studio-view, 100%\)/s);
   // Below the stacked breakpoint nothing scrolls, so nothing may be pinned or
   // given a width that pushes the page past 320px.
-  assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-table thead th \{\s*white-space: normal/s);
+  assert.match(styles, /@media \(min-width: 721px\) \{\s*#studio-table \{\s*min-width: 1440px;\s*\}\s*\.studio-table thead th \{\s*white-space: normal;\s*overflow-wrap: normal;\s*word-break: normal/s);
 });
 
 test('the studio desk stays usable on a phone and keeps 44px targets', () => {
@@ -203,7 +203,7 @@ test('the studio desk carries no new subscription price or checkout path; only p
   // existing rows but carries no sale amount, checkout or activation RPC.
   assert.deepEqual(offer.subscriptionCheckout.newBuyerChannels, ['appStore']);
   assert.doesNotMatch(script, /PLAN_MONTH_CENTS|PLAN_YEAR_CENTS|studio_activate_invoice_plan|solo-monthly|solo-annual/);
-  assert.match(script, new RegExp(`const YEARLY_POOL = ${soloPlan.annualIncluded};`));
+  assert.doesNotMatch(script, /const YEARLY_POOL\s*=/, 'an offer constant cannot replace a returned account allowance');
   assert.match(script, new RegExp(`const REFERRAL_WALKTHROUGHS = ${offer.referral.referrerWalkthroughs};`));
   assert.equal(offer.referral.referredWalkthroughs, offer.referral.referrerWalkthroughs, 'each office gets the same');
   for (const pack of offer.packs) {
@@ -387,7 +387,7 @@ test('a studio member sees the summary, the three accounts and the shared status
   assert.deepEqual(rows.map(row => row.children[COL.account].children[0].textContent),
     ['Northgate Property Co', 'Wren & Fielding', 'Kelvin Grove Dental']);
   assert.match(rows[2].children[COL.account].children[1].textContent, /^— · 2 members$/);
-  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with 6 rooms']);
+  assert.deepEqual(rows[2].children[COL.freeMonths].children.map(el => el.textContent), ['not started', '3 free months with an included allowance of 6']);
   assert.deepEqual(rows[0].children[COL.thisMonth].children.map(el => el.textContent), ['2 / 3', ''], 'a retired plan states no v8 allowance rule');
   assert.equal(rows[1].children[COL.total].textContent, '18');
   assert.equal(rows[1].children[COL.walkthroughs].textContent, '2 / 0');
@@ -1093,9 +1093,9 @@ test('Set plan falls back to 1 free month and 30 free rooms when the row cannot 
 test('each row states its own free-months terms in digits, and a running row keeps its longer terms', async () => {
   const h = await load();
   const terms = h.dataRows().map(row => row.children[COL.freeMonths].children[1].textContent);
-  assert.deepEqual(terms, ['6 free months with 6 rooms', '6 free months with 4 rooms', '3 free months with 6 rooms']);
+  assert.deepEqual(terms, ['6 free months with an included allowance of 6', '6 free months with an included allowance of 4', '3 free months with an included allowance of 6']);
   const single = await load({ accounts: oneAccount({ trial_months: 1, trial_included_walkthroughs: 1 }) });
-  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with 1 room');
+  assert.equal(single.dataRows()[0].children[COL.freeMonths].children[1].textContent, '1 free month with an included allowance of 1');
   for (const odd of [{ trial_months: '3' }, { trial_months: 0 }, { trial_months: 13 }, { trial_included_walkthroughs: 2.5 }, { trial_included_walkthroughs: undefined }]) {
     const other = await load({ accounts: oneAccount(odd) });
     assert.equal(other.dataRows()[0].children[COL.freeMonths].children[1].textContent, '', JSON.stringify(odd));
@@ -1131,9 +1131,9 @@ test('the This month column never prints an allowance rule the row does not carr
   // A row that does carry its cadence (an invoice answer, or an App Store product)
   // and is annual shows the pool rule in place of a monthly figure.
   const rows = [
-    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
+    ['Annual invoice', { plan_code: 'solo', billing_interval: 'annual', renewal_price_aud_cents: OFFER.year }, 'Veylet plan · ' + aud(OFFER.year) + ' a year', ['—', 'Yearly pool · count unavailable']],
     ['App Store annual', { source: 'apple', apple_verified: true, plan_code: 'solo', apple_product_id: 'dev.property3d.capture.solo.annual',
-      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', OFFER.yearlyPool + '-room yearly pool']],
+      billing_interval: 'annual', renewal_price_aud_cents: cents(soloPlan.annualAppAud) }, 'Veylet plan · ' + aud(cents(soloPlan.annualAppAud)) + ' a year', ['—', 'Yearly pool · count unavailable']],
     ['Monthly invoice', { plan_code: 'solo', billing_interval: 'monthly', renewal_price_aud_cents: OFFER.month }, 'Veylet plan · ' + aud(OFFER.month) + ' a month', ['0 / 3', '']],
     ['Team annual', { source: 'apple', apple_verified: true, plan_code: 'studio', apple_product_id: 'dev.property3d.capture.plan.annual',
       billing_interval: 'annual', renewal_price_aud_cents: 318999 }, 'Team · A$3,189.99 a year', ['0 / 3', '']],
