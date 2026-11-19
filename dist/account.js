@@ -77,16 +77,38 @@
     'account-methods': 'account', 'account-email': 'account', 'account-leaving': 'account', 'account-deletion': 'account', 'account-export': 'account', 'account-gate': 'account' };
   const viewEls = new Map(VIEWS.map(name => [name, document.getElementById('view-' + name)]).filter(([, el]) => el));
   let currentView = 'walkthroughs';
+  // Today first: the web desk opens on what waits, the totals and one row per space;
+  // a space opens on its own at #space-<id>, with a way back to all of them.
+  const spaceIndex = document.getElementById('account-space-index');
+  const spaceList = document.getElementById('account-space-list');
+  const spaceTotals = document.getElementById('account-totals');
+  const workView = document.getElementById('view-walkthroughs');
+  const spaceEls = new Map(), spaceHeads = new Map(), spaceOfTour = new Map();
+  let spaceShown = null;
+  const spaceMode = () => Boolean(spaceIndex && spaceList && deskBar);
+  function spaceApply() {
+    const on = spaceMode() && spaceShown && spaceEls.has(spaceShown) ? spaceShown : null;
+    if (workView) { if (on) workView.setAttribute('data-space', on); else workView.removeAttribute('data-space'); }
+    for (const [id, el] of spaceEls) el.hidden = Boolean(on) && id !== on;
+  }
+  function spaceGo(id, { focus = false } = {}) {
+    if (!spaceMode() || !id || !spaceEls.has(id)) return false;
+    try { if (typeof history !== 'undefined' && history.pushState && location.hash !== '#space-' + id) history.pushState(null, '', '#space-' + id); } catch { /* the space still shows */ }
+    viewShow('walkthroughs', { focus, space: id });
+    return true;
+  }
   function viewFromHash() {
     let raw = '';
     try { raw = decodeURIComponent(String(location.hash || '').replace(/^#/, '')); } catch { return null; }
     if (VIEWS.includes(raw)) return { view: raw, anchor: null };
+    if (raw.startsWith('space-') && raw.length > 6) return { view: 'walkthroughs', anchor: null, space: raw.slice(6) };
     return Object.prototype.hasOwnProperty.call(VIEW_OF_ANCHOR, raw) ? { view: VIEW_OF_ANCHOR[raw], anchor: raw } : null;
   }
   // `focus`: the view was chosen by the person, so its heading takes focus and the page starts at its top.
-  function viewShow(name, { focus = false, anchor = null } = {}) {
+  function viewShow(name, { focus = false, anchor = null, space = null } = {}) {
     if (!viewEls.has(name)) return false;
     currentView = name;
+    spaceShown = name === 'walkthroughs' ? space : null; spaceApply();
     for (const [key, el] of viewEls) el.hidden = key !== name;
     for (const key of VIEWS) {
       const link = document.getElementById('desk-link-' + key);
@@ -103,7 +125,7 @@
       if (land === target && !/^(BUTTON|A|INPUT|SUMMARY)$/.test(target.tagName)) target.tabIndex = -1;
       land.focus?.({ preventScroll: true }); target.scrollIntoView?.({ block: 'start', behavior: 'auto' });
     } else if (focus) {
-      const heading = document.getElementById(VIEW_HEADINGS[name]);
+      const heading = (spaceShown && spaceHeads.get(spaceShown)) || document.getElementById(VIEW_HEADINGS[name]);
       try { window.scrollTo?.(0, 0); } catch { /* nothing to scroll */ }
       heading?.focus?.({ preventScroll: true });
     }
@@ -660,7 +682,7 @@
       return nameOf(row) + (added ? ' (added ' + added + ')' : '');
     };
     const openCard = (row, control) => () => {
-      viewGo('walkthroughs');
+      if (!spaceGo(row.property_id)) viewGo('walkthroughs');
       const item = items.get(row.id);
       const inner = control ? item.querySelector?.('[data-control="' + control + '"]:not([hidden])') : null;
       if (!inner) item.tabIndex = -1;
@@ -709,7 +731,7 @@
       const gate = gateBlock(row.property_id);
       if (gate && gateCanOpen(row.property_id)) {
         out.push({ kind: 'share', name: named(row), words: 'is approved; sharing waits for ' + (SHARE_WAITS[gate] || 'one more answer'),
-          label: gateFixLabel(gate), run: () => { viewGo('walkthroughs'); gateOpen(row.property_id, gate); } });
+          label: gateFixLabel(gate), run: () => { if (!spaceGo(row.property_id)) viewGo('walkthroughs'); gateOpen(row.property_id, gate); } });
       } else if (!(hosting && hosting.get(row.id)?.released_at)) {
         out.push({ kind: 'share', name: named(row), words: 'is approved, not shared yet', label: 'Go to sharing', run: openCard(row, 'share-on') });
       }
@@ -796,7 +818,7 @@
       row => row.status === 'ready', row => row.status === 'draft', row => row.status === 'processing', row => row.status === 'revoked'];
     const selected = visible.find(row => row.id === deskTarget) || order.flatMap(test => visible.filter(test))[0] || visible[0];
     if (selected) {
-      const open = () => { const item = items.get(selected.id); item.tabIndex = -1; item.focus({ preventScroll: true }); item.scrollIntoView({ block: 'start', behavior: 'auto' }); };
+      const open = () => { spaceGo(selected.property_id); const item = items.get(selected.id); item.tabIndex = -1; item.focus({ preventScroll: true }); item.scrollIntoView({ block: 'start', behavior: 'auto' }); };
       const hosting = desk.hosting ? desk.hosting.get(selected.id) || null : undefined;
       // A shared walkthrough is finished work, not a job still waiting on you.
       if (selected.status === 'ready' && sharePaused(selected)) {
@@ -2664,13 +2686,92 @@
     const sayInsights = rowSay(tour, box);
     entry.show(true);
   }
+  // One read of a walkthrough's counts per desk load, shared by its card and the totals.
+  const viewStats = new Map(); let viewStatsTicket = null;
+  function viewStatsAsk(supabase, tourId) {
+    if (viewStatsTicket !== deskVersion) { viewStats.clear(); viewStatsTicket = deskVersion; }
+    if (!viewStats.has(tourId)) {
+      viewStats.set(tourId, Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tourId }))
+      );
+    }
+    return viewStats.get(tourId);
+  }
+  // Opens and contact taps of every shared walkthrough, added up once their counts answer.
+  function totalsDraw(rows, supabase, ticket) {
+    if (!spaceTotals || !spaceMode()) return;
+    spaceTotals.hidden = true; spaceTotals.replaceChildren();
+    const shared = rows.filter(tour => tour.status === 'ready' && tour.share_token);
+    if (!viewsAvailable || !shared.length) return;
+    void Promise.all(shared.map(tour => settled(viewStatsAsk(supabase, tour.id)))).then(replies => {
+      if (ticket !== deskVersion || !viewsAvailable) return;
+      let opens = 0, calls = 0, emails = 0, read = 0;
+      for (const reply of replies) {
+        if (missingFunction(reply)) { viewsAvailable = false; return; }
+        if (failed(reply)) continue;
+        const row = firstRow(reply.value?.data);
+        const count = viewCount(row?.opens);
+        if (count === null) continue;
+        read += 1; opens += count; calls += viewCount(row?.call_taps) || 0; emails += viewCount(row?.email_taps) || 0;
+      }
+      if (!read) return;
+      const figure = (number, one, many) => {
+        const p = document.createElement('p'); p.className = 'totals-figure';
+        const n = document.createElement('span'); n.className = 'totals-number'; n.textContent = String(number);
+        const label = document.createElement('span'); label.className = 'totals-label'; label.textContent = number === 1 ? one : many;
+        p.append(n, label); return p;
+      };
+      const note = document.createElement('p'); note.className = 'totals-note';
+      note.textContent = 'Since sharing began, across ' + read + (read === 1 ? ' shared walkthrough.' : ' shared walkthroughs.');
+      spaceTotals.replaceChildren(figure(opens, 'open', 'opens'), figure(calls, 'call', 'calls'), figure(emails, 'email', 'emails'), note);
+      spaceTotals.hidden = false;
+    });
+  }
+  // A space's row in the index says its most pressing state, in the card's own words.
+  const SPACE_STATES = [['review', 'Ready for your review', 'busy'], ['offline_on', 'Goes offline soon', 'busy'], ['offline', 'Offline', 'busy'],
+    ['share', 'Approved, not shared', 'busy'], ['problem', 'Unavailable', 'quiet'], ['making', 'Being made', 'quiet'],
+    ['live', 'Live', 'good'], ['paused', 'Paused', 'quiet'], ['off', 'Sharing off', 'quiet']];
+  function spaceStateKey(tour, hosting) {
+    if (tour.status === 'revoked') return 'problem';
+    if (tour.status !== 'ready') return 'making';
+    if (tour.share_token) {
+      if (sharePaused(tour)) return 'paused';
+      const phase = hosting ? hostingPhase(hosting.get(tour.id) || null) : null;
+      return phase === 'offline' || phase === 'offline_on' ? phase : 'live';
+    }
+    if (tourApproval.get(tour.id) === true) return hosting?.get(tour.id)?.released_at ? 'off' : 'share';
+    return 'review';
+  }
+  function spaceIndexDraw(properties, rows, hosting) {
+    if (!spaceMode()) return;
+    const nodes = properties.map(space => {
+      const tours = rows.filter(tour => tour.property_id === space.id);
+      const keys = tours.map(tour => spaceStateKey(tour, hosting));
+      const lead = SPACE_STATES.find(([key]) => keys.includes(key));
+      const item = document.createElement('li'); item.className = 'space-row'; item.dataset.space = space.id;
+      const name = document.createElement('p'); name.className = 'space-row-name';
+      name.textContent = typeof space.title === 'string' && space.title.trim() ? space.title.trim() : 'Untitled space';
+      const meta = document.createElement('p'); meta.className = 'space-row-meta';
+      if (lead) { const chip = document.createElement('span'); chip.className = 'pill pill-' + lead[2]; chip.textContent = lead[1]; meta.append(chip); }
+      const count = document.createElement('span');
+      count.textContent = tours.length ? tours.length + (tours.length === 1 ? ' walkthrough' : ' walkthroughs') : 'No walkthrough yet';
+      meta.append(count);
+      const open = button('Open', () => spaceGo(space.id, { focus: true }));
+      open.dataset.control = 'space-open'; open.setAttribute('aria-label', 'Open ' + name.textContent);
+      item.append(name, meta, open);
+      return item;
+    });
+    spaceList.replaceChildren(...nodes);
+    spaceIndex.hidden = nodes.length === 0;
+  }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
   // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".
   function tourViews(tour, host, supabase, ticket, title, insights, item = null, stopped = '') {
     host.className = 'tour-views'; host.hidden = true;
     if (insights) insights.show(false);
     if (!viewsAvailable) return;
-    const ask = () => void settled(Promise.resolve().then(() => supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id }))).then(reply => {
+    let firstAsk = true;
+    const ask = () => void settled(Promise.resolve().then(() => (firstAsk ? viewStatsAsk(supabase, tour.id) : supabase.rpc('get_tour_view_stats', { p_tour_id: tour.id })))).then(reply => {
+      firstAsk = false;
       if (!viewsAvailable) return;
       if (ticket !== deskVersion) return;
       if (missingFunction(reply)) { viewsAvailable = false; return; }
@@ -7183,6 +7284,7 @@
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
       guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no rooms; the complete allowance rule is shown there.', 'Show what to recapture', () => {
+        spaceGo(recapture.propertyID);
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
@@ -7324,7 +7426,7 @@
     const open = reviewOpeners.get(tourID);
     if (open) { open(); return; }
     const item = render?.desk.items.get(tourID);
-    if (item) { item.tabIndex = -1; item.focus?.({ preventScroll: true }); item.scrollIntoView?.({ block: 'start', behavior: 'auto' }); return; }
+    if (item) { spaceGo(spaceOfTour.get(tourID)); item.tabIndex = -1; item.focus?.({ preventScroll: true }); item.scrollIntoView?.({ block: 'start', behavior: 'auto' }); return; }
     if (render && reload) { renderPendingReview = tourID; void loadDesk(render.supabase); }
   }
 
@@ -7462,6 +7564,9 @@
     targetMessage(requestedTour ? 'Finding the requested walkthrough in this account…' : invalidTourTarget
       ? 'This review link is incomplete. Use Review again from the app, or choose an available walkthrough below.' : '');
     list.replaceChildren(); list.setAttribute('aria-busy', 'true');
+    spaceEls.clear(); spaceHeads.clear(); spaceOfTour.clear();
+    spaceList?.replaceChildren(); if (spaceIndex) spaceIndex.hidden = true;
+    if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); }
     expressHide();
     renderHide();
     return ticket;
@@ -7711,6 +7816,7 @@
     const updateGuide = (reviewsPending = false) => {
       needsCtx = failed(tours) || failed(members) ? null : { properties, rows, items, roles, hosting: hostingRows, pending: reviewsPending };
       needsDraw();
+      if (!failed(tours)) spaceIndexDraw(properties, rows, hostingRows);
       if (failed(tours) || failed(members)) guide('Refresh your walkthrough status.', 'Some progress or workspace permissions could not load. Refresh before repeating work or sharing.', 'Refresh status', () => loadDesk(supabase));
       else {
         guideDesk(properties, rows, production, items, supabase, { roles, hosting: hostingRows, reviewsPending });
@@ -7718,17 +7824,23 @@
         if (render?.ticket === ticket && render.answers) { renderGuideSaid = ''; renderDraw(); }
       }
     };
-    if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
+    if (!properties.length) { clientsHide(); if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); } updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
       const li = document.createElement('li'); li.className = 'dash-space';
+      li.dataset.space = row.id; spaceEls.set(row.id, li);
+      if (spaceMode()) {
+        const back = button('All spaces', () => viewGo('walkthroughs', { focus: true }));
+        back.className = 'tour-disclosure space-back'; back.dataset.control = 'space-back'; li.append(back);
+      }
       if (row.id === requestedSpace) { li.id = 'requested-space'; li.tabIndex = -1; }
       // A space is a section of this page, so it is a heading: jumping between
       // spaces by heading is how a screen reader reads a list like this one.
       // The name is the heading; what kind of space and where are its details.
       const title = document.createElement(deskBar ? 'h2' : 'h3'); title.className = 'dash-space-title';
       title.textContent = row.title || 'Untitled space'; li.append(title);
+      if (spaceMode()) { title.tabIndex = -1; spaceHeads.set(row.id, title); }
       const where = [officeLabel(row.id), row.category, row.location_general].filter(Boolean).join(' · ');
       if (where) { const meta = document.createElement('p'); meta.className = 'dash-space-meta'; meta.textContent = where; li.append(meta); }
       if (deskBar) li.append(spacePrepKit(row));
@@ -7755,7 +7867,7 @@
       for (const tour of spaceTours) {
         const item = document.createElement('li'); item.className = 'dash-tour'; item.dataset.tour = tour.id;
         item.append(tourMeta(tour, hostingRows ? hostingRows.get(tour.id) || null : undefined));
-        items.set(tour.id, item);
+        items.set(tour.id, item); spaceOfTour.set(tour.id, row.id);
         // Where a walkthrough has more than one version here, each says which it is.
         const versions = spaceTours.filter(other => walkthroughOf(other) === walkthroughOf(tour));
         if (revisionOf(tour) > 1 || versions.length > 1) {
@@ -7791,6 +7903,7 @@
       if (deskBar) li.append(ul); else li.append(ul, spacePrepKit(row));
       list.append(li);
     }
+    spaceApply(); totalsDraw(rows, supabase, ticket);
     // A ready walkthrough's next step waits for its review answer, then says it once.
     updateGuide(reviewLoads.length > 0);
     if (reviewLoads.length) void Promise.all(reviewLoads).then(() => { if (ticket === deskVersion) updateGuide(); });
@@ -7828,6 +7941,7 @@
       void Promise.all(reviewLoads).then(() => {
         if (ticket !== deskVersion || currentUserId !== loadingUser || focusedTourForUser === currentUserId) return;
         focusedTourForUser = currentUserId;
+        spaceGo(spaceOfTour.get(requestedItem.dataset?.tour));
         requestedItem.focus({ preventScroll: true });
         requestedItem.scrollIntoView({ block: 'start', behavior: 'auto' });
       });
@@ -7866,7 +7980,7 @@
     tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : '?space=' + encodeURIComponent(requestedSpace);
     deskTarget = requestedTour; focusedTourForUser = null;
     window.history?.replaceState?.(null, '', (APP_MODE ? '/app/account' : '/account') + tourQuery);
-    void loadDesk(supabase).then(() => { if (requestedSpace) { const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
+    void loadDesk(supabase).then(() => { if (requestedSpace) { spaceGo(requestedSpace); const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
   } });
 
   async function showSession(session) {
@@ -7916,7 +8030,7 @@
     if (menuWho) menuWho.textContent = session.user.email || 'Signed in';
     // The view the address names (or an older anchor into the page); Walkthroughs otherwise.
     const asked = viewFromHash();
-    viewShow(asked ? asked.view : 'walkthroughs', { anchor: asked ? asked.anchor : null });
+    viewShow(asked ? asked.view : 'walkthroughs', { anchor: asked ? asked.anchor : null, space: asked?.space || null });
     if (gateTitle) gateTitle.textContent = 'Checking capture approval…';
     if (gateBody) {
       gateBody.textContent =
@@ -8345,7 +8459,7 @@
   window.addEventListener?.('hashchange', () => {
     if (!currentUserId) return;
     const asked = viewFromHash();
-    if (asked) viewShow(asked.view, { focus: true, anchor: asked.anchor });
+    if (asked) viewShow(asked.view, { focus: true, anchor: asked.anchor, space: asked.space || null });
     else if (!String(location.hash || '').replace(/^#/, '')) viewShow('walkthroughs', { focus: true });
   });
   // The link for the view already showing changes no hash: it still lands on the heading.

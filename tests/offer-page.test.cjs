@@ -734,7 +734,8 @@ test('the offer page makes no claim the product cannot back', () => {
     assert.equal((body.match(banned) || []).length, 0, `offer page must not say ${banned}`);
   }
   assert.ok(/Not included[\s\S]*unlimited revisions/.test(body) && (body.match(/unlimited revisions/g) || []).length === 1);
-  assert.match(body, /Not yet\. REA shows tours only from its supported suppliers/);
+  assert.match(body, /Not as a built-in 3D tour: REA shows tours only from its supported suppliers/);
+  assert.match(body, /When video exports open, the same capture also gives you an MP4 walkthrough video/);
   assert.match(body, /tenant as well as the owner/);
   assert.match(body, /iPhone 12 Pro and later Pro or Pro Max models/);
   assert.match(body, /If you expect more than about ten tours a month, tell us first, and we will say plainly what we can process/);

@@ -2669,3 +2669,6 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
     font-size: 12px;
   }
 }
+
+/* The fixed header covers an in-page jump target without this. */
+#first-session { scroll-margin-top: 136px; }
