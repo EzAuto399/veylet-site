@@ -33,3 +33,11 @@ body:has(.analytics-consent:not([hidden])) { padding-bottom: 300px !important; }
   .analytics-actions button { flex: 1 1 0; padding-inline: 4px; }
   body:has(.analytics-consent:not([hidden])) { padding-bottom: 160px !important; }
 }
+
+/* On the homepage, the sticky banner reserves its actual height in normal flow.
+   It stays reachable while scrolling, without a guessed 300px page spacer. */
+.refined-home .analytics-consent { position: sticky; right: auto; margin-inline: auto 16px; }
+body.refined-home:has(.analytics-consent:not([hidden])) { padding-bottom: 0 !important; }
+@media (max-width: 600px) {
+  .refined-home .analytics-consent { margin-inline: 0; }
+}
