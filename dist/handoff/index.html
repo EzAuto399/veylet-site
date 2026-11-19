@@ -56,7 +56,7 @@
     <script src="/client-page.js?v=3933183e5b60a85e"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=7e8af8cfac549ecd"></script>
+    <script src="/tour-player.js?v=9cc17d6bca409ac7"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -333,6 +333,8 @@
           },
           // The shared words for "not available" and "could not be reached", and Try again on both.
           client: true,
+          // A link that answers nothing is asked once whether it is only paused (tour-player.js lookupPause).
+          shareToken: token,
           visit,
           // Called in the same step that reveals the frame or the stage. A phone
           // on its side brings the walkthrough to the top of its short screen.

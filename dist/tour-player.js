@@ -34,6 +34,17 @@
     transientBody: 'The walkthrough couldn’t be reached just now. Check your connection and try again.',
   });
   player.WORDS = WORDS;
+  /*
+   * A paused link (design spec D3, decided 19 November 2026). Shown only when the server says the link is
+   * paused and gives the agent's public display name (lookup_tour_share_pause, release 8); without that
+   * answer the page keeps the missing words above. The body is the name, then bodyAfterName.
+   */
+  const PAUSED_WORDS = Object.freeze({
+    heading: 'This walkthrough is paused.',
+    bodyAfterName: ' has paused sharing. Ask them for a new link.',
+  });
+  player.PAUSED_WORDS = PAUSED_WORDS;
+  const PAUSE_FUNCTION = 'lookup_tour_share_pause';
   const dependencies = new Map();
 
   // A listing can show the lightweight embed invitation without parsing the
@@ -161,11 +172,42 @@
     retry: els.retry === undefined ? document.getElementById('tour-retry') : els.retry,
   });
 
-  /** Paused, switched off, expired or gone: the shared words, and Try again. */
-  player.showMissing = (els) => {
+  /**
+   * The agent's public display name when the server says this link is only paused and names them, else null.
+   * One call, a short wait, never rejects: an older database (no such function), an error, a link that is
+   * not paused and a workspace that shows no name all read as null, and the page keeps the missing words.
+   */
+  player.lookupPause = async (client, token, timeoutMs = 3000) => {
+    if (!client || typeof client.rpc !== 'function' || typeof token !== 'string' || token.length !== 32) return null;
+    let asked;
+    try {
+      asked = await settleWithDeadline(Promise.resolve(client.rpc(PAUSE_FUNCTION, { p_token: token })), timeoutMs);
+    } catch {
+      return null;
+    }
+    const answer = asked.value;
+    if (!answer || answer.error) return null;
+    const row = Array.isArray(answer.data) ? answer.data[0] : answer.data;
+    if (!row || row.paused !== true || typeof row.display_name !== 'string') return null;
+    const name = row.display_name.trim();
+    return name && name.length <= 80 ? name : null;
+  };
+
+  /** The missing words, or the paused words when the link is paused and its agent is named. */
+  const missingWords = (pausedBy) => (pausedBy
+    ? { heading: PAUSED_WORDS.heading, body: pausedBy + PAUSED_WORDS.bodyAfterName }
+    : { heading: WORDS.missingHeading, body: WORDS.missingBody });
+
+  /**
+   * Paused, switched off, expired or gone: the shared words, and Try again. With `{ client, token }` the
+   * page first asks whether the link is only paused (lookupPause) and resolves once the words are shown.
+   */
+  player.showMissing = (els, ask) => {
     const surface = surfaceOf(els);
     wireRetry(surface.retry);
-    player.showFailure(surface, { heading: WORDS.missingHeading, body: WORDS.missingBody, retry: true, definitive: true });
+    const show = (pausedBy) => player.showFailure(surface, { ...missingWords(pausedBy), retry: true, definitive: true });
+    if (!ask) { show(null); return undefined; }
+    return player.lookupPause(ask.client, ask.token).then(show);
   };
 
   /** A cut-off or broken link. Trying again cannot help, so the one step is to check it or ask. */
@@ -375,9 +417,13 @@
     }
     if (looked.error) {
       const transient = looked.error.transient !== false;
+      // A client's page whose link answered nothing: only paused, and by whom? (lookupPause; null keeps the missing words.)
+      const pausedBy = !transient && options.client && looked.error.message === 'share-not-found'
+        ? await player.lookupPause(client, options.shareToken) : null;
+      const paused = pausedBy ? missingWords(pausedBy) : null;
       player.showFailure(surface, {
-        heading: options.missingHeading || OFFLINE_HEADING,
-        body: transient ? options.transientBody || LOAD_BODY : options.missingBody || STORAGE_BODY,
+        heading: paused ? paused.heading : options.missingHeading || OFFLINE_HEADING,
+        body: paused ? paused.body : transient ? options.transientBody || LOAD_BODY : options.missingBody || STORAGE_BODY,
         retry: transient || Boolean(options.client),
         definitive: !transient,
       });

@@ -32,7 +32,7 @@
     <link rel="preload" href="/tour-player-v2.js?v=677c0e7133c120b6" as="script" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=7e8af8cfac549ecd"></script>
+    <script src="/tour-player.js?v=9cc17d6bca409ac7"></script>
     <script src="/client-page.js?v=3933183e5b60a85e"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
@@ -304,6 +304,8 @@
           },
           // The shared words for "not available" and "could not be reached", and Try again on both.
           client: true,
+          // A link that answers nothing is asked once whether it is only paused (tour-player.js lookupPause).
+          shareToken: token,
         }).then(() => {
           // A definitive miss: another browser will not help.
           if (unavailable && help) help.hidden = true;
