@@ -1,9 +1,5 @@
 'use strict';
-/*
- * The page library every dist script shares (untangle F2): the timeout race,
- * the answer shapes and the one Supabase client options block, in one copy
- * instead of nine. Pages load it before any script that uses VeyletLib.
- */
+// The page library every dist script shares; pages load it before their page scripts.
 (() => {
   const root = typeof window !== 'undefined' ? window : globalThis;
 
@@ -49,7 +45,5 @@
     });
   }
 
-  const api = Object.freeze({ settled, failed, firstRow, missingFunction, element, plural, client });
-  root.VeyletLib = api;
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.VeyletLib = Object.freeze({ settled, failed, firstRow, missingFunction, element, plural, client });
 })();

@@ -4,9 +4,8 @@
   const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
   const words = { ready_for_review: 'Ready to review', needs_recapture: 'Recapture needed', render_failed: 'Did not render', sharing_on: 'Sharing turned on', sharing_waits: 'Sharing waits' };
   const count = value => Number.isInteger(value) && value >= 0 ? value : null;
-  const lib = root.VeyletLib || (typeof require === 'function' ? require('./site-lib') : root.VeyletLib);
-  const row = lib.firstRow;
-  const missing = lib.missingFunction;
+  const row = root.VeyletLib.firstRow;
+  const missing = root.VeyletLib.missingFunction;
   const accessLost = error => [401, 403, 404].includes(Number(error?.status || error?.code)) || ['42501', 'PGRST301', 'PGRST302', 'PGRST303'].includes(error?.code);
   const unread = item => item.unread_eligible !== false && !item.read_at;
   const when = (value, utc = false) => { const d = new Date(value); return value && Number.isFinite(d.getTime()) ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...(utc ? { timeZone: 'UTC' } : {}) }) : 'Time unavailable'; };

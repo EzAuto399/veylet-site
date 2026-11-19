@@ -203,6 +203,14 @@ test('the client’s page counts an open only once the walkthrough is found, wit
   assert.equal(incomplete.net.sent.length, 0);
 });
 
+test('a version 2 share is found by its package base, even without a storage path', async () => {
+  const h = handoffPage();
+  const resolved = await h.bootOptions.resolve(client({ data: [{ package_format_version: 2, package_base_url: 'https://tours.invalid/r/abc/', space_title: 'Loft' }] }));
+  assert.equal(resolved.packageFormatVersion, 2);
+  assert.equal(resolved.packageBaseUrl, 'https://tours.invalid/r/abc/');
+  assert.equal(resolved.title, 'Loft');
+});
+
 /* ---- the embed ------------------------------------------------------------------- */
 
 function embedPage({ search = '?t=' + TOKEN, referrer = 'https://agency.example.invalid/listing/12?x=1' } = {}) {

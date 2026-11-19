@@ -1,6 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+require('../dist/site-lib.js');
 const api = require('../dist/account-journey.js');
 const A = 'aaaaaaaa-1111-4111-8111-111111111111', B = 'bbbbbbbb-1111-4111-8111-111111111111';
 const EVENT = 'cccccccc-1111-4111-8111-111111111111', TOUR = 'dddddddd-1111-4111-8111-111111111111';
