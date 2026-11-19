@@ -1589,7 +1589,8 @@
       if (name === 'get_tour_review_target') { const tour = tours.find(row => row.id === args.p_tour_id); return { data: tour ? [{ tour_id: tour.id, storage_path: tour.storage_path, package_revision: packageRevision() }] : [] }; }
       if (name === 'review_tour_versioned') {
         if (args.p_expected_package_revision !== packageRevision() || args.p_expected_storage_path !== tours.find(row => row.id === args.p_tour_id)?.storage_path) return { error: { code: 'P0001', message: 'tour package changed; reload and review again', details: 'VEYLET_PACKAGE_REVISION_CHANGED' } };
-        if (!Object.values(args.p_checks || {}).every(value => value === true) || Object.keys(args.p_checks || {}).length !== 5 || !args.p_capture_permission || !args.p_publication_permission) return { error: { message: 'Complete all release checks.' } };
+        const oneTick = Object.keys(args.p_checks || {}).length === 1 && args.p_checks.right_to_share === true;
+        if (!oneTick && (!Object.values(args.p_checks || {}).every(value => value === true) || Object.keys(args.p_checks || {}).length !== 5 || !args.p_capture_permission || !args.p_publication_permission)) return { error: { message: 'Complete all release checks.' } };
         const reviewed = tours.find(row => row.id === args.p_tour_id);
         if (scenario === 'correction-superseded' && args.p_tour_id === WALK.two && !tours.some(row => row.id === WALK.three)) {
           // Meanwhile another reviewer approved version 3, which retired versions 1 and 2.
