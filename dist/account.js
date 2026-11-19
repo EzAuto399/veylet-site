@@ -2700,7 +2700,7 @@
   function totalsDraw(rows, supabase, ticket) {
     if (!spaceTotals || !spaceMode()) return;
     spaceTotals.hidden = true; spaceTotals.replaceChildren();
-    const shared = rows.filter(tour => tour.status === 'ready' && tour.share_token).slice(0, 40);
+    const shared = rows.filter(tour => tour.status === 'ready' && tour.share_token);
     if (!viewsAvailable || !shared.length) return;
     void Promise.all(shared.map(tour => settled(viewStatsAsk(supabase, tour.id)))).then(replies => {
       if (ticket !== deskVersion || !viewsAvailable) return;
@@ -7284,6 +7284,7 @@
     if (said.startsWith('held-')) { guide('Your capture is waiting to start.', renderHoldWords(moving.view.hold) + ' It shows on ' + moving.title + ' below.'); return; }
     if (said === 'recapture') {
       guide('Recapture what the quality check found.', 'What and why is on ' + recapture.title + ' below. This failed attempt uses no rooms; the complete allowance rule is shown there.', 'Show what to recapture', () => {
+        spaceGo(recapture.propertyID);
         const slot = renderSlots.get(recapture.propertyID);
         (slot?.querySelector?.('[data-control="recapture-0"]') || slot)?.focus?.();
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
@@ -7564,6 +7565,8 @@
       ? 'This review link is incomplete. Use Review again from the app, or choose an available walkthrough below.' : '');
     list.replaceChildren(); list.setAttribute('aria-busy', 'true');
     spaceEls.clear(); spaceHeads.clear(); spaceOfTour.clear();
+    spaceList?.replaceChildren(); if (spaceIndex) spaceIndex.hidden = true;
+    if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); }
     expressHide();
     renderHide();
     return ticket;
@@ -7821,7 +7824,7 @@
         if (render?.ticket === ticket && render.answers) { renderGuideSaid = ''; renderDraw(); }
       }
     };
-    if (!properties.length) { clientsHide(); updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
+    if (!properties.length) { clientsHide(); if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); } updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
@@ -7977,7 +7980,7 @@
     tourQuery = requestedTour ? '?tour=' + encodeURIComponent(requestedTour) + (requestedPanel ? '&panel=insights' : '') : '?space=' + encodeURIComponent(requestedSpace);
     deskTarget = requestedTour; focusedTourForUser = null;
     window.history?.replaceState?.(null, '', (APP_MODE ? '/app/account' : '/account') + tourQuery);
-    void loadDesk(supabase).then(() => { if (requestedSpace) { const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
+    void loadDesk(supabase).then(() => { if (requestedSpace) { spaceGo(requestedSpace); const space = document.getElementById('requested-space'); space?.focus?.({ preventScroll: true }); space?.scrollIntoView?.({ block: 'start' }); } });
   } });
 
   async function showSession(session) {

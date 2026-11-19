@@ -64,3 +64,13 @@ test('#space-<id> on load opens that space; an unknown one falls back to every s
   assert.equal(unknown.ids['view-walkthroughs'].getAttribute('data-space'), null);
   assert.equal(unknown.ids['view-walkthroughs'].hidden, false);
 });
+
+test('the totals count every shared walkthrough, past forty', async () => {
+  const many = Array.from({ length: 45 }, (_, index) => ({ id: 's' + index, property_id: 'p2', status: 'ready', storage_path: 'w1/s' + index + '/package.zip',
+    created_by: 'user-1', share_token: String(index).padStart(43, 'c'), created_at: '2026-10-02T00:00:00Z' }));
+  const h = await loadDesk({ tables: { tours: { data: many }, properties: { data: properties } }, approved: many.map(tour => tour.id),
+    rpc: { get_tour_view_stats: async () => ({ data: [{ opens: 2, call_taps: 1, email_taps: 0, last_opened_at: '2026-10-05T00:00:00Z' }] }) } });
+  await h.settle();
+  assert.deepEqual(h.ids['account-totals'].children.slice(0, 3).map(el => el.children[0].textContent), ['90', '45', '0']);
+});
+
