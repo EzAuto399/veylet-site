@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Launch fixes — 19 November 2026
+
+User authority: "Yes, deploy" (19 Nov). Source `287094f` (`site/launch-fixes-20261119`, off `main` `c98596c`), stamped and re-pinned in `d8126f0`: the buyer viewer keeps its layout under Reduce Motion and leaves room for the taller agent bars, hero buttons clear the privacy bar on phones, session links preselect, the Book viewing form fits a phone, the staff desk can admit a pending account (`studio_admit_for_purchase`), and the account desk says approval progress beside "Approve and share".
+
+1. **Build:** 1103 of 1103 site tests; `npm run build` and `npm run verify` pass (365 source, 364 output files); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions); `scripts/check-app-pages.mjs` clean.
+2. **Hosted release:** preview `2fad5ec8-e159-42db-b388-3b64a75fa160`; production `4d74f68f-9be0-4f33-8a82-97db321a1750`.
+3. **Readback on veylet.com:** `index.html`, `start/index.html`, `studio.js`, `account.js`, `client-page.js`, `style.css`, `tour-stage.css`, `refinement.css` and `build-info.json` (287094f) match the build byte for byte; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** rendered appearance on a real phone (Reduce Motion viewer, Book viewing form); the desk Admit form and the approval progress line in a signed-in browser; hosted sign-in, payment, capture and player journeys.
+5. **Recovery:** previous production version `c681df38-fbc6-4b4f-a02b-18e6a3b8e301`: `wrangler rollback <version> --config wrangler.production.jsonc`.
+
 ## Privacy processing location — 19 November 2026
 
 User authority: "Yes, fix both" (the wording), then "Commit and deploy" (19 Nov). Source `4b3dfe8` (`site/privacy-render-region-20261119`, off `main` `162d958`), stamped and re-pinned in `41ed353`: `/privacy`, `/app/privacy`, the privacy guide and `llms-full.txt` now say walkthroughs are processed on cloud GPUs in the United States and that a capture is sent outside Australia for processing; both notices read "Last updated 19 November 2026". They previously said Australia (Modal, Sydney region), while client renders run in Modal's US region. Owner legal review of the new sentence is still required.
