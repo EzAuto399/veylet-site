@@ -40,7 +40,7 @@
     capture_route: 'How would you like to capture it?', device_model: 'Phone or tablet model',
     name_and_business: 'Your name / business', email: 'Email', space_category: 'What sort of space?',
     location: 'General area', audience: 'What should your viewers be able to explore?',
-    timing: 'When do you need it?', size_and_rooms: 'Approximate size and rooms or areas',
+    timing: 'When do you need it, or which days and times suit a capture session?', size_and_rooms: 'Approximate size and rooms or areas',
     enquiry_as: 'I am enquiring as', agency_fit: 'For agencies',
   };
   const routes = { managed: 'Walkthrough enquiry' };
