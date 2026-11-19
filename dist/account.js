@@ -3567,7 +3567,16 @@
       row.append(input, text); tickStep.append(row);
     }
     const save = document.createElement('button'); save.type = 'submit'; save.className = 'button'; save.textContent = 'Approve and share'; shareStep.append(save);
+    // Progress is said beside the button that started it, not only in the page's status line.
+    const progress = document.createElement('p'); progress.className = 'tour-state-help tour-share-progress'; progress.setAttribute('role', 'status'); progress.hidden = true;
+    let slowTimer = null;
+    const working = (label, slowLabel) => {
+      clearTimeout(slowTimer); slowTimer = null;
+      save.textContent = label || 'Approve and share'; progress.textContent = label || ''; progress.hidden = !label;
+      if (label && slowLabel) slowTimer = setTimeout(() => { if (progress.textContent === label) progress.textContent = slowLabel; }, 8000);
+    };
     if (terms) message(shareStep, 'Anyone with the link can open it and forward it while your plan is active.', 'tour-state-help tour-share-terms');
+    shareStep.append(progress);
     form.append(steps);
     // A failed check needs somewhere to go: one itemised request, not a thread
     // of separate emails. The message opens in the person's own mail app; nothing
@@ -3587,16 +3596,17 @@
     form.append(corrections);
     form.addEventListener('submit', async event => {
       event.preventDefault(); if (save.disabled || Object.values(fields).some(field => !field.checked)) return;
-      save.disabled = true;
+      save.disabled = true; working('Approving…', 'Still approving…');
       const base = { p_tour_id: tour.id, p_expected_storage_path: snapshot.path, p_expected_package_revision: snapshot.revision };
       let reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_NEW }));
       // A server before 20260926128000 wants the five attestations: the one tick stands for them.
       if ((reviewOldShapeRefusal(reply) || missingFunction(reply)) && ticket === deskVersion) {
         reply = await settled(supabase.rpc('review_tour_versioned', { ...base, p_checks: REVIEW_CHECKS_OLD, p_capture_permission: true, p_publication_permission: true }));
       }
-      if (ticket !== deskVersion) return;
-      if (sessionGone(reply)) { showSignedOut('Your sign-in expired. Sign in and check the saved review before continuing.'); return; }
+      if (ticket !== deskVersion) { working(''); return; }
+      if (sessionGone(reply)) { working(''); showSignedOut('Your sign-in expired. Sign in and check the saved review before continuing.'); return; }
       if (failed(reply) || firstRow(reply.value?.data)?.approved !== true) {
+        working('');
         if (reply.value?.error?.details === 'VEYLET_REVISION_SUPERSEDED') {
           // Another approval of a later version won. Show the walkthrough as it is now,
           // and put the reason on its current version, since this one is no longer listed.
@@ -3620,8 +3630,9 @@
       if (moves) { say('Approved. Your existing link and embed now show this version.', true); await loadDesk(supabase); return; }
       // A first release: the same press turns sharing on. The approval stands whatever
       // sharing answers; the desk is read again and the card says which it is.
-      setStatus('Approved. Turning sharing on…');
+      setStatus('Approved. Turning sharing on…'); working('Turning sharing on…', 'Still turning sharing on…');
       const shared = await settled(Promise.resolve().then(() => supabase.rpc('enable_tour_share', { p_tour_id: tour.id })));
+      working('');
       if (sessionGone(shared)) { if (ticket === deskVersion) showSignedOut('Your sign-in expired. The walkthrough is approved; sign in and turn sharing on from its card.'); return; }
       // The desk was read again meanwhile: read it once more, so it shows what sharing did.
       if (ticket !== deskVersion) { if (currentUserId) void loadDesk(supabase); return; }

@@ -983,6 +983,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk .tour-review .review-step .tour-action { margin: 0; }
 .desk .tour-review .review-step .review-right { margin: 0; }
 .desk .tour-review .review-step .tour-share-terms { flex: 1 1 220px; margin: 0; }
+.desk .tour-review .review-step .tour-share-progress { flex: 1 1 100%; margin: 0; }
 /* Prepare a capture: one quiet link in the space head; its panel opens under the head. */
 .desk-view .dash-space { position: relative; }
 .desk-view .account-details.space-prep { margin: 0; padding: 0; border: 0; }

@@ -255,6 +255,26 @@ test('Approve and share: a refusal keeps the approval and says what sharing wait
   assert.equal(stale.tourReads(), reads + 1);
 });
 
+test('Approve and share: progress is said beside the button while it works, and cleared when it stops', async () => {
+  const seen = [];
+  const beside = form => { const button = form.all().find(el => el.type === 'submit'); const line = form.all().find(el => /tour-share-progress/.test(el.className));
+    return [button.textContent, button.disabled, line.hidden, line.textContent, line.getAttribute('role')]; };
+  let h; let form;
+  h = await load({ tours: [readyTour()], rpc: {
+    review_tour_versioned: async (args, { approved }) => { seen.push(beside(form)); approved.add(args.p_tour_id); return { data: [{ approved: true }] }; },
+    enable_tour_share: async (args, { tours }) => { seen.push(beside(form)); tours[0].share_token = TOKEN; return { data: TOKEN }; } } });
+  form = reviewForm(h.card('t1'));
+  assert.deepEqual(beside(form), ['Approve and share', false, true, '', 'status']);
+  await approve(h);
+  assert.deepEqual(seen, [['Approving…', true, false, 'Approving…', 'status'], ['Turning sharing on…', true, false, 'Turning sharing on…', 'status']]);
+  assert.equal(chipOf(h.card('t1')).textContent, 'Live');
+
+  const refused = await load({ tours: [readyTour()], rpc: { review_tour_versioned: async () => ({ error: { code: 'P0001', message: 'no', details: 'VEYLET_PLAN_NOT_ACTIVE' } }) } });
+  const refusedForm = reviewForm(refused.card('t1'));
+  await approve(refused);
+  assert.deepEqual(beside(refusedForm).slice(0, 4), ['Approve and share', true, true, '']);
+});
+
 test('Approve and share: an unknown failure says so, Turn sharing on tries again, and an answer lost on the way is read back', async () => {
   let attempts = 0;
   const h = await load({ tours: [readyTour()], rpc: { enable_tour_share: async (args, { tours }) => {
