@@ -81,7 +81,7 @@ test('an old visit link leads to capture advice and keeps the device in the brie
   assert.equal(h.elements['request-device-field'].hidden, false);
   assert.equal(h.fields.device_model.disabled, false);
   await h.copy();
-  assert.match(h.copied[0], /Capture route: Help me choose/);
+  assert.match(h.copied[0], /Capture route: Capture it with me/);
   assert.match(h.copied[0], /Retained device/);
   h.changeCapture('self');
   assert.equal(h.fields.device_model.disabled, false);
