@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-page-fake.cjs');
 
 const dist = path.join(__dirname, '../dist');
@@ -41,7 +42,7 @@ function fixture(replies = [{ status: 200, body: { state: 'joined' } }], overrid
   const window = { document, VEYLET_WAITLIST_MANUAL: true, VEYLET_SUPABASE: config, fetch: request.fetch,
     FormData: class { constructor(form) { return form.data; } },
     VeyletAnalytics: { track(name, props) { events.push(JSON.parse(JSON.stringify({ name, props }))); } } };
-  vm.runInNewContext(read('waitlist/waitlist.js'), { window, document, JSON, Promise, Object, String, encodeURIComponent });
+  const ctx = { window, document, JSON, Promise, Object, String, encodeURIComponent }; siteLib.load(ctx); vm.runInNewContext(read('waitlist/waitlist.js'), ctx);
   return { window, ids, events, requests: request.requests, api: window.VeyletWaitlist,
     send: () => window.VeyletWaitlist.send(window, ids['waitlist-form']) };
 }

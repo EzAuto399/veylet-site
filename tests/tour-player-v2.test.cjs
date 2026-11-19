@@ -328,10 +328,11 @@ test('v1 packages keep the ZIP path; v2 packages load the streamed player into t
 });
 
 test('pages pass the share row’s version and package location to the player', () => {
+  const tourPage = read('tour-page.js');
   for (const page of ['embed/index.html', 'handoff/index.html']) {
     const markup = read(page);
-    assert.match(markup, /packageFormatVersion: row\.package_format_version === 2 \? 2 : 1/, page);
-    assert.match(markup, /packageBaseUrl: row\.package_base_url \|\| null/, page);
+    assert.match(tourPage, /packageFormatVersion: row\.package_format_version === 2 \? 2 : 1/, page);
+    assert.match(tourPage, /packageBaseUrl: row\.package_base_url \|\| null/, page);
     assert.match(markup, /<div id="tour-stage"[^>]*hidden><\/div>/, page);
   }
   const play = read('play/index.html');

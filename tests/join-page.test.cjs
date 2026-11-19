@@ -11,6 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 
 const dist = path.join(__dirname, '../dist');
@@ -57,6 +58,7 @@ async function page({ search = '?i=' + TOKEN, signedIn = true, accept = [], sess
     document: { getElementById: id => ids[id], readyState: 'complete' },
   };
   const context = { window, document: window.document, URLSearchParams, JSON, Date: now ? { now: () => now } : Date, Promise, setTimeout: () => 0, clearTimeout() {} };
+  siteLib.load(context);
   vm.runInNewContext(script, context);
   const state = await window.VeyletJoin.run(window);
   const view = () => ({

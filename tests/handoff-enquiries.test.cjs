@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { createDocument } = require('./fake-dom.cjs');
 const { withClientHelpers } = require('./client-words.cjs');
 
@@ -12,7 +13,7 @@ const read = rel => fs.readFileSync(path.join(dist, rel), 'utf8');
 
 function loadModule(extra = {}) {
   const window = {};
-  vm.runInNewContext(read('client-page.js'), { window, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout, ...extra });
+  const ctx = { window, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout, ...extra }; siteLib.load(ctx); vm.runInNewContext(read('client-page.js'), ctx);
   return window.VeyletClientPage;
 }
 
@@ -142,6 +143,7 @@ test('/handoff?sample=1 opens Appraisal Pitch preview with sample walkthrough an
   };
   document.documentElement = document.createElement('html');
   const ctx = { window, document, location, navigator: {}, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout };
+  siteLib.load(ctx); siteLib.loadTourPage(ctx);
   vm.runInNewContext(read('client-page.js'), ctx);
   vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], ctx);
 
@@ -378,6 +380,7 @@ test('/handoff guards lookupContact vs lookupHandoffContext race in both directi
       return { ok: true, status: 200, json: async () => ({}) };
     };
     const ctx = { window, document, location, navigator: {}, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout, fetch };
+    siteLib.load(ctx); siteLib.loadTourPage(ctx);
     vm.runInNewContext(read('client-page.js'), ctx);
     vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], ctx);
     const client = {

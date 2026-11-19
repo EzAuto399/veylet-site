@@ -5,6 +5,7 @@
  * import that can fail silently.
  */
 (async () => {
+  const { settled, failed, firstRow, missingFunction } = window.VeyletLib;
   const cfg = window.VEYLET_SUPABASE;
   // The page the iPhone app opens (/app/account) carries data-app-mode="true" on
   // <html>: the same desk with every money block left out (plan purchase, card
@@ -432,20 +433,6 @@
     return copied;
   }
 
-  /** Never leave the desk waiting on one unanswered request. */
-  async function settled(promise, ms) {
-    let timer = null;
-    const expired = new Promise((resolve) => {
-      timer = setTimeout(() => resolve({ timedOut: true }), ms || 20000);
-    });
-    const result = await Promise.race([
-      promise.then((value) => ({ value })).catch((error) => ({ error })),
-      expired,
-    ]);
-    if (timer) clearTimeout(timer);
-    return result;
-  }
-
   /**
    * A request can fail because the session died rather than because the call was
    * wrong. Those need sign-in, not a retry, so they are classified separately.
@@ -657,8 +644,6 @@
     const error = result?.value?.error || null;
     return Boolean(error) && /complete every quality and permission check/i.test(String(error.message || ''));
   }
-  function failed(result) { return result.timedOut || result.error || result.value?.error; }
-  function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
   /*
    * Needs you: what waits on the reader, one line each with its one action, from the
    * same records as the cards below (a review answer, a hosting state, a status). Up
@@ -1900,11 +1885,8 @@
       if (details.open && !state.loaded && !state.loading) void load();
     });
   }
-  // A backend without the function answers PGRST202 ("Could not find the function").
-  function missingFunction(result) {
-    const error = result?.value?.error || result?.error || null;
-    return Boolean(error) && (String(error.code || '') === 'PGRST202' || /could not find the function/i.test(String(error.message || '')));
-  }
+  // A backend without the function answers PGRST202 ("Could not find the function") —
+  // VeyletLib.missingFunction.
   /*
    * Pause keeps the link: the link, embed and QR show "not available" until Resume,
    * and then open the same walkthrough again. It needs no confirmation because it is
@@ -4522,7 +4504,7 @@
     if (ticket !== deskVersion || version !== trialVersion) return;
     if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check your free month.'); return; }
     // Before the backend has the function there is nothing to say here; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') return;
+    if (missingFunction(reply)) return;
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
     trial = { supabase, workspaceID, planRow, kind: trialKind(offer), notice: options.notice || null };
     trialDraw(options.focus);
@@ -4896,7 +4878,7 @@
     packsEl.setAttribute('aria-busy', 'false');
     if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to check packs.'); return; }
     // Before the backend has the function there are no packs to show; that is not an outage.
-    if (reply.value?.error?.code === 'PGRST202') { packsHide(); return; }
+    if (missingFunction(reply)) { packsHide(); return; }
     const previous = packs && packs.workspaceID === workspaceID ? packs : null;
     packsDropCard(packs);
     const offer = failed(reply) ? null : firstRow(reply.value?.data);
@@ -5259,7 +5241,7 @@
     workspaceIDs.forEach((id, index) => {
       const reply = replies[index];
       // Before the backend has the function there is no express offer; that is not an outage.
-      if (reply.value?.error?.code === 'PGRST202') return;
+      if (missingFunction(reply)) return;
       const offer = failed(reply) ? null : firstRow(reply.value?.data);
       if (expressValid(offer)) offers.set(id, offer); else unreadable = true;
     });
@@ -5503,7 +5485,7 @@
       const refusal = REFERRAL_REFUSALS.find(([phrase]) => words.includes(phrase));
       if (refusal) { done(refusal[1]); return; }
       record.disabled = false;
-      said.textContent = error?.code === 'PGRST202' ? 'Recording a referral isn’t available yet, so nothing was recorded. Try again later.'
+      said.textContent = missingFunction(error) ? 'Recording a referral isn’t available yet, so nothing was recorded. Try again later.'
         : 'The referral wasn’t confirmed, so nothing changed. Try again.';
     });
     box.append(line, annualRow(record), said);
@@ -6018,7 +6000,7 @@
     if (sessionGone(reply)) { showSignedOut('Your sign-in has expired. Sign in again to see what your clients see.'); return; }
     const error = reply.value?.error || reply.error || null;
     // Before the backend has the function there is nothing to set; that is not an outage.
-    if (error && (String(error.code || '') === 'PGRST202' || /could not find the function/i.test(String(error.message || '')))) { clientsHide(); return; }
+    if (missingFunction(error)) { clientsHide(); return; }
     const row = failed(reply) ? null : firstRow(reply.value?.data);
     const saved = failed(reply) ? null : clientsRow(row);
     if (!saved) { clientsProblem(supabase, workspaceID, role, networkFailed(reply) || offlineNow()); return; }
@@ -7389,7 +7371,7 @@
     state.workspaceIDs.forEach((id, index) => {
       const reply = replies[index];
       // Before the backend has the function there is no render status; that is not an outage.
-      if (reply.value?.error?.code === 'PGRST202') { answers.set(id, null); missing += 1; return; }
+      if (missingFunction(reply)) { answers.set(id, null); missing += 1; return; }
       const answer = failed(reply) ? null : renderAnswer(reply.value?.data);
       if (answer) answers.set(id, answer);
       else { answers.set(id, state.answers?.get(id) ?? null); unreadable = true; }
@@ -7977,13 +7959,7 @@
     return;
   }
 
-  const supabase = window.supabase.createClient(cfg.url, cfg.anonKey, {
-    auth: {
-      persistSession: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-    },
-  });
+  const supabase = window.VeyletLib.client({ detectSessionInUrl: true });
 
   activity = journey?.mountActivity({ document, rpc: (name, args) => supabase.rpc(name, args), open: item => {
     // Stay in this document so the independent read acknowledgement survives navigation.

@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { createHash, webcrypto } = require('node:crypto');
 const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-page-fake.cjs');
 
@@ -23,13 +24,13 @@ const CONFIG = { url: 'https://project.supabase.invalid', anonKey: 'public-anon-
 
 function load() {
   const window = { VEYLET_REPORT_MANUAL: true };
-  vm.runInNewContext(script, { window, document: undefined, JSON, Promise, Object, String, Array, Uint8Array, encodeURIComponent, decodeURIComponent });
+  const ctx = { window, document: undefined, JSON, Promise, Object, String, Array, Uint8Array, encodeURIComponent, decodeURIComponent }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   return window.VeyletReport;
 }
 
 function clientPage() {
   const window = {};
-  vm.runInNewContext(read('client-page.js'), { window, setTimeout, clearTimeout });
+  const cctx = { window, setTimeout, clearTimeout }; siteLib.load(cctx); vm.runInNewContext(read('client-page.js'), cctx);
   return window.VeyletClientPage;
 }
 
@@ -56,12 +57,13 @@ async function submit(view, values) {
 test('the link sits quietly at the foot of /handoff, /tour and the embed invitation, and each page mounts it with its token', () => {
   const handoff = read('handoff/index.html'), embed = read('embed/index.html'), tour = read('tour/index.html');
   assert.match(handoff, /<nav aria-label="Legal">[\s\S]*<a class="client-report" id="client-report" hidden>Report this walkthrough<\/a>\s*<\/nav>/);
-  assert.match(handoff, /page\?\.mountReport\?\.\(document\.getElementById\('client-report'\), token\);/);
+  const tourPage = read('tour-page.js');
+  assert.match(tourPage, /page\?\.mountReport\?\.\(document\.getElementById\('client-report'\), token\);/);
   assert.match(embed, /<a id="embed-report" class="embed-report" target="_blank" rel="noopener noreferrer" hidden>Report this walkthrough<\/a>/);
-  assert.match(embed, /mountReport\?\.\(document\.getElementById\('embed-report'\), token\)/);
+  assert.match(tourPage, /mountReport\?\.\(document\.getElementById\('embed-report'\), token\)/);
   assert.match(embed, /\.embed-fallback a\.embed-report \{[^}]*font-size: 13px/, 'quiet: small and underlined, not a button');
   assert.match(tour, /<footer class="tour-foot" id="tour-foot" hidden>\s*<a id="tour-report" target="_blank" rel="noopener noreferrer">Report this walkthrough<\/a>/);
-  assert.match(tour, /mountReport\?\.\(document\.getElementById\('tour-report'\), token, document\.getElementById\('tour-foot'\)\)/);
+  assert.match(tourPage, /mountReport\?\.\(document\.getElementById\('tour-report'\), token, document\.getElementById\('tour-foot'\)\)/);
   assert.match(tour, /\.tour-foot a \{[^}]*min-height: 44px;/);
 });
 

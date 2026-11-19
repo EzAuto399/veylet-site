@@ -11,6 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
@@ -96,6 +97,7 @@ async function load({ page = 'web', pathname, search = '', hash = '', session = 
       replace: value => redirects.push(value), assign: value => redirects.push(value) },
     setTimeout: (fn, ms) => { if (ms === 1500) { idle.push(fn); return 0; } const timer = setTimeout(fn, ms); timer.unref(); return timer; }, clearTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
+  siteLib.load(context);
   await vm.runInNewContext(account, context);
   await tick();
   return { ids, calls, redirects, windowEvents, scripts, apple, supabase, status: () => ids['account-status'].textContent,

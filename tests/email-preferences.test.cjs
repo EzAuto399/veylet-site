@@ -9,6 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const { webcrypto, createHash } = require('node:crypto');
 
@@ -93,6 +94,7 @@ async function load({ signedOut = false, email = 'missing', save, user, storage,
   const context = { window, document: documentStub, Date: now ? class extends Date { static now() { return now(); } } : Date, navigator: {}, crypto: webcrypto, TextEncoder,
     location: { pathname: '/account', search: '', replace() {}, assign() {} }, URLSearchParams, URL, setTimeout: timer, clearTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
+  siteLib.load(context);
   vm.runInNewContext(sharing, context);
   await vm.runInNewContext(account, context);
   await settle();

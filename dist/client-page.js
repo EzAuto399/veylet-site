@@ -11,6 +11,7 @@
  * textContent and setAttribute; nothing from the server is parsed as markup.
  */
 (() => {
+  const { missingFunction } = window.VeyletLib;
   const CONTACT_FUNCTION = 'lookup_tour_share_contact';
   const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -438,7 +439,7 @@
           if (!response || response.ok) return;
           let body = null;
           try { body = await response.json(); } catch { body = null; }
-          if (response.status === 404 || (body && body.code === 'PGRST202')) off = true;
+          if (response.status === 404 || missingFunction(body)) off = true;
           // A backend from before stops and looks refuses the kind: say no more of them this visit.
           else if (insight) insightsOff = true;
         }).catch(() => {});

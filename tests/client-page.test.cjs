@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { createDocument } = require('./fake-dom.cjs');
 const { WORDS, withClientHelpers } = require('./client-words.cjs');
 
@@ -23,7 +24,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 function loadModule(extra = {}) {
   const window = {};
-  vm.runInNewContext(clientSource, { window, setTimeout, clearTimeout, ...extra });
+  const ctx = { window, setTimeout, clearTimeout, ...extra }; siteLib.load(ctx); vm.runInNewContext(clientSource, ctx);
   return window.VeyletClientPage;
 }
 
@@ -60,6 +61,7 @@ function handoffPage({ search = '?t=' + TOKEN, nav = {} } = {}) {
   // The head's held-place script runs first, as it does before first paint.
   const heldPlaces = handoff.split('</head>')[0].match(/<script>([\s\S]*?)<\/script>/);
   if (heldPlaces) vm.runInNewContext(heldPlaces[1], context);
+  siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   const id = name => document.getElementById(name);
@@ -373,7 +375,7 @@ test('from 1080px Help and Share move under the agent card in the document, and 
   wide = false; changed();
   assert.equal(extras.parentNode, home);
   assert.doesNotThrow(() => page.mountColumns(document, {}), 'no matchMedia: the one-column markup stands');
-  assert.match(handoff, /page\?\.mountColumns\(document, window\);/);
+  assert.match(read('tour-page.js'), /page\?\.mountColumns\(document, window\);/);
   assert.match(handoff, /<div id="client-extras-home">\s*<div class="client-extras" id="client-extras">\s*<details class="client-help"/);
 });
 
@@ -511,6 +513,7 @@ function embedPage({ withSdk = true, contact = { data: [CONTACT] }, fetch } = {}
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'non-network-fixture' } };
   if (withSdk) window.supabase = { createClient() {} };
   const context = { window, document: { getElementById: id => ids[id] }, location: { search: '?t=' + TOKEN }, URLSearchParams, setTimeout, clearTimeout, fetch };
+  siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(embed.match(/<script>([\s\S]*?)<\/script>/)[1], context);
   return { ids, client, get bootCalls() { return bootCalls; } };

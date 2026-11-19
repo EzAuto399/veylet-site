@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { elementsById, FakeFormData, recordingFetch } = require('./form-page-fake.cjs');
 
 const dist = path.join(__dirname, '../dist');
@@ -25,7 +26,7 @@ const ANSWERS = {
 
 function load() {
   const window = { VEYLET_WAITLIST_MANUAL: true };
-  vm.runInNewContext(script, { window, document: undefined, JSON, Promise, Object, String, encodeURIComponent });
+  const ctx = { window, document: undefined, JSON, Promise, Object, String, encodeURIComponent }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   return window.VeyletWaitlist;
 }
 

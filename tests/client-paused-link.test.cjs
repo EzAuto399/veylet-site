@@ -29,13 +29,14 @@ test('the paused words are the design spec D3 sentences, kept in the player and 
   const player = realPlayer();
   assert.deepEqual({ ...player.PAUSED_WORDS }, { heading: HEADING, bodyAfterName: ' has paused sharing. Ask them for a new link.' });
   assert.equal('Sam Lee' + player.PAUSED_WORDS.bodyAfterName, BODY);
+  const tourPage = read('tour-page.js');
   for (const page of ['handoff/index.html', 'tour/index.html', 'embed/index.html']) {
     const html = read(page);
     assert.doesNotMatch(html, /walkthrough is paused|has paused sharing|lookup_tour_share_pause/, page);
-    assert.match(html, /client: true,\n\s*\/\/[^\n]*\n\s*shareToken: token,/, page);
+    assert.match(tourPage, /client: true,\n\s*\/\/[^\n]*\n\s*shareToken: token,/, page);
   }
   // The embed's check before Explore asks too, with the client it already has.
-  assert.match(read('embed/index.html'), /showMissing\(els, \{ client: shareClient, token \}\)/);
+  assert.match(tourPage, /showMissing\(els, \{ client: shareClient, token \}\)/);
 });
 
 test('lookupPause gives the name only for a paused link the server names; everything else is null', async () => {

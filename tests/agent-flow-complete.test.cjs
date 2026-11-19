@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 
 const root = path.join(__dirname, '..');
 const dist = path.join(root, 'dist');
@@ -393,6 +394,7 @@ async function loadDeskEnv(options = {}) {
     FormData: class { get() { return ''; } },
     Blob: class { constructor(parts, init) { this.parts = parts; this.type = init?.type; } },
   };
+  siteLib.load(context);
   vm.runInNewContext(read('vendor/qrcode-1.5.4.min.js'), context);
   vm.runInNewContext(read('tour-sharing.js'), context);
   await vm.runInNewContext(read('account.js'), context);

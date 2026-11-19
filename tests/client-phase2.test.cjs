@@ -6,12 +6,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
 
 function clientPage() {
   const window = {};
   const document = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
-  vm.runInNewContext(read('client-page.js'), { window, document, URLSearchParams, URL, setTimeout, clearTimeout, console, navigator: {}, location: { search: '' } });
+  const ctx = { window, document, URLSearchParams, URL, setTimeout, clearTimeout, console, navigator: {}, location: { search: '' } }; siteLib.load(ctx); vm.runInNewContext(read('client-page.js'), ctx);
   return window.VeyletClientPage;
 }
 const TOKEN = '0123456789abcdef0123456789abcdef';
@@ -111,5 +112,5 @@ test('said once: the truth line, the agent and the loading message each have one
   // Once the player is on screen it says how loading goes; the page's line is cleared.
   assert.match(glue, /onVisible: \(\) => \{\s*if \(surface\.frame\) surface\.frame\.hidden = true;[^}]*player\.showProgress\(surface, ''\);/);
   assert.match(glue, /visit: options\.visit,/);
-  assert.match(handoff, /page\?\.visitLink\?\.\(\{ window, document, location, navigator, token, beacon \}\)/);
+  assert.match(read('tour-page.js'), /page\?\.visitLink\?\.\(\{ window, document, location, navigator, token, beacon \}\)/);
 });

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../dist/tour-sharing.js'), 'utf8');
 function load(clipboard = { writeText: async () => {} }) { const window = {}; vm.runInNewContext(source, { window, URL, navigator: { clipboard } }); return window.VeyletSharing; }
 test('only complete Veylet client links can become embeds', () => {
@@ -12,7 +13,7 @@ test('only complete Veylet client links can become embeds', () => {
 
 test('pasted client URLs and generated code use the public page token rule', () => {
   const share = load(), window = {};
-  vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../dist/client-page.js'), 'utf8'), { window, URLSearchParams, URL });
+  const ctx = { window, URLSearchParams, URL }; siteLib.load(ctx); vm.runInNewContext(fs.readFileSync(require('node:path').join(__dirname, '../dist/client-page.js'), 'utf8'), ctx);
   const hex = 'ABCDEF0123456789ABCDEF0123456789';
   const cases = [hex, '  ' + hex + '.)  ', 'synthetic-fixture-token', 'synthetic-fixture-token_-', '', 'short', 'a'.repeat(31), 'a'.repeat(33), 'x'.repeat(257), 'has a space in token', 'synthetic-token<script>'];
   for (const raw of cases) {

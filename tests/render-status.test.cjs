@@ -12,6 +12,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const account = fs.readFileSync(path.join(__dirname, '../dist/account.js'), 'utf8');
 const sharing = fs.readFileSync(path.join(__dirname, '../dist/tour-sharing.js'), 'utf8');
@@ -90,6 +91,7 @@ async function load(options = {}) {
     location: { pathname: '/account', search: '', replace() {}, assign() {} },
     setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { get() { return ''; } }, Blob: class {} };
+  siteLib.load(context);
   vm.runInNewContext(sharing, context);
   await vm.runInNewContext(account, context);
   await settle();

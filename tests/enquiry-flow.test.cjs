@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const script = fs.readFileSync(require('node:path').join(__dirname, '../dist/enquiry.js'), 'utf8');
 const ref = 'VY-123456781234423482341234';
 // /request's copy block and capture choice (dist/enquiry.js). Since 30 September 2026 the page sends to
@@ -22,7 +23,7 @@ function setup(options = {}) {
   const navigator = { clipboard: { writeText: async value => { if (options.copyError) throw new Error('denied'); copied.push(value); } } };
   const FormData = class { get(name) { return values[name]; } };
   const window = { document, location, navigator, FormData };
-  vm.runInNewContext(script, { window, document, navigator, FormData, URLSearchParams, location });
+  const ctx = { window, document, navigator, FormData, URLSearchParams, location }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   return { elements, fields, copied, choices, events, window, changeCapture(value) { choices.forEach(choice => { choice.checked = choice.value === value; }); events.change.forEach(callback => callback()); }, copy: () => elements['enquiry-copy-button'].events.click() };
 }
 test('the page makes no reference of its own: the copy before sending has no reference and claims no delivery', async () => {

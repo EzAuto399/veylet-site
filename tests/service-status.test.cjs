@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const help = require('./help-articles.cjs');
@@ -77,7 +78,7 @@ function page({ edition = 'public', answers = [], config = CONFIG, visibility = 
     },
   };
   if (abort) window.AbortController = class { constructor() { this.signal = { aborted: false }; } abort() { this.signal.aborted = true; } };
-  vm.runInNewContext(script, { window, document });
+  const ctx = { window, document }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   const settle = async () => { for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve)); };
   const view = {
     api: window.VeyletStatus, window, ids, requests, timers, queue,
@@ -349,7 +350,7 @@ test('both pages carry the exact words, the support address and a no-script fall
       assert.ok(version, edition + ' loads ' + file);
       assert.equal(version[1], help.assetHash(fs.readFileSync(path.join(DIST, file))), edition + ' → ' + file);
     }
-    assert.match(html, /<script src="\/supabase-public\.js\?v=[a-f\d]{16}"><\/script>\s*<script defer src="\/status\.js\?v=[a-f\d]{16}"><\/script>/, edition);
+    assert.match(html, /<script src="\/supabase-public\.js\?v=[a-f\d]{16}"><\/script>\s*<script src="\/site-lib\.js\?v=[a-f\d]{16}" defer><\/script>\s*<script defer src="\/status\.js\?v=[a-f\d]{16}"><\/script>/, edition);
   }
   assert.equal(page().api.COPY.unavailable, UNAVAILABLE);
 });

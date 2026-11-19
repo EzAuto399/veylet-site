@@ -15,6 +15,7 @@
 (function () {
   'use strict';
 
+  var missingFunction = window.VeyletLib.missingFunction;
   // Remove 'unsubscribe_mail' once the dispatcher's reminder no longer carries this link.
   var FUNCTIONS = ['unsubscribe_email_tips', 'unsubscribe_mail'];
   var KIND = { unsubscribe_email_tips: 'tips', unsubscribe_mail: 'reminder' };
@@ -74,7 +75,7 @@
       var answer = null;
       try { answer = await response.json(); } catch (unreadable) { answer = null; }
       if (!response.ok) {
-        var missing = answer && (answer.code === 'PGRST202' || /could not find the function/i.test(String(answer.message || '')));
+        var missing = missingFunction(answer);
         return missing ? 'missing' : 'error';
       }
       var state = answer && answer.state;

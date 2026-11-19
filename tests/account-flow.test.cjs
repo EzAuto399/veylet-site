@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const account = fs.readFileSync(path.join(__dirname, '../dist/account.js'), 'utf8');
 const sharing = fs.readFileSync(path.join(__dirname, '../dist/tour-sharing.js'), 'utf8');
@@ -117,6 +118,7 @@ async function load(options = {}) {
   }); } };
   const context = { window, document: documentStub, Blob: class { constructor(parts, init) { this.parts = parts; this.type = init?.type; } }, URL: FileURL, Date, navigator: { clipboard: { writeText: async () => { if (options.clipboardBlocked) throw new Error('blocked'); } } }, location: { pathname: options.pathname || '/account', search: options.search || '', replace: value => redirects.push(value), assign: value => redirects.push(value) }, URLSearchParams, setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: fn => { intervals.set(++intervalId, fn); return intervalId; }, clearInterval: id => intervals.delete(id), FormData: class { constructor(form) { this.values = form.values || {}; } get(key) { return this.values[key]; } } };
   if (options.Date) context.Date = options.Date;
+  siteLib.load(context);
   vm.runInNewContext(sharing, context);
   if (options.journey) { window.navigator = context.navigator; vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../dist/account-journey.js'), 'utf8'), context); }
   const journeyBaseline = options.journey && process.env.VEYLET_JOURNEY_BASELINE ? fs.readFileSync(process.env.VEYLET_JOURNEY_BASELINE, 'utf8') : null;

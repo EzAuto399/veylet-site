@@ -19,6 +19,7 @@
 (function () {
   'use strict';
 
+  var lib = typeof window !== 'undefined' ? window.VeyletLib : null;
   var KEY = 'veylet-join-invite';
   var MAX_AGE = 24 * 60 * 60 * 1000;
   var TOKEN = /^[A-Za-z0-9_-]{16,512}$/;
@@ -77,7 +78,7 @@
     var error = reply.error || (reply.value && reply.value.error) || null;
     if (!error) {
       var data = reply.value && reply.value.data;
-      var row = Array.isArray(data) ? data[0] : data;
+      var row = lib.firstRow(data);
       if (!row || typeof row !== 'object' || typeof row.workspace_id !== 'string') return { state: 'error' };
       var team = typeof row.workspace_name === 'string' ? row.workspace_name.trim() : '';
       // Already an active member (the owner opening their own link too): role unchanged.
@@ -87,7 +88,7 @@
     }
     var code = String(error.code || error.status || '');
     var text = String(error.message || '').toLowerCase();
-    if (code === 'PGRST202' || /could not find the function/.test(text)) return { state: 'unavailable' };
+    if (lib.missingFunction(error)) return { state: 'unavailable' };
     if (code === '401' || code === 'PGRST301' || /jwt|not signed in|sign in to accept|sign in required|refresh token/.test(text)) return { state: 'signin' };
     if ((error.name === 'TypeError' || /typeerror|fetcherror/i.test(text)) && NETWORK.test(text)) return { state: 'offline' };
     if (/invite expired/.test(text)) return { state: 'expired' };
@@ -115,13 +116,6 @@
     return state;
   }
 
-  async function settled(promise, ms) {
-    var timer = null;
-    var expired = new Promise(function (resolve) { timer = setTimeout(function () { resolve({ timedOut: true }); }, ms || 20000); });
-    var result = await Promise.race([promise.then(function (value) { return { value: value }; }, function (error) { return { error: error }; }), expired]);
-    if (timer) clearTimeout(timer);
-    return result;
-  }
 
   async function run(win) {
     var doc = win.document;
@@ -136,7 +130,7 @@
     if (!token) return show(doc, { state: 'invalid' });
     var config = win.VEYLET_SUPABASE;
     if (!config || !config.url || !config.anonKey || !win.supabase || !win.supabase.createClient) return show(doc, { state: 'error' });
-    var client = win.supabase.createClient(config.url, config.anonKey, { auth: { persistSession: true, detectSessionInUrl: false, flowType: 'pkce' } });
+    var client = lib.client();
     var retry = doc.getElementById('join-retry');
     var email = '';
     var busy = false;
@@ -145,14 +139,14 @@
       busy = true;
       show(doc, { state: 'loading' });
       retry.disabled = true;
-      var session = await settled(Promise.resolve().then(function () { return client.auth.getSession(); }));
+      var session = await lib.settled(Promise.resolve().then(function () { return client.auth.getSession(); }));
       var current = session.value && session.value.data && session.value.data.session;
       var result;
       if (session.timedOut || session.error || (session.value && session.value.error)) result = { state: 'error' };
       else if (!current || !current.user) result = { state: 'signin' };
       else {
         email = current.user.email || '';
-        result = outcome(await settled(Promise.resolve().then(function () { return client.rpc('accept_workspace_invite', { p_token: token }); })));
+        result = outcome(await lib.settled(Promise.resolve().then(function () { return client.rpc('accept_workspace_invite', { p_token: token }); })));
       }
       if (FINAL.indexOf(result.state) !== -1) forget(win);
       busy = false;

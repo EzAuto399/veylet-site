@@ -62,8 +62,9 @@ test('a 240 px embed slot: the invitation drops its sentence and Report joins th
   assert.match(block[1], /\.embed-fallback\[data-invite\] #embed-body \{ display: none; \}/);
   assert.match(block[1], /flex-flow: row wrap/);
   // Only the invitation is shortened: a dead link and the loading state keep their sentence.
-  assert.match(html, /const offer = \(\) => \{[^}]*fallback\.dataset\.invite = 'shown'/);
-  assert.equal(html.split('delete fallback.dataset.invite').length - 1, 2);
+  const tourPage = read('tour-page.js');
+  assert.match(tourPage, /const offer = \(\) => \{[^}]*fallback\.dataset\.invite = 'shown'/);
+  assert.equal(tourPage.split('delete fallback.dataset.invite').length - 1, 2);
 });
 
 test('a short tour frame: one title row, and the player panels scroll inside the stage', () => {

@@ -31,7 +31,7 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=f1f466f9edea30b5" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=92650a54c6fff7b1" as="script" />
     <link rel="stylesheet" href="/style.css?v=e55599754fbf25cf" />
     <link rel="stylesheet" href="/tour-stage.css?v=423e591f9831ff64" />
     <link rel="stylesheet" href="/client-page.css?v=6d324f07f15fc38d" />
@@ -53,10 +53,12 @@
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/viewer-engagement.js?v=5b71cc315b651927"></script>
-    <script src="/client-page.js?v=6d166828b3dce840"></script>
+    <script src="/site-lib.js?v=aeafeab861c12412"></script>
+    <script src="/client-page.js?v=cdf38c5ca96c9c88"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=7f1f6d044222a9ed"></script>
+    <script src="/tour-player.js?v=04829e12631145e1"></script>
+    <script src="/tour-page.js?v=663b03e7ce96e469"></script>
   </head>
   <body class="client-surface">
     <a class="skip" href="#main">Skip to content</a>
@@ -134,233 +136,7 @@
       </nav>
     </footer>
     <script type="module">
-      const els = {
-        title: document.getElementById('handoff-title'),
-        body: document.getElementById('handoff-body'),
-        status: document.getElementById('handoff-status'),
-        frame: document.getElementById('tour-frame'),
-        stage: document.getElementById('tour-stage'),
-      };
-      const meta = document.getElementById('handoff-meta');
-      const wrap = document.getElementById('tour-frame-wrap');
-      const trouble = document.getElementById('client-trouble');
-      const page = window.VeyletClientPage;
-      // A cut-off or broken link reads as incomplete (client-page.js linkToken); without that
-      // script, the old rule: anything of 16 characters or more is looked up.
-      const raw = new URLSearchParams(location.search).get('t') || '';
-      const link = page?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
-      const token = link.complete ? link.token : '';
-      // Suppression only: this hint never changes share authorization or access.
-      const ownerPreview = new URLSearchParams(location.search).get('preview') === 'owner';
-      // The held places (see the head script) go once the walkthrough is on
-      // screen or has failed; the card's sooner when the contact answers, or
-      // after a short wait (client-page.js, showWalkthrough).
-      const root = document.documentElement;
-      const releaseHeld = () => root?.classList.remove('client-pending', 'client-contact-pending');
-      page?.mountColumns(document, window);
-      page?.mountReport?.(document.getElementById('client-report'), token);
-      // Views for the agent's desk: one first-party call per event, never in the way.
-      const beacon = ownerPreview || !link.complete ? null : page?.viewBeacon?.({
-        config: window.VEYLET_SUPABASE,
-        token,
-        src: page.channelFrom(location.search, 'unknown'),
-        host: null,
-        // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
-        analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
-      });
-
-      // A link to a stop (#stop=N), Share and the agent inside the player (client-page.js visitLink).
-      const visit = link.complete ? page?.visitLink?.({ window, document, location, navigator, token, beacon }) : undefined;
-
-      function sharedLabel(value) {
-        if (!value) return '';
-        const when = new Date(value);
-        if (Number.isNaN(when.getTime())) return '';
-        return 'Shared ' + when.toLocaleDateString(undefined, {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-      }
-
-      const searchParams = new URLSearchParams(location.search);
-      const isSamplePitch = !link.complete && searchParams.get('sample') === '1';
-
-      if (isSamplePitch) {
-        releaseHeld();
-        const sampleBanner = document.getElementById('handoff-sample-banner');
-        if (sampleBanner) sampleBanner.hidden = false;
-        const sampleTitle = 'Sample two-bedroom apartment';
-        const sampleContact = page?.contactFrom?.([{
-          display_name: searchParams.get('name') || 'Your name',
-          agency: searchParams.get('agency') || '',
-          phone: searchParams.get('phone') || '+61 400 000 000',
-          email: searchParams.get('email') || '',
-        }]) || null;
-        window.VeyletPlayer.boot({
-          els,
-          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-          resolve: async () => {
-            if (wrap) wrap.hidden = false;
-            if (els.body) els.body.textContent = '';
-            const truth = document.getElementById('client-truth');
-            if (truth) truth.hidden = false;
-            const help = document.getElementById('client-help');
-            if (help) help.hidden = false;
-            page?.showContact?.(document, sampleContact, sampleTitle, null, false);
-            return {
-              storagePath: 'samples/eyeful-apartment/manifest.json',
-              packageFormatVersion: 2,
-              packageBaseUrl: '/samples/eyeful-apartment/',
-              title: sampleTitle,
-              intro: '',
-              footer: '',
-            };
-          },
-          client: true,
-        });
-      } else if (!link.complete) {
-        releaseHeld();
-        // The words for a dead or broken link are the player's, shared with /tour and /embed.
-        window.VeyletPlayer.showIncomplete(els);
-      } else {
-        // A definitive miss: another browser will not help, so the trouble line goes.
-        let unavailable = false;
-        window.VeyletPlayer.boot({
-          els,
-          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-          resolve: async (client) => {
-            // Both lookups start together, so the card is usually settled in
-            // the step the walkthrough is found. The contact function answers
-            // no row for a dead or paused token, and its lookup never rejects.
-            const shareLookup = client.rpc('lookup_tour_share', {
-              p_token: token,
-            });
-            const contact = page?.lookupContact?.(client, token) ?? null;
-            const { data, error } = await shareLookup;
-            const row = Array.isArray(data) ? data[0] : data;
-            if (error) {
-              // A transport or service error may pass; a token miss will not.
-              throw new window.VeyletPlayer.TourFailure('share-unavailable', {
-                transient: true,
-              });
-            }
-            if (!row || !row.storage_path) {
-              unavailable = true;
-              throw new window.VeyletPlayer.TourFailure('share-not-found', {
-                transient: false,
-              });
-            }
-            // The frame is the product, so it gets a shell rather than sitting bare.
-            if (wrap) wrap.hidden = false;
-            if (meta) {
-              const label = sharedLabel(row.shared_at);
-              meta.textContent = label;
-              meta.hidden = !label;
-              // No date: its held line goes now, while the stage is still unseen.
-              if (!label) meta.classList.add('tour-meta-none');
-            }
-            const title = row.space_title || 'Shared space';
-            if (els.body) els.body.textContent = '';
-            beacon?.opened(window);
-              window.veyletPublicEngagement?.dispose?.();
-              window.veyletPublicEngagement = window.VeyletEngagement?.create({ window, document, stage: els.stage, config: window.VEYLET_SUPABASE, enabled: window.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview, publicShare: true, token, tourID: row.tour_id });
-            // Truth line, Share, movement help and the agent card. The contact
-            // lookup runs beside the walkthrough and never holds it up.
-            // Optional Release 5 context enrichment (facts bar, agency brand, inline enquiry sheet) via REST.
-            const rest = page?.restClient?.(window.VEYLET_SUPABASE);
-            const enquiryOpts = rest ? { token, enquiryClient: rest, hooksUrl: window.VEYLET_HOOKS?.url || '' } : undefined;
-            const contextLookup = rest && page?.lookupHandoffContext ? page.lookupHandoffContext(rest, token) : null;
-            let handoffContextApplied = false;
-            let appliedBrand = null;
-            let visitContactSent = false;
-            const sendVisitContact = resolved => {
-              if (visitContactSent) return;
-              visitContactSent = true;
-              visit?.setContact?.(resolved);
-            };
-            page?.showWalkthrough({
-              document,
-              location,
-              navigator,
-              client,
-              token,
-              title,
-              streamed: row.package_format_version === 2,
-              beacon,
-              contact,
-              visit,
-              enquiryOpts,
-              deferVisitContact: Boolean(contextLookup),
-              shouldApplyContact: () => !handoffContextApplied,
-              onContactShown: () => { if (appliedBrand) page.applyBrand?.(document, appliedBrand); },
-            });
-            if (contextLookup) {
-              contextLookup.then(ctx => {
-                if (ctx) {
-                  if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
-                  if (ctx.brand) appliedBrand = ctx.brand;
-                  if (ctx.contact) {
-                    handoffContextApplied = true;
-                    const card = document.getElementById('agent-card');
-                    const alreadyShown = Boolean(card && !card.hidden && !card.classList?.contains?.('agent-card-late'));
-                    const late = !alreadyShown && !document.documentElement?.classList?.contains?.('client-contact-pending');
-                    page.showContact(document, ctx.contact, title, beacon, late, enquiryOpts);
-                    sendVisitContact(ctx.contact);
-                    document.documentElement?.classList?.remove?.('client-contact-pending');
-                  }
-                  if (ctx.brand) page.applyBrand(document, ctx.brand);
-                }
-                if (!ctx?.contact) {
-                  Promise.resolve(contact).then(basic => {
-                    if (!handoffContextApplied) sendVisitContact(basic || null);
-                  });
-                }
-              }).catch(() => {
-                Promise.resolve(contact).then(basic => {
-                  if (!handoffContextApplied) sendVisitContact(basic || null);
-                }).catch(() => {});
-              });
-            }
-            return {
-              storagePath: row.storage_path,
-              packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
-              packageBaseUrl: row.package_base_url || null,
-              title,
-              intro: '',
-              footer: '',
-            };
-          },
-          // The shared words for "not available" and "could not be reached", and Try again on both.
-          client: true,
-          // A link that answers nothing is asked once whether it is only paused (tour-player.js lookupPause).
-          shareToken: token,
-          visit,
-          // Called in the same step that reveals the frame or the stage. A phone
-          // on its side brings the walkthrough to the top of its short screen.
-          onVisible: () => {
-            releaseHeld();
-            page?.settleStage?.(window, els.stage);
-          },
-        }).then((result) => {
-          releaseHeld();
-          const missing = unavailable || result?.outcome === 'missing';
-          if (missing && trouble) trouble.hidden = true;
-          // Nothing left on the stage (a failure the player explained above):
-          // no empty shell, and nothing that says a walkthrough is here. The
-          // truth line, the date, Share and the help for controls all go; the
-          // agent's card and bar stay, because the agent is the next step.
-          if (els.frame.hidden && els.stage.hidden) {
-            if (wrap) wrap.hidden = true;
-            for (const id of ['client-help', 'client-share', 'client-truth', 'handoff-meta']) {
-              const node = document.getElementById(id);
-              if (node) node.hidden = true;
-            }
-            const shared = document.getElementById('client-share-status');
-            if (shared) shared.textContent = '';
-          }
-        });
-      }
+      window.VeyletTourPage.boot({ variant: 'handoff' });
     </script>
   </body>
 </html>

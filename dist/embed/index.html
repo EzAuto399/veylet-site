@@ -33,9 +33,11 @@
     <link rel="preconnect" href="https://tours.veylet.com" />
     <script src="/brand-host.js?v=1c06a18e19b34007"></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
-    <script src="/tour-player.js?v=7f1f6d044222a9ed"></script>
+    <script src="/tour-player.js?v=04829e12631145e1"></script>
     <script src="/viewer-engagement.js?v=5b71cc315b651927"></script>
-    <script src="/client-page.js?v=6d166828b3dce840"></script>
+    <script src="/site-lib.js?v=aeafeab861c12412"></script>
+    <script src="/client-page.js?v=cdf38c5ca96c9c88"></script>
+    <script src="/tour-page.js?v=663b03e7ce96e469"></script>
     <style>
       html,
       body {
@@ -249,167 +251,7 @@
     ></iframe>
     <div id="tour-stage" hidden></div>
     <script>
-      (() => {
-        const els = {
-          title: document.getElementById('embed-title'),
-          body: document.getElementById('embed-body'),
-          status: document.getElementById('embed-status'),
-          frame: document.getElementById('tour-frame'),
-          stage: document.getElementById('tour-stage'),
-        };
-        const fallback = document.getElementById('embed-fallback');
-        const start = document.getElementById('embed-start');
-        const open = document.getElementById('embed-open');
-
-        // A cut-off or broken link reads as incomplete (client-page.js linkToken).
-        const params = new URLSearchParams(location.search);
-        if (params.get('theme') === 'paper' && document.documentElement) {
-          document.documentElement.setAttribute?.('data-theme', 'paper');
-          if (document.documentElement.dataset) document.documentElement.dataset.theme = 'paper';
-        }
-        const raw = params.get('t') || '';
-        const link = window.VeyletClientPage?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
-        const token = link.complete ? link.token : '';
-      // Suppression only: this hint never changes share authorization or access.
-      const ownerPreview = new URLSearchParams(location.search).get('preview') === 'owner';
-        // Views for the agent's desk: an embed's channel is embed unless its link
-        // says otherwise, and the site framing it is named by hostname only.
-        const beacon = ownerPreview || token.length < 16 || !window.VeyletClientPage?.viewBeacon ? null : window.VeyletClientPage.viewBeacon({
-          config: window.VEYLET_SUPABASE,
-          token,
-          src: window.VeyletClientPage.channelFrom(location.search, 'embed'),
-          host: window.VeyletClientPage.referrerHost(document.referrer),
-          // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
-          analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
-        });
-        if (typeof window.VeyletPlayer === 'undefined') {
-          els.title.textContent = 'This walkthrough is not available.';
-          els.body.textContent =
-            'The walkthrough couldn’t be loaded just now. Check your connection and reload the page.';
-        } else if (!link.complete) {
-          window.VeyletPlayer.showIncomplete({ ...els, actions: null, retry: null });
-        } else {
-          const baseOpenHref = 'https://veylet.com/handoff?t=' + encodeURIComponent(token);
-          const safeHash = () => (typeof location.hash === 'string' && /^#[A-Za-z0-9_=&.-]{1,64}$/.test(location.hash) ? location.hash : '');
-          const syncOpenHref = () => { open.href = baseOpenHref + safeHash(); };
-          syncOpenHref();
-          if (typeof window.addEventListener === 'function') window.addEventListener('hashchange', syncOpenHref);
-          // Report shows for any complete-looking token, whatever the lookup says.
-          window.VeyletClientPage?.mountReport?.(document.getElementById('embed-report'), token);
-          // The share is looked up (lookup_tour_share, one REST call) BEFORE Explore is
-          // offered: a dead or unknown link reads as the handoff page does, with nothing
-          // to press and no download. An error or no answer offers Explore as before:
-          // starting looks the share up again and explains its own failure.
-          const offer = () => { open.hidden = false; start.hidden = false; els.status.textContent = ''; fallback.dataset.invite = 'shown'; };
-          // The same words, and the same Try again, as /handoff and /tour (tour-player.js WORDS).
-          const dead = () => {
-            start.hidden = true; open.hidden = true; els.status.textContent = '';
-            delete fallback.dataset.invite;
-            // Only paused, and by whom? Asked once; without a name the missing words show as before.
-            window.VeyletPlayer.showMissing(els, { client: shareClient, token });
-          };
-          const shareClient = window.VeyletClientPage?.restClient?.(window.VEYLET_SUPABASE) || null;
-          if (shareClient) {
-            els.status.textContent = 'Checking this walkthrough…';
-            Promise.race([
-              Promise.resolve(shareClient.rpc('lookup_tour_share', { p_token: token })),
-              new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
-            ]).then((answer) => {
-              if (!answer || answer.error) { offer(); return; }
-              const row = Array.isArray(answer.data) ? answer.data[0] : answer.data;
-              if (row && (row.storage_path || row.package_base_url)) offer(); else { dead(); return; }
-              // A streamed walkthrough's own poster behind the invitation: its manifest only, nothing 3D.
-              if (row.package_format_version === 2 && row.package_base_url && window.VeyletClientPage?.invitationPoster) {
-                const portrait = typeof window.innerWidth === 'number' && window.innerWidth < window.innerHeight;
-                window.VeyletClientPage.invitationPoster({ base: row.package_base_url, portrait }).then((poster) => {
-                  if (!poster || !fallback.style) return;
-                  fallback.style.setProperty('--embed-poster', 'url("' + poster + '")');
-                  fallback.dataset.poster = 'shown';
-                });
-              }
-            }, offer);
-          } else offer();
-          // The agent's name under the invitation, when the server returns their
-          // opt-in contact for this live link. No account SDK before Explore: a
-          // page that already has it reuses it, otherwise one REST call. Any
-          // error, or a backend without the function yet, leaves the line out.
-          const page = window.VeyletClientPage;
-          const agent = document.getElementById('embed-agent');
-          if (page && agent) {
-            const contactClient = window.supabase && window.supabase.createClient && window.VeyletPlayer.clientFor
-              ? window.VeyletPlayer.clientFor({ persistSession: false, autoRefreshToken: false, detectSessionInUrl: false })
-              : page.restClient(window.VEYLET_SUPABASE);
-            page.lookupContact(contactClient, token).then((contact) => {
-              if (!contact) return;
-              agent.textContent = page.agentLine(contact);
-              agent.hidden = false;
-            });
-          }
-          // Only say what starting costs once there is something to press.
-          els.body.textContent =
-            'Tap a numbered circle to move. Drag to look around. The walkthrough downloads when you start, so give it a moment on mobile data.';
-          start.addEventListener('click', async () => {
-            if (start.hidden) return;
-            start.disabled = true;
-            start.hidden = true;
-            delete fallback.dataset.invite;
-            // Keep the whole panel while the viewport is still empty; drop to
-            // the compact notice the moment the viewer is on screen.
-            fallback.dataset.mode = 'preparing';
-            await window.VeyletPlayer.boot({
-            els,
-            // On an iPhone (no element fullscreen) the fullscreen button opens the full page.
-            fullscreenUrl: open.href,
-            // A streamed walkthrough carries its own status line; a version 1
-            // frame shares the viewport with the compact notice.
-            onVisible: () => {
-              if (els.stage && !els.stage.hidden) fallback.hidden = true;
-              else fallback.dataset.mode = 'loading';
-            },
-            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-            resolve: async (client) => {
-              const { data, error } = await client.rpc('lookup_tour_share', {
-                p_token: token,
-              });
-              const row = Array.isArray(data) ? data[0] : data;
-              if (error) {
-                throw new window.VeyletPlayer.TourFailure('share-unavailable', {
-                  transient: true,
-                });
-              }
-              if (!row || !(row.package_format_version === 2 ? row.package_base_url : row.storage_path)) {
-                throw new window.VeyletPlayer.TourFailure('share-not-found', {
-                  transient: false,
-                });
-              }
-              beacon?.opened(window);
-              window.veyletPublicEngagement?.dispose?.();
-              window.veyletPublicEngagement = window.VeyletEngagement?.create({ window, document, stage: els.stage, config: window.VEYLET_SUPABASE, enabled: window.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview, publicShare: true, token, tourID: row.tour_id });
-              return {
-                storagePath: row.storage_path,
-                packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
-                packageBaseUrl: row.package_base_url || null,
-                title: row.space_title || 'Shared space',
-                intro: '',
-              };
-            },
-            // The shared words for "not available" and "could not be reached", and Try again on both.
-            client: true,
-            // A link that answers nothing is asked once whether it is only paused (tour-player.js lookupPause).
-            shareToken: token,
-          }).catch(() => window.VeyletPlayer.showFailure(
-            { ...els, actions: document.getElementById('tour-actions'), retry: document.getElementById('tour-retry') },
-            { body: 'The walkthrough could not start. Check the connection and try again.', retry: true }
-          ));
-            // A loading notice shares the viewport with the renderer; it must
-            // never push the iframe below the visible agency embed. Restore the
-            // full notice on a startup error. A visible frame owns its rendered
-            // scene or photograph/error/retry UI; never cover it with a second notice.
-            fallback.dataset.mode = 'notice';
-            fallback.hidden = !(els.frame.hidden && (!els.stage || els.stage.hidden));
-          }, { once: true });
-        }
-      })();
+      window.VeyletTourPage.boot({ variant: 'embed' });
     </script>
   </body>
 </html>

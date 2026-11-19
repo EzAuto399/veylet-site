@@ -63,7 +63,7 @@ test('the desk snippet tags both the absolute iframe and direct fallback as embe
 test('the frameable pages open released walkthroughs only, never an owner preview', () => {
   for (const file of ['dist/embed/index.html', 'dist/tour/index.html']) {
     const script = read(file).replace(/<!--[\s\S]*?-->/g, '');
-    assert.match(script, /rpc\('lookup_tour_share'/, file + ' resolves the share token');
+    assert.match(read('dist/tour-page.js'), /rpc\('lookup_tour_share'/, file + ' resolves the share token');
     // get_tour_package_base is the signed owner preview (/p/ on tours.veylet.com).
     assert.doesNotMatch(script, /get_tour_package_base|tours\.veylet\.com\/p\//, file);
   }

@@ -29,11 +29,13 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=f1f466f9edea30b5" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=92650a54c6fff7b1" as="script" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
-    <script src="/tour-player.js?v=7f1f6d044222a9ed"></script>
-    <script src="/client-page.js?v=6d166828b3dce840"></script>
+    <script src="/tour-player.js?v=04829e12631145e1"></script>
+    <script src="/site-lib.js?v=aeafeab861c12412"></script>
+    <script src="/client-page.js?v=cdf38c5ca96c9c88"></script>
+    <script src="/tour-page.js?v=663b03e7ce96e469"></script>
     <style>
       /* The listing URL for portals and CRMs (/tour?t=): the walkthrough alone, in
          Unbranded mode. No agent card, no Call or Email, no address or QR code, no
@@ -221,100 +223,7 @@
       </footer>
     </main>
     <script>
-      (() => {
-        const els = {
-          title: document.getElementById('tour-title'),
-          body: document.getElementById('tour-body'),
-          status: document.getElementById('tour-status'),
-          frame: document.getElementById('tour-frame'),
-          stage: document.getElementById('tour-stage'),
-        };
-        const notice = document.getElementById('tour-notice');
-        const truth = document.getElementById('tour-truth');
-        const help = document.getElementById('tour-help');
-        const player = window.VeyletPlayer;
-        const page = window.VeyletClientPage;
-        // A cut-off or broken link reads as incomplete (client-page.js linkToken).
-        const raw = new URLSearchParams(location.search).get('t') || '';
-        const link = page?.linkToken?.(location.search) || { token: raw, complete: raw.length >= 16 };
-        const token = link.complete ? link.token : '';
-
-        // Unbranded: the player names the tab "… — Veylet"; this page keeps it plain.
-        const titleEl = document.querySelector('title');
-        const plainTitle = () => { if (/ — Veylet$/.test(document.title)) document.title = document.title.replace(/ — Veylet$/, ''); };
-        if (titleEl && typeof MutationObserver === 'function') new MutationObserver(plainTitle).observe(titleEl, { childList: true, characterData: true, subtree: true });
-
-        // Views for the agent's desk: the channel is portal unless the link says
-        // otherwise; framed on another site, that site's hostname and nothing more.
-        let framed = false;
-        try { framed = window.top !== window.self; } catch { framed = true; }
-        const beacon = !link.complete || !page?.viewBeacon ? null : page.viewBeacon({
-          config: window.VEYLET_SUPABASE,
-          token,
-          src: page.channelFrom(location.search, 'portal'),
-          host: framed ? page.referrerHost(document.referrer) : null,
-          // ?analytics=off (owner QA) holds for the whole tab, as the page counter keeps it: no visit summary is ever sent from such a tab.
-          analyticsOff: /(?:^|[?&])analytics=off(?:&|$)/.test(location.search) || (() => { try { return sessionStorage.getItem('veylet.analyticsOff') === '1'; } catch { return false; } })(),
-        });
-
-        page?.mountReport?.(document.getElementById('tour-report'), token, document.getElementById('tour-foot'));
-        if (!player) {
-          els.title.textContent = 'This walkthrough isn’t available right now.';
-          els.body.textContent = 'The walkthrough couldn’t be loaded just now. Check your connection and reload the page.';
-          return;
-        }
-        if (!link.complete) {
-          player.showIncomplete({ ...els, actions: null, retry: null });
-          plainTitle();
-          return;
-        }
-        let unavailable = false;
-        // In a portal's frame on an iPhone (no element full screen), Full screen opens this page on its own.
-        const safeHash = typeof location.hash === 'string' && /^#[A-Za-z0-9_=&.-]{1,64}$/.test(location.hash) ? location.hash : '';
-        const own = typeof location.origin === 'string' && location.origin.startsWith('https://')
-          ? location.origin + location.pathname + '?t=' + encodeURIComponent(token) + safeHash : undefined;
-        player.boot({
-          els,
-          fullscreenUrl: own,
-          onVisible: () => {
-            // A streamed walkthrough carries its own status; a version 1 frame
-            // shares the stage with the compact notice.
-            if (els.stage && !els.stage.hidden) notice.hidden = true;
-            else notice.dataset.mode = 'loading';
-          },
-          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-          resolve: async (client) => {
-            const { data, error } = await client.rpc('lookup_tour_share', { p_token: token });
-            const row = Array.isArray(data) ? data[0] : data;
-            if (error) throw new player.TourFailure('share-unavailable', { transient: true });
-            if (!row || !(row.package_format_version === 2 ? row.package_base_url : row.storage_path)) {
-              unavailable = true;
-              throw new player.TourFailure('share-not-found', { transient: false });
-            }
-            if (truth) truth.hidden = false;
-            beacon?.opened(window);
-            return {
-              storagePath: row.storage_path,
-              packageFormatVersion: row.package_format_version === 2 ? 2 : 1,
-              packageBaseUrl: row.package_base_url || null,
-              title: row.space_title || 'Property walkthrough',
-              intro: '',
-              footer: '',
-            };
-          },
-          // The shared words for "not available" and "could not be reached", and Try again on both.
-          client: true,
-          // A link that answers nothing is asked once whether it is only paused (tour-player.js lookupPause).
-          shareToken: token,
-        }).then(() => {
-          // A definitive miss: another browser will not help.
-          if (unavailable && help) help.hidden = true;
-          delete notice.dataset.mode;
-          // Nothing on the stage (a failure the player explained): the notice stays.
-          notice.hidden = !(els.frame.hidden && els.stage.hidden);
-          plainTitle();
-        });
-      })();
+      window.VeyletTourPage.boot({ variant: 'tour' });
     </script>
   </body>
 </html>

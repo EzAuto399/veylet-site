@@ -10,6 +10,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
 const clientSource = read('client-page.js');
@@ -21,7 +22,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 function loadModule(source = clientSource) {
   const window = {};
-  vm.runInNewContext(source, { window, setTimeout, clearTimeout, URLSearchParams, URL });
+  const ctx = { window, setTimeout, clearTimeout, URLSearchParams, URL }; siteLib.load(ctx); vm.runInNewContext(source, ctx);
   return window.VeyletClientPage;
 }
 
@@ -115,9 +116,9 @@ test('only room types from the fixed list, and whole stop counts, ever leave the
 });
 
 test('the viewer pages pass the ?analytics=off tab switch; client-page.js itself still touches no storage', () => {
-  for (const file of ['tour/index.html', 'embed/index.html', 'handoff/index.html']) {
-    assert.match(read(file), /analyticsOff: \/\(\?:\^\|\[\?&\]\)analytics=off\(\?:&\|\$\)\/\.test\(location\.search\) \|\| \(\(\) => \{ try \{ return sessionStorage\.getItem\('veylet\.analyticsOff'\) === '1'; \} catch \{ return false; \} \}\)\(\),/, file);
-  }
+  const tourPage = read('tour-page.js');
+  assert.match(tourPage, /const analyticsOff = \(\) => \/\(\?:\^\|\[\?&\]\)analytics=off\(\?:&\|\$\)\/\.test\(location\.search\) \|\| \(\(\) => \{ try \{ return sessionStorage\.getItem\('veylet\.analyticsOff'\) === '1'; \} catch \{ return false; \} \}\)\(\);/);
+  assert.equal(tourPage.match(/analyticsOff: analyticsOff\(\)/g).length, 3);
   const code = clientSource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   assert.doesNotMatch(code, /localStorage|sessionStorage|indexedDB|\.cookie/);
 });

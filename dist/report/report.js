@@ -11,6 +11,7 @@
 (function () {
   'use strict';
 
+  var missingFunction = window.VeyletLib.missingFunction;
   var SUPPORT = 'support@veylet.com';
   var REASONS = { privacy: 'Privacy', misleading: 'Not this property, or misleading', offensive: 'Offensive or illegal', other: 'Something else' };
   var EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -88,7 +89,7 @@
       });
       var body = null;
       try { body = await response.json(); } catch (unreadable) { body = null; }
-      if (response.status === 404 || (body && body.code === 'PGRST202')) return 'missing';
+      if (response.status === 404 || missingFunction(body)) return 'missing';
       if (!response.ok) return 'error';
       var state = body && body.state;
       return state === 'received' || state === 'busy' || state === 'invalid' ? state : 'error';

@@ -15,6 +15,7 @@
  * that can fail silently.
  */
 (async () => {
+  const { settled, failed, firstRow, missingFunction, element, plural } = window.VeyletLib;
   const cfg = window.VEYLET_SUPABASE;
   const statusEl = document.getElementById('studio-status');
   const desk = document.getElementById('studio-desk');
@@ -117,19 +118,6 @@
 
   function setStatus(value) { if (statusEl) statusEl.textContent = value; }
   function setSummary(value) { if (summaryEl) summaryEl.textContent = value; }
-  /** Never leave the desk waiting on one unanswered request. */
-  async function settled(promise, ms) {
-    let timer = null;
-    const expired = new Promise(resolve => { timer = setTimeout(() => resolve({ timedOut: true }), ms || 20000); });
-    const result = await Promise.race([
-      promise.then(value => ({ value })).catch(error => ({ error })),
-      expired,
-    ]);
-    if (timer) clearTimeout(timer);
-    return result;
-  }
-  function failed(result) { return !result || result.timedOut || result.error || Boolean(result.value && result.value.error); }
-  function firstRow(data) { return Array.isArray(data) ? data[0] : data; }
   // The database's own refusal: an error answered with a code and a message.
   // A lost request or a client failure has no code and is never called a refusal.
   function serverRefusal(result) {
@@ -274,7 +262,6 @@
     const used = row && typeof row === 'object' ? row.founding_grants_used : null;
     return Number.isInteger(used) && used >= 0 && used <= FOUNDING_GRANTS_MAX ? used : null;
   }
-  function plural(number, word) { return number + ' ' + word + (number === 1 ? '' : 's'); }
   // The row's own free-months terms, in digits: "1 free month with 30
   // rooms" (a total, not a monthly figure). A running row may keep longer
   // terms it started with; a row that cannot say shows nothing.
@@ -356,12 +343,6 @@
         body: 'Your released walkthroughs stay online for 14 days after the plan ends, then go offline. Restarting the plan brings the same links back at once; a second free trial is not guaranteed.' } : unavailable;
     }
     return unavailable;
-  }
-  function element(tag, className, text) {
-    const el = document.createElement(tag);
-    if (className) el.className = className;
-    if (text !== undefined) el.textContent = text;
-    return el;
   }
   function cell(row, label, className) {
     const td = element('td', className);
@@ -1926,7 +1907,7 @@
     const reply = await settled(client.rpc('studio_express_queue'));
     if (version !== expressVersion) return;
     // Before the backend has the function there are no Super fast orders to read; the band says so.
-    if (reply.value?.error?.code === 'PGRST202') {
+    if (missingFunction(reply)) {
       expressRows = null;
       if (expressSummaryEl) expressSummaryEl.textContent = 'Super fast renders are not available on this server yet.';
       expressShow(expressState('Super fast renders are not recorded on this server yet.', false));
@@ -2234,9 +2215,7 @@
     return;
   }
 
-  client = window.supabase.createClient(cfg.url, cfg.anonKey, {
-    auth: { persistSession: true, detectSessionInUrl: false, flowType: 'pkce' },
-  });
+  client = window.VeyletLib.client();
 
   statusFilter?.addEventListener('change', () => render());
   nameFilter?.addEventListener('input', () => render());

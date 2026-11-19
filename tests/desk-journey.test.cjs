@@ -11,6 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
@@ -138,6 +139,7 @@ function harness(options = {}) {
     location: { pathname: '/account', search: '', replace() {}, assign() {} },
     setTimeout: scheduleTimeout, clearTimeout: cancelTimeout, setInterval: () => 0, clearInterval() {},
     FormData: class { get() { return ''; } } };
+  siteLib.load(context);
   vm.runInNewContext(sharing, context);
   if (options.qr !== false) vm.runInNewContext(qrcode, context);
   return { ids, calls, queries, copied, shared, downloads, created, table, tours, approved, supabase, window, windowEvents, navigator, documentStub, timers, context, Element };
@@ -709,6 +711,7 @@ test('a desk read that never reached the server keeps the page; a server error s
   // Offline before anything was drawn: say when the spaces come, and claim nothing.
   const cold = harness({ tours: [] });
   cold.table.properties = { error: { message: 'TypeError: Failed to fetch' } };
+  siteLib.load(cold.context);
   await vm.runInNewContext(account, cold.context); await settle();
   assert.equal(cold.ids['account-render-status'].textContent, 'You’re offline. Your spaces load when you’re back online.');
   assert.equal(cold.ids['account-properties'].children.length, 0);

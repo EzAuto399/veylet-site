@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { WORDS, realPlayer } = require('./client-words.cjs');
 const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf8');
 
@@ -21,12 +22,13 @@ test('one set of words for a link that cannot open, each with one next step', ()
   });
   for (const words of Object.values(WORDS)) assert.doesNotMatch(words, /[—–:;]|agent/, words);
   // The three pages carry none of these sentences themselves.
+  const tourPage = read('tour-page.js');
   for (const page of ['handoff/index.html', 'tour/index.html', 'embed/index.html']) {
     const html = read(page);
     assert.doesNotMatch(html, /missingHeading|missingBody|transientBody/, page);
     assert.doesNotMatch(html, /may have turned it off|It may have been paused|Check you copied/, page);
-    assert.match(html, /client: true/, page);
-    assert.match(html, /showIncomplete\(/, page);
+    assert.match(tourPage, /client: true/, page);
+    assert.match(tourPage, /showIncomplete\(/, page);
   }
 });
 
@@ -73,7 +75,7 @@ test('boot on a client page uses the shared words, offers Try again on a miss an
 test('a phone on its side brings the walkthrough to the top once, and never after the visitor has scrolled', () => {
   const window = {};
   const document = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
-  vm.runInNewContext(read('client-page.js'), { window, document, URLSearchParams, URL, setTimeout, clearTimeout, console, navigator: {}, location: { search: '' } });
+  const ctx = { window, document, URLSearchParams, URL, setTimeout, clearTimeout, console, navigator: {}, location: { search: '' } }; siteLib.load(ctx); vm.runInNewContext(read('client-page.js'), ctx);
   const { settleStage } = window.VeyletClientPage;
   const stage = { hidden: false, getBoundingClientRect: () => ({ top: 326 }) };
   const page = (matches, scrollY = 0) => { const moves = []; return { moves, scrollY, matchMedia: query => ({ matches, query }), scrollTo: to => moves.push(to) }; };
@@ -97,9 +99,9 @@ test('the stage fits a short or sideways screen, and the page gets out of its wa
   // On a phone the walkthrough runs the width of the column: no padded, rounded shell around it.
   const narrow = css.match(/@media \(max-width: 800px\) \{([\s\S]*?)\n\}/)[1];
   assert.match(narrow, /\.client-page \.tour-frame-shell \{[^}]*padding: 0;[^}]*border: 0;[^}]*border-radius: 0;/);
-  const handoff = read('handoff/index.html');
-  assert.match(handoff, /onVisible: \(\) => \{\s*releaseHeld\(\);\s*page\?\.settleStage\?\.\(window, els\.stage\);/);
+  const tourPage2 = read('tour-page.js');
+  assert.match(tourPage2, /onVisible: \(\) => \{\s*releaseHeld\(\);\s*page\?\.settleStage\?\.\(window, els\.stage\);/);
   // A package that is gone reads as missing: no trouble line, no Share, no truth line over an empty page.
-  assert.match(handoff, /const missing = unavailable \|\| result\?\.outcome === 'missing';/);
-  assert.match(handoff, /for \(const id of \['client-help', 'client-share', 'client-truth', 'handoff-meta'\]\)/);
+  assert.match(tourPage2, /const missing = unavailable \|\| result\?\.outcome === 'missing';/);
+  assert.match(tourPage2, /for \(const id of \['client-help', 'client-share', 'client-truth', 'handoff-meta'\]\)/);
 });

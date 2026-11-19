@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { createDocument } = require('./fake-dom.cjs');
 const { WORDS, withClientHelpers } = require('./client-words.cjs');
 
@@ -26,7 +27,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 
 function loadModule(extra = {}) {
   const window = {};
-  vm.runInNewContext(clientSource, { window, setTimeout, clearTimeout, URLSearchParams, URL, ...extra });
+  const ectx = { window, setTimeout, clearTimeout, URLSearchParams, URL, ...extra }; siteLib.load(ectx); vm.runInNewContext(clientSource, ectx);
   return window.VeyletClientPage;
 }
 
@@ -165,6 +166,7 @@ function handoffPage({ search = '?t=' + TOKEN + '&src=qr', nav = {} } = {}) {
   const fetch = (url, init) => (String(url).endsWith('/lookup_tour_handoff_context')
     ? Promise.resolve({ ok: false, status: 404, json: async () => ({ code: 'PGRST202' }) }) : net.fetch(url, init));
   const context = { window, document, location, navigator: nav, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
+  siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   return { document, net, get bootOptions() { return bootOptions; }, finishBoot: () => finishBoot() };
@@ -216,6 +218,7 @@ function embedPage({ search = '?t=' + TOKEN, referrer = 'https://agency.example.
     ? Promise.resolve({ ok: true, status: 200, json: async () => [{ storage_path: 'p/package.zip' }] }) : net.fetch(url, init));
   const window = { VeyletPlayer: player, VEYLET_SUPABASE: CONFIG, supabase: { createClient() {} }, addEventListener() {} };
   const context = { window, document: { getElementById: id => ids[id], referrer }, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
+  siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(embed.match(/<script>([\s\S]*?)<\/script>/)[1], context);
   return { ids, net, get bootOptions() { return bootOptions; } };
@@ -267,6 +270,7 @@ function tourPage({ search = '?t=' + TOKEN + '&src=portal', framed = false, refe
   window.self = window;
   window.top = framed ? {} : window;
   const context = { window, document, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch: net.fetch };
+  siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
   vm.runInNewContext(tour.match(/<script>([\s\S]*?)<\/script>/)[1], context);
   const id = name => document.getElementById(name);
@@ -814,6 +818,6 @@ test('explicit owner previews suppress basic viewer observations without bypassi
   const e = embedPage({ search: '?t=' + TOKEN + '&preview=owner' }); await settle();
   e.ids['embed-start'].events.click(); await e.bootOptions.resolve(client()); await settle();
   assert.equal(e.net.sent.length, 0);
-  assert.match(handoff, /enabled: window\.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview/);
-  assert.match(embed, /enabled: window\.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview/);
+  const tourPage = read('tour-page.js');
+  assert.match(tourPage, /enabled: window\.VEYLET_VIEWER_ENGAGEMENT_ENABLED === true && !ownerPreview/);
 });

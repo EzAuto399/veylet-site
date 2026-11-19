@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { createDocument } = require('./fake-dom.cjs');
 
 const root = path.join(__dirname, '..');
@@ -200,14 +201,16 @@ test('dist/embed/index.html supports ?theme=paper with #f4f1e9/#10231d contrast 
         getAttribute(k) { return htmlAttrs[k] ?? null; },
       },
     };
-    vm.runInNewContext(source, {
+    const ctx = {
       window: { VeyletPlayer: undefined },
       document,
       location: { search },
       URLSearchParams,
       setTimeout,
       Promise,
-    });
+    };
+    siteLib.load(ctx); siteLib.loadTourPage(ctx);
+    vm.runInNewContext(source, ctx);
     return { htmlAttrs, dataset: document.documentElement.dataset };
   };
 

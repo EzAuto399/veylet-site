@@ -12,6 +12,7 @@
  * /thanks: older links (/thanks?route=managed&ref=VY-…) still show a well-formed reference as context.
  */
 (() => {
+  const { missingFunction } = window.VeyletLib;
   // A reference helps reconcile correspondence. It is not an account identifier or capability, and
   // contains no contact information.
   const referencePattern = /^VY-[a-f0-9]{24}$/;
@@ -101,7 +102,7 @@
       });
       let body = null;
       try { body = await response.json(); } catch { body = null; }
-      if (response.status === 404 || (body && body.code === 'PGRST202')) return { state: 'missing' };
+      if (response.status === 404 || missingFunction(body)) return { state: 'missing' };
       if (!response.ok || !body || typeof body !== 'object') return { state: 'error' };
       if (body.state === 'received') {
         return typeof body.reference === 'string' && referencePattern.test(body.reference)

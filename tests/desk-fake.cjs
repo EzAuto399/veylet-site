@@ -10,6 +10,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 const dist = path.join(__dirname, '../dist');
+const siteLib = require('./site-lib.cjs');
 const account = fs.readFileSync(path.join(dist, 'account.js'), 'utf8');
 const sharing = fs.readFileSync(path.join(dist, 'tour-sharing.js'), 'utf8');
 const missing = name => ({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + name + ' in the schema cache' } });
@@ -123,6 +124,7 @@ async function loadDesk(options = {}) {
     setTimeout: () => ({}), clearTimeout() {}, setInterval: () => 0, clearInterval() {},
     FormData: class { get(key) { return (options.formData || {})[key] ?? ''; } }, Blob: class {},
   };
+  siteLib.load(context);
   vm.runInNewContext(sharing, context);
   h.location = context.location;
   await vm.runInNewContext(account, context);

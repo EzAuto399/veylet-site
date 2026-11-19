@@ -3,12 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const markup = fs.readFileSync(path.join(__dirname, '../dist/embed/index.html'), 'utf8');
 const source = markup.match(/<script>([\s\S]*?)<\/script>/)[1];
 const clientSource = fs.readFileSync(path.join(__dirname, '../dist/client-page.js'), 'utf8');
 const { WORDS, withClientHelpers } = require('./client-words.cjs');
 // The real token rule and poster reader from client-page.js (with this page's fetch); the rest of the page API is stubbed below.
-const realPage = fetch => { const window = {}; vm.runInNewContext(clientSource, { window, setTimeout, clearTimeout, URLSearchParams, URL, fetch, location: { origin: 'https://veylet.com' } }); return window.VeyletClientPage; };
+const realPage = fetch => { const window = {}; const ctx = { window, setTimeout, clearTimeout, URLSearchParams, URL, fetch, location: { origin: 'https://veylet.com' } }; siteLib.load(ctx); vm.runInNewContext(clientSource, ctx); return window.VeyletClientPage; };
 
 function load(options = {}) {
   const ids = {};
@@ -32,8 +33,9 @@ function load(options = {}) {
     invitationPoster: realPage(options.fetch).invitationPoster,
   };
   const window = { VeyletPlayer: player, VeyletClientPage: page, VEYLET_SUPABASE: { url: 'https://fixture.invalid', anonKey: 'anon' } };
-  vm.runInNewContext(source, { window, document: { getElementById: id => ids[id] }, location: { search: options.search ?? '?t=synthetic-valid-token' }, URLSearchParams, setTimeout, Promise,
-    ...(options.fetch ? { fetch: options.fetch } : {}) });
+  const ctx = { window, document: { getElementById: id => ids[id] }, location: { search: options.search ?? '?t=synthetic-valid-token' }, URLSearchParams, setTimeout, Promise,
+    ...(options.fetch ? { fetch: options.fetch } : {}) };
+  siteLib.load(ctx); siteLib.loadTourPage(ctx); vm.runInNewContext(source, ctx);
   return {
     ids, calls,
     get bootCalls() { return bootCalls; },
@@ -245,10 +247,12 @@ function tourPage(search, origin = 'https://veylet.com') {
   const player = withClientHelpers({ TourFailure: Error, boot: options => { bootOptions = options; return new Promise(() => {}); }, showFailure: (els, options) => { failure = options; } });
   const window = { VeyletPlayer: player };
   window.self = window; window.top = window;
-  const pageApi = (() => { const w = {}; vm.runInNewContext(clientSource, { window: w, setTimeout, clearTimeout, URLSearchParams, URL }); return w.VeyletClientPage; })();
+  const pageApi = (() => { const w = {}; const ctx = { window: w, setTimeout, clearTimeout, URLSearchParams, URL }; siteLib.load(ctx); vm.runInNewContext(clientSource, ctx); return w.VeyletClientPage; })();
   window.VeyletClientPage = pageApi;
   const document = { getElementById: id => ids[id], querySelector: () => null, title: 'Property walkthrough', referrer: '' };
-  vm.runInNewContext(tour.match(/<script>([\s\S]*?)<\/script>/)[1], { window, document, location: { origin, pathname: '/tour', search }, URLSearchParams, URL, setTimeout, clearTimeout });
+  const tctx = { window, document, location: { origin, pathname: '/tour', search }, URLSearchParams, URL, setTimeout, clearTimeout };
+  siteLib.load(tctx); siteLib.loadTourPage(tctx);
+  vm.runInNewContext(tour.match(/<script>([\s\S]*?)<\/script>/)[1], tctx);
   return { get bootOptions() { return bootOptions; }, get failure() { return failure; } };
 }
 

@@ -10,6 +10,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 
@@ -51,7 +52,7 @@ function page({ search = `?t=${TOKEN}`, answers = {}, config = CONFIG } = {}) {
       return { ok: answer.status >= 200 && answer.status < 300, status: answer.status, json: async () => answer.body };
     },
   };
-  vm.runInNewContext(script, { window, document: window.document, JSON, Promise });
+  const ctx = { window, document: window.document, JSON, Promise }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   return { api: window.VeyletUnsubscribe, window, ids, requests, replaced };
 }
 

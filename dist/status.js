@@ -18,6 +18,7 @@
 (function () {
   'use strict';
 
+  var missingFunction = window.VeyletLib.missingFunction;
   var FUNCTION_NAME = 'get_public_service_status';
   var POLL_MS = 60000;
   var TIMEOUT_MS = 15000;
@@ -78,11 +79,6 @@
     } catch (unsupported) {
       return '';
     }
-  }
-
-  function missingFunction(answer) {
-    return Boolean(answer) && (String(answer.code || '') === 'PGRST202'
-      || /could not find the function/i.test(String(answer.message || '')));
   }
 
   /** One read: { kind: 'ok', status } | { kind: 'missing' } | { kind: 'malformed' } | { kind: 'error' }. */

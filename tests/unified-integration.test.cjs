@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -185,10 +186,11 @@ test('conversion pages with App Store links consistently wire stage.js and conve
 
 test('handoff context enrichment computes late showContact flag and applies agency brand afterwards', () => {
   const html = read('dist/handoff/index.html');
+  const tourPage = read('dist/tour-page.js');
   assert.match(html, /client-contact-pending/);
-  assert.match(html, /page\.showContact\([^)]*late/);
-  const showIdx = html.indexOf('page.showContact(');
-  const brandIdx = html.indexOf('page.applyBrand(', showIdx);
+  assert.match(tourPage, /page\.showContact\([^)]*late/);
+  const showIdx = tourPage.indexOf('page.showContact(');
+  const brandIdx = tourPage.indexOf('page.applyBrand(', showIdx);
   assert.ok(showIdx > 0 && brandIdx > showIdx, 'applyBrand must run after showContact enrichment');
 
   const clientJs = read('dist/client-page.js');
@@ -211,6 +213,7 @@ test('room-jump pills never wrap under global nav styles and panels use opaque d
 test('client-page visitLink preserves initial #stop=N&yaw=D&pitch=P deep link on arrival and updates on move', () => {
   const windowObj = {};
   const doc = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
+  siteLib.load({ window: windowObj });
   vm.runInNewContext(read('dist/client-page.js'), {
     window: windowObj,
     document: doc,
@@ -330,6 +333,7 @@ test('dist/stage.js QR modal traps outside Tab focus back in and dist/conversion
 test('visitLink.setContact includes Book inspection or Book viewing up to 3 actions and tracks booking taps', async () => {
   const windowObj = {};
   const doc = { addEventListener() {}, querySelector: () => null, getElementById: () => null };
+  siteLib.load({ window: windowObj });
   vm.runInNewContext(read('dist/client-page.js'), {
     window: windowObj, document: doc, URLSearchParams, URL, setTimeout, clearTimeout, navigator: {}, location: { search: '' },
   });
@@ -375,13 +379,15 @@ test('/embed and /tour preserve safe #stop=N&yaw=D&pitch=P hashes on fullscreen 
   let embedBoot = null;
   const embedWin = {
     VeyletPlayer: withClientHelpers({ boot: o => { embedBoot = o; return new Promise(() => {}); }, showFailure() {} }),
-    VeyletClientPage: (() => { const w = {}; vm.runInNewContext(clientSrc, { window: w, setTimeout, clearTimeout, URLSearchParams, URL }); return w.VeyletClientPage; })(),
+    VeyletClientPage: (() => { const w = {}; siteLib.load({ window: w }); vm.runInNewContext(clientSrc, { window: w, setTimeout, clearTimeout, URLSearchParams, URL }); return w.VeyletClientPage; })(),
     addEventListener(n, f) { winListeners[n] = f; },
   };
   const embedLoc = { search: '?t=' + TOKEN, hash: '#stop=2&yaw=135&pitch=-20' };
-  vm.runInNewContext(embedHtml.match(/<script>([\s\S]*?)<\/script>/)[1], {
+  const embedCtx = {
     window: embedWin, document: { getElementById: id => ids[id] }, location: embedLoc, URLSearchParams, setTimeout, Promise,
-  });
+  };
+  siteLib.load(embedCtx); siteLib.loadTourPage(embedCtx);
+  vm.runInNewContext(embedHtml.match(/<script>([\s\S]*?)<\/script>/)[1], embedCtx);
   assert.equal(ids['embed-open'].href, `https://veylet.com/handoff?t=${TOKEN}#stop=2&yaw=135&pitch=-20`);
   embedLoc.hash = '#stop=3&yaw=45';
   winListeners.hashchange();
@@ -401,15 +407,17 @@ test('/embed and /tour preserve safe #stop=N&yaw=D&pitch=P hashes on fullscreen 
     let tourBoot = null;
     const w = {
       VeyletPlayer: withClientHelpers({ TourFailure: Error, boot: o => { tourBoot = o; return new Promise(() => {}); }, showFailure() {} }),
-      VeyletClientPage: (() => { const c = {}; vm.runInNewContext(clientSrc, { window: c, setTimeout, clearTimeout, URLSearchParams, URL }); return c.VeyletClientPage; })(),
+      VeyletClientPage: (() => { const c = {}; siteLib.load({ window: c }); vm.runInNewContext(clientSrc, { window: c, setTimeout, clearTimeout, URLSearchParams, URL }); return c.VeyletClientPage; })(),
     };
     w.self = w; w.top = w;
-    vm.runInNewContext(tourHtml.match(/<script>([\s\S]*?)<\/script>/)[1], {
+    const tctx = {
       window: w,
       document: { getElementById: id => tIds[id], querySelector: () => null, title: 'Property walkthrough', referrer: '' },
       location: { origin: 'https://veylet.com', pathname: '/tour', search: '?t=' + TOKEN, hash },
       URLSearchParams, URL, setTimeout, clearTimeout,
-    });
+    };
+    siteLib.load(tctx); siteLib.loadTourPage(tctx);
+    vm.runInNewContext(tourHtml.match(/<script>([\s\S]*?)<\/script>/)[1], tctx);
     return tourBoot.fullscreenUrl;
   };
   assert.equal(runTour('#stop=2&yaw=90&pitch=10'), `https://veylet.com/tour?t=${TOKEN}#stop=2&yaw=90&pitch=10`);
@@ -495,6 +503,7 @@ test('dist/account.js mounts tourCampaignSync on paused/unshared approved ready 
       clearTimeout() {}, setInterval: () => 0, clearInterval() {},
       FormData: class { get() { return ''; } },
     };
+    siteLib.load(ctx);
     vm.runInNewContext(read('dist/vendor/qrcode-1.5.4.min.js'), ctx);
     vm.runInNewContext(read('dist/tour-sharing.js'), ctx);
     await vm.runInNewContext(read('dist/account.js'), ctx);

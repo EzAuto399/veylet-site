@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const path = require('node:path');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const markup = read('dist/studio/index.html');
@@ -352,6 +353,7 @@ async function load(options = {}) {
   }
   // The desk's own error handler is attached in source, so the harness does not
   // await the whole start sequence: a pending request must still leave a page.
+  siteLib.load(context);
   void vm.runInNewContext(options.script || script, context);
   await new Promise(resolve => setImmediate(resolve));
   await new Promise(resolve => setImmediate(resolve));

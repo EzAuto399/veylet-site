@@ -22,6 +22,7 @@
 (function () {
   'use strict';
 
+  var missingFunction = window.VeyletLib.missingFunction;
   var SUPPORT = 'support@veylet.com';
   var BUSINESS = ['sales_agent', 'property_manager', 'buyers_agent', 'photographer', 'other'];
   var DEVICES = ['iphone_pro_lidar', 'ipad_pro_lidar', 'iphone_other', 'android', 'not_sure'];
@@ -160,7 +161,7 @@
       });
       var body = null;
       try { body = await response.json(); } catch (unreadable) { body = null; }
-      if (response.status === 404 || (body && body.code === 'PGRST202')) return 'missing';
+      if (response.status === 404 || missingFunction(body)) return 'missing';
       if (!response.ok) return 'error';
       var state = body && body.state;
       return state === 'joined' || state === 'busy' || state === 'invalid' ? state : 'error';

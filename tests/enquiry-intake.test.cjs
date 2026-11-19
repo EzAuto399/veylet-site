@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const siteLib = require('./site-lib.cjs');
 const { Element, elementsById, FakeFormData, recordingFetch } = require('./form-page-fake.cjs');
 
 const dist = path.join(__dirname, '../dist');
@@ -50,7 +51,7 @@ function page(answers = [], { values = {}, config = CONFIG } = {}) {
     VeyletAnalytics: { track: (name, props) => { events.push({ name, props }); return true; } },
     navigator: { clipboard: { writeText: async () => {} } },
   };
-  vm.runInNewContext(script, { window, document: doc, location: window.location, URLSearchParams });
+  const ctx = { window, document: doc, location: window.location, URLSearchParams }; siteLib.load(ctx); vm.runInNewContext(script, ctx);
   return { ids, form, controls, choices, button, window, requests, store, events, submit: () => form.fire('submit') };
 }
 
