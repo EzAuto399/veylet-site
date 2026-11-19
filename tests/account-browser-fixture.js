@@ -33,7 +33,12 @@
    * what it refuses, keeps the row for the next read and echoes it back.
    * `&contact-save=permission|phone|fail|offline|expired` answers every save with
    * "contact permission required", the phone refusal, a failure, a lost connection
-   * (TypeError "Failed to fetch") or an expired sign-in (PGRST301). */
+   * (TypeError "Failed to fetch") or an expired sign-in (PGRST301).
+   * `?context=listing` answers lookup_tour_handoff_context (Release 5) on /__qa/handoff/
+   * with a fictional lease: facts bar, next open home, booking link, brand colour and the
+   * same contact. `sale` is the same as a sale, `empty` answers no row, and left out it is
+   * `missing` (PGRST202), as a backend without the function answers. */
+  const contextCase = params.get('context') || 'missing';
   const contactCase = params.get('contact') || 'show';
   const deskContactCase = params.get('contact') || 'missing';
   const contactSaveCase = params.get('contact-save');
@@ -1859,6 +1864,17 @@
         if (args.p_show && (!row.display_name || (!row.phone && !row.email))) return refuse('showing the contact needs a display name and a phone or email');
         savedContact = { show_on_shared: args.p_show, ...row, updated_at: new Date().toISOString() };
         return { data: [{ ...savedContact }] };
+      }
+      if (name === 'lookup_tour_handoff_context') {
+        if (contextCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.lookup_tour_handoff_context(p_token) in the schema cache' } };
+        if (contextCase === 'empty' || scenario === 'missing') return { data: [] };
+        const openStart = new Date(Date.now() + 2 * 86400000); openStart.setUTCHours(10, 0, 0, 0);
+        return { data: [{ display_name: 'Alex Example', agency: 'Example Realty', phone: '+61 400 000 000', email: 'alex@example.invalid',
+          booking_url: 'https://example.invalid/book', allow_viewing_request: true,
+          campaign_mode: contextCase === 'sale' ? 'sale' : 'lease', headline: '2 Example Street, Exampleton · $650 per week',
+          bedrooms: 2, bathrooms: 1, car_spaces: 1,
+          next_open_start: openStart.toISOString(), next_open_end: new Date(openStart.getTime() + 1800000).toISOString(),
+          agency_brand_hex: '#1f4b3a' }] };
       }
       if (name === 'lookup_tour_share_contact') {
         if (contactCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.lookup_tour_share_contact(p_token) in the schema cache' } };
