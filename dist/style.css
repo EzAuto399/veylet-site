@@ -1021,11 +1021,17 @@ dialog::backdrop {
   html {
     scroll-behavior: auto;
   }
+  /* The walkthrough viewer places its numbered circles, map and progress bar with transforms.
+     Those are layout, not motion, so the viewer keeps them (19 Nov 2026). */
+  *:not(.v2-stage *),
+  *:not(.v2-stage *)::before,
+  *:not(.v2-stage *)::after {
+    transform: none !important;
+  }
   *,
   *::before,
   *::after {
     animation: none !important;
-    transform: none !important;
     transition-property: opacity, color, background-color, border-color !important;
     transition-duration: 150ms !important;
     transition-delay: 0ms !important;
@@ -2068,7 +2074,8 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transform: none !important; }
+  *, *::before, *::after { animation: none !important; }
+  *:not(.v2-stage *), *:not(.v2-stage *)::before, *:not(.v2-stage *)::after { transform: none !important; }
 }
 
 /* ---- Shared surfaces: the parts of the page the browser draws ---- */

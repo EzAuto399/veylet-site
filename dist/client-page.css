@@ -126,7 +126,7 @@
   width: 100%;
   padding: 9px 11px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px; /* under 16px, iOS Safari zooms the page when the field is focused */
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--field-line, var(--line));

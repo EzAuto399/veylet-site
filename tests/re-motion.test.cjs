@@ -132,3 +132,20 @@ test('homepage and /see share unified scroll reveal choreography (y: 18, duratio
     assert.match(js, /ease:\s*'power3\.out'/, `${name} uses power3.out reveal ease`);
   }
 });
+
+test('reduced motion never removes the walkthrough viewer\'s layout transforms (numbered circles, map, progress bar)', () => {
+  const css = read('style.css');
+  const blocks = css.split('@media (prefers-reduced-motion: reduce)').slice(1).map(b => b.slice(0, 700));
+  const stripping = blocks.filter(b => /transform:\s*none\s*!important/.test(b));
+  assert.ok(stripping.length >= 2, 'both global reduced-motion rules are still present');
+  for (const block of stripping) {
+    // The rule that strips transforms must exclude the viewer; no bare universal selector may carry it.
+    const rule = block.slice(0, block.indexOf('transform: none !important'));
+    const selector = rule.slice(rule.lastIndexOf('}') + 1);
+    assert.match(selector, /\*:not\(\.v2-stage \*\)/, 'transform reset excludes .v2-stage');
+    assert.doesNotMatch(selector, /(^|,)\s*\*\s*(,|\{|::)/m, 'no bare * selector strips transforms');
+  }
+  const player = read('tour-player-v2.js');
+  assert.match(player, /stage\.classList\.add\('v2-stage'\)/, 'the viewer marks its stage');
+  assert.match(player, /button\.style\.transform = `translate\(/, 'circles are placed with a transform');
+});

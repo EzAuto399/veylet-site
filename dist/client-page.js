@@ -700,19 +700,22 @@
     const form = element(doc, 'form', 'enquiry-sheet-form');
     form.setAttribute('novalidate', '');
 
-    const makeInput = (labelText, name, type, max) => {
+    // Each field names itself to the phone: the right keyboard, and the browser's saved name, mobile and email.
+    const makeInput = (labelText, name, type, max, autocomplete, inputmode) => {
       const wrap = element(doc, 'label', 'enquiry-field');
       wrap.append(element(doc, 'span', 'enquiry-field-label', labelText));
       const input = element(doc, 'input', 'enquiry-input');
       input.name = name;
       input.type = type;
       input.setAttribute('maxlength', String(max));
+      input.setAttribute('autocomplete', autocomplete);
+      if (inputmode) input.setAttribute('inputmode', inputmode);
       wrap.append(input);
       return { wrap, input };
     };
-    const nameField = makeInput('Your name', 'visitor_name', 'text', 80);
-    const phoneField = makeInput('Mobile', 'visitor_phone', 'tel', 32);
-    const emailField = makeInput('Email', 'visitor_email', 'email', 254);
+    const nameField = makeInput('Your name', 'visitor_name', 'text', 80, 'name');
+    const phoneField = makeInput('Mobile', 'visitor_phone', 'tel', 32, 'tel', 'tel');
+    const emailField = makeInput('Email', 'visitor_email', 'email', 254, 'email', 'email');
 
     const msgWrap = element(doc, 'label', 'enquiry-field');
     msgWrap.append(element(doc, 'span', 'enquiry-field-label', 'Question or preferred day (optional)'));
@@ -810,7 +813,7 @@
               }
               fallBackToRpc = true;
             } else if (code === 429) {
-              say(status, 'Too many enquiries right now. Use Call or Email above instead.');
+              say(status, 'Too many enquiries right now. Use Call or Email instead.');
               return;
             } else if (code === 404) {
               say(status, 'This walkthrough is no longer available.');
@@ -841,9 +844,9 @@
             return;
           }
         }
-        say(status, 'Couldn’t send right now. Use Call or Email above instead.');
+        say(status, 'Couldn’t send right now. Use Call or Email instead.');
       } catch {
-        say(status, 'Couldn’t send right now. Use Call or Email above instead.');
+        say(status, 'Couldn’t send right now. Use Call or Email instead.');
       } finally {
         busy = false;
         sendBtn.disabled = false;

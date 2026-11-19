@@ -114,7 +114,9 @@ test('public CTA hooks use fixed destinations and placements and intake forms ke
     for (const hook of hooks) {
       assert.ok(destinations.includes(hook['data-analytics-cta']), `${file} fixed destination`);
       assert.ok(placements.includes(hook['data-analytics-placement']), `${file} fixed placement`);
-      assert.equal(hook.href, hook['data-analytics-cta'] === 'app_store' ? APP_STORE : '/' + hook['data-analytics-cta'],
+      // A session link may carry the request form's one allowlisted preselection (19 Nov 2026); nothing else varies.
+      const href = hook['data-analytics-cta'] === 'request' && hook.href === '/request?capture=unsure' ? '/request' : hook.href;
+      assert.equal(href, hook['data-analytics-cta'] === 'app_store' ? APP_STORE : '/' + hook['data-analytics-cta'],
         `${file} the destination matches the actual link`);
       assert.notEqual(hook['aria-hidden'], 'true', `${file} decorative links are not CTAs`);
     }

@@ -176,7 +176,7 @@ test('home and /start have one main path, the App Store, and link the enquiry fo
     const html = read(page);
     // Owner decision, 17 November 2026: free capture sessions in south-east Queensland, booked through /request.
     const main = html.match(/<main\b[\s\S]*?<\/main>/)[0];
-    const requests = [...main.matchAll(/<a [^>]*href="\/request"[^>]*>([\s\S]*?)<\/a>/g)].map(m => flatText(m[1]));
+    const requests = [...main.matchAll(/<a [^>]*href="\/request\?capture=unsure"[^>]*>([\s\S]*?)<\/a>/g)].map(m => flatText(m[1]));
     assert.equal(requests.length, 1, `${page} links /request once in the page body`);
     assert.match(requests[0], /Book a (?:capture )?session/, `${page}: the /request link books a session`);
     assert.match(flatText(main), /In south-east Queensland\? We’ll come to one of your spaces and capture it with you, free\./, page);

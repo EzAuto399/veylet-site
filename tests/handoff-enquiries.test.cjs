@@ -242,7 +242,7 @@ test('openEnquirySheet posts to hooksUrl/tour-enquiry, handles 400/404/429 witho
 
   // 2. 429 / 404 / 400 show exact refusal messages with NO RPC fallback
   for (const [status, expected] of [
-    [429, 'Too many enquiries right now. Use Call or Email above instead.'],
+    [429, 'Too many enquiries right now. Use Call or Email instead.'],
     [404, 'This walkthrough is no longer available.'],
     [400, 'Check your details and try again.'],
   ]) {
@@ -462,4 +462,17 @@ test('/handoff guards lookupContact vs lookupHandoffContext race in both directi
   await settle();
   const visitContactC = await caseC.bootOpts.visit.contact;
   assert.deepEqual(JSON.parse(JSON.stringify(visitContactC.actions.map(a => a.label))), ['Call', 'Email']);
+});
+
+test('the Book viewing fields name themselves to the phone and never trigger the iOS focus zoom', () => {
+  const js = read('client-page.js');
+  assert.match(js, /makeInput\('Your name', 'visitor_name', 'text', 80, 'name'\)/);
+  assert.match(js, /makeInput\('Mobile', 'visitor_phone', 'tel', 32, 'tel', 'tel'\)/);
+  assert.match(js, /makeInput\('Email', 'visitor_email', 'email', 254, 'email', 'email'\)/);
+  assert.match(js, /input\.setAttribute\('autocomplete', autocomplete\)/);
+  // The agent bar sits below the sheet, so the fallback never points "above".
+  assert.doesNotMatch(js, /Call or Email above/);
+  const css = read('client-page.css');
+  const rule = css.slice(css.indexOf('.enquiry-input,'), css.indexOf('.enquiry-actions'));
+  assert.match(rule, /font-size:\s*16px/, 'inputs are 16px so iOS Safari does not zoom on focus');
 });

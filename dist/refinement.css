@@ -623,3 +623,12 @@
     transition: none;
   }
 }
+
+/* Phones: the hero's two buttons sit straight under the headline, above the description, so the
+   privacy bar at the bottom of a short screen (360 x 640) never covers "Get the app" (19 Nov 2026). */
+@media (max-width: 640px) {
+  .conversion-home .hero-copy { display: flex; flex-direction: column; }
+  .conversion-home .hero-copy > * { order: 2; }
+  .conversion-home .hero-copy > h1 { order: 0; }
+  .conversion-home .hero-copy > .hero-actions { order: 1; margin-block: 20px 24px; }
+}

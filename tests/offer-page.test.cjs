@@ -722,7 +722,7 @@ test('paid in-person work is absent from the public offer; free capture sessions
   // Owner decision, 26 September 2026: /start has one main path; device help is the help page.
   // Owner decision, 17 November 2026: its only /request link in the body books a free capture session.
   assert.equal((start.match(/<main\b[\s\S]*?<\/main>/)[0].match(/href="\/request/g) || []).length, 1);
-  assert.match(start, /<a class="text-link" href="\/request">Book a capture session/);
+  assert.match(start, /<a class="text-link" href="\/request\?capture=unsure">Book a capture session/);
   assert.match(start, /href="\/help\/what-you-need"/);
 });
 
