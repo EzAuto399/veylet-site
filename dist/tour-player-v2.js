@@ -476,6 +476,31 @@
     return { widthMeters: w, depthMeters: d, label: `approx. ${w.toFixed(1)} × ${d.toFixed(1)} m` };
   }
 
+  /**
+   * Indicative room dimensions (width × depth in metres) from room.bounds or
+   * the span of stops in that room when 2+ stops exist on the room's floor.
+   */
+  function roomFootprint(manifest, roomId) {
+    if (!manifest || !Array.isArray(manifest.rooms) || !roomId) return null;
+    const room = manifest.rooms.find(item => item && item.id === roomId);
+    if (!room) return null;
+    if (Array.isArray(room.bounds) && room.bounds.length === 2 && room.bounds.every(v => Number.isFinite(v) && v >= 0.8)) {
+      const w = Math.round(room.bounds[0] * 10) / 10;
+      const d = Math.round(room.bounds[1] * 10) / 10;
+      return { widthMeters: w, depthMeters: d, label: `approx. ${w.toFixed(1)} × ${d.toFixed(1)} m` };
+    }
+    const stops = (manifest.stops || []).filter(stop => stop && stop.room === roomId && Array.isArray(stop.floor));
+    if (stops.length < 2) return null;
+    const xs = stops.map(stop => stop.floor[0]);
+    const zs = stops.map(stop => stop.floor[2]);
+    const spanX = Math.max(...xs) - Math.min(...xs);
+    const spanZ = Math.max(...zs) - Math.min(...zs);
+    if (spanX < 0.4 && spanZ < 0.4) return null;
+    const w = Math.round(Math.max(1.8, spanX + 1.4) * 10) / 10;
+    const d = Math.round(Math.max(1.8, spanZ + 1.4) * 10) / 10;
+    return { widthMeters: w, depthMeters: d, label: `approx. ${w.toFixed(1)} × ${d.toFixed(1)} m` };
+  }
+
   const stepStop = (index, delta, count) => ((index + delta) % count + count) % count;
 
   /** Yaw and pitch (degrees) for a PlayCanvas camera, which looks down -Z. */
@@ -1154,13 +1179,14 @@
 
     const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
+    let flightFovOffset = 0;
     const requestRender = () => { app.renderNextFrame = true; };
     function applyCamera() {
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
       const view = fieldOfView(aspect(), posterSpec, state.zoom);
       camera.camera.horizontalFov = view.horizontal;
-      camera.camera.fov = view.fov;
+      camera.camera.fov = clamp(view.fov + flightFovOffset, 20, 130);
       requestRender();
       placeHotspots();
     }

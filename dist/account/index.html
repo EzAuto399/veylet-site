@@ -112,6 +112,12 @@
           Email me a sign-in link <span class="icon-arrow" aria-hidden="true"></span>
         </button>
       </form>
+      <!-- Notes follow the sign-in controls so the first button sits under the lead on small screens. -->
+      <!-- Arrived through another office's referral link: filled by the script. -->
+      <p class="contact-note" id="account-referred" hidden></p>
+      <!-- Who can get an account at this launch stage: dist/stage.js writes it. -->
+      <p class="contact-note" id="account-access-note" data-launch-account>Anyone can join. New accounts are admitted in weekly groups from the waitlist. Admitted? Sign in with the email you joined with. <a href="/waitlist">Join the waitlist</a>.</p>
+      <p id="account-status" class="contact-note" role="status"></p>
       <form id="account-verify" class="veylet-form" hidden>
         <p class="contact-note">
           We sent a link and a six-digit code to <strong id="account-verify-email"></strong>.

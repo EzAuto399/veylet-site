@@ -111,6 +111,31 @@
     return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   }
 
+  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
+  function bookingHref(url) {
+    const raw = clean(url, 240);
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw);
+      return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
+  function viewingRequestHref(email, title, agentName) {
+    const address = clean(email, 254);
+    if (!EMAIL.test(address)) return '';
+    const at = address.lastIndexOf('@');
+    const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
+    const space = title || 'Shared space';
+    const greeting = agentName ? 'Hi ' + agentName + ',' : 'Hello,';
+    const subject = 'Book a viewing: ' + space;
+    const body = greeting + '\n\nI just explored the 3D walkthrough of ' + space + ' and would like to arrange an inspection.\n\nPreferred day / time:\nMy phone number:\n';
+    return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  }
+
   /** The one row the server answers, or null unless it names someone reachable. */
   function contactFrom(data) {
     const row = Array.isArray(data) ? data[0] : data;
