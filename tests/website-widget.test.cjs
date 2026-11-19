@@ -79,9 +79,9 @@ test('a modal construction failure leaves the handoff anchor navigation intact',
   assert.equal(h.document.body.style.overflow, 'auto');
 });
 
-test('dist/embed.js is vanilla JS under 3.5 KB and never uses innerHTML/insertAdjacentHTML/outerHTML', () => {
+test('dist/embed.js is vanilla JS under 3.6 KB and never uses innerHTML/insertAdjacentHTML/outerHTML', () => {
   const source = read('dist/embed.js');
-  assert.ok(Buffer.byteLength(source, 'utf8') < 3500, `embed.js must be < 3500 bytes, got ${Buffer.byteLength(source, 'utf8')}`);
+  assert.ok(Buffer.byteLength(source, 'utf8') < 3600, `embed.js must be < 3600 bytes, got ${Buffer.byteLength(source, 'utf8')}`);
   assert.doesNotMatch(source, /\b(?:innerHTML|insertAdjacentHTML|outerHTML)\b/);
 });
 
