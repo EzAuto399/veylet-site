@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Buyer paused name and design-spec release — 19 November 2026
+
+User authority: "Push the website branch too, merge and get all into main and live operating" (19 Nov). Source `main` `a617bd2` (the `site/launch-fixes-20261119` line, `eaba8cf`), stamped and re-pinned in `a617bd2`.
+
+1. **Build:** 1109 of 1109 site tests; `check-app-pages.mjs` clean (43 states, 42,299 strings); `npm run build` and `npm run verify` pass (365 source, 364 output files, 322 unchanged, 42 transformed); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions); local health check 39/39. The frozen allowlist was re-pinned for 6 changed hashes with no path or header change.
+2. **Hosted release:** preview `45564b4b-2836-414d-b899-84f28430d3da`; production `4e1356cc-0bb1-45fe-b93e-118e703811e0`.
+3. **Readback on veylet.com:** `build-info.json` names `eaba8cf` (2026-11-19T03:03:29Z); `tour-player.js` is byte-identical to the built output and contains `lookup_tour_share_pause`; the waitlist script sends `p_business_type`, `p_region` and `p_channels`; `www` 301s to the apex; AASA is JSON; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** a real paused buyer link naming an agent in a browser, a real waitlist submission (writes a row and sends staff email), rendered appearance on a phone, and hosted sign-in/payment/capture.
+5. **Recovery:** previous production version `4d74f68f-9be0-4f33-8a82-97db321a1750`: `wrangler rollback 4d74f68f-9be0-4f33-8a82-97db321a1750 --config wrangler.production.jsonc`.
+
 ## Launch fixes — 19 November 2026
 
 User authority: "Yes, deploy" (19 Nov). Source `287094f` (`site/launch-fixes-20261119`, off `main` `c98596c`), stamped and re-pinned in `d8126f0`: the buyer viewer keeps its layout under Reduce Motion and leaves room for the taller agent bars, hero buttons clear the privacy bar on phones, session links preselect, the Book viewing form fits a phone, the staff desk can admit a pending account (`studio_admit_for_purchase`), and the account desk says approval progress beside "Approve and share".
