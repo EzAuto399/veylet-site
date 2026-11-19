@@ -150,7 +150,7 @@
   function wire(win, form) {
     const doc = win.document;
     const route = form.dataset.enquiryRoute;
-    const captureLabels = { self: 'I will capture it', unsure: 'Help me choose' };
+    const captureLabels = { self: 'I will capture it', unsure: 'Capture it with me' };
     const choices = [...(form.querySelectorAll?.('[name="capture_route"]') || [])];
     const deviceField = doc.getElementById('request-device-field');
     const device = form.querySelector('[name="device_model"]');
