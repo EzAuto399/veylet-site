@@ -300,7 +300,8 @@ test('website-guide fixes portal answer, adds AU agency details, and wires modal
   }
   const link = {
     value: 'https://veylet.com/handoff?t=' + TOKEN,
-    attributes: {},
+    attributes: {}, events: {},
+    addEventListener(ev, fn) { this.events[ev] = fn; },
     setAttribute(k, v) { this.attributes[k] = v; },
     removeAttribute(k) { delete this.attributes[k]; },
     focus() {},

@@ -2417,14 +2417,14 @@
     },
     {
       "path": "website-guide.js",
-      "bytes": 3794,
-      "sha256": "75fee84af7c35e7209444df5ebe2575a93649bd86e1468c6e7aec971965354cd",
+      "bytes": 3926,
+      "sha256": "55d8c4f5f73e63a99ff69fcc8bff0a0a426e1c73dd6cf73588064c1d24fb15ac",
       "headerProfile": 4
     },
     {
       "path": "website-guide/index.html",
       "bytes": 14410,
-      "sha256": "015d92f54e47736d4209683438878ae2ac1411c990a2b954fccba3aa1614c725",
+      "sha256": "c997fd0a8c0d9c62c21c127799b2ec8dda3add22aa36f59c756d66e3d7ad115e",
       "headerProfile": 1
     }
   ],
