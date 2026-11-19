@@ -1220,8 +1220,7 @@
   .app-copy .fine,
   .preview-rooms button,
   .walk-toggle,
-  .site > footer nav,
-  header nav {
+  .site > footer nav {
     font-size: 14px;
   }
 }
