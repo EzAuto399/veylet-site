@@ -51,9 +51,9 @@ test('the canonical offer is 2026-11-11.1 and separates payment channels and una
   assert.doesNotMatch(JSON.stringify(record), /open sign-up/);
   assert.equal(record.freeMonths.renderAttemptCap, undefined);
   assert.equal(record.freeMonths.fairUse, undefined);
-  assert.equal(record.expressRender.availability, 'only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
+  assert.equal(record.expressRender.availability, 'only while its availability gate is green: a 7-day GPU-start probe on the fastest GPU available shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
   assert.equal(record.expressRender.unavailableText, "Super fast isn't available right now");
-  assert.match(record.expressRender.availabilityRule, /its availability gate is green: the 7-day Sydney GPU-start probe.*nothing is charged/);
+  assert.match(record.expressRender.availabilityRule, /its availability gate is green: the 7-day GPU-start probe on the fastest GPU available.*nothing is charged/);
   assert.match(record.expressRender.refundPromise, /^unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically$/);
   assert.equal(record.freeMonths.hostingDaysAfterPlanEnds, 14);
   assert.equal(record.services.hostingPerWalkthroughPerFurtherYearAud, 49, 'the hosting extension is on sale again');

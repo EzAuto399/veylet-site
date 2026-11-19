@@ -2317,9 +2317,9 @@ test('offer v9: the Super fast band lists open renders soonest due first, then a
   // The offer record agrees: A$29, no daily cap, refunded if not ready 30 minutes after the upload finishes.
   assert.deepEqual([OFFER.express, OFFER.expressCap], [2900, null]);
   assert.match(offer.expressRender.refund, /isn't ready for review within 30 minutes of the upload finishing/);
-  // Offer 2026-09-28.1: sold only while its availability gate is green (the 7-day Sydney GPU-start probe);
+  // Offer 2026-09-28.1: sold only while its availability gate is green (the 7-day GPU-start probe on the fastest GPU available);
   // an order already taken keeps its refund promise.
-  assert.equal(offer.expressRender.availability, 'only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
+  assert.equal(offer.expressRender.availability, 'only while its availability gate is green: a 7-day GPU-start probe on the fastest GPU available shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold');
   assert.match(offer.expressRender.refundPromise, /^unchanged for orders taken/);
   const h = await load({ express: expressOrders() });
   assert.deepEqual(h.calls.filter(([name]) => name === 'studio_express_queue').map(([, args]) => args), [undefined]);

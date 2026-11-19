@@ -5057,7 +5057,7 @@
   const EXPRESS_REFUSALS = {
     full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     express_full_today: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
-    // Availability gate: sold only while the Sydney GPU-start probe is green (20260926140000, reason 'capacity').
+    // Availability gate: sold only while the GPU-start probe on the fastest GPU available is green (20260926140000, reason 'capacity').
     capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     express_capacity: 'Super fast isn’t available right now, so nothing was charged. Your capture keeps its place in the queue.',
     already_express: 'This capture is already super fast, so nothing more was charged.',
@@ -5092,7 +5092,7 @@
       && (order.refund === null || order.refund === undefined || EXPRESS_REFUNDS.includes(order.refund))
       && (order.state !== 'met' || Boolean(expressMoment(order.completed_at)));
   }
-  // Availability gate (20260926140000): while the Sydney GPU-start probe is not green the answer says
+  // Availability gate (20260926140000): while the GPU-start probe on the fastest GPU available is not green the answer says
   // available false, reason 'capacity', can_order false and no ready_by; nothing is offered to press.
   function expressUnavailable(offer) { return offer.full_today === true || offer.available === false; }
   function expressCaptureValid(capture, unavailable = false) {

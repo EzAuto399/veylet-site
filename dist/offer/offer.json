@@ -296,11 +296,11 @@
       "web"
     ],
     "name": "Super fast render",
-    "availability": "only while its availability gate is green: a 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold",
-    "availabilityRule": "sold only while its availability gate is green: the 7-day Sydney GPU-start probe shows starts within 5 minutes at the 90th percentile; until the probe has data the account says \"Super fast isn't available right now\" and nothing is charged",
+    "availability": "only while its availability gate is green: a 7-day GPU-start probe on the fastest GPU available shows starts within 5 minutes at the 90th percentile; until the probe has data Super fast is not sold",
+    "availabilityRule": "sold only while its availability gate is green: the 7-day GPU-start probe on the fastest GPU available shows starts within 5 minutes at the 90th percentile; until the probe has data the account says \"Super fast isn't available right now\" and nothing is charged",
     "unavailableText": "Super fast isn't available right now",
     "refundPromise": "unchanged for orders taken: an order already paid keeps the 30-minute promise or is refunded automatically",
-    "operationalStatus": "availability is gated by the 7-day Sydney GPU-start probe (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability",
+    "operationalStatus": "availability is gated by the 7-day GPU-start probe on the fastest GPU available (p90 start of 5 minutes or less); until the probe has data nothing is sold; live purchase, delivery and refund proof is required before advertising availability",
     "advertised": false
   },
   "anchor": {

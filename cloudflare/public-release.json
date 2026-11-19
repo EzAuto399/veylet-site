@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "be0999969a153cfc6222e1e775829d986c14603b",
+  "sourceCommit": "2a9fd999460dd84bacc55f7e2050ffe4ee8b3621",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 537532,
-      "sha256": "7a38f659bdfd35a12ca28ca83668dfa736c24052a0539ef85565c16f52197d52",
+      "bytes": 537576,
+      "sha256": "e2330f4abfb3e3b9c73d06ec33990bcaac7a01ee97d058de9234622487d872cd",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 24660,
-      "sha256": "f8182f1ca53c8711d2d850098f90e4d64b275c77c229fee8634c28a3cbd385fb",
+      "sha256": "350e55ce29958378881d7132caf8049c94932df4df7e0882e0ce19c40b38d24e",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 11905,
-      "sha256": "2c951784faa08aa7a35152bdd383d488a737c81cf9c07c027d46b85c5748b3ab",
+      "sha256": "cefe01bf73351050c5e4fefe9339f19cdf7cd540e40750d443c7253f4e441054",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2783,
-      "sha256": "681ffd0871d40c59c4b6dd79a7049ab28fcbeab4f579c7302d32e3664a0aa449",
+      "sha256": "5289a1d6883bd7402ea4c47a86eb27fcae5612ec4cf7d3493bf4cc8e24c38865",
       "headerProfile": 1
     },
     {
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2548,
-      "sha256": "2de171b3f9bababc556ec5097aca9c726f62d8ef4f9b84f78185432326d8274a",
+      "sha256": "e463a0eec2573f68595a2bfffb110620747fe4abd63cae9f62dab37eb87703c0",
       "headerProfile": 6
     },
     {
@@ -1391,8 +1391,8 @@
     },
     {
       "path": "offer/offer.json",
-      "bytes": 27241,
-      "sha256": "86cad655dd6fcd851994e1bb0ffc3e929186beed209b8f91064fd7bb52ea11aa",
+      "bytes": 27307,
+      "sha256": "763e3ce10ee55df89c8f19dcfc53ff7db290d00cf86aaec918004bec69ce519d",
       "headerProfile": 6
     },
     {
@@ -2273,8 +2273,8 @@
     },
     {
       "path": "terms/index.html",
-      "bytes": 17899,
-      "sha256": "e49480ef633c4d56f6faa33c7a4fab4fea0662340cffb3c111d98dfa7565b164",
+      "bytes": 17921,
+      "sha256": "9c4b869114b59e92953283abf6db42594b486696399aa8e6467ebcea014a17ed",
       "headerProfile": 1
     },
     {
