@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Privacy processing location — 19 November 2026
+
+User authority: "Yes, fix both" (the wording), then "Commit and deploy" (19 Nov). Source `4b3dfe8` (`site/privacy-render-region-20261119`, off `main` `162d958`), stamped and re-pinned in `41ed353`: `/privacy`, `/app/privacy`, the privacy guide and `llms-full.txt` now say walkthroughs are processed on cloud GPUs in the United States and that a capture is sent outside Australia for processing; both notices read "Last updated 19 November 2026". They previously said Australia (Modal, Sydney region), while client renders run in Modal's US region. Owner legal review of the new sentence is still required.
+
+1. **Build:** 1094 of 1094 site tests; `npm run build` and `npm run verify` pass (365 source, 364 output files); 12 of 12 adapter tests; `npm run check:local` passes (4301 assertions); `scripts/check-app-pages.mjs` clean.
+2. **Hosted release:** preview `137f6416-f52b-4371-9790-c2ed3e960e0c` (5 changed assets uploaded); production `c681df38-fbc6-4b4f-a02b-18e6a3b8e301`.
+3. **Readback on veylet.com:** `/privacy`, `/app/privacy`, `/guides/privacy-3d-home-tour`, `llms-full.txt` and `build-info.json` (4b3dfe8) match the build byte for byte; the old sentence is gone from all three pages; `scripts/health-check.sh` 42 passed, 0 failed; `www` still redirects 301 to the apex with the path.
+4. **Not checked:** rendered appearance of the pages in a browser; hosted sign-in, payment, capture and player journeys.
+5. **Recovery:** previous production version `d169b66f-05fe-4fa7-911d-7b7b7323ca03`: `wrangler rollback <version> --config wrangler.production.jsonc`.
+
 ## Release 7 offer honesty — 19 November 2026
 
 User authority: "Yes, both" (19 Nov, website deploy and build 63). Source `c1e8378` (`main`, = `site/r7-offer-honesty-20261118`), stamped and re-pinned in `bb37a57`: offer.json auto-renews and seats one account, packs not on sale, no Super fast advert, the free-month charge line on the hero, one nav that fits at 375 px, the waitlist state and the `/app/account` plan rows.
