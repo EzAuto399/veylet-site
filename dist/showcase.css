@@ -1211,3 +1211,16 @@
     order: -1;
   }
 }
+
+/* Phones: no reading text under 14px. */
+@media (max-width: 800px) {
+  .product-stage figcaption,
+  .see-band-media figcaption,
+  .walk-stage-note,
+  .app-copy .fine,
+  .preview-rooms button,
+  .walk-toggle,
+  .site > footer nav {
+    font-size: 14px;
+  }
+}

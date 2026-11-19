@@ -113,7 +113,7 @@ test('?share-sheet= removes the share sheet or stubs one that resolves', async (
 
 test('every new switch is documented in the fixture header', () => {
   const header = source.slice(0, source.indexOf('if (params.get(\'graphics\') === \'none\')'));
-  for (const words of ['`readonly`', '`&contact-save=permission|phone|fail|offline|expired`', '`?share=review|uploader|permission`', '`lost`',
+  for (const words of ['`readonly`', '`?context=listing`', '`&contact-save=permission|phone|fail|offline|expired`', '`?share=review|uploader|permission`', '`lost`',
     '`?offline=first`', '`list`', '`status`', '`?share-sheet=none`', '`native`']) assert.ok(header.includes(words), words);
 });
 
@@ -156,4 +156,14 @@ test('Insights visual fixtures preserve selected periods, source totals and fina
   const seven = (await client.rpc('get_walkthrough_insights', { p_tour_id: tour, p_days: 7 })).data;
   const thirty = (await client.rpc('get_walkthrough_insights', { p_tour_id: tour, p_days: 30 })).data;
   assert.equal(seven.totals.opens, 34); assert.equal(thirty.totals.opens, 148);
+});
+
+test('?context=listing answers the handoff context with facts and contact; left out, the function is missing', async () => {
+  const context = async search => fixture(search).client.rpc('lookup_tour_handoff_context', { p_token: 'synthetic-fixture-token' });
+  assert.equal((await context('')).error.code, 'PGRST202');
+  const row = (await context('?context=listing')).data[0];
+  assert.deepEqual([row.campaign_mode, row.bedrooms, row.bathrooms, row.car_spaces, row.display_name], ['lease', 2, 1, 1, 'Alex Example']);
+  assert.ok(Date.parse(row.next_open_end) > Date.parse(row.next_open_start));
+  assert.equal((await context('?context=sale')).data[0].campaign_mode, 'sale');
+  assert.equal((await context('?context=empty')).data.length, 0);
 });

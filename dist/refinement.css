@@ -632,3 +632,12 @@
   .conversion-home .hero-copy > h1 { order: 0; }
   .conversion-home .hero-copy > .hero-actions { order: 1; margin-block: 20px 24px; }
 }
+
+/* Phones: the product picture follows the headline, buttons and description, and the
+   launch and price notes come after it, so a visitor sees the product in the first screen. */
+@media (max-width: 640px) {
+  .conversion-home .hero { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .conversion-home .hero-copy { display: contents; }
+  .conversion-home .hero > .product-stage { order: 3; margin-block: 28px 4px; }
+  .conversion-home .hero-copy > .hero-note { order: 4; font-size: 15px; }
+}
