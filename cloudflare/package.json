@@ -6,7 +6,9 @@
   "scripts": {
     "build": "node build.mjs",
     "verify": "node verify.mjs",
+    "pretest": "node build.mjs",
     "test": "node --test tests/*.test.mjs",
+    "precheck:local": "node build.mjs",
     "check:local": "node tests/workerd-check.mjs",
     "dev": "wrangler dev --local --config wrangler.preview.jsonc --ip 127.0.0.1 --port 8896"
   },

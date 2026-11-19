@@ -42,6 +42,12 @@
     preview.textContent = '';
   }
 
+  link.addEventListener('input', () => {
+    clear();
+    status.textContent = '';
+    link.removeAttribute('aria-invalid');
+  });
+
   form.addEventListener('submit', event => {
     event.preventDefault();
     const token = window.VeyletSharing.tokenFromLink(new FormData(form).get('link'));
