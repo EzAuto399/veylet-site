@@ -709,3 +709,12 @@ test('the embed invitation carries the walkthrough’s own poster: the manifest 
   assert.equal(await page.invitationPoster({ base, fetch: async () => { throw new TypeError('offline'); } }), null);
   assert.equal(await page.invitationPoster({ base, fetch: async () => ({ ok: false, status: 404, text: async () => '' }) }), null);
 });
+
+test('the stage leaves room for the taller agent bars, matching the page padding (116px for three actions, 156px for four)', () => {
+  const stage = fs.readFileSync(path.join(__dirname, '..', 'dist', 'tour-stage.css'), 'utf8');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'dist', 'client-page.css'), 'utf8');
+  for (const [cls, px] of [['has-agent-bar-multi', 116], ['has-agent-bar-wrap', 156]]) {
+    assert.match(stage, new RegExp(`body\\.has-agent-bar\\.${cls} \\.client-page \\{\\s*--tour-stage-below: calc\\(${px}px \\+ env\\(safe-area-inset-bottom, 0px\\)\\);`), `${cls} stage room`);
+    assert.match(page, new RegExp(`body\\.has-agent-bar\\.${cls} \\{\\s*padding-bottom: calc\\(${px}px \\+ env\\(safe-area-inset-bottom, 0px\\)\\);`), `${cls} page padding`);
+  }
+});

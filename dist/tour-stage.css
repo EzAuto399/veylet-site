@@ -95,6 +95,14 @@
   .client-pending.client-contact-pending .client-page {
     --tour-stage-below: calc(64px + env(safe-area-inset-bottom, 0px));
   }
+  /* Three actions put the name on its own row (about 108px); four wrap the actions too (about 148px).
+     The stage leaves the same room the page padding does, so its controls never sit under the bar. */
+  body.has-agent-bar.has-agent-bar-multi .client-page {
+    --tour-stage-below: calc(116px + env(safe-area-inset-bottom, 0px));
+  }
+  body.has-agent-bar.has-agent-bar-wrap .client-page {
+    --tour-stage-below: calc(156px + env(safe-area-inset-bottom, 0px));
+  }
 }
 @media (orientation: landscape) and (max-height: 500px) {
   .client-page {
