@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "4b5f7b5831ea156c696b7e11b00d61da75ebffe3",
+  "sourceCommit": "c904d1874199037f546b679bc184609ee68f64ed",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2627,
-      "sha256": "6679838e974984889f3e88730200d98e2455efdf4df1956ea9b65111575fb3ae",
+      "sha256": "299514bb4f6609c3bb8567e64e139688925a4054b90bc478a1049896ccc36ed8",
       "headerProfile": 6
     },
     {
@@ -1391,8 +1391,8 @@
     },
     {
       "path": "offer/offer.json",
-      "bytes": 27307,
-      "sha256": "763e3ce10ee55df89c8f19dcfc53ff7db290d00cf86aaec918004bec69ce519d",
+      "bytes": 26854,
+      "sha256": "fbb4578371ac7c1c7faaa7a7dbed1390360c8837cd2872ad06b67710af87acde",
       "headerProfile": 6
     },
     {
