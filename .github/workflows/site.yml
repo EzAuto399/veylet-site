@@ -1,0 +1,26 @@
+name: Site
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  site:
+    name: Site tests and local health check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Site tests
+        run: node --test tests/*.test.cjs
+      - name: Health check against the local server
+        run: |
+          python3 scripts/serve-player-check.py --port 8904 > /tmp/server.log 2>&1 &
+          for _ in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:8904/ && break; sleep 1; done
+          bash scripts/health-check.sh http://127.0.0.1:8904
