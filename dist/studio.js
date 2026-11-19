@@ -280,17 +280,33 @@
   // The row's own free-months terms, in digits: "1 free month with 30
   // rooms" (a total, not a monthly figure). A running row may keep longer
   // terms it started with; a row that cannot say shows nothing.
+  function allowanceUnit(row) { return ['room', 'walkthrough'].includes(row?.allowance_unit) ? row.allowance_unit : null; }
+  function allowanceWords(row, words) {
+    const unit = allowanceUnit(row);
+    if (unit === 'room') return words;
+    if (unit === 'walkthrough') return words.replace(/\brooms\b/g, 'walkthroughs');
+    return words.replace(/free rooms used/g, 'included allowance used').replace(/rooms this month/g, 'included allowance this month').replace(/rooms in total/g, 'included in total');
+  }
   function freeMonthsTerms(row) {
     const months = row && row.trial_months;
     const included = row && row.trial_included_walkthroughs;
     if (!Number.isInteger(months) || months < 1 || months > 12 || !Number.isInteger(included) || included < 1) return '';
     return plural(months, 'free month') + ' with ' + plural(included, 'room');
   }
-  // The annual Veylet plan counts a yearly pool, not a month, so its row shows no
-  // monthly figure. studio_list_accounts carries no billing interval or pool
-  // counts today; only a row repainted from an invoice answer carries its cadence.
+  // Cadence identifies the pool, but only the reader's actual annual allowance may supply its size.
   function annualPoolRow(row) {
-    return planCode(row) === PLAN_ON_SALE && planInterval(row) === 'annual';
+    return row?.allowance_kind === 'annual_pool' || (planCode(row) === PLAN_ON_SALE && planInterval(row) === 'annual');
+  }
+  function annualPoolCount(row) {
+    if (row?.allowance_kind !== 'annual_pool') return null;
+    for (const count of [row.allowance_limit, row.allowance_included]) {
+      if (Number.isInteger(count) && count >= 0) return count;
+    }
+    return null;
+  }
+  function annualPoolWords(row) {
+    const count = annualPoolCount(row), unit = allowanceUnit(row);
+    return count === null ? 'Yearly pool · count unavailable' : unit ? count + '-' + unit + ' yearly pool' : count + ' included in yearly pool';
   }
   /*
    * The same words the app, the account desk and this desk use, from the same
@@ -970,6 +986,8 @@
       const until = shortDate(next.trial_ends_at);
       trialSpan.textContent = from || until ? (from || DASH) + ' → ' + (until || DASH) : 'not started';
       trialTerms.textContent = freeMonthsTerms(next);
+      const unit = allowanceUnit(next);
+      freeCell.dataset.label = unit ? 'Free ' + unit + 's' : 'Included free allowance';
       freeUsed.textContent = countText(next.accepted_in_free_months) + ' / ' + countText(next.trial_included_walkthroughs);
       freeOwed.textContent = count(next.extras_in_free_months) > 0
         ? count(next.extras_in_free_months) + ' beyond included; check agreed billing' : '';

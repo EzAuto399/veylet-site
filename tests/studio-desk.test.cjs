@@ -82,12 +82,12 @@ test('the accounts list is a real table a screen reader can read', () => {
   assert.match(markup, /<caption>/);
   const accountsTable = markup.slice(markup.indexOf('<table class="studio-table" id="studio-table">'), markup.indexOf('id="studio-rows"'));
   const headers = [...accountsTable.matchAll(/<th scope="col"[^>]*>(.*?)<\/th>/gs)].map(match => match[1].replace(/<[^>]+>[^<]*<\/[^>]+>/g, '').trim());
-  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Free walkthroughs',
+  assert.deepEqual(headers, ['Account', 'Status', 'Source', 'Free months', 'Included free allowance',
     'This month', 'Total', 'Renews', 'Auto-renew', 'Walkthroughs', 'Last activity', 'Note']);
   // The assertions below index by name, so the map must follow the markup.
   assert.equal(headers.length, 12);
   assert.equal(headers[COL.source], 'Source');
-  assert.equal(headers[COL.freeWalkthroughs], 'Free walkthroughs');
+  assert.equal(headers[COL.freeWalkthroughs], 'Included free allowance');
   assert.equal(headers[COL.renews], 'Renews');
   assert.equal(headers[COL.autoRenew], 'Auto-renew');
   assert.match(markup, /<tbody id="studio-rows"><\/tbody>/);
@@ -122,7 +122,7 @@ test('the twelve columns are reachable without a mouse when the desk scrolls', (
   assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-set-plan summary,\s*\.studio-plan-form \{[^}]*position: sticky;[^}]*max-width: var\(--studio-view, 100%\)/s);
   // Below the stacked breakpoint nothing scrolls, so nothing may be pinned or
   // given a width that pushes the page past 320px.
-  assert.match(styles, /@media \(min-width: 721px\) \{\s*\.studio-table thead th \{\s*white-space: normal/s);
+  assert.match(styles, /@media \(min-width: 721px\) \{\s*#studio-table \{\s*min-width: 1440px;\s*\}\s*\.studio-table thead th \{\s*white-space: normal;\s*overflow-wrap: normal;\s*word-break: normal/s);
 });
 
 test('the studio desk stays usable on a phone and keeps 44px targets', () => {
@@ -203,7 +203,7 @@ test('the studio desk carries no new subscription price or checkout path; only p
   // existing rows but carries no sale amount, checkout or activation RPC.
   assert.deepEqual(offer.subscriptionCheckout.newBuyerChannels, ['appStore']);
   assert.doesNotMatch(script, /PLAN_MONTH_CENTS|PLAN_YEAR_CENTS|studio_activate_invoice_plan|solo-monthly|solo-annual/);
-  assert.match(script, new RegExp(`const YEARLY_POOL = ${soloPlan.annualIncluded};`));
+  assert.doesNotMatch(script, /const YEARLY_POOL\s*=/, 'an offer constant cannot replace a returned account allowance');
   assert.match(script, new RegExp(`const REFERRAL_WALKTHROUGHS = ${offer.referral.referrerWalkthroughs};`));
   assert.equal(offer.referral.referredWalkthroughs, offer.referral.referrerWalkthroughs, 'each office gets the same');
   for (const pack of offer.packs) {

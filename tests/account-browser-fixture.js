@@ -549,6 +549,10 @@
       accepted_in_free_months: 0, trial_started_at: null, trial_ends_at: null,
       period_started_at: null, period_ends_at: null },
     trial: { ...planBase, status: 'trial' },
+    // Current rooms offer; retain the small historic fixtures above and below to verify signed agreement compatibility.
+    'trial-rooms': { ...planBase, ...apple, status: 'trial', allowance_unit: 'room', offer_version: '2026-11-11.1', trial_included_walkthroughs: 30, included_per_month: 30,
+      max_banked: 40, apple_environment: 'Production', apple_verified: true, renewal_price_aud_cents: 13999,
+      trial_started_at: '2026-11-14T00:00:00Z', trial_ends_at: '2026-12-14T00:00:00Z' },
     'trial-ending': { ...planBase, status: 'trial', trial_started_at: '2026-09-20T00:00:00Z', trial_ends_at: '2026-10-20T00:00:00Z' },
     // Started in the app, and not yet confirmed by Apple's server notification.
     'apple-trial': { ...planBase, ...apple, status: 'trial', apple_verified: false, accepted_in_free_months: 2 },
@@ -964,6 +968,8 @@
     out.review_flags = renderFlagsOf(out.state);
     out.rooms = roomsCase;
     out.walkthroughs_used = 1;
+    // Exact local fallback-charge proof; the R4 reader can know the charge before a room list exists.
+    if (params.get('fixed-charge') === '10') { out.rooms = null; out.walkthroughs_used = 10; }
     if (out.eta_seconds !== null && out.heartbeat_at) out.eta_at = new Date(Date.parse(out.heartbeat_at) + out.eta_seconds * 1000).toISOString();
     if (tour) out.tour_id = renderTourOf(state === 'walk' ? 'ready' : state);
     if (params.get('render-fields') === 'none') Object.assign(out, { step: null, step_label: null, stage: null, progress_pct: null,
@@ -1273,7 +1279,7 @@
         // Bonus walkthroughs usable now are extra credits too, as the server counts them.
         const extra = extraCredits + (v8.bonus_credits_available || 0);
         const remaining = Math.max(0, limit - used);
-        return { data: [{ plan_status: row.status, included_limit: limit, included_used: used, included_remaining: remaining,
+        return { data: [{ allowance_unit: row.allowance_unit, offer_version: row.offer_version, plan_status: row.status, included_limit: limit, included_used: used, included_remaining: remaining,
           extra_credits_available: extra, pack_credits_expiring_at: packExpiry, can_accept: !blocked && remaining + extra > 0,
           reason_code: blocked || (remaining + extra === 0 ? 'allowance_exhausted' : null), ...v8,
           included_limit: limit, included_used: used }] };
@@ -1317,7 +1323,7 @@
         if (referralCase === 'loading') return new Promise(() => {});
         if (referralCase === 'error') return { error: { message: 'Synthetic referral code failure' } };
         if (referralCase === 'sandbox') return { error: { code: 'P0001', message: 'test workspaces cannot take part in referrals' } };
-        if (referralCase === 'link') return { data: { code: '7a3f09c2b41e', referred_offices: 2, bonus_walkthroughs: 1 } };
+        if (['link', 'mixed'].includes(referralCase)) return { data: { code: '7a3f09c2b41e', referred_offices: 2, bonus_walkthroughs: referralCase === 'mixed' ? 11 : 1 } };
         if (referralCase === 'invalid') return { data: { code: 'QA-FIXTURE', referred_offices: 0, bonus_walkthroughs: 0 } };
         return { error: { code: 'PGRST202', message: 'Could not find the function public.get_referral_code' } };
       }
@@ -1360,6 +1366,12 @@
       if (name === 'studio_list_accounts') {
         if (studioCase === 'unavailable') return { error: { message: 'Synthetic studio account service failure' } };
         if (studioCase === 'outsider') return { error: { message: 'Synthetic studio refuses non-studio users.' } };
+        if (params.get('studio-allowance') === 'compare') return { data: [36, 360].map((count, index) => ({ ...studioAccounts[1],
+          workspace_id: 'synthetic-pool-' + count, workspace_name: index ? 'Fictional current annual pool' : 'Fictional historical annual pool',
+          plan_code: 'solo', status: 'active', billing_interval: 'annual', renewal_price_aud_cents: 139999,
+          trial_included_walkthroughs: index ? 30 : 3, allowance_kind: 'annual_pool', allowance_included: count,
+          allowance_limit: count, allowance_used: 0, allowance_unit: undefined, offer_version: undefined,
+        })) };
         return { data: studioAccounts.map(row => ({ ...row })) };
       }
       if (name === 'studio_list_hosted_tours') {

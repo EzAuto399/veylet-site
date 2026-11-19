@@ -3936,6 +3936,11 @@
    * that cannot state its own date, price or length is unavailable rather than a
    * sentence with a hole in it.
    */
+  // The server owns both counts and their unit. Unmarked historic agreements retain walkthroughs.
+  function planRoomUnit(row, cap) { return (cap?.allowance_unit ?? row?.allowance_unit) === 'room'; }
+  function allowanceWords(row, words, cap) {
+    return planRoomUnit(row, cap) ? words : words.replace(/\bRooms\b/g, 'Walkthroughs').replace(/\broom(s?)\b/g, 'walkthrough$1');
+  }
   function planVocabulary(row, sandbox = planIsSandbox(row)) {
     const unavailable = { status: 'unavailable', title: 'Plan status unavailable', body: 'Refresh to check your free month and allowance.' };
     const status = row && typeof row === 'object' && PLAN_STATUSES.includes(row.status) ? row.status : null;
@@ -4189,6 +4194,7 @@
     let usageCell = null;
     let usageTerm = null;
     let extraCell = null;
+    let extraTerm = null;
     if (view.status === 'unavailable' || !row) {
       planHairline(dl, 'Free rooms', PLAN_DASH, true);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started' : PLAN_DASH, true);
@@ -4207,6 +4213,7 @@
         usageCell = planHairline(dl, 'Free rooms',
           planCount(row.accepted_in_free_months) + ' of ' + planCount(row.trial_included_walkthroughs), true);
       }
+      usageTerm = dl.children[dl.children.length - 1].children[0];
       const renewsOn = planDate(view.status === 'active' ? row.current_period_ends_at : row.trial_ends_at);
       planHairline(dl, 'Renews', view.status === 'pending' ? 'Not started'
         : view.status === 'ended' ? PLAN_DASH
@@ -4318,6 +4325,8 @@
       const reply = await settled(supabase.rpc('get_walkthrough_capacity', { p_workspace_id: workspaceID }));
       if (ticket !== deskVersion) return;
       const cap = !failed(reply) ? firstRow(reply.value?.data) : null;
+      const roomUnit = planRoomUnit(row, cap);
+      const unitWords = words => allowanceWords(row, words, cap);
       const numbers = ['included_limit', 'included_used', 'included_remaining', 'extra_credits_available'];
       const valid = cap && typeof cap === 'object' && numbers.every(key => Number.isInteger(cap[key]) && cap[key] >= 0) &&
         typeof cap.can_accept === 'boolean' && (cap.reason_code === null || typeof cap.reason_code === 'string') &&
@@ -4329,6 +4338,9 @@
           : (baseNote ? baseNote + ' ' : '') + 'Live capacity and the extra-room balance could not be verified; the counts above are the last reported. Ask Veylet support before sending work beyond the included allowance.';
         capacity.replaceChildren(...[allowance, capacityNote].filter(Boolean)); return;
       }
+      const capacityBody = planVocabulary({ ...row, allowance_unit: roomUnit ? 'room' : 'walkthrough' }).body;
+      if (usageTerm && ['trial', 'pending', 'ended'].includes(view.status)) usageTerm.textContent = unitWords('Free rooms');
+      if (extraTerm) extraTerm.textContent = unitWords('Extra rooms');
       // The acceptance ledger is authoritative. A plan count alone does not
       // distinguish an included unit from a previously settled extra.
       if (planIsSandbox(row, cap)) {
@@ -7049,7 +7061,7 @@
     else view = { key };
     if (view && express && !APP_MODE && RENDER_EXPRESS.includes(view.key)) view.express = express;
     // What approving uses; never on a card that says nothing was used (Failed, Needs recapture).
-    if (view && !['failed', 'recapture'].includes(view.key)) { const units = renderRoomsUse(job); if (units) view.units = units; }
+    if (view && !['failed', 'recapture'].includes(view.key)) { const units = renderRoomsUse(job, desk?.properties?.get?.(job.property_id)?.workspace_id); if (units) view.units = units; }
     return view;
   }
   function renderStepWords(step) { return 'Step ' + step + ' of ' + RENDER_STEPS.length + ': ' + RENDER_STEPS[step - 1] + '.'; }
@@ -7313,7 +7325,7 @@
       const row = answer.spaces.get(propertyID);
       // The quality check's advice travels with the capture; its walkthrough's review shows it.
       if (row && typeof row === 'object' && typeof row.tour_id === 'string' && row.tour_id) {
-        reviewFlagsFor(row.tour_id, row.review_flags); reviewUnitsFor(row.tour_id, renderRoomsUse(row));
+        reviewFlagsFor(row.tour_id, row.review_flags); reviewUnitsFor(row.tour_id, renderRoomsUse(row, space?.workspace_id));
       }
       const view = row && renderJobValid(row) ? renderView(row, desk) : null;
       const title = space?.title || 'Untitled space';

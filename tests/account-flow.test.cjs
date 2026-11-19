@@ -2657,15 +2657,15 @@ const YEAR_POOL = PLAN_RECORD.annualIncluded;
 // The account's own bank cap is the plan row's max_banked (get_workspace_plan), the number the app shows;
 // the live backend says 4 while the offer says 6, so the row's number is the one tested.
 const ROW_MAX_BANKED = 4;
-const ACTIVE_MONTHLY = { status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z', included_per_month: PER_MONTH, max_banked: ROW_MAX_BANKED };
+const ACTIVE_MONTHLY = { allowance_unit: 'room', offer_version: '2026-11-11.1', status: 'active', accepted_this_period: 0, current_period_ends_at: '2026-10-01T00:00:00Z', included_per_month: PER_MONTH, max_banked: ROW_MAX_BANKED };
 // This month's allowance, and up to MAX_BANKED banked inside this month's limit.
 const MONTH_CAP = { ...capacityRow, plan_status: 'active', included_limit: PER_MONTH, included_used: 0, included_remaining: PER_MONTH };
 const BANKED_CAP = { ...MONTH_CAP, included_limit: PER_MONTH + 2, included_remaining: PER_MONTH + 2, allowance_kind: 'monthly', banked_units: 2, bonus_credits_available: 0 };
 // The App Store annual (offer 2026-09-29.2); the website members' annual (A$990) is retired.
-const ACTIVE_ANNUAL = { source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.annual', status: 'active',
+const ACTIVE_ANNUAL = { allowance_unit: 'room', offer_version: '2026-11-11.1', source: 'apple', apple_verified: true, apple_product_id: 'dev.property3d.capture.solo.annual', status: 'active',
   billing_interval: 'annual', renewal_price_aud_cents: 139999,
   accepted_this_period: 0, current_period_ends_at: '2027-07-15T00:00:00Z' };
-const POOL_CAP = { ...capacityRow, plan_status: 'active', included_limit: YEAR_POOL, included_used: 5, included_remaining: YEAR_POOL - 5,
+const POOL_CAP = { ...capacityRow, allowance_unit: 'room', offer_version: '2026-11-11.1', plan_status: 'active', included_limit: YEAR_POOL, included_used: 5, included_remaining: YEAR_POOL - 5,
   allowance_kind: 'annual_pool', banked_units: 0, bonus_credits_available: 0, allowance_ends_at: '2027-07-15T00:00:00Z' };
 const bonusOffer = (overrides = {}) => ({ walkthroughs: 4, express_renders: 4, granted: false, available: true, ...overrides });
 
@@ -2690,7 +2690,7 @@ test('offer v9: a monthly plan states its banked rollover, up to the plan row’
   assert.deepEqual([PER_MONTH, MAX_BANKED], [30, 40], 'offer 2026-11-11.1: 30 rooms a month, up to 40 banked');
   const h = await withCapacity(BANKED_CAP, ACTIVE_MONTHLY);
   assert.equal(planTitle(h), 'Veylet plan · A$99 a month');
-  assert.deepEqual(planTerms(h), ACTIVE_TERMS, 'the ledger keeps its rows');
+  assert.deepEqual(planTerms(h), ['State', 'This month', 'Renews', 'Hosting', 'Extra rooms', 'Managed in'], 'the ledger keeps its rows');
   const limit = PER_MONTH + 2;
   assert.equal(planValues(h)[1], `0 of ${limit} used`, 'the bank is part of this month’s limit');
   // Launch review #1: one count on the panel; the sentence says the same numbers, never "0 of 3 this month".
@@ -2716,16 +2716,16 @@ test('offer v9: a monthly plan states its banked rollover, up to the plan row’
   for (const cap of [MONTH_CAP, { ...MONTH_CAP, allowance_kind: 'monthly' }, { ...BANKED_CAP, banked_units: ROW_MAX_BANKED + 1, included_limit: fullLimit + 1, included_remaining: fullLimit + 1 },
     { ...BANKED_CAP, banked_units: '2' }, { ...BANKED_CAP, banked_units: ROW_MAX_BANKED, included_limit: ROW_MAX_BANKED }, { ...BANKED_CAP, allowance_kind: 'weekly' }]) {
     const today = await withCapacity(cap, ACTIVE_MONTHLY);
-    assert.doesNotMatch(planText(today), /banked|roll over|carry/, JSON.stringify(cap).slice(-90));
+    assert.doesNotMatch(planText(today), /banked|carry over|carry/, JSON.stringify(cap).slice(-90));
     assert.match(capacityText(today), /The allowance resets monthly\./);
   }
   // A retired plan's row keeps its own terms: a bank the server reports, but no rollover rule.
   const team = await withCapacity({ ...BANKED_CAP, banked_units: 1, included_limit: 4, included_remaining: 4 }, { ...ACTIVE_MONTHLY, ...TEAM });
   assert.match(capacityText(team), /This month’s 4 include 1 banked from earlier months\./);
-  assert.doesNotMatch(capacityText(team), /roll over/);
+  assert.doesNotMatch(capacityText(team), /carry over/);
   // An annual row never reads a monthly rollover, whatever the answer says.
   const annual = await withCapacity(BANKED_CAP, ACTIVE_ANNUAL);
-  assert.doesNotMatch(planText(annual), /banked|roll over/);
+  assert.doesNotMatch(planText(annual), /banked|carry over/);
 });
 
 test('offer v9: an annual plan states its yearly pool from the record, the bonus as extra walkthroughs, and the day it resets', async () => {
@@ -2753,7 +2753,7 @@ test('offer v9: an annual plan states its yearly pool from the record, the bonus
   assert.ok(capacityText(undated).includes(`Your ${YEAR_POOL} rooms are a yearly pool to use any time, with no monthly limit. Unused ones`), capacityText(undated));
   // Today's server (no kind): the row's own counts, and no pool, reset or monthly reset claimed.
   const today = await withCapacity({ ...capacityRow, plan_status: 'active', included_limit: 1, included_used: 0, included_remaining: 1 }, ACTIVE_ANNUAL);
-  assert.deepEqual(planTerms(today), ACTIVE_TERMS);
+  assert.deepEqual(planTerms(today), ['State', 'This month', 'Renews', 'Hosting', 'Extra rooms', 'Managed in']);
   assert.doesNotMatch(planText(today), /plan year|yearly pool|resets/);
   // A monthly row is never re-read as a yearly pool.
   const monthly = await withCapacity({ ...MONTH_CAP, allowance_kind: 'annual_pool' }, ACTIVE_MONTHLY);
