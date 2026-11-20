@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Untangle, UX and agency/tenant release — 20 November 2026
+
+User authority: "once both completes and full QA test is done lets get it released and deployed" (20 Nov). Source `2e213b3` (`untangle/w-line` + `feat/agency-tenant-ux-w`), frozen in `768c3d6`: shared `site-lib.js`, `tour-page.js`, generated `plan-terms.js`, generated `/app/terms` & `/app/privacy`, website pack purchase deleted, capacity4/6 removed from `offer.json`, 3-field waitlist, 44 px viewer room pills and map-stop hit circles, `<dialog>` enquiry sheet with draft preservation, definitive dead links hide Try again, site-wide sticky consent banner, Spaces filter (>3 spaces), `privacy-region-agreement.test.cjs` (two remaining "in Australia" GPU strings removed), plus agency & tenant UX, Auto-tour/touch player controls, CRM/CSV tools and `/oembed`.
+
+1. **Build:** 1137 of 1137 site tests; `check-app-pages.mjs` clean (43 states, 43,525 strings); `npm run build` and `npm run verify` pass (368 source, 367 output files); 13 of 13 adapter tests; `npm run check:local` passes (4334 assertions).
+2. **Hosted release:** preview `d676f2d7-dcad-4b3e-b6f1-1aa1a9a2de11`; production `2951569a-2cf5-4833-9685-dc7c18fa0177`.
+3. **Readback on veylet.com:** `/`, `/terms`, `/waitlist`, `/offer/offer.json`, `/account.js`, `/tour-player-v2.js`, `/site-lib.js`, `/plan-terms.js`, `/build-info.json` match the built output byte for byte; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** rendered appearance on a real phone; live sign-in/payment/capture/oembed journeys.
+5. **Recovery:** previous production version `5cc9e1a7-6c91-4f19-9961-62bbafce4214`: `wrangler rollback 5cc9e1a7-6c91-4f19-9961-62bbafce4214 --config wrangler.production.jsonc`.
+
 ## Super fast gate wording — 19 November 2026
 
 User authority: "just mention fasteset GPU avaliable instead of Australia" (19 Nov). Source `8582aec` (`main`), frozen in the following commit: the Super fast availability gate in `/terms` and the live fields of `offer/offer.json` now say "GPU-start probe on the fastest GPU available" instead of "Sydney GPU-start probe"; offer `history[]` records are unchanged.
