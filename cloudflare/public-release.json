@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "eb97d19580bc377d9a2ed7c3019a4fec23b7c364",
+  "sourceCommit": "f4ee2069e0550650a1d3954492e596e9f9e6859d",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -552,7 +552,7 @@
     {
       "path": "build-info.json",
       "bytes": 2668,
-      "sha256": "b5caf73ae09903105cc6b9cb1acbb4c1642918d2cbf2b6f56e916baf928d9d23",
+      "sha256": "aba0a0af8bcf6802a79458338d3427c1012509eba6dad13428fec31f545e1cbb",
       "headerProfile": 6
     },
     {
@@ -1391,8 +1391,8 @@
     },
     {
       "path": "offer/offer.json",
-      "bytes": 26854,
-      "sha256": "fbb4578371ac7c1c7faaa7a7dbed1390360c8837cd2872ad06b67710af87acde",
+      "bytes": 26841,
+      "sha256": "d7c8b09eda57279b839c28722b07259d49e835648158234d7fdff168d4f84e80",
       "headerProfile": 6
     },
     {
@@ -2285,8 +2285,8 @@
     },
     {
       "path": "terms/index.html",
-      "bytes": 17921,
-      "sha256": "9c4b869114b59e92953283abf6db42594b486696399aa8e6467ebcea014a17ed",
+      "bytes": 17908,
+      "sha256": "10e21c058d6ba0c20c32b13c9eec6df295fa78e4f8b4c7b6a7113b76d941be00",
       "headerProfile": 1
     },
     {
