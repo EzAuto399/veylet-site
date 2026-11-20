@@ -26,7 +26,7 @@ test('VeyletSharing provides Australian real-estate CRM presets with safe storag
 
   assert.deepEqual(
     Array.from(share.crms, item => item.id),
-    ['rex', 'vaultre', 'agentbox', 'propertyme', 'domain', 'other']
+    ['rex', 'vaultre', 'agentbox', 'propertyme', 'boxdice', 'eagle', 'ire', 'domain', 'other']
   );
   assert.equal(share.savedCrm(), 'rex');
   share.saveCrm('vaultre');

@@ -232,3 +232,28 @@ test('asset failure exposes no upstream body, cacheable error or indexable previ
     }
   }
 });
+
+test('/oembed returns standard JSON embed payload for valid Veylet walkthrough links and rejects foreign or malformed inputs', async () => {
+  const token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  const ok = await call('/oembed?url=' + encodeURIComponent('https://veylet.com/tour?t=' + token + '&theme=paper') + '&maxwidth=640', prod);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get('Content-Type'), 'application/json; charset=utf-8');
+  assert.equal(ok.headers.get('Access-Control-Allow-Origin'), '*');
+  const data = await ok.json();
+  assert.equal(data.type, 'rich');
+  assert.equal(data.version, '1.0');
+  assert.equal(data.provider_name, 'Veylet');
+  assert.equal(data.width, 640);
+  assert.equal(data.height, 360);
+  assert.match(data.html, new RegExp(`src="https://veylet\\.com/embed\\?t=${token}&theme=paper"`));
+
+  const badOrigin = await call('/oembed?url=' + encodeURIComponent('https://evil.example/tour?t=' + token), prod);
+  assert.equal(badOrigin.status, 404);
+  const badToken = await call('/oembed?url=' + encodeURIComponent('https://veylet.com/tour?t=short'), prod);
+  assert.equal(badToken.status, 404);
+  const badFormat = await call('/oembed?format=xml&url=' + encodeURIComponent('https://veylet.com/tour?t=' + token), prod);
+  assert.equal(badFormat.status, 501);
+  const prevRes = await call('/oembed?url=' + encodeURIComponent('https://veylet.com/handoff?t=' + token), preview);
+  assert.equal(prevRes.status, 200);
+  assert.equal(prevRes.headers.get('X-Robots-Tag'), 'noindex, nofollow');
+});

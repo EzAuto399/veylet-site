@@ -263,8 +263,8 @@
     },
     {
       "path": "account-guide.css",
-      "bytes": 83600,
-      "sha256": "b6a7643aea9d4404d1b9ce3ddcde159092710b5b27f0e2c0b335d95ed26b1824",
+      "bytes": 84577,
+      "sha256": "7de288bccb408a5bb52280ac76db9fc8cfa1cfdc0f9106203b69315a4f1b999a",
       "headerProfile": 3
     },
     {
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 519977,
-      "sha256": "b763d4a2fa38332bf15b84b0b4806dacf52f5e6691c08de55231b885b563c8cb",
+      "bytes": 525842,
+      "sha256": "49c64804cf756c357eb0eb5560df52e9ffadaf09a60f787431850c2004ba3744",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
-      "bytes": 25294,
-      "sha256": "bba23bd2aaeb859d5af5a87329e2579b769e8af7bedb2c1ced00d2e73f9abcfb",
+      "bytes": 25429,
+      "sha256": "ea521a97007be6d597ebc366b0c977bbbc358b28db11a774d6f7645916efab5f",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 12039,
-      "sha256": "e36718f599f0d9cfd0bfb0fb6494a3aff707fd1d8d9fc3ea8c4fa94dfe935fbf",
+      "sha256": "9c0c0807d968e2e2421ae1de6ab43261505a61bd4792c01928b66fb4aae7e72d",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2849,
-      "sha256": "b9f9ac559307a444dcd4f350c98efad1708ba7ebe622d3d8b2c24e9cbe66cc9b",
+      "sha256": "a2c723dde6e46890c4cbad474bc1eab1cc80fb45e4eae2585b73970878990fc2",
       "headerProfile": 1
     },
     {
@@ -552,19 +552,19 @@
     {
       "path": "build-info.json",
       "bytes": 2668,
-      "sha256": "b5caf73ae09903105cc6b9cb1acbb4c1642918d2cbf2b6f56e916baf928d9d23",
+      "sha256": "60097933cd505c79126460ee00361cf194e0ba36304dedaac1b98bce5b339460",
       "headerProfile": 6
     },
     {
       "path": "client-page.css",
-      "bytes": 15180,
-      "sha256": "0cb8faf3c46296d4720f1388b0f7e3688338406161ed8d2aa6a3bfb1de10aaba",
+      "bytes": 16289,
+      "sha256": "0c7c846a6a38e596fc639dcc427a541e06b6039a7c2f744ee610c355f8456456",
       "headerProfile": 3
     },
     {
       "path": "client-page.js",
-      "bytes": 66080,
-      "sha256": "ffa43a7ddf8903f6ca2b271ad32c221313ff6655fac141dcefac6fb634132d9a",
+      "bytes": 69776,
+      "sha256": "e242593b4bf6e5f26370d3dda19c1ed7320ebddf70c6293719974988a359d612",
       "headerProfile": 4
     },
     {
@@ -581,14 +581,14 @@
     },
     {
       "path": "embed.js",
-      "bytes": 3533,
-      "sha256": "c55c9db2729f4d8c7cbde7288ca860b154593d571f0ab17d1eef809ef50ad5b3",
+      "bytes": 3578,
+      "sha256": "b9dc99ca8d4d928e6db3dbfe9aeb6b8be8dc448fecae6523e30614a78c8005a5",
       "headerProfile": 4
     },
     {
       "path": "embed/index.html",
       "bytes": 11919,
-      "sha256": "dbbcaa26640bd6c515f7e083e93ca51bc945ec83b8da734ac2a9ada888d39e7d",
+      "sha256": "07fced6f18011cf258a51beadba7e3389079e826aab73255076e2efa4500f677",
       "headerProfile": 7
     },
     {
@@ -654,7 +654,7 @@
     {
       "path": "handoff/index.html",
       "bytes": 8299,
-      "sha256": "305d506e5233bd2d826290014e0285f4a6bde3cb4709ab2066bcd839d494f2ea",
+      "sha256": "97a47632974bf668ac9bd15651e4427539a77e5d840e67ab02e82d8fdccff0cd",
       "headerProfile": 1
     },
     {
@@ -1410,7 +1410,7 @@
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "593321e904c430146246a1ae9ba1de968d56d2f95d905c01246084b1a95ed4f2",
+      "sha256": "d84fdd2e67a99a2e7b5d809c94173a10fa3e60c9de31b2a6c69c293b349acb25",
       "headerProfile": 1
     },
     {
@@ -2178,7 +2178,7 @@
     {
       "path": "see/index.html",
       "bytes": 34091,
-      "sha256": "292536c72e60c7e8459bf928ecefaf5a429dcd20ca85fc5405a17a57de57d90f",
+      "sha256": "7d0a83f493491a5894b3abf043420194b2ac459b7fd08e407d50c70e34e6c215",
       "headerProfile": 1
     },
     {
@@ -2190,7 +2190,7 @@
     {
       "path": "see/see.js",
       "bytes": 27202,
-      "sha256": "4f16db5abd4e2a81ec54e57f998146c1461189bb76c36a2ac34c4474fb8750f8",
+      "sha256": "0651db22c305ff77b19a9ce7b22ab5634ad04ae765ad8efcaacea9de4474d48f",
       "headerProfile": 4
     },
     {
@@ -2297,32 +2297,32 @@
     },
     {
       "path": "tour-page.js",
-      "bytes": 24202,
-      "sha256": "46f3970a34ac9122f49cdf90aa82fd1d5eb95a76f75ab8fb70523ec08be70821",
+      "bytes": 24354,
+      "sha256": "5848668b0f1b34f7e6949c8e4d6d5985188885d02b3ae1d0c79b578a1525aa30",
       "headerProfile": 4
     },
     {
       "path": "tour-player-v2.css",
-      "bytes": 20290,
-      "sha256": "6ce5d88ffa43ae4c00b5da15aac9ef296d6b9150835a967a47add14da7172685",
+      "bytes": 20448,
+      "sha256": "9223077d3e709cd4c63780d665fe7d2b893b6e9c4a8ee1636280feaccca4978e",
       "headerProfile": 3
     },
     {
       "path": "tour-player-v2.js",
-      "bytes": 127896,
-      "sha256": "ec6330898b9559d1606afc4a2b3bf8c62d9be1d3777188e63faf504cf6ff0bab",
+      "bytes": 132380,
+      "sha256": "16b2e5757b0b0fb6099c11ee3c7f5253aff2ea243721a6a536bbd1bdae95b517",
       "headerProfile": 4
     },
     {
       "path": "tour-player.js",
       "bytes": 26955,
-      "sha256": "63bdaf6886b4df9275dddeb0e3829d5dae66d0866b34e399faaac72ca544ed6e",
+      "sha256": "2cf17b4ccfad33a4d211b18b4a07a81f8a5972b701d93f3fa50fdb651da89f8c",
       "headerProfile": 4
     },
     {
       "path": "tour-sharing.js",
-      "bytes": 16695,
-      "sha256": "8c70915175a7c08c8311962e5588f343fb121538c1a401c5ac9308fc52b74e7a",
+      "bytes": 19883,
+      "sha256": "f3d47b79afa41584aa180ee853fd9d308b9a147c3d8708b55fbba775bdadfbcf",
       "headerProfile": 4
     },
     {
@@ -2334,7 +2334,7 @@
     {
       "path": "tour/index.html",
       "bytes": 9512,
-      "sha256": "ac0df0fe29d883fda61963287625c6ac25c9b2374a645be2c57142beea40572e",
+      "sha256": "921914d8922d9077faa4cb81ec93b6b6fda6c76246e3c8048fc9c57dbc3deefd",
       "headerProfile": 19
     },
     {
@@ -2442,7 +2442,7 @@
     {
       "path": "website-guide/index.html",
       "bytes": 14410,
-      "sha256": "e4de668b7275938d4bc1be625d0e83a5bee1ba8285e5213569ee4850af5e07f8",
+      "sha256": "8c0acdb4aea6c27bfacc307431a51fd561f83adff8802c434232e7986ef25d90",
       "headerProfile": 1
     }
   ],

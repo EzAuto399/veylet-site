@@ -141,9 +141,51 @@ dialog.agent-enquiry-sheet::backdrop {
   display: grid;
   gap: 10px;
 }
+.enquiry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.enquiry-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--field-line, var(--line));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+.enquiry-chip:hover {
+  border-color: var(--ink);
+}
+.enquiry-chip.is-selected,
+.enquiry-chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.enquiry-chip:focus-visible {
+  outline: 3px solid var(--focus, #897033);
+  outline-offset: 2px;
+}
 .enquiry-field {
   display: grid;
   gap: 4px;
+}
+.enquiry-field-error {
+  font-size: 13px;
+  color: var(--danger, #8a3324);
+}
+.enquiry-input[aria-invalid="true"],
+.enquiry-textarea[aria-invalid="true"] {
+  border-color: var(--danger, #8a3324);
 }
 .enquiry-field-label {
   font-size: 13px;
@@ -369,12 +411,13 @@ dialog.agent-enquiry-sheet::backdrop {
   .client-pending .tour-frame-shell::before {
     border-radius: 8px;
   }
-  /* Phones: a 16px gutter and no frame round the stage, so the walkthrough
-     gets the width (328px of a 360px phone) and its bar keeps every control,
-     the map included. */
+  /* Phones: a 16px gutter (or safe-area inset in landscape) and no frame round
+     the stage, so the walkthrough gets the width (328px of a 360px phone) and
+     its bar keeps every control, the map included. */
   .client-page,
   .client-footer {
-    padding-inline: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   .client-page .tour-frame-shell {
     padding: 0;

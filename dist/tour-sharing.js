@@ -14,6 +14,10 @@ window.VeyletSharing = (() => {
     return opts && opts.theme === 'paper' ? base + '&theme=paper' : base;
   }
   function portalUrl(token) { return origin + '/tour?t=' + encodeURIComponent(token); }
+  function oembedUrl(token) {
+    token = cleanToken(token);
+    return token ? origin + '/oembed?url=' + encodeURIComponent(portalUrl(token)) : '';
+  }
   function escapeHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')
@@ -66,16 +70,20 @@ window.VeyletSharing = (() => {
       portalUrl(token),
       'This route has no agent card or external links and works across portals and agency templates.',
       '',
-      '2. Turnkey Modal Button (zero layout shift on listing pages)',
+      '2. Turnkey Modal Button or Auto-Inline Script (zero layout shift on listing pages)',
       modalButtonCode(token),
       'Clicking opens a full-viewport 3D overlay; modified clicks and browsers without JavaScript fall back directly to ' + handoffUrl(token),
+      'To auto-upgrade CRM links into inline 16:9 players on any listing page, add data-veylet-inline to the anchor alongside embed.js.',
       '',
       '3. Inline Responsive Iframe (and Light Paper Theme)',
       embedCode(token),
       'For light listing pages, use ?theme=paper on the iframe URL:',
       embedUrl(token, { theme: 'paper' }),
       '',
-      '4. Content Security Policy (CSP)',
+      '4. oEmbed Discovery (WordPress, Webflow & modern CMSes)',
+      oembedUrl(token),
+      '',
+      '5. Content Security Policy (CSP)',
       'If your site enforces a strict CSP header, allow:',
       'frame-src https://veylet.com; script-src https://veylet.com',
     ].join('\n');
@@ -141,6 +149,9 @@ window.VeyletSharing = (() => {
     { id: 'vaultre', name: 'VaultRE', hint: 'VaultRE: open Property → Marketing / Links → Virtual Tour / 3D Link and paste.' },
     { id: 'agentbox', name: 'Agentbox', hint: 'Agentbox: open Listing → Marketing → External / Virtual Tour Link and paste.' },
     { id: 'propertyme', name: 'PropertyMe', hint: 'PropertyMe: open Property → Rental Listing → Virtual Tour Link and paste.' },
+    { id: 'boxdice', name: 'Box+Dice', hint: 'Box+Dice: open Listing → Advertising → External / Virtual Tour Link and paste.' },
+    { id: 'eagle', name: 'Eagle', hint: 'Eagle: open Listing → Links → Virtual Tour URL and paste.' },
+    { id: 'ire', name: 'InspectRealEstate', hint: 'InspectRealEstate: add the link to your inspection confirmation or listing virtual tour field.' },
     { id: 'domain', name: 'Domain Agent Admin', hint: 'Domain: open Listing Overview → Virtual Tour field (max 255 characters) and paste.' },
     { id: 'other', name: 'Other CRM or portal', hint: 'Paste into your CRM’s virtual tour URL field (never an HTML embed box). Portals decide whether they display it.' },
   ].map(item => Object.freeze({ ...item })));
@@ -160,7 +171,50 @@ window.VeyletSharing = (() => {
     return {
       afterInspection: 'Thanks for inspecting ' + cleanTitle + ' — look back through each room on your phone here: ' + link,
       beforeVisit: 'Look around ' + cleanTitle + ' in 3D on your phone before you visit (no app needed): ' + link,
+      beforeLeaseInspection: 'Walk through ' + cleanTitle + ' in 3D before the rental inspection (no app needed): ' + link,
+      afterLeaseInspection: 'Thanks for viewing ' + cleanTitle + ' — revisit every room in 3D before applying: ' + link,
     };
+  }
+  function csvCell(value) {
+    let text = String(value == null ? '' : value).replace(/\r\n|\r|\n/g, ' ').trim();
+    // Defuse spreadsheet formula prefixes (=, +, -, @, tab) on CSV export.
+    if (/^[=+\-@\t]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+  function enquiriesCsv(rows, title = '') {
+    const header = ['Listing', 'Date', 'Name', 'Phone', 'Email', 'Stop', 'Message'].map(csvCell).join(',');
+    const list = Array.isArray(rows) ? rows : [];
+    const lines = [header];
+    for (const row of list) {
+      if (!row || typeof row !== 'object') continue;
+      lines.push([
+        title || '',
+        row.created_at ? hostingDate(row.created_at) : '',
+        row.visitor_name || '',
+        row.visitor_phone || '',
+        row.visitor_email || '',
+        Number.isInteger(row.stop_number) ? 'Stop ' + row.stop_number : '',
+        row.message || '',
+      ].map(csvCell).join(','));
+    }
+    return lines.join('\r\n') + '\r\n';
+  }
+  function vendorSummary({ title = 'Shared space', campaignMode = '', opens = null, calls = null, emails = null, enquiries = 0, shareUrl = '' } = {}) {
+    const cleanTitle = typeof title === 'string' && title.replace(/\s+/g, ' ').trim() ? title.replace(/\s+/g, ' ').trim().slice(0, 120) : 'Shared space';
+    const audience = campaignMode === 'lease' ? 'Prospective tenant' : 'Buyer';
+    const lines = [
+      (campaignMode === 'lease' ? 'Landlord update' : 'Vendor update') + ' — ' + cleanTitle,
+      '',
+    ];
+    if (Number.isInteger(opens)) lines.push('3D walkthrough opens: ' + opens);
+    const contacts = [
+      Number.isInteger(calls) ? calls + (calls === 1 ? ' call' : ' calls') : '',
+      Number.isInteger(emails) ? emails + (emails === 1 ? ' email' : ' emails') : '',
+      Number.isInteger(enquiries) ? enquiries + (enquiries === 1 ? ' enquiry' : ' enquiries') : '',
+    ].filter(Boolean);
+    if (contacts.length) lines.push(audience + ' contact activity: ' + contacts.join(' · '));
+    if (shareUrl) lines.push('', 'Live 3D walkthrough: ' + shareUrl);
+    return lines.join('\n');
   }
   function appraisalPreviewUrl(contact = {}) {
     const url = new URL(origin + '/handoff');
@@ -275,8 +329,8 @@ window.VeyletSharing = (() => {
     }
     return (day ? 'Offline since ' + day + '. ' : 'Offline. ') + restartWords(opts) + ' and this link works again \u2014 same link, embed and QR.';
   }
-  return { tokenFromLink, handoffUrl, embedUrl, portalUrl, embedCode, embedFrame, modalButtonCode, developerBrief, copy,
+  return { tokenFromLink, handoffUrl, embedUrl, portalUrl, oembedUrl, embedCode, embedFrame, modalButtonCode, developerBrief, copy,
     builders, builder, savedBuilder, saveBuilder,
-    crms, crm, savedCrm, saveCrm, buyerMessages, appraisalPreviewUrl,
+    crms, crm, savedCrm, saveCrm, buyerMessages, enquiriesCsv, vendorSummary, appraisalPreviewUrl,
     hostingGraceDays, hostingUnavailable, hostingDate, hostingState, planEndedLine, hostingLine };
 })();

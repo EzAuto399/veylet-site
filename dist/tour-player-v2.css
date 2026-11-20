@@ -576,8 +576,8 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   border: 1px solid rgba(244, 241, 233, 0.28);
   border-radius: 999px;
   background: rgba(16, 35, 29, 0.78);
@@ -589,6 +589,14 @@
   flex: none;
   transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
+.v2-view-bar {
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  pointer-events: auto;
+}
+.v2-view-bar[hidden] { display: none; }
 .v2-room-pill:hover {
   background: rgba(16, 35, 29, 0.94);
   border-color: rgba(198, 220, 201, 0.65);

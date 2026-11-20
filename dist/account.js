@@ -84,7 +84,9 @@
   const spaceList = document.getElementById('account-space-list');
   const spaceFilterWrap = document.getElementById('account-space-filter-wrap');
   const spaceFilterInput = document.getElementById('account-space-filter');
+  const spaceStateFilters = document.getElementById('account-space-states');
   const spaceFilterStatus = document.getElementById('account-space-filter-status');
+  let spaceStateFilter = 'all';
   const spaceTotals = document.getElementById('account-totals');
   const workView = document.getElementById('view-walkthroughs');
   const spaceEls = new Map(), spaceHeads = new Map(), spaceOfTour = new Map();
@@ -1564,7 +1566,13 @@
       if (statusEl?.textContent) sayWeb(statusEl.textContent);
     });
     copyBefore.dataset.control = 'copy-sms-before';
-    smsRow.append(copyAfter, copyBefore);
+    const copyLease = button('Copy rental pre-visit SMS', async () => {
+      const text = share.buyerMessages ? share.buyerMessages(name, tour.share_token).beforeLeaseInspection : page;
+      await share.copy(text, null, statusEl, 'Rental inspection message copied. Paste it into SMS, WhatsApp or email.');
+      if (statusEl?.textContent) sayWeb(statusEl.textContent);
+    });
+    copyLease.dataset.control = 'copy-sms-lease';
+    smsRow.append(copyAfter, copyBefore, copyLease);
     web.append(chooser, steps, embed.label, codeActions, crmWrap, portalActions, listing.label, smsRow);
     deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
@@ -1794,26 +1802,68 @@
       }
 
       if (enquiries !== null) {
+        const isLease = campaign && campaign.campaign_mode === 'lease';
         const box = document.createElement('div');
         box.className = 'tour-enquiries';
+        const head = document.createElement('div');
+        head.className = 'tour-enquiries-head';
         const heading = document.createElement('p');
         heading.className = 'tour-enquiries-title';
-        heading.textContent = 'Buyer enquiries';
-        box.append(heading);
         // An enquiry stays with its walkthrough: a buyer who wrote before an approved correction replaced the
         // version they saw is still listed on the current version's card (walkthrough_id; tour_id before it existed).
         const sameID = (left, right) => String(left).toLowerCase() === String(right).toLowerCase();
         const matching = enquiries.filter(row => row && typeof row === 'object'
           && (row.walkthrough_id ? sameID(row.walkthrough_id, walkthroughOf(tour))
             : (!row.tour_id || sameID(row.tour_id, tour.id)))).slice(0, 20);
+        const baseTitle = isLease ? 'Rental enquiries' : 'Buyer enquiries';
+        heading.textContent = matching.length ? `${baseTitle} (${matching.length})` : baseTitle;
+        head.append(heading);
+        const tools = document.createElement('p');
+        tools.className = 'tour-actions-row';
+        const toolSaid = document.createElement('p');
+        toolSaid.className = 'tour-campaign-said';
+        toolSaid.setAttribute('role', 'status');
+        const share = window.VeyletSharing;
+        if (share && typeof share.vendorSummary === 'function') {
+          const copyUpdate = button(isLease ? 'Copy landlord update' : 'Copy vendor update', async () => {
+            const shareLink = tour.share_token ? share.handoffUrl(tour.share_token) : '';
+            const summary = share.vendorSummary({
+              title: tour.space_title || campaign?.headline || 'Shared space',
+              campaignMode: campaign?.campaign_mode || '',
+              enquiries: matching.length,
+              shareUrl: shareLink,
+            });
+            await share.copy(summary, null, toolSaid, isLease ? 'Landlord update copied.' : 'Vendor update copied.');
+          });
+          copyUpdate.dataset.control = 'copy-vendor-update';
+          tools.append(copyUpdate);
+        }
+        if (matching.length && share && typeof share.enquiriesCsv === 'function') {
+          const csv = share.enquiriesCsv(matching, tour.space_title || campaign?.headline || '');
+          const csvLink = document.createElement('a');
+          csvLink.className = 'tour-action';
+          csvLink.dataset.control = 'download-enquiries-csv';
+          csvLink.textContent = 'Download CSV';
+          csvLink.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv));
+          csvLink.setAttribute('download', 'enquiries.csv');
+          tools.append(csvLink);
+        }
+        if (tools.children.length) head.append(tools);
+        box.append(head);
+        if (tools.children.length) box.append(toolSaid);
         if (!matching.length) {
           const empty = document.createElement('p');
           empty.className = 'tour-state-help';
-          empty.textContent = 'No buyer enquiries yet.';
+          empty.textContent = isLease ? 'No rental enquiries yet.' : 'No buyer enquiries yet.';
           box.append(empty);
         } else {
           const ul = document.createElement('ul');
           ul.className = 'tour-enquiries-list';
+          const dialClean = v => {
+            const raw = String(v || '').trim();
+            const d = raw.replace(/\D/g, '');
+            return d ? (raw.startsWith('+') ? '+' : '') + d : '';
+          };
           for (const row of matching) {
             const li = document.createElement('li');
             li.className = 'tour-enquiry-item';
@@ -1821,13 +1871,36 @@
             who.className = 'tour-enquiry-who';
             const when = row.created_at ? window.VeyletSharing?.hostingDate?.(row.created_at) || '' : '';
             const stopText = Number.isInteger(row.stop_number) ? 'Stop ' + row.stop_number : '';
-            who.textContent = [row.visitor_name || 'Buyer', stopText, when].filter(Boolean).join(' · ');
+            who.textContent = [row.visitor_name || (isLease ? 'Applicant' : 'Buyer'), stopText, when].filter(Boolean).join(' · ');
             li.append(who);
-            const reach = [row.visitor_phone, row.visitor_email].filter(Boolean).join(' · ');
-            if (reach) {
+            const phone = String(row.visitor_phone || '').trim();
+            const email = String(row.visitor_email || '').trim();
+            if (phone || email) {
               const reachEl = document.createElement('p');
               reachEl.className = 'tour-enquiry-reach';
-              reachEl.textContent = reach;
+              const dial = dialClean(phone);
+              if (phone && dial) {
+                const tel = document.createElement('a');
+                tel.className = 'tour-enquiry-link';
+                tel.setAttribute('href', 'tel:' + dial);
+                tel.textContent = phone;
+                reachEl.append(tel);
+              } else if (phone) {
+                const span = document.createElement('span');
+                span.textContent = phone;
+                reachEl.append(span);
+              }
+              if (email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+                const mail = document.createElement('a');
+                mail.className = 'tour-enquiry-link';
+                mail.setAttribute('href', 'mailto:' + encodeURIComponent(email));
+                mail.textContent = email;
+                reachEl.append(mail);
+              } else if (email) {
+                const span = document.createElement('span');
+                span.textContent = email;
+                reachEl.append(span);
+              }
               li.append(reachEl);
             }
             if (row.message) {
@@ -2729,21 +2802,50 @@
   function applySpaceFilter() {
     if (!spaceList) return;
     const query = String(spaceFilterInput?.value || '').trim().toLowerCase();
+    const stateGroup = spaceStateFilter || 'all';
+    const active = Boolean(query) || stateGroup !== 'all';
     let shown = 0, total = 0;
     for (const row of spaceList.children || []) {
       if (row.className !== 'space-row') continue;
       total += 1;
       const hay = String(row.dataset?.search || '').toLowerCase();
-      const match = !query || hay.includes(query);
+      const group = String(row.dataset?.stateGroup || 'other');
+      const matchText = !query || hay.includes(query);
+      const matchState = stateGroup === 'all' || group === stateGroup;
+      const match = matchText && matchState;
       row.hidden = !match;
       if (match) shown += 1;
     }
     if (spaceFilterStatus) {
-      spaceFilterStatus.hidden = !query;
-      spaceFilterStatus.textContent = !query ? '' : shown === 0 ? 'No matching spaces.' : `Showing ${shown} of ${total} spaces.`;
+      spaceFilterStatus.hidden = !active;
+      spaceFilterStatus.textContent = !active ? '' : shown === 0 ? 'No matching spaces.' : `Showing ${shown} of ${total} spaces.`;
     }
   }
+  function setSpaceStateFilter(next) {
+    spaceStateFilter = next || 'all';
+    for (const btn of spaceStateFilters?.children || []) {
+      if (btn.dataset?.stateFilter) btn.setAttribute('aria-pressed', btn.dataset.stateFilter === spaceStateFilter ? 'true' : 'false');
+    }
+    applySpaceFilter();
+  }
   spaceFilterInput?.addEventListener?.('input', applySpaceFilter);
+  const SPACE_STATE_CHOICES = [['all', 'All'], ['needs', 'Needs you'], ['live', 'Live'], ['other', 'Other']];
+  if (spaceStateFilters && !(spaceStateFilters.children && spaceStateFilters.children.length)) {
+    for (const [key, label] of SPACE_STATE_CHOICES) {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'space-state-pill';
+      pill.dataset.stateFilter = key;
+      pill.setAttribute('aria-pressed', key === 'all' ? 'true' : 'false');
+      pill.textContent = label;
+      pill.addEventListener('click', () => setSpaceStateFilter(key));
+      spaceStateFilters.append(pill);
+    }
+  } else {
+    for (const btn of spaceStateFilters?.children || []) {
+      if (btn.dataset?.stateFilter) btn.addEventListener?.('click', () => setSpaceStateFilter(btn.dataset.stateFilter));
+    }
+  }
   function spaceIndexDraw(properties, rows, hosting) {
     if (!spaceMode()) return;
     const nodes = properties.map(space => {
@@ -2753,6 +2855,7 @@
       const item = document.createElement('li'); item.className = 'space-row'; item.dataset.space = space.id;
       const titleText = typeof space.title === 'string' && space.title.trim() ? space.title.trim() : 'Untitled space';
       item.dataset.search = [titleText, space.location_general || '', space.category || ''].join(' ').toLowerCase();
+      item.dataset.stateGroup = lead ? (lead[2] === 'busy' ? 'needs' : lead[0] === 'live' ? 'live' : 'other') : 'other';
       const name = document.createElement('p'); name.className = 'space-row-name';
       name.textContent = titleText;
       const meta = document.createElement('p'); meta.className = 'space-row-meta';
@@ -2767,8 +2870,16 @@
     });
     spaceList.replaceChildren(...nodes);
     spaceIndex.hidden = nodes.length === 0;
-    if (spaceFilterWrap) spaceFilterWrap.hidden = nodes.length <= 3;
-    if (nodes.length <= 3 && spaceFilterInput) spaceFilterInput.value = '';
+    const many = nodes.length > 3;
+    if (spaceFilterWrap) spaceFilterWrap.hidden = !many;
+    if (spaceStateFilters) spaceStateFilters.hidden = !many;
+    if (!many) {
+      if (spaceFilterInput) spaceFilterInput.value = '';
+      spaceStateFilter = 'all';
+      for (const btn of spaceStateFilters?.children || []) {
+        if (btn.dataset?.stateFilter) btn.setAttribute('aria-pressed', btn.dataset.stateFilter === 'all' ? 'true' : 'false');
+      }
+    }
     applySpaceFilter();
   }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
