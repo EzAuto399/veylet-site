@@ -87,56 +87,6 @@
     return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
   }
 
-  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
-  function bookingHref(url) {
-    const raw = clean(url, 240);
-    if (!raw) return '';
-    try {
-      const parsed = new URL(raw);
-      return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
-    } catch {
-      return '';
-    }
-  }
-
-  /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
-  function viewingRequestHref(email, title, agentName) {
-    const address = clean(email, 254);
-    if (!EMAIL.test(address)) return '';
-    const at = address.lastIndexOf('@');
-    const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
-    const space = title || 'Shared space';
-    const greeting = agentName ? 'Hi ' + agentName + ',' : 'Hello,';
-    const subject = 'Book a viewing: ' + space;
-    const body = greeting + '\n\nI just explored the 3D walkthrough of ' + space + ' and would like to arrange an inspection.\n\nPreferred day / time:\nMy phone number:\n';
-    return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-  }
-
-  /** A validated HTTPS booking or calendar URL (up to 240 chars), or empty string. */
-  function bookingHref(url) {
-    const raw = clean(url, 240);
-    if (!raw) return '';
-    try {
-      const parsed = new URL(raw);
-      return parsed.protocol === 'https:' && parsed.hostname ? parsed.href : '';
-    } catch {
-      return '';
-    }
-  }
-
-  /** Pre-filled viewing slot request email when the agent has not configured a calendar URL. */
-  function viewingRequestHref(email, title, agentName) {
-    const address = clean(email, 254);
-    if (!EMAIL.test(address)) return '';
-    const at = address.lastIndexOf('@');
-    const encoded = encodeURIComponent(address.slice(0, at)) + '@' + encodeURIComponent(address.slice(at + 1));
-    const space = title || 'Shared space';
-    const greeting = agentName ? 'Hi ' + agentName + ',' : 'Hello,';
-    const subject = 'Book a viewing: ' + space;
-    const body = greeting + '\n\nI just explored the 3D walkthrough of ' + space + ' and would like to arrange an inspection.\n\nPreferred day / time:\nMy phone number:\n';
-    return 'mailto:' + encoded + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
-  }
-
   /** The one row the server answers, or null unless it names someone reachable. */
   function contactFrom(data) {
     const row = Array.isArray(data) ? data[0] : data;
@@ -179,7 +129,9 @@
     const end = parseIso(row.next_open_end);
     const validWindow = start && end && Date.parse(end) > Date.parse(start);
     if (!mode && !headline && !countsLine && !validWindow) return null;
+    const rawMode = row.campaign_mode === 'sale' || row.campaign_mode === 'lease' ? row.campaign_mode : '';
     return {
+      mode: rawMode,
       modeLabel: mode,
       headline,
       countsLine,
@@ -664,39 +616,58 @@
     add(telHref(contact.phone), 'Call', 'Call', 'call_tap');
     add(mailtoHref(contact.email, title), 'Email', 'Email', 'email_tap');
     const booking = bookingHref(contact.bookingUrl);
+    const isLease = Boolean(enquiryOpts && enquiryOpts.campaignMode === 'lease');
     const canInlineSheet = Boolean(contact.allowViewingRequest && enquiryOpts && enquiryOpts.enquiryClient && doc.getElementById('agent-enquiry-sheet'));
     if (booking) {
       add(booking, 'Book inspection', 'Book inspection with', 'email_tap', { booking: true }, true);
       if (canInlineSheet) {
-        const askBtn = element(doc, 'button', 'button button-ghost agent-action', 'Ask a question');
+        const askLabel = isLease ? 'Enquire to lease' : 'Ask a question';
+        const askBtn = element(doc, 'button', 'button button-ghost agent-action', askLabel);
         askBtn.type = 'button';
-        askBtn.setAttribute('aria-label', 'Ask ' + contact.name + ' a question');
+        askBtn.setAttribute('aria-label', isLease ? 'Enquire to lease with ' + contact.name : 'Ask ' + contact.name + ' a question');
         askBtn.addEventListener('click', () => {
           openEnquirySheet(doc, contact, title, enquiryOpts);
         });
         actions.append(askBtn);
       }
     } else if (canInlineSheet) {
-      const btn = element(doc, 'button', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', 'Book viewing');
+      const btnLabel = isLease ? 'Enquire to lease' : 'Book viewing';
+      const btn = element(doc, 'button', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', btnLabel);
       btn.type = 'button';
-      btn.setAttribute('aria-label', 'Book viewing with ' + contact.name);
+      btn.setAttribute('aria-label', (isLease ? 'Enquire to lease with ' : 'Book viewing with ') + contact.name);
       btn.addEventListener('click', () => {
         openEnquirySheet(doc, contact, title, enquiryOpts);
       });
       actions.append(btn);
     } else if (contact.allowViewingRequest && contact.email) {
-      add(viewingRequestHref(contact.email, title, contact.name), 'Book viewing', 'Book viewing with', 'email_tap', { booking: true }, false);
+      add(viewingRequestHref(contact.email, title, contact.name), isLease ? 'Enquire to lease' : 'Book viewing', isLease ? 'Enquire to lease with' : 'Book viewing with', 'email_tap', { booking: true }, false);
     }
     return actions;
   }
+
+  const ENQUIRY_INTENTS = {
+    lease: [
+      { id: 'inspection', label: 'Book inspection' },
+      { id: 'lease_terms', label: 'Lease terms & bond' },
+      { id: 'pets_parking', label: 'Pets & parking' },
+      { id: 'room_question', label: 'Ask about this room' },
+    ],
+    sale: [
+      { id: 'inspection', label: 'Book viewing' },
+      { id: 'price_guide', label: 'Price guide' },
+      { id: 'room_question', label: 'Ask about this room' },
+    ],
+  };
 
   function openEnquirySheet(doc, contact, title, opts) {
     const sheet = doc.getElementById('agent-enquiry-sheet');
     if (!sheet) return;
     opts = opts || {};
+    const isLease = opts.campaignMode === 'lease';
     const opener = doc.activeElement || null;
     if (typeof sheet._veyletEscCleanup === 'function') sheet._veyletEscCleanup();
     let nameField, phoneField, emailField, msgInput;
+    let selectedIntent = (sheet._veyletDraft && sheet._veyletDraft.intent) || '';
     const saveDraft = () => {
       if (!nameField) return;
       sheet._veyletDraft = {
@@ -704,6 +675,7 @@
         phone: phoneField.input.value || '',
         email: emailField.input.value || '',
         message: msgInput.value || '',
+        intent: selectedIntent || '',
       };
     };
     const closeSheet = (keepDraft = true) => {
@@ -741,16 +713,49 @@
     };
 
     const stopNum = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
-    const heading = element(doc, 'p', 'enquiry-sheet-title', 'Ask ' + contact.name + ' or request a viewing');
+    const roomName = clean(typeof opts.getRoom === 'function' ? opts.getRoom() : (place && place.room ? place.room : ''), 60);
+    const placeLabel = roomName && stopNum ? roomName + ' · Stop ' + stopNum : (stopNum ? 'Stop ' + stopNum : '');
+    const heading = element(
+      doc,
+      'p',
+      'enquiry-sheet-title',
+      isLease ? 'Enquire about leasing with ' + contact.name : 'Ask ' + contact.name + ' or request a viewing'
+    );
     heading.id = 'enquiry-sheet-title';
     const sub = element(
       doc,
       'p',
       'enquiry-sheet-note',
-      stopNum ? 'Includes your place in the walkthrough (Stop ' + stopNum + ').' : 'Sent straight to ' + contact.name + '.'
+      placeLabel ? 'Includes your place in the walkthrough (' + placeLabel + ').' : 'Sent straight to ' + contact.name + '.'
     );
     const form = element(doc, 'form', 'enquiry-sheet-form');
     form.setAttribute('novalidate', '');
+
+    const intentChoices = isLease ? ENQUIRY_INTENTS.lease : ENQUIRY_INTENTS.sale;
+    const chipGroup = element(doc, 'div', 'enquiry-chips');
+    chipGroup.setAttribute('role', 'group');
+    chipGroup.setAttribute('aria-label', isLease ? 'What is your rental enquiry about?' : 'What is your enquiry about?');
+    const chipButtons = [];
+    const syncChips = () => {
+      for (const item of chipButtons) {
+        const active = item.id === selectedIntent;
+        item.btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        item.btn.classList?.toggle?.('is-selected', active);
+      }
+    };
+    for (const choice of intentChoices) {
+      const chip = element(doc, 'button', 'enquiry-chip', choice.label);
+      chip.type = 'button';
+      chip.dataset.intent = choice.id;
+      chip.setAttribute('aria-pressed', selectedIntent === choice.id ? 'true' : 'false');
+      if (selectedIntent === choice.id) chip.classList?.add?.('is-selected');
+      chip.addEventListener('click', () => {
+        selectedIntent = selectedIntent === choice.id ? '' : choice.id;
+        syncChips();
+      });
+      chipButtons.push({ id: choice.id, label: choice.label, btn: chip });
+      chipGroup.append(chip);
+    }
 
     // Each field names itself to the phone: the right keyboard, and the browser's saved name, mobile and email.
     const makeInput = (labelText, name, type, max, autocomplete, inputmode) => {
@@ -762,8 +767,22 @@
       input.setAttribute('maxlength', String(max));
       input.setAttribute('autocomplete', autocomplete);
       if (inputmode) input.setAttribute('inputmode', inputmode);
-      wrap.append(input);
-      return { wrap, input };
+      const err = element(doc, 'span', 'enquiry-field-error');
+      err.id = 'enquiry-err-' + name;
+      err.hidden = true;
+      wrap.append(input, err);
+      const setError = text => {
+        err.textContent = text || '';
+        err.hidden = !text;
+        if (text) {
+          input.setAttribute('aria-invalid', 'true');
+          input.setAttribute('aria-describedby', err.id);
+        } else {
+          input.removeAttribute?.('aria-invalid');
+          input.removeAttribute?.('aria-describedby');
+        }
+      };
+      return { wrap, input, err, setError };
     };
     const draft = sheet._veyletDraft || {};
     nameField = makeInput('Your name', 'visitor_name', 'text', 80, 'name');
@@ -773,8 +792,23 @@
     if (draft.phone) phoneField.input.value = draft.phone;
     if (draft.email) emailField.input.value = draft.email;
 
+    nameField.input.addEventListener('blur', () => {
+      if (!clean(nameField.input.value || '', 80)) nameField.setError('Add your name.');
+    });
+    nameField.input.addEventListener('input', () => {
+      if (clean(nameField.input.value || '', 80)) nameField.setError('');
+    });
+    const clearReachErrors = () => {
+      if (clean(phoneField.input.value || '', 32) || clean(emailField.input.value || '', 254)) {
+        phoneField.setError('');
+        emailField.setError('');
+      }
+    };
+    phoneField.input.addEventListener('input', clearReachErrors);
+    emailField.input.addEventListener('input', clearReachErrors);
+
     const msgWrap = element(doc, 'label', 'enquiry-field');
-    msgWrap.append(element(doc, 'span', 'enquiry-field-label', 'Question or preferred day (optional)'));
+    msgWrap.append(element(doc, 'span', 'enquiry-field-label', isLease ? 'Preferred move-in date or question (optional)' : 'Question or preferred day (optional)'));
     msgInput = element(doc, 'textarea', 'enquiry-textarea');
     msgInput.name = 'visitor_message';
     msgInput.setAttribute('rows', '3');
@@ -794,14 +828,14 @@
     status.setAttribute('role', 'status');
 
     const row = element(doc, 'div', 'enquiry-actions');
-    const sendBtn = element(doc, 'button', 'button agent-action', 'Send enquiry');
+    const sendBtn = element(doc, 'button', 'button agent-action', isLease ? 'Send rental enquiry' : 'Send enquiry');
     sendBtn.type = 'submit';
     const closeBtn = element(doc, 'button', 'button button-ghost agent-action', 'Cancel');
     closeBtn.type = 'button';
     closeBtn.addEventListener('click', () => closeSheet(true));
     row.append(sendBtn, closeBtn);
 
-    form.append(nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
+    form.append(chipGroup, nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
     let busy = false;
     const showSent = () => {
       sheet._veyletDraft = null;
@@ -821,13 +855,42 @@
       const vPhone = clean(phoneField.input.value || '', 32);
       const vEmail = clean(emailField.input.value || '', 254);
       const vMsg = clean(msgInput.value || '', 500);
-      if (!vName) { say(status, 'Add your name.'); return; }
-      if (!vPhone && !vEmail) { say(status, 'Add a mobile number or email address so ' + contact.name + ' can reply.'); return; }
+      if (!vName) {
+        nameField.setError('Add your name.');
+        say(status, 'Add your name.');
+        nameField.input.focus?.();
+        return;
+      }
+      nameField.setError('');
+      if (!vPhone && !vEmail) {
+        const reachErr = 'Add a mobile number or email address so ' + contact.name + ' can reply.';
+        phoneField.setError(reachErr);
+        say(status, reachErr);
+        phoneField.input.focus?.();
+        return;
+      }
+      phoneField.setError('');
+      if (vEmail && !EMAIL.test(vEmail)) {
+        emailField.setError('Check this email address.');
+        say(status, 'Check this email address.');
+        emailField.input.focus?.();
+        return;
+      }
+      emailField.setError('');
+      const chosenChip = chipButtons.find(c => c.id === selectedIntent) || null;
+      const currentStop = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
+      const currentRoom = clean(typeof opts.getRoom === 'function' ? opts.getRoom() : (place && place.room ? place.room : ''), 60);
+      const tagParts = [
+        chosenChip ? chosenChip.label : '',
+        currentRoom ? 'Room: ' + currentRoom : '',
+      ].filter(Boolean);
+      const rpcMessage = tagParts.length
+        ? ('[' + tagParts.join(' · ') + ']' + (vMsg ? ' ' + vMsg : '')).slice(0, 500)
+        : (vMsg || null);
       busy = true;
       sendBtn.disabled = true;
       say(status, 'Sending…');
       try {
-        const currentStop = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
         const request = typeof opts.fetch === 'function'
           ? opts.fetch
           : (typeof fetch === 'function' ? (...args) => fetch(...args) : (typeof window !== 'undefined' && typeof window.fetch === 'function' ? (...args) => window.fetch(...args) : null));
@@ -844,22 +907,26 @@
         if (hooksEndpoint && request) {
           let fallBackToRpc = false;
           try {
+            const payload = {
+              token: opts.token,
+              title: title || '',
+              name: vName,
+              email: vEmail || null,
+              phone: vPhone || null,
+              stop_number: currentStop || null,
+              message: vMsg || null,
+              website: trap.value || '',
+            };
+            if (currentRoom) payload.room_name = currentRoom;
+            if (selectedIntent) payload.intent = selectedIntent;
+            if (opts.campaignMode) payload.campaign_mode = opts.campaignMode;
             const response = await request(hooksEndpoint, {
               method: 'POST',
               credentials: 'omit',
               referrerPolicy: 'no-referrer',
               cache: 'no-store',
               headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-              body: JSON.stringify({
-                token: opts.token,
-                title: title || '',
-                name: vName,
-                email: vEmail || null,
-                phone: vPhone || null,
-                stop_number: currentStop || null,
-                message: vMsg || null,
-                website: trap.value || '',
-              }),
+              body: JSON.stringify(payload),
             });
             const code = response ? (typeof response.status === 'number' ? response.status : (response.ok ? 200 : 500)) : 0;
             if (code >= 200 && code < 300) {
@@ -894,7 +961,7 @@
             p_email: vEmail || null,
             p_phone: vPhone || null,
             p_stop_number: currentStop || null,
-            p_message: vMsg || null,
+            p_message: rpcMessage,
             p_honeypot: trap.value || '',
           });
           if (reply && !reply.error && reply.data && reply.data.accepted) {
@@ -1042,6 +1109,27 @@
     doc.documentElement?.classList?.add('client-has-bar');
     if (count > 2) doc.documentElement?.classList?.add('client-has-bar-multi');
     else doc.documentElement?.classList?.remove('client-has-bar-multi');
+    syncAgentBarSpace(doc, host);
+  }
+
+  function syncAgentBarSpace(doc, host) {
+    const main = doc.getElementById?.('main');
+    if (!main || !host) return;
+    const apply = () => {
+      const measured = Math.ceil(host.offsetHeight || (typeof host.getBoundingClientRect === 'function' ? host.getBoundingClientRect().height : 0) || 0);
+      if (measured > 0) {
+        main.style?.setProperty?.('--tour-stage-below', measured + 'px');
+        doc.documentElement?.style?.setProperty?.('--agent-bar-height', measured + 'px');
+      }
+    };
+    apply();
+    if (typeof ResizeObserver === 'function' && !host._veyletBarObserved) {
+      host._veyletBarObserved = true;
+      try {
+        const ro = new ResizeObserver(apply);
+        ro.observe(host);
+      } catch { /* fallback to CSS estimates */ }
+    }
   }
 
   /** The card, the phone bar and the two lines that name the agent. */
@@ -1152,13 +1240,13 @@
     const url = () => (place ? place.url : shareUrl(loc, options.token));
     return {
       startAt: stopFromHash(loc.hash),
-      onStop(number, count) {
+      onStop(number, count, room) {
         let hash = number > 1 ? '#stop=' + number : '';
         if (cameraHash) {
           if (number === cameraStop) hash = cameraHash;
           cameraHash = '';
         }
-        place = { number, count, url: shareUrl(loc, options.token) + hash };
+        place = { number, count, room: clean(room, 60) || null, url: shareUrl(loc, options.token) + hash };
         try {
           if ((loc.hash || '') !== hash) win.history.replaceState(win.history.state, '', loc.pathname + loc.search + hash);
         } catch { /* the address stays; Share still carries the stop */ }

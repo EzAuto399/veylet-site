@@ -60,6 +60,59 @@ function singleRange(value, size) {
   return { start, end };
 }
 
+const OEMBED_TOKEN = /^[A-Za-z0-9_-]{16,256}$/;
+function oembedResponse(url, method, preview) {
+  const format = (url.searchParams.get('format') || 'json').toLowerCase();
+  const baseHeaders = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  };
+  if (format !== 'json') {
+    const headers = new Headers({ ...baseHeaders, 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    restrictPreview(headers, preview);
+    return new Response(method === 'HEAD' ? null : 'Only JSON oEmbed is supported', { status: 501, headers });
+  }
+  const raw = url.searchParams.get('url') || '';
+  let parsed;
+  try { parsed = new URL(raw); } catch { parsed = null; }
+  const rawToken = parsed ? String(parsed.searchParams.get('t') || '').trim() : '';
+  const hex = /^[0-9a-f]+$/i.test(rawToken);
+  const token = hex ? rawToken.toLowerCase() : rawToken;
+  const validToken = Boolean(token) && (hex ? token.length === 32 : OEMBED_TOKEN.test(token));
+  if (!parsed || !productionOrigins.has(parsed.origin) || !/^\/(?:handoff|embed|tour)\/?$/.test(parsed.pathname) || !validToken) {
+    const headers = new Headers({ ...baseHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    restrictPreview(headers, preview);
+    return new Response(method === 'HEAD' ? null : JSON.stringify({ error: 'not_found' }), { status: 404, headers });
+  }
+  const clampDim = (param, fallback, min, max) => {
+    const n = Number(url.searchParams.get(param));
+    return Number.isFinite(n) && n >= min ? Math.min(Math.round(n), max) : fallback;
+  };
+  const width = clampDim('maxwidth', 800, 320, 1920);
+  const height = Math.min(clampDim('maxheight', Math.round(width * 9 / 16), 320, 1080), Math.round(width * 9 / 16) < 320 ? 320 : clampDim('maxheight', Math.round(width * 9 / 16), 320, 1080));
+  const theme = parsed.searchParams.get('theme') === 'paper' ? '&theme=paper' : '';
+  const embedSrc = 'https://veylet.com/embed?t=' + encodeURIComponent(token) + theme;
+  const payload = {
+    type: 'rich',
+    version: '1.0',
+    title: 'Explore this property in 3D',
+    provider_name: 'Veylet',
+    provider_url: 'https://veylet.com',
+    width,
+    height,
+    html: '<iframe src="' + embedSrc + '" title="Explore this property in 3D" width="' + width + '" height="' + height + '" style="width:100%;aspect-ratio:16/9;min-height:320px;max-height:80vh;border:0" allow="fullscreen; xr-spatial-tracking" loading="lazy" referrerpolicy="strict-origin"></iframe>',
+  };
+  const headers = new Headers({
+    ...baseHeaders,
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'public, max-age=3600',
+    'Access-Control-Allow-Origin': '*',
+  });
+  restrictPreview(headers, preview);
+  return new Response(method === 'HEAD' ? null : JSON.stringify(payload), { status: 200, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -79,6 +132,7 @@ export default {
     }
     const clean = canonical(url.pathname);
     if (clean !== url.pathname) return redirect(clean + url.search, url, preview);
+    if (clean === '/oembed') return oembedResponse(url, request.method, preview);
     if (policy.redirects[clean]) return redirect(policy.redirects[clean] + url.search, url, preview);
 
     const asset = policy.routes[clean];

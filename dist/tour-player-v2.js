@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=6ce5d88ffa43ae4c';
+  const STYLE_URL = '/tour-player-v2.css?v=9223077d3e709cd4';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -727,6 +727,11 @@
     exit: 'M9 4v5H4 M20 9h-5V4 M15 20v-5h5 M4 15h5v5',
     info: 'M12 11v6 M12 7.5v.5 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
     close: 'M6 6l12 12 M18 6L6 18',
+    play: 'M8 5.5v13l11-6.5z',
+    pause: 'M8 5h3v14H8z M13 5h3v14h-3z',
+    view: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M12 9v6 M9 12h6',
+    zoomIn: 'M12 6v12 M6 12h12',
+    zoomOut: 'M6 12h12',
   };
   function icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -769,7 +774,15 @@
     const top = el('div', { class: 'v2-top' });
     top.append(where, about);
     const status = el('p', { class: 'v2-status', role: 'status', 'aria-live': 'polite' });
-    const progress = el('div', { class: 'v2-progress', hidden: true });
+    const progress = el('div', {
+      class: 'v2-progress',
+      role: 'progressbar',
+      'aria-label': 'Loading walkthrough',
+      'aria-valuemin': '0',
+      'aria-valuemax': '100',
+      'aria-valuenow': '0',
+      hidden: true,
+    });
     progress.append(el('span'));
     const announce = el('p', { class: 'v2-sr', 'aria-live': 'polite' });
     const hint = el('p', { class: 'v2-hint', hidden: true }, 'Drag to look around. Tap a circle or Next to move.');
@@ -785,6 +798,16 @@
     next.append(nextLabel, againLabel, restartLabel);
     const stopsToggle = el('button', { type: 'button', class: 'v2-stops-toggle', 'aria-expanded': 'false', 'aria-haspopup': 'true' });
     stopsToggle.append(icon('stops'), el('span', { class: 'v2-stops-text' }, 'Stops'));
+    const autoTour = iconButton('play', 'Play auto-tour', 'v2-icon v2-autotour');
+    autoTour.setAttribute('aria-pressed', 'false');
+    const viewToggle = iconButton('view', 'Look and zoom controls', 'v2-icon v2-view-toggle');
+    viewToggle.setAttribute('aria-expanded', 'false');
+    const lookLeft = iconButton('prev', 'Look left', 'v2-icon v2-look-left');
+    const lookRight = iconButton('next', 'Look right', 'v2-icon v2-look-right');
+    const zoomOut = iconButton('zoomOut', 'Zoom out', 'v2-icon v2-zoom-out');
+    const zoomIn = iconButton('zoomIn', 'Zoom in', 'v2-icon v2-zoom-in');
+    const viewBar = el('div', { class: 'v2-view-bar', role: 'group', 'aria-label': 'Look and zoom', hidden: true });
+    viewBar.append(lookLeft, lookRight, zoomOut, zoomIn);
     const mapToggle = iconButton('map', 'Show map of stops', 'v2-icon v2-map-toggle');
     mapToggle.setAttribute('aria-pressed', 'false');
     // Not .v2-full: the stylesheet hides that class in frames of 330 px and
@@ -795,8 +818,8 @@
     const moves = el('div', { class: 'v2-moves' });
     moves.append(prev, stopsToggle, next);
     const tools = el('div', { class: 'v2-tools' });
-    tools.append(mapToggle, full);
-    bar.append(roomsBar, moves, tools);
+    tools.append(autoTour, viewToggle, mapToggle, full);
+    bar.append(viewBar, roomsBar, moves, tools);
     const stopsPanel = el('div', { class: 'v2-panel v2-stops', role: 'dialog', 'aria-label': 'Rooms and stops', hidden: true });
     const map = el('figure', { class: 'v2-map', hidden: true });
     const aboutPanel = el('div', { class: 'v2-panel v2-about', role: 'dialog', 'aria-label': 'About this walkthrough', hidden: true });
@@ -806,7 +829,8 @@
     root.append(preview, poster, canvas, veil, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
     stage.append(root);
     return { root, preview, poster, canvas, veil, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
-      prev, next, nextLabel, againLabel, restartLabel, stopsToggle, mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
+      prev, next, nextLabel, againLabel, restartLabel, stopsToggle, autoTour, viewToggle, viewBar, lookLeft, lookRight, zoomOut, zoomIn,
+      mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
   }
 
   const FALLBACK_WORDS = {
@@ -985,9 +1009,11 @@
       ui.fallback.hidden = true;
       ui.fallback.replaceChildren();
     }
+    let autoTimer = null;
     function teardown() {
       if (torndown) return;
       torndown = true;
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
       try { viewer?.destroy(); } catch { /* already gone */ }
     }
     signal?.addEventListener('abort', () => { teardown(); ui.root.remove(); }, { once: true });
@@ -1005,6 +1031,7 @@
       // On window, beside the readiness signals, so the page's own document events (veylet:stop, veylet:room)
       // stay what they were.
       const percent = Math.round(progressShown * 100);
+      ui.progress.setAttribute('aria-valuenow', String(percent));
       if (percent === progressSaid) return;
       progressSaid = percent;
       try {
@@ -1550,10 +1577,11 @@
       tellStop(index);
       if (index === lastStop && manifest.stops.length > 1) showEnd(); else hideEnd();
     }
-    /** The page hears which stop this is (its number in the visit), for its own address and Share. */
+    /** The page hears which stop this is (its number in the visit) and its room name, for address, Share and enquiries. */
     function tellStop(index) {
       if (index < 0) return;
-      try { visit.onStop?.(visitNumber(manifest, index), manifest.stops.length); } catch { /* optional */ }
+      const roomName = stopLabel(manifest, index).room || null;
+      try { visit.onStop?.(visitNumber(manifest, index), manifest.stops.length, roomName); } catch { /* optional */ }
     }
 
     // ----- who to contact, Share, and the end of the visit -----
@@ -1783,11 +1811,61 @@
       else if (key === '-' || key === '_') { handled(); state.zoom = clamp(state.zoom / 0.9, 0.55, 1.3); applyCamera(); }
       else if (key === 'm' || key === 'M') { handled(); toggleMap(); }
     });
-    // Any press anywhere in the player means the visitor has found the controls.
-    ui.root.addEventListener('pointerdown', () => dismissHint(true), true);
+    function stopAutoTour(announceStop = false) {
+      if (!autoTimer) return;
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      ui.autoTour.replaceChildren(icon('play'));
+      ui.autoTour.setAttribute('aria-pressed', 'false');
+      ui.autoTour.setAttribute('aria-label', 'Play auto-tour');
+      ui.autoTour.title = 'Play auto-tour';
+      if (announceStop) ui.announce.textContent = 'Auto-tour paused';
+    }
+    function scheduleAutoStep() {
+      autoTimer = setTimeout(() => {
+        if (torndown || !ready || document.visibilityState === 'hidden') { stopAutoTour(false); return; }
+        const cur = hereStop();
+        if (cur === lastStop) { stopAutoTour(false); return; }
+        goToStop(stepStop(cur, 1, manifest.stops.length), false);
+        if (autoTimer) scheduleAutoStep();
+      }, 4500);
+    }
+    function startAutoTour() {
+      if (!ready || manifest.stops.length < 2) return;
+      if (autoTimer) { stopAutoTour(true); return; }
+      dismissHint(true);
+      hideEnd();
+      ui.autoTour.replaceChildren(icon('pause'));
+      ui.autoTour.setAttribute('aria-pressed', 'true');
+      ui.autoTour.setAttribute('aria-label', 'Pause auto-tour');
+      ui.autoTour.title = 'Pause auto-tour';
+      ui.announce.textContent = 'Auto-tour playing';
+      scheduleAutoStep();
+    }
+    function toggleViewControls(show) {
+      const open = show ?? ui.viewBar.hidden;
+      ui.viewBar.hidden = !open;
+      ui.viewToggle.setAttribute('aria-expanded', String(open));
+      ui.viewToggle.setAttribute('aria-label', open ? 'Hide look and zoom controls' : 'Look and zoom controls');
+      ui.viewToggle.title = ui.viewToggle.getAttribute('aria-label');
+      syncBarHeight();
+    }
+    ui.autoTour.hidden = manifest.stops.length < 2;
+    ui.autoTour.addEventListener('click', () => startAutoTour());
+    ui.viewToggle.addEventListener('click', () => toggleViewControls());
+    ui.lookLeft.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.yaw += 15; applyCamera(); });
+    ui.lookRight.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.yaw -= 15; applyCamera(); });
+    ui.zoomIn.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom * 0.88, 0.55, 1.3); applyCamera(); });
+    ui.zoomOut.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom / 0.88, 0.55, 1.3); applyCamera(); });
+    ui.root.addEventListener('pointerdown', event => {
+      dismissHint(true);
+      if (autoTimer && !ui.autoTour.contains(event.target)) stopAutoTour(false);
+    }, true);
     ui.root.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
-      if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
+      if (autoTimer) { event.preventDefault(); stopAutoTour(true); }
+      else if (!ui.viewBar.hidden) { event.preventDefault(); toggleViewControls(false); ui.viewToggle.focus?.(); }
+      else if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
       else if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
     });
@@ -1922,6 +2000,9 @@
       const narrow = stage.clientWidth > 0 && stage.clientWidth < 288 && !isFull();
       if (narrow && !ui.map.hidden) toggleMap(false);
       ui.mapToggle.hidden = narrow;
+      ui.autoTour.hidden = narrow || manifest.stops.length < 2;
+      if (narrow && !ui.viewBar.hidden) toggleViewControls(false);
+      ui.viewToggle.hidden = narrow;
       const compactHeight = stage.clientHeight > 0 && stage.clientHeight <= 300 && !isFull();
       ui.roomsBar.hidden = roomPills.length < 2 || compactHeight;
       pillsMore();

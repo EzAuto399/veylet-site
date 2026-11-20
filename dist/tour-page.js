@@ -315,7 +315,7 @@
           // lookup runs beside the walkthrough and never holds it up.
           // Optional Release 5 context enrichment (facts bar, agency brand, inline enquiry sheet) via REST.
           const rest = page?.restClient?.(window.VEYLET_SUPABASE);
-          const enquiryOpts = rest ? { token, enquiryClient: rest, hooksUrl: window.VEYLET_HOOKS?.url || '' } : undefined;
+          const enquiryOpts = rest ? { token, enquiryClient: rest, hooksUrl: window.VEYLET_HOOKS?.url || '', campaignMode: '' } : undefined;
           const contextLookup = rest && page?.lookupHandoffContext ? page.lookupHandoffContext(rest, token) : null;
           let handoffContextApplied = false;
           let appliedBrand = null;
@@ -344,7 +344,10 @@
           if (contextLookup) {
             contextLookup.then(ctx => {
               if (ctx) {
-                if (ctx.facts) page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
+                if (ctx.facts) {
+                  if (enquiryOpts && ctx.facts.mode) enquiryOpts.campaignMode = ctx.facts.mode;
+                  page.showCampaignFacts(document, ctx.facts, title, page.shareUrl(location, token));
+                }
                 if (ctx.brand) appliedBrand = ctx.brand;
                 if (ctx.contact) {
                   handoffContextApplied = true;
