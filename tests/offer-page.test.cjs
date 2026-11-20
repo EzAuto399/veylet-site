@@ -113,7 +113,7 @@ test('the canonical record is offer 2026-11-11.1: rooms are the unit; 1 free mon
   assert.deepEqual([record.referral.referrerRooms, record.referral.referredRooms, record.referral.referrerWalkthroughs, record.referral.referredWalkthroughs], [10, 10, 10, 10]);
   assert.deepEqual({ name: express.name, webAud: express.webAud, appStore: express.appStore, dailyCap: express.dailyCap, channels: express.channels },
     { name: 'Super fast render', webAud: 29, appStore: false, dailyCap: null, channels: ['web'] });
-  assert.equal(express.promise, 'rendered on the fastest GPU available in Australia and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically — sold only while its availability gate is green');
+  assert.equal(express.promise, 'rendered on the fastest GPU available and first in the queue: ready in about 30 minutes, any day, any time, or the A$29 is refunded automatically — sold only while its availability gate is green');
   assert.match(express.refund, /within 30 minutes of the upload finishing or the purchase, whichever is later, the A\$29 is refunded automatically/);
   // Owner decision, 25 September 2026: processing is automatic; nobody checks a walkthrough by hand.
   assert.equal(record.processing.automatic, true);
@@ -921,7 +921,7 @@ test('the terms state the free months, the plan’s rooms, referrals, how rooms 
     'If your first walkthrough isn’t listing-ready, we redo it free. This covers your account’s first accepted walkthrough: the redo is a correction on the same link and uses no rooms. A new capture visit is not included. This promise is in addition to your rights under the Australian Consumer Law.',
     // Super fast: price, promise, refund, no daily cap and the channel.
     `ask for a Super fast render of a capture that has been sent, for ${EXPRESS} or one Super fast render credit.`,
-    'It goes first in the queue on the fastest GPU available in Australia and is ready for review in about 30 minutes, any day and any time.',
+    'It goes first in the queue on the fastest GPU available and is ready for review in about 30 minutes, any day and any time.',
     `If it is not ready within 30 minutes of the upload finishing or your purchase, whichever is later, the ${EXPRESS} is refunded automatically, or the Super fast render is returned. There is no daily limit.`,
     'Super fast renders are not sold in the app.',
     'Rooms are used when a tour passes the automatic quality check and your account approves that exact revision; a capture that was not good enough uses none.',

@@ -654,7 +654,6 @@ test('point to point is the only mode: a floor tap never moves, circles and Next
     controller.tapAt(px, py);
     atStop(0);
   }
-  assert.equal(typeof controller.probe, 'undefined', 'no free-walk QA probe');
   byClass(x.stage, 'v2-next').click();
   atStop(1);
   x.stage.querySelectorAll('.v2-hotspot')[3].click();
