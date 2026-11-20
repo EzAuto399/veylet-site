@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "85085d12c3c6a3583c92fdc9bc971de6d1cb7d3d",
+  "sourceCommit": "eb97d19580bc377d9a2ed7c3019a4fec23b7c364",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -263,8 +263,8 @@
     },
     {
       "path": "account-guide.css",
-      "bytes": 83023,
-      "sha256": "f6e32f84f9e3b29cc5ac4e08c4f5bddf9bdb560e0ae7042bffba4ccafc7a4c07",
+      "bytes": 83600,
+      "sha256": "b6a7643aea9d4404d1b9ce3ddcde159092710b5b27f0e2c0b335d95ed26b1824",
       "headerProfile": 3
     },
     {
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 518672,
-      "sha256": "c9af07afc48ea8c9a957afdb0be58d447fff9b84017a6a2a3f7a4803df713604",
+      "bytes": 519977,
+      "sha256": "b763d4a2fa38332bf15b84b0b4806dacf52f5e6691c08de55231b885b563c8cb",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
-      "bytes": 24794,
-      "sha256": "3826c356f492bf1e06ef48c93be780c3b625062a901a72253c51608520305cb6",
+      "bytes": 25294,
+      "sha256": "bba23bd2aaeb859d5af5a87329e2579b769e8af7bedb2c1ced00d2e73f9abcfb",
       "headerProfile": 1
     },
     {
@@ -299,8 +299,8 @@
     },
     {
       "path": "analytics.css",
-      "bytes": 4461,
-      "sha256": "44fab8f92142d1f807933d9d7907647151ef2dff67f8da9f0bc7ed5de2e92ab8",
+      "bytes": 3878,
+      "sha256": "a1b455b586517a8473ed1ec7cadb959cca3b4de231529a8fa111161e072d9c6b",
       "headerProfile": 3
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 12039,
-      "sha256": "7b192d59ac8073605290a7c3d76804594592b9aa5e7b417a18ed21519c2a0627",
+      "sha256": "e36718f599f0d9cfd0bfb0fb6494a3aff707fd1d8d9fc3ea8c4fa94dfe935fbf",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2849,
-      "sha256": "c609f68c217d0ea34c12bdd8bca9c611ad834c522c488d6a4fb4adb872cc074d",
+      "sha256": "b9f9ac559307a444dcd4f350c98efad1708ba7ebe622d3d8b2c24e9cbe66cc9b",
       "headerProfile": 1
     },
     {
@@ -552,19 +552,19 @@
     {
       "path": "build-info.json",
       "bytes": 2668,
-      "sha256": "7cc99359a84107d06dfbdc95c91d3621c2b9b1638875722984986ee1cdfba4bc",
+      "sha256": "b5caf73ae09903105cc6b9cb1acbb4c1642918d2cbf2b6f56e916baf928d9d23",
       "headerProfile": 6
     },
     {
       "path": "client-page.css",
-      "bytes": 14911,
-      "sha256": "6d324f07f15fc38d849f8f1597f0225082d0fffd2dabcdbff64114e1f8a1f8a5",
+      "bytes": 15180,
+      "sha256": "0cb8faf3c46296d4720f1388b0f7e3688338406161ed8d2aa6a3bfb1de10aaba",
       "headerProfile": 3
     },
     {
       "path": "client-page.js",
-      "bytes": 64497,
-      "sha256": "cdf38c5ca96c9c889218d42e7c073934467a9ea7c6bd67da0b4eb71549dc3520",
+      "bytes": 66080,
+      "sha256": "ffa43a7ddf8903f6ca2b271ad32c221313ff6655fac141dcefac6fb634132d9a",
       "headerProfile": 4
     },
     {
@@ -588,7 +588,7 @@
     {
       "path": "embed/index.html",
       "bytes": 11919,
-      "sha256": "7d841362c5d2fd2b53824ac39bb65156fd4e20eef5ed3a7bf48c60fd1c25da86",
+      "sha256": "dbbcaa26640bd6c515f7e083e93ca51bc945ec83b8da734ac2a9ada888d39e7d",
       "headerProfile": 7
     },
     {
@@ -653,8 +653,8 @@
     },
     {
       "path": "handoff/index.html",
-      "bytes": 8263,
-      "sha256": "85e1cbc50ec950e2cb22bc853beca50f9d9133d55ac3af75093d97ee47d01d18",
+      "bytes": 8299,
+      "sha256": "305d506e5233bd2d826290014e0285f4a6bde3cb4709ab2066bcd839d494f2ea",
       "headerProfile": 1
     },
     {
@@ -864,7 +864,7 @@
     {
       "path": "index.html",
       "bytes": 26640,
-      "sha256": "cfe2a1abd7e7f5031888c3ce79ae0837aa49f2813d780a0144877fe3c81fd169",
+      "sha256": "0e563644fd19eef9ffef9febb85e663cb846ad9400dcc4d767bae6197583a1f7",
       "headerProfile": 1
     },
     {
@@ -1386,7 +1386,7 @@
     {
       "path": "offer/index.html",
       "bytes": 49674,
-      "sha256": "899457b715b3cc91ed56d6f4879d174bbd949d99d3a18f40389c976d01dc0b6f",
+      "sha256": "c843d13a6c65120d5d95084ca0717a25f4a1a74e04ac02517d62ca47d5604fe2",
       "headerProfile": 1
     },
     {
@@ -1410,13 +1410,13 @@
     {
       "path": "play/index.html",
       "bytes": 8596,
-      "sha256": "80aed3ce5eb8dc6bb79de0752e4a74d7dddd977b1999ceebe35ef6d0cf56b9ef",
+      "sha256": "593321e904c430146246a1ae9ba1de968d56d2f95d905c01246084b1a95ed4f2",
       "headerProfile": 1
     },
     {
       "path": "privacy/index.html",
       "bytes": 28245,
-      "sha256": "b8814460da943260da17ece01055e396be44b1528bc6513d437ce0d7bf989a78",
+      "sha256": "012e2c988132df0850f2fe8fca4ff46b7e1698a27ddff5f0deaafb0357b16e4c",
       "headerProfile": 1
     },
     {
@@ -2178,19 +2178,19 @@
     {
       "path": "see/index.html",
       "bytes": 34091,
-      "sha256": "8daa44c67c1eb52254aaa95ccc0a836b2b03cb879c5184d4fbcce255da154f1a",
+      "sha256": "292536c72e60c7e8459bf928ecefaf5a429dcd20ca85fc5405a17a57de57d90f",
       "headerProfile": 1
     },
     {
       "path": "see/see.css",
-      "bytes": 30180,
-      "sha256": "35ea1fd9b4cfc34ed4bf21fbc25ab1144958ce604d1bcee9fbe48942b80f8f65",
+      "bytes": 30178,
+      "sha256": "2d04f42f43ae31edcb03bc88a1333d8ac4f12abb7411b6e5e08c804a69b67730",
       "headerProfile": 3
     },
     {
       "path": "see/see.js",
       "bytes": 27202,
-      "sha256": "d7d2b3973c0986a77df892b281eeb7bf4ec83824060260af8cfa349ebcf8c9db",
+      "sha256": "4f16db5abd4e2a81ec54e57f998146c1461189bb76c36a2ac34c4474fb8750f8",
       "headerProfile": 4
     },
     {
@@ -2226,7 +2226,7 @@
     {
       "path": "start/index.html",
       "bytes": 22416,
-      "sha256": "cb8c63155e03d5eedca290efc46a609bf054d8d1a3c5364c60beb8eacebc47f3",
+      "sha256": "c098f319302ff512ff0c2e8462bf3aabb28c00be20bb069358933391b96c4654",
       "headerProfile": 1
     },
     {
@@ -2309,14 +2309,14 @@
     },
     {
       "path": "tour-player-v2.js",
-      "bytes": 127908,
-      "sha256": "92650a54c6fff7b1a2a520976d720280ae515b3010a6c783d29f5921db15325c",
+      "bytes": 127896,
+      "sha256": "ec6330898b9559d1606afc4a2b3bf8c62d9be1d3777188e63faf504cf6ff0bab",
       "headerProfile": 4
     },
     {
       "path": "tour-player.js",
-      "bytes": 26880,
-      "sha256": "04829e12631145e1c1d7b9e66b4ae9a1553e51653244aafac50872efe0725689",
+      "bytes": 26955,
+      "sha256": "63bdaf6886b4df9275dddeb0e3829d5dae66d0866b34e399faaac72ca544ed6e",
       "headerProfile": 4
     },
     {
@@ -2327,14 +2327,14 @@
     },
     {
       "path": "tour-stage.css",
-      "bytes": 5805,
-      "sha256": "423e591f9831ff64062e3381c8e9c7bfa98da67046391b8aca2e49e0552a9e78",
+      "bytes": 5806,
+      "sha256": "704b657642f5b1d449b79d6ce95573f5025afb0c9e2b8c57d55cf2c376207b19",
       "headerProfile": 3
     },
     {
       "path": "tour/index.html",
       "bytes": 9512,
-      "sha256": "b72993d6ca4d8ac9151fc6ae4770d3e2ae3010fb439ac90a2fba40521d0f3a20",
+      "sha256": "ac0df0fe29d883fda61963287625c6ac25c9b2374a645be2c57142beea40572e",
       "headerProfile": 19
     },
     {
@@ -2423,14 +2423,14 @@
     },
     {
       "path": "waitlist/index.html",
-      "bytes": 12815,
-      "sha256": "8cfc79d374b26494fb7cecd7fa5c6547c0b87b142d6612a10bb4e135d85ab0c8",
+      "bytes": 10531,
+      "sha256": "8106b13cd1792c6ad2f0560529bf899632bcc655adf9d95dd339f4b05e8433c8",
       "headerProfile": 1
     },
     {
       "path": "waitlist/waitlist.js",
-      "bytes": 15340,
-      "sha256": "66f665b1c09afeb9b5c4f27bbda1a313cb5d15c6c99f52a6b1033898fd09da00",
+      "bytes": 15347,
+      "sha256": "2f1a254aa2be8066d78eac95f73f3caef1bb492484848aedd795496df445b725",
       "headerProfile": 4
     },
     {
