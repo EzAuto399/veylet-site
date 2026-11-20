@@ -104,7 +104,7 @@ test('without the name the page says what it says today: before the database cha
     const gone = await boot({ answer });
     assert.deepEqual([gone.els.title.textContent, gone.els.body.textContent], today, JSON.stringify(answer));
     assert.equal(gone.result.outcome, 'missing');
-    assert.equal(gone.els.retry.hidden, false);
+    assert.equal(gone.els.retry.hidden, true, 'definitive miss hides Try again');
   }
 });
 

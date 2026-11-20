@@ -143,8 +143,8 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: 44px;
+  padding: 10px 14px;
   border: 1px solid rgba(244, 241, 233, 0.28);
   border-radius: 999px;
   background: rgba(16, 35, 29, 0.78);

@@ -82,6 +82,9 @@
   // a space opens on its own at #space-<id>, with a way back to all of them.
   const spaceIndex = document.getElementById('account-space-index');
   const spaceList = document.getElementById('account-space-list');
+  const spaceFilterWrap = document.getElementById('account-space-filter-wrap');
+  const spaceFilterInput = document.getElementById('account-space-filter');
+  const spaceFilterStatus = document.getElementById('account-space-filter-status');
   const spaceTotals = document.getElementById('account-totals');
   const workView = document.getElementById('view-walkthroughs');
   const spaceEls = new Map(), spaceHeads = new Map(), spaceOfTour = new Map();
@@ -2723,6 +2726,24 @@
     if (tourApproval.get(tour.id) === true) return hosting?.get(tour.id)?.released_at ? 'off' : 'share';
     return 'review';
   }
+  function applySpaceFilter() {
+    if (!spaceList) return;
+    const query = String(spaceFilterInput?.value || '').trim().toLowerCase();
+    let shown = 0, total = 0;
+    for (const row of spaceList.children || []) {
+      if (row.className !== 'space-row') continue;
+      total += 1;
+      const hay = String(row.dataset?.search || '').toLowerCase();
+      const match = !query || hay.includes(query);
+      row.hidden = !match;
+      if (match) shown += 1;
+    }
+    if (spaceFilterStatus) {
+      spaceFilterStatus.hidden = !query;
+      spaceFilterStatus.textContent = !query ? '' : shown === 0 ? 'No matching spaces.' : `Showing ${shown} of ${total} spaces.`;
+    }
+  }
+  spaceFilterInput?.addEventListener?.('input', applySpaceFilter);
   function spaceIndexDraw(properties, rows, hosting) {
     if (!spaceMode()) return;
     const nodes = properties.map(space => {
@@ -2730,8 +2751,10 @@
       const keys = tours.map(tour => spaceStateKey(tour, hosting));
       const lead = SPACE_STATES.find(([key]) => keys.includes(key));
       const item = document.createElement('li'); item.className = 'space-row'; item.dataset.space = space.id;
+      const titleText = typeof space.title === 'string' && space.title.trim() ? space.title.trim() : 'Untitled space';
+      item.dataset.search = [titleText, space.location_general || '', space.category || ''].join(' ').toLowerCase();
       const name = document.createElement('p'); name.className = 'space-row-name';
-      name.textContent = typeof space.title === 'string' && space.title.trim() ? space.title.trim() : 'Untitled space';
+      name.textContent = titleText;
       const meta = document.createElement('p'); meta.className = 'space-row-meta';
       if (lead) { const chip = document.createElement('span'); chip.className = 'pill pill-' + lead[2]; chip.textContent = lead[1]; meta.append(chip); }
       const count = document.createElement('span');
@@ -2744,6 +2767,9 @@
     });
     spaceList.replaceChildren(...nodes);
     spaceIndex.hidden = nodes.length === 0;
+    if (spaceFilterWrap) spaceFilterWrap.hidden = nodes.length <= 3;
+    if (nodes.length <= 3 && spaceFilterInput) spaceFilterInput.value = '';
+    applySpaceFilter();
   }
   function viewCount(value) { return Number.isInteger(value) && value >= 0 ? value : null; }
   // One quiet line at the end of the card's first row: "14 opens · 3 calls · 1 email · last 9 Nov 2026".

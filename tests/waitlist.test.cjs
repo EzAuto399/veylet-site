@@ -41,23 +41,19 @@ function page(answers = [], config = CONFIG) {
 const fieldTags = () => [...markup.matchAll(/<(input|select|textarea)\b([^>]*)>/g)].map(m => ({ tag: m[1], attrs: m[2],
   name: (/\bname="([^"]+)"/.exec(m[2]) || [])[1] }));
 
-test('the form asks the plan\'s questions, and only the waitlist answers are required', () => {
+test('the form asks the three decided questions (name, email, device), and only those are required', () => {
   const fields = fieldTags();
   const required = fields.filter(f => /\brequired\b/.test(f.attrs)).map(f => f.name);
-  assert.deepEqual(required, ['name', 'email', 'business_type', 'device', 'region']);
+  assert.deepEqual(required, ['name', 'email', 'device']);
   const api = load();
   const options = name => [...markup.split(`name="${name}"`)[1].split('</select>')[0].matchAll(/<option value="([^"]*)"/g)].map(m => m[1]).filter(Boolean);
-  assert.deepEqual(options('business_type'), [...api.BUSINESS]);
   assert.deepEqual(options('device'), [...api.DEVICES]);
-  assert.deepEqual(fields.filter(f => f.name === 'channels').map(f => (/value="([^"]+)"/.exec(f.attrs) || [])[1]), [...api.CHANNELS]);
-  assert.match(markup, /Buyer’s agent/);
-  assert.match(markup, /Photographer or freelancer/);
+  assert.equal(fields.some(f => f.name === 'business_type' || f.name === 'region' || f.name === 'volume' || f.name === 'channels'), false);
   assert.match(markup, /<option value="iphone_pro_lidar">iPhone 12 Pro or newer \(Pro or Pro Max\)</);
   assert.match(markup, /<option value="ipad_pro_lidar">iPad Pro, 2020 or newer</);
   assert.match(markup, /<option value="iphone_other">Another iPhone \(standard, Plus or older\)</);
   // Plain words on the page: no sensor jargon (owner, 29 Sep).
   assert.doesNotMatch(markup, /LiDAR/);
-  assert.match(markup, /Where will you show walkthroughs\?/);
   // The device line explains the question and is read with it.
   assert.match(markup, /aria-describedby="waitlist-lidar"/);
   assert.match(markup, /id="waitlist-lidar"[^>]*>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer\. Standard and Plus iPhones, older models and Android phones can’t capture yet\. Any phone can view a walkthrough\.</);
@@ -259,16 +255,14 @@ function storage(values = {}) {
 }
 const TOUCH = { utm_source: 'instagram', utm_medium: 'paid', utm_campaign: 'waitlist-sep', utm_content: 'reel_a', click: 'meta', landing: '/see' };
 
-test('an optional volume question follows the device question, with the Meta lead form\'s answers', () => {
+test('the three-question form sends null business_type and region and empty channels, which problem() accepts', () => {
   const api = load();
   assert.deepEqual([...api.VOLUMES], ['none', '1_2', '3_5', '6_plus', 'not_sure']);
-  const select = /How many listings or spaces do you expect to capture in the next 3 months\? \(optional\)\s*<select name="volume">([\s\S]*?)<\/select>/.exec(markup);
-  assert.ok(select, 'the volume question and its label');
-  assert.deepEqual([...select[1].matchAll(/<option value="([^"]*)">([^<]*)<\/option>/g)].map(m => [m[1], m[2]]),
-    [['', 'Choose one'], ['none', 'None yet'], ['1_2', '1–2'], ['3_5', '3–5'], ['6_plus', '6 or more'], ['not_sure', 'Not sure yet']]);
-  const order = ['name="device"', 'name="volume"', 'name="region"'].map(needle => markup.indexOf(needle));
-  assert.deepEqual([...order].sort((a, b) => a - b), order, 'device, then volume, then region');
-  assert.doesNotMatch(fieldTags().find(f => f.name === 'volume').attrs, /\brequired\b/);
+  const threeField = api.answersFrom(new FakeFormData({ name: 'Sam Agent', email: 'sam@agency.com.au', device: 'iphone_pro_lidar' }));
+  assert.equal(threeField.p_business_type, null);
+  assert.equal(threeField.p_region, null);
+  assert.deepEqual(JSON.parse(JSON.stringify(threeField.p_channels)), []);
+  assert.equal(api.problem(threeField), '');
 });
 
 test('answers carry the volume and the visit\'s campaign labels; empty ones are null and bad shapes never leave', () => {

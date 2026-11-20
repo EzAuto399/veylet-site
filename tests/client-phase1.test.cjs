@@ -32,22 +32,25 @@ test('one set of words for a link that cannot open, each with one next step', ()
   }
 });
 
-test('a paused or missing link says what to do and offers Try again; a cut-off link offers no retry', () => {
+test('a definitive missing link hides Try again; a paused link offers Try again; a cut-off link offers no retry', async () => {
   let reloads = 0;
   const player = realPlayer({ location: { reload() { reloads++; } } });
   const els = surface();
   player.showMissing(els);
   assert.deepEqual([els.title.textContent, els.body.textContent], [WORDS.missingHeading, WORDS.missingBody]);
-  assert.deepEqual([els.actions.hidden, els.retry.hidden, els.frame.hidden, els.stage.hidden], [false, false, true, true]);
-  els.retry.events.click({ preventDefault() {} });
-  assert.equal(reloads, 1, 'Try again reloads the page once');
+  assert.deepEqual([els.actions.hidden, els.retry.hidden, els.frame.hidden, els.stage.hidden], [true, true, true, true]);
+  const paused = surface();
+  await player.showMissing(paused, { client: { rpc: async () => ({ data: [{ paused: true, display_name: 'Sam' }], error: null }) }, token: 'a'.repeat(32) });
+  assert.deepEqual([paused.actions.hidden, paused.retry.hidden], [false, false]);
+  paused.retry.events.click({ preventDefault() {} });
+  assert.equal(reloads, 1, 'Try again on a paused link reloads the page once');
   const cut = surface();
   player.showIncomplete(cut);
   assert.deepEqual([cut.title.textContent, cut.body.textContent], [WORDS.incompleteHeading, WORDS.incompleteBody]);
   assert.deepEqual([cut.actions.hidden, cut.retry.hidden], [true, true]);
 });
 
-test('boot on a client page uses the shared words, offers Try again on a miss and says how it ended', async () => {
+test('boot on a client page uses the shared words, offers Try again only when transient or paused, and says how it ended', async () => {
   const dead = [{ hidden: false }];
   const boot = async (failure) => {
     const window = { addEventListener() {}, removeEventListener() {}, VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'k' }, supabase: { createClient: () => ({}) } };
@@ -68,7 +71,7 @@ test('boot on a client page uses the shared words, offers Try again on a miss an
   const gone = await boot({ code: 'share-not-found', transient: false });
   assert.equal(gone.result.outcome, 'missing');
   assert.deepEqual([gone.els.title.textContent, gone.els.body.textContent], [WORDS.missingHeading, WORDS.missingBody]);
-  assert.equal(gone.els.retry.hidden, false, 'a paused link can be switched back on, so Try again is offered');
+  assert.equal(gone.els.retry.hidden, true, 'a definitive miss hides Try again');
   assert.equal(dead[0].hidden, true, 'and links to the same dead token still go');
 });
 

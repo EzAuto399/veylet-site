@@ -696,27 +696,53 @@
     opts = opts || {};
     const opener = doc.activeElement || null;
     if (typeof sheet._veyletEscCleanup === 'function') sheet._veyletEscCleanup();
-    const closeSheet = () => {
-      if (sheet.hidden) return;
-      sheet.hidden = true;
+    let nameField, phoneField, emailField, msgInput;
+    const saveDraft = () => {
+      if (!nameField) return;
+      sheet._veyletDraft = {
+        name: nameField.input.value || '',
+        phone: phoneField.input.value || '',
+        email: emailField.input.value || '',
+        message: msgInput.value || '',
+      };
+    };
+    const closeSheet = (keepDraft = true) => {
+      if (keepDraft) saveDraft();
+      else sheet._veyletDraft = null;
+      if (typeof sheet.close === 'function' && sheet.open) {
+        try { sheet.close(); } catch { /* already closed */ }
+      }
+      if (!sheet.hidden) sheet.hidden = true;
       if (typeof sheet._veyletEscCleanup === 'function') sheet._veyletEscCleanup();
       opener?.focus?.();
     };
     const onKeyDown = event => {
       if (!event || event.key !== 'Escape' || sheet.hidden) return;
       if (typeof event.preventDefault === 'function') event.preventDefault();
-      closeSheet();
+      closeSheet(true);
     };
-    if (typeof doc.addEventListener === 'function') {
-      doc.addEventListener('keydown', onKeyDown);
-      sheet._veyletEscCleanup = () => {
-        doc.removeEventListener?.('keydown', onKeyDown);
-        sheet._veyletEscCleanup = null;
-      };
+    const onCancel = event => {
+      if (event && typeof event.preventDefault === 'function') event.preventDefault();
+      closeSheet(true);
+    };
+    const onBackdrop = event => {
+      if (event && event.target === sheet) closeSheet(true);
+    };
+    if (typeof doc.addEventListener === 'function') doc.addEventListener('keydown', onKeyDown);
+    if (typeof sheet.addEventListener === 'function') {
+      sheet.addEventListener('cancel', onCancel);
+      sheet.addEventListener('click', onBackdrop);
     }
+    sheet._veyletEscCleanup = () => {
+      doc.removeEventListener?.('keydown', onKeyDown);
+      sheet.removeEventListener?.('cancel', onCancel);
+      sheet.removeEventListener?.('click', onBackdrop);
+      sheet._veyletEscCleanup = null;
+    };
 
     const stopNum = typeof opts.getStop === 'function' ? opts.getStop() : (place && place.number ? place.number : null);
     const heading = element(doc, 'p', 'enquiry-sheet-title', 'Ask ' + contact.name + ' or request a viewing');
+    heading.id = 'enquiry-sheet-title';
     const sub = element(
       doc,
       'p',
@@ -739,16 +765,21 @@
       wrap.append(input);
       return { wrap, input };
     };
-    const nameField = makeInput('Your name', 'visitor_name', 'text', 80, 'name');
-    const phoneField = makeInput('Mobile', 'visitor_phone', 'tel', 32, 'tel', 'tel');
-    const emailField = makeInput('Email', 'visitor_email', 'email', 254, 'email', 'email');
+    const draft = sheet._veyletDraft || {};
+    nameField = makeInput('Your name', 'visitor_name', 'text', 80, 'name');
+    phoneField = makeInput('Mobile', 'visitor_phone', 'tel', 32, 'tel', 'tel');
+    emailField = makeInput('Email', 'visitor_email', 'email', 254, 'email', 'email');
+    if (draft.name) nameField.input.value = draft.name;
+    if (draft.phone) phoneField.input.value = draft.phone;
+    if (draft.email) emailField.input.value = draft.email;
 
     const msgWrap = element(doc, 'label', 'enquiry-field');
     msgWrap.append(element(doc, 'span', 'enquiry-field-label', 'Question or preferred day (optional)'));
-    const msgInput = element(doc, 'textarea', 'enquiry-textarea');
+    msgInput = element(doc, 'textarea', 'enquiry-textarea');
     msgInput.name = 'visitor_message';
     msgInput.setAttribute('rows', '3');
     msgInput.setAttribute('maxlength', '500');
+    if (draft.message) msgInput.value = draft.message;
     msgWrap.append(msgInput);
 
     // Honeypot (hidden from visitors)
@@ -767,16 +798,17 @@
     sendBtn.type = 'submit';
     const closeBtn = element(doc, 'button', 'button button-ghost agent-action', 'Cancel');
     closeBtn.type = 'button';
-    closeBtn.addEventListener('click', closeSheet);
+    closeBtn.addEventListener('click', () => closeSheet(true));
     row.append(sendBtn, closeBtn);
 
     form.append(nameField.wrap, phoneField.wrap, emailField.wrap, msgWrap, trap, row, status);
     let busy = false;
     const showSent = () => {
+      sheet._veyletDraft = null;
       const sentMsg = element(doc, 'p', 'enquiry-sent', 'Sent. ' + contact.name + ' has your enquiry.');
       const doneBtn = element(doc, 'button', 'button button-ghost agent-action', 'Done');
       doneBtn.type = 'button';
-      doneBtn.addEventListener('click', closeSheet);
+      doneBtn.addEventListener('click', () => closeSheet(false));
       const doneRow = element(doc, 'div', 'enquiry-sent-row');
       doneRow.append(sentMsg, doneBtn);
       sheet.replaceChildren(doneRow);
@@ -883,8 +915,11 @@
 
     sheet.replaceChildren(heading, sub, form);
     sheet.hidden = false;
+    if (typeof sheet.showModal === 'function' && !sheet.open) {
+      try { sheet.showModal(); } catch { /* already open or non-dialog host */ }
+    }
     const isMobileViewport = Boolean(doc.defaultView && typeof doc.defaultView.matchMedia === 'function' && doc.defaultView.matchMedia('(max-width: 768px)').matches);
-    if (!isMobileViewport) sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
+    if (!isMobileViewport && typeof sheet.showModal !== 'function') sheet.scrollIntoView?.({ block: 'nearest', behavior: 'auto' });
     if (typeof nameField.input.focus === 'function') {
       if (isMobileViewport) {
         try { nameField.input.focus({ preventScroll: true }); } catch { nameField.input.focus(); }

@@ -13,7 +13,7 @@
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
     <link rel="stylesheet" href="/style.css?v=e55599754fbf25cf" />
-    <link rel="stylesheet" href="/account-guide.css?v=f6e32f84f9e3b29c" />
+    <link rel="stylesheet" href="/account-guide.css?v=b6a7643aea9d4404" />
     <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
@@ -25,7 +25,7 @@
     <script src="/site-lib.js?v=3762aa68c924c230" defer></script>
     <script src="/plan-terms.js?v=6b260a957d47d82e" defer></script>
     <script src="/account-journey.js?v=a334153aadf5947f" defer></script>
-    <script src="/account.js?v=c9af07afc48ea8c9" defer></script>
+    <script src="/account.js?v=b763d4a2fa38332b" defer></script>
     <script src="/stage.js?v=f8eb9d11b27ce120" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
@@ -194,7 +194,14 @@
           <p class="plan-line" id="account-plan-line" hidden></p>
           <!-- One row per space with its most pressing state; Open shows that space alone (#space-<id>). -->
           <section id="account-space-index" class="space-index" aria-labelledby="account-space-index-title" hidden>
-            <h2 class="needs-title" id="account-space-index-title">Spaces</h2>
+            <div class="space-index-head">
+              <h2 class="needs-title" id="account-space-index-title">Spaces</h2>
+              <label class="space-filter-wrap" id="account-space-filter-wrap" hidden>
+                <span class="sr-only">Filter spaces</span>
+                <input id="account-space-filter" class="space-filter" type="search" placeholder="Filter spaces" autocomplete="off" />
+              </label>
+            </div>
+            <p class="contact-note space-filter-status" id="account-space-filter-status" role="status" aria-live="polite" hidden></p>
             <ul class="space-list" id="account-space-list"></ul>
           </section>
           <ul class="account-list" id="account-properties"></ul>

@@ -74,3 +74,21 @@ test('the totals count every shared walkthrough, past forty', async () => {
   assert.deepEqual(h.ids['account-totals'].children.slice(0, 3).map(el => el.children[0].textContent), ['90', '45', '0']);
 });
 
+test('the Spaces filter appears past three spaces and narrows rows live by title or location', async () => {
+  const four = [
+    ...properties,
+    { id: 'p4', title: 'Riverfront unit', location_general: 'New Farm', workspace_id: 'w1' },
+  ];
+  const small = await desk(); await small.settle();
+  assert.equal(small.ids['account-space-filter-wrap'].hidden, true, '3 spaces stay uncluttered');
+  const h = await loadDesk({ tables: { tours: { data: tours }, properties: { data: four } }, approved: ['t2', 't3'],
+    rpc: { get_tour_view_stats: async () => ({ data: [{ opens: 1, call_taps: 0, email_taps: 0 }] }) } });
+  await h.settle();
+  assert.equal(h.ids['account-space-filter-wrap'].hidden, false);
+  const input = h.ids['account-space-filter'];
+  input.value = 'new farm';
+  await input.fire('input');
+  assert.deepEqual(rows(h).map(r => r.hidden), [true, true, true, false]);
+  assert.equal(h.ids['account-space-filter-status'].textContent, 'Showing 1 of 4 spaces.');
+});
+

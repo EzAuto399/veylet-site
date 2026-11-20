@@ -31,10 +31,10 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.js?v=92650a54c6fff7b1" as="script" />
+    <link rel="preload" href="/tour-player-v2.js?v=ec6330898b9559d1" as="script" />
     <link rel="stylesheet" href="/style.css?v=e55599754fbf25cf" />
-    <link rel="stylesheet" href="/tour-stage.css?v=423e591f9831ff64" />
-    <link rel="stylesheet" href="/client-page.css?v=6d324f07f15fc38d" />
+    <link rel="stylesheet" href="/tour-stage.css?v=704b657642f5b1d4" />
+    <link rel="stylesheet" href="/client-page.css?v=0cb8faf3c46296d4" />
     <!-- A complete-looking token: hold the stage's and the agent card's places
          from first paint (client-page.css, "Held places"). Without JavaScript
          nothing is held and the page reads as it always has. The rule is
@@ -54,10 +54,10 @@
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
     <script src="/viewer-engagement.js?v=5b71cc315b651927"></script>
     <script src="/site-lib.js?v=3762aa68c924c230"></script>
-    <script src="/client-page.js?v=cdf38c5ca96c9c88"></script>
+    <script src="/client-page.js?v=ffa43a7ddf8903f6"></script>
     <!-- Watch for a failed start from here on, in buyer words (client-page.js watchFailures). -->
     <script>window.VeyletClientPage.watchFailures(window, document);</script>
-    <script src="/tour-player.js?v=04829e12631145e1"></script>
+    <script src="/tour-player.js?v=63bdaf6886b4df92"></script>
     <script src="/tour-page.js?v=46f3970a34ac9122"></script>
   </head>
   <body class="client-surface">
@@ -77,7 +77,7 @@
         <div class="client-side" id="client-side">
           <!-- The agent who shared it, only when the server returns their opt-in contact. -->
           <section class="agent-card" id="agent-card" hidden></section>
-          <section class="agent-enquiry-sheet" id="agent-enquiry-sheet" hidden></section>
+          <dialog class="agent-enquiry-sheet" id="agent-enquiry-sheet" aria-labelledby="enquiry-sheet-title" hidden></dialog>
         </div>
         <div class="client-main">
           <div class="tour-frame-wrap" id="tour-frame-wrap" hidden>

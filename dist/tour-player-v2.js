@@ -1437,10 +1437,10 @@
         label.setAttribute('font-size', String(half * 0.12));
         label.setAttribute('dy', String(half * 0.042));
         label.textContent = String(visitNumber(manifest, index));
-        // A finger needs more than the dot: an unseen circle about 24 px across takes the press.
+        // A finger needs more than the dot: an unseen ~44 px circle takes the press.
         const hit = document.createElementNS(ns, 'circle');
         hit.setAttribute('class', 'v2-map-hit');
-        hit.setAttribute('r', String(half * 0.14));
+        hit.setAttribute('r', String(half * 0.22));
         dot.append(hit, circle, label);
         dot.addEventListener('click', () => goToStop(index));
         mapGroup.append(dot);

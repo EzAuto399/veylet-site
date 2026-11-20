@@ -112,6 +112,17 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
+  color: var(--ink);
+}
+dialog.agent-enquiry-sheet {
+  margin: auto;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+dialog.agent-enquiry-sheet::backdrop {
+  background: rgba(16, 35, 29, 0.48);
 }
 .agent-enquiry-sheet.agent-sheet-branded {
   border-top: 3px solid var(--agent-brand, var(--accent));

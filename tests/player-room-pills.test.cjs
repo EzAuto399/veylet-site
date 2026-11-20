@@ -297,12 +297,12 @@ test('room-jump pill bar hides when < 2 distinct named rooms exist or frame is c
   assert.equal(navCompact.hidden, false);
 });
 
-test('tour-stage.css styles .v2-rooms with docked bar layout, 300px compact hide, 0.78 ink, hidden scrollbars, 36px/44px targets, and mint active state', () => {
+test('tour-stage.css styles .v2-rooms with docked bar layout, 300px compact hide, 0.78 ink, hidden scrollbars, 44px targets, and mint active state', () => {
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s*\{[^}]*flex:\s*1 1 100%/);
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s*\{[^}]*min-height:\s*44px/);
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s*\{[^}]*scrollbar-width:\s*none/);
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms::-webkit-scrollbar\s*\{\s*display:\s*none;/);
-  assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s+\.v2-room-pill\s*\{[^}]*min-height:\s*36px/);
+  assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s+\.v2-room-pill\s*\{[^}]*min-height:\s*44px/);
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s+\.v2-room-pill\s*\{[^}]*background:\s*rgba\(16,\s*35,\s*29,\s*0\.78\)/);
   assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s+\.v2-room-pill\[aria-current="true"\]\s*\{[^}]*background:\s*#c6dcc9/);
   assert.match(stageCss, /@media\s*\(max-height:\s*300px\)\s*\{[^}]*\.v2-rooms\s*\{\s*display:\s*none;/);

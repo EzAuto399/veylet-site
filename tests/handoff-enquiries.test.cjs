@@ -467,6 +467,44 @@ test('/handoff guards lookupContact vs lookupHandoffContext race in both directi
   assert.deepEqual(JSON.parse(JSON.stringify(visitContactC.actions.map(a => a.label))), ['Call', 'Email']);
 });
 
+test('enquiry dialog uses showModal/close, restores focus, and preserves draft across Cancel until sent', async () => {
+  const page = loadModule();
+  const doc = createDocument();
+  const card = doc.createElement('section'); card.id = 'agent-card'; card.hidden = true; doc.body.append(card);
+  const bar = doc.createElement('aside'); bar.id = 'agent-bar'; bar.hidden = true; doc.body.append(bar);
+  const sheet = doc.createElement('dialog'); sheet.id = 'agent-enquiry-sheet'; sheet.hidden = true;
+  let modals = 0, closes = 0;
+  sheet.open = false;
+  sheet.showModal = () => { modals += 1; sheet.open = true; };
+  sheet.close = () => { closes += 1; sheet.open = false; };
+  doc.body.append(sheet);
+
+  const contact = page.contactFrom([{ display_name: 'Sarah Chen', email: 'sarah@harbour.test', allow_viewing_request: true }]);
+  page.showContact(doc, contact, '14 River St', null, false, {
+    token: 'a1b2c3d4e5f60718293a4b5c6d7e8f90',
+    enquiryClient: { rpc: async () => ({ data: { accepted: true }, error: null }) },
+  });
+  const bookBtn = card.querySelectorAll('button').find(b => b.textContent === 'Book viewing');
+  let refocused = 0;
+  bookBtn.focus = () => { refocused += 1; };
+  doc.activeElement = bookBtn;
+
+  bookBtn.click();
+  assert.equal(modals, 1);
+  assert.equal(sheet.open, true);
+  sheet.querySelectorAll('input').find(i => i.name === 'visitor_name').value = 'Alex';
+  sheet.querySelector('textarea').value = 'Saturday afternoon?';
+  sheet.querySelectorAll('button').find(b => b.textContent === 'Cancel').click();
+  assert.equal(closes, 1);
+  assert.equal(sheet.hidden, true);
+  assert.equal(refocused, 1);
+
+  bookBtn.click();
+  assert.equal(modals, 2);
+  assert.equal(sheet.querySelectorAll('input').find(i => i.name === 'visitor_name').value, 'Alex');
+  assert.equal(sheet.querySelector('textarea').value, 'Saturday afternoon?');
+});
+
 test('the Book viewing fields name themselves to the phone and never trigger the iOS focus zoom', () => {
   const js = read('client-page.js');
   assert.match(js, /makeInput\('Your name', 'visitor_name', 'text', 80, 'name'\)/);

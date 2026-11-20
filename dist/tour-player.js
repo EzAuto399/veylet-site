@@ -205,7 +205,8 @@
   player.showMissing = (els, ask) => {
     const surface = surfaceOf(els);
     wireRetry(surface.retry);
-    const show = (pausedBy) => player.showFailure(surface, { ...missingWords(pausedBy), retry: true, definitive: true });
+    // Only a paused link can be switched back on; a definitive miss hides Try again.
+    const show = (pausedBy) => player.showFailure(surface, { ...missingWords(pausedBy), retry: Boolean(pausedBy), definitive: true });
     if (!ask) { show(null); return undefined; }
     return player.lookupPause(ask.client, ask.token).then(show);
   };
@@ -424,7 +425,7 @@
       player.showFailure(surface, {
         heading: paused ? paused.heading : options.missingHeading || OFFLINE_HEADING,
         body: paused ? paused.body : transient ? options.transientBody || LOAD_BODY : options.missingBody || STORAGE_BODY,
-        retry: transient || Boolean(options.client),
+        retry: transient || Boolean(pausedBy),
         definitive: !transient,
       });
       return { outcome: transient ? 'unreachable' : 'missing' };
@@ -436,7 +437,7 @@
       player.showFailure(surface, {
         heading: options.missingHeading || OFFLINE_HEADING,
         body: options.missingBody || 'The link is missing, revoked, or the tour is not ready.',
-        retry: Boolean(options.client),
+        retry: false,
         definitive: true,
       });
       return { outcome: 'missing' };
@@ -508,7 +509,7 @@
     if (!stage) { unusable(); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=92650a54c6fff7b1');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=ec6330898b9559d1');
     } catch {
       failed(LOAD_BODY, true);
       return;

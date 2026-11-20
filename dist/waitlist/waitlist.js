@@ -99,9 +99,9 @@
     return {
       p_name: text(data.get('name'), 120),
       p_email: text(data.get('email'), 254),
-      p_business_type: String(data.get('business_type') || ''),
+      p_business_type: orNull(String(data.get('business_type') || '')),
       p_device: String(data.get('device') || ''),
-      p_region: text(data.get('region'), 120),
+      p_region: orNull(text(data.get('region'), 120)),
       p_channels: channels,
       p_consent_tips: data.get('consent_tips') === 'yes',
       p_consent_wording: TIPS.version,
@@ -119,9 +119,8 @@
   function problem(answers) {
     if (!answers.p_name) return 'name';
     if (!EMAIL.test(answers.p_email)) return 'email';
-    if (BUSINESS.indexOf(answers.p_business_type) === -1) return 'business_type';
+    if (answers.p_business_type != null && BUSINESS.indexOf(answers.p_business_type) === -1) return 'business_type';
     if (DEVICES.indexOf(answers.p_device) === -1) return 'device';
-    if (!answers.p_region) return 'region';
     if (answers.p_volume && VOLUMES.indexOf(answers.p_volume) === -1) return 'volume';
     return '';
   }
