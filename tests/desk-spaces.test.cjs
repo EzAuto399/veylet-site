@@ -29,16 +29,28 @@ test('the index lists every space with its most pressing state and walkthrough c
   assert.equal(h.control(rows(h)[0], 'space-open').getAttribute('aria-label'), 'Open Corner office');
 });
 
-test('the totals add up opens, calls and emails of the shared walkthroughs, one read each', async () => {
+test('the totals add up opens and contact taps of the shared walkthroughs, one read each', async () => {
   const h = await desk(); await h.settle();
   const totals = h.ids['account-totals'];
   assert.equal(totals.hidden, false);
-  assert.deepEqual(totals.children.slice(0, 3).map(el => el.children.map(part => part.textContent)), [['15', 'opens'], ['3', 'calls'], ['1', 'email']]);
+  assert.deepEqual(totals.children.slice(0, 3).map(el => el.children.map(part => part.textContent)), [['15', 'opens'], ['3', 'call taps'], ['1', 'email tap']]);
   assert.equal(totals.children[3].textContent, 'Since sharing began, across 2 shared walkthroughs.');
   assert.deepEqual(h.called('get_tour_view_stats').map(args => args.p_tour_id).sort(), ['t2', 't3']);
   const older = await desk({ rpc: { get_tour_view_stats: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
   await older.settle();
   assert.equal(older.ids['account-totals'].hidden, true);
+});
+
+test('a shared walkthrough without a tap count leaves that total unread, never zero', async () => {
+  const partial = await desk({ rpc: { get_tour_view_stats: async args => ({ data: [args.p_tour_id === 't2'
+    ? { opens: 14, call_taps: 3, last_opened_at: '2026-10-05T00:00:00Z' }
+    : { opens: 1, call_taps: 0, email_taps: 0, last_opened_at: '2026-10-05T00:00:00Z' }] }) } });
+  await partial.settle();
+  const totals = partial.ids['account-totals'];
+  assert.equal(totals.hidden, false);
+  assert.deepEqual(totals.children.slice(0, 3).map(el => el.children.map(part => part.textContent)),
+    [['15', 'opens'], ['3', 'call taps'], ['—', 'email taps']], 'a missing count shows a dash, not zero');
+  assert.equal(totals.children[3].textContent, 'Since sharing began, across 2 shared walkthroughs. Some contact tap counts are incomplete.');
 });
 
 test('Open shows that space alone, All spaces returns, and a Needs you row opens its own space', async () => {

@@ -1037,13 +1037,13 @@ test('views: opens with the last day and the Call and Email taps, under the stat
   const card = h.card('t1');
   const views = card.all().find(el => el.className === 'tour-views');
   assert.equal(views.hidden, false);
-  assert.equal(views.textContent, '14 opens · 3 calls · 1 email · last 24 Sep 2026');
+  assert.equal(views.textContent, '14 opens · 3 call taps · 1 email tap · last 24 Sep 2026');
   assert.equal(views.parent.className, 'tour-meta-row', 'one line, ending the card’s first row');
   assert.equal(views.parent.children.at(-1), views);
   assert.deepEqual(h.calls.filter(([name]) => name === 'get_tour_view_stats').map(([, args]) => args.p_tour_id), ['t1']);
   const once = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 1 }] }) } });
   await settle();
-  assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').textContent, '1 open · 3 calls · 1 email · last 24 Sep 2026');
+  assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').textContent, '1 open · 3 call taps · 1 email tap · last 24 Sep 2026');
   const none = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 0, call_taps: 0, email_taps: 0, last_opened_at: null }] }) } });
   await settle();
   assert.equal(none.card('t1').all().find(el => el.className === 'tour-views').textContent, 'Not opened yet.');
@@ -1202,8 +1202,11 @@ test('each capture and its review say how many rooms its approval uses; unknown 
     assert.equal(line.textContent, words);
     // Also on a capture still on its way.
     const waiting = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'waiting', status: 'queued', queue_position: 2, rooms, walkthroughs_used: used, allowance_unit: 'room' }) } });
-    assert.equal(renderBlockOf(waiting).all().find(el => /\brender-units\b/.test(el.className)).textContent, words);
+    assert.equal(renderBlockOf(waiting).all().find(el => /\brender-units\b/.test(el.className)).textContent, words.replace('This uses', 'If approved as a new walkthrough, this uses'));
   }
+  // While the capture is still sending, the charge is said as conditional on approval: it counts only then.
+  const sending = await load({ tours: [], rpc: { list_workspace_render_status: renderAnswer({ state: 'uploading', status: 'uploading', rooms: 1, walkthroughs_used: 1, allowance_unit: 'room' }) } });
+  assert.equal(renderBlockOf(sending).all().find(el => /\brender-units\b/.test(el.className)).textContent, 'If approved as a new walkthrough, this uses 1 room.');
   // With the plan's capacity answer, the line says what the tour uses out of the included rooms, before Approve.
   const plan = { status: 'active', plan_code: 'solo', source: 'web', billing_interval: 'monthly', price_aud_cents: 13999, renewal_price_aud_cents: 13999,
     current_period_ends_at: '2026-12-11T00:00:00Z', auto_renews: true, included_per_month: 30, accepted_this_period: 0, hosting_included: true };
@@ -1392,18 +1395,27 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   assert.equal(toggleOf(card, 'insights').hidden, false, 'offered once the counts are read');
   const insights = await openPanel(card, 'insights');
   assert.equal(insights.hidden, false);
-  // One sentence to repeat to a vendor leads; the figures, rooms and channels follow it.
+  // The all-time figures lead; the sentence to repeat and the report wait closed behind one disclosure.
   const insightTexts = className => insights.all().filter(el => el.className === className).map(el => el.textContent);
-  assert.equal(insights.children[0].children[0].className, 'tour-insights-lead', 'the sentence comes first');
+  const insightsBody = insights.children[0];
+  assert.equal(insightsBody.children[0].className, 'tour-insights-scope', 'the period heads the figures');
+  const report = insightsBody.children.find(el => el.tagName === 'DETAILS');
+  assert.equal(report.className, 'account-details tour-report-details');
+  assert.equal(report.getAttribute('open'), null, 'the report waits closed until asked for');
+  assert.equal(insightsBody.children[insightsBody.children.indexOf(report) - 1].className, 'tour-insights-disclaimer', 'the report waits behind the all-time figures');
+  assert.deepEqual(report.children.map(el => [el.tagName, el.className || el.textContent]),
+    [['SUMMARY', 'Vendor report'], ['P', 'tour-insights-lead'], ['P', 'tour-actions-row tour-insights-report']]);
   assert.deepEqual(insightTexts('tour-insights-lead'),
     ['Opened 14 times on 5 days, for 1m 45s on average. The call button was tapped 3 times and the email button once.']);
-  // The all-time figures under their one period line; the calls and emails behind Enquiries are said under it, link shares under the row.
-  assert.deepEqual(insightTexts('tour-insights-scope'), ['All time, every version · last opened 24 Sep 2026', 'Last 90 days, every version']);
+  // The all-time figures under their one period line; the call and email taps behind
+  // Contact taps are said under it, share taps under the row, then the honesty line.
+  assert.deepEqual(insightTexts('tour-insights-scope'), ['Recorded history, every version · last opened 24 Sep 2026', 'Last 90 days, every version']);
   assert.deepEqual(insights.all().find(el => el.className === 'tour-insights-figures').children.map(group => group.children.map(el => el.textContent)),
-    [['Opens', '14'], ['Days active', '5'], ['Enquiries', '4', '3 calls, 1 email']]);
+    [['Opens', '14'], ['Days active', '5'], ['Contact taps', '4', '3 call taps, 1 email tap']]);
+  assert.deepEqual(insightTexts('tour-insights-disclaimer'), ['Opens include repeats. Contact taps are not confirmed enquiries.']);
   // The average is of the last 90 days, so it is said in that group, not beside the all-time counts.
   assert.deepEqual(insightTexts('tour-insights-dwell'), ['Average time per visit: 1m 45s']);
-  assert.deepEqual(insightTexts('tour-insights-shares'), ['Link shares: 2']);
+  assert.deepEqual(insightTexts('tour-insights-shares'), ['Share taps: 2']);
   assert.deepEqual(insightTexts('tour-insights-channels'), ['Opened from: Direct link 8 (57%) · QR code 4 (29%) · Website embed 2 (14%)']);
   assert.equal(insights.all().find(el => el.className === 'tour-insights-hosts').textContent,
     'Embedded on: harbourrealty.com.au (2)');
@@ -1417,7 +1429,7 @@ test('Walkthrough insights & vendor report, open-home QR sign card and pre-captu
   await copyReport.fire('click');
   await settle();
   assert.match(h.copied.at(-1), /^Walkthrough update: 12 Rue Café & Co\.\nOpened 14 times on 5 days, for 1m 45s on average\. The call button was tapped 3 times and the email button once\.\n\n/, 'the report opens with the same sentence');
-  assert.match(h.copied.at(-1), /\nOpens: 14 on 5 days, last opened 24 Sep 2026\nAverage time: 1m 45s\nEnquiries: 3 calls, 1 email · Link shares: 2\nOpened from: Direct link 8 \(57%\) · QR code 4 \(29%\) · Website embed 2 \(14%\)\nEmbedded on: harbourrealty\.com\.au \(2\)\nVisits by room: Kitchen 9 · Living room 7$/);
+  assert.match(h.copied.at(-1), /\nOpens: 14 on 5 days, last opened 24 Sep 2026\nAverage time: 1m 45s\nContact taps: 4 \(3 call taps, 1 email tap\) · Share taps: 2\nOpens include repeats\. Contact taps are not confirmed enquiries\.\nOpened from: Direct link 8 \(57%\) · QR code 4 \(29%\) · Website embed 2 \(14%\)\nEmbedded on: harbourrealty\.com\.au \(2\)\nVisits by room: Kitchen 9 · Living room 7$/);
   assert.equal(rowLine(insights), 'Vendor report copied. Paste it into your vendor update.');
 
   const dlReport = insights.all().find(el => el.dataset.control === 'download-vendor-report');
@@ -1504,15 +1516,15 @@ test('the extended stats fill the sentence and the room table: average time, roo
   // The same data as the map, as a ranked table: room, visits, the average per visit (seconds over visits) and the share of all rooms' time.
   const rooms = x.table('tour-insights-rooms');
   // The period heads the group once; the caption only says the order.
-  assert.equal(rooms.caption, 'Most time first.');
+  assert.equal(rooms.caption, 'Share of recorded room time, most time first.');
   const recent = x.insights.all().find(el => el.className === 'tour-insights-roomlist');
   assert.deepEqual(recent.children.slice(0, 3).map(el => el.textContent), ['Last 90 days, every version', 'Average time per visit: 1m 36s', 'Time per room']);
   assert.deepEqual(rooms.head, ['Room', 'Visits', 'Avg per visit', 'Share']);
   assert.deepEqual(rooms.rows, [['Kitchen', '7', '39s', '82%', ''], ['Lounge', '9', '7s', '18%', '']], 'by time, not by visits');
   assert.deepEqual(rooms.lines.map(row => row.children.map(cell => cell.className)), Array(2).fill(['tour-cell-name', 'tour-cell-number', 'tour-cell-number', 'tour-cell-number', 'tour-insights-room-bar']), 'numbers are their own right-aligned cells');
   assert.deepEqual(rooms.lines.map(row => [row.children[0].tagName, row.children[0].getAttribute('scope')]), [['TH', 'row'], ['TH', 'row']]);
-  // The bar is scaled to the longest room and hidden from assistive technology: the cells beside it say it.
-  assert.deepEqual(rooms.lines.map(row => [row.children[4].getAttribute('aria-hidden'), row.children[4].dataset.share]), [['true', '100'], ['true', '22']]);
+  // The bar is the room's share of all recorded room time and hidden from assistive technology: the cells beside it say it.
+  assert.deepEqual(rooms.lines.map(row => [row.children[4].getAttribute('aria-hidden'), row.children[4].dataset.share]), [['true', '82'], ['true', '18']]);
   await x.control('copy-vendor-report').fire('click');
   await settle();
   assert.equal(x.h.copied.at(-1).split('\n')[1], LEAD);
@@ -1531,10 +1543,18 @@ test('the extended stats fill the sentence and the room table: average time, roo
   // A database from before these columns: the lines are simply not there.
   const before = await heatDesk(undefined, { stats: { opens: 3, days_with_opens: 1, call_taps: 0, email_taps: 0, share_taps: 0, by_src: {}, by_host: {}, last_opened_at: '2026-09-24T02:00:00Z' } });
   assert.deepEqual(before.texts('tour-insights-lead'), ['Opened 3 times on 1 day. Nobody has tapped call or email yet.']);
-  assert.deepEqual(before.figures(), [['Opens', '3'], ['Days active', '1'], ['Enquiries', '0']]);
-  assert.deepEqual(before.texts('tour-insights-scope'), ['All time, every version · last opened 24 Sep 2026'], 'no 90-day group without its figures');
-  assert.deepEqual(before.texts('tour-insights-shares'), ['Link shares: 0']);
+  assert.deepEqual(before.figures(), [['Opens', '3'], ['Days active', '1'], ['Contact taps', '0']]);
+  assert.deepEqual(before.texts('tour-insights-scope'), ['Recorded history, every version · last opened 24 Sep 2026'], 'no 90-day group without its figures');
+  assert.deepEqual(before.texts('tour-insights-shares'), ['Share taps: 0']);
   assert.deepEqual([before.texts('tour-insights-room'), before.texts('tour-insights-title'), before.texts('tour-insights-channels')], [[], [], []]);
+  // An answer missing one tap count names the count it has and flags the rest, never zero.
+  const { email_taps: _droppedTaps, ...withoutEmailTaps } = VIEW_STATS;
+  const gap = await heatDesk(undefined, { stats: withoutEmailTaps });
+  assert.match(gap.texts('tour-insights-lead')[0], /The call button was tapped 3 times\. Contact tap counts are incomplete\.$/);
+  assert.deepEqual(gap.figures(), [['Opens', '14'], ['Days active', '5'], ['Contact taps', 'Not available', '3 call taps']]);
+  await gap.control('copy-vendor-report').fire('click');
+  await settle();
+  assert.match(gap.h.copied.at(-1), /\nContact taps: Not available \(3 call taps, email taps not available\) · Share taps: 2\n/);
   // Counts are of opens and taps, never of people.
   assert.doesNotMatch(x.insights.textContent + x.h.copied.at(-1), /buyers?|people who|visitors? who/i);
 });
@@ -1542,7 +1562,7 @@ test('the extended stats fill the sentence and the room table: average time, roo
 test('the headline row is at most three figures of one period, said once above them; each of the three periods heads its own group', async () => {
   const x = await heatDesk(async () => ({ data: HEATMAP }));
   await x.open();
-  assert.deepEqual(x.figures(), [['Opens', '14'], ['Days active', '5'], ['Enquiries', '4', '3 calls, 1 email']]);
+  assert.deepEqual(x.figures(), [['Opens', '14'], ['Days active', '5'], ['Contact taps', '4', '3 call taps, 1 email tap']]);
   const groups = x.insights.all().find(el => el.className === 'tour-insights-figures').children;
   assert.ok(groups.length <= 3);
   assert.deepEqual(groups.map(group => group.children.map(el => [el.tagName, el.className])), [[['DT', ''], ['DD', '']], [['DT', ''], ['DD', '']], [['DT', ''], ['DD', ''], ['DD', 'tour-insights-detail']]], 'a label and a value; no period under each');
@@ -1550,19 +1570,19 @@ test('the headline row is at most three figures of one period, said once above t
   // Each is said once, first in its group, and nowhere else.
   const body = x.insights.children[0];
   const scopes = x.insights.all().filter(el => /^tour-(insights|heat)-scope$/.test(el.className)).map(el => el.textContent);
-  assert.deepEqual(scopes, ['All time, every version · last opened 24 Sep 2026', 'Last 90 days, every version', 'This version of the walkthrough: 11 visits since 1 Nov 2026.']);
+  assert.deepEqual(scopes, ['Recorded history, every version · last opened 24 Sep 2026', 'Last 90 days, every version', 'This version of the walkthrough: 11 visits since 1 Nov 2026.']);
   assert.equal(body.children[body.children.indexOf(x.insights.all().find(el => el.className === 'tour-insights-figures')) - 1].className, 'tour-insights-scope', 'the all-time line heads the figures');
   const version = body.children.find(el => el.className === 'tour-insights-version');
   assert.deepEqual(version.children.map(el => el.className), ['tour-heat-scope', 'tour-heat', 'tour-heat-list'], 'the plan and the stops share their period line');
   const said = x.insights.all().filter(el => !el.children.length).map(el => el.textContent).join(' | ');
-  assert.equal(said.split(/All time|Last 90 days|This version/).length - 1, 3, 'no period said twice: ' + said);
-  // Link shares are a line under the row, not a fifth figure.
-  assert.deepEqual(x.texts('tour-insights-shares'), ['Link shares: 2']);
+  assert.equal(said.split(/Recorded history|Last 90 days|This version/).length - 1, 3, 'no period said twice: ' + said);
+  // Share taps are a line under the row, not a fifth figure.
+  assert.deepEqual(x.texts('tour-insights-shares'), ['Share taps: 2']);
   // The card's one-line count gives way while the panel is open, so no figure is on screen twice.
   assert.match(guideCss, /\.desk \.dash-tour:has\(> \.tour-insights:not\(\[hidden\]\)\) \.tour-views \{ display: none; \}/);
-  // One enquiry kind tapped once reads in the singular.
+  // One tap kind tapped once reads in the singular.
   const one = await heatDesk(undefined, { stats: { ...VIEW_STATS, call_taps: 1, email_taps: 0 } });
-  assert.deepEqual(one.figures()[2], ['Enquiries', '1', '1 call, 0 emails']);
+  assert.deepEqual(one.figures()[2], ['Contact taps', '1', '1 call tap, 0 email taps']);
 });
 
 test('too few visits: rooms and stops show counts only; time, shares, shades and look directions are withheld and the panel says from when', async () => {
@@ -1583,10 +1603,15 @@ test('too few visits: rooms and stops show counts only; time, shares, shades and
   assert.equal(x.texts('tour-insights-few')[0].match(/\b5\b/g).length, 1);
   // The stops: visits and time per stop, and nothing about where anyone looked.
   assert.deepEqual(x.texts('tour-heat-scope'), ['This version of the walkthrough: 3 visits since 8 Nov 2026.']);
-  assert.deepEqual(x.texts('tour-heat-few'), ['Fewer than 5 visits so far, so only counts are shown. Shades and look directions appear from 5 visits.']);
+  assert.deepEqual(x.texts('tour-heat-few'), ['Fewer than 5 visits so far. Time shading and camera directions are hidden.']);
   const stops = x.table('tour-heat-table');
   assert.deepEqual(stops.head, ['No.', 'Stop', 'Visits', 'Total time']);
   assert.deepEqual(stops.rows, [['2', 'Kitchen', '2', '1m'], ['1', 'Lounge', '3', '20s']]);
+  // The copied report drops the time ranking too: visit counts only, never a share of time it cannot stand behind.
+  await x.control('copy-vendor-report').fire('click');
+  await settle();
+  assert.match(x.h.copied.at(-1), /\nVisits by room: Lounge 3 · Kitchen 2$/);
+  assert.doesNotMatch(x.h.copied.at(-1), /Time by room:|% of viewing time/);
   const said = [x.insights.all().find(el => el.className === 'tour-insights-roomlist'), x.panel(), x.list()].flatMap(el => el.all().map(node => node.textContent)).join(' ');
   assert.doesNotMatch(said, /%|Mostly|Looked|Level|down|\bup\b/, 'no share of time and no look direction in the rooms or the stops');
   // Opens short but visits known and enough is named for what is short.
@@ -1597,10 +1622,10 @@ test('too few visits: rooms and stops show counts only; time, shares, shades and
     { stop: 0, room: 'Hall', visits: 9, seconds: 90, bins: { '1_1': 90 } }, { stop: 1, room: 'Attic', visits: 2, seconds: 80, bins: { '5_2': 80 } }] } }));
   await mixed.open();
   assert.deepEqual(mixed.table('tour-heat-table').rows, [['1', 'Hall', '9', '1m 30s', 'Mostly one direction (100% of the time)'],
-    ['2', 'Attic', '2', '1m 20s', 'Too few visits to say where they looked']]);
+    ['2', 'Attic', '2', '1m 20s', 'Too few visits to compare directions']]);
 });
 
-test('Where viewers stood: asked once when the insights are opened, and every stop is a row of the table with its number, visits, time and how people looked', async () => {
+test('Walkthrough stop activity: asked once when the insights are opened, and every stop is a row of the table with its number, visits, time and how people looked', async () => {
   const x = await heatDesk(async () => ({ data: HEATMAP }));
   assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'not asked for until the insights are opened');
   assert.equal(x.panel().hidden, true);
@@ -1608,9 +1633,9 @@ test('Where viewers stood: asked once when the insights are opened, and every st
   assert.deepEqual(JSON.parse(JSON.stringify(x.h.calls.filter(([name]) => name === 'get_tour_view_heatmap'))), [['get_tour_view_heatmap', { p_tour_id: 't1' }]]);
   const panel = x.panel();
   assert.equal(panel.hidden, false);
-  assert.equal(panel.getAttribute('aria-label'), 'Where viewers stood and looked');
+  assert.equal(panel.getAttribute('aria-label'), 'Walkthrough stop activity');
   assert.equal(panel.children[0].tagName, 'H4');
-  assert.equal(panel.children[0].textContent, 'Where viewers stood and looked');
+  assert.equal(panel.children[0].textContent, 'Walkthrough stop activity');
   assert.equal(x.texts('tour-heat-scope')[0], 'This version of the walkthrough: 11 visits since 1 Nov 2026.');
   // A zipped package has no floor to draw: the panel says so and asks for nothing more.
   assert.deepEqual(x.texts('tour-heat-noplan'), ['There is no floor plan for this walkthrough here. The table lists every stop.']);
@@ -1622,18 +1647,18 @@ test('Where viewers stood: asked once when the insights are opened, and every st
   assert.equal(x.list().children[0].textContent, 'Time per stop');
   assert.equal(stops.caption, 'Most time first.');
   // Total time per stop, named so: the room table's figure is an average per visit.
-  assert.deepEqual(stops.head, ['No.', 'Stop', 'Visits', 'Total time', 'How they looked around']);
+  assert.deepEqual(stops.head, ['No.', 'Stop', 'Visits', 'Total time', 'Camera direction']);
   // In words the bins support: how concentrated the looking was (never what was looked at). The level / down / up
   // split is gone: no decision an agent makes turns on it.
   assert.deepEqual(stops.rows, [
     ['2', 'Kitchen', '9', '4m 32s', 'Mostly one direction (63% of the time)'],
     ['1', 'Lounge', '11', '1m 1s', 'Mostly one direction (50% of the time)'],
-    ['3', 'Stop 3 (room not named)', '1', 'Under 1s', 'No look direction recorded'],
+    ['3', 'Stop 3 (room not named)', '1', 'Under 1s', 'No camera direction recorded'],
   ]);
   assert.doesNotMatch(x.insights.textContent, /Level \d+%|down \d+%|up \d+%/);
   assert.doesNotMatch(panel.textContent + stops.rows.join(' '), /°|anticlockwise/, 'no degrees');
   // Each cell carries its column's label and a role, because the rows are laid out as a grid, never scrolled sideways.
-  assert.deepEqual(stops.lines[0].children.map(cell => cell.dataset.label), ['No.', 'Stop', 'Visits', 'Total time', 'How they looked around']);
+  assert.deepEqual(stops.lines[0].children.map(cell => cell.dataset.label), ['No.', 'Stop', 'Visits', 'Total time', 'Camera direction']);
   assert.deepEqual(stops.lines[0].children.map(cell => cell.getAttribute('role')), ['cell', 'rowheader', 'cell', 'cell', 'cell']);
   assert.deepEqual(stops.lines[0].children.map(cell => cell.className), ['tour-cell-key', 'tour-cell-name', 'tour-cell-number', 'tour-cell-number', 'tour-cell-words']);
   assert.equal(stops.el.getAttribute('role'), 'table');
@@ -1657,7 +1682,7 @@ test('Where viewers stood: asked once when the insights are opened, and every st
   const all = long.table('tour-heat-table');
   assert.deepEqual(all.rows.map(row => row[1]), [9, 8, 7, 6, 5, 4, 3, 2, 1].map(n => 'Stop ' + n + ' (room not named)'));
   assert.deepEqual(all.lines.map(row => row.hidden), [false, false, false, false, false, false, false, false, true]);
-  assert.deepEqual([...new Set(all.rows.map(row => row[4]))], ['Mostly one direction (100% of the time)', 'Too brief to say where they looked'], 'under 15 seconds at a stop is too brief to say');
+  assert.deepEqual([...new Set(all.rows.map(row => row[4]))], ['Mostly one direction (100% of the time)', 'Too little time to compare directions'], 'under 15 seconds at a stop is too brief to say');
   assert.equal(long.texts('tour-heat-scope')[0], 'This version of the walkthrough: 6 visits.');
   const more = long.control('heat-all');
   assert.deepEqual([more.textContent, more.getAttribute('aria-expanded')], ['Show all 9 stops', 'false']);
@@ -1672,7 +1697,7 @@ test('Where viewers stood: "No visits yet" for an empty answer; no panel for a m
   await empty.open();
   assert.equal(empty.panel().hidden, false);
   assert.deepEqual(empty.panel().children.map(el => el.textContent),
-    ['Where viewers stood and looked', 'No visits to this version yet. Time at each stop and where people look fills in as people open the link.']);
+    ['Walkthrough stop activity', 'No stop activity recorded for this version yet.']);
   // The all-time opens above may come from earlier versions: the group still says which period it is.
   assert.deepEqual([empty.texts('tour-heat-scope'), empty.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false]);
   assert.equal(empty.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);
@@ -1703,7 +1728,7 @@ test('Where viewers stood: "No visits yet" for an empty answer; no panel for a m
     const x = await heatDesk(answer);
     await x.open();
     assert.equal(x.panel().hidden, false);
-    assert.deepEqual(x.panel().children.map(el => el.textContent), ['Where viewers stood and looked', 'Where viewers stood couldn’t be loaded. The counts above are complete.', '']);
+    assert.deepEqual(x.panel().children.map(el => el.textContent), ['Walkthrough stop activity', 'Stop activity couldn’t be loaded. You can still read the figures above.', '']);
     assert.equal(x.insights.all().filter(el => el.tagName === 'SVG' || (el.tagName === 'TABLE' && el.className === 'tour-heat-table')).length, 0);
     assert.equal(x.list().hidden, true);
     assert.equal(x.control('heat-retry').textContent, 'Try again');
@@ -1738,7 +1763,7 @@ test('Where viewers stood: stops in one room are told apart by their order, and 
   const rows = x.table('tour-heat-table').rows;
   // Ranked by time; the ordinal is the stop's place in its room along the walkthrough, not its rank.
   assert.deepEqual(rows.map(row => [row[0], row[1]]), [['3', 'Kitchen, second stop'], ['1', 'Kitchen, first stop'], ['2', 'Hall'], ['4', 'Kitchen, third stop']]);
-  assert.deepEqual(rows.map(row => row[4]), ['Looked all around', 'Mostly one side of the room (80% of the time)', 'Mostly one direction (100% of the time)', 'Too brief to say where they looked']);
+  assert.deepEqual(rows.map(row => row[4]), ['Varied directions', 'Mostly one side of the room (80% of the time)', 'Mostly one direction (100% of the time)', 'Too little time to compare directions']);
 });
 
 /* ---- The floor plan: stops where they stand, from the walkthrough's own package ---------- */
@@ -1788,7 +1813,7 @@ test('the floor plan draws the walkable floor from the package and every stop wh
   assert.equal(x.svg.parent.tagName, 'FIGURE');
   // One scale for both axes: 4 m by 2 m of floor in a 320-wide picture with a 30 px margin is 65 px to the metre.
   assert.equal(x.svg.getAttribute('viewBox'), '0 0 320 190');
-  assert.deepEqual(attrs(x.svg, 'role', 'aria-label'), ['img', 'Floor plan from above with 2 stops marked, most time at Kitchen. The table lists every stop.']);
+  assert.deepEqual(attrs(x.svg, 'role', 'aria-label'), ['img', 'Floor plan from above with 2 stops marked, most time among shaded stops at Kitchen. The table lists every stop.']);
   // The floor is the package's own mask, read as the player reads it: every cell agrees with decodeWalkable.
   const floors = x.svg.children.filter(el => /^tour-heat-floor/.test(el.getAttribute('class')));
   assert.deepEqual(floors.map(el => el.getAttribute('class')), ['tour-heat-floor-edge', 'tour-heat-floor']);
@@ -1810,7 +1835,7 @@ test('the floor plan draws the walkable floor from the package and every stop wh
   assert.deepEqual(spots, [['0', '95', '62.5', '14', '1'], ['1', '225', '127.5', '13.1', '3']]);
   // A stop of the package nobody reached is a small ring, so the plan shows the whole walkthrough.
   assert.deepEqual(x.marks('tour-heat-spot-unvisited').map(el => attrs(el, 'data-stop', 'cx', 'cy', 'r')), [['2', '257.5', '62.5', '3.5']]);
-  // The wedge points where most of the looking went: 0 degrees is up the plan (-Z) and angles turn anticlockwise, as yaw does.
+  // The wedge points the main direction the walkthrough camera faced: 0 degrees is up the plan (-Z) and angles turn anticlockwise, as yaw does.
   const looks = x.marks('tour-heat-look');
   assert.deepEqual(looks.map(el => attrs(el, 'data-stop', 'data-from', 'data-to')), [['0', '0', '30'], ['1', '60', '90']]);
   assert.equal(looks[0].getAttribute('d'), 'M95 62.5L95.0 38.5A24 24 0 0 0 83.0 41.7Z', 'from straight up, sweeping to the left');
@@ -1824,8 +1849,8 @@ test('the floor plan draws the walkable floor from the package and every stop wh
   assert.deepEqual(x.legend(), [
     ['tour-heat-legend-size', 'Circle size: visits, 9 to 11'],
     ['tour-heat-legend-shade', 'Shade: time at the stop', 'Under 2m', '2m to 4m', '4m and over'],
-    ['tour-heat-legend-look', 'Wedge: where most of the looking went'],
-    ['tour-heat-legend-none', 'Small ring: a stop with no visits'],
+    ['tour-heat-legend-look', 'Wedge: the main direction the walkthrough camera faced, not eye movement'],
+    ['tour-heat-legend-none', 'Small ring: no recorded visits'],
     ['tour-heat-legend-note', 'Seen from above, numbered as in the walkthrough. Not to scale.'],
   ]);
   assert.deepEqual(x.texts('tour-heat-noplan'), []);
@@ -1840,6 +1865,35 @@ test('the floor plan under five visits: outlined circles sized by visits, with n
   assert.equal(x.svg.getAttribute('aria-label'), 'Floor plan from above with 2 stops marked. The table lists every stop.');
   assert.deepEqual(x.legend().map(line => line[0]), ['tour-heat-legend-size', 'tour-heat-legend-none', 'tour-heat-legend-note']);
   assert.deepEqual(x.legend()[0], ['tour-heat-legend-size', 'Circle size: visits, 1 to 3']);
+});
+
+test('a stop under five visits stays an outline beside shaded ones; with none over five the whole plan is outlines', async () => {
+  // The scale comes only from stops with enough visits: Hall shades at its own step, Kitchen keeps its real count as an outline.
+  const x = await planDesk({ heat: { visits: 9, since: null, stops: [
+    { stop: 0, room: 'Hall', visits: 9, seconds: 60, bins: { '0_1': 60 } },
+    { stop: 1, room: 'Kitchen', visits: 2, seconds: 400, bins: { '4_1': 400 } }] } });
+  assert.deepEqual(x.marks('tour-heat-spot').map(el => [el.getAttribute('data-stop'), el.getAttribute('data-level')]), [['0', '3'], ['1', 'count']]);
+  assert.equal(x.marks('tour-heat-look').length, 1, 'the wedge stays with the stops that earned one');
+  assert.equal(x.svg.getAttribute('aria-label'), 'Floor plan from above with 2 stops marked, most time among shaded stops at Hall. The table lists every stop.');
+  assert.deepEqual(x.legend().map(line => line[0]),
+    ['tour-heat-legend-size', 'tour-heat-legend-shade', 'tour-heat-legend-look', 'tour-heat-legend-none', 'tour-heat-legend-limited', 'tour-heat-legend-note']);
+  assert.deepEqual(x.legend().find(line => line[0] === 'tour-heat-legend-limited').slice(1), ['Outline: fewer than 5 visits at this stop']);
+  // Every stop short of visits: the same outlines, no shade scale and no direction at all.
+  const low = await planDesk({ heat: { visits: 8, since: null, stops: [
+    { stop: 0, room: 'Hall', visits: 4, seconds: 60, bins: { '0_1': 60 } },
+    { stop: 1, room: 'Kitchen', visits: 4, seconds: 400, bins: { '4_1': 400 } }] } });
+  assert.ok(low.marks('tour-heat-spot').every(el => el.getAttribute('data-level') === 'count'));
+  assert.equal(low.marks('tour-heat-look').length, 0);
+  assert.equal(low.svg.getAttribute('aria-label'), 'Floor plan from above with 2 stops marked. The table lists every stop.');
+  assert.deepEqual(low.legend().map(line => line[0]), ['tour-heat-legend-size', 'tour-heat-legend-none', 'tour-heat-legend-limited', 'tour-heat-legend-note']);
+});
+
+test('visit count unknown: the plan stays counts only — no shade scale, no wedge, and the one line says why', async () => {
+  const x = await planDesk({ heat: { ...PLAN_HEAT, visits: null } });
+  assert.equal(x.marks('tour-heat-look').length, 0, 'no camera directions without a known count');
+  assert.ok(x.marks('tour-heat-spot').every(node => node.getAttribute('data-level') === 'count'), 'no time shading without a known count');
+  assert.deepEqual(x.legend().map(line => line[0]), ['tour-heat-legend-size', 'tour-heat-legend-none', 'tour-heat-legend-note']);
+  assert.deepEqual(x.texts('tour-heat-few'), ['Visit count unavailable. Time shading and camera directions are hidden.']);
 });
 
 test('no floor to draw: a zipped package, two storeys, an unreadable package or an untrusted address leaves the table, says so and invents nothing', async () => {
@@ -1878,6 +1932,9 @@ test('a package without a walkable floor still gets a stop map in the same propo
     assert.deepEqual(x.fetched.map(([url]) => url), [PLAN_BASE + 'manifest.json'], label);
     assert.ok(x.svg, label);
     assert.equal(x.svg.children.some(el => /^tour-heat-floor/.test(el.getAttribute('class'))), false, label);
+    // No floor under the stops: the picture and its key both say they are stop positions only.
+    assert.equal(x.svg.getAttribute('aria-label'), 'Stop positions from above with 2 stops marked, most time among shaded stops at Kitchen. The table lists every stop.', label);
+    assert.deepEqual(x.legend().find(line => line[0] === 'tour-heat-legend-note').slice(1), ['Stop positions only. No floor outline is available. Not to scale.'], label);
     // The stops alone span 2.5 m by 1 m: still one scale for both axes.
     const [[ax, ay], [bx, by]] = x.marks('tour-heat-spot').map(el => [Number(el.getAttribute('cx')), Number(el.getAttribute('cy'))]);
     assert.ok(Math.abs((bx - ax) / (by - ay) - 2 / 1) < 0.01, label);
@@ -1904,7 +1961,7 @@ test('waiting for the stops shows a placeholder in the answer’s shape only aft
   assert.equal(slow.panel().hidden, false);
   assert.equal(slow.panel().getAttribute('aria-busy'), 'true');
   assert.deepEqual(slow.panel().children.map(el => [el.tagName, el.className, el.textContent]),
-    [['H4', 'tour-heat-title', 'Where viewers stood and looked'], ['P', 'tour-heat-busy', 'Loading where viewers stood…'], ['DIV', 'tour-heat-map tour-heat-skeleton', '']]);
+    [['H4', 'tour-heat-title', 'Walkthrough stop activity'], ['P', 'tour-heat-busy', 'Loading stop activity…'], ['DIV', 'tour-heat-map tour-heat-skeleton', '']]);
   assert.deepEqual([slow.texts('tour-heat-scope'), slow.insights.all().find(el => el.className === 'tour-heat-scope').hidden], [['This version of the walkthrough.'], false], 'waiting, the group already names its period');
   // The placeholder has the answer's shape: the plan's box and key, then the stops' heading and rows.
   assert.deepEqual(slow.list().children.map(el => el.className), ['tour-heat-title', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton', 'tour-heat-row tour-heat-skeleton']);
@@ -1962,7 +2019,7 @@ test('not opened yet: Insights explains what will appear and offers the card’s
   assert.equal(x.toggle.hidden, false, 'offered before the first open, so the agent learns what it will hold');
   await x.open();
   assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-lead', 'Not opened yet.'],
-    ['tour-insights-note', 'When someone opens the link, this shows how often it was opened, which rooms held attention and where viewers stood.'], ['tour-actions-row', '']]);
+    ['tour-insights-note', 'Opens and contact taps will appear here when recorded. Room activity appears only when available.'], ['tour-actions-row', '']]);
   assert.equal(x.figures(), undefined);
   assert.equal(x.insights.all().some(el => el.tagName === 'TABLE' || el.tagName === 'SVG' || /skeleton/.test(el.className || '')), false, 'an empty result is words, never a placeholder');
   assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'nothing to ask the stops for');
@@ -1984,7 +2041,10 @@ test('paused or offline: Insights says first that nobody can open the link and t
   const past = '2026-09-01';
   const paused = await heatDesk(async () => ({ data: HEATMAP }), { tour: { share_paused_at: '2026-09-24T00:00:00Z' } });
   await paused.open();
-  assert.deepEqual(paused.insights.children[0].children.slice(0, 3).map(el => el.className), ['tour-insights-stopped', 'tour-insights-lead', 'tour-actions-row tour-insights-report'], 'why the counts stand still comes before them');
+  const pausedBody = paused.insights.children[0];
+  assert.deepEqual(pausedBody.children.slice(0, 4).map(el => el.className), ['tour-insights-stopped', 'tour-insights-scope', 'tour-insights-figures', 'tour-insights-disclaimer'], 'why the counts stand still comes before the figures');
+  const pausedReport = pausedBody.children.find(el => el.tagName === 'DETAILS');
+  assert.deepEqual([pausedReport.className, pausedReport.getAttribute('open')], ['account-details tour-report-details', null], 'the vendor report waits closed behind them');
   assert.deepEqual(paused.texts('tour-insights-stopped'), ['Sharing is paused, so nobody can open the link and these counts stay as they are until you resume sharing.']);
   assert.ok(paused.control('copy-vendor-report'), 'the vendor report still works');
   const offline = await heatDesk(async () => ({ data: HEATMAP }), { hosting: [released({ plan_active: false, hosting_state: 'offline', offline_on: past })] });

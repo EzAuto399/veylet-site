@@ -149,7 +149,7 @@ const toursFor = state => state === 'ready' ? [readyTour()] : state === 'live' ?
 const withState = (state, options = {}) => load({ status: [JOBS[state]], tours: toursFor(state), approved: state === 'live', ...options });
 
 const WORDS = {
-  uploading: ['Uploading', 'Sending from your phone', ['Sending from the Veylet app. Keep Veylet open or plugged in; it continues in the background.']],
+  uploading: ['Uploading', 'Sending from your phone', ['You can leave this page. If sending pauses, reopen Veylet on your phone to resume.']],
   waiting: ['Waiting to render', 'Automatic', ['You’re 2nd in line. Usually starts within 40 minutes.']],
   rendering: ['Rendering', 'Automatic', ['Step 3 of 5: Building your 3D walkthrough. About 12 minutes left.']],
   ready: ['Ready for your review', 'Your turn', ['Open it, check each stop, then approve to share.']],
@@ -182,11 +182,16 @@ test('render status: every state reads in the contract’s words, with whose tur
   assert.equal(h.progress().value, 64);
   assert.equal(h.progress().attributes['aria-label'], 'Render progress');
   assert.equal(h.slot().all().find(el => el.className === 'render-pct').textContent, '64%');
-  // The migration sends no upload percentage; if a later answer does, it reads "{n}% sent."
+  // The migration sends no upload percentage; when a later answer does, a measured progress bar shows it.
   const upload = await load({ status: [job({ state: 'uploading', status: 'uploading', progress_pct: 42 })] });
-  assert.deepEqual(upload.lines(), ['42% sent. Keep Veylet open or plugged in; it continues in the background.']);
+  assert.deepEqual(upload.lines(), ['You can leave this page. If sending pauses, reopen Veylet on your phone to resume.']);
   assert.equal(upload.progress().value, 42);
   assert.equal(upload.progress().attributes['aria-label'], 'Upload progress');
+  // The percentage is said once, by the native control; the same figure sits beside it for the eye only.
+  const uploadPct = upload.slot().all().find(el => el.className === 'render-pct');
+  assert.deepEqual(uploadPct && [uploadPct.textContent, uploadPct.attributes['aria-hidden']], ['42%', 'true']);
+  const unsent = await load({ status: [job({ state: 'uploading', status: 'uploading' })] });
+  assert.equal(unsent.progress(), null, 'no bar and no percentage the server did not send');
 });
 
 test('render status: the filled action belongs to whoever acts next', async () => {
@@ -569,6 +574,7 @@ test('render status: the next step says whose turn it is while no walkthrough is
   assert.equal(panel.children.some(el => el.tagName === 'BUTTON' || el.tagName === 'A'), false, 'automatic: nothing to press');
   const sending = await withState('uploading');
   assert.equal(sending.ids['account-next-step'].children[0].textContent, 'Your capture is on its way.');
+  assert.equal(sending.ids['account-next-step'].children[1].textContent, 'Check Sample space below for upload progress.');
   const rooms = await withState('recapture');
   const next = rooms.ids['account-next-step'];
   assert.equal(next.children[0].textContent, 'Recapture what the quality check found.');

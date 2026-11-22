@@ -718,6 +718,13 @@
 /* The two report buttons share one row at every width; a long label wraps inside its button. */
 .desk .dash-tour .tour-insights-report { flex-wrap: nowrap; align-items: stretch; }
 .tour-insights-report > .tour-action { flex: 0 1 auto; min-width: 0; padding: 6px 12px; text-align: left; overflow-wrap: anywhere; }
+/* The vendor report waits closed behind one native disclosure, after the figures. */
+.tour-insights-body > .tour-report-details { margin: 6px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; }
+.tour-insights-body > .tour-report-details > summary { display: flex; align-items: center; min-height: 44px; padding: 0 14px; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--ink); overflow-wrap: anywhere; }
+.tour-insights-body > .tour-report-details > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.tour-insights-body > .tour-report-details[open] > summary { border-bottom: 1px solid var(--line); }
+.tour-insights-body > .tour-report-details > .tour-insights-lead { padding: 12px 14px 0; }
+.tour-insights-body > .tour-report-details > .tour-actions-row { margin-top: 10px; padding: 0 14px 12px; }
 /* The headline row: two across on a narrow card, three across from the card's own step. */
 .tour-insights-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .tour-insights-figures > div { min-width: 0; }
@@ -728,7 +735,7 @@
 /* Each group's period, said once at its head: all time, the last 90 days, this version. */
 .tour-insights-body p.tour-insights-scope, .tour-insights-version > p.tour-heat-scope { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
 .tour-insights-roomlist > p.tour-insights-dwell { font-size: 14px; color: var(--ink); }
-/* The all-time period heads the figure row inside its rule, not under the report buttons. */
+/* The all-time period heads the figure row inside its rule; the report waits under it. */
 .tour-insights-body > p.tour-insights-scope { padding-top: 12px; border-top: 1px solid var(--line); }
 .tour-insights-body > p.tour-insights-scope + .tour-insights-figures { padding-top: 0; border-top: 0; }
 .tour-insights-body > p:not(.tour-insights-lead, .tour-actions-row),

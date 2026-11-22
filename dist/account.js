@@ -2091,7 +2091,7 @@
   function insightsLead(row) {
     const opens = viewCount(row?.opens) || 0;
     const days = viewCount(row?.days_with_opens);
-    const calls = viewCount(row?.call_taps) || 0, emails = viewCount(row?.email_taps) || 0;
+    const calls = viewCount(row?.call_taps), emails = viewCount(row?.email_taps);
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const parts = ['Opened ' + countTimes(opens) + (days !== null && days > 0 ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (dwell ? ', for ' + dwell + ' on average' : '') + '.'];
     const rooms = roomTimes(row).slice(0, 3);
@@ -2101,7 +2101,8 @@
       parts.push('Viewers spent longest in ' + said[0] + (said[1] ? ', followed by ' + said.slice(1).join(' and ') : '') + '.');
     }
     const taps = [calls ? 'the call button was tapped ' + countTimes(calls) : '', emails ? 'the email button ' + (calls ? '' : 'was tapped ') + countTimes(emails) : ''].filter(Boolean);
-    parts.push(taps.length ? taps.join(' and ').replace(/^t/, 'T') + '.' : 'Nobody has tapped call or email yet.');
+    if (calls !== null && emails !== null) parts.push(taps.length ? taps.join(' and ').replace(/^t/, 'T') + '.' : 'Nobody has tapped call or email yet.');
+    else parts.push(taps.length ? taps.join(' and ').replace(/^t/, 'T') + '. Contact tap counts are incomplete.' : 'Contact tap counts are incomplete.');
     return parts.join(' ');
   }
   function channelWords(row) {
@@ -2112,8 +2113,8 @@
     const name = typeof title === 'string' && title.trim() ? title.trim() : 'Walkthrough';
     const opens = viewCount(row?.opens) || 0;
     const days = viewCount(row?.days_with_opens);
-    const calls = viewCount(row?.call_taps) || 0;
-    const emails = viewCount(row?.email_taps) || 0;
+    const calls = viewCount(row?.call_taps);
+    const emails = viewCount(row?.email_taps);
     const shares = viewCount(row?.share_taps);
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
     const lines = [
@@ -2123,14 +2124,17 @@
       'Opens: ' + opens + (days !== null ? ' on ' + days + (days === 1 ? ' day' : ' days') : '') + (lastDate ? ', last opened ' + lastDate : ''),
     ];
     if (dwell) lines.push('Average time: ' + dwell);
-    lines.push('Enquiries: ' + calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') + (shares !== null ? ' · Link shares: ' + shares : ''));
+    const tapDetail = [calls !== null ? calls + (calls === 1 ? ' call tap' : ' call taps') : 'call taps not available',
+      emails !== null ? emails + (emails === 1 ? ' email tap' : ' email taps') : 'email taps not available'].join(', ');
+    lines.push('Contact taps: ' + (calls !== null && emails !== null ? String(calls + emails) : 'Not available') + ' (' + tapDetail + ')' + (shares !== null ? ' · Share taps: ' + shares : ''));
+    lines.push('Opens include repeats. Contact taps are not confirmed enquiries.');
     const channels = channelWords(row);
     if (channels.length) lines.push('Opened from: ' + channels.join(' · '));
     const hosts = positiveEntries(row?.by_host);
     if (hosts.length) {
       lines.push('Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', '));
     }
-    const rooms = roomTimes(row);
+    const rooms = insightsSparse(row) ? [] : roomTimes(row);
     if (rooms.length) {
       lines.push('Time by room: ' + rooms.map(room => room.name + ' ' + formatDurationSeconds(room.seconds) + ' (' + room.share + '%' +
         (room.visits !== null ? ', ' + room.visits + (room.visits === 1 ? ' visit' : ' visits') : '') + ')').join(' · '));
@@ -2141,7 +2145,7 @@
     return lines.join('\n');
   }
   /*
-   * Where viewers stood and looked, from get_tour_view_heatmap(p_tour_id):
+   * Walkthrough stop activity, from get_tour_view_heatmap(p_tour_id):
    *   { stops: [{ stop, room, visits, seconds, bins: { "<yaw 0..11>_<pitch 0..2>": seconds } }], visits, since }
    * The viewer's page fills it (dist/client-page.js, kinds stop and look): yaw bin k is the
    * 30-degree sector 30k..30k+30 of the walkthrough's own compass, where 0 degrees looks along
@@ -2224,9 +2228,9 @@
    */
   const HEAT_MIN_SECONDS = 15;
   function heatLook(row) {
-    if (!(row.binned > 0)) return { words: 'No look direction recorded' };
-    if (row.visits < HEAT_MIN_VISITS) return { words: 'Too few visits to say where they looked' };
-    if (row.seconds < HEAT_MIN_SECONDS) return { words: 'Too brief to say where they looked' };
+    if (!(row.binned > 0)) return { words: 'No camera direction recorded' };
+    if (row.visits < HEAT_MIN_VISITS) return { words: 'Too few visits to compare directions' };
+    if (row.seconds < HEAT_MIN_SECONDS) return { words: 'Too little time to compare directions' };
     const yaw = Array.from({ length: 12 }, (_, sector) => row.cells.filter(cell => cell.yaw === sector).reduce((sum, cell) => sum + cell.seconds, 0));
     const top = Math.max(...yaw);
     if (top / row.binned >= 0.4) {
@@ -2239,7 +2243,7 @@
       const sector = sides.indexOf(side);
       return { words: 'Mostly one side of the room (' + heatShare(side, row.binned) + '% of the time)', from: sector * 30, to: sector * 30 + 90 };
     }
-    return { words: 'Looked all around' };
+    return { words: 'Varied directions' };
   }
   /*
    * The shade scale: three steps of one hue, light to dark, by the total time looked
@@ -2359,9 +2363,9 @@
     const px = x => Math.round((left + (x - minX) * k) * 10) / 10;
     const pz = z => Math.round((top + (z - minZ) * k) * 10) / 10;
     const svg = svgNode('svg', { class: 'tour-heat-plan', viewBox: '0 0 ' + PLAN_WIDTH + ' ' + height, role: 'img' });
-    const busiest = heat.stops[0];
-    svg.setAttribute('aria-label', 'Floor plan from above with ' + placed.length + (placed.length === 1 ? ' stop' : ' stops') + ' marked'
-      + (sparse || !busiest || !busiest.seconds ? '' : ', most time at ' + names.get(busiest)) + '. The table lists every stop.');
+    const busiest = placed.find(row => row.visits >= HEAT_MIN_VISITS);
+    svg.setAttribute('aria-label', (mask ? 'Floor plan' : 'Stop positions') + ' from above with ' + placed.length + (placed.length === 1 ? ' stop' : ' stops') + ' marked'
+      + (sparse || !busiest || !busiest.seconds ? '' : ', most time among shaded stops at ' + names.get(busiest)) + '. The table lists every stop.');
     if (mask) {
       const d = mask.runs.map(([c, r, length]) => 'M' + px(mask.x0 + c * mask.cell) + ' ' + pz(mask.z0 + r * mask.cell)
         + 'h' + (Math.round(length * mask.cell * k * 10) / 10) + 'v' + (Math.round(mask.cell * k * 10) / 10 + 0.4) + 'h-' + (Math.round(length * mask.cell * k * 10) / 10) + 'Z').join('');
@@ -2386,7 +2390,7 @@
     }
     for (const row of drawn) {
       svg.append(svgNode('circle', { class: 'tour-heat-spot', cx: px(floor.stops[row.stop].x), cy: pz(floor.stops[row.stop].z), r: radius(row),
-        'data-stop': row.stop, 'data-level': sparse ? 'count' : scale.level(row.seconds) }));
+        'data-stop': row.stop, 'data-level': sparse || row.visits < HEAT_MIN_VISITS ? 'count' : scale.level(row.seconds) }));
     }
     for (const row of drawn) {
       const reach = radius(row) * 0.72 + 3;
@@ -2395,7 +2399,8 @@
       label.textContent = String(row.stop + 1);
       svg.append(label);
     }
-    return { svg, unvisited: floor.stops.length - floor.stops.filter((_, index) => seen.has(index)).length, missing: heat.stops.length - placed.length,
+    return { svg, hasFloor: Boolean(mask), unvisited: floor.stops.length - floor.stops.filter((_, index) => seen.has(index)).length, missing: heat.stops.length - placed.length,
+      shaded: !sparse && placed.some(row => row.visits >= HEAT_MIN_VISITS), limited: !sparse && placed.some(row => row.visits < HEAT_MIN_VISITS),
       looks: sparse ? 0 : drawn.filter(row => heatLook(row).from !== undefined).length };
   }
   // The plan's key, under the plan: one line per thing a mark can say, each with its unit.
@@ -2415,15 +2420,16 @@
     };
     const visits = heat.stops.map(row => row.visits);
     const least = Math.min(...visits), most = Math.max(...visits);
-    line('tour-heat-legend-size', part('Circle size: visits, ' + (least === most ? most + ' at each stop' : least + ' to ' + most), swatch(sparse ? 'count' : 2, 3), swatch(sparse ? 'count' : 2, 6.5)));
-    if (!sparse) line('tour-heat-legend-shade', part('Shade: time at the stop'), ...scale.labels.map((label, index) => part(label, swatch(index + 1))));
+    line('tour-heat-legend-size', part('Circle size: visits, ' + (least === most ? most + ' at each stop' : least + ' to ' + most), swatch(plan.shaded ? 2 : 'count', 3), swatch(plan.shaded ? 2 : 'count', 6.5)));
+    if (plan.shaded) line('tour-heat-legend-shade', part('Shade: time at the stop'), ...scale.labels.map((label, index) => part(label, swatch(index + 1))));
     if (plan.looks) {
       const icon = key();
       icon.append(svgNode('path', { class: 'tour-heat-look', d: 'M8 13L2.5 3.5A11 11 0 0 1 13.5 3.5Z' }));
-      line('tour-heat-legend-look', part('Wedge: where most of the looking went', icon));
+      line('tour-heat-legend-look', part('Wedge: the main direction the walkthrough camera faced, not eye movement', icon));
     }
-    if (plan.unvisited) line('tour-heat-legend-none', part('Small ring: a stop with no visits', swatch('none', 3.5)));
-    line('tour-heat-legend-note', part('Seen from above, numbered as in the walkthrough. Not to scale.'));
+    if (plan.unvisited) line('tour-heat-legend-none', part('Small ring: no recorded visits', swatch('none', 3.5)));
+    if (plan.limited) line('tour-heat-legend-limited', part('Outline: fewer than ' + HEAT_MIN_VISITS + ' visits at this stop', swatch('count')));
+    line('tour-heat-legend-note', part(plan.hasFloor ? 'Seen from above, numbered as in the walkthrough. Not to scale.' : 'Stop positions only. No floor outline is available. Not to scale.'));
     return list;
   }
   /*
@@ -2435,7 +2441,7 @@
    * look column is left out. It never scrolls sideways.
    */
   // "Total time": the stop's time over all its visits, where the room table gives the average per visit.
-  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Total time', 'How they looked around'];
+  const HEAT_COLUMNS = ['No.', 'Stop', 'Visits', 'Total time', 'Camera direction'];
   function gridTable(className, captionText, columns) {
     const table = document.createElement('table'); table.className = className; table.setAttribute('role', 'table');
     const caption = document.createElement('caption'); caption.textContent = captionText;
@@ -2470,6 +2476,9 @@
     });
     return made;
   }
+  // One name for the whole group: its heading, its busy and empty states and the
+  // section's accessible name can never say different things.
+  const STOP_ACTIVITY = 'Walkthrough stop activity';
   function heatTitle(text, className = 'tour-heat-title') {
     const title = document.createElement('h4'); title.className = className; title.textContent = text; return title;
   }
@@ -2481,8 +2490,8 @@
     const plan = document.createElement('div'); plan.className = 'tour-heat-map tour-heat-skeleton';
     const box = document.createElement('div'); box.className = 'tour-heat-plan plan-skeleton'; box.setAttribute('aria-hidden', 'true');
     plan.append(box, skeletonLine('p', 'tour-heat-legend', 30), skeletonLine('p', 'tour-heat-legend', 44));
-    const busy = document.createElement('p'); busy.className = 'tour-heat-busy'; busy.textContent = 'Loading where viewers stood…';
-    panel.replaceChildren(heatTitle('Where viewers stood and looked'), busy, plan);
+    const busy = document.createElement('p'); busy.className = 'tour-heat-busy'; busy.textContent = 'Loading stop activity…';
+    panel.replaceChildren(heatTitle(STOP_ACTIVITY), busy, plan);
     panel.setAttribute('aria-busy', 'true'); panel.hidden = false;
     const rows = [0, 1, 2].map(() => skeletonLine('p', 'tour-heat-row tour-heat-skeleton', 40));
     list.replaceChildren(heatTitle('Time per stop'), ...rows); list.hidden = false;
@@ -2490,25 +2499,25 @@
   function heatProblem(panel, list, retry, scope = null) {
     heatScope(scope);
     const words = document.createElement('p'); words.className = 'tour-heat-problem';
-    words.textContent = 'Where viewers stood couldn’t be loaded. The counts above are complete.';
+    words.textContent = 'Stop activity couldn’t be loaded. You can still read the figures above.';
     const again = button('Try again', retry); again.dataset.control = 'heat-retry';
     const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(again);
-    panel.replaceChildren(heatTitle('Where viewers stood and looked'), words, actions);
+    panel.replaceChildren(heatTitle(STOP_ACTIVITY), words, actions);
     panel.removeAttribute('aria-busy'); panel.hidden = false;
     list.replaceChildren(); list.hidden = true;
   }
   function renderHeat(panel, list, heat, floor, scope = null) {
     panel.removeAttribute('aria-busy');
-    const title = heatTitle('Where viewers stood and looked');
+    const title = heatTitle(STOP_ACTIVITY);
     heatScope(scope);
     if (!heat.stops.length) {
       const empty = document.createElement('p'); empty.className = 'tour-heat-empty';
-      empty.textContent = 'No visits to this version yet. Time at each stop and where people look fills in as people open the link.';
+      empty.textContent = 'No stop activity recorded for this version yet.';
       panel.replaceChildren(title, empty); panel.hidden = false;
       list.replaceChildren(); list.hidden = true;
       return;
     }
-    const sparse = heat.visits !== null && heat.visits < HEAT_MIN_VISITS;
+    const sparse = heat.visits === null || heat.visits < HEAT_MIN_VISITS;
     const since = heat.since ? window.VeyletSharing?.hostingDate?.(heat.since) || '' : '';
     // The group's one period line: this version only, its visits, from its oldest one counted.
     const said = PERIOD_VERSION + (heat.visits !== null ? ': ' + heat.visits + (heat.visits === 1 ? ' visit' : ' visits') + (since ? ' since ' + since : '') : since ? ', since ' + since : '') + '.';
@@ -2516,11 +2525,16 @@
     const parts = [title];
     if (sparse) {
       const few = document.createElement('p'); few.className = 'tour-heat-few';
-      few.textContent = 'Fewer than ' + HEAT_MIN_VISITS + ' visits so far, so only counts are shown. Shades and look directions appear from ' + HEAT_MIN_VISITS + ' visits.';
+      few.textContent = heat.visits === null
+        ? 'Visit count unavailable. Time shading and camera directions are hidden.'
+        : 'Fewer than ' + HEAT_MIN_VISITS + ' visits so far. Time shading and camera directions are hidden.';
       parts.push(few);
     }
     const names = heatNames(heat.stops);
-    const scale = heatScale(heat.stops);
+    // The shade scale covers only stops with enough visits to say anything: a stop short
+    // of them stays an outline next to shaded ones, never the scale's darkest end.
+    const comparable = sparse ? [] : heat.stops.filter(row => row.visits >= HEAT_MIN_VISITS);
+    const scale = heatScale(comparable);
     const plan = heatPlan(heat, floor, names, scale, sparse);
     if (plan) {
       const figure = document.createElement('figure'); figure.className = 'tour-heat-map';
@@ -2582,7 +2596,7 @@
    * it covers. Opens, days and taps are counted over every stored record (the first
    * nine columns of get_tour_view_stats); the average comes from the last 90 days.
    */
-  const PERIOD_ALL = 'All time, every version', PERIOD_RECENT = 'Last 90 days, every version', PERIOD_VERSION = 'This version of the walkthrough';
+  const PERIOD_ALL = 'Recorded history, every version', PERIOD_RECENT = 'Last 90 days, every version', PERIOD_VERSION = 'This version of the walkthrough';
   // The card's own share button (Share, or Copy link where there is no share sheet), for the panel that sends people to it.
   const cardShare = new WeakMap();
   const STOPPED_WORDS = Object.freeze({
@@ -2616,7 +2630,7 @@
       body.append(insightsNote('tour-insights-lead', 'Not opened yet.'));
       body.append(insightsNote('tour-insights-note', stopped === 'paused' ? 'Sharing is paused, so nobody can open the link. Opens are counted once you resume sharing.'
         : stopped === 'offline' ? 'This walkthrough is offline, so nobody can open the link. Restarting your plan brings the same link back.'
-        : 'When someone opens the link, this shows how often it was opened, which rooms held attention and where viewers stood.'));
+        : 'Opens and contact taps will appear here when recorded. Room activity appears only when available.'));
       const share = !stopped && item ? cardShare.get(item) : null;
       if (share) {
         const send = button(share.textContent, () => share.click());
@@ -2630,23 +2644,23 @@
       return;
     }
     const heat = document.createElement('section');
-    heat.setAttribute('aria-label', 'Where viewers stood and looked');
+    heat.setAttribute('aria-label', STOP_ACTIVITY);
     const stops = document.createElement('div'); stops.className = 'tour-heat-list'; stops.hidden = true;
     const scope = insightsNote('tour-heat-scope', ''); scope.hidden = true;
-    // Where viewers stood is asked for when the panel first opens, not before.
+    // Stop activity is asked for when the panel first opens, not before.
     entry.opened = () => tourHeat(tour, heat, stops, supabase, ticket, scope);
     const days = viewCount(row?.days_with_opens);
-    const calls = viewCount(row?.call_taps) || 0;
-    const emails = viewCount(row?.email_taps) || 0;
+    const calls = viewCount(row?.call_taps);
+    const emails = viewCount(row?.email_taps);
     const shares = viewCount(row?.share_taps);
     const dwell = formatDurationSeconds(wholeSeconds(row?.avg_dwell_seconds));
-    // One sentence to repeat to a vendor, then the report it opens, then the figures behind it.
+    // One sentence to repeat to a vendor and the report it opens wait behind one closed
+    // disclosure; the figures and groups below answer on their own.
     const leadLine = document.createElement('p');
     leadLine.className = 'tour-insights-lead';
     leadLine.textContent = insightsLead(row);
     // While nobody can open the link, that comes first: the counts under it have stopped.
     if (STOPPED_WORDS[stopped]) body.append(insightsNote('tour-insights-stopped', STOPPED_WORDS[stopped]));
-    body.append(leadLine);
     const reportText = vendorReportText(title, row, lastDate);
     const reportFile = (slugOf(title) || 'veylet-walkthrough') + '-vendor-report.txt';
     const copyBtn = button('Copy vendor report', async () => {
@@ -2670,10 +2684,14 @@
     const actions = document.createElement('p');
     actions.className = 'tour-actions-row tour-insights-report';
     actions.append(copyBtn, downloadBtn);
-    body.append(actions);
+    const report = document.createElement('details');
+    report.className = 'account-details tour-report-details';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Vendor report';
+    report.append(summary, leadLine, actions);
     // The answers cover three periods (contract-gaps 4 and 6): opens, days and taps every
     // stored record of every version; time and rooms the last 90 days of every version;
-    // where viewers stood this version only. Each group says its period once, first.
+    // stop activity this version only. Each group says its period once, first.
     body.append(insightsNote('tour-insights-scope', PERIOD_ALL + (lastDate ? ' · last opened ' + lastDate : '')));
     const figures = document.createElement('dl'); figures.className = 'tour-insights-figures';
     const figure = (term, value, detail = '') => {
@@ -2686,17 +2704,23 @@
     };
     figure('Opens', String(opens));
     if (days !== null) figure('Days active', String(days));
-    figure('Enquiries', String(calls + emails), calls + emails > 0 ? calls + (calls === 1 ? ' call' : ' calls') + ', ' + emails + (emails === 1 ? ' email' : ' emails') : '');
+    const tapsKnown = calls !== null && emails !== null;
+    const tapBits = [calls !== null ? calls + (calls === 1 ? ' call tap' : ' call taps') : '',
+      emails !== null ? emails + (emails === 1 ? ' email tap' : ' email taps') : ''].filter(Boolean).join(', ');
+    figure('Contact taps', tapsKnown ? String(calls + emails) : 'Not available',
+      tapsKnown ? (calls + emails > 0 ? tapBits : '') : (tapBits || 'Contact tap counts are incomplete.'));
     body.append(figures);
+    body.append(insightsNote('tour-insights-disclaimer', 'Opens include repeats. Contact taps are not confirmed enquiries.'));
+    body.append(report);
     const channels = channelWords(row);
     if (channels.length) body.append(insightsNote('tour-insights-channels', 'Opened from: ' + channels.join(' · ')));
     const hosts = positiveEntries(row?.by_host);
     if (hosts.length) body.append(insightsNote('tour-insights-hosts', 'Embedded on: ' + hosts.map(([h, c]) => h + ' (' + c + ')').join(', ')));
-    if (shares !== null) body.append(insightsNote('tour-insights-shares', 'Link shares: ' + shares));
+    if (shares !== null) body.append(insightsNote('tour-insights-shares', 'Share taps: ' + shares));
     /*
      * Time per room: rooms ranked by viewing time, each with its visits, its average
      * per visit (seconds over visits; the answer carries no median) and its share of
-     * all rooms' time, with a bar scaled to the longest. Before the time columns
+     * all rooms' time, drawn as a bar of that share. Before the time columns
      * exist, or under five visits, rooms are ranked by visits and only counts show.
      */
     const sparse = insightsSparse(row);
@@ -2715,13 +2739,12 @@
       heading.textContent = rooms.length ? 'Time per room' : 'Rooms by visits';
       const columns = [['Room', 'name'], ['Visits', 'number']];
       if (rooms.length) columns.push(['Avg per visit', 'number'], ['Share', 'number']);
-      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', rooms.length ? 'Most time first.' : 'Most visits first.', columns);
-      const longest = rooms.length ? rooms[0].seconds : 0;
+      const made = gridTable(rooms.length ? 'tour-insights-rooms' : 'tour-insights-rooms tour-insights-rooms-counts', rooms.length ? 'Share of recorded room time, most time first.' : 'Most visits first.', columns);
       for (const room of rooms) {
         const line = made.row('tour-insights-room', [[room.name, 'name', true], [room.visits !== null ? String(room.visits) : '–', 'number'],
           [room.visits ? formatDurationSeconds(Math.max(1, Math.round(room.seconds / room.visits))) : '–', 'number'], [room.share + '%', 'number']]);
         const bar = document.createElement('td'); bar.className = 'tour-insights-room-bar'; bar.setAttribute('aria-hidden', 'true'); bar.setAttribute('role', 'presentation');
-        bar.dataset.share = String(Math.max(1, Math.round((room.seconds / longest) * 100)));
+        bar.dataset.share = String(room.share);
         bar.style?.setProperty?.('--share', bar.dataset.share + '%');
         line.append(bar);
       }
@@ -2762,14 +2785,17 @@
     if (!viewsAvailable || !shared.length) return;
     void Promise.all(shared.map(tour => settled(viewStatsAsk(supabase, tour.id)))).then(replies => {
       if (ticket !== deskVersion || !viewsAvailable) return;
-      let opens = 0, calls = 0, emails = 0, read = 0;
+      let opens = 0, calls = 0, emails = 0, read = 0, callsRead = 0, emailsRead = 0;
       for (const reply of replies) {
         if (missingFunction(reply)) { viewsAvailable = false; return; }
         if (failed(reply)) continue;
         const row = firstRow(reply.value?.data);
         const count = viewCount(row?.opens);
         if (count === null) continue;
-        read += 1; opens += count; calls += viewCount(row?.call_taps) || 0; emails += viewCount(row?.email_taps) || 0;
+        read += 1; opens += count;
+        const rowCalls = viewCount(row?.call_taps), rowEmails = viewCount(row?.email_taps);
+        if (rowCalls !== null) { calls += rowCalls; callsRead += 1; }
+        if (rowEmails !== null) { emails += rowEmails; emailsRead += 1; }
       }
       if (!read) return;
       const figure = (number, one, many) => {
@@ -2779,8 +2805,10 @@
         p.append(n, label); return p;
       };
       const note = document.createElement('p'); note.className = 'totals-note';
-      note.textContent = 'Since sharing began, across ' + read + (read === 1 ? ' shared walkthrough.' : ' shared walkthroughs.');
-      spaceTotals.replaceChildren(figure(opens, 'open', 'opens'), figure(calls, 'call', 'calls'), figure(emails, 'email', 'emails'), note);
+      note.textContent = 'Since sharing began, across ' + read + (read === 1 ? ' shared walkthrough.' : ' shared walkthroughs.') + (callsRead < read || emailsRead < read ? ' Some contact tap counts are incomplete.' : '');
+      spaceTotals.replaceChildren(figure(opens, 'open', 'opens'),
+        figure(callsRead === read ? calls : '—', 'call tap', 'call taps'),
+        figure(emailsRead === read ? emails : '—', 'email tap', 'email taps'), note);
       spaceTotals.hidden = false;
     });
   }
@@ -2901,7 +2929,7 @@
       const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
       const count = (number, one, many) => number + ' ' + (number === 1 ? one : many);
       const bits = opens === 0 ? ['Not opened yet.'] : [count(opens, 'open', 'opens')];
-      if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call', 'calls'), count(emails, 'email', 'emails'));
+      if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call tap', 'call taps'), count(emails, 'email tap', 'email taps'));
       if (last) bits.push('last ' + last);
       host.textContent = bits.join(' · '); host.hidden = false;
       if (insights) tourInsights(tour, row, title, insights, last, supabase, ticket, item, stopped);
@@ -6830,9 +6858,12 @@
     // A missing room list can still carry the server's fixed charge; a malformed list/count is not trusted.
     if (used === null || (job?.rooms != null && renderInt(job.rooms, 0, 1000) === null)) return '';
     const matchingPlan = workspaceID && workspaceID === planRoomsWorkspaceID && planRoomsLimit !== null;
-    if (job?.allowance_unit !== 'room' && (job?.allowance_unit || !matchingPlan)) return 'This uses ' + used + ' of your allowance.';
-    return matchingPlan ? 'This uses ' + used + ' of your ' + planRoomsLimit + ' rooms.'
-      : 'This uses ' + used + (used === 1 ? ' room.' : ' rooms.');
+    // A capture still on its way is not charged: the rooms count against the allowance
+    // only at first approval (offer-rooms-contract §3).
+    const prefix = RENDER_ACTIVE.includes(job?.state) || job?.state === 'studio_check' ? 'If approved as a new walkthrough, this uses ' : 'This uses ';
+    if (job?.allowance_unit !== 'room' && (job?.allowance_unit || !matchingPlan)) return prefix + used + ' of your allowance.';
+    return matchingPlan ? prefix + used + ' of your ' + planRoomsLimit + ' rooms.'
+      : prefix + used + (used === 1 ? ' room.' : ' rooms.');
   }
   // Per walkthrough: the rooms line from its capture, and the review form's slot for it.
   const reviewUnits = new Map(), reviewUnitSlots = new Map();
@@ -6921,7 +6952,9 @@
     const meter = annualNode('div', 'render-meter');
     const bar = document.createElement('progress'); bar.className = 'render-progress';
     bar.max = 100; bar.value = pct; bar.setAttribute('aria-label', label);
-    meter.append(bar, annualNode('span', 'render-pct', pct + '%'));
+    // The control speaks the value; the same figure beside it is for the eye only.
+    const shown = annualNode('span', 'render-pct', pct + '%'); shown.setAttribute('aria-hidden', 'true');
+    meter.append(bar, shown);
     return meter;
   }
   function renderStepList(current) {
@@ -6995,7 +7028,7 @@
     };
     switch (view.key) {
       case 'uploading':
-        line((view.pct !== null ? view.pct + '% sent.' : 'Sending from the Veylet app.') + ' Keep Veylet open or plugged in; it continues in the background.');
+        line('You can leave this page. If sending pauses, reopen Veylet on your phone to resume.');
         if (view.pct !== null) block.append(renderMeter(view.pct, 'Upload progress'));
         break;
       case 'waiting': {
@@ -7143,7 +7176,7 @@
         slot?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
       });
     } else if (said === 'failed') guide('Rendering could not finish.', 'No rooms were used. Contact Veylet support from ' + broken.title + ' below.');
-    else if (said === 'uploading') guide('Your capture is on its way.', 'Keep Veylet open or plugged in on your phone. How much has arrived shows on ' + moving.title + ' below.');
+    else if (said === 'uploading') guide('Your capture is on its way.', 'Check ' + moving.title + ' below for upload progress.');
     else guide('Your walkthrough is being made automatically.', 'Its progress shows on ' + moving.title + ' below and updates by itself. You can leave this page; the render carries on.');
   }
   function renderDraw() {
