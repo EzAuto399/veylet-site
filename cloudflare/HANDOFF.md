@@ -1,5 +1,12 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Desk upload guidance and room activity — 22 November 2026 UTC
+
+- Owner selected **Preview and production** for the frozen website release `40b6455` (source `23b1cd5` on `release/room-activity-desk`, based on `4b2d995`). Only six public files changed: account JS/CSS, both desk pages, the callback's script reference and build info. No native release, backend, collection, DNS change or Git push.
+- Frozen output manifest SHA-256: `c6aeeba070593fb40188ee6db62658dc6856036691dabf222d64a51cb0fa8469`. All 13 adapter tests and 4,334 local workerd assertions passed. Website suite initially passed 1,139/1,140; the stale iOS help-URL assertion was corrected without changing public inputs, and that suite passed 21/21 without skips. The verifier passed immediately before each deployment.
+- Preview `1b886fd6-7a1e-415d-b430-da44a114e1d0`; production `837ec069-ce48-4d71-860f-46cce5f99ff5`, read back at 100%. Each upload changed six assets. All six plus the homepage, offer JSON and Apple association file matched frozen bytes on preview and production. Preview returned noindex; production `www` redirected 301 preserving path and query. Raw readbacks: `verification/{preview,production}-40b6455.json`. No signed-in account, capture, payment or buyer event was exercised on production.
+- Previous production version `2951569a-2cf5-4833-9685-dc7c18fa0177`: if rollback is separately approved, run `./node_modules/.bin/wrangler rollback 2951569a-2cf5-4833-9685-dc7c18fa0177 --config wrangler.production.jsonc` here. Do not remove routes. Reconcile this release branch into the maintained line before the next deploy.
+
 ## Untangle, UX and agency/tenant release — 20 November 2026
 
 User authority: "once both completes and full QA test is done lets get it released and deployed" (20 Nov). Source `2e213b3` (`untangle/w-line` + `feat/agency-tenant-ux-w`), frozen in `768c3d6`: shared `site-lib.js`, `tour-page.js`, generated `plan-terms.js`, generated `/app/terms` & `/app/privacy`, website pack purchase deleted, capacity4/6 removed from `offer.json`, 3-field waitlist, 44 px viewer room pills and map-stop hit circles, `<dialog>` enquiry sheet with draft preservation, definitive dead links hide Try again, site-wide sticky consent banner, Spaces filter (>3 spaces), `privacy-region-agreement.test.cjs` (two remaining "in Australia" GPU strings removed), plus agency & tenant UX, Auto-tour/touch player controls, CRM/CSV tools and `/oembed`.
