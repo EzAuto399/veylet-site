@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "2e213b363e094ea15e8c45bf924c80e4a0bdc4e0",
+  "sourceCommit": "23b1cd5b73cd98888383ac475d97041ea0868231",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -263,8 +263,8 @@
     },
     {
       "path": "account-guide.css",
-      "bytes": 84577,
-      "sha256": "7de288bccb408a5bb52280ac76db9fc8cfa1cfdc0f9106203b69315a4f1b999a",
+      "bytes": 85437,
+      "sha256": "13ffe3a00aa80e8d736404d85d5acebfc397fa0971e4fce53e7a1430b085cdbf",
       "headerProfile": 3
     },
     {
@@ -281,14 +281,14 @@
     },
     {
       "path": "account.js",
-      "bytes": 525842,
-      "sha256": "49c64804cf756c357eb0eb5560df52e9ffadaf09a60f787431850c2004ba3744",
+      "bytes": 528618,
+      "sha256": "c79b53a3c57e2bd7bb10e09fdef02961e67d6602501135a98b3eeff95be8429c",
       "headerProfile": 4
     },
     {
       "path": "account/index.html",
       "bytes": 25429,
-      "sha256": "ea521a97007be6d597ebc366b0c977bbbc358b28db11a774d6f7645916efab5f",
+      "sha256": "008408287ab83458efb65525d0d488b8e7a80216a1632a9252e555ba7ccb1e96",
       "headerProfile": 1
     },
     {
@@ -318,7 +318,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 12039,
-      "sha256": "9c0c0807d968e2e2421ae1de6ab43261505a61bd4792c01928b66fb4aae7e72d",
+      "sha256": "28385a4825ce1b60d2ae63381873a7c056900ccf8c28e76217a98b4c815a3c5d",
       "headerProfile": 5
     },
     {
@@ -540,7 +540,7 @@
     {
       "path": "auth/callback/index.html",
       "bytes": 2849,
-      "sha256": "a2c723dde6e46890c4cbad474bc1eab1cc80fb45e4eae2585b73970878990fc2",
+      "sha256": "f74c75c5d16ababc6123fb5c3d783132c970f322a4fa746df36b0cd172327fdc",
       "headerProfile": 1
     },
     {
@@ -551,8 +551,8 @@
     },
     {
       "path": "build-info.json",
-      "bytes": 2668,
-      "sha256": "0ca50a83f17d49ac879cecb33b847eda7e6ab84eae159eac74d873405ea9efb0",
+      "bytes": 2673,
+      "sha256": "7c88ee6a35ba97040ca97e66f31302913d7ea4a56c09ad46e4417b5432d5aa5d",
       "headerProfile": 6
     },
     {

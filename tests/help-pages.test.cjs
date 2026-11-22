@@ -288,7 +288,12 @@ test('every help page the app links to exists under /app/help', { skip: !fs.exis
   const rules = name => [...swift.match(new RegExp(`static let ${name} = \\[([^\\]]*)\\]`))[1].matchAll(/"([^"]+)"/g)].map(match => match[1]);
   assert.deepEqual(rules('recaptureRules'), help.RECAPTURE_RULES);
   assert.deepEqual(rules('flagRules'), help.FLAG_RULES);
-  assert.match(swift, /static let base = URL\(string: "https:\/\/veylet\.com\/app\/help"\)!/);
+  if (/static let base = VeyletEndpoints\.helpBase\b/.test(swift)) {
+    const endpoints = fs.readFileSync(path.join(path.dirname(APP_HELP_TOPICS), 'VeyletWebPages.swift'), 'utf8');
+    assert.match(endpoints, /static let helpBase = URL\(string: "https:\/\/veylet\.com\/app\/help"\)!/);
+  } else {
+    assert.match(swift, /static let base = URL\(string: "https:\/\/veylet\.com\/app\/help"\)!/);
+  }
   const shipped = new Set(pages.filter(page => page.edition === 'app').map(page => page.file.replace(/^app\/help\/?/, '').replace(/\/?index\.html$/, '')));
   for (const slug of [...slugs, ...[...help.RECAPTURE_RULES, ...help.FLAG_RULES].map(rule => 'fix/' + rule)]) {
     assert.ok(shipped.has(slug), 'the app links to /app/help/' + slug + ', which this site does not ship');
