@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "23b1cd5b73cd98888383ac475d97041ea0868231",
+  "sourceCommit": "1bc6225f0be72e122de1531dfe566813f8c77efb",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -260,6 +260,12 @@
       "bytes": 4387,
       "sha256": "0e5fcef5d93bfcae273c11c00f0bb453d3b5491860e1ac8b658767b7577c938f",
       "headerProfile": 2
+    },
+    {
+      "path": "about/index.html",
+      "bytes": 7407,
+      "sha256": "e624355899c899d42c70076f2d983ccfcd4f4dda1a9d5d9f56a8f3eb1129eb3a",
+      "headerProfile": 1
     },
     {
       "path": "account-guide.css",
@@ -611,44 +617,44 @@
     },
     {
       "path": "guides/3d-tour-cost-australia/index.html",
-      "bytes": 24672,
-      "sha256": "c3385c7ee5691b7b7593b0a1ffaf78f16b77e4441f0a6bb664927c04012b2fe1",
+      "bytes": 25393,
+      "sha256": "4046a1bd4f41b91c0363ff09c98f1d2420f941883f22a7205c9abbfc59b10e8f",
       "headerProfile": 1
     },
     {
       "path": "guides/3d-tours-realestate-com-au-domain/index.html",
-      "bytes": 21839,
-      "sha256": "2621e0560210dd7e6103e55d0e06cd2dfd51b8386b4f84f3551977622ee6a4be",
+      "bytes": 22560,
+      "sha256": "7f72672450547c2df995e594cf232ff671d9b0ef17f284f7a6e0135d6b850f55",
       "headerProfile": 1
     },
     {
       "path": "guides/do-3d-tours-help-sell-faster/index.html",
-      "bytes": 21478,
-      "sha256": "ef5f4764e0a9738fcabf7000e38975bd4e8210e2e411bc4181a3aecf1748fd62",
+      "bytes": 22199,
+      "sha256": "8abe4ce9e009c5971636278155ccd48cb9f349c6c24f871cadbcb73cd3ba43ce",
       "headerProfile": 1
     },
     {
       "path": "guides/index.html",
-      "bytes": 9457,
-      "sha256": "14745f3ead16bc863e0549980ba3786bc195b55f0bbadcbac97a9c9c5f7574b2",
+      "bytes": 9776,
+      "sha256": "a30d087639e8b7272ce3a5893e129e7c7009afb0113bde343a17dd617a74fac8",
       "headerProfile": 1
     },
     {
       "path": "guides/iphone-lidar-vs-matterport/index.html",
-      "bytes": 19958,
-      "sha256": "5be0ef801f7b3a607671a5c81bccbf60227647c404f2b51c6576c78782e3c808",
+      "bytes": 20679,
+      "sha256": "14835e5c93b6b551a8f08457d2e2f0de2ff014145095046e583370c6fa3b543b",
       "headerProfile": 1
     },
     {
       "path": "guides/privacy-3d-home-tour/index.html",
-      "bytes": 21735,
-      "sha256": "1c24dff611fbf31a08e34d96b07100e8b3bf7ca0c49e8bb5fc1f70c858f72d87",
+      "bytes": 22456,
+      "sha256": "b254ce96e26145cc952eda6596fff6f8c9f6b1a7ea06ab2daba580e794009956",
       "headerProfile": 1
     },
     {
       "path": "guides/what-is-a-3d-walkthrough/index.html",
-      "bytes": 17971,
-      "sha256": "39d8a7f5a5995ba2f90d537d8f5b8fa820bd3af2db490083a697b5970453321d",
+      "bytes": 18692,
+      "sha256": "f61bf209bd8a6ea5ea973d33512e15ccdc1197a64a5988437b7562745b9108ad",
       "headerProfile": 1
     },
     {
@@ -863,8 +869,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 26640,
-      "sha256": "0e563644fd19eef9ffef9febb85e663cb846ad9400dcc4d767bae6197583a1f7",
+      "bytes": 26971,
+      "sha256": "572ec9558eb202bad1ff3de73fc5b72868ec9580d1d5be70b999df7b8f2350e4",
       "headerProfile": 1
     },
     {
@@ -2213,8 +2219,8 @@
     },
     {
       "path": "sitemap.xml",
-      "bytes": 3904,
-      "sha256": "92a584ca0b2e58fa4260feb916cdc6fc18f0517f820739ee4d1a6a261449e91d",
+      "bytes": 3982,
+      "sha256": "dfc3022ca36f83d901bd37d48b80dfe7075c8a804026577aacec027148e9edd4",
       "headerProfile": 17
     },
     {
@@ -2450,6 +2456,7 @@
     "omittedAsset": "insights.js",
     "loaderTag": "<script src=\"/insights.js?v=8d217f3362eb989f\" defer></script>",
     "loaderPaths": [
+      "about/index.html",
       "guides/3d-tour-cost-australia/index.html",
       "guides/3d-tours-realestate-com-au-domain/index.html",
       "guides/do-3d-tours-help-sell-faster/index.html",
