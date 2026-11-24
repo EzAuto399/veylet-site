@@ -246,23 +246,27 @@ test('home: the App Store is asked for in the hero and the closing band only, on
   assert.match(closing, /href="\/waitlist"/, 'the closing band still names the waitlist for render admission');
   assert.doesNotMatch(main.match(/<div class="walk-after">[\s\S]*?<\/div>/)[0], /app_store|href="\/waitlist"/, 'no mid-page main button');
   assert.match(home, /data-analytics-cta="app_store" data-analytics-placement="sticky">Get the app<\/a>/, 'the mobile sticky bar stays');
-  const see = main.match(/<section class="see-band[\s\S]*?<\/section>/)[0];
-  assert.equal((see.match(/href="\/see"/g) || []).length, 1, 'one See a result link in the section');
+  // Design spec v2 (6.1): the stills band is cut and the sample is the hero; the client-example answer links to it.
+  const faq = main.match(/<section class="faq-block[\s\S]*?<\/section>/)[0];
+  assert.equal((faq.match(/href="\/see"/g) || []).length, 1, 'one See a result link, in the client-example answer');
   // The stage label and the weekly-groups note are one line, then the price line, which says (UX plan 18 November
   // 2026, item 9) that nothing is charged in the free month and when the first charge is.
   assert.doesNotMatch(main, /hero-admit/);
   assert.equal((main.match(/data-launch-label/g) || []).length, 1);
-  assert.match(main, /<\/div>\s*<p class="hero-note hero-stage"><strong data-launch-label>On the App Store, admitted weekly<\/strong><\/p>\s*<p class="hero-note">\n            1 free month with 30 rooms included, then the Veylet plan\n            at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\.\n            Nothing is charged during the free month; the first charge is on the day it ends\.\n            Early accounts in south-east Queensland\.\n          <\/p>/);
+  // Design spec v2 (6.1): the price is one line under the hero's first section, and the stage label sits in the closing band.
+  assert.match(main, /<p class="hero-note">1 free month with 30 rooms included, then the Veylet plan at A\$139\.99 a month or A\$1,399\.99 a year through the App Store, which you can cancel any time\. Nothing is charged during the free month; the first charge is on the day it ends\./);
+  assert.match(main.match(/<section class="closing-invitation"[\s\S]*?<\/section>/)[0], /<strong data-launch-label>On the App Store, admitted weekly<\/strong>/);
   // Shorter copy that keeps what is not yet proven, said once.
   const text = main.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const sentences = html => html.replace(/<[^>]+>/g, '').trim().split(/(?<=[.?!])\s+/).length;
-  assert.equal(sentences(main.match(/<p class="pilot-note">([\s\S]*?)<\/p>/)[1].replace(/^<strong>Where we are today\.<\/strong>/, '')), 1);
+  // Design spec v2 (6.1, 7.5): the three "no client-accepted walkthrough" disclaimers become one honest line under the hero.
+  assert.equal((text.match(/a research capture processed by Veylet, not captured with an iPhone\./g) || []).length, 1);
   assert.doesNotMatch(text, /Pilot status|onboarding early accounts/, 'the App Store launch drops the pilot framing');
   const steps = [...main.matchAll(/<li data-walk-step[^>]*>.*?<\/button><p>([\s\S]*?)<\/p><\/li>/g)].map(match => match[1]);
   assert.equal(sentences(steps[2]), 1, 'step 3 is one sentence');
   assert.equal(sentences(steps[3]), 1, 'step 4 is one sentence');
   assert.ok(sentences(main.match(/<div class="closing-action">\s*<p>([\s\S]*?)<\/p>/)[1]) <= 2, 'closing paragraph');
-  assert.match(text, /no client-accepted walkthrough to show yet/);
+  assert.doesNotMatch(text, /no client-accepted walkthrough to show yet/);
 });
 
 // 17 November 2026: the app has been on the App Store since 15 November 2026, so every guide's main
