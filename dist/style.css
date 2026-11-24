@@ -20,21 +20,108 @@
   line-gap-override: 0%;
 }
 :root {
-  --ink: #10231d;
-  --paper: #f4f1e9;
-  --sage: #c6dcc9;
+  /* Design tokens v2 (design spec v2, 3.1). design-tokens.json at the repository root is the
+     reference; tests/design-tokens.test.cjs checks these values and their contrast. Marketing pages
+     stay light; product surfaces (<html data-surface="product">: the desk and the buyer view) follow
+     the system appearance with the dark values below. */
+  --canvas: #f4f1e9;
+  --surface: #fbfaf6;
+  --raised: #eaece3;
+  --text: #10231d;
   --muted: #536557;
-  --line: #ccd2c5;
+  --accent: #294534;
+  --on-accent: #f4f1e9;
+  --tint: #c6dcc9;
+  --hairline: #ccd2c5;
+  --control: #7a877d;
+  --warning: #8a5a17;
+  --danger: #a24031;
+  --focus: #897033;
+  /* Stage: the dark ground under any walkthrough, poster or camera, in both appearances (3.1, 11.6). */
+  --stage: #07110e;
+  --stage-raised: #13201b;
+  --stage-text: #f4f2e6;
+  --stage-muted: #a9b8ad;
+  --stage-accent: #a2dbc0;
+  --stage-tint: #1f3a2f;
+  --stage-control-border: rgb(244 242 230 / 0.5);
+  --stage-focus: #f4f2e6;
+  --scrim: rgb(7 17 14 / 0.72);
+  /* Shape (3.6): editorial pages square, product surfaces soft. */
+  --radius-editorial: 2px;
+  --radius-editorial-card: 6px;
+  --radius-control: 10px;
+  --radius-button: 12px;
+  --radius-card: 16px;
+  --radius-media: 16px;
+  --radius-sheet: 24px;
+  /* Elevation (3.5). */
+  --e1: 0 0 0 0.5px var(--hairline), 0 1px 2px rgb(16 35 29 / 0.06);
+  --e2: 0 8px 24px rgb(16 35 29 / 0.12);
+  --e3: 0 24px 60px rgb(0 0 0 / 0.4);
+  /* Motion (4.1): web twins of the app's springs. */
+  --ease-press: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-celebrate: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --ease-reveal: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-snappy: 180ms;
+  --dur-standard: 240ms;
+  --dur-emphasized: 320ms;
+  --dur-celebrate: 450ms;
+  --dur-fill: 600ms;
+  --dur-reveal: 600ms;
+  --dur-reduced: 150ms;
+  /* Deprecated names, kept as aliases for one release (3.9). */
+  --ink: var(--text);
+  --paper: var(--canvas);
+  --sage: var(--tint);
+  --line: var(--hairline);
+  --panel: var(--raised);
+  --field-line: var(--control);
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-sheet: var(--ease-standard);
   --dur-press: 120ms;
-  --dur-ui: 180ms;
-  --dur-enter: 600ms;
+  --dur-ui: var(--dur-snappy);
+  --dur-enter: var(--dur-reveal);
   font-family: Outfit, "Outfit Fallback", Arial, sans-serif;
-  color: var(--ink);
-  background: var(--paper);
+  color: var(--text);
+  background: var(--canvas);
   font-synthesis: none;
+}
+@media (prefers-contrast: more) {
+  :root {
+    --control: #45544a;
+  }
+}
+/* Product surfaces: soft shapes, the system face for controls, and both appearances. */
+:root[data-surface="product"] {
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-surface="product"] {
+    --canvas: #0c1815;
+    --surface: #152722;
+    --raised: #1e342d;
+    --text: #f4f2e6;
+    --muted: #b1c1b4;
+    --accent: #a2dbc0;
+    --on-accent: #0c1815;
+    --tint: #1f3a2f;
+    --hairline: #354f43;
+    --control: #6a8879;
+    --warning: #f0bc85;
+    --danger: #ffa897;
+    --focus: #f0bc85;
+    --e1: 0 0 0 0.5px var(--hairline);
+    --e2: 0 0 0 0.5px var(--hairline);
+    scrollbar-color: #4a6558 transparent;
+  }
+}
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+  :root[data-surface="product"] {
+    --control: #9fb4a6;
+  }
 }
 * {
   box-sizing: border-box;
@@ -64,7 +151,7 @@ button {
 a:focus-visible,
 button:focus-visible,
 video:focus-visible {
-  outline: 3px solid #897033;
+  outline: 3px solid var(--focus);
   outline-offset: 6px;
 }
 h1,
@@ -1512,7 +1599,7 @@ footer > span {
   font: inherit;
   font-size: 16px;
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 12px 14px;
@@ -1910,12 +1997,12 @@ footer > span {
   letter-spacing: 0.3px;
   border: 1px solid var(--line);
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 .pill-good {
-  border-color: rgba(16, 35, 29, 0.28);
+  border-color: color-mix(in srgb, var(--text) 28%, transparent);
   color: var(--ink);
-  background: rgba(198, 220, 201, 0.5);
+  background: var(--tint);
 }
 .pill-busy {
   border-color: rgba(16, 35, 29, 0.2);
@@ -2055,7 +2142,7 @@ footer > span {
 .copy-label { display: block; margin: 20px 0 10px; font-size: 14px; }
 .copy-label:has(> input[type="checkbox"]) { display: flex; gap: 10px; align-items: center; min-height: 44px; cursor: pointer; }
 .copy-label:has(> input[type="checkbox"]) > input { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--ink); }
-.copy-field { display: block; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: 13px/1.55 ui-monospace, monospace; resize: vertical; background: white; color: var(--ink); overflow-wrap: anywhere; }
+.copy-field { display: block; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px; font: 13px/1.55 ui-monospace, monospace; resize: vertical; background: var(--surface); color: var(--ink); overflow-wrap: anywhere; }
 .tour-review { margin: 16px 0; padding: 18px; border: 1px solid var(--line); border-radius: 8px; }
 .tour-review label { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; font-size: 14px; line-height: 1.5; }
 .tour-review input { flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px; }
@@ -2063,7 +2150,7 @@ footer > span {
 .tour-state-help { color: var(--muted); font-size: 14px; margin-top: 12px; }
 .account-details { margin: 16px 0; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
 .account-details summary, .gate-note summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
-input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #897033; outline-offset: 4px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 [aria-busy="true"] { cursor: progress; }
 @media (max-width: 640px) {
   .guide-page { padding-top: 32px; }
@@ -2080,17 +2167,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus
 
 /* ---- Shared surfaces: the parts of the page the browser draws ---- */
 :root {
-  --field-line: #7a877c; /* 3.3:1 on paper, so a field reads as a field */
-  --accent: #526b55;
-  --panel: #eaece3; /* the one tint: a note, never a third ground */
-  --danger: #8a3324; /* an ending, only ever beside the word for it */
   caret-color: var(--accent);
   accent-color: var(--ink);
   scrollbar-color: #a6b3a2 transparent;
 }
 ::selection {
-  background: var(--sage);
-  color: var(--ink);
+  background: var(--tint);
+  color: var(--text);
 }
 .veylet-form input,
 .veylet-form textarea,
@@ -2218,7 +2301,7 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
   gap: 12px;
   padding: 14px 16px;
   min-height: 44px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--field-line);
   border-radius: 2px;
   cursor: pointer;
@@ -2229,10 +2312,10 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 }
 .veylet-form .choice:has(input:checked) {
   border-color: var(--ink);
-  background: #eef1e8;
+  background: var(--raised);
 }
 .veylet-form .choice:has(input:focus-visible) {
-  outline: 3px solid #897033;
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
 .veylet-form .choice input {
@@ -2282,7 +2365,7 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 .tour-row-status {
   margin-top: 10px;
   padding: 10px 12px;
-  background: #eaece3;
+  background: var(--raised);
   border: 1px solid var(--line);
   border-radius: 6px;
   font-size: 14px;
@@ -2292,12 +2375,12 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
   display: none;
 }
 .tour-action-danger[data-armed="true"] {
-  background: #8a3324;
-  border-color: #8a3324;
-  color: #fff;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--canvas);
 }
 .tour-action-danger[data-armed="true"]:hover {
-  background: #722a1d;
+  background: color-mix(in srgb, var(--danger) 82%, var(--text));
 }
 #account-updated {
   margin-left: auto;
@@ -2379,7 +2462,6 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 /* Tokens. Type: two display sizes, one h2, one h3, lead / body / small / label.
    Space: 4 8 12 16 20 24 32 40 56 72 104. Columns: wide and reading, both centred. */
 :root {
-  --focus: #897033;
   --display-1: clamp(38px, 5.3vw, 68px);
   --display-2: clamp(32px, 4.4vw, 48px);
   --h2: clamp(27px, 3vw, 36px);
@@ -2672,3 +2754,33 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
 
 /* The fixed header covers an in-page jump target without this. */
 #first-session { scroll-margin-top: 136px; }
+
+/* ==========================================================================
+   Product surfaces (design spec v2, 3.6): the desk and the buyer view.
+   Soft shapes on <html data-surface="product">; editorial pages keep 2 px.
+   ========================================================================== */
+[data-surface="product"] :is(.button, .tour-action, .space-state-pill, .journey-tabs button) {
+  border-radius: var(--radius-button);
+}
+[data-surface="product"] :is(input:not([type="checkbox"], [type="radio"]), select, textarea, .copy-field, .space-filter, .tour-crm-select) {
+  border-radius: var(--radius-control);
+}
+[data-surface="product"] :is(.dash-space, .account-next, .tour-row-status, .clients-preview, .team-result, .desk-totals, .tour-review, .veylet-form .choice, .annual-option, .tour-builder-choice) {
+  border-radius: var(--radius-card);
+}
+[data-surface="product"] :is(input, select, textarea, .button, .tour-action) {
+  font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+[data-surface="product"] :is(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: var(--focus);
+}
+[data-surface="product"] .tour-qr-code svg {
+  background: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  [data-surface="product"] .apple-button {
+    border-color: #fff;
+    background: #fff;
+    color: #000;
+  }
+}

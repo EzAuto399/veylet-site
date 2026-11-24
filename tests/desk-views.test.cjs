@@ -269,8 +269,8 @@ test('disclosures are hairlines, never boxes, and a closed one leaves no box beh
 
 test('pack options sit on the paper: transparent with a hairline, sage when chosen, and the radio shows the site’s focus ring', () => {
   assert.match(css, /\.desk-view \.annual-option \{ background: transparent; border-color: var\(--line\); \}/);
-  assert.match(css, /\.desk-view \.annual-option:has\(input:checked\) \{ border-color: var\(--ink\); background: #eef1e8; \}/);
-  assert.match(css, /\.desk-view \.annual-option input:focus-visible \{ outline: 3px solid #897033; outline-offset: 3px; \}/);
+  assert.match(css, /\.desk-view \.annual-option:has\(input:checked\) \{ border-color: var\(--ink\); background: var\(--raised\); \}/);
+  assert.match(css, /\.desk-view \.annual-option input:focus-visible \{ outline: 3px solid var\(--focus\); outline-offset: 3px; \}/);
   // "No extra rooms available." is not said again under the table row that says "0 available".
   assert.match(css, /#view-plan:has\(\[data-extra-said="true"\]\) \[data-none="true"\] \{ display: none; \}/);
 });

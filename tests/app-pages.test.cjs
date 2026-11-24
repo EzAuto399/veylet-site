@@ -74,7 +74,7 @@ test('the app pages have a minimal header, and their only navigation is to one a
     assert.doesNotMatch(html, /brand-host\.js|<link rel="canonical"|og:image/, page + ': not a public page');
   }
   const account = read('app/account/index.html');
-  assert.match(account, /^<!doctype html>\s*<html lang="en" data-app-mode="true">/);
+  assert.match(account, /^<!doctype html>\s*<html lang="en" data-surface="product" data-app-mode="true">/);
   for (const id of ['account-trial', 'account-packs', 'account-annual', 'account-referral', 'account-referred', 'account-express-status', 'account-add-space', 'account-gate'])
     assert.doesNotMatch(account, new RegExp('id="' + id + '"'), id + ' is not on the app page');
   for (const id of ['account-sign-in', 'account-verify', 'account-properties', 'account-plan-body', 'account-contact', 'account-deletion', 'account-export', 'account-sign-out'])

@@ -2098,7 +2098,7 @@ test('the insights panel is one column that changes layout at two widths only, b
   // The scale is one hue in three steps, light to dark, from the desk's own tokens; no colour of its own beyond the floor.
   assert.deepEqual([1, 2, 3].map(level => insightsCss.match(new RegExp('\\.tour-heat-spot\\[data-level="' + level + '"\\] \\{ fill: (var\\(--[\\w-]+\\));'))[1]), ['var(--line)', 'var(--accent)', 'var(--ink)']);
   assert.match(insightsCss, /\.tour-heat-spot\[data-level="1"\] \{ fill: var\(--line\); stroke: var\(--field-line\); \}/, 'the palest step keeps a 3:1 edge against the floor');
-  assert.deepEqual([...new Set(insightsCss.match(/#[0-9a-fA-F]{3,8}\b/g))], ['#fdfcfa']);
+  assert.equal(insightsCss.match(/#[0-9a-fA-F]{3,8}\b/g), null, 'the floor is the --surface token, so the scale follows the desk into dark mode');
 });
 
 test('Refresh keeps the reader’s place: the panel that was open on a card is open again, and a closed one stays closed', async () => {

@@ -1,0 +1,216 @@
+{
+  "$comment": "Veylet design tokens v2 (design spec v2, sections 3 and 11.6). The reference that dist/style.css (web) and StudioTokens.swift / StudioDesign.swift (iOS) are checked against. tests/design-tokens.test.cjs reads this file.",
+  "colour": {
+    "light": {
+      "canvas": "#f4f1e9",
+      "surface": "#fbfaf6",
+      "raised": "#eaece3",
+      "text": "#10231d",
+      "muted": "#536557",
+      "accent": "#294534",
+      "on-accent": "#f4f1e9",
+      "tint": "#c6dcc9",
+      "hairline": "#ccd2c5",
+      "control": "#7a877d",
+      "warning": "#8a5a17",
+      "danger": "#a24031",
+      "focus": "#897033"
+    },
+    "dark": {
+      "canvas": "#0c1815",
+      "surface": "#152722",
+      "raised": "#1e342d",
+      "text": "#f4f2e6",
+      "muted": "#b1c1b4",
+      "accent": "#a2dbc0",
+      "on-accent": "#0c1815",
+      "tint": "#1f3a2f",
+      "hairline": "#354f43",
+      "control": "#6a8879",
+      "warning": "#f0bc85",
+      "danger": "#ffa897",
+      "focus": "#f0bc85"
+    },
+    "increaseContrast": {
+      "light": {
+        "control": "#45544a"
+      },
+      "dark": {
+        "control": "#9fb4a6"
+      }
+    },
+    "stage": {
+      "stage": "#07110e",
+      "stage-raised": "#13201b",
+      "stage-text": "#f4f2e6",
+      "stage-muted": "#a9b8ad",
+      "stage-accent": "#a2dbc0",
+      "stage-tint": "#1f3a2f",
+      "stage-focus": "#f4f2e6"
+    }
+  },
+  "contrastPairs": {
+    "$comment": "Every text, state and control pair that must pass, with the surface it is measured on. Hairline is decorative and exempt.",
+    "pairs": [
+      [
+        "text",
+        "canvas",
+        4.5
+      ],
+      [
+        "text",
+        "surface",
+        4.5
+      ],
+      [
+        "text",
+        "raised",
+        4.5
+      ],
+      [
+        "muted",
+        "canvas",
+        4.5
+      ],
+      [
+        "muted",
+        "surface",
+        4.5
+      ],
+      [
+        "muted",
+        "raised",
+        4.5
+      ],
+      [
+        "accent",
+        "canvas",
+        4.5
+      ],
+      [
+        "accent",
+        "surface",
+        4.5
+      ],
+      [
+        "on-accent",
+        "accent",
+        4.5
+      ],
+      [
+        "text",
+        "tint",
+        4.5
+      ],
+      [
+        "accent",
+        "tint",
+        4.5
+      ],
+      [
+        "warning",
+        "canvas",
+        4.5
+      ],
+      [
+        "warning",
+        "surface",
+        4.5
+      ],
+      [
+        "danger",
+        "canvas",
+        4.5
+      ],
+      [
+        "danger",
+        "surface",
+        4.5
+      ],
+      [
+        "control",
+        "canvas",
+        3
+      ],
+      [
+        "control",
+        "surface",
+        3
+      ],
+      [
+        "focus",
+        "canvas",
+        3
+      ],
+      [
+        "focus",
+        "surface",
+        3
+      ]
+    ],
+    "stagePairs": [
+      [
+        "stage-text",
+        "stage",
+        4.5
+      ],
+      [
+        "stage-muted",
+        "stage",
+        4.5
+      ],
+      [
+        "stage-accent",
+        "stage",
+        4.5
+      ],
+      [
+        "stage-text",
+        "stage-raised",
+        4.5
+      ],
+      [
+        "stage-muted",
+        "stage-raised",
+        4.5
+      ],
+      [
+        "stage-accent",
+        "stage-raised",
+        4.5
+      ],
+      [
+        "stage-focus",
+        "stage",
+        3
+      ]
+    ]
+  },
+  "radius": {
+    "editorial": 2,
+    "editorial-card": 6,
+    "control": 10,
+    "button": 12,
+    "card": 16,
+    "media": 16,
+    "sheet": 24
+  },
+  "motion": {
+    "press": "120ms cubic-bezier(0.23, 1, 0.32, 1)",
+    "snappy": "180ms cubic-bezier(0.23, 1, 0.32, 1)",
+    "standard": "240ms cubic-bezier(0.32, 0.72, 0, 1)",
+    "emphasized": "320ms cubic-bezier(0.32, 0.72, 0, 1)",
+    "celebrate": "450ms cubic-bezier(0.34, 1.36, 0.64, 1)",
+    "fill": "600ms linear",
+    "reveal": "600ms cubic-bezier(0.16, 1, 0.3, 1)",
+    "reduced": "150ms opacity"
+  },
+  "aliases": {
+    "ink": "text",
+    "paper": "canvas",
+    "sage": "tint",
+    "line": "hairline",
+    "panel": "raised",
+    "field-line": "control"
+  }
+}
