@@ -868,7 +868,7 @@
     } else if (production.value?.data === true) {
       guide('Prepare one agreed capture.', 'Use your assessed device and the agreed scope, and check the saved route before you send. Send from the app: it uploads in the background. Check your account for rendering status.', 'See capture preparation', '/start#capture-preparation');
     } else {
-      guide('Prepare your first capture.', 'Your space is saved. Use the Veylet app on a LiDAR iPhone or iPad for one practice capture. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-walkthrough steps', '/start');
+      guide('Prepare your first capture.', 'Your space is saved. Use the Veylet app on a LiDAR iPhone or iPad to capture it; the practice room is optional. Send from the app: it uploads in the background. Check your account for rendering status.', 'See your first-walkthrough steps', '/start');
     }
   }
   function button(label, fn) {
@@ -7646,7 +7646,7 @@
     // (Asked when the Account view is first near the screen, not on every desk load.)
     if (!emailWatched) { emailWatched = true; whenNear(viewEls.get('account'), () => { emailWatched = false; void emailRender(supabase); }); }
     if (gateTitle) gateTitle.textContent = production.value?.data === true ? 'Production access approved.' : failed(production) ? 'Production approval could not be checked.' : 'Your account is ready. Capture approval is separate.';
-    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every walkthrough still passes its automatic quality check and needs publication permission before sharing.' : 'You can save a space and prepare a practice capture. Client work needs a device and practice assessment first.';
+    if (gateBody) gateBody.textContent = production.value?.data === true ? 'Use your approved capture workflow. Every walkthrough still passes its automatic quality check and needs publication permission before sharing.' : 'Try the practice room first, or go straight to your first space. Client work needs production approval and agreed terms.';
     deskShownAt = failed(props) ? 0 : Date.now();
     if (failed(props)) { guide('Reload your spaces.', 'Your saved work could not be checked. Refresh before creating another space or repeating an upload.', 'Refresh spaces', () => loadDesk(supabase)); targetMessage(requestedTour ? 'The requested walkthrough could not be checked. Refresh spaces to try again.' : ''); message(list, 'Spaces could not load. Refresh the desk to try again.'); return; }
     if (failed(tours)) { message(list, 'Walkthrough status could not load. Your spaces are shown below, but the walkthrough list is unavailable. Refresh to retry.'); }
@@ -7914,7 +7914,7 @@
     if (gateTitle) gateTitle.textContent = 'Checking capture approval…';
     if (gateBody) {
       gateBody.textContent =
-        'Save a space and arrange a practice capture. Client work needs device and practice assessment.';
+        'Try the practice room first, or go straight to your first space. Client work needs production approval and agreed terms.';
     }
     if (idEl) idEl.textContent = 'Account id: ' + session.user.id;
     void methodsLoad(session);

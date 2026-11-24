@@ -53,7 +53,8 @@ test('the stage is one line, window.VEYLET_STAGE, and it is app (16 November 202
   const window = load();
   assert.equal(window.VEYLET_STAGE, 'app');
   assert.equal(window.VeyletStage.DEFAULT, 'app');
-  assert.deepEqual(Object.keys(window.VeyletStage.STAGES), ['test', 'invitation', 'waitlist', 'open', 'app']);
+  assert.deepEqual(Object.keys(window.VeyletStage.STAGES), ['app'], 'the retired test, invitation, waitlist and open stages are gone');
+  assert.doesNotMatch(source, /Ask for an invitation|By invitation|Limited test|INVITATION|INVITED|Open to anyone/);
   assert.equal(window.VeyletStage.resolve(window.VEYLET_STAGE), 'app');
 });
 
@@ -87,42 +88,8 @@ test('the old self-serve wording is gone from the sign-up calls to action', () =
   }
 });
 
-test('invitation and waitlist say "By invitation" with their own call to action; the account line says new accounts are by invitation', () => {
+test('app says On the App Store with the App Store button and the waitlist for rendering; an unknown value is app', () => {
   const { apply } = load().VeyletStage;
-  const invited = fakePage();
-  assert.equal(apply(invited.doc, 'invitation'), 'invitation');
-  assert.deepEqual([invited.label.textContent, invited.cta.textContent, invited.cta.getAttribute('href')],
-    ['By invitation', 'Ask for an invitation ', '/request?capture=self']);
-  assert.equal(invited.cta.links().length, 0);
-  assert.ok(invited.cta.children.includes(invited.icon), 'the arrow icon is kept');
-  assert.match(invited.account.textContent, /^New accounts are by invitation for now\./);
-  assert.equal(invited.account.links()[0].getAttribute('href'), '/request?capture=self');
-  assert.equal(invited.root.getAttribute('data-launch-stage'), 'invitation');
-
-  const waiting = fakePage();
-  apply(waiting.doc, 'waitlist');
-  assert.deepEqual([waiting.label.textContent, waiting.cta.textContent.trim(), waiting.cta.getAttribute('href')],
-    ['By invitation', 'Join the waitlist', '/waitlist']);
-  assert.match(waiting.account.textContent, /^New accounts are by invitation for now\. .*Join the waitlist\.$/);
-  assert.equal(waiting.account.links()[0].getAttribute('href'), '/waitlist');
-});
-
-test('test stage says Limited test with no sign-up link; open admits weekly from the waitlist; an unknown value is the default', () => {
-  const { apply } = load().VeyletStage;
-  const limited = fakePage();
-  apply(limited.doc, 'test');
-  assert.equal(limited.label.textContent, 'Limited test');
-  assert.equal(limited.cta.hidden, true);
-  assert.equal(limited.account.links().length, 0);
-  assert.doesNotMatch(limited.account.textContent, /waitlist|invitation/i);
-
-  const open = fakePage();
-  apply(open.doc, 'open');
-  assert.deepEqual([open.label.textContent, open.cta.textContent.trim(), open.cta.getAttribute('href'), open.cta.hidden],
-    ['Open to anyone, admitted weekly', 'Join the waitlist', '/waitlist', false]);
-  assert.match(open.account.textContent, /^Anyone can join\. New accounts are admitted in weekly groups from the waitlist\./);
-  assert.doesNotMatch(open.label.textContent + open.account.textContent, /invitation|Start free/i);
-
   const store = fakePage();
   apply(store.doc, 'app');
   assert.deepEqual([store.label.textContent, store.cta.textContent.trim(), store.cta.getAttribute('href'), store.cta.hidden],

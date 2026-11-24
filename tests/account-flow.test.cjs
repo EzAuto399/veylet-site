@@ -1131,7 +1131,7 @@ test('signing out clears the plan panel', async () => {
 
 test('the desk first-capture steps follow the app-first flow', () => {
   assert.match(markup, /Install the Veylet app on a LiDAR iPhone and sign in with this same email/);
-  assert.match(markup, /Do one practice capture in a space you are allowed to record/);
+  assert.match(markup, /Optional: try the practice room first, in a space you are allowed to record/);
   // Owner decision 26 September 2026: sending happens from the app; one tick before Approve and share.
   assert.match(markup, /Send from the app: it uploads in the background\. Check your account for rendering status\./);
   assert.match(account, /Send from the app: it uploads in the background\. Check your account for rendering status\./);

@@ -213,7 +213,6 @@
   .offer-anchor-list > div { grid-template-columns: minmax(10rem, 0.6fr) minmax(0, 1.2fr) minmax(9rem, 0.4fr); }
 }
 /* The optional pack line spans the statement like the paid line and the total. */
-.offer-page .statement-lines > .line-pack { grid-column: 1 / -1; }
 /* An amount inside an answer is set like every other amount on the page. */
 .offer-page .guide-section details [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 /* Disclosures on this page use the site's drawn plus that settles to a minus. */

@@ -20,7 +20,7 @@
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
     <link rel="preload" href="/media/Outfit-400.woff2?v=71f028fd2349990b" as="font" type="font/woff2" crossorigin><link rel="preload" href="/media/Outfit-500.woff2?v=fc9bff941def6d92" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/style.css?v=9a4e9ba6affcabe5" />
-    <link rel="stylesheet" href="/conversion.css?v=1bdff6243b277902" />
+    <link rel="stylesheet" href="/conversion.css?v=afd4f44edc5093bd" />
     <style>
       .waitlist-page { padding-bottom: 72px; }
       .waitlist-page h1 { margin: 12px 0 18px; }
@@ -39,6 +39,7 @@
       .waitlist-done { margin-top: 8px; padding: 24px; border: 1px solid var(--line); border-radius: 2px; }
       .waitlist-done h2 { font-size: 28px; margin: 0 0 8px; }
       .waitlist-done p { margin: 0; max-width: 52ch; }
+      .waitlist-done .waitlist-done-lead { line-height: 1.55; overflow-wrap: anywhere; }
       .waitlist-lidar { display: block; }
       .waitlist-done .waitlist-next-title { margin: 20px 0 0; color: var(--muted); }
       .waitlist-done .next-steps { gap: 12px; margin: 12px 0 20px; }
@@ -58,7 +59,7 @@
       <p class="intro">
         Turn your next listing into a 3D walkthrough buyers can explore on any phone. When your weekly
         group opens, your first month is free with 30 rooms, then A$139.99 a month or
-        A$1,399.99 a year. Capture quality is still being proven. Joining is free.
+        A$1,399.99 a year. Joining is free.
       </p>
       <p class="form-summary">Required fields are marked *.</p>
       <noscript><p class="waitlist-fallback">This form needs JavaScript. To join without it, email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a> with your name, work email and phone model.</p></noscript>
@@ -95,15 +96,16 @@
       <p class="waitlist-fallback" id="waitlist-fallback" hidden></p>
       <section class="waitlist-done" id="waitlist-done" aria-labelledby="waitlist-done-title" hidden>
         <h2 id="waitlist-done-title" tabindex="-1">You’re on the list.</h2>
+        <p class="waitlist-done-lead"><span id="waitlist-done-email">We’ll email you when your account is in.</span> Meanwhile, get the app: you can capture and save spaces now.</p>
         <h3 class="eyebrow waitlist-next-title" id="waitlist-next-title">What happens next</h3>
         <ol class="next-steps waitlist-next" aria-labelledby="waitlist-next-title">
           <li>Tell us when your next listing goes live: reply to your confirmation email, or email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a>. A rough date is fine.</li>
-          <li>We review new sign-ups each week. When your group opens, we email your invitation to the Veylet app.</li>
           <li>Your first month is free, with 30 rooms included. Yo-Da, our founder, can help with your first capture on a 15-minute call.</li>
         </ol>
         <p class="journey-note waitlist-device" id="waitlist-done-device" hidden>Capture works on iPhone 12 Pro and newer Pro or Pro Max models, and iPad Pro 2020 and newer. Any phone can view a walkthrough.</p>
         <p class="tour-actions-row waitlist-done-actions">
-          <a class="button" href="/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"></span></a>
+          <a class="button" href="https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913" data-analytics-cta="app_store" data-analytics-placement="body">Get the app <span class="icon-arrow" aria-hidden="true"></span></a>
+          <a class="text-link" href="/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"></span></a>
           <button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague</button>
         </p>
         <p class="contact-note waitlist-share-status" id="waitlist-share-status" role="status" aria-live="polite"></p>
@@ -114,6 +116,6 @@
     <script src="/place-fields.js?v=c87496395841d9cd"></script>
     <script src="/first-touch.js?v=2a2b56b660ab0f8f" defer></script>
     <script src="/site-lib.js?v=3762aa68c924c230" defer></script>
-    <script src="/waitlist/waitlist.js?v=2f1a254aa2be8066" defer></script>
+    <script src="/waitlist/waitlist.js?v=9a2183713470572d" defer></script>
   </body>
 </html>

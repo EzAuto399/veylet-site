@@ -13,19 +13,6 @@
   const phoneBox = document.querySelector('[data-see-phone]');
   let layoutThread = () => {};
 
-  /* ---------- The mobile bar waits until the hero's own actions scroll away ---------- */
-  (() => {
-    const bar = document.querySelector('[data-sticky-cta]');
-    const actions = document.querySelector('[data-hero-actions]');
-    if (!bar || !actions || !('IntersectionObserver' in window)) return;
-    bar.dataset.visible = 'false';
-    // On phones the actions sit below the stage, so the bar stays out of the first screen
-    // (where it would cover the Explore press) and appears once they have scrolled past.
-    new IntersectionObserver(([entry]) => {
-      bar.dataset.visible = !entry.isIntersecting && entry.boundingClientRect.top < 0 ? 'true' : 'false';
-    }).observe(actions);
-  })();
-
   /* ---------- The walkthrough video: plays muted while on screen, with Pause and two cuts ---------- */
   const video = (() => {
     const figure = document.querySelector('[data-see-video]');
