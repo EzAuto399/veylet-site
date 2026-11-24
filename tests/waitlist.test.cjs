@@ -68,7 +68,8 @@ test('the hero says what joining is for, the free month and the prices from offe
   const intro = /<p class="intro">([\s\S]*?)<\/p>/.exec(markup)[1].replace(/\s+/g, ' ').trim();
   assert.equal(intro, 'Turn your next listing into a 3D walkthrough buyers can explore on any phone. When your weekly group opens, '
     + `your first month is free with ${offer.freeMonths.includedRooms} rooms, then ${aud(solo.appAud)} a month or ${aud(solo.annualAppAud)} a year. `
-    + 'Capture quality is still being proven. Joining is free.');
+    + 'Joining is free.');
+  assert.doesNotMatch(markup, /still being proven/, 'one honest line lives on the home page, not stacked here (spec v2 6.1)');
   assert.equal(offer.freeMonths.months, 1, 'the hero promises one free month');
 });
 
@@ -315,12 +316,14 @@ test('the success state lists what happens next, offers /see and sharing, and na
   const steps = [.../<ol class="next-steps waitlist-next"[^>]*>([\s\S]*?)<\/ol>/.exec(markup)[1].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(m => m[1]);
   assert.deepEqual(steps, [
     'Tell us when your next listing goes live: reply to your confirmation email, or email <a href="mailto:support@veylet.com?subject=Veylet%20waitlist">support@veylet.com</a>. A rough date is fine.',
-    'We review new sign-ups each week. When your group opens, we email your invitation to the Veylet app.',
     'Your first month is free, with 30 rooms included. Yo-Da, our founder, can help with your first capture on a 15-minute call.',
   ]);
   const done = /<section class="waitlist-done"[\s\S]*?<\/section>/.exec(markup)[0];
   assert.match(done, />What happens next</);
-  assert.match(done, /<a class="button" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
+  assert.doesNotMatch(done, /invitation/i, 'the app is on the App Store; nobody is invited to it');
+  assert.match(done, /<p class="waitlist-done-lead"><span id="waitlist-done-email">We’ll email you when your account is in\.<\/span> Meanwhile, get the app: you can capture and save spaces now\.<\/p>/);
+  assert.match(done, /<a class="button" href="https:\/\/apps\.apple\.com\/au\/app\/veylet-3d-property-tours\/id6814273913" data-analytics-cta="app_store" data-analytics-placement="body">Get the app <span class="icon-arrow" aria-hidden="true"><\/span><\/a>\s*<a class="text-link" href="\/see">See a sample walkthrough <span class="icon-arrow" aria-hidden="true"><\/span><\/a>/);
+  assert.equal((done.match(/class="button"/g) || []).length, 1, 'one filled button: Get the app');
   assert.doesNotMatch(done, /See a result/);
   assert.match(markup, /<button class="button button-ghost" type="button" id="waitlist-share">Share with a colleague<\/button>/);
   assert.ok(/<body class="site">/.test(markup) && Number(fs.readFileSync(path.join(dist, 'style.css'), 'utf8').match(/\.site \.button \{\s*min-height: (\d+)px;/)[1]) >= 44, 'the share button keeps a 44px target, from the shared button box');
@@ -337,6 +340,27 @@ test('the success state lists what happens next, offers /see and sharing, and na
   bot.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, device: 'android', _honey: 'x' });
   await api.send(bot.window, bot.ids['waitlist-form']);
   assert.equal(bot.ids['waitlist-done-device'].hidden, true);
+});
+
+test('success names the email the person typed, as text, and falls back to the plain promise without one (spec v2 6.1)', async () => {
+  const api = load();
+  const joined = page([{ status: 200, body: { state: 'joined' } }]);
+  joined.ids['waitlist-form'].data = new FakeFormData(ANSWERS);
+  assert.equal(await api.send(joined.window, joined.ids['waitlist-form']), 'joined');
+  assert.equal(joined.ids['waitlist-done-email'].textContent, 'We’ll email you at Sam@Agency.com.au when your account is in.');
+
+  const odd = page([{ status: 200, body: { state: 'joined' } }]);
+  odd.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, email: '<b>sam</b>@agency.com.au' });
+  assert.equal(await api.send(odd.window, odd.ids['waitlist-form']), 'joined');
+  assert.equal(odd.ids['waitlist-done-email'].textContent, 'We’ll email you at <b>sam</b>@agency.com.au when your account is in.');
+  assert.equal(odd.ids['waitlist-done-email'].children.length, 0, 'the address is text, never markup');
+  assert.doesNotMatch(script, /innerHTML|insertAdjacentHTML|outerHTML/);
+
+  const bot = page([]);
+  bot.ids['waitlist-form'].data = new FakeFormData({ ...ANSWERS, _honey: 'x' });
+  await api.send(bot.window, bot.ids['waitlist-form']);
+  assert.equal(bot.ids['waitlist-done-email'].textContent, 'We’ll email you when your account is in.');
+  assert.equal(api.COPY.joined, 'We’ll email you when your account is in.');
 });
 
 test('sharing uses the share sheet, else copies the link, else shows it; a dismissed sheet does nothing', async () => {

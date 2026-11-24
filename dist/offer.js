@@ -26,28 +26,21 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
   const until = document.querySelector('[data-statement-until]');
   const cadence = document.querySelector('#billing-cadence');
   const channel = document.querySelector('#billing-channel');
-  const pack = document.querySelector('#billing-pack');
-  const PACKS = ['pack3', 'pack10'];
   const money = cents => `A$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
   const put = (selector, value) => { const el = document.querySelector(selector); if (el) el.textContent = value; };
   const isAnnual = () => !!cadence && cadence.value === 'annual';
   // Amounts, counts and validity come from the form's data attributes. With the monthly plan
-  // through Apple and no pack, the text below is exactly the page's own no-script text.
+  // through Apple, the text below is exactly the page's own no-script text.
   const renderCost = () => {
     if (!channel) return;
     const data = form.dataset;
     const annual = isAnnual();
-    const code = pack && PACKS.includes(pack.value) ? pack.value : '';
-    const count = code ? Number(data[code + 'Rooms']) : 0;
-    const valid = Number(data.packValidMonths);
-    const sizes = PACKS.every(key => Number(data[key + 'Rooms']) > 0);
     const [free, included, banked, pool] = [data.freeIncluded, data.planIncluded, data.planBankedMax,
       data.planYearIncluded].map(Number);
     const cost = offerTotal({ channel: channel.value, cadence: annual ? 'annual' : 'monthly',
       monthly: data.planAppMonth, annual: data.planAppYear,
-      freeMonths: months, packPrice: code ? data[code + 'Web'] : 0 });
-    if (!cost || !sizes || !(valid > 0) || (code && !(count > 0 && cost.packCents > 0))
-        || ![free, included, banked, pool].every(n => Number.isInteger(n) && n > 0)) return;
+      freeMonths: months });
+    if (!cost || ![free, included, banked, pool].every(n => Number.isInteger(n) && n > 0)) return;
     // Annual savings are separate from introductory eligibility; do not round them into free months.
     const monthCents = Math.round(Number(data.planAppMonth) * 100);
     const yearCents = Math.round(Number(data.planAppYear) * 100);
@@ -56,29 +49,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
     const paid = 12 - months;
     put('[data-bill-amount]', money(cost.billCents));
     put('[data-bill-cadence]', `${annual ? 'upfront a year' : 'a month'} in the App Store`);
-    const packLine = document.querySelector('[data-pack-line]');
-    if (packLine) packLine.hidden = !code;
-    if (code) {
-      put('[data-pack-what]', `Pack of ${count} rooms · not on sale yet · valid ${valid} months`);
-      put('[data-pack-amount]', money(cost.packCents));
-    }
     const payments = annual
       ? `1 yearly App Store payment for months ${months + 1} to ${months + 12}`
       : `${paid} monthly App Store payments`;
     put('[data-year-total]', money(cost.firstTwelveMonthsCents));
     const freeLabel = `${months} free month${months === 1 ? '' : 's'}`;
-    put('[data-total-caption]', code ? `${freeLabel}, ${payments} and the pack` : `${freeLabel}, then ${payments}`);
+    put('[data-total-caption]', `${freeLabel}, then ${payments}`);
     const freePart = `${free} rooms in total during the ${months} free month${months === 1 ? '' : 's'}.`;
     const planPart = annual
       ? `Then ${pool} to use any time in your paid plan year, with no monthly limit and no rollover between years.`
       : `Then ${included} a month on the plan; unused ones carry over, up to ${banked} banked.`;
-    const packPart = code
-      ? `Once packs are on sale (they aren’t yet), this one adds ${count}, used after the included ones and valid ${valid} months from purchase.`
-      : 'Top-up packs aren’t on sale yet.';
-    put('[data-statement-allowance]', `${freePart} ${planPart} ${packPart}`);
+    put('[data-statement-allowance]', `${freePart} ${planPart} Top-up packs aren’t on sale yet.`);
     const saving = annual && savedCents > 0
       ? ` Yearly saves ${money(savedCents)} (${savedPercent}%) compared with 12 monthly payments.` : '';
-    put('[data-billing-explanation]', `Illustration for the Veylet plan with an eligible ${months}-month App Store introductory offer, then ${money(cost.billCents)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase.${saving}${code ? ' The one-time pack is a separate website or invoice purchase; it does not recur or change the Apple subscription.' : ''} Nothing is charged by this calculator.`);
+    put('[data-billing-explanation]', `Illustration for the Veylet plan with an eligible ${months}-month App Store introductory offer, then ${money(cost.billCents)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple. Apple confirms the exact dates and price before purchase.${saving} Nothing is charged by this calculator.`);
   };
   if (!form || !lines || !input) return;
   const months = Number(lines.dataset.trialMonths) || 1;
@@ -140,7 +124,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { offerTot
   };
   input.addEventListener('input', render);
   input.addEventListener('change', render);
-  for (const control of [cadence, channel, pack]) {
+  for (const control of [cadence, channel]) {
     if (control) control.addEventListener('change', () => { render(); triggerMorph(); });
   }
   form.addEventListener('submit', event => event.preventDefault());

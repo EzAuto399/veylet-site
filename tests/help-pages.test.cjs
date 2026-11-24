@@ -63,16 +63,18 @@ test('F04 install help follows the current App Store and Apple/email journey', (
   }
 });
 
-test('D1 practice is required once, preserves saved success and does not block sending', () => {
+test('D1 the practice room is optional and never blocks capturing or sending (spec v2 5.4)', () => {
   for (const base of ['help', 'app/help']) {
     const practice = text(main(read(`${base}/practice-room/index.html`)));
     const needs = text(main(read(`${base}/what-you-need/index.html`)));
-    assert.match(practice, /One successful practice room is required before you start your first real capture\./, base);
-    assert.match(practice, /If this iPhone already has a successful practice result, it stays unlocked after an update\./, base);
-    assert.match(practice, /You can still send real captures you have already made\./, base);
-    assert.match(practice, /Do the practice room/, base);
-    assert.match(needs, /Complete the practice room once before starting a real capture\./, base);
-    assert.match(needs, /A successful practice already saved on this iPhone counts\./, base);
+    const install = text(main(read(`${base}/install-and-sign-in/index.html`)));
+    assert.match(practice, /The practice room is optional\. Try the practice room first, or go straight to your first space\./, base);
+    assert.match(practice, /Skipping it never stops you capturing or sending a real space\./, base);
+    assert.match(practice, /Open the practice room from Captures any time\./, base);
+    assert.match(practice, /Room done means every check passed\. Capture your first space when you’re ready\./, base);
+    assert.match(needs, /the optional practice room\s?\. Try the practice room first, or go straight to your first space\./, base);
+    assert.match(install, /After signing in, try the practice room from Captures first, or go straight to your first space\./, base);
+    assert.doesNotMatch(practice + needs + install, /required|unlock|Complete the practice room once|before your first real capture/i, base);
   }
 });
 

@@ -10,7 +10,9 @@ const dist = path.join(__dirname, '..', 'dist');
 const read = rel => fs.readFileSync(path.join(dist, rel), 'utf8');
 
 test('hero and walk-demo illustrations use v1.1 room-and-spot language, never "views saved"', () => {
-  for (const page of ['index.html', 'offer/index.html']) {
+  // Design spec v2 (6.1, 7.5): the home hero is the real sample walkthrough, so the illustrated phone is only on /offer.
+  assert.doesNotMatch(read('index.html'), /views saved/i, 'index.html must not show retired "views saved" copy');
+  for (const page of ['offer/index.html']) {
     const html = read(page);
     assert.doesNotMatch(html, /views saved/i, `${page} must not show retired "views saved" copy`);
     assert.match(html, /data-cap-spots/, `${page} hero phone shows spot progress dashes`);
@@ -41,14 +43,13 @@ test('architectural dollhouse uses GPU layer groups, numbered stops, room labels
   assert.match(js, /tl\.tweenTo\(/, 'clicking a step smoothly scrubs from current position via tweenTo');
 });
 
-test('homepage see-band provides an interactive multi-room preview while keeping exactly one /see link', () => {
+// Design spec v2 (6.1, 7.5): the stills see-band is cut; the hero stage is the interactive sample, with one /see fallback link.
+test('homepage hero stage is the interactive sample, the see-band is gone and the hero keeps exactly one /see link', () => {
   const home = read('index.html');
-  const seeBand = home.match(/<section class="see-band[\s\S]*?<\/section>/)[0];
-  assert.equal((seeBand.match(/href="\/see"/g) || []).length, 1, 'keeps one /see link');
-  assert.match(seeBand, /data-home-preview/, 'interactive preview container exists');
-  for (const room of ['Living area', 'Kitchen', 'Workshop', 'Bedroom']) {
-    assert.match(seeBand, new RegExp(`data-preview-room="${room}"`), `button for ${room}`);
-  }
+  assert.doesNotMatch(home, /<section class="see-band/, 'the stills band is cut');
+  const hero = home.match(/<section class="vh"[\s\S]*?<\/section>/)[0];
+  assert.match(hero, /data-hero-stage/, 'interactive sample stage exists');
+  assert.equal((hero.match(/href="\/see"/g) || []).length, 1, 'keeps one /see link for no-JS visitors');
 });
 
 test('interactive homepage room preview switches rooms on button click and horizontal drag without blocking vertical scroll', () => {

@@ -59,7 +59,7 @@ class Element {
  * options: tables ({ properties, tours, memberships }), rpc ({ name: (args, h) => answer }),
  * approved (tour ids whose review is approved; default all), appMode, search, signedOut,
  * navigator, pathname, formData (what the sign-in form's fields hold), hash (the address's
- * #view). The harness keeps windowEvents (hashchange…) and assigned (location.assign).
+ * #view), window (more globals, such as VeyletQR). The harness keeps windowEvents (hashchange…) and assigned (location.assign).
  */
 async function loadDesk(options = {}) {
   const markup = fs.readFileSync(path.join(dist, options.appMode ? 'app/account/index.html' : 'account/index.html'), 'utf8');
@@ -112,6 +112,8 @@ async function loadDesk(options = {}) {
   };
   // `options.localStorage`: this browser's storage (absent unless a test supplies one).
   if (options.localStorage) window.localStorage = options.localStorage;
+  // `options.window`: more globals this page reads (VeyletQR, the vendored QR generator).
+  Object.assign(window, options.window || {});
   const documentStub = Object.assign(doc, {
     getElementById: id => ids[id] || null, createElement: tag => new Element(tag, doc), addEventListener() {},
     head: { append() {} }, documentElement: { dataset: options.appMode ? { appMode: 'true' } : {} },

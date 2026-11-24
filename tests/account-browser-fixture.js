@@ -1871,6 +1871,16 @@
           next_open_start: openStart.toISOString(), next_open_end: new Date(openStart.getTime() + 1800000).toISOString(),
           agency_brand_hex: '#1f4b3a' }] };
       }
+      // A paused link: release 8's lookup_tour_share_pause names Alex Example on `?pause=paused`, with the space
+      // name and the opt-in phone and email the buyer page reads when the server gives them (design spec v2 6.13,
+      // not yet in the release 8 draft). `?contact=phone|email` keeps one way to reach them, `none` neither.
+      // As the server does, the contact lookup answers no row for a paused token.
+      if (name === 'lookup_tour_share_pause') {
+        if (pauseCase !== 'paused') return { data: [] };
+        const reach = contactCase === 'none' ? {} : { phone: contactCase === 'email' ? null : '+61 400 000 000', email: contactCase === 'phone' ? null : 'alex@example.invalid' };
+        return { data: [{ paused: true, display_name: 'Alex Example', space_title: 'Fictional practice space', ...reach }] };
+      }
+      if (name === 'lookup_tour_share_contact' && pauseCase === 'paused') return { data: [] };
       if (name === 'lookup_tour_share_contact') {
         if (contactCase === 'missing') return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.lookup_tour_share_contact(p_token) in the schema cache' } };
         if (contactCase === 'error' || scenario === 'errors') return { data: null, error: { message: 'Synthetic contact failure' } };

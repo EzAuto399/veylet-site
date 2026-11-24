@@ -61,7 +61,7 @@ const ARTICLES = [
       '**A LiDAR device:** an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.',
       '**Free space:** keep at least 3 GB free. A capture cannot start with less than 2 GB.',
       '**An email address** for your Veylet account. There is no password.',
-      '**About five minutes** in one room at home for the [practice room](help:practice-room). Complete the practice room once before starting a real capture. A successful practice already saved on this iPhone counts.',
+      '**About five minutes** in one room at home for the optional [practice room](help:practice-room). Try the practice room first, or go straight to your first space.',
       '**For a real home:** permission to capture it, working lights, and a clear route through each room.',
     ] }],
     notWorking: [
@@ -77,7 +77,7 @@ const ARTICLES = [
       'Install **the Veylet app** on your supported Pro iPhone or iPad from the App Store. Rendering opens to new accounts in weekly groups from the waitlist.',
       'Open it and read how it works. Choose **Sign in with Apple**, or **Use email instead** and enter the email you use on the website. Your first sign-in creates your account.',
       'For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.',
-      'After signing in, start with the practice room from Captures before your first real capture.',
+      'After signing in, try the practice room from Captures first, or go straight to your first space.',
     ] }],
     notWorking: [
       'No email after a minute? Check your junk folder, then send it again from the app.',
@@ -88,15 +88,15 @@ const ARTICLES = [
   },
   {
     slug: 'practice-room', group: 'getting-started', title: 'The practice room, and how to pass it', short: 'Practice room',
-    description: 'Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.',
-    lead: 'One successful practice room is required before you start your first real capture. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done. If this iPhone already has a successful practice result, it stays unlocked after an update. You can still send real captures you have already made.',
+    description: 'An optional practice in one room at home: the four checks, what "Room done" means and what to do if it is not done yet.',
+    lead: 'The practice room is optional. Try the practice room first, or go straight to your first space. It takes about five minutes, and your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching). Skipping it never stops you capturing or sending a real space.',
     body: [{ steps: [
-      'Tap **Do the practice room** when the app asks, or open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.',
+      'Open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.',
       'Stand in the middle and make one slow, level circle: about 36 seconds, pausing whenever views stop saving. This is the **Full turn at one spot** check.',
       'Tilt the phone about 30 degrees up and make another slow circle, then tilt about 30 degrees down and make a third. These are the **Circle tilted up** and **Circle tilted down** checks.',
       'Walk out through the doorway in small steps, showing both edges of the door frame from both sides.',
       'Tap **Finish & save**, then confirm you showed both doorway edges.',
-      '**Room done** means every check passed. Your first real capture is now unlocked.',
+      '**Room done** means every check passed. Capture your first space when you’re ready.',
     ] }],
     notWorking: [
       '**Not done yet:** the screen names the one thing to do next, such as "Tilt thirty degrees up. Make one slow circle." Start another practice capture to finish the missing checks. The first one stays on your iPhone.',

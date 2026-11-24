@@ -110,7 +110,7 @@ Seats
 Hosting
 - Every released walkthrough stays live while your account has a running plan: the free month, monthly or yearly. No cap on live tours (fair use: 100 per account). When the plan ends, its links, embeds and QR codes keep working for 14 days, then go offline, and banked rooms lapse after the 14 days. Restart the plan and the same links come back at once. To keep a single walkthrough online without a plan, ask us for a hosting extension: A$49 a year per walkthrough.
 Listing videos and photos
-- Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.
+- Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough. Files you download are yours to keep.
 Starting
 - Start in the app through Apple’s 1-month free introductory offer, if eligible. It includes 30 rooms in total. Nothing is charged during the free month. One trial per agency (ABN) and workspace; Apple also determines eligibility for the subscription group. Existing signed offers keep their dates and allowances.
 Before the first charge
@@ -163,7 +163,7 @@ New subscriptions use the App Store. Existing signed agreements retain their ter
 We agree any additional work in writing before it starts. In-person capture and office visits are not currently offered.
 Editing and derivatives
 - A$120 an hour, written estimate first
-- Thirty-minute minimum. An indicative floor plan from the same capture is coming and will be quoted when available. Listing videos and stills are included in the plan once video exports open.
+- Thirty-minute minimum. An indicative floor plan from the same capture is coming and will be quoted when available. Listing videos and stills are included in the plan.
 A measured floor plan, DSLR photography, an edited film, drone work, a listing on a property portal, unlimited revisions, or a custom domain.
 
 ### How it works, start to finish.
@@ -333,7 +333,7 @@ Most 3D walkthroughs open in a current web browser from a link or a website embe
 - Borderland Real Estate Media — Pricing, accessed 24 September 2026.
 
 ### Start with one space.
-Get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted. Your first session is one practice capture in a small room; capture visits are not currently offered.
+Get the app and try the free practice room; rendering opens to new accounts in weekly groups, so join the waitlist to be admitted. Try the practice room first, or go straight to your first space; capture visits are not currently offered.
 Get the app See the offer
 New accounts are admitted in weekly groups.
 
@@ -824,7 +824,7 @@ Short answers for each step, from your first capture to your client’s first vi
 The device you need, signing in, and the practice room.
 - What you need to start The iPhone or iPad the Veylet app needs, how much free space to keep, and what to have ready before your first capture.
 - Install the app and sign in Install the Veylet app from the App Store, then sign in with Apple or email using the same account as the website.
-- The practice room, and how to pass it Practise in one room at home before your first real capture: the four checks, what "Room done" means and what to do if it is not done yet.
+- The practice room, and how to pass it An optional practice in one room at home: the four checks, what "Room done" means and what to do if it is not done yet.
 
 ### Capturing
 Walking a room so every view connects, from the first spot to the last doorway.
@@ -873,7 +873,7 @@ The Veylet app records rooms with the LiDAR camera on a Pro iPhone or iPad. Chec
 - A LiDAR device: an iPhone 12 Pro or a later Pro model, or an iPad Pro with LiDAR. Other iPhones cannot record a capture.
 - Free space: keep at least 3 GB free. A capture cannot start with less than 2 GB.
 - An email address for your Veylet account. There is no password.
-- About five minutes in one room at home for the practice room. Complete the practice room once before starting a real capture. A successful practice already saved on this iPhone counts.
+- About five minutes in one room at home for the optional practice room. Try the practice room first, or go straight to your first space.
 - For a real home: permission to capture it, working lights, and a clear route through each room.
 
 ### If it doesn’t work
@@ -896,7 +896,7 @@ Choose Sign in with Apple or use email. Use the same sign-in on the app and webs
 - Install the Veylet app on your supported Pro iPhone or iPad from the App Store. Rendering opens to new accounts in weekly groups from the waitlist.
 - Open it and read how it works. Choose Sign in with Apple, or Use email instead and enter the email you use on the website. Your first sign-in creates your account.
 - For email sign-in, open the link on the same device or enter the six-digit code from the email in the app.
-- After signing in, start with the practice room from Captures before your first real capture.
+- After signing in, try the practice room from Captures first, or go straight to your first space.
 
 ### If it doesn’t work
 No email after a minute? Check your junk folder, then send it again from the app.
@@ -916,13 +916,13 @@ All help topics
 ## The practice room, and how to pass it — Veylet help
 Source: https://veylet.com/help/practice-room
 
-One successful practice room is required before you start your first real capture. It takes about five minutes, your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching), and your first real capture unlocks when the room is done. If this iPhone already has a successful practice result, it stays unlocked after an update. You can still send real captures you have already made.
-- Tap Do the practice room when the app asks, or open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.
+The practice room is optional. Try the practice room first, or go straight to your first space. It takes about five minutes, and your photos and depth stay on your iPhone (only the pass or fail result and its reasons are sent, so we can improve the coaching). Skipping it never stops you capturing or sending a real space.
+- Open the practice room from Captures any time. Pick an ordinary room at home and turn the lights on.
 - Stand in the middle and make one slow, level circle: about 36 seconds, pausing whenever views stop saving. This is the Full turn at one spot check.
 - Tilt the phone about 30 degrees up and make another slow circle, then tilt about 30 degrees down and make a third. These are the Circle tilted up and Circle tilted down checks.
 - Walk out through the doorway in small steps, showing both edges of the door frame from both sides.
 - Tap Finish & save, then confirm you showed both doorway edges.
-- Room done means every check passed. Your first real capture is now unlocked.
+- Room done means every check passed. Capture your first space when you’re ready.
 
 ### If it doesn’t work
 Not done yet: the screen names the one thing to do next, such as "Tilt thirty degrees up. Make one slow circle." Start another practice capture to finish the missing checks. The first one stays on your iPhone.

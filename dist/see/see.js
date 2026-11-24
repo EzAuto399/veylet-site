@@ -4,7 +4,7 @@
 // steps. Motion runs only through gsap.matchMedia, never under reduced motion, and every loop
 // stops off screen and while the tab is hidden.
 (() => {
-  const PLAYER_URL = '/tour-player-v2.js?v=16b2e5757b0b0fb6';
+  const PLAYER_URL = '/tour-player-v2.js?v=1dd1a18d05c79825';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const narrow = window.matchMedia('(max-width: 800px)');
   const hero = document.querySelector('[data-see-hero]');
@@ -12,19 +12,6 @@
   const playerBox = document.querySelector('[data-see-player]');
   const phoneBox = document.querySelector('[data-see-phone]');
   let layoutThread = () => {};
-
-  /* ---------- The mobile bar waits until the hero's own actions scroll away ---------- */
-  (() => {
-    const bar = document.querySelector('[data-sticky-cta]');
-    const actions = document.querySelector('[data-hero-actions]');
-    if (!bar || !actions || !('IntersectionObserver' in window)) return;
-    bar.dataset.visible = 'false';
-    // On phones the actions sit below the stage, so the bar stays out of the first screen
-    // (where it would cover the Explore press) and appears once they have scrolled past.
-    new IntersectionObserver(([entry]) => {
-      bar.dataset.visible = !entry.isIntersecting && entry.boundingClientRect.top < 0 ? 'true' : 'false';
-    }).observe(actions);
-  })();
 
   /* ---------- The walkthrough video: plays muted while on screen, with Pause and two cuts ---------- */
   const video = (() => {

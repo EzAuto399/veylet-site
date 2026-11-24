@@ -16,7 +16,7 @@
 .desk-side > .desk-section:not([hidden]) {
   padding: 20px 22px 22px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.48);
+  background: var(--surface);
 }
 @media (max-width: 480px) {
   .desk-side > .desk-section:not([hidden]) { padding: 18px 16px 20px; }
@@ -67,7 +67,7 @@
   text-align: center;
   transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
 }
-.desk .tour-action:hover { border-color: var(--ink); background: rgba(255, 255, 255, 0.55); }
+.desk .tour-action:hover { border-color: var(--ink); background: var(--surface); }
 .desk .tour-action:active { transform: translateY(1px); }
 .desk .tour-action:disabled,
 .desk .tour-action[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -76,13 +76,13 @@
 .desk .account-next .button { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .desk .tour-action-primary:hover,
 .desk .account-next .tour-action:hover,
-.desk .account-next .button:hover { background: #2c4939; border-color: #2c4939; color: var(--paper); }
-.desk .tour-action-danger[data-armed='true'] { background: var(--danger); border-color: var(--danger); color: #fff; }
-.desk .tour-action-danger[data-armed='true']:hover { background: #722a1d; border-color: #722a1d; }
+.desk .account-next .button:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.desk .tour-action-danger[data-armed='true'] { background: var(--danger); border-color: var(--danger); color: var(--canvas); }
+.desk .tour-action-danger[data-armed='true']:hover { background: color-mix(in srgb, var(--danger) 82%, var(--text)); border-color: color-mix(in srgb, var(--danger) 82%, var(--text)); }
 .desk .button { min-height: 44px; min-width: 0; padding: 10px 20px; font-size: 14px; line-height: 1.3; }
 
 /* The next step: the one tinted block, and the desk's one primary action. */
-.account-next { margin: 0; padding: 26px 28px 28px; border: 1px solid var(--line); background: var(--panel, #eaece3); }
+.account-next { margin: 0; padding: 26px 28px 28px; border: 1px solid var(--line); background: var(--panel, var(--raised)); }
 .account-next:empty { display: none; }
 .account-next h2 { margin: 0 0 10px; font-size: clamp(24px, 2.4vw, 30px); line-height: 1.2; letter-spacing: -0.02em; }
 .account-next > p:not(.eyebrow) { margin: 0 0 22px; max-width: 60ch; line-height: 1.6; }
@@ -170,7 +170,7 @@
 .desk .dash-tour .tour-correction { color: var(--ink); }
 
 /* The release review is the walkthrough's real job, so it keeps its frame. */
-.desk .tour-review { margin: 16px 0 0; padding: 0 20px; border-color: var(--field-line); background: rgba(255, 255, 255, 0.45); }
+.desk .tour-review { margin: 16px 0 0; padding: 0 20px; border-color: var(--field-line); background: var(--surface); }
 .desk .tour-review[open] { padding-bottom: 20px; }
 .desk .tour-review summary { color: var(--ink); font-size: 16px; }
 /* Approve and its alternative sit on one row, wrapping on a phone. */
@@ -205,10 +205,10 @@
 .desk .tour-website .tour-builder { margin-top: 4px; }
 .tour-builder { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .tour-builder legend { padding: 0; margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.tour-builder-choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--field-line); border-radius: 2px; background: #fff; color: var(--ink); font-size: 14px; cursor: pointer; transition: border-color 0.17s, background 0.17s; }
+.tour-builder-choice { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--field-line); border-radius: 2px; background: var(--surface); color: var(--ink); font-size: 14px; cursor: pointer; transition: border-color 0.17s, background 0.17s; }
 .tour-builder-choice:hover { border-color: var(--ink); }
-.tour-builder-choice:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
-.tour-builder-choice:has(input:focus-visible) { outline: 3px solid #897033; outline-offset: 3px; }
+.tour-builder-choice:has(input:checked) { border-color: var(--ink); background: var(--raised); }
+.tour-builder-choice:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; }
 .tour-builder-choice input { width: 24px; height: 24px; margin: 0; flex: none; accent-color: var(--ink); }
 .tour-builder-choice input:focus-visible { outline: none; }
 .dash-space ol.tour-builder-steps { margin: 14px 0 0; padding-left: 1.3rem; color: var(--ink); font-size: 14px; line-height: 1.55; list-style: decimal; }
@@ -295,8 +295,8 @@
    hidden filler of the answer's usual length, drawn as an inline background: it
    wraps like the words and sits in their line box, so the card keeps its height
    when the answer replaces it. */
-.plan-skeleton { color: transparent; background: rgba(16, 35, 29, 0.1); border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; user-select: none; }
-.plan-skeleton-link { display: inline-block; min-height: 44px; line-height: 44px; font-size: 14px; background: linear-gradient(rgba(16, 35, 29, 0.1), rgba(16, 35, 29, 0.1)) center / 100% 1.1em no-repeat; }
+.plan-skeleton { color: transparent; background: color-mix(in srgb, var(--text) 10%, transparent); border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; user-select: none; }
+.plan-skeleton-link { display: inline-block; min-height: 44px; line-height: 44px; font-size: 14px; background: linear-gradient(color-mix(in srgb, var(--text) 10%, transparent), color-mix(in srgb, var(--text) 10%, transparent)) center / 100% 1.1em no-repeat; }
 /* The lines that are coming carry no visible words, so muted and ink look alike. */
 .plan-panel[aria-busy='true'] .plan-scope { color: var(--muted); }
 /* A Sandbox line says "Test ·" first, in ink, under the heading it qualifies. */
@@ -334,7 +334,7 @@
 .annual-title { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.3; letter-spacing: -0.02em; }
 .annual-title:focus:not(:focus-visible) { outline: none; }
 /* Focus lands on a card's title after a result; from the keyboard it shows the desk's gold ring. */
-.annual-title:focus-visible { outline: 3px solid #897033; outline-offset: 4px; }
+.annual-title:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .annual-lead { margin: 10px 0 0; max-width: 62ch; font-size: 15px; line-height: 1.55; color: var(--ink); }
 .annual-note { margin: 10px 0 0; max-width: 62ch; font-size: 13px; line-height: 1.55; color: var(--muted); }
 .trial-offer .plan-scope,
@@ -360,11 +360,11 @@
 /* Prices: the yearly total, then months free and the saving, then per month. */
 .annual-choice { margin: 16px 0 0; padding: 0; border: 0; min-width: 0; }
 .annual-choice legend { margin: 0 0 8px; padding: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.annual-option { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 44px; padding: 14px 16px; border: 1px solid var(--field-line); border-radius: 2px; background: #fff; color: var(--ink); cursor: pointer; transition: border-color 0.17s, background 0.17s; }
+.annual-option { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; min-height: 44px; padding: 14px 16px; border: 1px solid var(--field-line); border-radius: 2px; background: var(--surface); color: var(--ink); cursor: pointer; transition: border-color 0.17s, background 0.17s; }
 .annual-option + .annual-option { margin-top: 8px; }
 .annual-option:hover { border-color: var(--ink); }
-.annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
-.annual-option:has(input:focus-visible) { outline: 3px solid #897033; outline-offset: 3px; }
+.annual-option:has(input:checked) { border-color: var(--ink); background: var(--raised); }
+.annual-option:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 3px; }
 .annual-option input { width: 24px; height: 24px; margin: 2px 0 0; accent-color: var(--ink); }
 .annual-option input:focus-visible { outline: none; }
 .annual-option-body { display: grid; gap: 2px; min-width: 0; }
@@ -405,7 +405,7 @@
 .annual-card { margin: 14px 0 0; }
 .annual-card-label { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .annual-card-field { min-height: 50px; }
-.annual-card-field:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.annual-card-field:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 
 /* Loading is the card's own rows, in the loaded card's own classes, not a spinner. */
 .annual-skeleton-row.annual-option { cursor: default; background: transparent; border-color: var(--line); }
@@ -453,8 +453,8 @@
 .dash-render .render-express { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
 .dash-render .render-empty .render-line { color: var(--muted); }
 .render-meter { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; }
-.render-progress { flex: 1 1 auto; min-width: 0; height: 6px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 2px; background: rgba(16, 35, 29, 0.12); color: var(--ink); overflow: hidden; }
-.render-progress::-webkit-progress-bar { background: rgba(16, 35, 29, 0.12); border-radius: 2px; }
+.render-progress { flex: 1 1 auto; min-width: 0; height: 6px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 2px; background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--ink); overflow: hidden; }
+.render-progress::-webkit-progress-bar { background: color-mix(in srgb, var(--text) 12%, transparent); border-radius: 2px; }
 .render-progress::-webkit-progress-value { background: var(--ink); border-radius: 2px; }
 .render-progress::-moz-progress-bar { background: var(--ink); border-radius: 2px; }
 .render-pct { flex: none; min-width: 4ch; text-align: right; font-size: 13px; font-weight: 500; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -496,7 +496,7 @@
 .clients-field-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .veylet-form .clients-field input { font-size: 16px; }
 .veylet-form .clients-field input[readonly] { background: transparent; border-color: var(--line); }
-.clients-preview { margin: 4px 0 0; padding: 16px 18px 18px; border: 1px solid var(--line); background: #fff; min-width: 0; }
+.clients-preview { margin: 4px 0 0; padding: 16px 18px 18px; border: 1px solid var(--line); background: var(--surface); min-width: 0; }
 .clients-preview-label { margin: 0 0 8px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .clients-preview-name { margin: 0; font-size: 17px; font-weight: 500; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
 .clients-preview-empty { font-weight: 400; color: var(--muted); }
@@ -537,7 +537,7 @@
 .desk-side .account-details > summary:hover,
 .desk-view .account-details > summary:hover,
 .desk-side .gate-note > summary:hover,
-.desk-view .gate-note > summary:hover { color: #2c4939; }
+.desk-view .gate-note > summary:hover { color: var(--accent); }
 .desk-side .gate-note-title,
 .desk-view .gate-note-title { margin: 0; font-size: 15px; font-weight: 500; }
 .desk .dash-flow { margin: 4px 0 0; }
@@ -607,9 +607,9 @@
 .team-said { margin: 10px 0 0; max-width: 62ch; font-size: 14px; line-height: 1.55; color: var(--ink); }
 .team-form .team-said { margin: 0; }
 .team-said[hidden] { display: none; }
-.team-result { margin: 18px 0 0; padding: 14px 16px 16px; border: 1px solid var(--ink); background: #fff; min-width: 0; }
+.team-result { margin: 18px 0 0; padding: 14px 16px 16px; border: 1px solid var(--ink); background: var(--surface); min-width: 0; }
 .team-result:focus { outline: none; }
-.team-result:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.team-result:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 .team-result .tour-field { margin: 0; max-width: none; }
 .team-result .team-expiry { color: var(--ink); }
 .team-invites { margin: 10px 0 0; padding: 0; list-style: none; }
@@ -641,7 +641,7 @@
 
 /* ---- Sign in with Apple ---------------------------------------------------
    Apple's web button guidelines: the Apple logo and "Sign in with Apple" in
-   white on black (these pages are always light), at least 44px tall, and no
+   white on black (black on white when a product page is dark), at least 44px tall, and no
    other colour. Square corners, like the site's .button. The email form
    follows as the other way in. */
 .apple-sign-in { display: grid; gap: 10px; }
@@ -675,11 +675,11 @@
    email path has one field. The summary reads as a quiet link, never hover-only. */
 .role-intent > summary { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; color: var(--muted); text-decoration: underline; text-decoration-color: var(--field-line); text-underline-offset: 4px; cursor: pointer; }
 .role-intent > summary:hover { color: var(--ink); text-decoration-color: currentColor; }
-.role-intent > summary:focus-visible { outline: 3px solid #897033; outline-offset: 4px; }
+.role-intent > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .role-intent[open] > summary { margin-bottom: 8px; }
 /* The email path is the other way in: a ghost button, so Apple is the one filled action. */
 #account-sign-in .button-ghost { justify-self: start; }
-#account-sign-in .button-ghost:hover { background: #e3eadb; color: var(--ink); }
+#account-sign-in .button-ghost:hover { background: var(--raised); color: var(--ink); }
 
 /* Sign-in methods on the signed-in desk: one row each for email and Apple. */
 .sign-in-methods { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
@@ -701,7 +701,7 @@
   margin-top: 6px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #fdfcfa;
+  background: var(--surface);
 }
 /*
  * Insights read top down, in the order the questions come: the sentence for the vendor and
@@ -710,7 +710,7 @@
  * bar's own step (720px); from there the plan stands beside the two tables. Nothing in
  * here changes layout at any other width, so the page below it never jumps on its own.
  */
-.tour-insights-body { grid-template-columns: minmax(0, 1fr); --heat-floor: #fdfcfa; }
+.tour-insights-body { grid-template-columns: minmax(0, 1fr); --heat-floor: var(--surface); }
 .tour-insights-body > * { min-width: 0; }
 .tour-insights-lead, .desk .dash-tour p.tour-insights-lead { overflow-wrap: anywhere; margin: 0; max-width: 64ch; font-size: 16px; line-height: 1.5; color: var(--ink); font-variant-numeric: tabular-nums; }
 /* While its insights are open, the card's one-line count gives way to the headline figures: each number once. */
@@ -870,13 +870,13 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-menu > summary::-webkit-details-marker { display: none; }
 .desk-menu > summary::after { content: ""; width: 7px; height: 7px; margin-top: -4px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); transition: transform 0.2s; }
 .desk-menu[open] > summary::after { margin-top: 3px; transform: rotate(225deg); }
-.desk-menu > summary:focus-visible { outline: 3px solid #897033; outline-offset: 2px; }
+.desk-menu > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .desk-menu-list { position: absolute; z-index: 5; top: 100%; right: 0; display: grid; min-width: 232px; max-width: min(320px, calc(100vw - 32px)); padding: 6px 0; border: 1px solid var(--field-line); background: var(--paper); }
 .desk-menu-who { margin: 0; padding: 8px 16px 10px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
 .desk-menu-list > a,
 .desk-menu-list > button { display: flex; align-items: center; min-height: 44px; margin: 0; padding: 0 16px; border: 0; border-radius: 0; background: none; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.3; text-align: left; cursor: pointer; }
 .desk-menu-list > a:hover,
-.desk-menu-list > button:hover { background: rgba(16, 35, 29, 0.06); }
+.desk-menu-list > button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 .desk-menu-list > a:focus-visible,
 .desk-menu-list > button:focus-visible { outline-offset: -3px; }
 .desk-menu-list > a[aria-current='page'] { font-weight: 500; }
@@ -1020,9 +1020,9 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 #view-plan:has([data-extra-said="true"]) [data-none="true"] { display: none; }
 .desk-view .annual-option { background: transparent; border-color: var(--line); }
 .desk-view .annual-option:hover { border-color: var(--field-line); }
-.desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: #eef1e8; }
+.desk-view .annual-option:has(input:checked) { border-color: var(--ink); background: var(--raised); }
 .desk-view .annual-option:has(input:focus-visible) { outline: none; }
-.desk-view .annual-option input:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
+.desk-view .annual-option input:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 /* Portal/CRM field picker and one-tap buyer follow-up messages inside Website panel */
 .tour-crm-guide { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 6px; max-width: 520px; }
 .tour-crm-select { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 14px; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line); border-radius: 2px; max-width: 320px; }
@@ -1047,7 +1047,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .clients-brand-label { font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .tour-campaign-input,
 .tour-campaign-select,
-.clients-brand-field input { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 16px; color: var(--ink); background: #fff; border: 1px solid var(--field-line); border-radius: 2px; min-width: 0; width: 100%; }
+.clients-brand-field input { min-height: 44px; padding: 8px 12px; font: inherit; font-size: 16px; color: var(--ink); background: var(--surface); border: 1px solid var(--field-line); border-radius: 2px; min-width: 0; width: 100%; }
 .tour-campaign-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
 .tour-campaign-open { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
 @media (max-width: 520px) {
@@ -1135,14 +1135,53 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .space-index-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
 .space-filter-wrap[hidden], .space-filter-status[hidden], .space-state-filters[hidden] { display: none; }
 .space-filter { min-height: 44px; min-width: min(240px, 100%); padding: 8px 12px; font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line, var(--line)); border-radius: 2px; box-sizing: border-box; }
-.space-filter:focus-visible { outline: 3px solid #897033; outline-offset: 2px; }
+.space-filter:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .space-state-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
 .space-state-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line, var(--line)); border-radius: 999px; cursor: pointer; }
 .space-state-pill[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.space-state-pill:focus-visible { outline: 3px solid #897033; outline-offset: 2px; }
+.space-state-pill:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .space-filter-status { margin: 8px 0 0; }
 .space-list { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
 .space-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .space-row-name { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
 .space-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 14px; color: var(--muted); }
 .space-row > .tour-action { grid-column: 2; grid-row: 1 / span 2; }
+
+/* ---- Desk zero states (design spec v2, 6.16, 6.14 and 3.8) ------------------
+   The empty desk's sample walkthrough card, a space without a capture (the app's
+   QR code), Clear filter, and Copy link and QR code beside a live link's zeroes.
+   Tokens only, so both appearances follow; the QR code keeps its white ground. */
+.desk-sample { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 20px 0 0; padding: 12px 12px 16px; border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--e1); }
+@media (min-width: 720px) { .desk-sample { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: center; gap: 28px; padding: 14px 28px 14px 14px; } }
+.sample-poster { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-media); background: var(--raised); }
+.sample-words { display: grid; justify-items: start; gap: 8px; min-width: 0; padding: 0 4px; }
+.sample-label { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 5px 10px; border-radius: 999px; background: var(--tint); color: var(--text); font-size: 12px; font-weight: 500; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+.sample-label .portal { width: 10px; height: 13px; }
+.desk .sample-title { margin: 0; font-size: clamp(20px, 2.2vw, 26px); font-weight: 500; line-height: 1.25; letter-spacing: -0.01em; }
+.sample-link { color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+.sample-link:hover { color: var(--accent); }
+/* The whole card opens the sample; the focus ring goes round the card. */
+.sample-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-card); }
+.sample-link:focus-visible { outline: none; }
+.desk-sample:has(.sample-link:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sample-note { margin: 0; max-width: 52ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+
+.capture-app { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.desk .dash-space > .space-capture { margin: 14px 0 0; padding: 14px 0 4px; border-top: 1px solid var(--line); }
+.capture-app-code.tour-qr-code { display: block; flex: none; width: 120px; border-radius: var(--radius-control); }
+.capture-app-code.tour-qr-code svg { border-color: var(--hairline); border-radius: var(--radius-control); }
+.capture-app-words { flex: 1 1 220px; min-width: 0; }
+.capture-app-line,
+.dash-render .capture-app .render-line { margin: 0; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--text); }
+.capture-app-note,
+.dash-render .capture-app .render-note { margin: 4px 0 0; max-width: 56ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.capture-app-link { display: inline-block; margin-top: 6px; font-size: 14px; }
+
+.space-filter-clear { margin: 8px 0 0; }
+
+/* Copy link and QR code beside a zero: quiet words in the views line, buttons elsewhere. */
+.desk .tour-views .tour-zero-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin: 0 0 0 6px; vertical-align: middle; }
+.desk .tour-views .tour-zero-actions .tour-action { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--text); font-size: 13px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.desk .tour-views .tour-zero-actions .tour-action:hover { color: var(--accent); background: none; }
+.tour-enquiries > .tour-zero-actions { margin: 0; }
+

@@ -1,0 +1,407 @@
+/* Home hero, design spec v2 6.1 and 7.5: the real sample walkthrough on Stage, with one honest line.
+   Stage stays dark in both appearances (11.6). The Explore control is a product control on Stage, so it is
+   soft (3.6); everything around it is editorial and square. Only transform and opacity animate. */
+.vh {
+  --vh-gx: var(--gutter, 20px);
+  position: relative;
+  display: grid;
+  background: var(--stage);
+  color: var(--stage-text);
+  overflow: hidden;
+  isolation: isolate;
+}
+.vh :focus-visible {
+  outline: 2px solid var(--stage-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px var(--stage);
+}
+.vh-stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--stage) var(--vh-lqip) center / cover no-repeat;
+}
+.vh-stage::before {
+  content: "";
+  position: absolute;
+  inset: -24px;
+  background: inherit;
+  filter: blur(24px);
+}
+.vh-poster img,
+.vh-player,
+.vh-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.vh-poster img {
+  display: block;
+  object-fit: cover;
+  object-position: 62% 50%;
+  opacity: 0;
+  transform-origin: 60% 50%;
+  transition: opacity 400ms ease-out;
+}
+.vh-stage[data-poster="shown"] .vh-poster img { opacity: 1; }
+@media (scripting: none) { .vh-poster img { opacity: 1; } }
+.vh-stage[data-poster="shown"][data-motion="full"] .vh-poster img { animation: vh-kenburns 8s linear 1 both; }
+@keyframes vh-kenburns { from { transform: scale(1); } to { transform: scale(1.04); } }
+
+/* The live walkthrough loads behind the poster and dissolves in at its first frame (T10). */
+.vh-player { z-index: 1; opacity: 0; pointer-events: none; transition: opacity 400ms ease-out; }
+.vh[data-phase="live"] .vh-player { opacity: 1; pointer-events: auto; }
+.vh[data-phase="live"] .vh-poster img { opacity: 0; animation: none; }
+.vh-player .v2-stage, .vh-player > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vh-video { z-index: 1; background: var(--stage); }
+.vh-video video { width: 100%; height: 100%; object-fit: contain; background: var(--stage); }
+
+.vh-scrim {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 45%;
+  z-index: 1;
+  background: linear-gradient(0deg, var(--scrim), rgb(7 17 14 / 0));
+  pointer-events: none;
+}
+.vh[data-phase="live"] .vh-scrim, .vh[data-phase="video"] .vh-scrim { opacity: 0; }
+
+/* The dock: Explore beside the sample label, the low-data line under it, on a local plate (11.6). */
+.vh-dock {
+  position: absolute;
+  z-index: 2;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+.vh[data-phase="live"] .vh-dock, .vh[data-phase="video"] .vh-dock { display: none; }
+.vh-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vh-explore, .vh-progress {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 20px 0 10px;
+  border: 0;
+  border-radius: var(--radius-button);
+  overflow: hidden;
+  background: rgb(19 32 27 / 0.92);
+  box-shadow: inset 0 0 0 1px var(--stage-control-border), var(--e3);
+  color: var(--stage-text);
+  font: 600 16px/1 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  transition: transform 120ms var(--ease-press);
+}
+.vh-explore { cursor: pointer; }
+.vh-explore:active { transform: scale(0.97); }
+.vh-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--stage-accent);
+  color: var(--stage);
+  flex: none;
+}
+.vh-icon svg, .vh-glyph { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.vh-progress { min-width: 212px; cursor: progress; font-variant-numeric: tabular-nums; }
+.vh-track { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgb(244 242 230 / 0.12); }
+.vh-track i { position: absolute; inset: 0; background: var(--stage-accent); transform-origin: 0 50%; transform: scaleX(var(--vh-p, 0)); transition: transform 600ms linear; }
+.vh-door path { stroke-dasharray: 60; animation: vh-door 1.2s var(--ease-standard) infinite alternate; }
+@keyframes vh-door { from { stroke-dashoffset: 60; } to { stroke-dashoffset: 0; } }
+.vh-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 4px;
+  background: var(--stage-tint);
+  color: var(--stage-accent);
+  font: 600 11px/1 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vh-label .portal { width: 9px; height: 12px; }
+.vh-low {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+  padding: 0 8px 0 4px;
+  border-radius: 8px;
+  background: rgb(7 17 14 / 0.8);
+  color: var(--stage-muted);
+  font: 400 14px/1.3 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+.vh-text-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--stage-accent);
+  font: 600 15px/1.2 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+.vh-low .vh-text-button { font-size: 14px; }
+.vh-text-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.vh-note, .vh-panel {
+  max-width: 380px;
+  margin: 0;
+  border-radius: var(--radius-card);
+  background: var(--stage-raised);
+  box-shadow: inset 0 0 0 0.5px rgb(244 242 230 / 0.16), var(--e3);
+  color: var(--stage-text);
+  font: 400 15px/1.5 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+.vh-note { padding: 12px 14px 4px; font-size: 14px; }
+.vh-panel { padding: 18px 20px 8px; }
+.vh-note p, .vh-panel p { margin: 0 0 8px; text-wrap: pretty; }
+.vh-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.vh-soft {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: rgb(244 242 230 / 0.08);
+  box-shadow: inset 0 0 0 1px var(--stage-control-border);
+  color: var(--stage-text);
+  font: 600 15px/1 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+.vh-soft:active { transform: scale(0.97); }
+.vh-nojs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  background: rgb(7 17 14 / 0.8);
+  color: var(--stage-text);
+  font-size: 17px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.vh-exit {
+  position: absolute;
+  z-index: 3;
+  top: 20px;
+  right: 72px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 16px 0 12px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: rgb(19 32 27 / 0.92);
+  box-shadow: inset 0 0 0 1px var(--stage-control-border);
+  color: var(--stage-text);
+  font: 600 14px/1 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+.vh-like {
+  position: absolute;
+  z-index: 3;
+  top: 20px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100% - 180px);
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-button);
+  background: rgb(7 17 14 / 0.86);
+  box-shadow: inset 0 0 0 0.5px rgb(244 242 230 / 0.16);
+  font-size: 16px;
+  animation: vh-rise var(--dur-standard) var(--ease-standard) both;
+}
+.vh-like a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  background: var(--stage-accent);
+  color: var(--stage);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Copy: one headline, one sentence, one call to action group (Persuade mode). */
+.vh-copy { position: relative; z-index: 2; padding: 24px var(--vh-gx) 32px; }
+.vh h1 {
+  margin: 0 0 18px;
+  font: 500 clamp(40px, 6vw, 76px) / 1.02 Outfit, "Outfit Fallback", Arial, sans-serif;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  color: var(--stage-text);
+}
+.vh-lead { max-width: 30em; margin: 0 0 28px; font-size: 19px; line-height: 1.5; color: var(--stage-text); text-wrap: pretty; }
+.vh-cta { display: grid; grid-template-columns: auto auto 1fr; grid-template-areas: "get buyers ." "micro micro micro"; align-items: center; column-gap: 22px; }
+.vh-get {
+  grid-area: get;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  padding: 0 26px;
+  border-radius: var(--radius-editorial);
+  background: var(--stage-accent);
+  color: var(--stage);
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: transform 120ms var(--ease-press);
+}
+.vh-get:active { transform: scale(0.97); }
+.vh-buyers {
+  grid-area: buyers;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--stage-text);
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgb(244 242 230 / 0.5);
+}
+.vh-buyers .icon-arrow { width: 16px; }
+.vh-micro { grid-area: micro; max-width: 36em; margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: var(--stage-muted); }
+.vh-micro a {
+  display: inline-block;
+  padding: 10px 0;
+  margin: -10px 0;
+  color: var(--stage-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--stage-accent);
+}
+.vh[data-intro] .vh-rise { animation: vh-rise var(--dur-reveal) var(--ease-reveal) both; }
+.vh[data-intro] .vh-rise:nth-child(2) { animation-delay: 40ms; }
+.vh[data-intro] .vh-rise:nth-child(3) { animation-delay: 80ms; }
+@keyframes vh-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* The one honest line, under the hero, small and square. */
+.vh-honest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 48px;
+  margin: 0;
+  padding: 2px var(--gutter, 20px);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.vh-honest > p { margin: 0; }
+.site .vh-honest details { display: contents; border: 0; }
+.site .vh-honest summary {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--accent);
+}
+.site .vh-honest summary::after { content: none; }
+.site .vh-honest details > p { flex-basis: 100%; max-width: 62em; margin: 0 0 12px; padding: 0; color: var(--muted); font-size: 14px; }
+
+/* Phone (< 640): poster first, portrait, then the copy on Stage. Live 3D takes the whole viewport. */
+.vh-stage { height: clamp(300px, 45svh, 420px); }
+.vh-get { width: 100%; }
+.vh-cta { grid-template-columns: 1fr; grid-template-areas: "get" "micro" "buyers"; }
+.vh-buyers { margin-top: 8px; justify-self: start; }
+.vh h1 { font-size: 40px; margin-bottom: 14px; }
+.vh-lead { font-size: 17px; margin-bottom: 22px; }
+.vh-dock { left: 16px; right: 16px; bottom: 14px; gap: 6px; }
+.vh-row { gap: 8px; flex-wrap: nowrap; }
+.vh-explore, .vh-progress { height: 48px; font-size: 15px; padding: 0 16px 0 8px; gap: 10px; }
+.vh-progress { min-width: 196px; }
+.vh-label { letter-spacing: 0.05em; padding: 0 8px 0 7px; }
+.vh[data-phase="live"][data-immersive] .vh-stage, .vh[data-phase="video"][data-immersive] .vh-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  height: auto;
+}
+.vh[data-immersive] { z-index: 60; }
+html[data-vh-immersive] { overflow: hidden; }
+html[data-vh-immersive] .sticky-cta, html[data-vh-immersive] .analytics-consent, html[data-vh-immersive] .analytics-preferences { visibility: hidden; }
+
+/* Tablet (640 to 1099): copy stacked above a full-width 16:10 poster. */
+@media (min-width: 640px) {
+  .vh-copy { order: -1; padding: 56px var(--vh-gx) 40px; }
+  .vh-stage { height: auto; aspect-ratio: 16 / 10; }
+  .vh-get { width: auto; }
+  .vh-cta { grid-template-columns: auto auto 1fr; grid-template-areas: "get buyers ." "micro micro micro"; }
+  .vh-buyers { margin-top: 0; }
+  .vh h1 { font-size: clamp(40px, 6vw, 76px); margin-bottom: 18px; }
+  .vh-lead { font-size: 19px; margin-bottom: 28px; }
+  .vh-dock { left: 24px; right: 24px; bottom: 24px; gap: 10px; }
+  .vh-row { gap: 12px; flex-wrap: wrap; }
+  .vh-explore, .vh-progress { height: 52px; font-size: 16px; padding: 0 20px 0 10px; gap: 12px; }
+  .vh-label { letter-spacing: 0.1em; }
+}
+
+/* Desktop (1100 and up): copy left on a plate of Stage, poster full-bleed behind, Explore at its bottom left. */
+@media (min-width: 1100px) {
+  .vh { grid-template-areas: "hero"; height: max(560px, min(calc(100svh - 160px), 820px)); }
+  .vh-stage, .vh-copy { grid-area: hero; }
+  .vh-stage { height: 100%; aspect-ratio: auto; }
+  .vh-copy {
+    order: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: calc(var(--vh-gx) + 560px);
+    padding: 40px 0 40px var(--vh-gx);
+    pointer-events: none;
+    transition: opacity var(--dur-emphasized) var(--ease-standard);
+  }
+  .vh-copy > * { pointer-events: auto; }
+  .vh-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(90deg, rgb(7 17 14 / 0.92) 0, rgb(7 17 14 / 0.9) calc(var(--vh-gx) + 380px), rgb(7 17 14 / 0) calc(var(--vh-gx) + 820px));
+    pointer-events: none;
+    transition: opacity 400ms var(--ease-standard);
+  }
+  .vh-dock { left: calc(var(--vh-gx) + 620px); }
+  .vh[data-phase="live"] .vh-copy, .vh[data-phase="video"] .vh-copy { opacity: 0; visibility: hidden; transition: opacity var(--dur-emphasized) var(--ease-standard), visibility 0s linear var(--dur-emphasized); }
+  .vh[data-phase="live"] .vh-stage::after, .vh[data-phase="video"] .vh-stage::after { opacity: 0; }
+  .vh-honest { padding-inline: var(--gutter); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vh *, .vh *::before, .vh *::after { animation: none !important; }
+  .vh-poster img, .vh-player, .vh-copy { transition: opacity 150ms linear !important; }
+}
+
+@media (max-width: 639px) {
+  .vh-like { display: none; }
+}

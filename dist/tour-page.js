@@ -284,6 +284,8 @@
       bootShare(token, {
         els,
         auth: AUTH,
+        // A paused link keeps the agent: Call and Email when the server gives them (tour-player.js showPausedContact).
+        pausedContact: true,
         resolve: async (client) => {
           // Both lookups start together, so the card is usually settled in
           // the step the walkthrough is found. The contact function answers

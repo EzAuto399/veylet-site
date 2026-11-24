@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-surface="product">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -10,10 +10,11 @@
     />
     <meta name="robots" content="noindex" />
     <link rel="canonical" href="https://veylet.com/account" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#10231d" />
     <link rel="icon" href="/media/favicon.svg" type="image/svg+xml" /><link rel="icon" href="/media/favicon-32.png" sizes="32x32" type="image/png" /><link rel="apple-touch-icon" href="/media/apple-touch-icon.png" />
-    <link rel="stylesheet" href="/style.css?v=e55599754fbf25cf" />
-    <link rel="stylesheet" href="/account-guide.css?v=13ffe3a00aa80e8d" />
+    <link rel="stylesheet" href="/style.css?v=9a4e9ba6affcabe5" />
+    <link rel="stylesheet" href="/account-guide.css?v=188906511b11044c" />
     <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
     <script src="/supabase-public.js?v=67f9f1943ae2f979"></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd"></script>
@@ -21,12 +22,12 @@
     <script src="/tour-sharing.js?v=f3d47b79afa41584" defer></script>
     <!-- The Live card's QR code is drawn in this browser; no QR service is called. -->
     <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
-    <link rel="stylesheet" href="/account-journey.css?v=02cfbb13f5adecda" />
+    <link rel="stylesheet" href="/account-journey.css?v=560bcde4acff61ac" />
     <script src="/site-lib.js?v=3762aa68c924c230" defer></script>
     <script src="/plan-terms.js?v=6b260a957d47d82e" defer></script>
     <script src="/account-journey.js?v=a334153aadf5947f" defer></script>
-    <script src="/account.js?v=c79b53a3c57e2bd7" defer></script>
-    <script src="/stage.js?v=f8eb9d11b27ce120" defer></script>
+    <script src="/account.js?v=7ef2e944204b1452" defer></script>
+    <script src="/stage.js?v=e653d7a415a9cfa3" defer></script>
     <!-- Sign-in is a script. Without one the form would take an email address
          and do nothing with it, so it is not offered; the noscript paragraph
          below carries the routes that still work. -->
@@ -172,6 +173,8 @@
             <h2 class="needs-title" id="account-needs-title">Needs you</h2>
             <ul class="needs-list" id="account-needs-list"></ul>
           </section>
+          <!-- The empty desk's sample walkthrough, with the person's own contact card. Drawn by dist/account.js. -->
+          <section id="account-sample" class="desk-sample" aria-label="Sample walkthrough" hidden></section>
           <section id="account-next-step" class="account-next" aria-label="Your next step" aria-live="polite"></section>
           <!-- Opens and contact taps of the shared walkthroughs, added up by dist/account.js. -->
           <section id="account-totals" class="desk-totals" aria-label="Opens and contacts" hidden></section>
@@ -203,6 +206,7 @@
             </div>
             <div class="space-state-filters" id="account-space-states" role="group" aria-label="Filter spaces by status" hidden></div>
             <p class="contact-note space-filter-status" id="account-space-filter-status" role="status" aria-live="polite" hidden></p>
+            <button class="tour-action space-filter-clear" id="account-space-filter-clear" type="button" data-control="space-filter-clear" hidden>Clear filter</button>
             <ul class="space-list" id="account-space-list"></ul>
           </section>
           <ul class="account-list" id="account-properties"></ul>
@@ -302,7 +306,7 @@
             <h2 class="dash-heading" id="account-capture-title">Capture</h2>
             <details class="account-details"><summary>First capture? See the steps</summary><ol class="dash-flow">
               <li>Install the Veylet app on a LiDAR iPhone and sign in with this same email.</li>
-              <li>Do one practice capture in a space you are allowed to record. The app shows the moves that matter and route checks. An automatic quality check assesses capture quality before confirming the next step.</li>
+              <li>Optional: try the practice room first, in a space you are allowed to record. The app shows the moves that matter and route checks. An automatic quality check assesses capture quality before confirming the next step.</li>
               <li>Save the space here — suburb or city only, no street address — then capture it on the approved route.</li>
               <li>Send from the app: it uploads in the background. Check your account for rendering status. The finished walkthrough appears in this space.</li>
               <li>Review the walkthrough here, tick that you have the right to share it, then press Approve and share. Anyone with its link can view or forward it.</li>
@@ -310,8 +314,8 @@
             <details class="gate-note" id="account-gate">
               <summary class="gate-note-title" id="account-gate-title">Capture approval</summary>
               <p id="account-gate-body">
-                Capturing spaces for clients needs assessment of your device and a
-                practice capture first.
+                Try the practice room first, or go straight to your first space.
+                Client work needs production approval and agreed terms.
               </p>
               <p class="gate-note-actions">
                 <a class="button" href="/start#first-session">See your first session</a>

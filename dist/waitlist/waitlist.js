@@ -43,7 +43,8 @@
   var COPY = {
     sending: 'Adding you to the list…',
     joinedTitle: 'You’re on the list.',
-    joined: 'We admit new accounts in weekly groups and will email you when it’s your turn.',
+    joined: 'We’ll email you when your account is in.',
+    joinedAt: 'We’ll email you at {email} when your account is in.',
     missing: NOT_SAVED,
     busy: 'The waitlist is busy right now, so nothing was saved. Try again in an hour, or email ' + SUPPORT + ' to be added.',
     error: NOT_SAVED,
@@ -199,6 +200,8 @@
       done.hidden = false;
       var device = doc.getElementById('waitlist-done-device');
       if (device) device.hidden = !(answers && VIEW_ONLY.indexOf(answers.p_device) !== -1);
+      var email = doc.getElementById('waitlist-done-email');
+      if (email) email.textContent = answers && answers.p_email ? COPY.joinedAt.split('{email}').join(answers.p_email) : COPY.joined;
       var title = doc.getElementById('waitlist-done-title');
       if (title && title.focus) title.focus();
     }

@@ -156,7 +156,8 @@ test('every price on the page is offer.json 2026-11-11.1, set on data-price elem
   assert.doesNotMatch(terms, /in total, not \d+ a month/, 'the free month is no longer set against the monthly allowance');
   assert.ok(terms.includes(`${offer.freeMonths.months} free month`));
   assert.ok(terms.includes(offer.guarantee.text.replace("'", '’')), 'the first-walkthrough redo');
-  assert.ok(terms.includes('included in the plan when video exports open'), 'listing videos are qualified');
+  assert.ok(terms.includes('stills of each walkthrough, included in the plan.'), 'listing videos are in the plan');
+  assert.doesNotMatch(body, /exports open/i, 'no promise of a feature that is off (spec v2 5.2 rule 7)');
   assert.ok(terms.includes('New accounts are admitted weekly. You need a recent iPhone Pro or iPad Pro.'));
   assert.match(terms, /New trials start through Apple’s free introductory offer in the app, if eligible/);
   assert.match(terms, /Existing card and invoice agreements retain their terms/);
@@ -165,20 +166,24 @@ test('every price on the page is offer.json 2026-11-11.1, set on data-price elem
   assert.equal(offer.freeMonths.cancelAnytime, true);
 });
 
-test('the main action is Get the app, to the App Store, everywhere it appears', () => {
+test('Get the app appears twice, in the offer statement and the closing band, with no hero button and no sticky bar (spec v2 6.1)', () => {
   const actions = element('data-hero-actions', 'div');
-  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="button" href="https:\/\/apps\.apple\.com\/au\/app\/veylet-3d-property-tours\/id6814273913" data-analytics-cta="app_store" data-analytics-placement="hero">Get the app <span class="icon-arrow"/);
-  assert.match(actions, /<a class="text-link see-actions-more" href="#offer">What’s in the free month<\/a>/);
+  assert.match(actions, /^<div class="see-actions" data-hero-actions>\s*<a class="text-link see-actions-more" href="#offer">What’s in the free month<\/a>/);
+  assert.doesNotMatch(actions, /Get the app|apps\.apple\.com/, 'the 3D start is the hero’s action');
+  assert.equal((body.match(/>Get the app </g) || []).length, 2);
+  assert.doesNotMatch(html, /sticky-cta|data-sticky-cta|data-analytics-placement="sticky"/);
+  assert.doesNotMatch(js, /data-sticky-cta/, 'see.js no longer watches a sticky bar');
+  assert.ok(element('class="closing-invitation"', 'section').includes('>Get the app <span'), 'the closing band keeps its button');
+  assert.ok(element('class="statement see-statement"', 'aside').includes('>Get the app <span'), 'the offer statement keeps its button');
   const buttons = [...body.matchAll(/<a class="button[^"]*" href="([^"]+)"([^>]*)>([^<]+)</g)]
     .map(match => [match[1], match[3].trim(), match[2]]);
-  assert.ok(buttons.length >= 3);
+  assert.equal(buttons.length, 2);
   for (const [href, words, attributes] of buttons) {
     assert.deepEqual([href, words], ['https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913', 'Get the app']);
     assert.match(attributes, /\bdata-analytics-cta="app_store"/);
     assert.match(attributes, /\bdata-analytics-placement="(?:hero|body)"/);
   }
   assert.match(body, /<a class="text-link" href="\/offer" data-analytics-cta="offer" data-analytics-placement="body">See the full offer<\/a>/);
-  assert.match(body, /<nav class="sticky-cta"[\s\S]*?<a href="https:\/\/apps\.apple\.com\/au\/app\/veylet-3d-property-tours\/id6814273913" data-analytics-cta="app_store" data-analytics-placement="sticky">Get the app<\/a>/);
   assert.match(body, /<a href="\/waitlist" data-analytics-cta="waitlist" data-analytics-placement="body">join the waitlist<\/a>/, 'the waitlist stays for render admission');
   assert.ok(body.includes('id="offer"'), 'the offer anchor exists');
 });

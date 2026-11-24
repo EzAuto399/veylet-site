@@ -201,7 +201,6 @@ const prices = {
   'anchor-monthly-plan': aud(plan.appAud),
   'anchor-annual': aud(perAnnual),
   'anchor-annual-plan': aud(plan.annualAud),
-  'calc-pack': aud(pack3.webAud),
   'first-year': aud(firstYear('monthly', plan.appAud)),
   'terms-pack3': aud(pack3.webAud),
   'terms-pack10': aud(pack10.webAud),
@@ -253,16 +252,13 @@ const formTag = body.match(/<form[^>]*data-statement-form[^>]*>/)[0];
 const formData = Object.fromEntries([...formTag.matchAll(/data-([a-z0-9-]+)="([^"]*)"/g)]
   .map(([, name, value]) => [name.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), value]));
 
-test('the calculator reads every amount and count from the record, with a native Plan select beside the channel and the pack', () => {
+test('the calculator reads every amount and count from the record, with a native Plan select beside the channel and no pack select (spec v2, P1-WEB-2)', () => {
   assert.equal(pack3.validMonths, pack10.validMonths, 'one validity for both packs');
   assert.deepEqual(formData, {
     freeIncluded: String(free.includedRooms),
     planAppMonth: String(plan.appAud), planIncluded: String(plan.includedPerMonth),
     planBankedMax: String(banked),
     planAppYear: String(plan.annualAppAud), planYearIncluded: String(plan.annualIncluded),
-    pack3Web: String(pack3.webAud), pack3Rooms: String(pack3.rooms),
-    pack10Web: String(pack10.webAud), pack10Rooms: String(pack10.rooms),
-    packValidMonths: String(pack3.validMonths),
   });
   // 29 Sep 2026: the plan is sold through the App Store only; no website plan price sits in the markup.
   assert.doesNotMatch(formTag, /data-plan-web-/);
@@ -272,11 +268,9 @@ test('the calculator reads every amount and count from the record, with a native
     + '<option value="monthly">Monthly</option><option value="annual">Yearly</option></select>'), 'the Plan select');
   assert.ok(form.includes('<label for="billing-channel">Billed through</label><select id="billing-channel" name="billing-channel">'
     + '<option value="apple">App Store</option></select>'), 'the channel select');
-  assert.ok(form.includes('<label for="billing-pack">Top-up pack (not on sale yet)</label><select id="billing-pack" name="billing-pack"><option value="none">No pack</option>'
-    + `<option value="pack3">Pack of ${pack3.rooms} rooms</option><option value="pack10">Pack of ${pack10.rooms} rooms</option></select>`),
-  'an optional pack');
+  assert.doesNotMatch(form, /billing-pack|Top-up pack/, 'packs are not on sale, so the calculator offers none (spec v2, P1-WEB-2)');
   assert.match(form, /<label for="accepted-on">If you start your free month on<\/label>\s*<input id="accepted-on" name="accepted-on" type="date" aria-describedby="accepted-on-hint">/);
-  const order = ['billing-cadence', 'billing-channel', 'billing-pack', 'accepted-on'].map((id) => form.indexOf(`for="${id}"`));
+  const order = ['billing-cadence', 'billing-channel', 'accepted-on'].map((id) => form.indexOf(`for="${id}"`));
   assert.ok(order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])), `control order ${order}`);
   assert.doesNotMatch(form, /<option[^>]*>[^<]*A\$/, 'no amount inside an option');
   // Native controls, set above the 44px target and given the gold focus ring by the site's one field rule (style.css).
@@ -289,7 +283,7 @@ test('the calculator reads every amount and count from the record, with a native
   assert.doesNotMatch(css, /\.statement-date (?:select|input)[^{]*\{[^}]*(?:min-height|outline)/, 'the statement does not restate the field box or the ring');
 });
 
-test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and the first twelve months', () => {
+test('the statement shows 3 A$0 months, the Veylet plan and the first twelve months, with no pack row (spec v2, P1-WEB-2)', () => {
   const lines = body.slice(body.indexOf('data-statement-lines'), body.indexOf('</dl>', body.indexOf('data-statement-lines')));
   assert.match(lines, new RegExp(`^data-statement-lines data-trial-months="${free.months}"`));
   assert.equal((lines.match(/data-free-month="\d"/g) || []).length, free.months);
@@ -298,11 +292,9 @@ test('the statement shows 3 A$0 months, the Veylet plan, an optional pack and th
   assert.equal(free.startsOn, 'activation');
   assert.match(lines, /<div data-free-month="1"><dt><span class="line-when" data-line-when>Month 1<\/span><span class="line-what">Free · cancel before it ends and pay nothing<\/span>/);
   assert.match(lines, /<div class="line-paid" data-paid-month><dt><span class="line-when" data-line-when>Month 2 onward<\/span><span class="line-what">Veylet plan<\/span>/);
-  assert.match(lines, /<div class="line-pack" data-pack-line hidden>/, 'the pack line waits for a pack');
-  assert.ok(lines.includes(`data-pack-what>Pack of ${pack3.rooms} rooms · not on sale yet · valid ${pack3.validMonths} months<`));
-  assert.match(lines, /<span class="amount-note">once<\/span>/);
+  assert.doesNotMatch(body, /data-pack-line|data-pack-what|data-pack-amount|line-pack/, 'the hidden pack row is gone');
   assert.match(lines, /data-total-caption>1 free month, then 11 monthly App Store payments</);
-  assert.ok(lines.indexOf('data-paid-month') < lines.indexOf('data-pack-line') && lines.indexOf('data-pack-line') < lines.indexOf('line-total'));
+  assert.ok(lines.indexOf('data-paid-month') < lines.indexOf('line-total'));
   const after = body.slice(body.indexOf('</dl>', body.indexOf('data-statement-lines')), body.indexOf('</aside>'));
   // The first charge, said plainly before any allowance: on the day the free months end, and nothing if cancelled first.
   assert.ok(after.includes('<p class="statement-charge" data-statement-charge>Nothing is charged during the free month. The first charge is on the day it ends; cancel before then and nothing is charged.</p>'));
@@ -344,7 +336,6 @@ const renderCalculator = () => {
   const select = (id, value) => ({ value, addEventListener(type, fn) { (listeners[id] ||= {})[type] = fn; } });
   const cadence = select('cadence', 'monthly');
   const channel = select('channel', 'apple');
-  const pack = select('pack', 'none');
   const input = { value: '2026-09-25', addEventListener() {} };
   const form = { dataset: { ...formData }, querySelector: () => input, addEventListener() {} };
   const out = {};
@@ -354,14 +345,14 @@ const renderCalculator = () => {
   const lines = { dataset: { trialMonths: String(free.months) }, querySelectorAll: () => [], querySelector: () => null };
   const document = {
     querySelector: (selector) => ({ '[data-statement-form]': form, '[data-statement-lines]': lines,
-      '#billing-cadence': cadence, '#billing-channel': channel, '#billing-pack': pack })[selector] || (nodes[selector] ||= node(selector)),
+      '#billing-cadence': cadence, '#billing-channel': channel })[selector] || (nodes[selector] ||= node(selector)),
   };
   vm.runInNewContext(read('offer.js'), { document, Intl, Date, Number, String, Math, RegExp });
-  const show = (k, c, p) => { cadence.value = k; channel.value = c; pack.value = p; listeners.cadence.change(); return { ...out }; };
+  const show = (k, c) => { cadence.value = k; channel.value = c; listeners.cadence.change(); return { ...out }; };
   return { out, show, listeners };
 };
 
-test('the calculator states the plan monthly and yearly, on each channel, with no pack, a pack of 30 or a pack of 100', () => {
+test('the calculator states the plan monthly and yearly, on each channel, with no pack row', () => {
   const { out, show, listeners } = renderCalculator();
   // On load (monthly, App Store, no pack) the script writes exactly the page's own text.
   const staticText = (attr) => { const match = body.match(new RegExp(`<p[^>]*\\b${attr}\\b[^>]*>([\\s\\S]*?)</p>|<span[^>]*\\b${attr}\\b[^>]*>([\\s\\S]*?)</span>`)); return text(match[1] || match[2]); };
@@ -369,24 +360,24 @@ test('the calculator states the plan monthly and yearly, on each channel, with n
     'data-statement-allowance', 'data-billing-explanation']) {
     assert.equal(out[`[${attr}]`], staticText(attr), `${attr} matches the no-script text`);
   }
-  assert.equal(out['[data-pack-line].hidden'], true);
-  assert.deepEqual(Object.keys(listeners).sort(), ['cadence', 'channel', 'pack'], 'the plan, the channel and the pack each redraw');
+  assert.ok(!Object.keys(out).some(key => key.includes('pack')), 'the calculator writes no pack row');
+  assert.deepEqual(Object.keys(listeners).sort(), ['cadence', 'channel'], 'the plan and the channel each redraw');
   const freeLabel = free.months + ' free month' + (free.months === 1 ? '' : 's');
   for (const cadence of ['monthly', 'annual']) {
     const annual = cadence === 'annual';
     for (const [channel, monthly, yearly] of [['apple', plan.appAud, plan.annualAppAud]]) {
       const bill = annual ? yearly : monthly;
       const apple = channel === 'apple';
-      for (const [code, entry] of [['none', null], ['pack3', pack3], ['pack10', pack10]]) {
-        const v = show(cadence, channel, code);
-        const label = `${cadence} ${channel} ${code}`;
+      {
+        const v = show(cadence, channel);
+        const label = `${cadence} ${channel}`;
         assert.equal(v['[data-bill-amount]'], aud(bill), label);
         assert.equal(v['[data-bill-cadence]'], `${annual ? 'upfront a year' : 'a month'} in the App Store`, label);
-        assert.equal(v['[data-year-total]'], aud(firstYear(cadence, bill, entry ? entry.webAud : 0)), label);
-        assert.equal(v['[data-pack-line].hidden'], !entry, label);
+        assert.equal(v['[data-year-total]'], aud(firstYear(cadence, bill)), label);
+        assert.ok(!Object.keys(v).some(key => key.includes('pack')), label);
         const payments = annual ? `1 yearly ${apple ? 'App Store payment' : 'payment'} for months ${free.months + 1} to ${free.months + 12}`
           : `${12 - free.months} monthly ${apple ? 'App Store payments' : 'payments'}`;
-        assert.equal(v['[data-total-caption]'], entry ? `${freeLabel}, ${payments} and the pack` : `${freeLabel}, then ${payments}`, label);
+        assert.equal(v['[data-total-caption]'], `${freeLabel}, then ${payments}`, label);
         const allowance = v['[data-statement-allowance]'];
         assert.ok(allowance.startsWith(`${free.includedRooms} rooms in total during the ${free.months} free month. `), label);
         if (annual) {
@@ -397,17 +388,11 @@ test('the calculator states the plan monthly and yearly, on each channel, with n
         }
         // UX plan 18 November 2026, item 11: packs are not on sale, so the statement never says one can be bought.
         assert.doesNotMatch(allowance, /you can buy|can be bought/i, label);
-        if (entry) {
-          assert.equal(v['[data-pack-amount]'], aud(entry.webAud), label);
-          assert.equal(v['[data-pack-what]'], `Pack of ${entry.rooms} rooms · not on sale yet · valid ${entry.validMonths} months`, label);
-          assert.ok(allowance.endsWith(`Once packs are on sale (they aren’t yet), this one adds ${entry.rooms}, used after the included ones and valid ${entry.validMonths} months from purchase.`), label);
-        } else {
-          assert.ok(allowance.endsWith('Top-up packs aren’t on sale yet.'), label);
-        }
+        assert.ok(allowance.endsWith('Top-up packs aren’t on sale yet.'), label);
         const explanation = v['[data-billing-explanation]'];
         if (apple) {
           assert.ok(explanation.includes(`an eligible ${free.months}-month App Store introductory offer, then ${aud(bill)} each ${annual ? 'year' : 'month'} automatically unless cancelled through Apple`), label);
-          assert.equal(explanation.includes('The one-time pack is a separate website or invoice purchase; it does not recur or change the Apple subscription.'), !!entry, label);
+          assert.doesNotMatch(explanation, /one-time pack/, label);
           assert.equal(explanation.includes('Yearly saves A$279.89 (16.7%) compared with 12 monthly payments.'), annual);
         }
         assert.match(explanation, /nothing is charged by this calculator\.$/i, label);
@@ -493,7 +478,7 @@ test('what counts: a room, connecting spaces, when rooms are used, the free mont
   assert.equal(terms.Hosting, 'Every released walkthrough stays live while your account has a running plan: the free month, monthly or yearly. '
     + `${plan.hosting.liveTours.rule} When the plan ends, its links, embeds and QR codes keep working for ${graceDays} days, then go offline, and banked rooms lapse after the ${graceDays} days. Restart the plan and the same links come back at once. `
     + `To keep a single walkthrough online without a plan, ask us for a hosting extension: ${aud(hostingYear)} a year per walkthrough.`);
-  assert.equal(terms['Listing videos and photos'], 'Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough, once video exports open. Files you download are yours to keep.');
+  assert.equal(terms['Listing videos and photos'], 'Included in the plan: a landscape listing video, a vertical social video and still photos of each released walkthrough. Files you download are yours to keep.');
   assert.equal(terms['Buyer views, QR sign and vendor report'], 'Every released walkthrough includes first-party view and channel counts (direct link, QR code, website embed and portal), call and email tap counts, a print-ready open-home QR sign card, a pre-capture home readiness checklist and a one-tap vendor report for weekly campaign updates.');
   // Starting needs a payment method on file, in each channel's own words.
   assert.match(terms.Starting, /Start in the app through Apple’s 1-month free introductory offer, if eligible/);
@@ -737,7 +722,7 @@ test('the offer page makes no claim the product cannot back', () => {
   }
   assert.ok(/Not included[\s\S]*unlimited revisions/.test(body) && (body.match(/unlimited revisions/g) || []).length === 1);
   assert.match(body, /Not as a built-in 3D tour: REA shows tours only from its supported suppliers/);
-  assert.match(body, /When video exports open, the same capture also gives you an MP4 walkthrough video/);
+  assert.doesNotMatch(body, /exports open/i, 'no promise of a feature that is off (spec v2 5.2 rule 7)');
   assert.match(body, /tenant as well as the owner/);
   assert.match(body, /iPhone 12 Pro and later Pro or Pro Max models/);
   assert.match(body, /If you expect more than about ten tours a month, tell us first, and we will say plainly what we can process/);

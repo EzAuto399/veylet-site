@@ -1046,7 +1046,7 @@ test('views: opens with the last day and the Call and Email taps, under the stat
   assert.equal(once.card('t1').all().find(el => el.className === 'tour-views').textContent, '1 open · 3 call taps · 1 email tap · last 24 Sep 2026');
   const none = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ data: [{ ...stats, opens: 0, call_taps: 0, email_taps: 0, last_opened_at: null }] }) } });
   await settle();
-  assert.equal(none.card('t1').all().find(el => el.className === 'tour-views').textContent, 'Not opened yet.');
+  assert.equal(none.card('t1').all().find(el => el.className === 'tour-views').textContent, 'No opens yet.');
   // PGRST202: hidden, and not asked again on the next read. An error or an odd answer: hidden.
   const missing = await load({ tours: [liveTour()], approved: true, rpc: { get_tour_view_stats: async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }) } });
   await settle();
@@ -1993,7 +1993,7 @@ test('the view counts could not be read: Insights says so with Try again, shows 
   await x.open();
   assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-problem', 'The view counts couldn’t be loaded. Nothing is lost.'], ['tour-actions-row', '']]);
   assert.equal(x.figures(), undefined, 'a missing count is never shown as zero');
-  assert.doesNotMatch(x.h.visible(), /Not opened yet|0 opens/);
+  assert.doesNotMatch(x.h.visible(), /Not opened yet|No opens yet|0 opens/);
   const again = x.control('insights-retry');
   assert.equal(again.textContent, 'Try again');
   await again.fire('click');
@@ -2018,8 +2018,8 @@ test('not opened yet: Insights explains what will appear and offers the card’s
   const x = await heatDesk(async () => ({ data: { stops: [], visits: 0, since: null } }), { stats: ZERO });
   assert.equal(x.toggle.hidden, false, 'offered before the first open, so the agent learns what it will hold');
   await x.open();
-  assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-lead', 'Not opened yet.'],
-    ['tour-insights-note', 'Opens and contact taps will appear here when recorded. Room activity appears only when available.'], ['tour-actions-row', '']]);
+  assert.deepEqual(x.insights.children[0].children.map(el => [el.className, el.textContent]), [['tour-insights-lead', 'No opens yet.'],
+    ['tour-insights-note', 'Share Sample space and opens show up here.'], ['tour-actions-row tour-zero-actions', '']]);
   assert.equal(x.figures(), undefined);
   assert.equal(x.insights.all().some(el => el.tagName === 'TABLE' || el.tagName === 'SVG' || /skeleton/.test(el.className || '')), false, 'an empty result is words, never a placeholder');
   assert.equal(x.h.count('get_tour_view_heatmap'), 0, 'nothing to ask the stops for');
@@ -2098,7 +2098,7 @@ test('the insights panel is one column that changes layout at two widths only, b
   // The scale is one hue in three steps, light to dark, from the desk's own tokens; no colour of its own beyond the floor.
   assert.deepEqual([1, 2, 3].map(level => insightsCss.match(new RegExp('\\.tour-heat-spot\\[data-level="' + level + '"\\] \\{ fill: (var\\(--[\\w-]+\\));'))[1]), ['var(--line)', 'var(--accent)', 'var(--ink)']);
   assert.match(insightsCss, /\.tour-heat-spot\[data-level="1"\] \{ fill: var\(--line\); stroke: var\(--field-line\); \}/, 'the palest step keeps a 3:1 edge against the floor');
-  assert.deepEqual([...new Set(insightsCss.match(/#[0-9a-fA-F]{3,8}\b/g))], ['#fdfcfa']);
+  assert.equal(insightsCss.match(/#[0-9a-fA-F]{3,8}\b/g), null, 'the floor is the --surface token, so the scale follows the desk into dark mode');
 });
 
 test('Refresh keeps the reader’s place: the panel that was open on a card is open again, and a closed one stays closed', async () => {
