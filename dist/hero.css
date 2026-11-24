@@ -325,6 +325,7 @@
   text-underline-offset: 3px;
   text-decoration-color: var(--accent);
 }
+.site .vh-honest summary::after { content: none; }
 .site .vh-honest details > p { flex-basis: 100%; max-width: 62em; margin: 0 0 12px; padding: 0; color: var(--muted); font-size: 14px; }
 
 /* Phone (< 640): poster first, portrait, then the copy on Stage. Live 3D takes the whole viewport. */

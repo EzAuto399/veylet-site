@@ -212,3 +212,18 @@ test('reduced motion skips the entrance and the Ken Burns', () => {
   assert.equal(boot({ reduce: true }).stage.dataset.motion, 'reduced');
   assert.equal(boot().section.dataset.intro, '');
 });
+
+test('on a phone the Privacy choices control sits after the footer, never over the hero\u2019s Get the app', () => {
+  const css = read('analytics.css');
+  const phone = css.slice(css.indexOf('@media (max-width: 600px)'));
+  assert.match(phone, /\.site \.analytics-preferences \{ position: static;/);
+  assert.doesNotMatch(css, /\.conversion-home \.analytics-preferences/);
+});
+
+test('the honest line\u2019s Details summary draws no FAQ plus sign over its text', () => {
+  assert.match(read('hero.css'), /\.site \.vh-honest summary::after \{ content: none; \}/);
+});
+
+test('the hero poster shows without JavaScript', () => {
+  assert.match(read('hero.css'), /@media \(scripting: none\) \{ \.vh-poster img \{ opacity: 1; \} \}/);
+});

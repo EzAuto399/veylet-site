@@ -17,9 +17,10 @@ body:has(.analytics-consent:not([hidden])) .sticky-cta { display: none !importan
 .analytics-reload-note, .analytics-status { font-size: 12px; color: var(--muted, #536557); }
 .analytics-status:empty { display: none; }
 .analytics-consent :focus-visible, .analytics-preferences:focus-visible { outline: 3px solid #897033; outline-offset: 3px; }
-/* Public pages with 52px mobile actions keep them reachable below privacy controls when the consent bar is closed. */
+/* On a phone the closed-consent control never floats over a page's own buttons: on the public site it sits
+   after the footer, clear of the mobile sticky bar. */
 @media (max-width: 600px) {
-  .conversion-home .analytics-preferences, .see-page .analytics-preferences { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+  .site .analytics-preferences { position: static; display: flex; width: max-content; margin: 0 var(--gutter, 20px) calc(84px + env(safe-area-inset-bottom, 0px)) auto; }
   .analytics-consent { margin-inline: 0; width: auto; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)); border-inline: 0; border-radius: 0; }
   /* A phone keeps the page's own action in view: one sentence with the notice link, then the three
      choices on one 44px row. The title still names the region; the rest of the copy returns with Customize. */
