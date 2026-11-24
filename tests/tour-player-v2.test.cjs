@@ -781,7 +781,7 @@ test('a slow first load keeps the poster and offers Keep waiting or Try again; t
   const x = await started({ slowEngine: true, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
   const root = byClass(x.stage, 'v2');
   const fallback = byClass(x.stage, 'v2-fallback');
-  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Loading 3D…');
+  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Loading the walkthrough');
   // A slow connection is said to be slow, without blame, while the download goes on.
   timers.fire(10000);
   assert.equal(byClass(x.stage, 'v2-status').textContent, 'Still loading. A slow connection can take a minute.');
@@ -1673,4 +1673,48 @@ test('360 rotation and movement stability: radialSorting, lodBehindPenalty=1, co
   assert.ok(Math.abs(pos[2]) <= 0.85 + 1e-6, `stepForward stays tethered within 0.85 m of the station corridor, got z=${pos[2]}`);
 });
 
+
+
+// ---------- buyer view quick wins, design spec v2 6.13 and 11.10 (P1-WEB-5) ----------
+
+const firstLevel = [{ path: 'lod/lod-meta.json', bytes: 100 }, { path: 'lod/3_0/means.webp', bytes: 600 }, { path: 'lod/3_0/sh0.webp', bytes: 300 }];
+const firstLevelServed = { 'lod/lod-meta.json': {}, 'lod/3_0/means.webp': {}, 'lod/3_0/sh0.webp': {} };
+
+test('the loading line reads "Loading the walkthrough · n%" from the bar, and the number is not announced on each tick', async () => {
+  assert.doesNotMatch(playerSource, /Loading 3D…/);
+  const x = await started({ manifest: manifest({ files: firstLevel }), files: firstLevelServed, slowEngine: true });
+  const status = byClass(x.stage, 'v2-status');
+  const progress = byClass(x.stage, 'v2-progress');
+  assert.equal(status.textContent, 'Loading the walkthrough · 60%');
+  assert.equal(progress.getAttribute('role'), 'progressbar');
+  assert.equal(progress.getAttribute('aria-valuenow'), '60', 'the bar keeps its value for a screen reader to read');
+  // The status is a polite live region, said once; the number beside it is hidden from it.
+  assert.deepEqual([status.getAttribute('role'), status.getAttribute('aria-live')], ['status', 'polite']);
+  const percent = byClass(status, 'v2-status-percent');
+  assert.equal(percent.getAttribute('aria-hidden'), 'true');
+  assert.equal(percent.getAttribute('aria-live'), null);
+  assert.equal(status.textContent.replace(percent.textContent, ''), 'Loading the walkthrough', 'the live words stay as the number moves');
+  assert.equal(percent.style.fontVariantNumeric, 'tabular-nums');
+  // With the engine in, the same line moves on with the bar.
+  const both = await started({ manifest: manifest({ files: firstLevel }), files: firstLevelServed });
+  assert.equal(byClass(both.stage, 'v2-status').textContent, 'Loading the walkthrough · 85%');
+  assert.equal(byClass(both.stage, 'v2-progress').getAttribute('aria-valuenow'), '85');
+});
+
+test('with no file list to count the line shows no number, rather than one that stands still', async () => {
+  const x = await started({ slowEngine: true });
+  assert.equal(byClass(x.stage, 'v2-progress').classList.contains('v2-progress-wait'), true);
+  assert.equal(byClass(x.stage, 'v2-status').textContent, 'Loading the walkthrough');
+});
+
+test('after 10 s the slow line still replaces the loading line, number and all', async () => {
+  const timers = manualTimers();
+  const x = await started({ manifest: manifest({ files: firstLevel }), files: firstLevelServed, slowEngine: true, context: { setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout } });
+  const status = byClass(x.stage, 'v2-status');
+  assert.equal(status.textContent, 'Loading the walkthrough · 60%');
+  timers.fire(10000);
+  assert.equal(status.textContent, 'Still loading. A slow connection can take a minute.');
+  assert.equal(byClass(status, 'v2-status-percent'), null);
+  assert.equal(byClass(x.stage, 'v2-progress').getAttribute('aria-valuenow'), '60');
+});
 

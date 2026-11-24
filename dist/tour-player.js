@@ -20,7 +20,10 @@
   const LOAD_BODY = 'The walkthrough couldn’t be loaded just now. Check your connection and try again.';
   const STORAGE_BODY =
     'The tour file could not be opened. Ask the agent who sent it to send the link again.';
-  const PACKAGE_BODY = 'This package is not a playable reconstructed tour.';
+  /** A walkthrough this browser can't play: another browser, or a video from the agent (design spec v2, 6.13). */
+  const firstName = (name) => (typeof name === 'string' ? name.trim().split(/\s+/)[0] : '');
+  player.browserBody = (name) => 'This walkthrough can’t open in this browser. Try Safari or Chrome, or ask '
+    + (firstName(name) || 'the person who sent it') + ' for a video.';
   /*
    * One set of words for the three pages a client can land on (/handoff, /tour
    * and /embed), so the same state reads the same wherever the link was opened.
@@ -35,13 +38,13 @@
   });
   player.WORDS = WORDS;
   /*
-   * A paused link (design spec D3, decided 19 November 2026). Shown only when the server says the link is
-   * paused and gives the agent's public display name (lookup_tour_share_pause, release 8); without that
-   * answer the page keeps the missing words above. The body is the name, then bodyAfterName.
+   * A paused link (design spec v2, 6.13 and 11.3). Shown only when the server says the link is paused and
+   * gives the agent's public display name (lookup_tour_share_pause, release 8); without that answer the page
+   * keeps the missing words above. The space is named when the server gives it, else "this property".
    */
   const PAUSED_WORDS = Object.freeze({
     heading: 'This walkthrough is paused.',
-    bodyAfterName: ' has paused sharing. Ask them for a new link.',
+    body: (name, space) => name + ' has paused it for now. Ask ' + name + ' about ' + (space || 'this property') + '.',
   });
   player.PAUSED_WORDS = PAUSED_WORDS;
   const PAUSE_FUNCTION = 'lookup_tour_share_pause';
@@ -173,11 +176,17 @@
   });
 
   /**
-   * The agent's public display name when the server says this link is only paused and names them, else null.
-   * One call, a short wait, never rejects: an older database (no such function), an error, a link that is
-   * not paused and a workspace that shows no name all read as null, and the page keeps the missing words.
+   * What the server says of a link that is only paused: the agent's public display name, and the space's name,
+   * phone and email when it gives them, else null. One call, a short wait, never rejects: an older database
+   * (no such function), an error, a link that is not paused and a workspace that shows no name all read as
+   * null, and the page keeps the missing words.
    */
-  player.lookupPause = async (client, token, timeoutMs = 3000) => {
+  const pausedText = (value, max) => {
+    if (typeof value !== 'string') return '';
+    const text = value.replace(/\s+/g, ' ').trim();
+    return text.length <= max ? text : '';
+  };
+  player.lookupPaused = async (client, token, timeoutMs = 3000) => {
     if (!client || typeof client.rpc !== 'function' || typeof token !== 'string' || token.length !== 32) return null;
     let asked;
     try {
@@ -190,13 +199,49 @@
     const row = Array.isArray(answer.data) ? answer.data[0] : answer.data;
     if (!row || row.paused !== true || typeof row.display_name !== 'string') return null;
     const name = row.display_name.trim();
-    return name && name.length <= 80 ? name : null;
+    if (!name || name.length > 80) return null;
+    const digits = pausedText(row.phone, 32).replace(/\D/g, '');
+    const email = pausedText(row.email, 254);
+    return {
+      name,
+      space: pausedText(row.space_title, 120),
+      phone: digits.length >= 6 ? (pausedText(row.phone, 32).startsWith('+') ? '+' : '') + digits : '',
+      email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? email : '',
+    };
   };
+  /** The agent's public display name when the server says this link is only paused and names them, else null. */
+  player.lookupPause = async (client, token, timeoutMs) => (await player.lookupPaused(client, token, timeoutMs))?.name ?? null;
 
   /** The missing words, or the paused words when the link is paused and its agent is named. */
-  const missingWords = (pausedBy) => (pausedBy
-    ? { heading: PAUSED_WORDS.heading, body: pausedBy + PAUSED_WORDS.bodyAfterName }
+  const missingWords = (paused) => (paused
+    ? { heading: PAUSED_WORDS.heading, body: PAUSED_WORDS.body(paused.name, paused.space) }
     : { heading: WORDS.missingHeading, body: WORDS.missingBody });
+
+  /*
+   * A paused link on a page that shows the agent (/handoff): Call and Email the agent, before Try again, when the
+   * server gives a phone or an email (11.3). Tonal, never filled: contact is quieter than exploring (11.5).
+   */
+  const PAUSED_CONTACT = 'data-paused-contact';
+  function showPausedContact(actions, paused) {
+    if (!actions || typeof actions.querySelectorAll !== 'function') return;
+    for (const old of actions.querySelectorAll('[' + PAUSED_CONTACT + ']')) old.remove();
+    if (!paused) return;
+    const first = firstName(paused.name);
+    const links = [];
+    const add = (href, label) => {
+      const link = document.createElement('a');
+      link.setAttribute('class', 'button button-tonal agent-action');
+      link.setAttribute(PAUSED_CONTACT, '');
+      link.setAttribute('href', href);
+      link.textContent = label + ' ' + first;
+      links.push(link);
+    };
+    if (paused.phone) add('tel:' + paused.phone, 'Call');
+    if (paused.email) add('mailto:' + paused.email + (paused.space ? '?subject=' + encodeURIComponent(paused.space) : ''), 'Email');
+    if (!links.length) return;
+    actions.replaceChildren(...links, ...Array.from(actions.children));
+    actions.hidden = false;
+  }
 
   /**
    * Paused, switched off, expired or gone: the shared words, and Try again. With `{ client, token }` the
@@ -206,9 +251,9 @@
     const surface = surfaceOf(els);
     wireRetry(surface.retry);
     // Only a paused link can be switched back on; a definitive miss hides Try again.
-    const show = (pausedBy) => player.showFailure(surface, { ...missingWords(pausedBy), retry: Boolean(pausedBy), definitive: true });
+    const show = (paused) => player.showFailure(surface, { ...missingWords(paused), retry: Boolean(paused), definitive: true });
     if (!ask) { show(null); return undefined; }
-    return player.lookupPause(ask.client, ask.token).then(show);
+    return player.lookupPaused(ask.client, ask.token).then(show);
   };
 
   /** A cut-off or broken link. Trying again cannot help, so the one step is to check it or ask. */
@@ -420,7 +465,7 @@
       const transient = looked.error.transient !== false;
       // A client's page whose link answered nothing: only paused, and by whom? (lookupPause; null keeps the missing words.)
       const pausedBy = !transient && options.client && looked.error.message === 'share-not-found'
-        ? await player.lookupPause(client, options.shareToken) : null;
+        ? await player.lookupPaused(client, options.shareToken) : null;
       const paused = pausedBy ? missingWords(pausedBy) : null;
       player.showFailure(surface, {
         heading: paused ? paused.heading : options.missingHeading || OFFLINE_HEADING,
@@ -428,6 +473,8 @@
         retry: transient || Boolean(pausedBy),
         definitive: !transient,
       });
+      // A paused link shows no media, only the words and, where the page shows the agent, Call and Email (11.3).
+      if (options.pausedContact) showPausedContact(surface.actions, pausedBy);
       return { outcome: transient ? 'unreachable' : 'missing' };
     }
 
@@ -445,7 +492,8 @@
 
     if (resolved.title) text(els.title, resolved.title);
     if (resolved.intro) text(els.body, resolved.intro);
-    document.title = (resolved.title || 'Walkthrough') + ' — Veylet';
+    // A client's tab reads as the space it shows ("Riverside apartment"); the owner's preview keeps its suffix.
+    document.title = (resolved.title || 'Walkthrough') + (options.client ? '' : ' — Veylet');
     if (streamed) return player.bootV2(surface, resolved, options);
     player.showProgress(surface, 'Loading the reconstructed tour…');
 
@@ -487,7 +535,7 @@
       if (!slow && options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
       else player.showFailure(surface, {
         heading: resolved.title || OFFLINE_HEADING,
-        body: slow ? 'The walkthrough did not start in time. Try another browser, or ask the person who sent it.' : PACKAGE_BODY,
+        body: slow ? 'The walkthrough did not start in time. Try another browser, or ask the person who sent it.' : player.browserBody(options.agentName),
         retry: true,
       });
     }
@@ -504,12 +552,12 @@
     // A package that is not a walkthrough reads, on a client's page, as any other link that cannot open.
     const unusable = () => {
       if (options.client) player.showFailure(surface, { heading: options.missingHeading, body: options.missingBody, retry: true, definitive: true });
-      else failed(PACKAGE_BODY, false);
+      else failed(player.browserBody(options.agentName), false);
     };
     if (!stage) { unusable(); return; }
     player.showProgress(surface, 'Loading the walkthrough…');
     try {
-      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=c94b82c410939268');
+      if (!window.VeyletPlayerV2) await player.loadScript('/tour-player-v2.js?v=1dd1a18d05c79825');
     } catch {
       failed(LOAD_BODY, true);
       return;

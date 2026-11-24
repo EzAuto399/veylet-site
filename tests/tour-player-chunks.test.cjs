@@ -381,7 +381,8 @@ test('a single-scene package preserves playback while showing its opening downlo
   const expected = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
   // The approved player now shows first-file progress beside the engine download. Keep every later
   // playback state, engine request, navigation result and budget equal to the retained session.
-  expected.screens[0] = 'opening | opening | Loading 3D… | Stop 1 of 5 | progress scaleX(0.500)';
+  // Design spec v2 6.13: "Loading the walkthrough" (no file list here, so no percentage beside it).
+  expected.screens[0] = 'opening | opening | Loading the walkthrough | Stop 1 of 5 | progress scaleX(0.500)';
   assert.deepEqual(await singleSceneSession(), expected);
 });
 

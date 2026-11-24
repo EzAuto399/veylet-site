@@ -265,6 +265,16 @@ dialog.agent-enquiry-sheet::backdrop {
 .agent-card .agent-action {
   min-width: 104px;
 }
+/* Tonal, not filled: contact is quieter than exploring (design spec v2, 11.5). A paused link's Call and Email. */
+.client-surface .button-tonal,
+.client-surface .button-tonal:hover {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: var(--ink);
+}
+.client-surface .button-tonal:hover {
+  border-color: var(--accent);
+}
 .agent-action:focus-visible,
 .client-share:focus-visible,
 .client-help summary:focus-visible,

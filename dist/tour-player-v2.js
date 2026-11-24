@@ -1024,6 +1024,12 @@
     const first = { started: false, total: 0, loaded: 0, engine: false };
     let progressShown = 0;
     let progressSaid = -1;
+    // The loading line reads "Loading the walkthrough · 42%". The status is a live region, so it is announced
+    // once; the number beside it is hidden from it (the progress bar's value carries it), so a screen reader
+    // can read the share without hearing every tick (design spec v2, 11.10).
+    const LOADING_WORDS = 'Loading the walkthrough';
+    const loadingPercent = el('span', { class: 'v2-status-percent', 'aria-hidden': 'true' });
+    Object.assign(loadingPercent.style, { fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' });
     function setProgress(value) {
       progressShown = Math.max(progressShown, Math.min(1, value));
       ui.progress.firstChild.style.transform = `scaleX(${progressShown.toFixed(3)})`;
@@ -1034,6 +1040,8 @@
       ui.progress.setAttribute('aria-valuenow', String(percent));
       if (percent === progressSaid) return;
       progressSaid = percent;
+      // No file list to count (the bar only creeps): no number, rather than one that stands still.
+      loadingPercent.textContent = ui.progress.classList.contains('v2-progress-wait') ? '' : ' · ' + percent + '%';
       try {
         if (typeof CustomEvent === 'function') window.dispatchEvent?.(new CustomEvent('veylet-viewer-progress', { detail: { percent } }));
       } catch { /* optional: a page that is not listening changes nothing */ }
@@ -1097,12 +1105,13 @@
       ui.fallback.replaceChildren();
       mark('explore');
     }
-    ui.status.textContent = 'Loading 3D…';
+    ui.status.textContent = LOADING_WORDS;
+    ui.status.append(loadingPercent);
     startFirstFiles();
     // One deadline for the first 3D frame, from the start of the 3D download: 45 s of visible time (a hidden tab
     // keeps its allowance), then Keep waiting or Try again over the poster. The page adds none of its own.
     cancelDeadline = visibleDeadline(tooSlow, 45000);
-    slowNote = setTimeout(() => { if (!ready && ui.status.textContent === 'Loading 3D…') ui.status.textContent = 'Still loading. A slow connection can take a minute.'; }, 10000);
+    slowNote = setTimeout(() => { if (!ready && loadingPercent.parentNode === ui.status) ui.status.textContent = 'Still loading. A slow connection can take a minute.'; }, 10000);
     const pc = await requestEngine();
     if (signal?.aborted) throw new PlayerError('playback-cancelled');
     if (!pc || !pc.createGraphicsDevice) return fail('engine-unavailable');

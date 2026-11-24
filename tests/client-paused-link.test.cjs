@@ -11,7 +11,7 @@ const read = file => fs.readFileSync(path.join(__dirname, '../dist', file), 'utf
 
 const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 const HEADING = 'This walkthrough is paused.';
-const BODY = 'Sam Lee has paused sharing. Ask them for a new link.';
+const BODY = 'Sam Lee has paused it for now. Ask Sam Lee about this property.';
 // The page's objects come from another realm (vm), so calls are compared as JSON.
 const ONE_CALL = JSON.stringify([['lookup_tour_share_pause', { p_token: TOKEN }]]);
 const NAMED = { data: [{ paused: true, display_name: 'Sam Lee' }], error: null };
@@ -25,14 +25,16 @@ const clientAnswering = (answer) => {
   return { calls, rpc(name, args) { calls.push([name, args]); return typeof answer === 'function' ? answer() : Promise.resolve(answer); } };
 };
 
-test('the paused words are the design spec D3 sentences, kept in the player and in no page', () => {
+test('the paused words are the design spec v2 6.13 sentences, kept in the player and in no page', () => {
   const player = realPlayer();
-  assert.deepEqual({ ...player.PAUSED_WORDS }, { heading: HEADING, bodyAfterName: ' has paused sharing. Ask them for a new link.' });
-  assert.equal('Sam Lee' + player.PAUSED_WORDS.bodyAfterName, BODY);
+  assert.deepEqual(Object.keys(player.PAUSED_WORDS), ['heading', 'body']);
+  assert.equal(player.PAUSED_WORDS.heading, HEADING);
+  assert.equal(player.PAUSED_WORDS.body('Sam Lee'), BODY);
+  assert.equal(player.PAUSED_WORDS.body('Sam Lee', 'Riverside apartment'), 'Sam Lee has paused it for now. Ask Sam Lee about Riverside apartment.');
   const tourPage = read('tour-page.js');
   for (const page of ['handoff/index.html', 'tour/index.html', 'embed/index.html']) {
     const html = read(page);
-    assert.doesNotMatch(html, /walkthrough is paused|has paused sharing|lookup_tour_share_pause/, page);
+    assert.doesNotMatch(html, /walkthrough is paused|has paused it|lookup_tour_share_pause/, page);
     assert.match(tourPage, /client: true,\n\s*\/\/[^\n]*\n\s*shareToken: token,/, page);
   }
   // The embed's check before Explore asks too, with the client it already has.
