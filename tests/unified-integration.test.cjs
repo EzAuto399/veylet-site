@@ -387,7 +387,7 @@ test('/embed and /tour preserve safe #stop=N&yaw=D&pitch=P hashes on fullscreen 
     window: embedWin, document: { getElementById: id => ids[id] }, location: embedLoc, URLSearchParams, setTimeout, Promise,
   };
   siteLib.load(embedCtx); siteLib.loadTourPage(embedCtx);
-  vm.runInNewContext(embedHtml.match(/<script>([\s\S]*?)<\/script>/)[1], embedCtx);
+  vm.runInNewContext(embedHtml.match(/<script type="module">([\s\S]*?)<\/script>/)[1], embedCtx);
   assert.equal(ids['embed-open'].href, `https://veylet.com/handoff?t=${TOKEN}#stop=2&yaw=135&pitch=-20`);
   embedLoc.hash = '#stop=3&yaw=45';
   winListeners.hashchange();
@@ -417,7 +417,7 @@ test('/embed and /tour preserve safe #stop=N&yaw=D&pitch=P hashes on fullscreen 
       URLSearchParams, URL, setTimeout, clearTimeout,
     };
     siteLib.load(tctx); siteLib.loadTourPage(tctx);
-    vm.runInNewContext(tourHtml.match(/<script>([\s\S]*?)<\/script>/)[1], tctx);
+    vm.runInNewContext(tourHtml.match(/<script type="module">([\s\S]*?)<\/script>/)[1], tctx);
     return tourBoot.fullscreenUrl;
   };
   assert.equal(runTour('#stop=2&yaw=90&pitch=10'), `https://veylet.com/tour?t=${TOKEN}#stop=2&yaw=90&pitch=10`);

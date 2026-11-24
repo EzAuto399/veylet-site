@@ -667,14 +667,14 @@
 
   // ---------- network ----------
 
-  async function fetchJson(url, limit, signal, timeoutMs = 15000) {
+  async function fetchJson(url, limit, signal, timeoutMs = 15000, cache = 'no-cache') {
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
     const timer = setTimeout(abort, timeoutMs);
     try {
       let response;
-      try { response = await fetch(url, { signal: controller.signal, credentials: 'omit', cache: 'no-cache' }); } catch { throw new PlayerError('package-unreachable', { transient: true }); }
+      try { response = await fetch(url, { signal: controller.signal, credentials: 'omit', cache }); } catch { throw new PlayerError('package-unreachable', { transient: true }); }
       if (response.status === 404 || response.status === 410 || response.status === 403) throw new PlayerError('package-unavailable');
       if (!response.ok) throw new PlayerError('package-unreachable', { transient: true });
       const declared = Number(response.headers.get('content-length'));
@@ -881,7 +881,7 @@
     const ui = buildInterface(stage);
     mark('manifest');
     const walkablePromise = manifest.walkable
-      ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal).then(decodeWalkable).catch(() => null)
+      ? fetchJson(base + manifest.walkable, WALKABLE_LIMIT, signal, 15000, 'default').then(decodeWalkable).catch(() => null)
       : Promise.resolve(null);
 
     // Preview, then poster. Both are renders of this package from the opening stop.

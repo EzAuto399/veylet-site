@@ -186,7 +186,7 @@ test('dist/embed/index.html supports ?theme=paper with #f4f1e9/#10231d contrast 
   assert.match(markup, /#10231d/);
   assert.doesNotMatch(markup, /\b(?:innerHTML|insertAdjacentHTML|outerHTML)\b/);
 
-  const source = markup.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const source = markup.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
   const run = search => {
     const ids = {};
     for (const match of markup.matchAll(/<([\w-]+)[^>]*\bid="([^"]+)"[^>]*>/g)) {

@@ -108,7 +108,8 @@ export function pageStrings(html) {
 
 /** Links from an app page stay on the app's pages (or are mail links). */
 export function outsideLinks(html) {
-  return pageStrings(html).attributes.filter(({ name, value }) => name === 'href' && !/^(\/app\/[a-z/-]*|\/app\/help(\/[a-z\d/_-]*)?(#[\w-]+)?|#[\w-]+|mailto:[^"]+|data:,?|\/media\/[\w.-]+|\/[\w./-]+\.css(\?v=[a-f\d]{16})?)$/.test(value))
+  const withoutPreconnect = html.replace(/<link\b[^>]*\brel="preconnect"[^>]*\bhref="https:\/\/(?:ntupgokxauegrnnvacqt\.supabase\.co|tours\.veylet\.com)"[^>]*>/gi, ' ');
+  return pageStrings(withoutPreconnect).attributes.filter(({ name, value }) => name === 'href' && !/^(\/app\/[a-z/-]*|\/app\/help(\/[a-z\d/_-]*)?(#[\w-]+)?|#[\w-]+|mailto:[^"]+|data:,?|\/media\/[\w.-]+|\/[\w./-]+\.css(\?v=[a-f\d]{16})?)$/.test(value))
     .map(({ value }) => value);
 }
 

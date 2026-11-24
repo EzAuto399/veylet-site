@@ -145,7 +145,7 @@ test('/handoff?sample=1 opens Appraisal Pitch preview with sample walkthrough an
   const ctx = { window, document, location, navigator: {}, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout };
   siteLib.load(ctx); siteLib.loadTourPage(ctx);
   vm.runInNewContext(read('client-page.js'), ctx);
-  vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], ctx);
+  vm.runInNewContext(handoff.match(/<script type="module">\s*(window\.VeyletTourPage\.handoff\(\);[\s\S]*?)<\/script>/)[1], ctx);
 
   assert.ok(bootOpts, 'sample=1 boots the player instead of showing incomplete');
   const rpcCalls = [];
@@ -382,7 +382,7 @@ test('/handoff guards lookupContact vs lookupHandoffContext race in both directi
     const ctx = { window, document, location, navigator: {}, URL, URLSearchParams, encodeURIComponent, setTimeout, clearTimeout, fetch };
     siteLib.load(ctx); siteLib.loadTourPage(ctx);
     vm.runInNewContext(read('client-page.js'), ctx);
-    vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], ctx);
+    vm.runInNewContext(handoff.match(/<script type="module">\s*(window\.VeyletTourPage\.handoff\(\);[\s\S]*?)<\/script>/)[1], ctx);
     const client = {
       rpc: async name => {
         if (name === 'lookup_tour_share') return { data: [{ storage_path: 'p/manifest.json', space_title: '14 River St', package_format_version: 2, package_base_url: 'https://tours.veylet.com/t/a/' }] };

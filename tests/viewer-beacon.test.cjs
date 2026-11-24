@@ -168,7 +168,7 @@ function handoffPage({ search = '?t=' + TOKEN + '&src=qr', nav = {} } = {}) {
   const context = { window, document, location, navigator: nav, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
   siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
-  vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
+  vm.runInNewContext(handoff.match(/<script type="module">\s*(window\.VeyletTourPage\.handoff\(\);[\s\S]*?)<\/script>/)[1], context);
   return { document, net, get bootOptions() { return bootOptions; }, finishBoot: () => finishBoot() };
 }
 const contactRow = { display_name: 'Alex Example', agency: 'Example Realty', phone: '+61 400 000 000', email: 'alex@example.invalid' };
@@ -228,7 +228,7 @@ function embedPage({ search = '?t=' + TOKEN, referrer = 'https://agency.example.
   const context = { window, document: { getElementById: id => ids[id], referrer }, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch };
   siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
-  vm.runInNewContext(embed.match(/<script>([\s\S]*?)<\/script>/)[1], context);
+  vm.runInNewContext(embed.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   return { ids, net, get bootOptions() { return bootOptions; } };
 }
 
@@ -280,7 +280,7 @@ function tourPage({ search = '?t=' + TOKEN + '&src=portal', framed = false, refe
   const context = { window, document, location: { search }, URLSearchParams, URL, setTimeout, clearTimeout, fetch: net.fetch };
   siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
-  vm.runInNewContext(tour.match(/<script>([\s\S]*?)<\/script>/)[1], context);
+  vm.runInNewContext(tour.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   const id = name => document.getElementById(name);
   return { document, id, net, calls, get bootOptions() { return bootOptions; }, finishBoot: () => finishBoot() };
 }
@@ -297,8 +297,8 @@ test('/tour is the walkthrough alone: no agent, contact, address, QR, maker’s 
   assert.match(tour, /<meta name="referrer" content="no-referrer" \/>/);
   assert.match(tour, /<title>Property walkthrough<\/title>/);
   assert.match(tour, /<link rel="icon" href="data:," \/>/, 'no maker’s icon');
-  assert.match(tour, /<script src="\/client-page\.js\?v=[a-f\d]{16}"><\/script>/);
-  assert.match(tour, /<script src="\/tour-player\.js\?v=[a-f\d]{16}"><\/script>/);
+  assert.match(tour, /<script src="\/client-page\.js\?v=[a-f\d]{16}" defer><\/script>/);
+  assert.match(tour, /<script src="\/tour-player\.js\?v=[a-f\d]{16}" defer><\/script>/);
   assert.match(tour, /\.tour-notice button \{[^}]*min-height: 44px;/);
   assert.match(tour, /:focus-visible/);
   assert.doesNotMatch(tour, /animation|transition/, 'nothing moves, so reduced motion has nothing to stop');

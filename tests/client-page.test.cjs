@@ -63,7 +63,7 @@ function handoffPage({ search = '?t=' + TOKEN, nav = {} } = {}) {
   if (heldPlaces) vm.runInNewContext(heldPlaces[1], context);
   siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
-  vm.runInNewContext(handoff.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
+  vm.runInNewContext(handoff.match(/<script type="module">\s*(window\.VeyletTourPage\.handoff\(\);[\s\S]*?)<\/script>/)[1], context);
   const id = name => document.getElementById(name);
   return { document, id, calls, get bootOptions() { return bootOptions; }, finishBoot: () => finishBoot() };
 }
@@ -333,7 +333,7 @@ test('the page speaks to the client: no operator, payment, support or listing-bu
   // One h1; the agent's name is the only h2 the page adds.
   assert.equal((handoff.match(/<h1\b/g) || []).length, 1);
   assert.doesNotMatch(clientSource + handoff, /innerHTML|insertAdjacentHTML|outerHTML/);
-  assert.match(handoff, /<script src="\/client-page\.js\?v=[a-f\d]{16}"><\/script>/);
+  assert.match(handoff, /<script src="\/client-page\.js\?v=[a-f\d]{16}" defer><\/script>/);
   assert.match(handoff, /<link rel="stylesheet" href="\/client-page\.css\?v=[a-f\d]{16}" \/>/);
   assert.match(handoff, /viewport-fit=cover/, 'the safe area is only reported with viewport-fit=cover');
 });
@@ -515,7 +515,7 @@ function embedPage({ withSdk = true, contact = { data: [CONTACT] }, fetch } = {}
   const context = { window, document: { getElementById: id => ids[id] }, location: { search: '?t=' + TOKEN }, URLSearchParams, setTimeout, clearTimeout, fetch };
   siteLib.load(context); siteLib.loadTourPage(context);
   vm.runInNewContext(clientSource, context);
-  vm.runInNewContext(embed.match(/<script>([\s\S]*?)<\/script>/)[1], context);
+  vm.runInNewContext(embed.match(/<script type="module">([\s\S]*?)<\/script>/)[1], context);
   return { ids, client, get bootCalls() { return bootCalls; } };
 }
 

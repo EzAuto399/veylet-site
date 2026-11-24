@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const siteLib = require('./site-lib.cjs');
 const markup = fs.readFileSync(path.join(__dirname, '../dist/embed/index.html'), 'utf8');
-const source = markup.match(/<script>([\s\S]*?)<\/script>/)[1];
+const source = markup.match(/<script type="module">([\s\S]*?)<\/script>/)[1];
 const clientSource = fs.readFileSync(path.join(__dirname, '../dist/client-page.js'), 'utf8');
 const { WORDS, withClientHelpers } = require('./client-words.cjs');
 // The real token rule and poster reader from client-page.js (with this page's fetch); the rest of the page API is stubbed below.
@@ -252,7 +252,7 @@ function tourPage(search, origin = 'https://veylet.com') {
   const document = { getElementById: id => ids[id], querySelector: () => null, title: 'Property walkthrough', referrer: '' };
   const tctx = { window, document, location: { origin, pathname: '/tour', search }, URLSearchParams, URL, setTimeout, clearTimeout };
   siteLib.load(tctx); siteLib.loadTourPage(tctx);
-  vm.runInNewContext(tour.match(/<script>([\s\S]*?)<\/script>/)[1], tctx);
+  vm.runInNewContext(tour.match(/<script type="module">([\s\S]*?)<\/script>/)[1], tctx);
   return { get bootOptions() { return bootOptions; }, get failure() { return failure; } };
 }
 
