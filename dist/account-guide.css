@@ -1146,3 +1146,42 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .space-row-name { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.3; color: var(--ink); overflow-wrap: anywhere; }
 .space-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 14px; color: var(--muted); }
 .space-row > .tour-action { grid-column: 2; grid-row: 1 / span 2; }
+
+/* ---- Desk zero states (design spec v2, 6.16, 6.14 and 3.8) ------------------
+   The empty desk's sample walkthrough card, a space without a capture (the app's
+   QR code), Clear filter, and Copy link and QR code beside a live link's zeroes.
+   Tokens only, so both appearances follow; the QR code keeps its white ground. */
+.desk-sample { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 20px 0 0; padding: 12px 12px 16px; border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--e1); }
+@media (min-width: 720px) { .desk-sample { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: center; gap: 28px; padding: 14px 28px 14px 14px; } }
+.sample-poster { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius-media); background: var(--raised); }
+.sample-words { display: grid; justify-items: start; gap: 8px; min-width: 0; padding: 0 4px; }
+.sample-label { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 5px 10px; border-radius: 999px; background: var(--tint); color: var(--text); font-size: 12px; font-weight: 500; line-height: 1.2; letter-spacing: 0.08em; text-transform: uppercase; }
+.sample-label .portal { width: 10px; height: 13px; }
+.desk .sample-title { margin: 0; font-size: clamp(20px, 2.2vw, 26px); font-weight: 500; line-height: 1.25; letter-spacing: -0.01em; }
+.sample-link { color: var(--text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
+.sample-link:hover { color: var(--accent); }
+/* The whole card opens the sample; the focus ring goes round the card. */
+.sample-link::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius-card); }
+.sample-link:focus-visible { outline: none; }
+.desk-sample:has(.sample-link:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sample-note { margin: 0; max-width: 52ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+
+.capture-app { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.desk .dash-space > .space-capture { margin: 14px 0 0; padding: 14px 0 4px; border-top: 1px solid var(--line); }
+.capture-app-code.tour-qr-code { display: block; flex: none; width: 120px; border-radius: var(--radius-control); }
+.capture-app-code.tour-qr-code svg { border-color: var(--hairline); border-radius: var(--radius-control); }
+.capture-app-words { flex: 1 1 220px; min-width: 0; }
+.capture-app-line,
+.dash-render .capture-app .render-line { margin: 0; font-size: 15px; font-weight: 500; line-height: 1.4; color: var(--text); }
+.capture-app-note,
+.dash-render .capture-app .render-note { margin: 4px 0 0; max-width: 56ch; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.capture-app-link { display: inline-block; margin-top: 6px; font-size: 14px; }
+
+.space-filter-clear { margin: 8px 0 0; }
+
+/* Copy link and QR code beside a zero: quiet words in the views line, buttons elsewhere. */
+.desk .tour-views .tour-zero-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; margin: 0 0 0 6px; vertical-align: middle; }
+.desk .tour-views .tour-zero-actions .tour-action { min-height: 44px; padding: 0 6px; border: 0; background: none; color: var(--text); font-size: 13px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.2em; }
+.desk .tour-views .tour-zero-actions .tour-action:hover { color: var(--accent); background: none; }
+.tour-enquiries > .tour-zero-actions { margin: 0; }
+

@@ -86,7 +86,11 @@
   const spaceFilterInput = document.getElementById('account-space-filter');
   const spaceStateFilters = document.getElementById('account-space-states');
   const spaceFilterStatus = document.getElementById('account-space-filter-status');
+  const spaceFilterClear = document.getElementById('account-space-filter-clear');
   let spaceStateFilter = 'all';
+  // The empty desk's sample walkthrough (design spec v2, 6.16): the buyer's view, with this person's own card.
+  const sampleEl = document.getElementById('account-sample');
+  const APP_STORE_URL = 'https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913';
   const spaceTotals = document.getElementById('account-totals');
   const workView = document.getElementById('view-walkthroughs');
   const spaceEls = new Map(), spaceHeads = new Map(), spaceOfTour = new Map();
@@ -735,7 +739,7 @@
     if (!needsEl || !needsList) return;
     const rows = needsRows();
     needsEl.hidden = rows.length === 0;
-    addSpaceLeads = Boolean(needsCtx) && rows.length === 0 && needsCtx.rows.length === 0; addSpaceSync();
+    addSpaceLeads = Boolean(needsCtx) && rows.length === 0 && needsCtx.rows.length === 0 && needsCtx.properties.length > 0; addSpaceSync();
     // One place says what is next: the rows when something waits, else the next step.
     if (nextStep) nextStep.hidden = rows.length > 0;
     if (rows.length <= NEEDS_SHOWN) needsMore = false;
@@ -784,6 +788,37 @@
       const link = document.createElement('a'); link.className = 'button button-ghost'; link.href = action; link.textContent = label; nextStep.append(link);
     } else nextStep.append(button(label, action));
     if (extra) nextStep.append(extensionLinkNode(extra));
+  }
+
+  /*
+   * The empty desk's first card (design spec v2, 6.16 and 3.8): the sample walkthrough as a
+   * buyer sees it (/handoff?sample=1), labelled as a sample, carrying this person's own
+   * contact card the way the Team view's "Open sample walkthrough with your card" link does:
+   * the card this page already read for them, otherwise their sign-in email. An empty desk
+   * asks the backend for nothing more. Its link is quiet: Add your first space stays the one
+   * filled button. Not in the app, whose pages link only to one another.
+   */
+  function sampleDraw(show) {
+    if (!sampleEl) return;
+    const share = window.VeyletSharing;
+    if (!show || APP_MODE || typeof share?.appraisalPreviewUrl !== 'function') { sampleEl.hidden = true; sampleEl.replaceChildren(); return; }
+    const poster = document.createElement('img'); poster.className = 'sample-poster';
+    poster.src = '/samples/eyeful-apartment/poster.webp'; poster.alt = ''; poster.width = 1600; poster.height = 900; poster.decoding = 'async';
+    const label = document.createElement('p'); label.className = 'sample-label';
+    const glyph = document.createElement('span'); glyph.className = 'portal'; glyph.setAttribute('aria-hidden', 'true');
+    label.append(glyph, 'Sample walkthrough');
+    const heading = document.createElement('h2'); heading.className = 'sample-title';
+    const link = document.createElement('a'); link.className = 'sample-link'; link.dataset.control = 'sample-walkthrough';
+    const saved = clients?.saved || {};
+    const card = { ...saved, email: saved.email || currentUserEmail };
+    link.href = share.appraisalPreviewUrl(card); link.target = '_blank'; link.rel = 'noopener noreferrer';
+    link.textContent = 'See what your buyers get';
+    heading.append(link);
+    const note = document.createElement('p'); note.className = 'sample-note';
+    note.textContent = 'A research apartment, not a client listing. It opens as your buyers see it, with your contact details.';
+    const words = document.createElement('div'); words.className = 'sample-words';
+    words.append(label, heading, note);
+    sampleEl.replaceChildren(poster, words); sampleEl.hidden = false;
   }
 
   // Guidance describes already-visible records. It never approves, uploads,
@@ -878,6 +913,30 @@
   }
   function message(parent, value, className = 'tour-state-help') {
     const p = document.createElement(parent.tagName === 'UL' ? 'li' : 'p'); p.className = className; p.textContent = value; parent.append(p); return p;
+  }
+  /*
+   * A space with nothing captured yet (design spec v2, 6.16). Capture happens only on the
+   * phone, so the space offers the app itself: a QR code drawn in this browser by the
+   * vendored generator (no QR service is called), which is also a link for a reader already
+   * on their iPhone. `lead` says what is missing; the line names the one way on.
+   */
+  function appCapture(className, lead, lineClass, noteClass) {
+    const kit = document.createElement('div'); kit.className = className;
+    let svg = '';
+    try { svg = window.VeyletQR?.svg ? window.VeyletQR.svg(APP_STORE_URL, { label: 'QR code that opens the Veylet app on the App Store' }) : ''; } catch { svg = ''; }
+    const scan = /^<svg[\s>]/.test(svg);
+    const store = document.createElement('a'); store.href = APP_STORE_URL; store.dataset.control = 'capture-app';
+    if (scan) {
+      store.className = 'capture-app-code tour-qr-code'; store.innerHTML = svg;
+      store.setAttribute('aria-label', 'Get the Veylet app on the App Store');
+    } else { store.className = 'text-link capture-app-link'; store.textContent = 'Get the Veylet app'; }
+    const words = document.createElement('div'); words.className = 'capture-app-words';
+    const line = document.createElement('p'); line.className = lineClass; line.textContent = 'Capture it with the Veylet app.';
+    const note = document.createElement('p'); note.className = noteClass;
+    note.textContent = lead + (scan ? ' Scan the code with your iPhone camera to get the app.' : ' Get the app on your iPhone.') + ' Send the capture from it and this space shows its progress.';
+    words.append(line, note);
+    if (scan) kit.append(store, words); else { words.append(store); kit.append(words); }
+    return kit;
   }
   /** Say it once for assistive technology, and once where the action happened. */
   function rowSay(tour, item) {
@@ -1423,9 +1482,9 @@
       drawn = true; code.innerHTML = svg; download.disabled = false; signDownload.disabled = false;
       if (printBtn) printBtn.disabled = false;
     };
-    deck.add('qr', 'QR code', details, draw);
+    const entry = deck.add('qr', 'QR code', details, draw);
     const sayQr = rowSay(tour, details);
-    return details;
+    return entry.toggle;
   }
   // The embed code the builder steps describe, with its frame and its direct link
   // tagged as the embed channel. Everything else is VeyletSharing's own code.
@@ -1486,7 +1545,7 @@
     link.label.hidden = true; link.label.className = 'tour-field tour-link-address';
     item.append(link.label);
     const say = rowSay(tour, item);
-    qrKit(tour, tagged(page, 'qr'), name, deck);
+    const qr = qrKit(tour, tagged(page, 'qr'), name, deck);
 
     // Website: the builder's own steps, then the one code.
     const web = document.createElement('div'); web.className = 'tour-panel tour-website';
@@ -1576,6 +1635,7 @@
     web.append(chooser, steps, embed.label, codeActions, crmWrap, portalActions, listing.label, smsRow);
     deck.add('website', 'Website', web);
     const sayWeb = rowSay(tour, web);
+    return { copy: copyLink, qr };
   }
   // Manage: pause, turn off sharing and withdraw approval, behind the row's last disclosure.
   function manageSharing(deck) {
@@ -1856,6 +1916,8 @@
           empty.className = 'tour-state-help';
           empty.textContent = isLease ? 'No rental enquiries yet.' : 'No buyer enquiries yet.';
           box.append(empty);
+          const zero = linkActions(item, 'enquiries');
+          if (zero) box.append(zero);
         } else {
           const ul = document.createElement('ul');
           ul.className = 'tour-enquiries-list';
@@ -2599,6 +2661,29 @@
   const PERIOD_ALL = 'Recorded history, every version', PERIOD_RECENT = 'Last 90 days, every version', PERIOD_VERSION = 'This version of the walkthrough';
   // The card's own share button (Share, or Copy link where there is no share sheet), for the panel that sends people to it.
   const cardShare = new WeakMap();
+  // A live link's own Copy link button and QR code disclosure, while anyone can open the link (none while paused or offline).
+  const cardLink = new WeakMap();
+  // Beside a zero state (no opens, no enquiries): Copy link and QR code for that walkthrough's live link,
+  // pressing the card's own controls rather than doing the job a second way. `lead`: a control to mirror first.
+  function linkActions(item, control, lead = null, tag = 'p') {
+    const link = item ? cardLink.get(item) : null;
+    if (!link) return null;
+    const row = document.createElement(tag); row.className = 'tour-actions-row tour-zero-actions';
+    if (lead) {
+      const send = button(lead.textContent, () => lead.click());
+      send.dataset.control = control + '-share'; row.append(send);
+    }
+    if (lead !== link.copy) {
+      const copy = button('Copy link', () => link.copy.click());
+      copy.dataset.control = control + '-copy-link'; row.append(copy);
+    }
+    const qr = button('QR code', () => {
+      if (link.qr.getAttribute('aria-expanded') !== 'true') link.qr.click();
+      link.qr.focus?.();
+    });
+    qr.dataset.control = control + '-qr'; row.append(qr);
+    return row;
+  }
   const STOPPED_WORDS = Object.freeze({
     paused: 'Sharing is paused, so nobody can open the link and these counts stay as they are until you resume sharing.',
     offline: 'This walkthrough is offline, so nobody can open the link and these counts stay as they are. Restarting your plan brings the same link back.',
@@ -2627,17 +2712,14 @@
     body.className = 'tour-insights-body';
     if (opens === 0) {
       // Nothing to count yet: say so, say what will appear, and point at the one thing that changes it.
-      body.append(insightsNote('tour-insights-lead', 'Not opened yet.'));
+      const name = typeof title === 'string' && title.trim() ? title.trim() : 'your walkthrough';
+      body.append(insightsNote('tour-insights-lead', 'No opens yet.'));
       body.append(insightsNote('tour-insights-note', stopped === 'paused' ? 'Sharing is paused, so nobody can open the link. Opens are counted once you resume sharing.'
         : stopped === 'offline' ? 'This walkthrough is offline, so nobody can open the link. Restarting your plan brings the same link back.'
-        : 'Opens and contact taps will appear here when recorded. Room activity appears only when available.'));
+        : 'Share ' + name + ' and opens show up here.'));
       const share = !stopped && item ? cardShare.get(item) : null;
-      if (share) {
-        const send = button(share.textContent, () => share.click());
-        send.dataset.control = 'insights-share';
-        const actions = document.createElement('p'); actions.className = 'tour-actions-row'; actions.append(send);
-        body.append(actions);
-      }
+      const actions = share ? linkActions(item, 'insights', share) : null;
+      if (actions) body.append(actions);
       entry.opened = null;
       box.replaceChildren(body);
       entry.show(true);
@@ -2848,6 +2930,8 @@
       spaceFilterStatus.hidden = !active;
       spaceFilterStatus.textContent = !active ? '' : shown === 0 ? 'No matching spaces.' : `Showing ${shown} of ${total} spaces.`;
     }
+    // Nothing matched: the one way back, beside the line that says so.
+    if (spaceFilterClear) spaceFilterClear.hidden = !active || shown > 0;
   }
   function setSpaceStateFilter(next) {
     spaceStateFilter = next || 'all';
@@ -2857,6 +2941,12 @@
     applySpaceFilter();
   }
   spaceFilterInput?.addEventListener?.('input', applySpaceFilter);
+  // Clear filter empties the words and the status pill together, and hands the keyboard back to the filter field.
+  spaceFilterClear?.addEventListener?.('click', () => {
+    if (spaceFilterInput) spaceFilterInput.value = '';
+    setSpaceStateFilter('all');
+    spaceFilterInput?.focus?.();
+  });
   const SPACE_STATE_CHOICES = [['all', 'All'], ['needs', 'Needs you'], ['live', 'Live'], ['other', 'Other']];
   if (spaceStateFilters && !(spaceStateFilters.children && spaceStateFilters.children.length)) {
     for (const [key, label] of SPACE_STATE_CHOICES) {
@@ -2928,10 +3018,12 @@
       if (opens === null) { host.hidden = true; insightsProblem(insights, ask); return; }
       const last = opens > 0 ? window.VeyletSharing?.hostingDate?.(row.last_opened_at) || '' : '';
       const count = (number, one, many) => number + ' ' + (number === 1 ? one : many);
-      const bits = opens === 0 ? ['Not opened yet.'] : [count(opens, 'open', 'opens')];
+      const bits = opens === 0 ? ['No opens yet.'] : [count(opens, 'open', 'opens')];
       if (calls !== null && emails !== null && opens > 0) bits.push(count(calls, 'call tap', 'call taps'), count(emails, 'email tap', 'email taps'));
       if (last) bits.push('last ' + last);
-      host.textContent = bits.join(' · '); host.hidden = false;
+      host.replaceChildren(); host.textContent = bits.join(' · '); host.hidden = false;
+      const zero = opens === 0 && !stopped ? linkActions(item, 'views', null, 'span') : null;
+      if (zero) host.append(zero);
       if (insights) tourInsights(tour, row, title, insights, last, supabase, ticket, item, stopped);
     });
     whenNear(item, ask, deckWanted.has(tour.id));
@@ -3722,18 +3814,21 @@
         if (pending && problem) setStatus(shareWords(problem));
       }
       if (render?.answers) renderDraw();
+      // While nobody can open the link, its counts stand still, and the panel says why.
+      const stopped = !live ? '' : paused ? 'paused' : hostingChip(hosting).label === 'Offline' ? 'offline' : '';
       // Its views end the first row, on a live or paused link; its insights wait behind a disclosure.
       if (live) {
         const views = document.createElement('span');
         (tourChips.get(tour.id)?.row || item).append(views);
         const insights = document.createElement('div'); insights.className = 'tour-panel tour-insights';
-        // While nobody can open the link, its counts stand still, and the panel says why.
-        const stopped = paused ? 'paused' : hostingChip(hosting).label === 'Offline' ? 'offline' : '';
         tourViews(tour, views, supabase, ticket, title, deck.add('insights', 'Insights', insights), item, stopped);
       }
       if (canShare) {
         if (paused) resumeSharing(tour, item, supabase, ticket, gate, deck);
-        else if (live) liveSharing(tour, item, title, deck);
+        else if (live) {
+          const link = liveSharing(tour, item, title, deck);
+          if (!stopped) cardLink.set(item, link);
+        }
         else turnOnSharing(tour, item, supabase, ticket, { label: hostingWords(hosting || null, false) ? 'Turn sharing back on' : 'Turn sharing on',
           withPreview: canReview, note: hostingWords(hosting || null, false) ? '' : UNSHARED_LINE,
           problem: pending ? pending.reason || 'unknown' : gate, deck });
@@ -7215,8 +7310,11 @@
         renderSaid.set(row.job_id, said);
       } else if (!row && desk.toursKnown && !desk.spacesWithTours.has(propertyID)) {
         signature = 'empty';
-        draw = () => { const block = annualNode('div', 'render-block render-empty'); block.dataset.state = 'empty';
-          block.append(annualNode('p', 'render-line', 'No capture sent yet. When you send one from the Veylet app, its progress shows here.')); return block; };
+        draw = () => {
+          if (APP_MODE) { const block = annualNode('div', 'render-block render-empty'); block.dataset.state = 'empty';
+            block.append(annualNode('p', 'render-line', 'No capture sent yet. When you send one from the Veylet app, its progress shows here.')); return block; }
+          const block = appCapture('render-block render-empty capture-app', 'No capture sent yet.', 'render-line', 'render-note'); block.dataset.state = 'empty'; return block;
+        };
       }
       const legacy = renderEmpty.get(propertyID);
       if (legacy) legacy.hidden = Boolean(signature);
@@ -7455,6 +7553,7 @@
     if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); }
     expressHide();
     renderHide();
+    sampleDraw(false);
     return ticket;
   }
   const PREP_CHECKLIST = Object.freeze([
@@ -7652,7 +7751,8 @@
     if (failed(tours)) { message(list, 'Walkthrough status could not load. Your spaces are shown below, but the walkthrough list is unavailable. Refresh to retry.'); }
     const properties = props.value?.data || [];
     const addSpace = document.getElementById('account-add-space');
-    if (addSpace) addSpace.open = properties.length === 0;
+    // An empty desk keeps the form closed: Add your first space is its one filled button, and opens it.
+    if (addSpace && properties.length) addSpace.open = false;
     addSpaceSync();
     const allRows = failed(tours) ? [] : tours.value?.data || [];
     // A version that a later approved version replaced is not a walkthrough of its
@@ -7710,7 +7810,10 @@
         if (render?.ticket === ticket && render.answers) { renderGuideSaid = ''; renderDraw(); }
       }
     };
-    if (!properties.length) { clientsHide(); if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); } updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
+    if (!properties.length) {
+      sampleDraw(true);
+      clientsHide(); if (spaceTotals) { spaceTotals.hidden = true; spaceTotals.replaceChildren(); }
+      updateGuide(); message(list, APP_MODE ? 'No spaces yet. Create one in the Veylet app; its walkthrough appears here.' : 'Start by saving a space above. Then capture it with the Veylet app. Keep the same email on the website and app.'); return; }
     let requestedItem = null;
     const reviewLoads = [];
     for (const row of properties) {
@@ -7742,7 +7845,10 @@
       const order = [...new Set(spaceTours.map(walkthroughOf))];
       spaceTours.sort((left, right) => (order.indexOf(walkthroughOf(left)) - order.indexOf(walkthroughOf(right)))
         || (revisionOf(right) - revisionOf(left)));
-      if (!spaceTours.length && !failed(tours)) renderEmpty.set(row.id, message(li, 'No walkthrough yet. It is made automatically from your capture and appears in this space.'));
+      if (!spaceTours.length && !failed(tours)) {
+        if (APP_MODE) renderEmpty.set(row.id, message(li, 'No walkthrough yet. It is made automatically from your capture and appears in this space.'));
+        else { const kit = appCapture('capture-app space-capture', 'No walkthrough yet.', 'capture-app-line', 'capture-app-note'); li.append(kit); renderEmpty.set(row.id, kit); }
+      }
       // Is anyone living here? Asked once a listing has a walkthrough, before its first share.
       if (spaceTours.length && roles.has(row.workspace_id)) {
         const gateSlot = document.createElement('div'); gateSlot.className = 'dash-occupancy'; gateSlot.hidden = true;
