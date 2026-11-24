@@ -266,6 +266,62 @@
     referredBy = null;
     try { window.sessionStorage?.removeItem(REFERRAL_KEY); } catch { /* nothing kept to clear */ }
   }
+  function takeAuthHandoffCode() {
+    try {
+      if (location.pathname.startsWith('/auth/')) return '';
+      const rawHash = String(location.hash || '').replace(/^#/, '');
+      if (!rawHash) return '';
+      const rawCode = (new URLSearchParams(rawHash).get('handoff') || '').trim();
+      if (!rawCode) return '';
+      // Scrub immediately so the single-use 30 s code never lingers in URL or history.
+      const cleanUrl = (location.pathname || '') + (location.search || '');
+      const hist = typeof history !== 'undefined' && history?.replaceState ? history : window.history;
+      try { hist?.replaceState?.(null, '', cleanUrl); } catch { /* ignore */ }
+      if (rawCode.length > 2048 || /[\s]/.test(rawCode)) return '';
+      return rawCode;
+    } catch {
+      return '';
+    }
+  }
+  const authHandoffCode = takeAuthHandoffCode();
+  async function exchangeAuthHandoff(client, code) {
+    if (!code || !client?.auth || typeof client.auth.setSession !== 'function') return null;
+    const fetchFn = window.fetch || (typeof fetch === 'function' ? fetch : null);
+    if (!fetchFn) return null;
+    let endpoint = '';
+    try {
+      const parsed = new URL(String(window.VEYLET_HOOKS?.url || 'https://hooks.veylet.com'));
+      const loopback = parsed.protocol === 'http:' && (parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost');
+      if (parsed.protocol !== 'https:' && !loopback) return null;
+      endpoint = parsed.origin + '/auth/handoff/exchange';
+    } catch {
+      return null;
+    }
+    try {
+      const reply = await settled(Promise.resolve().then(() =>
+        fetchFn(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ code }),
+          credentials: 'omit',
+          cache: 'no-store',
+          referrerPolicy: 'no-referrer',
+        })
+      ), 8000);
+      if (reply.timedOut || reply.error || !reply.value?.ok) return null;
+      const body = await reply.value.json().catch(() => null);
+      const accessToken = typeof body?.access_token === 'string' ? body.access_token : '';
+      const refreshToken = typeof body?.refresh_token === 'string' ? body.refresh_token : '';
+      if (!accessToken || !refreshToken) return null;
+      const applied = await settled(Promise.resolve().then(() =>
+        client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      ), 8000);
+      if (failed(applied)) return null;
+      return applied.value?.data?.session || null;
+    } catch {
+      return null;
+    }
+  }
 
   // A tour's state belongs in a pill, not in a sentence nobody reads twice. The
   // words are the render-status contract's, the same in the app (property-3d-studio
@@ -8253,7 +8309,10 @@
     }
   });
 
-  const initialSession = await settled(supabase.auth.getSession());
+  const handoffSession = authHandoffCode ? await exchangeAuthHandoff(supabase, authHandoffCode) : null;
+  const initialSession = handoffSession?.user
+    ? { value: { data: { session: handoffSession }, error: null } }
+    : await settled(supabase.auth.getSession());
   if (initialSession.timedOut || initialSession.error || initialSession.value?.error) {
     sessionChecked(); deskChrome(false); if (signInForm) signInForm.hidden = false;
     setStatus('Sign-in could not be checked. Check the connection and reload.');

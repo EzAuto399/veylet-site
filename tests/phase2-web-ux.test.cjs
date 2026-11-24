@@ -540,3 +540,221 @@ test('UI audit fixes: analytics.css static placement, rounded Apple button on pr
   const accountDeferred = read('account/index.html');
   assert.match(accountDeferred, supabasePattern);
 });
+
+test('App -> Web Auth Handoff scrubs #handoff fragment immediately, exchanges code for session, and degrades silently on failures', async () => {
+  const accountSrc = read('account.js');
+  const sharingSrc = read('tour-sharing.js');
+
+  class HandoffEl {
+    constructor(tag = 'div') {
+      this.tagName = String(tag).toUpperCase(); this.children = []; this.listeners = {}; this.dataset = {};
+      this.attributes = {}; this.hidden = false; this.disabled = false; this.textContent = ''; this.className = '';
+      this.open = false; this.parent = null; this.id = '';
+      const self = this;
+      this.classList = {
+        add(...n) { self.className = [...new Set([...self.className.split(/\s+/), ...n].filter(Boolean))].join(' '); },
+        remove(...n) { self.className = self.className.split(/\s+/).filter(x => x && !n.includes(x)).join(' '); },
+        contains(x) { return self.className.split(/\s+/).includes(x); },
+      };
+    }
+    append(...c) { for (const k of c) { if (!k) continue; if (typeof k === 'string') this.textContent += k; else { k.parent = this; this.children.push(k); } } }
+    prepend(...c) { const rest = this.children; this.children = []; this.append(...c); this.children.push(...rest); }
+    replaceChildren(...c) { this.children = []; this.append(...c); }
+    remove() {}
+    setAttribute(k, v) { this.attributes[k] = String(v); }
+    getAttribute(k) { return k in this.attributes ? this.attributes[k] : null; }
+    removeAttribute(k) { delete this.attributes[k]; }
+    addEventListener(n, h) { (this.listeners[n] ||= []).push(h); }
+    removeEventListener() {}
+    querySelector() { return null; }
+    querySelectorAll() { return []; }
+    contains() { return false; }
+    all() { return this.children.flatMap(c => [c, ...c.all()]); }
+    focus() {} blur() {} select() {} reset() {} click() {} scrollIntoView() {}
+  }
+
+  async function runStartup({
+    appMode = true,
+    pathname = '/app/account',
+    search = '',
+    hash = '',
+    hooksUrl = undefined,
+    fetchImpl,
+    setSessionImpl,
+    omitSetSession = false,
+  }) {
+    const html = read(appMode ? 'app/account/index.html' : 'account/index.html');
+    const ids = {};
+    for (const m of html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<([\w-]+)\b[^>]*\bid="([^"]+)"[^>]*>/g)) {
+      const el = new HandoffEl(m[1]); el.id = m[2]; el.hidden = /\shidden\b/.test(m[0]); ids[m[2]] = el;
+    }
+    const replaceCalls = [];
+    const fetchCalls = [];
+    const setSessionCalls = [];
+    const getSessionCalls = [];
+
+    const locationObj = {
+      pathname,
+      search,
+      hash,
+      replace() {},
+      assign() {},
+    };
+    const historyObj = {
+      replaceState(_state, _title, url) {
+        replaceCalls.push(url);
+        const parsed = new URL(String(url), 'https://veylet.com');
+        locationObj.pathname = parsed.pathname;
+        locationObj.search = parsed.search;
+        locationObj.hash = parsed.hash;
+      },
+    };
+    let storedSession = null;
+    const auth = {
+      async getSession() {
+        getSessionCalls.push(true);
+        return { data: { session: storedSession } };
+      },
+      onAuthStateChange() {},
+      signOut: async () => ({}),
+    };
+    if (!omitSetSession) {
+      auth.setSession = async args => {
+        setSessionCalls.push(args);
+        if (setSessionImpl) return setSessionImpl(args, s => { storedSession = s; });
+        storedSession = { user: { id: 'agent-1', email: 'agent@example.invalid' }, access_token: args.access_token };
+        return { data: { session: storedSession }, error: null };
+      };
+    }
+    const supabase = {
+      auth,
+      from(name) {
+        const b = {
+          select() { return b; }, order() { return b; }, eq() { return b; }, limit() { return b; },
+          then(r, j) {
+            if (name === 'properties') return Promise.resolve({ data: [{ id: 'p-1', title: 'Coastal flat', workspace_id: 'w1' }] }).then(r, j);
+            if (name === 'memberships') return Promise.resolve({ data: [{ workspace_id: 'w1', role: 'owner', status: 'active' }] }).then(r, j);
+            return Promise.resolve({ data: [] }).then(r, j);
+          },
+        };
+        return b;
+      },
+      async rpc(name) {
+        if (name === 'can_produce_tours' || name === 'get_account_deletion') return { data: [] };
+        return { data: null, error: { code: 'PGRST202', message: 'missing ' + name } };
+      },
+    };
+    const wrappedFetch = async (url, init) => {
+      // Assert URL hash was ALREADY scrubbed before network call fires!
+      fetchCalls.push({ url, init, hashAtFetchTime: locationObj.hash });
+      return fetchImpl(url, init);
+    };
+    const windowObj = {
+      VEYLET_SUPABASE: { url: 'https://example.invalid', anonKey: 'pub' },
+      ...(hooksUrl !== undefined ? { VEYLET_HOOKS: hooksUrl } : {}),
+      supabase: { createClient: () => supabase },
+      VeyletPlace: { generalLocationProblem: () => '' },
+      fetch: wrappedFetch,
+      history: historyObj,
+      addEventListener() {},
+    };
+    const doc = {
+      hidden: false, activeElement: null,
+      getElementById: id => ids[id] || null,
+      createElement: tag => new HandoffEl(tag),
+      addEventListener() {},
+      head: { append() {} },
+      documentElement: { dataset: appMode ? { appMode: 'true' } : {} },
+    };
+    const ctx = {
+      window: windowObj, document: doc, history: historyObj, fetch: wrappedFetch,
+      Date, URL, URLSearchParams, Intl, TypeError,
+      navigator: { onLine: true, clipboard: { writeText: async () => {} } },
+      location: locationObj,
+      setTimeout: () => ({}), clearTimeout() {}, setInterval: () => 0, clearInterval() {},
+      FormData: class { get() { return ''; } }, Blob: class {},
+    };
+    siteLib.load(ctx);
+    vm.runInNewContext(sharingSrc, ctx);
+    await vm.runInNewContext(accountSrc, ctx);
+    for (let i = 0; i < 30; i++) await tick();
+    return { ids, replaceCalls, fetchCalls, setSessionCalls, getSessionCalls, locationObj };
+  }
+
+  // 1. Valid exchange on /app/account#handoff=<code> lands straight in signed-in desk.
+  const ok = await runStartup({
+    appMode: true,
+    pathname: '/app/account',
+    search: '?tour=c3c3c3c3-2222-4333-8444-555555555555',
+    hash: '#handoff=v1.payloadSeg.sigSeg1234567890',
+    hooksUrl: undefined,
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'at-live-1', refresh_token: 'rt-live-1', token_type: 'bearer', expires_in: 3600 }),
+    }),
+  });
+  assert.deepEqual(ok.replaceCalls, ['/app/account?tour=c3c3c3c3-2222-4333-8444-555555555555']);
+  assert.equal(ok.locationObj.hash, '');
+  assert.equal(ok.fetchCalls.length, 1);
+  assert.equal(ok.fetchCalls[0].url, 'https://hooks.veylet.com/auth/handoff/exchange');
+  assert.equal(ok.fetchCalls[0].hashAtFetchTime, '', 'fragment scrubbed before exchange request leaves');
+  assert.equal(ok.fetchCalls[0].init.method, 'POST');
+  assert.deepEqual(JSON.parse(ok.fetchCalls[0].init.body), { code: 'v1.payloadSeg.sigSeg1234567890' });
+  assert.deepEqual(JSON.parse(JSON.stringify(ok.setSessionCalls)), [{ access_token: 'at-live-1', refresh_token: 'rt-live-1' }]);
+  assert.equal(ok.ids['account-home'].hidden, false);
+  assert.equal(ok.ids['account-sign-in'].hidden, true);
+  assert.match(ok.ids['account-who'].textContent, /agent@example\.invalid/);
+
+  // 2. Valid exchange on /account with custom hooks origin, when setSession returns null session and writes into getSession().
+  const webOk = await runStartup({
+    appMode: false,
+    pathname: '/account',
+    hash: '#handoff=v1.webPayload.webSig123456',
+    hooksUrl: { url: 'https://hooks.custom.example/subpath/' },
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ access_token: 'at-web', refresh_token: 'rt-web' }),
+    }),
+    setSessionImpl: async (args, setStored) => {
+      setStored({ user: { id: 'agent-2', email: 'web@example.invalid' }, access_token: args.access_token });
+      return { data: { session: null }, error: null };
+    },
+  });
+  assert.equal(webOk.fetchCalls[0].url, 'https://hooks.custom.example/auth/handoff/exchange');
+  assert.equal(webOk.ids['account-home'].hidden, false);
+  assert.match(webOk.ids['account-who'].textContent, /web@example\.invalid/);
+
+  // 3. Failure paths (401, 409, 503, network throw, bad JSON, missing tokens, setSession error/missing) degrade silently to sign-in.
+  for (const failureCase of [
+    { name: '401 expired', fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({ error: 'expired_handoff' }) }) },
+    { name: '409 replay', fetchImpl: async () => ({ ok: false, status: 409, json: async () => ({ error: 'handoff_already_used' }) }) },
+    { name: '503 disabled', fetchImpl: async () => ({ ok: false, status: 503, json: async () => ({ error: 'not_configured' }) }) },
+    { name: 'network throw', fetchImpl: async () => { throw new TypeError('offline'); } },
+    { name: 'missing tokens', fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ access_token: '', refresh_token: null }) }) },
+    { name: 'setSession error', fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ access_token: 'a', refresh_token: 'b' }) }),
+      setSessionImpl: async () => ({ data: { session: null }, error: { message: 'rejected' } }) },
+    { name: 'missing setSession', omitSetSession: true, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ access_token: 'a', refresh_token: 'b' }) }) },
+  ]) {
+    const failedRun = await runStartup({
+      appMode: true,
+      pathname: '/app/account',
+      hash: '#handoff=v1.failCase.sig123456',
+      ...failureCase,
+    });
+    assert.deepEqual(failedRun.replaceCalls, ['/app/account'], failureCase.name + ': fragment still scrubbed');
+    assert.equal(failedRun.ids['account-home'].hidden, true, failureCase.name + ': stays signed out cleanly');
+    assert.equal(failedRun.ids['account-sign-in'].hidden, false, failureCase.name + ': sign-in form remains ready');
+  }
+
+  // 4. Never triggers on /auth/callback even if hash carries handoff=.
+  const callbackRun = await runStartup({
+    appMode: false,
+    pathname: '/auth/callback',
+    hash: '#handoff=v1.callback.ignored',
+    fetchImpl: async () => { throw new Error('must not fetch'); },
+  });
+  assert.deepEqual(callbackRun.fetchCalls, []);
+  assert.deepEqual(callbackRun.replaceCalls, []);
+});
