@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## About redesign and founder photos — 24 November 2026
+
+User authority: "Yes, release it" (24 Nov, About redesign). Source `f3e1be3`: `/about` in the ledger style with a real founder portrait, facts ledger and hairline link list; round author avatar in guide bylines; provenance line under a hairline; Person `image`; `guides.css` version bumped on the 74 pages that load it; 2 new media files (metadata stripped).
+
+1. **Build:** 1140 of 1140 site tests; `npm run build` and `npm run verify` pass (371 source, 370 output files); 13 of 13 adapter tests; `npm run check:local` passes (4367 assertions). Before deploy, every file outside this change matched live byte for byte.
+2. **Hosted release:** production `f6749677-999c-48be-8f7d-eac8d82b7363` (77 files uploaded, 293 unchanged).
+3. **Readback on veylet.com:** `/about`, a guide, `/help`, `guides.css` and both photos match the built output byte for byte; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** rendered appearance on a real phone.
+5. **Recovery:** previous production version `8a67b28b-e1c1-4c7e-8ea0-4dc66f924863`: `wrangler rollback 8a67b28b-e1c1-4c7e-8ea0-4dc66f924863 --config wrangler.production.jsonc`.
+
 ## Guide authorship and About page — 24 November 2026
 
 User authority: "Yes, release it" (24 Nov, for the SEO author/About change). Source `1bc6225` = live `release/room-activity-desk` (`09cfa82`) + `seo/author-about-20261124` (`87f0353`): author byline and Person author on the 6 guides, "How this guide was made" line, new `/about` (AboutPage + Person + Organization), Organization `founder` + `sameAs`, sitemap. Frozen in `57cdc59`.
