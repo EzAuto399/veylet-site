@@ -94,7 +94,7 @@ await server('preview', async mode => {
 await server('production', async mode => {
   // Canonical HTTPS Host is evaluated by real workerd, using the exact production
   // config. This is still loopback proof, not an external domain/deployment claim.
-  for (const route of ['/', '/privacy', '/app/privacy', '/embed', '/tour', '/studio', '/app/account', '/account', '/auth/callback', '/offer', '/request', '/handoff', '/robots.txt', '/sitemap.xml', '/build-info.json', '/.well-known/apple-app-site-association', '/media/launch-reel.mp4']) {
+  for (const route of ['/', '/privacy', '/app/privacy', '/embed', '/tour', '/studio', '/app/account', '/account', '/auth/callback', '/offer', '/request', '/handoff', '/robots.txt', '/sitemap.xml', '/build-info.json', '/.well-known/apple-app-site-association', '/media/result-listing-16x9.mp4']) {
     const asset = policy.routes[route];
     const response = await request(route, mode);
     equal(response.status, 200, route);
@@ -122,13 +122,13 @@ await server('production', async mode => {
   const conditional = await request('/style.css', mode, { headers: { 'If-None-Match': css.headers.etag } });
   equal(conditional.status, 304); equal(conditional.body.length, 0);
   equal((await request('/style.css?v=', mode)).headers['cache-control'], 'public, max-age=31536000, immutable');
-  const media = await readFile(join(adapterRoot, 'output/site/media/launch-reel.mp4'));
+  const media = await readFile(join(adapterRoot, 'output/site/media/result-listing-16x9.mp4'));
   for (const [range, start, end] of [['bytes=0-15', 0, 15], ['bytes=-16', media.length - 16, media.length - 1], ['bytes=16-', 16, media.length - 1]]) {
-    const response = await request('/media/launch-reel.mp4', mode, { headers: { Range: range } });
+    const response = await request('/media/result-listing-16x9.mp4', mode, { headers: { Range: range } });
     equal(response.status, 206); equal(response.headers['content-range'], `bytes ${start}-${end}/${media.length}`); bodyEqual(response.body, media.subarray(start, end + 1));
   }
-  equal((await request('/media/launch-reel.mp4', mode, { headers: { Range: 'bytes=999999999-' } })).status, 416);
-  equal((await request('/media/launch-reel.mp4', mode, { headers: { Range: 'bytes=0-15', 'If-Range': '"not-current"' } })).status, 200);
+  equal((await request('/media/result-listing-16x9.mp4', mode, { headers: { Range: 'bytes=999999999-' } })).status, 416);
+  equal((await request('/media/result-listing-16x9.mp4', mode, { headers: { Range: 'bytes=0-15', 'If-Range': '"not-current"' } })).status, 200);
   const head = await request('/privacy', mode, { method: 'HEAD' }); equal(head.status, 200); equal(head.body.length, 0);
   for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS']) {
     const response = await request('/request', mode, { method, body: 'synthetic local proof' }); equal(response.status, 405, 'write method ' + method); equal(response.headers.allow, 'GET, HEAD'); equal(response.headers['cache-control'], 'no-store');

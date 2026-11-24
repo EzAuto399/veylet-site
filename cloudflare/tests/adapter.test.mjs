@@ -203,7 +203,7 @@ test('generated preview robots normalizes native partial and conditional metadat
 });
 
 test('public media ranges, conditional assets, HEAD and write denial work', async () => {
-  const path = '/media/launch-reel.mp4';
+  const path = '/media/result-listing-16x9.mp4';
   const bytes = await readFile(join(adapterRoot, 'output/site', path));
   const range = await call(path, prod, { headers: { Range: 'bytes=0-15' } });
   assert.equal(range.status, 206);
