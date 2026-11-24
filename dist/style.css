@@ -2759,7 +2759,7 @@ main li > a:not(.button):not(.text-link):not(.tour-action) {
    Product surfaces (design spec v2, 3.6): the desk and the buyer view.
    Soft shapes on <html data-surface="product">; editorial pages keep 2 px.
    ========================================================================== */
-[data-surface="product"] :is(.button, .tour-action, .space-state-pill, .journey-tabs button) {
+[data-surface="product"] :is(.button, .tour-action, .space-state-pill, .journey-tabs button, .apple-button) {
   border-radius: var(--radius-button);
 }
 [data-surface="product"] :is(input:not([type="checkbox"], [type="radio"]), select, textarea, .copy-field, .space-filter, .tour-crm-select) {

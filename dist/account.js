@@ -357,6 +357,13 @@
   // than dropping the reader beside a closed disclosure. Rebuilt every load.
   const reviewOpeners = new Map();
   let pollTimer = null;
+  let realtimeChannel = null;
+  let realtimeUserId = null;
+  let realtimeRefreshTimer = null;
+  let realtimeRenderTimer = null;
+  let realtimeLastDeskAt = 0;
+  let realtimeLastRenderAt = 0;
+  const REALTIME_COOLDOWN_MS = 500;
   const updatedEl = document.getElementById('account-updated');
   const exportButton = document.getElementById('account-export');
 
@@ -515,7 +522,7 @@
     sessionChecked();
     activity?.setUser(null); journey?.clearToast(document);
     needsCtx = null; needsDraw(); planLineSay('');
-    stopPolling(); lastDesk = null; rowNotice = null; deskShownAt = 0;
+    stopPolling(); stopRealtime(); closeCaptureHandoffDialog(); lastDesk = null; rowNotice = null; deskShownAt = 0;
     sharePending.clear(); tourChips.clear(); tourApproval.clear(); renderCovered = new Map();
     listingGates.clear(); gateNotices.clear(); gateFocus = null;
     clientsHide();
@@ -953,6 +960,74 @@
     };
   }
   function stopPolling() { if (pollTimer) clearTimeout(pollTimer); pollTimer = null; }
+  function stopRealtime() {
+    if (realtimeRefreshTimer) { clearTimeout(realtimeRefreshTimer); realtimeRefreshTimer = null; }
+    if (realtimeRenderTimer) { clearTimeout(realtimeRenderTimer); realtimeRenderTimer = null; }
+    const ch = realtimeChannel;
+    realtimeChannel = null;
+    realtimeUserId = null;
+    if (!ch) return;
+    try {
+      if (typeof supabase?.removeChannel === 'function') void supabase.removeChannel(ch);
+      else ch.unsubscribe?.();
+    } catch { /* safe teardown */ }
+  }
+  function scheduleRealtimeRefresh(kind) {
+    if (!currentUserId || realtimeUserId !== currentUserId) return;
+    if (typeof document.hidden === 'boolean' && document.hidden) return;
+    if (offlineNow()) return;
+    const now = Date.now();
+    if (kind === 'render') {
+      const run = () => {
+        realtimeLastRenderAt = Date.now();
+        if (render && render.ticket === deskVersion) void renderRead();
+        else if (!deskDirty) void loadDesk(supabase);
+      };
+      if (now - realtimeLastRenderAt >= REALTIME_COOLDOWN_MS && !realtimeRenderTimer) { run(); return; }
+      if (realtimeRenderTimer) return;
+      realtimeRenderTimer = setTimeout(() => {
+        realtimeRenderTimer = null;
+        if (!currentUserId || realtimeUserId !== currentUserId || (typeof document.hidden === 'boolean' && document.hidden) || offlineNow()) return;
+        run();
+      }, REALTIME_COOLDOWN_MS);
+      return;
+    }
+    const runDesk = () => {
+      if (deskDirty) return;
+      realtimeLastDeskAt = Date.now();
+      void loadDesk(supabase);
+    };
+    if (!deskDirty && now - realtimeLastDeskAt >= REALTIME_COOLDOWN_MS && !realtimeRefreshTimer) { runDesk(); return; }
+    if (realtimeRefreshTimer) return;
+    realtimeRefreshTimer = setTimeout(() => {
+      realtimeRefreshTimer = null;
+      if (!currentUserId || realtimeUserId !== currentUserId || (typeof document.hidden === 'boolean' && document.hidden) || offlineNow() || deskDirty) return;
+      runDesk();
+    }, REALTIME_COOLDOWN_MS);
+  }
+  function startRealtime(userId) {
+    if (!userId || !supabase || typeof supabase.channel !== 'function') return;
+    if (realtimeUserId === userId && realtimeChannel) return;
+    stopRealtime();
+    realtimeUserId = userId;
+    try {
+      const channel = supabase.channel('desk-sync-' + userId);
+      if (!channel || typeof channel.on !== 'function') { realtimeUserId = null; return; }
+      channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tours' }, () => scheduleRealtimeRefresh('tours'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'render_jobs' }, () => scheduleRealtimeRefresh('render'));
+      if (typeof channel.subscribe === 'function') {
+        channel.subscribe(status => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            if (realtimeChannel === channel) stopRealtime();
+          }
+        });
+      }
+      realtimeChannel = channel;
+    } catch {
+      stopRealtime();
+    }
+  }
   /*
    * An approved walkthrough's third row: its buttons on the left and, on the right,
    * quiet disclosures (Link, QR code, Website, Insights, Manage). One panel is open
@@ -6824,7 +6899,119 @@
   const RECAPTURE_ALLOWANCE_WORDS = 'This failed attempt uses no rooms. A later accepted new capture uses its counted rooms. Only a correction or reprocessing of the same walkthrough, or a permitted whole recapture containing every original room, keeps the same link and uses no rooms. A partial named-room recapture is not a waiver.';
   // Per property: the element in its space the status is drawn into, and the older
   // "no package yet" sentence the status replaces once it can be read.
-  const renderSlots = new Map(), renderEmpty = new Map();
+  const renderSlots = new Map(), renderEmpty = new Map(), renderHandoff = new Map();
+  let activeCaptureDialog = null;
+  function closeCaptureHandoffDialog() {
+    if (!activeCaptureDialog) return;
+    const { dialog, opener, onKeyDown } = activeCaptureDialog;
+    activeCaptureDialog = null;
+    try { document.removeEventListener?.('keydown', onKeyDown); } catch { /* ignore */ }
+    try { if (dialog.open && typeof dialog.close === 'function') dialog.close(); } catch { /* ignore */ }
+    dialog.open = false; dialog.hidden = true;
+    dialog.remove?.();
+    opener?.focus?.({ preventScroll: true });
+  }
+  function openCaptureHandoffDialog(space, opener) {
+    if (!space?.id || APP_MODE) return;
+    closeCaptureHandoffDialog();
+    const handoffUrl = 'https://veylet.com/open/capture?space=' + encodeURIComponent(space.id);
+    const titleText = space.title || 'Untitled space';
+    const dialog = document.createElement('dialog');
+    dialog.className = 'capture-handoff-dialog';
+    dialog.setAttribute('aria-modal', 'true');
+    const titleId = 'capture-handoff-title-' + String(space.id).replace(/[^a-zA-Z0-9_-]/g, '');
+    dialog.setAttribute('aria-labelledby', titleId);
+
+    const card = document.createElement('div');
+    card.className = 'capture-handoff-card';
+
+    const head = document.createElement('div');
+    head.className = 'capture-handoff-head';
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'capture-handoff-eyebrow';
+    eyebrow.textContent = 'iPhone handoff';
+    const closeBtn = button('Close', () => closeCaptureHandoffDialog());
+    closeBtn.className = 'tour-action capture-handoff-close';
+    closeBtn.dataset.control = 'capture-dialog-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    head.append(eyebrow, closeBtn);
+
+    const heading = document.createElement('h2');
+    heading.id = titleId;
+    heading.className = 'capture-handoff-title';
+    heading.textContent = 'Capture ' + titleText + ' on iPhone';
+
+    const note = document.createElement('p');
+    note.className = 'capture-handoff-note';
+    note.textContent = 'Point your iPhone camera at this code to open this space in the Veylet app.';
+
+    const qrWrap = document.createElement('div');
+    qrWrap.className = 'capture-handoff-qr-wrap';
+    let svg = '';
+    try {
+      svg = window.VeyletQR?.svg ? window.VeyletQR.svg(handoffUrl, { label: 'QR code that opens ' + titleText + ' in the Veylet iPhone app' }) : '';
+    } catch { svg = ''; }
+    if (/^<svg[\s>]/.test(svg)) {
+      const code = document.createElement('div');
+      code.className = 'tour-qr-code capture-handoff-qr';
+      code.innerHTML = svg;
+      qrWrap.append(code);
+    } else {
+      const fallbackLink = document.createElement('a');
+      fallbackLink.className = 'tour-action capture-handoff-fallback';
+      fallbackLink.href = handoffUrl;
+      fallbackLink.dataset.control = 'capture-dialog-link';
+      fallbackLink.textContent = 'Open capture link';
+      qrWrap.append(fallbackLink);
+    }
+
+    const statusLine = document.createElement('p');
+    statusLine.className = 'capture-handoff-status';
+    statusLine.setAttribute('role', 'status');
+    statusLine.hidden = true;
+
+    const actions = document.createElement('div');
+    actions.className = 'capture-handoff-actions';
+    const copyBtn = button('Copy capture link', async () => {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(handoffUrl);
+          statusLine.textContent = 'Capture link copied. Open it on your iPhone to capture ' + titleText + '.';
+        } else {
+          statusLine.textContent = handoffUrl;
+        }
+      } catch {
+        statusLine.textContent = handoffUrl;
+      }
+      statusLine.hidden = false;
+    });
+    copyBtn.className = 'tour-action';
+    copyBtn.dataset.control = 'capture-dialog-copy';
+
+    const storeLink = document.createElement('a');
+    storeLink.className = 'text-link capture-handoff-store';
+    storeLink.href = APP_STORE_URL;
+    storeLink.dataset.control = 'capture-dialog-store';
+    storeLink.textContent = 'Get Veylet on the App Store';
+    actions.append(copyBtn, storeLink);
+
+    card.append(head, heading, note, qrWrap, actions, statusLine);
+    dialog.append(card);
+
+    const onKeyDown = event => {
+      if (event?.key === 'Escape') { event.preventDefault?.(); closeCaptureHandoffDialog(); }
+    };
+    dialog.addEventListener('cancel', event => { event?.preventDefault?.(); closeCaptureHandoffDialog(); });
+    dialog.addEventListener('click', event => { if (event?.target === dialog) closeCaptureHandoffDialog(); });
+    document.addEventListener?.('keydown', onKeyDown);
+
+    const host = document.body || home || document.documentElement;
+    host?.append?.(dialog);
+    activeCaptureDialog = { dialog, opener: opener || null, onKeyDown };
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else { dialog.hidden = false; dialog.open = true; }
+    closeBtn.focus?.({ preventScroll: true });
+  }
   // Per job: the state and step last shown, so a change is said once. Kept across
   // desk reloads; cleared on sign-out.
   const renderSaid = new Map();
@@ -7209,6 +7396,7 @@
   const RENDER_SKELETON_MS = 400;
   function renderSkeleton() {
     for (const legacy of renderEmpty.values()) legacy.hidden = true;
+    for (const handoffRow of renderHandoff.values()) handoffRow.hidden = true;
     for (const slot of renderSlots.values()) {
       const block = annualNode('div', 'render-block render-loading');
       const head = annualNode('div', 'render-head'); head.append(skeletonBar(18, 'plan-skeleton render-skeleton'));
@@ -7235,7 +7423,8 @@
     renderCovered = new Map(); chipsSync();
     for (const slot of renderSlots.values()) { slot.hidden = true; slot.replaceChildren(); slot.setAttribute('aria-busy', 'false'); delete slot.dataset.signature; }
     for (const legacy of renderEmpty.values()) legacy.hidden = false;
-    renderSlots.clear(); renderEmpty.clear();
+    for (const handoffRow of renderHandoff.values()) handoffRow.hidden = false;
+    renderSlots.clear(); renderEmpty.clear(); renderHandoff.clear();
     renderSay('');
   }
   // The next step says whose turn it is when no walkthrough on the desk speaks for it yet.
@@ -7289,6 +7478,7 @@
       if (!answer?.spaces?.has(propertyID)) {
         slot.hidden = true; slot.replaceChildren(); delete slot.dataset.signature;
         if (renderEmpty.get(propertyID)) renderEmpty.get(propertyID).hidden = false;
+        if (renderHandoff.get(propertyID)) renderHandoff.get(propertyID).hidden = false;
         continue;
       }
       const row = answer.spaces.get(propertyID);
@@ -7318,6 +7508,8 @@
       }
       const legacy = renderEmpty.get(propertyID);
       if (legacy) legacy.hidden = Boolean(signature);
+      const handoffRow = renderHandoff.get(propertyID);
+      if (handoffRow) handoffRow.hidden = Boolean(view);
       if (!signature) { slot.hidden = true; slot.replaceChildren(); delete slot.dataset.signature; continue; }
       slot.hidden = false;
       if (slot.dataset.signature === signature) continue;
@@ -7540,6 +7732,7 @@
   }
   function deskReset() {
     const ticket = ++deskVersion;
+    closeCaptureHandoffDialog();
     deskDirty = false; reviewOpeners.clear(); tourChips.clear(); tourApproval.clear(); reviewFlagSlots.clear(); reviewUnitSlots.clear(); listingGates.clear(); hostingCards.clear();
     planAnswered = false; planRestartOffice = null;
     needsCtx = null; needsDraw();
@@ -7659,7 +7852,7 @@
   // Offline with a desk on the page: it stays as it was, says how old it is, and
   // reads again when the window hears it is back online.
   function deskOffline() {
-    stopPolling(); renderStop();
+    stopPolling(); renderStop(); stopRealtime();
     renderSay(offlineWords(Math.max(render?.readAt || 0, deskShownAt)));
   }
   async function loadDesk(supabase) {
@@ -7847,7 +8040,23 @@
         || (revisionOf(right) - revisionOf(left)));
       if (!spaceTours.length && !failed(tours)) {
         if (APP_MODE) renderEmpty.set(row.id, message(li, 'No walkthrough yet. It is made automatically from your capture and appears in this space.'));
-        else { const kit = appCapture('capture-app space-capture', 'No walkthrough yet.', 'capture-app-line', 'capture-app-note'); li.append(kit); renderEmpty.set(row.id, kit); }
+        else {
+          const kit = appCapture('capture-app space-capture', 'No walkthrough yet.', 'capture-app-line', 'capture-app-note');
+          li.append(kit); renderEmpty.set(row.id, kit);
+          if (row.id) {
+            const handoff = document.createElement('div');
+            handoff.className = 'space-handoff';
+            const handoffNote = document.createElement('span');
+            handoffNote.className = 'space-handoff-note';
+            handoffNote.textContent = 'Already have the app?';
+            const handoffBtn = button('Capture on iPhone', () => openCaptureHandoffDialog(row, handoffBtn));
+            handoffBtn.className = 'tour-action';
+            handoffBtn.dataset.control = 'capture-on-iphone';
+            handoff.append(handoffNote, handoffBtn);
+            li.append(handoff);
+            renderHandoff.set(row.id, handoff);
+          }
+        }
       }
       // Is anyone living here? Asked once a listing has a walkthrough, before its first share.
       if (spaceTours.length && roles.has(row.workspace_id)) {
@@ -7998,7 +8207,7 @@
     }
     sessionHeading(true);
     // Another account's desk is never kept on the page while this one's is read.
-    if (currentUserId !== session.user.id) { deskShownAt = 0; clientsHide(); teamHide(); emailHide(); methodsHide(); }
+    if (currentUserId !== session.user.id) { stopRealtime(); deskShownAt = 0; clientsHide(); teamHide(); emailHide(); methodsHide(); }
     currentUserId = session.user.id;
     activity?.setUser(currentUserId);
     currentUserEmail = session.user.email || '';
@@ -8030,6 +8239,7 @@
     // Back to the invite that sent this person to sign in; /join accepts it.
     if (joinReturn) { location.replace('/join'); return; }
     await loadDesk(supabase);
+    if (currentUserId === session.user.id) startRealtime(session.user.id);
   }
 
   copyId?.addEventListener('click', async () => {
@@ -8468,6 +8678,7 @@
     // A hidden tab stops reading render status; coming back reads it at once.
     if (document.hidden) { renderStop(); return; }
     if (!currentUserId) return;
+    startRealtime(currentUserId);
     const now = Date.now();
     // When the desk does not reload, render status is read again on its own.
     if (deskDirty || !lastDesk || !lastDesk.rows.some(row => row.status === 'processing' || row.status === 'draft')
@@ -8483,6 +8694,7 @@
   });
   window.addEventListener?.('online', () => {
     if (!currentUserId) return;
+    startRealtime(currentUserId);
     if (!deskDirty) { void loadDesk(supabase); return; }
     if (render && render.ticket === deskVersion) { renderStop(); render.failures = 0; void renderRead(); } else renderSay('');
   });

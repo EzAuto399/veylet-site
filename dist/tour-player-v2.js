@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=d83e9d27ddafc6c4';
+  const STYLE_URL = '/tour-player-v2.css?v=9d66022019215272';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1608,9 +1608,20 @@
       return contact.actions.map(action => {
         const link = el('a', { class: className, href: action.href, 'aria-label': action.label + ' ' + contact.name }, action.label);
         if (action.external) { link.setAttribute('target', '_blank'); link.setAttribute('rel', 'noopener noreferrer'); }
-        link.addEventListener('click', () => {
+        link.addEventListener('click', event => {
           // The address as it is now (the stop the visitor is on), then the page's own note of the press.
           try { const now = action.hrefNow?.(); if (linkOk(now)) link.setAttribute('href', now); } catch { /* the first address stands */ }
+          try {
+            if (typeof action.onPress === 'function') {
+              event?.preventDefault?.();
+              if (pseudo) setPseudo(false);
+              else if (fullElement()) {
+                const done = document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen?.();
+                done?.catch?.(() => {});
+              }
+              action.onPress();
+            }
+          } catch { /* optional */ }
           try { action.press?.(); } catch { /* optional */ }
         });
         return link;
@@ -1642,13 +1653,25 @@
         reach.append(...contactLinks('v2-quiet'));
         actions.append(reach);
       }
-      ui.end.replaceChildren(el('p', { class: 'v2-end-title' }, 'That’s the last stop.'), actions);
+      const endNodes = [el('p', { class: 'v2-end-title' }, 'That’s the last stop.'), actions];
+      if (visit?.madeWith?.href) {
+        const made = el('p', { class: 'v2-end-made' });
+        made.append(el('a', {
+          class: 'v2-end-made-link',
+          href: String(visit.madeWith.href),
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        }, visit.madeWith.label || 'Made with Veylet'));
+        endNodes.push(made);
+      }
+      ui.end.replaceChildren(...endNodes);
       // Above the controls, whatever their height (a row of room names makes them taller).
       const barHeight = ui.bar.offsetHeight || ui.bar.clientHeight || 0;
       if (barHeight) ui.end.style.setProperty('--v2-bar', barHeight + 'px');
       ui.end.hidden = false;
       ui.root.dataset.end = 'shown';
       if (announce) ui.announce.textContent = [ui.announce.textContent, 'That’s the last stop.'].filter(Boolean).join('. ');
+      try { visit?.onEnd?.(true); } catch { /* optional */ }
     }
     function hideEnd() {
       if (ui.end.hidden) return;
@@ -1656,6 +1679,7 @@
       ui.end.hidden = true;
       delete ui.root.dataset.end;
       if (held) ui.next.focus?.();
+      try { visit?.onEnd?.(false); } catch { /* optional */ }
     }
     function goToStop(index, byUser = true, orientation = null) {
       if (!ready) return;

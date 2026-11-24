@@ -55,11 +55,12 @@ test('the association file is the modern applinks form for the capture app', () 
   assert.ok(fs.readFileSync(aasaPath).length < 128 * 1024, 'Apple reads at most 128 KB');
 });
 
-test('review and invite links open the app', () => {
+test('review, invite, and space capture links open the app', () => {
   for (const address of [
     '/app/account?tour=c3c3c3c3-2222-4333-8444-555555555555',
     '/app/account?utm_source=email&tour=c3c3c3c3-2222-4333-8444-555555555555',
     '/join?i=AbCdEfGhIjKlMnOpQrStUv_-0123456789',
+    '/open/capture?space=c3c3c3c3-2222-4333-8444-555555555555',
   ]) {
     assert.equal(opensApp(address), true, address);
   }
@@ -70,7 +71,7 @@ test('client, portal, help and every other page stay on the web', () => {
     '/handoff?t=abcdefghijklmnop', '/handoff/?t=abcdefghijklmnop', '/tour?t=abcdefghijklmnop',
     '/tour/abc?t=abcdefghijklmnop', '/embed?t=abcdefghijklmnop', '/help/capture', '/app/help/capture',
     '/app/account', '/app/account?ref=abc', '/account?tour=c3c3c3c3-2222-4333-8444-555555555555',
-    '/join', '/join?x=1', '/offer', '/', '/studio', '/app/privacy', '/auth/callback?code=abc',
+    '/join', '/join?x=1', '/open/capture', '/open/capture?x=1', '/offer', '/', '/studio', '/app/privacy', '/auth/callback?code=abc',
   ]) {
     assert.equal(opensApp(address), false, address);
   }

@@ -225,7 +225,20 @@
     });
 
     // A link to a stop (#stop=N), Share and the agent inside the player (client-page.js visitLink).
+    let endReached = false;
+    let endState = null;
+    const syncEndCta = () => {
+      if (!endReached || !endState) return;
+      page?.renderEndCta?.(document, {
+        ...endState,
+        onShare: () => page?.shareNow?.({ navigator, document, beacon, title: endState.title, url: () => page.shareUrl(location, token) }),
+      });
+    };
     const visit = link.complete ? page?.visitLink?.({ window, document, location, navigator, token, beacon }) : undefined;
+    if (visit) {
+      visit.madeWith = { label: 'Made with Veylet', href: 'https://veylet.com' };
+      visit.onEnd = shown => { if (shown) { endReached = true; syncEndCta(); } };
+    }
 
     function sharedLabel(value) {
       if (!value) return '';
@@ -252,9 +265,25 @@
         phone: searchParams.get('phone') || '+61 400 000 000',
         email: searchParams.get('email') || '',
       }]) || null;
+      const sampleActions = [];
+      if (sampleContact) {
+        const tel = page?.telHref?.(sampleContact.phone);
+        if (tel) sampleActions.push({ label: 'Call', href: tel });
+        const mail = page?.mailtoHref?.(sampleContact.email, sampleTitle);
+        if (mail) sampleActions.push({ label: 'Email', href: mail });
+      }
+      const sampleVisit = {
+        share: () => page?.shareNow?.({ navigator, document, title: sampleTitle, url: () => location.href }),
+        contact: Promise.resolve(sampleContact && sampleActions.length ? { name: sampleContact.name, actions: sampleActions } : null),
+        madeWith: { label: 'Made with Veylet', href: 'https://veylet.com' },
+        onEnd: shown => {
+          if (shown) page?.renderEndCta?.(document, { contact: sampleContact, title: sampleTitle, sample: true });
+        },
+      };
       window.VeyletPlayer.boot({
         els,
         auth: AUTH,
+        visit: sampleVisit,
         resolve: async () => {
           if (wrap) wrap.hidden = false;
           if (els.body) els.body.textContent = '';
@@ -320,12 +349,15 @@
           const enquiryOpts = rest ? { token, enquiryClient: rest, hooksUrl: window.VEYLET_HOOKS?.url || '', campaignMode: '' } : undefined;
           const contextLookup = rest && page?.lookupHandoffContext ? page.lookupHandoffContext(rest, token) : null;
           let handoffContextApplied = false;
-          let appliedBrand = null;
           let visitContactSent = false;
+          let appliedBrand = null;
+          endState = { contact: null, title, beacon, enquiryOpts };
           const sendVisitContact = resolved => {
             if (visitContactSent) return;
             visitContactSent = true;
-            visit?.setContact?.(resolved);
+            endState.contact = resolved || null;
+            visit?.setContact?.(resolved, enquiryOpts);
+            syncEndCta();
           };
           page?.showWalkthrough({
             document,
@@ -341,7 +373,10 @@
             enquiryOpts,
             deferVisitContact: Boolean(contextLookup),
             shouldApplyContact: () => !handoffContextApplied,
-            onContactShown: () => { if (appliedBrand) page.applyBrand?.(document, appliedBrand); },
+            onContactShown: resolved => {
+              if (resolved && !endState.contact) { endState.contact = resolved; syncEndCta(); }
+              if (appliedBrand) page.applyBrand?.(document, appliedBrand);
+            },
           });
           if (contextLookup) {
             contextLookup.then(ctx => {

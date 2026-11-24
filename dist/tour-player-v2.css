@@ -269,7 +269,7 @@
 /* Hint stays clear of an active status toast above the controls. */
 .v2:has(.v2-bar > .v2-status:not(:empty)) .v2-hint {
   top: auto;
-  bottom: calc(var(--v2-bar, 44px) + 58px);
+  bottom: calc(var(--v2-bar, 44px) + 68px);
   transform: translateX(-50%);
 }
 /* A phone's stage: the one-line version, on one line. */
@@ -437,6 +437,20 @@
 .v2-contact-name { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
 .v2-next .v2-label-restart { display: none; }
 .v2-end-contact { display: contents; }
+.v2-end-made {
+  margin: 2px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(244, 241, 233, 0.14);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.v2-end-made-link {
+  color: var(--v2-sage);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.v2-end-made-link:hover { color: var(--v2-paper); }
+.v2-end-made-link:focus-visible { outline: 3px solid var(--v2-sage); outline-offset: 2px; }
 
 .v2-fallback h2 { font-size: 18px; font-weight: 500; line-height: 1.3; }
 .v2-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -480,6 +494,7 @@
   .v2-map svg { width: auto; height: auto; max-width: 100%; max-height: 100%; min-height: 0; flex: 1 1 auto; }
   .v2-map figcaption { flex-shrink: 0; }
   .v2-panel { left: 12px; right: 12px; width: auto; }
+  .v2:has(.v2-bar > .v2-status:not(:empty)) .v2-hint { display: none; }
 }
 @container (max-width: 359px) {
   .v2-stops-toggle svg { display: none; }

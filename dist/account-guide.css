@@ -1185,3 +1185,31 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk .tour-views .tour-zero-actions .tour-action:hover { color: var(--accent); background: none; }
 .tour-enquiries > .tour-zero-actions { margin: 0; }
 
+/* ---- Desktop -> iPhone space handoff ------------------------------------ */
+.space-handoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 8px 0 4px; }
+.space-handoff[hidden] { display: none; }
+.space-handoff-note { margin: 0; font-size: 14px; color: var(--muted); }
+dialog.capture-handoff-dialog {
+  width: min(420px, calc(100vw - 24px));
+  max-width: 100%;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface, var(--paper));
+  color: var(--text, var(--ink));
+  box-shadow: var(--e2, 0 18px 48px rgba(0, 0, 0, 0.24));
+}
+dialog.capture-handoff-dialog::backdrop { background: rgba(12, 24, 19, 0.62); }
+.capture-handoff-card { display: grid; gap: 12px; padding: 20px; }
+.capture-handoff-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.capture-handoff-eyebrow { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.capture-handoff-title { margin: 0; font-size: 20px; font-weight: 500; line-height: 1.25; color: var(--text, var(--ink)); overflow-wrap: anywhere; }
+.capture-handoff-note { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.capture-handoff-qr-wrap { display: flex; justify-content: center; padding: 6px 0; }
+.capture-handoff-qr.tour-qr-code { width: min(210px, 100%); border-radius: var(--radius-control); }
+.capture-handoff-qr.tour-qr-code svg { border-color: var(--hairline, var(--line)); border-radius: var(--radius-control); background: #fff; }
+.capture-handoff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.capture-handoff-status { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text, var(--ink)); overflow-wrap: anywhere; }
+.capture-handoff-status[hidden] { display: none; }
+

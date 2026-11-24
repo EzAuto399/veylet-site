@@ -13,7 +13,8 @@
           { "/": "/help/*", "exclude": true, "comment": "Help stays on the web" },
           { "/": "/app/help/*", "exclude": true, "comment": "In-app help pages stay on the web" },
           { "/": "/app/account", "?": { "tour": "?*" }, "comment": "Ready-for-review emails and desk deep links open the in-app Review" },
-          { "/": "/join", "?": { "i": "?*" }, "comment": "Team invites: the app accepts after sign-in" }
+          { "/": "/join", "?": { "i": "?*" }, "comment": "Team invites: the app accepts after sign-in" },
+          { "/": "/open/capture", "?": { "space": "?*" }, "comment": "Desktop QR handoff opens Capture directly for that space" }
         ]
       }
     ]

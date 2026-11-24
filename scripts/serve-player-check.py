@@ -152,11 +152,11 @@ class Handler(SimpleHTTPRequestHandler):
             # /__qa/app-account/ is the page the iPhone app opens (dist/app/account).
             route = 'account' if path == '/__qa/cache-upgrade/' else 'app/account' if path == '/__qa/app-account/' else path.split('/')[2]
             markup = (ROOT / 'dist' / route / 'index.html').read_text()
-            markup, replaced = re.subn(r'<script src="/supabase-public\.js(?:\?[^\"]*)?"></script>', '<script src="/__qa/account-fixture.js"></script>', markup)
+            markup, replaced = re.subn(r'<script\s+src="/supabase-public\.js(?:\?[^"]*)?"(?:\s+[^>]*)?></script>', '<script src="/__qa/account-fixture.js"></script>', markup)
             if replaced != 1:
                 self.send_error(500, 'Fixture configuration interception failed')
                 return
-            markup = re.sub(r'<script src="/vendor/supabase-js-2\.116\.0\.min\.js(?:\?[^\"]*)?"></script>', '', markup)
+            markup = re.sub(r'<script\s+src="/vendor/supabase-js-2\.116\.0\.min\.js(?:\?[^"]*)?"(?:\s+[^>]*)?></script>', '', markup)
             if path in ('/__qa/account/', '/__qa/app-account/'):
                 markup, replaced = re.subn(r'src="/account\.js(?:\?[^\"]*)?"', 'src="/__qa/review-account.js"', markup)
                 if replaced != 1:

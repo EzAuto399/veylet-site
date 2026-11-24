@@ -1002,11 +1002,13 @@
     const bar = doc.getElementById('agent-bar');
     const sheet = doc.getElementById('agent-enquiry-sheet');
     const facts = doc.getElementById('handoff-facts');
+    const endCta = doc.getElementById('handoff-end-cta');
     for (const [el, cls] of [
       [card, 'agent-card-branded'],
       [bar, 'agent-bar-branded'],
       [sheet, 'agent-sheet-branded'],
       [facts, 'handoff-facts-branded'],
+      [endCta, 'handoff-end-branded'],
     ]) {
       if (!el) continue;
       if (brand.brandHex) {
@@ -1144,6 +1146,65 @@
     return true;
   }
 
+  /** Page-level CTA revealed below the stage once the visitor reaches the end of the tour. */
+  function renderEndCta(doc, options = {}) {
+    const host = doc?.getElementById?.('handoff-end-cta');
+    if (!host) return false;
+    const contact = options.contact || null;
+    const title = clean(options.title || '', 90);
+    const isSample = Boolean(options.sample);
+    const brandEyebrow = contact
+      ? (contact.agency ? contact.name + ' · ' + contact.agency : contact.name)
+      : (isSample ? 'Sample walkthrough' : 'Walkthrough complete');
+    const eyebrow = element(doc, 'p', 'handoff-end-eyebrow', brandEyebrow);
+    const heading = element(
+      doc,
+      'p',
+      'handoff-end-title',
+      isSample
+        ? 'Want to share walkthroughs like this?'
+        : contact
+          ? (title ? 'Arrange a viewing or ask about ' + title : 'Ready for the next step?')
+          : (title ? 'Finished looking through ' + title + '?' : 'Finished looking through this space?')
+    );
+    heading.setAttribute('id', 'handoff-end-title');
+    const note = element(
+      doc,
+      'p',
+      'handoff-end-note',
+      isSample
+        ? 'Capture a space in minutes on iPhone, then send buyers a link with your contact bar built in.'
+        : contact
+          ? 'Call, email or book an inspection directly with ' + contact.name + '.'
+          : 'Jump back inside the rooms above, or share this link with someone else.'
+    );
+    const actions = contact
+      ? contactActions(doc, contact, title, options.beacon, options.enquiryOpts)
+      : element(doc, 'div', 'agent-actions');
+    if (isSample) {
+      const startLink = element(doc, 'a', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', 'Capture your own space');
+      startLink.setAttribute('href', 'https://veylet.com/start');
+      actions.append(startLink);
+    } else if (!contact && typeof options.onShare === 'function') {
+      const shareBtn = element(doc, 'button', 'button agent-action', 'Share walkthrough');
+      shareBtn.type = 'button';
+      shareBtn.addEventListener('click', () => { void options.onShare(); });
+      actions.append(shareBtn);
+    }
+    const foot = element(doc, 'p', 'handoff-end-foot');
+    const made = element(doc, 'a', 'handoff-end-made', 'Made with Veylet');
+    made.setAttribute('href', 'https://veylet.com');
+    made.setAttribute('target', '_blank');
+    made.setAttribute('rel', 'noopener noreferrer');
+    foot.append(made);
+    const nodes = [eyebrow, heading, note];
+    if (actions.children.length) nodes.push(actions);
+    nodes.push(foot);
+    host.replaceChildren(...nodes);
+    host.hidden = false;
+    return true;
+  }
+
   /** This page's address with nothing but its token. */
   function shareUrl(loc, token) {
     return loc.origin + loc.pathname + '?t=' + encodeURIComponent(token);
@@ -1254,8 +1315,10 @@
       share: () => shareNow({ navigator: options.navigator, document: options.document, beacon: options.beacon, title, url }),
       contact,
       url,
+      ...(options.madeWith ? { madeWith: options.madeWith } : {}),
+      ...(typeof options.onEnd === 'function' ? { onEnd: options.onEnd } : {}),
       setTitle(value) { title = value || ''; },
-      setContact(found) {
+      setContact(found, contactEnquiryOpts) {
         if (!found) { giveContact(null); return; }
         const beacon = options.beacon;
         const actions = [];
@@ -1268,7 +1331,13 @@
           actions.push({ label: 'Book inspection', href: booking, external: true, press: () => { if (beacon) beacon.send('email_tap', { booking: true }); } });
         } else if (found.allowViewingRequest && found.email) {
           const viewing = viewingRequestHref(found.email, title, found.name);
-          if (viewing) actions.push({ label: 'Book viewing', href: viewing, press: () => { if (beacon) beacon.send('email_tap', { booking: true }); } });
+          if (viewing) {
+            const action = { label: 'Book viewing', href: viewing, press: () => { if (beacon) beacon.send('email_tap', { booking: true }); } };
+            if (contactEnquiryOpts && contactEnquiryOpts.enquiryClient && options.document && options.document.getElementById('agent-enquiry-sheet')) {
+              action.onPress = () => openEnquirySheet(options.document, found, title, contactEnquiryOpts);
+            }
+            actions.push(action);
+          }
         }
         giveContact(actions.length ? { name: found.name, actions } : null);
       },
@@ -1466,7 +1535,7 @@
     dialable, telHref, mailtoHref, bookingHref, viewingRequestHref, contactFrom, lookupContact, restClient,
     campaignFactsFrom, openHomeIcs, brandFrom, lookupHandoffContext, applyBrand, showCampaignFacts,
     channelFrom, referrerHost, viewBeacon, visitToken, lookBin,
-    agentLine, privateNote, troubleLine, renderCard, renderBar, showContact,
+    agentLine, privateNote, troubleLine, renderCard, renderBar, showContact, renderEndCta, openEnquirySheet,
     shareUrl, copyText, mountShare, shareNow, visitLink, stopFromHash, showWalkthrough, settleStage, placeExtras, mountColumns,
     reportHref, mountReport, linkToken, invitationPoster, watchFailures,
   };
