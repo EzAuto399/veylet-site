@@ -1,5 +1,16 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Guide authorship and About page — 24 November 2026
+
+User authority: "Yes, release it" (24 Nov, for the SEO author/About change). Source `1bc6225` = live `release/room-activity-desk` (`09cfa82`) + `seo/author-about-20261124` (`87f0353`): author byline and Person author on the 6 guides, "How this guide was made" line, new `/about` (AboutPage + Person + Organization), Organization `founder` + `sameAs`, sitemap. Frozen in `57cdc59`.
+
+1. **Build:** 1140 of 1140 site tests; `check-app-pages.mjs` clean; `npm run build` and `npm run verify` pass (369 source, 368 output files); 13 of 13 adapter tests; `npm run check:local` passes (4345 assertions). Before deploy, every other output file matched live byte for byte.
+2. **Hosted release:** production `8a67b28b-e1c1-4c7e-8ea0-4dc66f924863` (10 files uploaded, 358 unchanged).
+3. **Readback on veylet.com:** `/about`, `/guides`, `/guides/what-is-a-3d-walkthrough`, `/`, `/sitemap.xml` match the built output byte for byte; `scripts/health-check.sh` 42 passed, 0 failed.
+4. **Not checked:** rendered appearance on a real phone.
+5. **Recovery:** previous production version `837ec069-ce48-4d71-860f-46cce5f99ff5`: `wrangler rollback 837ec069-ce48-4d71-860f-46cce5f99ff5 --config wrangler.production.jsonc`.
+6. **Note:** `main` does not contain the room-activity release line; deploy from this branch, not `main`.
+
 ## Desk upload guidance and room activity — 22 November 2026 UTC
 
 - Owner selected **Preview and production** for the frozen website release `40b6455` (source `23b1cd5` on `release/room-activity-desk`, based on `4b2d995`). Only six public files changed: account JS/CSS, both desk pages, the callback's script reference and build info. No native release, backend, collection, DNS change or Git push.
