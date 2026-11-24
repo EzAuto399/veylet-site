@@ -1178,11 +1178,11 @@
           ? 'Call, email or book an inspection directly with ' + contact.name + '.'
           : 'Jump back inside the rooms above, or share this link with someone else.'
     );
-    const actions = contact
+    const actions = !isSample && contact
       ? contactActions(doc, contact, title, options.beacon, options.enquiryOpts)
       : element(doc, 'div', 'agent-actions');
     if (isSample) {
-      const startLink = element(doc, 'a', actions.children.length ? 'button button-ghost agent-action' : 'button agent-action', 'Capture your own space');
+      const startLink = element(doc, 'a', 'button agent-action', 'Capture your own space');
       startLink.setAttribute('href', 'https://veylet.com/start');
       actions.append(startLink);
     } else if (!contact && typeof options.onShare === 'function') {

@@ -288,7 +288,10 @@
           if (wrap) wrap.hidden = false;
           if (els.body) els.body.textContent = '';
           const truth = document.getElementById('client-truth');
-          if (truth) truth.hidden = false;
+          if (truth) {
+            truth.textContent = 'Research sample · Not a Veylet iPhone capture · Not to scale.';
+            truth.hidden = false;
+          }
           const help = document.getElementById('client-help');
           if (help) help.hidden = false;
           page?.showContact?.(document, sampleContact, sampleTitle, null, false);

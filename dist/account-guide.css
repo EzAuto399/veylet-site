@@ -913,6 +913,21 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .desk-view > .desk-section > .view-title { display: flex; align-items: center; min-height: 64px; padding-block: 10px; border-bottom: 1px solid var(--ink); }
 .view-head .desk-refresh { gap: 8px 12px; }
 .view-head .desk-refresh .tour-action { padding-inline: 14px; }
+.view-head .desk-refresh #account-refresh,
+.view-head .desk-refresh #account-activity-open {
+  border-color: transparent;
+  color: var(--muted);
+  padding-inline: 10px;
+}
+.view-head .desk-refresh #account-refresh:hover,
+.view-head .desk-refresh #account-activity-open:hover {
+  border-color: var(--line);
+  color: var(--ink);
+}
+.view-head .desk-refresh #account-add-open:not(.tour-action-primary) {
+  border-color: var(--ink);
+  font-weight: 500;
+}
 .desk-view > .desk-section + .desk-section,
 .desk-view > .contact-note + .desk-section { margin-top: 40px; }
 .desk-view .dash-heading { padding-bottom: 10px; border-bottom: 1px solid var(--ink); font-size: 19px; font-weight: 500; letter-spacing: -0.015em; }
@@ -1138,7 +1153,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 .space-filter:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .space-state-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
 .space-state-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); background: var(--paper); border: 1px solid var(--field-line, var(--line)); border-radius: 999px; cursor: pointer; }
-.space-state-pill[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.space-state-pill[aria-pressed="true"] { background: var(--tint); color: var(--text); border-color: var(--accent); font-weight: 600; }
 .space-state-pill:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .space-filter-status { margin: 8px 0 0; }
 .space-list { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
@@ -1168,7 +1183,7 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 
 .capture-app { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .desk .dash-space > .space-capture { margin: 14px 0 0; padding: 14px 0 4px; border-top: 1px solid var(--line); }
-.capture-app-code.tour-qr-code { display: block; flex: none; width: 120px; border-radius: var(--radius-control); }
+.capture-app-code.tour-qr-code { display: block; flex: none; width: 96px; border-radius: var(--radius-control); }
 .capture-app-code.tour-qr-code svg { border-color: var(--hairline); border-radius: var(--radius-control); }
 .capture-app-words { flex: 1 1 220px; min-width: 0; }
 .capture-app-line,
@@ -1187,6 +1202,10 @@ p.tour-heat-row.tour-heat-skeleton { padding: 8px 0; border-top: 1px solid var(-
 
 /* ---- Desktop -> iPhone space handoff ------------------------------------ */
 .space-handoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 8px 0 4px; }
+.desk .dash-space > .space-handoff { margin: 8px 0 0; padding: 10px 0 4px; border-top: 1px dashed var(--line); }
+@media (min-width: 560px) {
+  .desk .dash-space > .space-handoff { padding-left: 116px; }
+}
 .space-handoff[hidden] { display: none; }
 .space-handoff-note { margin: 0; font-size: 14px; color: var(--muted); }
 dialog.capture-handoff-dialog {
@@ -1212,4 +1231,10 @@ dialog.capture-handoff-dialog::backdrop { background: rgba(12, 24, 19, 0.62); }
 .capture-handoff-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .capture-handoff-status { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text, var(--ink)); overflow-wrap: anywhere; }
 .capture-handoff-status[hidden] { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root[data-surface="product"] .desk .dash-space,
+  :root[data-surface="product"] .desk-view .account-list > .dash-space:first-child {
+    border-top: 1px solid var(--hairline);
+  }
+}
 

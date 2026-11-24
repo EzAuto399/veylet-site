@@ -387,7 +387,7 @@ dialog.agent-enquiry-sheet::backdrop {
   display: block;
   /* The stage's own height (tour-stage.css), so nothing moves when it arrives. */
   height: var(--tour-stage-height);
-  border-radius: 10px;
+  border-radius: var(--radius-media, 16px);
   background: var(--ink);
 }
 /* The held place says what it is waiting for: on a phone the status line under
@@ -419,7 +419,7 @@ dialog.agent-enquiry-sheet::backdrop {
 }
 @media (max-width: 800px) {
   .client-pending .tour-frame-shell::before {
-    border-radius: 8px;
+    border-radius: var(--radius-media, 16px);
   }
   /* Phones: a 16px gutter (or safe-area inset in landscape) and no frame round
      the stage, so the walkthrough gets the width (328px of a 360px phone) and
@@ -736,4 +736,7 @@ dialog.agent-enquiry-sheet::backdrop {
   .handoff-end-cta {
     padding: 16px;
   }
+}
+main:has(#handoff-end-cta:not([hidden])) + .client-footer .client-made {
+  display: none;
 }

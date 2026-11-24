@@ -10,7 +10,7 @@
   display: none;
 }
 .tour-frame-shell .tour-stage {
-  border-radius: 10px;
+  border-radius: var(--radius-media, 16px);
 }
 .tour-stage-play {
   height: min(78vh, 720px);
@@ -23,7 +23,7 @@
     min-height: 340px;
   }
   .tour-frame-shell .tour-stage {
-    border-radius: 8px;
+    border-radius: var(--radius-media, 16px);
   }
 }
 
@@ -75,6 +75,17 @@
 @media (orientation: landscape) and (max-height: 500px) {
   .client-page .v2:not(.v2-research) .v2-truth {
     display: block;
+  }
+}
+/* Inline /handoff keeps "Made with Veylet" once below the stage; fullscreen keeps it in .v2-end. */
+.client-page .v2-stage:not(.v2-filled, :fullscreen) .v2-end-made {
+  display: none;
+}
+/* Desktop two-column layout keeps Call and Email in the sticky card beside the stage until fullscreen. */
+@media (min-width: 1080px) {
+  .client-page:has(.agent-card:not([hidden]):not(.agent-card-late)) .v2-stage:not(.v2-filled, :fullscreen) .v2-end-contact,
+  .client-page:has(.agent-card:not([hidden]):not(.agent-card-late)) .v2-stage:not(.v2-filled, :fullscreen) .v2-contact {
+    display: none;
   }
 }
 @media (max-width: 768px) {
@@ -173,6 +184,26 @@
   outline-offset: 2px;
 }
 @media (max-height: 300px) {
+  .v2-stage:not(.v2-filled, :fullscreen) .v2-rooms {
+    display: none;
+  }
+}
+@container (max-width: 440px) {
+  .v2-stage .v2-rooms,
+  .v2-stage .v2-rooms[data-more] {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    gap: 4px;
+    padding: 2px 0;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .v2-stage .v2-rooms .v2-room-pill {
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+}
+@container (max-width: 390px) {
   .v2-stage:not(.v2-filled, :fullscreen) .v2-rooms {
     display: none;
   }

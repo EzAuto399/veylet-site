@@ -86,6 +86,7 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  max-width: 100%;
   height: 52px;
   padding: 0 20px 0 10px;
   border: 0;
@@ -95,6 +96,8 @@
   box-shadow: inset 0 0 0 1px var(--stage-control-border), var(--e3);
   color: var(--stage-text);
   font: 600 16px/1 system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: transform 120ms var(--ease-press);
 }
 .vh-explore { cursor: pointer; }
@@ -287,8 +290,8 @@
 .vh-micro { grid-area: micro; max-width: 36em; margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: var(--stage-muted); }
 .vh-micro a {
   display: inline-block;
-  padding: 10px 0;
-  margin: -10px 0;
+  padding: 12px 0;
+  margin: -12px 0;
   color: var(--stage-text);
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -332,11 +335,11 @@
 .vh-stage { height: clamp(300px, 45svh, 420px); }
 .vh-get { width: 100%; }
 .vh-cta { grid-template-columns: 1fr; grid-template-areas: "get" "micro" "buyers"; }
-.vh-buyers { margin-top: 8px; justify-self: start; }
+.vh-buyers { margin-top: 14px; justify-self: start; }
 .vh h1 { font-size: 40px; margin-bottom: 14px; }
 .vh-lead { font-size: 17px; margin-bottom: 22px; }
 .vh-dock { left: 16px; right: 16px; bottom: 14px; gap: 6px; }
-.vh-row { gap: 8px; flex-wrap: nowrap; }
+.vh-row { gap: 8px; flex-wrap: wrap; }
 .vh-explore, .vh-progress { height: 48px; font-size: 15px; padding: 0 16px 0 8px; gap: 10px; }
 .vh-progress { min-width: 196px; }
 .vh-label { letter-spacing: 0.05em; padding: 0 8px 0 7px; }
@@ -391,7 +394,7 @@ html[data-vh-immersive] .sticky-cta, html[data-vh-immersive] .analytics-consent,
     pointer-events: none;
     transition: opacity 400ms var(--ease-standard);
   }
-  .vh-dock { left: calc(var(--vh-gx) + 620px); }
+  .vh-dock { left: auto; right: var(--vh-gx); align-items: flex-end; text-align: right; }
   .vh[data-phase="live"] .vh-copy, .vh[data-phase="video"] .vh-copy { opacity: 0; visibility: hidden; transition: opacity var(--dur-emphasized) var(--ease-standard), visibility 0s linear var(--dur-emphasized); }
   .vh[data-phase="live"] .vh-stage::after, .vh[data-phase="video"] .vh-stage::after { opacity: 0; }
   .vh-honest { padding-inline: var(--gutter); }
