@@ -123,3 +123,29 @@ main .guide-list li > a:not(.button):not(.text-link):not(.tour-action) { text-de
   .guide-list a { grid-template-columns: 112px minmax(0, 1fr); column-gap: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .guide-list-thumb { transition: none; } }
+
+/* ---- About and bylines --------------------------------------------------------
+   The "who" behind the guides is a person: a real photo, a short ledger of facts
+   opened by the 2px ink rule, then the same reading column as a guide. */
+.about-head { display: grid; gap: 32px; align-items: end; }
+@media (min-width: 820px) { .about-head { grid-template-columns: minmax(0, 1fr) 240px; gap: 48px; } }
+/* Like a wide table, the head runs past the reading column so the title keeps one line. */
+@media (min-width: 1100px) { .about-head { width: calc(100% + 160px); } }
+.about-head h1 { margin: 0 0 24px; font-size: var(--display-1); line-height: 1.07; letter-spacing: -0.03em; }
+.about-portrait { margin: 0; max-width: 260px; }
+.about-portrait img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 4; object-fit: cover; background: #d9d6cb; outline: 1px solid oklch(0 0 0 / 0.1); outline-offset: -1px; }
+.about-portrait figcaption { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+@media (max-width: 819px) { .about-portrait { max-width: 200px; } }
+
+.about-ledger { max-width: var(--col-reading); margin: 56px 0 0; border-top: 2px solid var(--ink); }
+.about-ledger > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 2px 24px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.about-ledger dt { padding-top: 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.about-ledger dd { margin: 0; font-size: 17px; line-height: 1.5; color: var(--ink); }
+.about-ledger a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+@media (max-width: 640px) { .about-ledger > div { grid-template-columns: minmax(0, 1fr); } .about-ledger dd { font-size: 16px; } }
+
+.article-byline { display: flex; align-items: center; gap: 12px; }
+.article-byline img { flex: none; width: 32px; height: 32px; border-radius: 50%; object-fit: cover; outline: 1px solid oklch(0 0 0 / 0.1); outline-offset: -1px; }
+.article-byline a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.article-provenance { max-width: 68ch; margin: 40px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.6; color: var(--muted); }
+.article-provenance a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
