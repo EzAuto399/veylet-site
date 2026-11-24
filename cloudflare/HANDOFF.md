@@ -1,5 +1,15 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Phase 1 + Phase 2 website, speed & QR/auth handoff release — 25 November 2026 AEST (24 Nov UTC)
+
+User authority: `go release backend+web` (25 Nov AEST / 24 Nov UTC). Source `207e8ee` (`phase2/track1-web-speed`, containing `main` `48f51c6` + Track 1 web speed/UX/QR handoff/Realtime desk/#handoff exchange + 320px/dark craft pass + critical-path script priority & player CSS preload), frozen in `30eed77`.
+
+1. **Build:** 1197 of 1197 site tests; `check-app-pages.mjs` clean (5 app pages, 32 help pages, 43 rendered states, 43,989 strings); `npm run build` and `npm run verify` pass (371 source, 370 output files, 327 unchanged, 43 transformed HTML, 1 omitted `insights.js`); 13 of 13 adapter tests (`adapter.test.mjs` updated from removed `/media/launch-reel.mp4` to `/media/result-listing-16x9.mp4`); `npm run check:local` passes (4,367 `workerd` assertions).
+2. **Hosted release:** production `d6a142bb-b68f-4090-8f22-4c4a777677da` (124 files uploaded, 246 unchanged).
+3. **Readback on veylet.com:** `/`, `/handoff`, `/tour`, `/account`, `/open/capture`, `/about`, `/hero.js`, `/tour-player-v2.css`, and `/build-info.json` (`207e8ee`) match the built output byte for byte; `scripts/health-check.sh https://veylet.com` 42 passed, 0 failed; `www` 301s to apex preserving path/query.
+4. **Not checked:** rendered phone Safari inspection & end-to-end live App -> Web handoff with a real signed session.
+5. **Recovery:** previous production version `f6749677-999c-48be-8f7d-eac8d82b7363`: `./node_modules/.bin/wrangler rollback f6749677-999c-48be-8f7d-eac8d82b7363 --config wrangler.production.jsonc`.
+
 ## About redesign and founder photos — 24 November 2026
 
 User authority: "Yes, release it" (24 Nov, About redesign). Source `f3e1be3`: `/about` in the ledger style with a real founder portrait, facts ledger and hairline link list; round author avatar in guide bylines; provenance line under a hairline; Person `image`; `guides.css` version bumped on the 74 pages that load it; 2 new media files (metadata stripped).
