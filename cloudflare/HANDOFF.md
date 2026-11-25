@@ -1,5 +1,14 @@
 # Veylet Cloudflare source adapter — 11 October 2026
 
+## Visual `/start` motion guide, AU rental guide, `/open/capture` QR & portal presets — 25 November 2026 AEST
+
+User authority: `ok go deploy and update and resolve the rest until its only me testing left` (25 Nov 2026 AEST). Source `f42f449` (`phase2/track1-web-speed`, atop `30eed77`), frozen in `61a1621`:
+
+1. **Build:** `1199/1199` site tests; `check-app-pages.mjs` clean (`5` app pages, `32` help pages, `43` rendered states, `44,593` strings); `npm run build` and `npm run verify` pass (`372` source, `371` output files, `327` unchanged, `44` transformed HTML, `1` omitted `insights.js`); `13/13` adapter tests; `npm run check:local` passes (`4,378` `workerd` assertions); `check_price_consistency.py` `0` drift (`814` amounts).
+2. **Hosted release:** production `248dd2cd-5335-4382-be5a-01e0547f8bf1` (`19` files uploaded, `352` unchanged).
+3. **Readback on `veylet.com`:** `scripts/health-check.sh https://veylet.com` `42 passed, 0 failed`; `9/9` byte matches (`/`, `/start`, `/open/capture`, `/guides/rental-virtual-inspections-australia`, `/tour-sharing.js`, `/showcase.js`, `/showcase.css`, `/sitemap.xml`, `/build-info.json`); `https://www.veylet.com/start` `301 -> https://veylet.com/start`.
+4. **Recovery:** previous production version `d6a142bb-b68f-4090-8f22-4c4a777677da`: `./node_modules/.bin/wrangler rollback d6a142bb-b68f-4090-8f22-4c4a777677da --config wrangler.production.jsonc`.
+
 ## Phase 1 + Phase 2 website, speed & QR/auth handoff release — 25 November 2026 AEST (24 Nov UTC)
 
 User authority: `go release backend+web` (25 Nov AEST / 24 Nov UTC). Source `207e8ee` (`phase2/track1-web-speed`, containing `main` `48f51c6` + Track 1 web speed/UX/QR handoff/Realtime desk/#handoff exchange + 320px/dark craft pass + critical-path script priority & player CSS preload), frozen in `30eed77`.
