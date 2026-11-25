@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "sourceCommit": "207e8eef0f261224fd51ec90c9ca35a429f5abe1",
+  "sourceCommit": "f42f449e16633545136ab13b995d6b7a3fd8b729",
   "verifiedPublicDeployment": "dpl_HdPHdaVxpHXxaxwWPSL14sUBEuvH",
   "vercelConfigSha256": "84e87c5228b6ef3e4b02e8c01c2d13b0ec6483d861200350307eb6c74c17190c",
   "headerNames": [
@@ -294,7 +294,7 @@
     {
       "path": "account/index.html",
       "bytes": 26196,
-      "sha256": "5a72bd88013e474388e020a0f4dce5f0784a5219da973d7d51a552938226487c",
+      "sha256": "8eb84333bc538a836dfd0333331e7a5b87f29e525642601ffc86b23b0dc62adf",
       "headerProfile": 1
     },
     {
@@ -324,7 +324,7 @@
     {
       "path": "app/account/index.html",
       "bytes": 12475,
-      "sha256": "e6dab1b06c0e20b73ccd8dd0b530a2fe4b5b1c8a43c3519b97e78f8ed1945f36",
+      "sha256": "4ef127290d54f8deb1f26706acd4fb910dbeacffcb4f25fd05580ac140b9f73e",
       "headerProfile": 5
     },
     {
@@ -558,7 +558,7 @@
     {
       "path": "build-info.json",
       "bytes": 2790,
-      "sha256": "bbae35bdef6583359443442eb78ae773c24ab131952758a97a3a8a6c77f17ce8",
+      "sha256": "db80ea0ba369d21a20dc592cf69a60dbf32625c6d18fb826384300ca5c8e5e3e",
       "headerProfile": 6
     },
     {
@@ -617,14 +617,14 @@
     },
     {
       "path": "guides/3d-tour-cost-australia/index.html",
-      "bytes": 25581,
-      "sha256": "832069672c96027c2667fce0b3454fd9c825b390fd3e03e132a779ab2f3e7ca4",
+      "bytes": 26756,
+      "sha256": "434f525b53c84b184012fda7c2cd83261050937deb465be3397f29d0aa0b31d0",
       "headerProfile": 1
     },
     {
       "path": "guides/3d-tours-realestate-com-au-domain/index.html",
-      "bytes": 22748,
-      "sha256": "fe5855ec12d230f6b31e8b3fe390cc264815527c443fbb30a9a7204c51104b78",
+      "bytes": 25457,
+      "sha256": "277d6669d86fecc348a89fe7e6a2f126498560beeab1ac816f1b318e83776877",
       "headerProfile": 1
     },
     {
@@ -635,8 +635,8 @@
     },
     {
       "path": "guides/index.html",
-      "bytes": 9776,
-      "sha256": "e508fd8c17fe5b3331c402c4206202ad3c06e236c3884dc327fe09ba800a709e",
+      "bytes": 10565,
+      "sha256": "d8c1928f97b49a5cde61061959241f0e54bacced86ac478621d230db601ef9f4",
       "headerProfile": 1
     },
     {
@@ -649,6 +649,12 @@
       "path": "guides/privacy-3d-home-tour/index.html",
       "bytes": 22644,
       "sha256": "d1a6577457f5d568ad7894ee6565a1e1c118ba769da6e61f542e4d708c7ea6b1",
+      "headerProfile": 1
+    },
+    {
+      "path": "guides/rental-virtual-inspections-australia/index.html",
+      "bytes": 16227,
+      "sha256": "8e7a3c947d0c082f561cda3753a17eb94a7b89ae635182bbebe6b0eebbce77cd",
       "headerProfile": 1
     },
     {
@@ -881,8 +887,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 26326,
-      "sha256": "700cfb144c9f6e986f3f64a61d7b24d792409e9dccc836133744cf114fed0099",
+      "bytes": 26143,
+      "sha256": "35881298ae0121f2a6f01f84a24880bc1f678f1c345db8308db5ef5cc0055c10",
       "headerProfile": 1
     },
     {
@@ -911,8 +917,8 @@
     },
     {
       "path": "llms.txt",
-      "bytes": 14971,
-      "sha256": "30cf8e0a5893564e706b6b9679644b4700aef1fd4f10327438457d57af91f0fd",
+      "bytes": 15249,
+      "sha256": "70cb1965eacad9359c898e9029b10e1e312c1b10f77ebc941b802c51a2f4e927",
       "headerProfile": 2
     },
     {
@@ -1392,7 +1398,7 @@
     {
       "path": "offer/index.html",
       "bytes": 48710,
-      "sha256": "29df4adf6146e2629e520ec8132e38de694414d2847afd84377c125ce5dafdc2",
+      "sha256": "4a6913cbf229ffc21457284eda09d49086696bbb39aecd931501cfb024c68d32",
       "headerProfile": 1
     },
     {
@@ -1403,14 +1409,14 @@
     },
     {
       "path": "open/capture/capture.js",
-      "bytes": 637,
-      "sha256": "836b42f13816e16940d513325dc52f6a5862fe2b697e7884a7f5ca16371b5d38",
+      "bytes": 1904,
+      "sha256": "14c520f2529bdc10a55d6d8b4eeb7ac4b4d30cb8ce7e04e1ec8b039d38660631",
       "headerProfile": 4
     },
     {
       "path": "open/capture/index.html",
-      "bytes": 3820,
-      "sha256": "fda008dbbb5133500e3c9a4d62491c17c611fe9fa319b8aca231285cff237f65",
+      "bytes": 4519,
+      "sha256": "bf9cdeb1ec0e05da2d539b243b22848c83e7514b016aabf81dd0a58f1b312d6e",
       "headerProfile": 1
     },
     {
@@ -2196,7 +2202,7 @@
     {
       "path": "see/index.html",
       "bytes": 33518,
-      "sha256": "81c0bb57499856ed7f3bc690fbd34c1fff7a0bb0787c85c38165bcf4c81745e6",
+      "sha256": "4f8ca49b2735e4ca37c216506e0195dd0ef4387bbbb19c55f8701cfe339f6d41",
       "headerProfile": 1
     },
     {
@@ -2213,14 +2219,14 @@
     },
     {
       "path": "showcase.css",
-      "bytes": 25399,
-      "sha256": "7720e21baa44bd8814ccf40ccbfdf2862f616a7b3057733b3dceeabfb59045de",
+      "bytes": 30390,
+      "sha256": "c2c8b5ae31ef4895a2f3ead18259f6650022b7555721d903ef91968bbd6d143f",
       "headerProfile": 3
     },
     {
       "path": "showcase.js",
-      "bytes": 25830,
-      "sha256": "ba54661d9232942c94a35a35615bf4a384dee378c00d494b006a001181da2a8b",
+      "bytes": 26370,
+      "sha256": "481b603aa1bc14fe48478fbaeefcb1ede1c1da5db01ada85bb92c764b287d18e",
       "headerProfile": 4
     },
     {
@@ -2231,8 +2237,8 @@
     },
     {
       "path": "sitemap.xml",
-      "bytes": 3982,
-      "sha256": "dfc3022ca36f83d901bd37d48b80dfe7075c8a804026577aacec027148e9edd4",
+      "bytes": 4098,
+      "sha256": "271152961cca9be3f36a41263db98bb2be6b2db13f1b1fef840b0daca2b55834",
       "headerProfile": 17
     },
     {
@@ -2243,8 +2249,8 @@
     },
     {
       "path": "start/index.html",
-      "bytes": 22477,
-      "sha256": "5d80cc190ab638fce2d083f5957271a3688f90d47410f471b68016eac8896ef6",
+      "bytes": 23983,
+      "sha256": "03b62f66d46506019b375d128365296b6a78dd040855a8ae859e7866c5f3b99c",
       "headerProfile": 1
     },
     {
@@ -2339,8 +2345,8 @@
     },
     {
       "path": "tour-sharing.js",
-      "bytes": 19883,
-      "sha256": "f3d47b79afa41584aa180ee853fd9d308b9a147c3d8708b55fbba775bdadfbcf",
+      "bytes": 20364,
+      "sha256": "541a3bb90fd659de098c98e04ecc878321a2f54e1997b262f4da1ce1540184e7",
       "headerProfile": 4
     },
     {
@@ -2459,8 +2465,8 @@
     },
     {
       "path": "website-guide/index.html",
-      "bytes": 14410,
-      "sha256": "a94567d049de11ec3245baf2b98f8dbd4435210aff579e53abce944071c3362d",
+      "bytes": 15149,
+      "sha256": "c5fae1bd5ef0f6987916543df4cae9562695325645e6db374802dea502c8e18b",
       "headerProfile": 1
     }
   ],
@@ -2475,6 +2481,7 @@
       "guides/index.html",
       "guides/iphone-lidar-vs-matterport/index.html",
       "guides/privacy-3d-home-tour/index.html",
+      "guides/rental-virtual-inspections-australia/index.html",
       "guides/what-is-a-3d-walkthrough/index.html",
       "help/approve-and-share/index.html",
       "help/delete-account/index.html",
