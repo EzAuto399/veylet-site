@@ -23,6 +23,16 @@
         overflow-wrap: anywhere;
       }
       .capture-open-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+      .capture-open-qr {
+        display: inline-block;
+        padding: 12px;
+        margin: 0 0 22px;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .capture-open-qr[hidden] { display: none; }
+      .capture-open-qr svg { width: 168px; height: 168px; display: block; border-radius: 8px; }
     </style>
     <script src="/brand-host.js?v=1c06a18e19b34007" defer></script>
   </head>
@@ -35,6 +45,7 @@
       <p class="intro" id="capture-open-intro">
         Scan this link with an iPhone that has Veylet installed to jump straight into capturing the space.
       </p>
+      <div class="capture-open-qr" id="capture-open-qr" hidden></div>
       <p class="capture-open-detail" id="capture-open-detail">
         No Veylet app on this device yet? Install it from the App Store, sign in with the same account, or open your space on the web.
       </p>
@@ -45,11 +56,14 @@
           href="https://apps.apple.com/au/app/veylet-3d-property-tours/id6814273913"
         >Get Veylet on the App Store</a>
         <a class="button button-ghost" id="capture-web-link" href="/account">Open on the web</a>
+        <button class="button button-ghost" id="capture-copy-link" type="button" hidden>Copy iPhone link</button>
       </div>
+      <p class="contact-note" id="capture-copy-status" role="status" hidden></p>
     </main>
     <footer class="wrap"><a class="brand" href="/"><span class="portal" aria-hidden="true"></span>VEYLET</a><p>Spaces people can understand.</p><nav aria-label="Footer"><a href="/offer" data-analytics-cta="offer" data-analytics-placement="footer">Offer</a><a href="/start" data-analytics-cta="start" data-analytics-placement="footer">Get started</a><a href="/see">See a result</a><a href="/help">Help</a><a href="/guides">Guides</a><a href="/website-guide">Website guide</a><a href="/support">Support</a><a href="/request">Contact</a><a href="/status">Status</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span>© 2026 Veylet Studio</span></footer>
     <script src="/site-lib.js?v=3762aa68c924c230" defer></script>
-    <script src="/open/capture/capture.js?v=836b42f13816e169" defer></script>
+    <script src="/vendor/qrcode-1.5.4.min.js?v=5084f09dc9b6baba" defer></script>
+    <script src="/open/capture/capture.js?v=14c520f2529bdc10" defer></script>
     <script src="/first-touch.js?v=2a2b56b660ab0f8f" defer></script>
   </body>
 </html>

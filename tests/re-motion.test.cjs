@@ -150,3 +150,63 @@ test('reduced motion never removes the walkthrough viewer\'s layout transforms (
   assert.match(player, /stage\.classList\.add\('v2-stage'\)/, 'the viewer marks its stage');
   assert.match(player, /button\.style\.transform = `translate\(/, 'circles are placed with a transform');
 });
+
+test('/start loads interactive walk-demo, animated Three Moves cards, and toggles data-playing while respecting reduced motion', () => {
+  const startHtml = read('start/index.html');
+  assert.match(startHtml, /data-walk-demo/);
+  assert.match(startHtml, /data-move-cards/);
+  assert.match(startHtml, /gsap-3\.15\.0\.min\.js/);
+  assert.match(startHtml, /showcase\.js/);
+
+  const css = read('showcase.css');
+  assert.match(css, /\.move-cards\s*\{/);
+  assert.doesNotMatch(css, /scale\(0\)/);
+
+  const document = createDocument();
+  const moveGrid = document.createElement('div');
+  moveGrid.setAttribute('data-move-cards', '');
+  moveGrid.setAttribute('data-playing', 'false');
+  document.body.append(moveGrid);
+
+  let ioCallback = null;
+  let reduced = false;
+  const listeners = [];
+  const window = {
+    document,
+    matchMedia: () => ({
+      get matches() { return reduced; },
+      addEventListener(_ev, fn) { listeners.push(fn); },
+    }),
+    IntersectionObserver: class {
+      constructor(cb) { ioCallback = cb; }
+      observe() {}
+    },
+  };
+  window.window = window;
+  vm.runInNewContext(read('showcase.js'), {
+    window,
+    document,
+    console,
+    Math,
+    Number,
+    String,
+    Array,
+    Object,
+    Set,
+    Map,
+    IntersectionObserver: window.IntersectionObserver,
+  });
+
+  assert.equal(moveGrid.dataset.playing, 'false');
+  ioCallback([{ isIntersecting: true }]);
+  assert.equal(moveGrid.dataset.playing, 'true');
+
+  reduced = true;
+  listeners.forEach(fn => fn());
+  assert.equal(moveGrid.dataset.playing, 'false');
+
+  reduced = false;
+  listeners.forEach(fn => fn());
+  ioCallback([{ isIntersecting: false }]);
+  assert.equal(moveGrid.dataset.playing, 'false');
+});

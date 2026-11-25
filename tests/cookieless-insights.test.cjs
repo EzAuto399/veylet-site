@@ -50,7 +50,7 @@ function visit(href, store = storage()) {
 }
 
 test('every sitemap page but the intake form loads the counter once, in <head>, at its current version', () => {
-  assert.equal(sitemap.length, 43, 'the sitemap this slice was reviewed against (/about added 24 Nov 2026)');
+  assert.equal(sitemap.length, 44, 'the sitemap this slice was reviewed against (/guides/rental-virtual-inspections-australia added 25 Nov 2026)');
   const tag = `<script src="/insights.js?v=${version}" defer></script>`;
   for (const file of counted) {
     const html = read(file);
@@ -58,7 +58,7 @@ test('every sitemap page but the intake form loads the counter once, in <head>, 
     assert.ok(html.includes(tag), `${file} loads ${tag}`);
     assert.ok(html.indexOf(tag) < html.indexOf('</head>'), `${file} loads it in <head>`);
   }
-  assert.equal(counted.length, 42);
+  assert.equal(counted.length, 43);
 });
 
 test('no other page loads the counter: app, account, sign-in, embed, player, report, request, handoff, tour and form pages', () => {

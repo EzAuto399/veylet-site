@@ -54,6 +54,41 @@ test('AASA Universal Link maps /open/capture?space=* to the app and /open/captur
   }
 });
 
+test('/open/capture renders desktop QR handoff and copies universal iPhone link for valid space id', async () => {
+  const html = read('open/capture/index.html');
+  assert.match(html, /vendor\/qrcode-1\.5\.4\.min\.js/);
+  assert.match(html, /id="capture-open-qr"/);
+  assert.match(html, /id="capture-copy-link"/);
+
+  const copied = [];
+  const doc = createDocument();
+  const link = doc.createElement('a'); link.id = 'capture-web-link'; link.setAttribute('href', '/account');
+  const detail = doc.createElement('p'); detail.id = 'capture-open-detail';
+  const qr = doc.createElement('div'); qr.id = 'capture-open-qr'; qr.hidden = true;
+  const copyBtn = doc.createElement('button'); copyBtn.id = 'capture-copy-link'; copyBtn.hidden = true;
+  const status = doc.createElement('p'); status.id = 'capture-copy-status'; status.hidden = true;
+  doc.body.append(link, detail, qr, copyBtn, status);
+
+  const ctx = {
+    window: { location: { search: '?space=c3c3c3c3-2222-4333-8444-555555555555' }, VeyletQR },
+    navigator: { clipboard: { writeText: async text => { copied.push(text); } } },
+    document: doc,
+    URLSearchParams,
+    encodeURIComponent,
+  };
+  vm.runInNewContext(read('open/capture/capture.js'), ctx);
+
+  assert.equal(qr.hidden, false);
+  assert.match(qr.innerHTML, /^<svg[\s>]/);
+  assert.equal(copyBtn.hidden, false);
+
+  copyBtn.click();
+  await tick();
+  assert.deepEqual(copied, ['https://veylet.com/open/capture?space=c3c3c3c3-2222-4333-8444-555555555555']);
+  assert.equal(status.hidden, false);
+  assert.equal(status.textContent, 'iPhone link copied.');
+});
+
 test('desktop uncaptured space offers Capture on iPhone QR dialog, hides during render, and stays absent in app mode', async () => {
   const copied = [];
   const h = await loadDesk({

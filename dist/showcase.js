@@ -228,6 +228,18 @@
     }
   })();
 
+  /* ---------- /start: animated Three Moves cards, paused off-screen ---------- */
+  (() => {
+    const moveGrid = document.querySelector('[data-move-cards]');
+    if (!moveGrid) return;
+    let cardsVisible = false;
+    const syncCards = () => {
+      moveGrid.dataset.playing = !reduce.matches && cardsVisible && !document.hidden ? 'true' : 'false';
+    };
+    reduce.addEventListener?.('change', syncCards);
+    whileVisible(moveGrid, () => { cardsVisible = true; syncCards(); }, () => { cardsVisible = false; syncCards(); });
+  })();
+
   /* ---------- Walk to browser: one space in four states (GPU-layered architectural dollhouse) ---------- */
   const demo = document.querySelector('[data-walk-demo]');
   if (!demo) return;

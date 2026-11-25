@@ -26,13 +26,16 @@ test('VeyletSharing provides Australian real-estate CRM presets with safe storag
 
   assert.deepEqual(
     Array.from(share.crms, item => item.id),
-    ['rex', 'vaultre', 'agentbox', 'propertyme', 'boxdice', 'eagle', 'ire', 'domain', 'other']
+    ['rex', 'vaultre', 'agentbox', 'propertyme', 'boxdice', 'eagle', 'ire', 'twoapply', 'domain', 'reavideo', 'other']
   );
   assert.equal(share.savedCrm(), 'rex');
   share.saveCrm('vaultre');
   assert.equal(share.savedCrm(), 'vaultre');
   assert.match(share.crm('vaultre').hint, /VaultRE/);
   assert.match(share.crm('propertyme').hint, /PropertyMe/);
+  assert.match(share.crm('twoapply').hint, /2Apply/);
+  assert.match(share.crm('reavideo').hint, /YouTube/);
+  assert.match(share.crm('reavideo').hint, /Video URL/);
 
   // Untrusted storage values fall back cleanly to rex
   store.set('veylet-portal-crm', '<img onerror=1>');

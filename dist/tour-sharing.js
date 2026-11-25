@@ -152,7 +152,9 @@ window.VeyletSharing = (() => {
     { id: 'boxdice', name: 'Box+Dice', hint: 'Box+Dice: open Listing → Advertising → External / Virtual Tour Link and paste.' },
     { id: 'eagle', name: 'Eagle', hint: 'Eagle: open Listing → Links → Virtual Tour URL and paste.' },
     { id: 'ire', name: 'InspectRealEstate', hint: 'InspectRealEstate: add the link to your inspection confirmation or listing virtual tour field.' },
+    { id: 'twoapply', name: '2Apply', hint: '2Apply: paste the link into your inspection confirmation or rental listing notes so applicants can walk through before applying.' },
     { id: 'domain', name: 'Domain Agent Admin', hint: 'Domain: open Listing Overview → Virtual Tour field (max 255 characters) and paste.' },
+    { id: 'reavideo', name: 'realestate.com.au (Video URL)', hint: 'realestate.com.au restricts 3D embeds to listed suppliers. Upload your 16:9 walkthrough video to YouTube (Unlisted or Public) and paste that URL into Agent Admin → Video URL. Put this 3D link on open-home QR signs and buyer SMS.' },
     { id: 'other', name: 'Other CRM or portal', hint: 'Paste into your CRM’s virtual tour URL field (never an HTML embed box). Portals decide whether they display it.' },
   ].map(item => Object.freeze({ ...item })));
   function crm(id) { return crms.find(item => item.id === id) || crms[0]; }
