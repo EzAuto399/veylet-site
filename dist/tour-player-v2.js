@@ -95,13 +95,29 @@
       return { id: room.id, name: room.name, ...(bounds ? { bounds } : {}) };
     });
     if (!Array.isArray(json.stops) || json.stops.length < 1 || json.stops.length > 60) bad('stops');
+    const sceneRevision = revisionOf(scene.lod_meta)[0];
     const stops = json.stops.map(stop => {
       if (!stop || !/^s\d{1,3}$/.test(stop.id || '') || !rooms.some(room => room.id === stop.room)
           || !finite3(stop.position) || !finite3(stop.target) || !finite3(stop.floor)) bad('stop');
       if (Math.hypot(...stop.position.map((v, i) => v - stop.target[i])) < 1e-3) bad('stop');
       // floor_id (whole-home packages): which floor the stop stands on. Anything else is ignored, not refused.
       const floorId = typeof stop.floor_id === 'string' && /^f\d{1,3}$/.test(stop.floor_id) ? stop.floor_id : null;
-      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId };
+      let pano = null;
+      if (stop.pano !== undefined && stop.pano !== null) {
+        if (typeof stop.pano !== 'object' || Array.isArray(stop.pano)) bad('stop_pano');
+        const panoPath = stop.pano.path;
+        if (typeof panoPath !== 'string') bad('stop_pano');
+        const [panoRev, panoRel] = revisionOf(panoPath);
+        if (REVISION.test(panoRel) || /^r\//i.test(panoRel) || !safePath(panoRel) || !panoRel.endsWith('.webp')) bad('stop_pano');
+        if (panoRev && (!safePath(panoPath) || panoRev !== sceneRevision)) bad('stop_pano');
+        const { width, height } = stop.pano;
+        if (!Number.isInteger(width) || width < 256 || width > 8192 || !Number.isInteger(height) || height < 128 || height > 4096) bad('stop_pano');
+        const rawYaw = stop.pano.yaw_offset_degrees;
+        const yawOffsetDegrees = rawYaw === undefined ? 0 : rawYaw;
+        if (typeof yawOffsetDegrees !== 'number' || !Number.isFinite(yawOffsetDegrees)) bad('stop_pano');
+        pano = { path: panoPath, width, height, yawOffsetDegrees };
+      }
+      return { id: stop.id, room: stop.room, position: stop.position, target: stop.target, floor: stop.floor, floorId, pano };
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
@@ -501,6 +517,22 @@
 
   const posterFor = (manifest, aspect) => aspect < 1 ? manifest.posters.portrait : manifest.posters.landscape;
 
+  const PANO_FADE_MS = 250;
+  /** Hybrid pano/splat blend state: stationary at a stop with a loaded pano renders crisp pano and pauses settled splats; moving or missing pano fades to 3DGS. */
+  function panoBlendState({ atStop = false, moving = false, panoLoaded = false, reducedMotion = false, splatReady = false } = {}) {
+    const showPano = Boolean(atStop) && !moving && Boolean(panoLoaded);
+    const transitionMs = reducedMotion ? 0 : PANO_FADE_MS;
+    const settled = Boolean(splatReady);
+    return {
+      mode: showPano ? 'pano' : (settled ? 'splat' : 'loading'),
+      panoOpacity: showPano ? 1 : 0,
+      splatOpacity: showPano ? 0 : (settled ? 1 : 0),
+      transitionMs,
+      pauseSplat: showPano && settled,
+      renderPano: showPano,
+    };
+  }
+
   /**
    * The package's floor mask (walkable.json). Since tours became point to point it moves no one: it only hides the
    * circles of stops behind a wall (stopReachable) and draws the floor on the map.
@@ -759,6 +791,8 @@
     const canvas = el('canvas', { class: 'v2-canvas', tabindex: '0', role: 'application',
       'aria-roledescription': '3D walkthrough',
       'aria-label': '3D walkthrough. Left and right arrows look, up and down go to the stop ahead or behind, N and P go to the next and previous stop, M shows the map.' });
+    const pano = el('canvas', { class: 'v2-pano', 'aria-hidden': 'true', hidden: true });
+    Object.assign(pano.style, { position: 'absolute', inset: '0', width: '100%', height: '100%', opacity: '0', pointerEvents: 'none' });
     const hotspots = el('div', { class: 'v2-hotspots', 'aria-hidden': 'true' });
     // A move between stops is a jump; this dark veil over the scene fades out after it, so the eye reads a cut
     // as a step forward rather than a glitch (see goToStop). Styled here so the stylesheet and its pin stay as they are.
@@ -826,9 +860,9 @@
     const fallback = el('section', { class: 'v2-fallback', hidden: true, 'aria-labelledby': 'v2-fallback-title' });
     // The end of the visit: a short card over the last stop (see showEnd).
     const end = el('section', { class: 'v2-end', hidden: true, 'aria-label': 'End of the walkthrough' });
-    root.append(preview, poster, canvas, veil, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
+    root.append(preview, poster, canvas, pano, veil, hotspots, top, map, status, progress, hint, stopsPanel, aboutPanel, end, bar, fallback, announce);
     stage.append(root);
-    return { root, preview, poster, canvas, veil, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
+    return { root, preview, poster, canvas, pano, veil, hotspots, top, room, stopLine, truth, about, status, progress, announce, hint,
       prev, next, nextLabel, againLabel, restartLabel, stopsToggle, autoTour, viewToggle, viewBar, lookLeft, lookRight, zoomOut, zoomIn,
       mapToggle, full, roomsBar, bar, stopsPanel, map, aboutPanel, end, fallback };
   }
@@ -897,20 +931,6 @@
       stage.hidden = false;
       try { options.onVisible?.(); } catch { /* a surface hint never breaks playback */ }
     };
-    ui.preview.addEventListener('load', () => { mark('preview'); ui.root.dataset.preview = 'shown'; becomeVisible(); }, { once: true });
-    ui.poster.addEventListener('load', () => { mark('poster'); ui.root.dataset.poster = 'shown'; becomeVisible(); }, { once: true });
-    ui.poster.addEventListener('error', () => becomeVisible(), { once: true });
-    ui.preview.src = base + manifest.posters.preview.path;
-    ui.poster.src = base + posterSpec.path;
-    const labels = index => {
-      const label = stopLabel(manifest, index);
-      ui.room.textContent = label.room;
-      ui.room.hidden = !label.room;
-      // A named room makes the label three lines; a narrow stage drops the third (tour-player-v2.css).
-      if (label.room) ui.root.classList.add('v2-has-room'); else ui.root.classList.remove('v2-has-room');
-      ui.stopLine.textContent = label.stop;
-      return label;
-    };
     // What the page asks of the visit (all optional): where to open (a link to a stop), a word when the stop
     // changes, Share, and who to contact. The player itself still sends nothing anywhere.
     const visit = options.visit && typeof options.visit === 'object' ? options.visit : {};
@@ -922,6 +942,15 @@
     const asked = askedView.stop;
     // A chunked home opens on the chunk its package names, and walks to the asked stop once it is drawn.
     const opening = manifest.scene.chunked ? manifest.start : asked;
+    const labels = index => {
+      const label = stopLabel(manifest, index);
+      ui.room.textContent = label.room;
+      ui.room.hidden = !label.room;
+      // A named room makes the label three lines; a narrow stage drops the third (tour-player-v2.css).
+      if (label.room) ui.root.classList.add('v2-has-room'); else ui.root.classList.remove('v2-has-room');
+      ui.stopLine.textContent = label.stop;
+      return label;
+    };
     if (manifest.researchSample) ui.root.classList.add('v2-research');
     labels(opening);
 
@@ -933,8 +962,171 @@
       yaw: asked === opening && askedView.yaw !== null ? askedView.yaw : openingLook.yaw,
       pitch: asked === opening && askedView.pitch !== null ? askedView.pitch : openingLook.pitch,
     };
-    let viewer = null, torndown = false, settled = false;
-    let ready = false, phase = 'coarse', maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
+    const reduced = () => reduceQuery.matches;
+    const hasPanos = manifest.stops.some(stop => Boolean(stop.pano));
+    const panoCache = new Map();
+    let panoMoving = false, panoMoveTimer = null, splatPaused = false, currentPanoOpacity = 0, explorePressed = !waitForTap;
+    let panoGl = null, panoProg = null, panoLocs = null, panoBuf = null;
+    const panoLoadedFor = index => {
+      const p = manifest.stops[index]?.pano;
+      return Boolean(p && panoCache.get(p.path)?.status === 'loaded');
+    };
+    function initPanoGl() {
+      if (panoGl) return panoGl;
+      if (typeof ui.pano.getContext !== 'function') return null;
+      let gl = null;
+      try {
+        gl = ui.pano.getContext('webgl2', { alpha: false, antialias: false, powerPreference: 'high-performance' })
+          || ui.pano.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'high-performance' });
+      } catch { gl = null; }
+      if (!gl) return null;
+      const compile = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { gl.deleteShader(s); return null; }
+        return s;
+      };
+      const vs = compile(gl.VERTEX_SHADER, 'attribute vec2 aPos;varying vec2 vNdc;void main(){vNdc=aPos;gl_Position=vec4(aPos,0.0,1.0);}');
+      const fs = compile(gl.FRAGMENT_SHADER,
+        'precision highp float;varying vec2 vNdc;uniform sampler2D uTex;uniform vec3 uForward;uniform vec3 uRight;uniform vec3 uUp;uniform vec2 uTanHalf;uniform float uYawOffset;' +
+        'const float PI=3.14159265358979323846;void main(){vec3 dir=normalize(uForward+uRight*(vNdc.x*uTanHalf.x)+uUp*(vNdc.y*uTanHalf.y));' +
+        'float ry=atan(-dir.x,-dir.z);float rp=asin(clamp(dir.y,-1.0,1.0));float u=fract(0.5+(uYawOffset-ry)/(2.0*PI));float v=0.5-rp/PI;' +
+        'gl_FragColor=texture2D(uTex,vec2(u,v));}');
+      if (!vs || !fs) return null;
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+      gl.deleteShader(vs); gl.deleteShader(fs);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { gl.deleteProgram(prog); return null; }
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      panoGl = gl; panoProg = prog; panoBuf = buf;
+      panoLocs = {
+        aPos: gl.getAttribLocation(prog, 'aPos'),
+        uTex: gl.getUniformLocation(prog, 'uTex'),
+        uForward: gl.getUniformLocation(prog, 'uForward'),
+        uRight: gl.getUniformLocation(prog, 'uRight'),
+        uUp: gl.getUniformLocation(prog, 'uUp'),
+        uTanHalf: gl.getUniformLocation(prog, 'uTanHalf'),
+        uYawOffset: gl.getUniformLocation(prog, 'uYawOffset'),
+      };
+      return gl;
+    }
+    function renderPanoFrame() {
+      if (!hasPanos || state.stop < 0) return;
+      const p = manifest.stops[state.stop]?.pano;
+      const entry = p && panoCache.get(p.path);
+      if (!entry || entry.status !== 'loaded' || !entry.img) return;
+      const gl = initPanoGl();
+      if (!gl) return;
+      try {
+        if (!entry.texture) {
+          const tex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, entry.img);
+          entry.texture = tex;
+        }
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const cw = ui.canvas.clientWidth || stage.clientWidth || 1;
+        const ch = ui.canvas.clientHeight || stage.clientHeight || 1;
+        const w = Math.max(1, Math.round(cw * dpr)), h = Math.max(1, Math.round(ch * dpr));
+        if (ui.pano.width !== w || ui.pano.height !== h) { ui.pano.width = w; ui.pano.height = h; }
+        gl.viewport(0, 0, w, h);
+        gl.useProgram(panoProg);
+        gl.bindBuffer(gl.ARRAY_BUFFER, panoBuf);
+        gl.enableVertexAttribArray(panoLocs.aPos);
+        gl.vertexAttribPointer(panoLocs.aPos, 2, gl.FLOAT, false, 0, 0);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, entry.texture);
+        gl.uniform1i(panoLocs.uTex, 0);
+        const fwd = forwardOf(state.yaw, state.pitch);
+        const rx = -fwd[2], rz = fwd[0], rLen = Math.hypot(rx, rz) || 1;
+        const right = [rx / rLen, 0, rz / rLen];
+        const up = [right[1] * fwd[2] - right[2] * fwd[1], right[2] * fwd[0] - right[0] * fwd[2], right[0] * fwd[1] - right[1] * fwd[0]];
+        const a = aspect(), view = fieldOfView(a, posterSpec, state.zoom);
+        const fov = clamp(view.fov, 20, 130);
+        const tanY = view.horizontal ? Math.tan(fov * Math.PI / 360) / a : Math.tan(fov * Math.PI / 360);
+        gl.uniform3f(panoLocs.uForward, fwd[0], fwd[1], fwd[2]);
+        gl.uniform3f(panoLocs.uRight, right[0], right[1], right[2]);
+        gl.uniform3f(panoLocs.uUp, up[0], up[1], up[2]);
+        gl.uniform2f(panoLocs.uTanHalf, tanY * a, tanY);
+        gl.uniform1f(panoLocs.uYawOffset, (p.yawOffsetDegrees || 0) * Math.PI / 180);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      } catch { /* fallback to pure 3DGS if WebGL upload fails */ }
+    }
+    let setSplatPaused = paused => { splatPaused = paused; };
+    let ready = false, phase = 'coarse';
+    function syncPano() {
+      if (!hasPanos) return;
+      const atStop = state.stop >= 0 && Boolean(manifest.stops[state.stop]?.pano);
+      const panoLoaded = state.stop >= 0 && panoLoadedFor(state.stop) && explorePressed;
+      const blend = panoBlendState({
+        atStop, moving: panoMoving, panoLoaded, reducedMotion: reduced(), splatReady: ready && phase === 'complete',
+      });
+      currentPanoOpacity = blend.panoOpacity;
+      ui.pano.style.transition = blend.transitionMs > 0 ? `opacity ${blend.transitionMs}ms ease-out` : 'none';
+      if (blend.panoOpacity > 0) {
+        ui.pano.hidden = false;
+        renderPanoFrame();
+      }
+      ui.pano.style.opacity = String(blend.panoOpacity);
+      ui.root.dataset.pano = blend.mode;
+      setSplatPaused(blend.pauseSplat);
+      if (stats?.pano) {
+        stats.pano.mode = blend.mode;
+        stats.pano.opacity = blend.panoOpacity;
+        stats.pano.splatPaused = blend.pauseSplat;
+        stats.pano.loaded = [...panoCache.values()].filter(e => e.status === 'loaded').length;
+        stats.pano.failed = [...panoCache.values()].filter(e => e.status === 'failed').length;
+      }
+    }
+    function ensurePano(index) {
+      const p = manifest.stops[index]?.pano;
+      if (!p) return null;
+      const existing = panoCache.get(p.path);
+      if (existing) return existing;
+      const entry = { status: 'loading', img: null, pano: p, texture: null };
+      panoCache.set(p.path, entry);
+      const img = document.createElement('img');
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      entry.img = img;
+      const failLoad = () => {
+        if (torndown) return;
+        entry.status = 'failed';
+        if (state.stop === index) syncPano();
+      };
+      const finish = () => {
+        if (torndown) return;
+        entry.status = 'loaded';
+        if (state.stop === index && explorePressed) {
+          if (!ready) becomeVisible();
+          syncPano();
+        }
+      };
+      img.addEventListener('load', () => {
+        if (typeof img.decode === 'function') img.decode().then(finish, failLoad);
+        else finish();
+      }, { once: true });
+      img.addEventListener('error', failLoad, { once: true });
+      img.src = base + p.path;
+      return entry;
+    }
+
+    ui.preview.addEventListener('load', () => { mark('preview'); ui.root.dataset.preview = 'shown'; becomeVisible(); }, { once: true });
+    ui.poster.addEventListener('load', () => { mark('poster'); ui.root.dataset.poster = 'shown'; becomeVisible(); }, { once: true });
+    ui.poster.addEventListener('error', () => becomeVisible(), { once: true });
+    ui.preview.src = base + manifest.posters.preview.path;
+    if (!waitForTap && manifest.stops[opening]?.pano) ensurePano(opening);
+    ui.poster.src = base + posterSpec.path;
+
+    let viewer = null, torndown = false, settled = false, stats = null;
+    let maxLoading = 0, sawLoading = false, readyFrames = 0, lastRender = 0, benchmark = null;
     let resolveReady;
     const firstFrame = new Promise(resolve => { resolveReady = resolve; });
     const settle = outcome => { if (settled) return; settled = true; cancelDeadline(); clearTimeout(slowNote); resolveReady(outcome); };
@@ -1014,6 +1206,18 @@
       if (torndown) return;
       torndown = true;
       if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      if (panoMoveTimer) { clearTimeout(panoMoveTimer); panoMoveTimer = null; }
+      ui.pano.hidden = true;
+      ui.pano.style.opacity = '0';
+      if (panoGl) {
+        try {
+          for (const entry of panoCache.values()) { if (entry.texture) { panoGl.deleteTexture(entry.texture); entry.texture = null; } }
+          if (panoProg) { panoGl.deleteProgram(panoProg); panoProg = null; }
+          if (panoBuf) { panoGl.deleteBuffer(panoBuf); panoBuf = null; }
+          panoGl.getExtension?.('WEBGL_lose_context')?.loseContext();
+        } catch { /* context already gone */ }
+        panoGl = null;
+      }
       try { viewer?.destroy(); } catch { /* already gone */ }
     }
     signal?.addEventListener('abort', () => { teardown(); ui.root.remove(); }, { once: true });
@@ -1103,6 +1307,8 @@
       ui.top.hidden = false;
       ui.fallback.hidden = true;
       ui.fallback.replaceChildren();
+      explorePressed = true;
+      if (manifest.stops[opening]?.pano) { ensurePano(opening); syncPano(); }
       mark('explore');
     }
     ui.status.textContent = LOADING_WORDS;
@@ -1189,10 +1395,14 @@
       app.root.addChild(splat);
     } else holdChunk(currentChunk);
 
-    const reduced = () => reduceQuery.matches;
     let continuous = 0; // frames that must render back to back (moves, drags, streaming)
     let flightFovOffset = 0;
-    const requestRender = () => { app.renderNextFrame = true; };
+    const requestRender = () => { if (!splatPaused) app.renderNextFrame = true; };
+    setSplatPaused = paused => {
+      if (splatPaused === paused) return;
+      splatPaused = paused;
+      if (!paused) requestRender();
+    };
     function applyCamera() {
       camera.setPosition(...state.position);
       camera.setEulerAngles(state.pitch, state.yaw, 0);
@@ -1200,6 +1410,7 @@
       camera.camera.horizontalFov = view.horizontal;
       camera.camera.fov = clamp(view.fov + flightFovOffset, 20, 130);
       requestRender();
+      if (hasPanos && currentPanoOpacity > 0) renderPanoFrame();
       placeHotspots();
     }
 
@@ -1694,11 +1905,13 @@
       const yaw = orientation && orientation.yaw !== null && orientation.yaw !== undefined ? orientation.yaw : look.yaw;
       const pitch = orientation && orientation.pitch !== null && orientation.pitch !== undefined ? orientation.pitch : look.pitch;
       Object.assign(state, { position: [...stop.position], yaw, pitch });
+      if (typeof onStopTransition === 'function') onStopTransition(index, true);
       applyCamera();
       // The jump itself stays instant (the camera is already there); a moved-by-hand jump fades in from dark.
       // Reduce Motion keeps the plain cut.
       if (byUser && !reduced()) fadeInAfterJump();
       arrived(index);
+      if (typeof onStopTransition === 'function') onStopTransition(index, false);
       if (chunked) releaseFarChunks();
     }
     // 280 ms from 55% dark to clear: long enough to read as a step, short enough that Next can be tapped again at once.
@@ -2070,8 +2283,37 @@
     }
 
     // ----- rendering, loading phases and frame pacing -----
-    const stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, saveData, frames: [], changes: [] };
+    stats = { api, kind: profile.kind, budget: governor.state.budget, pixelRatio: governor.state.pixelRatio, saveData, frames: [], changes: [] };
     if (chunked) stats.rooms = []; // per room change: the chunk and how long "Loading this room…" showed
+    if (hasPanos) {
+      stats.pano = { mode: 'loading', opacity: 0, splatPaused: false, loaded: 0, failed: 0 };
+      syncPano();
+    }
+    function onStopTransition(index, starting) {
+      if (!hasPanos) return;
+      if (starting) {
+        clearTimeout(panoMoveTimer);
+        panoMoveTimer = null;
+        if (manifest.stops[index]?.pano) ensurePano(index);
+        currentPanoOpacity = 0;
+        if (!reduced()) {
+          panoMoving = true;
+          syncPano();
+        }
+        return;
+      }
+      if (reduced()) {
+        panoMoving = false;
+        syncPano();
+        return;
+      }
+      panoMoveTimer = setTimeout(() => {
+        panoMoveTimer = null;
+        if (torndown) return;
+        panoMoving = false;
+        syncPano();
+      }, PANO_FADE_MS);
+    }
 
     // ----- chunked packages: the room you are in, the rooms beyond its doorways, nothing further -----
     // Phases after the first frame: 'room' while newly held chunks load at the coarsest level (the room you walked
@@ -2215,6 +2457,7 @@
         placeHotspots();
         markCurrent();
         offerHint();
+        syncPano();
         settle({ readiness: 'viewer-ready', marks, stats });
         // Back where the visitor was before the graphics context was lost.
         if (resume && Number.isInteger(resume.stop) && resume.stop >= 0 && resume.stop < manifest.stops.length && resume.stop !== state.stop) goToStop(resume.stop, false);
@@ -2233,13 +2476,14 @@
           ui.progress.hidden = true;
           if (ui.status.textContent === 'Sharpening detail…') ui.status.textContent = '';
           continuous = Math.max(0, continuous - 1);
+          syncPano();
         }
       }
     });
     continuous++; // stream the first levels continuously; released when detail completes
     app.on('update', () => {
       const now = performance.now();
-      if (continuous > 0 || benchmark) requestRender();
+      if ((continuous > 0 && !splatPaused) || benchmark) requestRender();
       if (benchmark) {
         const through = Math.min(now, benchmark.until);
         state.yaw += benchmark.degreesPerSecond * Math.max(0, through - benchmark.last) / 1000;
@@ -2362,6 +2606,7 @@
         return { state: { ...state, position: [...state.position] }, discs, ready, move: lastMove && { ...lastMove, moving: false } };
       },
       benchmark(seconds = 5, degreesPerSecond = 30) {
+        if (hasPanos) setSplatPaused(false);
         stats.frames = [];
         return new Promise(resolve => {
           const now = performance.now();
@@ -2385,7 +2630,7 @@
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
     fieldOfView, posterFor, decodeWalkable, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
-    parseViewHash, roomsFromManifest,
+    parseViewHash, roomsFromManifest, panoBlendState, PANO_FADE_MS,
     start, mount, current: null,
     currentView: () => (window.VeyletPlayerV2.current ? window.VeyletPlayerV2.current.currentView() : null),
   };

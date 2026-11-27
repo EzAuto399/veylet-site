@@ -1718,3 +1718,191 @@ test('after 10 s the slow line still replaces the loading line, number and all',
   assert.equal(byClass(x.stage, 'v2-progress').getAttribute('aria-valuenow'), '60');
 });
 
+// ---------- hybrid stop panos + 3DGS cross-fade ----------
+
+test('validateManifest accepts valid stop.pano, defaults yaw_offset_degrees, keeps absent/null backward-compatible, and rejects malformed or mismatched revisions', () => {
+  const { player } = load();
+  const plain = value => JSON.parse(JSON.stringify(value));
+  const base = manifest();
+  const validated = player.validateManifest(base);
+  assert.ok(validated.stops.every(stop => stop.pano === null), 'absent pano normalizes to null');
+  const withNull = manifest();
+  withNull.stops[0].pano = null;
+  assert.equal(player.validateManifest(withNull).stops[0].pano, null);
+
+  const valid = manifest();
+  valid.stops[0].pano = { path: 'panos/s1.webp', width: 2048, height: 1024, yaw_offset_degrees: -45 };
+  valid.stops[1].pano = { path: 'panos/s2.webp', width: 4096, height: 2048 };
+  const parsed = player.validateManifest(valid);
+  assert.deepEqual(plain(parsed.stops[0].pano), { path: 'panos/s1.webp', width: 2048, height: 1024, yawOffsetDegrees: -45 });
+  assert.deepEqual(plain(parsed.stops[1].pano), { path: 'panos/s2.webp', width: 4096, height: 2048, yawOffsetDegrees: 0 });
+  assert.equal(parsed.stops[2].pano, null);
+
+  const REV = '0123456789abcdef';
+  const revised = manifest({
+    scene: { ...manifest().scene, lod_meta: `r/${REV}/lod/lod-meta.json` },
+    poster: {
+      landscape: { path: `r/${REV}/poster.webp`, width: 1600, height: 900, fov_degrees: 70 },
+      portrait: { path: `r/${REV}/poster-portrait.webp`, width: 900, height: 1600, fov_degrees: 90 },
+      preview: { path: `r/${REV}/preview.webp`, width: 256, height: 144, fov_degrees: 70 },
+    },
+  });
+  revised.stops[0].pano = { path: `r/${REV}/panos/s1.webp`, width: 2048, height: 1024, yaw_offset_degrees: 0 };
+  revised.stops[1].pano = { path: 'panos/s2.webp', width: 2048, height: 1024, yaw_offset_degrees: 15 };
+  const parsedRevised = player.validateManifest(revised);
+  assert.equal(parsedRevised.stops[0].pano.path, `r/${REV}/panos/s1.webp`);
+  assert.equal(parsedRevised.stops[1].pano.path, 'panos/s2.webp');
+
+  const badPano = mutate => {
+    const m = manifest();
+    mutate(m);
+    assert.throws(() => player.validateManifest(m), /manifest-invalid:stop_pano/);
+  };
+  badPano(m => { m.stops[0].pano = 'panos/s1.webp'; });
+  badPano(m => { m.stops[0].pano = ['panos/s1.webp']; });
+  badPano(m => { m.stops[0].pano = { path: '../panos/s1.webp', width: 2048, height: 1024 }; });
+  badPano(m => { m.stops[0].pano = { path: 'panos/s1.png', width: 2048, height: 1024 }; });
+  badPano(m => { m.stops[0].pano = { path: `r/${REV}/panos/s1.webp`, width: 2048, height: 1024 }; }); // revision without scene revision
+  badPano(m => { m.stops[0].pano = { path: 'r/NOTHEX01/panos/s1.webp', width: 2048, height: 1024 }; });
+  badPano(m => {
+    m.scene.lod_meta = `r/${REV}/lod/lod-meta.json`;
+    m.stops[0].pano = { path: 'r/fedcba9876543210/panos/s1.webp', width: 2048, height: 1024 }; // revision mismatch
+  });
+  badPano(m => {
+    m.scene.lod_meta = `r/${REV}/lod/lod-meta.json`;
+    m.stops[0].pano = { path: `r/${REV}/r/${REV}/panos/s1.webp`, width: 2048, height: 1024 }; // double revision
+  });
+  for (const [w, h] of [[255, 1024], [8193, 1024], [2048.5, 1024], [2048, 127], [2048, 4097], [2048, 1024.2]]) {
+    badPano(m => { m.stops[0].pano = { path: 'panos/s1.webp', width: w, height: h }; });
+  }
+  for (const yaw of [null, '0', NaN, Infinity, -Infinity]) {
+    badPano(m => { m.stops[0].pano = { path: 'panos/s1.webp', width: 2048, height: 1024, yaw_offset_degrees: yaw }; });
+  }
+});
+
+test('panoBlendState computes stationary, moving, reduced-motion, and fallback blend targets', () => {
+  const { player } = load();
+  const plain = value => JSON.parse(JSON.stringify(value));
+  assert.deepEqual(plain(player.panoBlendState({ atStop: true, moving: false, panoLoaded: true, reducedMotion: false, splatReady: false })), {
+    mode: 'pano', panoOpacity: 1, splatOpacity: 0, transitionMs: 250, pauseSplat: false, renderPano: true,
+  });
+  assert.deepEqual(plain(player.panoBlendState({ atStop: true, moving: false, panoLoaded: true, reducedMotion: false, splatReady: true })), {
+    mode: 'pano', panoOpacity: 1, splatOpacity: 0, transitionMs: 250, pauseSplat: true, renderPano: true,
+  });
+  assert.deepEqual(plain(player.panoBlendState({ atStop: true, moving: true, panoLoaded: true, reducedMotion: false, splatReady: true })), {
+    mode: 'splat', panoOpacity: 0, splatOpacity: 1, transitionMs: 250, pauseSplat: false, renderPano: false,
+  });
+  assert.deepEqual(plain(player.panoBlendState({ atStop: true, moving: true, panoLoaded: true, reducedMotion: true, splatReady: true })), {
+    mode: 'splat', panoOpacity: 0, splatOpacity: 1, transitionMs: 0, pauseSplat: false, renderPano: false,
+  });
+  assert.deepEqual(plain(player.panoBlendState({ atStop: true, moving: false, panoLoaded: false, reducedMotion: false, splatReady: true })), {
+    mode: 'splat', panoOpacity: 0, splatOpacity: 1, transitionMs: 250, pauseSplat: false, renderPano: false,
+  });
+  assert.deepEqual(plain(player.panoBlendState({ atStop: false, moving: false, panoLoaded: true, reducedMotion: true, splatReady: false })), {
+    mode: 'loading', panoOpacity: 0, splatOpacity: 0, transitionMs: 0, pauseSplat: false, renderPano: false,
+  });
+});
+
+test('hybrid pano loads opening stop beside preview, pauses settled splats, cross-fades on goToStop, and degrades to 3DGS on error', async () => {
+  const panoManifest = manifest();
+  panoManifest.stops[0].pano = { path: 'panos/s1.webp', width: 4096, height: 2048, yaw_offset_degrees: 0 };
+  panoManifest.stops[1].pano = { path: 'panos/s2.webp', width: 4096, height: 2048, yaw_offset_degrees: 90 };
+  // s3 intentionally has no pano; s4 will fail to load.
+  panoManifest.stops[3].pano = { path: 'panos/s4-missing.webp', width: 2048, height: 1024, yaw_offset_degrees: 0 };
+
+  const timers = manualTimers();
+  const log = [];
+  const document = createDocument({
+    onImage: node => {
+      log.push('img:' + node.src);
+      setImmediate(() => node.dispatch(node.src.includes('s4-missing') ? 'error' : 'load'));
+    },
+    onHeadAppend: node => { if (node.tagName === 'LINK') setImmediate(() => node.onload && node.onload()); },
+  });
+  const window = { matchMedia: () => ({ matches: false }), screen: { width: 390, height: 844 }, devicePixelRatio: 2 };
+  const fetch = async url => {
+    log.push('fetch:' + url);
+    if (url.endsWith('manifest.json')) return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(panoManifest) };
+    return { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
+  };
+  const context = {
+    window, document, fetch, performance, setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout, setImmediate,
+    URL, atob, AbortController, console,
+    location: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com', reload() {} },
+    navigator: {}, localStorage: { getItem: () => null, setItem() {} },
+    ResizeObserver: class { observe() {} disconnect() {} },
+  };
+  vm.runInNewContext(playerSource, context);
+  const stage = document.createElement('div');
+  stage.clientWidth = 390; stage.clientHeight = 700; stage.hidden = true;
+  document.body.append(stage);
+
+  const engine = fakeEngine(log);
+  const pending = window.VeyletPlayerV2.start(stage, {
+    base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
+    loadEngine: () => Promise.resolve(engine),
+  });
+  for (let i = 0; i < 12; i++) await tick();
+
+  // Opening stop's pano loaded alongside preview before coarse 3DGS finished!
+  const previewIdx = log.indexOf('img:https://veylet.com/pkg/preview.webp');
+  const pano1Idx = log.indexOf('img:https://veylet.com/pkg/panos/s1.webp');
+  const gsplatIdx = log.findIndex(line => line.startsWith('gsplat:'));
+  assert.ok(previewIdx >= 0 && pano1Idx > previewIdx && pano1Idx < gsplatIdx, 'opening pano starts loading immediately beside preview.webp');
+
+  const root = byClass(stage, 'v2');
+  const panoEl = byClass(stage, 'v2-pano');
+  assert.equal(panoEl.hidden, false, 'pano renders before 3DGS LODs finish');
+  assert.equal(panoEl.style.opacity, '1');
+  assert.equal(root.dataset.pano, 'pano');
+
+  // Settle coarse + detail LODs -> splat pauses when stationary at stop with loaded pano.
+  const app = engine.apps[0];
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+  assert.equal(window.VeyletPlayerV2.current.stats().pano.splatPaused, false, 'not paused while detail LODs still stream');
+  app.systems.gsplat.fire('frame:ready', null, null, false, 1);
+  app.systems.gsplat.fire('frame:ready', null, null, true, 0);
+  const settledStats = window.VeyletPlayerV2.current.stats();
+  assert.equal(settledStats.phase, 'complete');
+  assert.equal(settledStats.pano.mode, 'pano');
+  assert.equal(settledStats.pano.opacity, 1);
+  assert.equal(settledStats.pano.splatPaused, true);
+
+  // When splat is paused, update does not request splat renders.
+  app.renderNextFrame = false;
+  app.fire('update');
+  assert.equal(app.renderNextFrame, false);
+
+  // Navigate to stop 2 (has pano): cross-fades to 3DGS during transition, then back to pano after 250 ms.
+  const controller = window.VeyletPlayerV2.current;
+  controller.goToStop(1);
+  assert.equal(panoEl.style.opacity, '0');
+  assert.equal(panoEl.style.transition, 'opacity 250ms ease-out');
+  assert.equal(root.dataset.pano, 'splat');
+  assert.equal(controller.stats().pano.splatPaused, false);
+  for (let i = 0; i < 4; i++) await tick();
+  timers.fire(250);
+  assert.equal(panoEl.style.opacity, '1');
+  assert.equal(root.dataset.pano, 'pano');
+  assert.equal(controller.stats().pano.splatPaused, true);
+
+  // Navigate to stop 3 (no pano): stays in pure 3DGS.
+  controller.goToStop(2);
+  timers.fire(250);
+  assert.equal(panoEl.style.opacity, '0');
+  assert.equal(root.dataset.pano, 'splat');
+  assert.equal(controller.stats().pano.splatPaused, false);
+
+  // Navigate to stop 4 (pano fails to load): gracefully degrades to 3DGS without failing tour.
+  controller.goToStop(3);
+  for (let i = 0; i < 4; i++) await tick();
+  timers.fire(250);
+  assert.equal(panoEl.style.opacity, '0');
+  assert.equal(root.dataset.pano, 'splat');
+  assert.equal(controller.stats().pano.splatPaused, false);
+  assert.equal(controller.stats().pano.failed, 1);
+  assert.equal(root.dataset.state, 'ready');
+});
+
