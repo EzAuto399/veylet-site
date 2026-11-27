@@ -976,8 +976,8 @@
       if (typeof ui.pano.getContext !== 'function') return null;
       let gl = null;
       try {
-        gl = ui.pano.getContext('webgl2', { alpha: false, antialias: false, powerPreference: 'high-performance' })
-          || ui.pano.getContext('webgl', { alpha: false, antialias: false, powerPreference: 'high-performance' });
+        const opts = { alpha: true, premultipliedAlpha: false, antialias: false, powerPreference: 'high-performance' };
+        gl = ui.pano.getContext('webgl2', opts) || ui.pano.getContext('webgl', opts);
       } catch { gl = null; }
       if (!gl) return null;
       const compile = (type, src) => {
@@ -992,7 +992,7 @@
         'precision highp float;varying vec2 vNdc;uniform sampler2D uTex;uniform vec3 uForward;uniform vec3 uRight;uniform vec3 uUp;uniform vec2 uTanHalf;uniform float uYawOffset;' +
         'const float PI=3.14159265358979323846;void main(){vec3 dir=normalize(uForward+uRight*(vNdc.x*uTanHalf.x)+uUp*(vNdc.y*uTanHalf.y));' +
         'float ry=atan(-dir.x,-dir.z);float rp=asin(clamp(dir.y,-1.0,1.0));float u=fract(0.5+(uYawOffset-ry)/(2.0*PI));float v=0.5-rp/PI;' +
-        'gl_FragColor=texture2D(uTex,vec2(u,v));}');
+        'vec4 c=texture2D(uTex,vec2(u,v));if(c.a<0.01)discard;gl_FragColor=c;}');
       if (!vs || !fs) return null;
       const prog = gl.createProgram();
       gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
@@ -1037,6 +1037,8 @@
         const w = Math.max(1, Math.round(cw * dpr)), h = Math.max(1, Math.round(ch * dpr));
         if (ui.pano.width !== w || ui.pano.height !== h) { ui.pano.width = w; ui.pano.height = h; }
         gl.viewport(0, 0, w, h);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
         gl.useProgram(panoProg);
         gl.bindBuffer(gl.ARRAY_BUFFER, panoBuf);
         gl.enableVertexAttribArray(panoLocs.aPos);

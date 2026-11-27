@@ -1906,3 +1906,78 @@ test('hybrid pano loads opening stop beside preview, pauses settled splats, cros
   assert.equal(root.dataset.state, 'ready');
 });
 
+test('pano WebGL canvas preserves RGBA transparency (alpha:true, clear 0,0,0,0, discard alpha<0.01)', async () => {
+  const panoManifest = manifest();
+  panoManifest.stops[0].pano = { path: 'panos/s1.webp', width: 2048, height: 1024, yaw_offset_degrees: 0 };
+  const glCalls = [];
+  const glMock = {
+    VERTEX_SHADER: 1, FRAGMENT_SHADER: 2, COMPILE_STATUS: 3, LINK_STATUS: 4, ARRAY_BUFFER: 5, STATIC_DRAW: 6,
+    TEXTURE_2D: 7, TEXTURE_WRAP_S: 8, TEXTURE_WRAP_T: 9, REPEAT: 10, CLAMP_TO_EDGE: 11,
+    TEXTURE_MIN_FILTER: 12, TEXTURE_MAG_FILTER: 13, LINEAR: 14, RGBA: 15, UNSIGNED_BYTE: 16,
+    TEXTURE0: 17, FLOAT: 18, TRIANGLE_STRIP: 19, COLOR_BUFFER_BIT: 16384,
+    createShader: type => ({ type }),
+    shaderSource: (s, src) => { if (s.type === 2) glCalls.push({ fs: src }); },
+    compileShader() {},
+    getShaderParameter: () => true,
+    deleteShader() {},
+    createProgram: () => ({}),
+    attachShader() {}, linkProgram() {}, getProgramParameter: () => true, deleteProgram() {},
+    createBuffer: () => ({}), bindBuffer() {}, bufferData() {},
+    getAttribLocation: () => 0, getUniformLocation: () => ({}),
+    createTexture: () => ({}), bindTexture() {}, texParameteri() {}, texImage2D() {},
+    viewport() {},
+    clearColor: (...args) => glCalls.push({ clearColor: args }),
+    clear: mask => glCalls.push({ clear: mask }),
+    useProgram() {}, enableVertexAttribArray() {}, vertexAttribPointer() {},
+    activeTexture() {}, uniform1i() {}, uniform3f() {}, uniform2f() {}, uniform1f() {},
+    drawArrays() { glCalls.push({ draw: true }); },
+    deleteTexture() {}, deleteBuffer() {}, getExtension: () => null,
+  };
+  const document = createDocument({
+    onImage: node => { setImmediate(() => node.dispatch('load')); },
+    onHeadAppend: node => { if (node.tagName === 'LINK') setImmediate(() => node.onload && node.onload()); },
+  });
+  const origCreate = document.createElement;
+  document.createElement = tag => {
+    const node = origCreate(tag);
+    if (tag === 'canvas') {
+      node.getContext = (type, opts) => {
+        if (node.className.includes('v2-pano')) { glCalls.push({ type, opts }); return glMock; }
+        return null;
+      };
+    }
+    return node;
+  };
+  const window = { matchMedia: () => ({ matches: true }), screen: { width: 390, height: 844 }, devicePixelRatio: 2 };
+  const fetch = async url => url.endsWith('manifest.json')
+    ? { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(panoManifest) }
+    : { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
+  vm.runInNewContext(read('tour-player-v2.js'), {
+    window, document, fetch, performance, setTimeout, clearTimeout, setImmediate, URL, atob, AbortController, console,
+    location: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com', reload() {} },
+    navigator: {}, localStorage: { getItem: () => null, setItem() {} },
+    ResizeObserver: class { observe() {} disconnect() {} },
+  });
+  const stage = document.createElement('div');
+  stage.clientWidth = 390; stage.clientHeight = 700; stage.hidden = true;
+  document.body.append(stage);
+  const engine = fakeEngine([]);
+  const pending = window.VeyletPlayerV2.start(stage, {
+    base: 'https://veylet.com/pkg/', env: phoneWebgl2, page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' },
+    loadEngine: () => Promise.resolve(engine),
+  });
+  for (let i = 0; i < 12; i++) await tick();
+  engine.apps[0].systems.gsplat.fire('frame:ready', null, null, false, 1);
+  engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+
+  const ctxCall = glCalls.find(c => c.type);
+  assert.equal(ctxCall.opts.alpha, true);
+  assert.equal(ctxCall.opts.premultipliedAlpha, false);
+  const fsCall = glCalls.find(c => c.fs);
+  assert.match(fsCall.fs, /if\(c\.a<0\.01\)discard;gl_FragColor=c;/);
+  assert.deepEqual(glCalls.find(c => c.clearColor).clearColor, [0, 0, 0, 0]);
+  assert.equal(glCalls.find(c => c.clear).clear, glMock.COLOR_BUFFER_BIT);
+  assert.ok(glCalls.some(c => c.draw));
+});
+
