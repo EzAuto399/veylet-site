@@ -1981,3 +1981,234 @@ test('pano WebGL canvas preserves RGBA transparency (alpha:true, clear 0,0,0,0, 
   assert.ok(glCalls.some(c => c.draw));
 });
 
+// ---------- web-craft: manifest.floorplan, interruptible look inertia, architectural map & Emil CSS polish ----------
+
+test('validateManifest accepts optional manifest.floorplan, enforces safe .webp/rev/dims, and rejects malformed with manifest-invalid:floorplan', () => {
+  const { player } = load();
+  const plain = value => JSON.parse(JSON.stringify(value));
+  assert.equal(player.validateManifest(manifest()).floorplan, null, 'absent floorplan normalizes to null');
+  assert.equal(player.validateManifest(manifest({ floorplan: null })).floorplan, null, 'null floorplan normalizes to null');
+
+  const valid = player.validateManifest(manifest({ floorplan: { path: 'floorplan.webp', width: 1400, height: 1000 } }));
+  assert.deepEqual(plain(valid.floorplan), { path: 'floorplan.webp', width: 1400, height: 1000 });
+
+  const REV = '0123456789abcdef';
+  const withRev = manifest({
+    scene: { ...manifest().scene, lod_meta: `r/${REV}/lod/lod-meta.json` },
+    poster: {
+      landscape: { path: `r/${REV}/poster.webp`, width: 1600, height: 900, fov_degrees: 70 },
+      portrait: { path: `r/${REV}/poster-portrait.webp`, width: 900, height: 1600, fov_degrees: 90 },
+      preview: { path: `r/${REV}/preview.webp`, width: 256, height: 144, fov_degrees: 70 },
+    },
+    floorplan: { path: `r/${REV}/floorplan.webp`, width: 1400, height: 900 },
+  });
+  assert.deepEqual(plain(player.validateManifest(withRev).floorplan), { path: `r/${REV}/floorplan.webp`, width: 1400, height: 900 });
+
+  const badFp = fp => {
+    assert.throws(() => player.validateManifest(manifest({ floorplan: fp })), /manifest-invalid:floorplan/);
+  };
+  badFp('floorplan.webp');
+  badFp(['floorplan.webp']);
+  badFp({ path: '../floorplan.webp', width: 1400, height: 1000 });
+  badFp({ path: '/floorplan.webp', width: 1400, height: 1000 });
+  badFp({ path: 'floorplan.png', width: 1400, height: 1000 });
+  badFp({ path: 'floorplan.svg', width: 1400, height: 1000 });
+  badFp({ path: `r/${REV}/floorplan.webp`, width: 1400, height: 1000 }); // rev without scene rev
+  badFp({ path: 'r/NOTHEX01/floorplan.webp', width: 1400, height: 1000 });
+  for (const [w, h] of [[255, 1000], [4097, 1000], [1400.5, 1000], [1400, 255], [1400, 4097], [1400, 999.2], ['1400', 1000]]) {
+    badFp({ path: 'floorplan.webp', width: w, height: h });
+  }
+  assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: 'r/fedcba9876543210/floorplan.webp', width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
+  assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: `r/${REV}/r/${REV}/floorplan.webp`, width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
+});
+
+test('stepLookInertia decays exponentially, is frame-rate independent, clamps pitch, stops cleanly below epsilon, and zeroes under reducedMotion', () => {
+  const { player } = load();
+  const s1 = player.stepLookInertia({ yaw: 10, pitch: 5, vyaw: 160, vpitch: -40 }, 0.016);
+  assert.equal(s1.active, true);
+  assert.ok(s1.yaw > 10 && s1.pitch < 5);
+  assert.ok(Math.abs(s1.vyaw) < 160 && Math.abs(s1.vpitch) < 40);
+
+  // Frame-rate independence: two 16 ms steps match one 32 ms step.
+  const s2 = player.stepLookInertia(s1, 0.016);
+  const direct = player.stepLookInertia({ yaw: 10, pitch: 5, vyaw: 160, vpitch: -40 }, 0.032);
+  assert.ok(Math.abs(s2.yaw - direct.yaw) < 1e-9);
+  assert.ok(Math.abs(s2.pitch - direct.pitch) < 1e-9);
+  assert.ok(Math.abs(s2.vyaw - direct.vyaw) < 1e-9);
+
+  // Pitch clamps safely at [-80, 80] and stops vertical velocity against the ceiling.
+  const clamped = player.stepLookInertia({ yaw: 0, pitch: 79, vyaw: 20, vpitch: 400 }, 0.05);
+  assert.equal(clamped.pitch, 80);
+  assert.equal(clamped.vpitch, 0);
+  assert.equal(clamped.active, true);
+
+  // Decays cleanly to rest below epsilon.
+  let cur = { yaw: 0, pitch: 0, vyaw: 120, vpitch: 30 };
+  let frames = 0;
+  while (cur.active !== false && frames < 120) {
+    cur = player.stepLookInertia(cur, 0.016);
+    frames++;
+  }
+  assert.equal(cur.active, false);
+  assert.equal(cur.vyaw, 0);
+  assert.equal(cur.vpitch, 0);
+  assert.ok(frames > 5 && frames < 80);
+
+  // Reduced motion produces zero motion and immediately deactivates.
+  const rm = player.stepLookInertia({ yaw: 42, pitch: -12, vyaw: 300, vpitch: 120 }, 0.016, { reducedMotion: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(rm)), { yaw: 42, pitch: -12, vyaw: 0, vpitch: 0, active: false });
+});
+
+test('look-drag velocity handoff runs via rAF only after a drag, cancels on every interrupt, stays off under reducedMotion, and leaves zero idle timers', async () => {
+  function rafHarness() {
+    let nextId = 1;
+    const queue = new Map();
+    const cancelled = [];
+    return {
+      requestAnimationFrame: fn => { const id = nextId++; queue.set(id, fn); return id; },
+      cancelAnimationFrame: id => { cancelled.push(id); queue.delete(id); },
+      pending: () => queue.size,
+      cancelled: () => cancelled.length,
+      stepAll: () => { const fns = [...queue.entries()]; queue.clear(); for (const [, fn] of fns) fn(); },
+    };
+  }
+
+  // 1. Live drag velocity handoff with reducedMotion=false, then clean decay to zero pending rAFs.
+  const time = clock();
+  const raf = rafHarness();
+  const x = await readyPlayer({
+    reduced: false,
+    context: { performance: time, requestAnimationFrame: raf.requestAnimationFrame, cancelAnimationFrame: raf.cancelAnimationFrame },
+  });
+  x.canvas.clientWidth = 400; x.canvas.clientHeight = 700;
+  assert.equal(raf.pending(), 0, 'zero rAFs while idle before any drag');
+
+  const flick = () => {
+    x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 200 });
+    time.t += 16;
+    x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 140, clientY: 200 });
+    time.t += 16;
+    x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 190, clientY: 200 });
+    time.t += 4;
+    x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 190, clientY: 200 });
+  };
+  flick();
+  assert.equal(raf.pending(), 1, 'rAF scheduled after drag release');
+  const yawAtRelease = x.window.VeyletPlayerV2.current.inspect().state.yaw;
+  time.t += 16;
+  raf.stepAll();
+  const yawAfterOneFrame = x.window.VeyletPlayerV2.current.inspect().state.yaw;
+  assert.ok(yawAfterOneFrame > yawAtRelease, 'momentum carries yaw forward in drag direction');
+
+  // Interruptible mid-flight: pointerdown grabs immediately.
+  x.canvas.dispatch('pointerdown', { pointerId: 2, clientX: 190, clientY: 200 });
+  assert.equal(raf.pending(), 0, 'pointerdown cancels in-flight inertia immediately');
+  x.canvas.dispatch('pointercancel', { pointerId: 2 });
+
+  // Interruptible mid-flight: wheel, keydown, goToStop, and auto-tour each cancel inertia immediately.
+  flick();
+  assert.equal(raf.pending(), 1);
+  x.canvas.dispatch('wheel', { ctrlKey: true, deltaY: -10 });
+  assert.equal(raf.pending(), 0, 'wheel cancels inertia');
+
+  flick();
+  assert.equal(raf.pending(), 1);
+  x.canvas.dispatch('keydown', { key: 'ArrowLeft' });
+  assert.equal(raf.pending(), 0, 'keyboard look cancels inertia');
+
+  flick();
+  assert.equal(raf.pending(), 1);
+  x.window.VeyletPlayerV2.current.goToStop(1);
+  assert.equal(raf.pending(), 0, 'goToStop cancels inertia');
+
+  flick();
+  assert.equal(raf.pending(), 1);
+  byClass(x.stage, 'v2-autotour').click();
+  assert.equal(raf.pending(), 0, 'auto-tour cancels inertia');
+  byClass(x.stage, 'v2-autotour').click(); // pause auto-tour cleanly
+
+  // Let a flick decay completely to rest -> zero pending rAFs.
+  flick();
+  for (let i = 0; i < 120 && raf.pending() > 0; i++) {
+    time.t += 16;
+    raf.stepAll();
+  }
+  assert.equal(raf.pending(), 0, 'inertia stops cleanly below epsilon with zero idle rAFs');
+
+  // 2. Reduced motion: identical flick schedules zero rAFs.
+  const rmTime = clock();
+  const rmRaf = rafHarness();
+  const rm = await readyPlayer({
+    reduced: true,
+    context: { performance: rmTime, requestAnimationFrame: rmRaf.requestAnimationFrame, cancelAnimationFrame: rmRaf.cancelAnimationFrame },
+  });
+  rm.canvas.clientWidth = 400; rm.canvas.clientHeight = 700;
+  rm.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 200 });
+  rmTime.t += 16;
+  rm.canvas.dispatch('pointermove', { pointerId: 1, clientX: 180, clientY: 200 });
+  rmTime.t += 4;
+  rm.canvas.dispatch('pointerup', { pointerId: 1, clientX: 180, clientY: 200 });
+  assert.equal(rmRaf.pending(), 0, 'reducedMotion triggers zero look inertia');
+});
+
+test('architectural map renders walkable wall outline, room labels, and optional floorplan.webp toggle + Emil CSS craft rules', async () => {
+  const fpManifest = manifest({
+    walkable: { path: 'walkable.json' },
+    floorplan: { path: 'floorplan.webp', width: 1400, height: 1000 },
+    rooms: [{ id: 'r1', name: 'Living area' }, { id: 'r2', name: 'Kitchen' }],
+    stops: [
+      { id: 's1', room: 'r1', position: [0.5, 0, 0.5], target: [0.5, -0.3, -1.5], floor: [0.5, -1.4, 0.5], floor_measured: true },
+      { id: 's2', room: 'r2', position: [3.2, 0, 2.2], target: [3.2, -0.3, 0.2], floor: [3.2, -1.4, 2.2], floor_measured: true },
+    ],
+  });
+  const x = await readyPlayer({ manifest: fpManifest, files: { 'walkable.json': room() }, size: [1000, 700] });
+  const map = byClass(x.stage, 'v2-map');
+  assert.equal(map.hidden, false);
+
+  // Architectural wall outline and room labels inside the SVG map.
+  const walls = map.querySelector('.v2-map-walls');
+  assert.ok(walls && walls.getAttribute('d').length > 20, 'crisp wall outline path generated around walkable cells');
+  const roomLabels = map.querySelectorAll('.v2-map-room-label').map(node => node.textContent);
+  assert.deepEqual(roomLabels, ['Living area', 'Kitchen']);
+
+  // Mode toggle starts on Stops; floorplan.webp is lazy-loaded only when toggled.
+  const stopsBtn = map.querySelector('[data-map-mode="stops"]');
+  const fpBtn = map.querySelector('[data-map-mode="floorplan"]');
+  const svg = map.querySelector('svg');
+  const fpImg = map.querySelector('.v2-map-floorplan');
+  assert.ok(stopsBtn && fpBtn && fpImg);
+  assert.equal(map.dataset.mapMode, 'stops');
+  assert.equal(stopsBtn.getAttribute('aria-pressed'), 'true');
+  assert.equal(fpBtn.getAttribute('aria-pressed'), 'false');
+  assert.equal(svg.hidden, false);
+  assert.equal(fpImg.hidden, true);
+  assert.equal(fpImg.src, '', 'floorplan image is not fetched until visitor switches to Floorplan view');
+
+  fpBtn.click();
+  assert.equal(map.dataset.mapMode, 'floorplan');
+  assert.equal(stopsBtn.getAttribute('aria-pressed'), 'false');
+  assert.equal(fpBtn.getAttribute('aria-pressed'), 'true');
+  assert.equal(svg.hidden, true);
+  assert.equal(fpImg.hidden, false);
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan.webp');
+  assert.equal(map.querySelector('figcaption').textContent, '2D floor plan · not to scale');
+
+  // Switching back restores the stop map.
+  stopsBtn.click();
+  assert.equal(map.dataset.mapMode, 'stops');
+  assert.equal(svg.hidden, false);
+  assert.equal(fpImg.hidden, true);
+  assert.equal(map.querySelector('figcaption').textContent, 'Map of stops · not to scale');
+
+  // Emil Kowalski & Apple CSS craft assertions on tour-player-v2.css.
+  const css = read('tour-player-v2.css');
+  assert.doesNotMatch(css, /transition\s*:[^;]*\ball\b/i, 'never use transition: all');
+  assert.doesNotMatch(css, /\bease-in\b/i, 'never use ease-in for UI animations');
+  assert.match(css, /cubic-bezier\(0\.23,\s*1,\s*0\.32,\s*1\)/, 'custom ease-out curve defined');
+  assert.match(css, /:active[^{]*\{[^}]*transform:\s*scale\(0\.97\)/, 'tactile :active scale(0.97) on player controls');
+  assert.match(css, /\.v2-map\s*\{[^}]*transform-origin:\s*top right/, 'origin-anchored map popover');
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, 'respects prefers-reduced-motion');
+  const durations = [...css.matchAll(/transition:[^;]*?(\d+(?:\.\d+)?)(m?s)/g)].map(([, n, unit]) => unit === 'ms' ? Number(n) : Number(n) * 1000);
+  assert.ok(durations.length > 0 && durations.every(ms => ms < 220), `all CSS transition durations stay under 220ms: ${durations.join(', ')}`);
+});
+

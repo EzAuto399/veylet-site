@@ -121,6 +121,18 @@
     });
     if (!Number.isInteger(json.start_stop) || json.start_stop < 0 || json.start_stop >= stops.length) bad('start_stop');
     if (typeof json.truth_label !== 'string' || !json.truth_label || json.truth_label.length > 400) bad('truth_label');
+    let floorplan = null;
+    if (json.floorplan !== undefined && json.floorplan !== null) {
+      if (typeof json.floorplan !== 'object' || Array.isArray(json.floorplan)) bad('floorplan');
+      const fpPath = json.floorplan.path;
+      if (typeof fpPath !== 'string') bad('floorplan');
+      const [fpRev, fpRel] = revisionOf(fpPath);
+      if (REVISION.test(fpRel) || /^r\//i.test(fpRel) || !safePath(fpRel) || !fpRel.endsWith('.webp')) bad('floorplan');
+      if (fpRev && (!safePath(fpPath) || fpRev !== sceneRevision)) bad('floorplan');
+      const { width, height } = json.floorplan;
+      if (!Number.isInteger(width) || width < 256 || width > 4096 || !Number.isInteger(height) || height < 256 || height > 4096) bad('floorplan');
+      floorplan = { path: fpPath, width, height };
+    }
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
     // Point to point (12 Nov 2026): a package's walked path (path) and floor_measured are older free-walk data. They
     // are not read, so a package that carries them opens exactly as one without; they never refuse a tour.
@@ -132,6 +144,7 @@
         ...(chunked ? { chunked } : {}) },
       posters,
       walkable: json.walkable ? json.walkable.path : null,
+      floorplan,
       rooms, stops, start: json.start_stop,
       // What the package lists, for sizes shown to the visitor and the first files to fetch. A list that is
       // missing or odd is no list; the scene's own loader still decides what loads.
@@ -507,6 +520,42 @@
     return [-Math.cos(p) * Math.sin(y), Math.sin(p), -Math.cos(p) * Math.cos(y)];
   }
 
+  const LOOK_INERTIA_DECAY = 8;
+  const LOOK_INERTIA_EPSILON = 0.8;
+  const LOOK_INERTIA_MAX_SPEED = 720;
+  const LOOK_VELOCITY_WINDOW_MS = 80;
+
+  /**
+   * One frame of exponential-decay look inertia (degrees and deg/s).
+   * Exact integral over dtSeconds keeps deceleration identical across 60/120 Hz displays,
+   * clamps pitch safely, stops cleanly below epsilon, and produces zero motion under reducedMotion.
+   */
+  function stepLookInertia(current, dtSeconds, options = {}) {
+    const yaw = Number.isFinite(current?.yaw) ? current.yaw : 0;
+    const minPitch = Number.isFinite(options.minPitch) ? options.minPitch : -80;
+    const maxPitch = Number.isFinite(options.maxPitch) ? options.maxPitch : 80;
+    const pitch = clamp(Number.isFinite(current?.pitch) ? current.pitch : 0, minPitch, maxPitch);
+    if (options.reducedMotion) return { yaw, pitch, vyaw: 0, vpitch: 0, active: false };
+    const vyaw = Number.isFinite(current?.vyaw) ? current.vyaw : 0;
+    const vpitch = Number.isFinite(current?.vpitch) ? current.vpitch : 0;
+    const epsilon = Number.isFinite(options.epsilon) && options.epsilon > 0 ? options.epsilon : LOOK_INERTIA_EPSILON;
+    if (Math.hypot(vyaw, vpitch) <= epsilon) return { yaw, pitch, vyaw: 0, vpitch: 0, active: false };
+    const dt = Number.isFinite(dtSeconds) ? clamp(dtSeconds, 0, 0.1) : 0;
+    if (dt === 0) return { yaw, pitch, vyaw, vpitch, active: true };
+    const decay = Number.isFinite(options.decayRate) && options.decayRate > 0 ? options.decayRate : LOOK_INERTIA_DECAY;
+    const factor = Math.exp(-decay * dt);
+    const integral = (1 - factor) / decay;
+    const nextYaw = yaw + vyaw * integral;
+    const rawPitch = pitch + vpitch * integral;
+    const nextPitch = clamp(rawPitch, minPitch, maxPitch);
+    const nextVyaw = vyaw * factor;
+    const nextVpitch = rawPitch !== nextPitch ? 0 : vpitch * factor;
+    if (Math.hypot(nextVyaw, nextVpitch) <= epsilon) {
+      return { yaw: nextYaw, pitch: nextPitch, vyaw: 0, vpitch: 0, active: false };
+    }
+    return { yaw: nextYaw, pitch: nextPitch, vyaw: nextVyaw, vpitch: nextVpitch, active: true };
+  }
+
   /** The camera field of view that shows exactly what the cover-fitted poster shows. */
   function fieldOfView(aspect, poster, zoom = 1) {
     const posterAspect = poster.width / poster.height;
@@ -572,7 +621,34 @@
         if (!lit && start >= 0) { runs.push([x0 + start * cell, z0 + r * cell, (c - start) * cell, cell]); start = -1; }
       }
     }
-    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, on, runs };
+    const wallSegs = [];
+    for (let r = 0; r < rows; r++) {
+      for (const [dr, zOff] of [[-1, 0], [1, cell]]) {
+        let start = -1;
+        for (let c = 0; c <= columns; c++) {
+          const edge = c < columns && on(c, r) && !on(c, r + dr);
+          if (edge && start < 0) start = c;
+          if (!edge && start >= 0) {
+            wallSegs.push(`M${(x0 + start * cell).toFixed(2)} ${(z0 + r * cell + zOff).toFixed(2)}h${((c - start) * cell).toFixed(2)}`);
+            start = -1;
+          }
+        }
+      }
+    }
+    for (let c = 0; c < columns; c++) {
+      for (const [dc, xOff] of [[-1, 0], [1, cell]]) {
+        let start = -1;
+        for (let r = 0; r <= rows; r++) {
+          const edge = r < rows && on(c, r) && !on(c + dc, r);
+          if (edge && start < 0) start = r;
+          if (!edge && start >= 0) {
+            wallSegs.push(`M${(x0 + c * cell + xOff).toFixed(2)} ${(z0 + start * cell).toFixed(2)}v${((r - start) * cell).toFixed(2)}`);
+            start = -1;
+          }
+        }
+      }
+    }
+    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, on, runs, walls: wallSegs.join('') };
   }
 
   /**
@@ -1204,9 +1280,11 @@
       ui.fallback.replaceChildren();
     }
     let autoTimer = null;
+    let cancelLookInertia = () => {};
     function teardown() {
       if (torndown) return;
       torndown = true;
+      cancelLookInertia();
       if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
       if (panoMoveTimer) { clearTimeout(panoMoveTimer); panoMoveTimer = null; }
       ui.pano.hidden = true;
@@ -1673,6 +1751,13 @@
         mapGroup.append(floor);
         // The walkable floor is carved for the opening stop's level only.
         if (storeys) mapParts.push([floor, levelOf[manifest.start]]);
+        if (walkable.walls) {
+          const walls = document.createElementNS(ns, 'path');
+          walls.setAttribute('class', 'v2-map-walls');
+          walls.setAttribute('d', walkable.walls);
+          mapGroup.append(walls);
+          if (storeys) mapParts.push([walls, levelOf[manifest.start]]);
+        }
       }
       manifest.stops.forEach((stop, index) => {
         const dot = document.createElementNS(ns, 'g');
@@ -1695,6 +1780,29 @@
         mapGroup.append(dot);
         if (storeys) mapParts.push([dot, levelOf[index]]);
       });
+      const roomCenters = new Map();
+      manifest.stops.forEach((stop, index) => {
+        const roomName = roomNameForStop(manifest, stop);
+        if (!roomName) return;
+        const level = storeys ? levelOf[index] : 0;
+        const key = `${level}:${stop.room}`;
+        let entry = roomCenters.get(key);
+        if (!entry) { entry = { name: roomName, level, xs: [], zs: [] }; roomCenters.set(key, entry); }
+        entry.xs.push(stop.floor[0]);
+        entry.zs.push(stop.floor[2]);
+      });
+      for (const entry of roomCenters.values()) {
+        const rx = entry.xs.reduce((a, b) => a + b, 0) / entry.xs.length;
+        const rz = entry.zs.reduce((a, b) => a + b, 0) / entry.zs.length;
+        const roomText = document.createElementNS(ns, 'text');
+        roomText.setAttribute('class', 'v2-map-room-label');
+        roomText.setAttribute('transform', `translate(${rx.toFixed(3)} ${rz.toFixed(3)}) rotate(${-mapTurn})`);
+        roomText.setAttribute('y', String((half * 0.21).toFixed(3)));
+        roomText.setAttribute('font-size', String((half * 0.095).toFixed(3)));
+        roomText.textContent = entry.name;
+        mapGroup.append(roomText);
+        if (storeys) mapParts.push([roomText, entry.level]);
+      }
       mapMarker = document.createElementNS(ns, 'g');
       mapMarker.setAttribute('class', 'v2-map-you');
       mapHeading = document.createElementNS(ns, 'path');
@@ -1706,9 +1814,55 @@
       mapGroup.append(mapMarker);
       svg.append(mapGroup);
       const caption = el('figcaption', {}, 'Map of stops · not to scale');
-      if (!storeys) { ui.map.replaceChildren(svg, caption); return; }
-      ui.map.replaceChildren(buildFloorButtons(), svg, caption);
-      showMapLevel(mapLevel);
+      if (!manifest.floorplan) {
+        if (!storeys) { ui.map.replaceChildren(svg, caption); return; }
+        ui.map.replaceChildren(buildFloorButtons(), svg, caption);
+        showMapLevel(mapLevel);
+        return;
+      }
+      const floorsGroup = storeys ? buildFloorButtons() : null;
+      const modes = el('div', { class: 'v2-map-modes', role: 'group', 'aria-label': 'Map view' });
+      const stopsBtn = el('button', { type: 'button', class: 'v2-map-mode', 'data-map-mode': 'stops', 'aria-pressed': 'true' }, 'Stops');
+      const floorplanBtn = el('button', { type: 'button', class: 'v2-map-mode', 'data-map-mode': 'floorplan', 'aria-pressed': 'false' }, 'Floorplan');
+      modes.append(stopsBtn, floorplanBtn);
+      const fpImg = el('img', {
+        class: 'v2-map-floorplan',
+        alt: '2D floor plan, not to scale',
+        width: String(manifest.floorplan.width),
+        height: String(manifest.floorplan.height),
+        decoding: 'async',
+        hidden: true,
+      });
+      const fpStatus = el('p', { class: 'v2-map-floorplan-error', hidden: true }, 'Floor plan couldn’t load.');
+      let fpLoaded = false;
+      fpImg.addEventListener('error', () => {
+        if (torndown) return;
+        fpImg.hidden = true;
+        if (ui.map.dataset.mapMode === 'floorplan') fpStatus.hidden = false;
+      });
+      const setMapMode = mode => {
+        const isFp = mode === 'floorplan';
+        ui.map.dataset.mapMode = isFp ? 'floorplan' : 'stops';
+        stopsBtn.setAttribute('aria-pressed', String(!isFp));
+        floorplanBtn.setAttribute('aria-pressed', String(isFp));
+        if (isFp) svg.setAttribute('hidden', ''); else svg.removeAttribute('hidden');
+        if (floorsGroup) floorsGroup.hidden = isFp;
+        fpStatus.hidden = true;
+        if (isFp) {
+          if (!fpLoaded) { fpLoaded = true; fpImg.src = base + manifest.floorplan.path; }
+          fpImg.hidden = false;
+          caption.textContent = '2D floor plan · not to scale';
+        } else {
+          fpImg.hidden = true;
+          caption.textContent = 'Map of stops · not to scale';
+        }
+      };
+      stopsBtn.addEventListener('click', () => setMapMode('stops'));
+      floorplanBtn.addEventListener('click', () => setMapMode('floorplan'));
+      ui.map.dataset.mapMode = 'stops';
+      const nodes = floorsGroup ? [floorsGroup, modes, svg, fpImg, fpStatus, caption] : [modes, svg, fpImg, fpStatus, caption];
+      ui.map.replaceChildren(...nodes);
+      if (storeys) showMapLevel(mapLevel);
     }
     function drawMapMarker() {
       if (!mapMarker) return;
@@ -1896,6 +2050,7 @@
     }
     function goToStop(index, byUser = true, orientation = null) {
       if (!ready) return;
+      if (typeof cancelLookInertia === 'function') cancelLookInertia();
       engagementStop(null);
       dismissHint(byUser);
       hideEnd();
@@ -1967,23 +2122,80 @@
     }
 
     // ----- input -----
+    // Interruptible drag-to-look inertia: driven via rAF ONLY while velocity > epsilon after a drag.
+    // Zero timers when idle; zero inertia under prefers-reduced-motion; instantly cancelled by any new input.
+    const lookInertia = { vyaw: 0, vpitch: 0, active: false, rafId: null, lastTime: 0 };
+    function stopLookInertia() {
+      if (lookInertia.rafId !== null) {
+        if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(lookInertia.rafId);
+        lookInertia.rafId = null;
+      }
+      if (lookInertia.active) {
+        lookInertia.active = false;
+        continuous = Math.max(0, continuous - 1);
+      }
+      lookInertia.vyaw = 0;
+      lookInertia.vpitch = 0;
+      lookInertia.lastTime = 0;
+    }
+    cancelLookInertia = stopLookInertia;
+    function tickLookInertia() {
+      lookInertia.rafId = null;
+      if (!lookInertia.active || torndown || !ready || reduced()) { stopLookInertia(); return; }
+      const now = performance.now();
+      const dt = Math.max(0, (now - lookInertia.lastTime) / 1000);
+      lookInertia.lastTime = now;
+      const next = stepLookInertia(
+        { yaw: state.yaw, pitch: state.pitch, vyaw: lookInertia.vyaw, vpitch: lookInertia.vpitch },
+        dt,
+        { reducedMotion: reduced() },
+      );
+      state.yaw = next.yaw;
+      state.pitch = next.pitch;
+      lookInertia.vyaw = next.vyaw;
+      lookInertia.vpitch = next.vpitch;
+      applyCamera();
+      if (!next.active) { stopLookInertia(); return; }
+      if (typeof requestAnimationFrame === 'function') lookInertia.rafId = requestAnimationFrame(tickLookInertia);
+      else stopLookInertia();
+    }
+    function startLookInertia(vyaw, vpitch) {
+      stopLookInertia();
+      if (reduced() || torndown || !ready || typeof requestAnimationFrame !== 'function') return;
+      const speed = Math.hypot(vyaw, vpitch);
+      if (!Number.isFinite(speed) || speed <= LOOK_INERTIA_EPSILON) return;
+      const scale = speed > LOOK_INERTIA_MAX_SPEED ? LOOK_INERTIA_MAX_SPEED / speed : 1;
+      lookInertia.vyaw = vyaw * scale;
+      lookInertia.vpitch = vpitch * scale;
+      lookInertia.active = true;
+      lookInertia.lastTime = performance.now();
+      if (continuous === 0 && !benchmark) lastRender = lookInertia.lastTime;
+      continuous++;
+      lookInertia.rafId = requestAnimationFrame(tickLookInertia);
+    }
     const pointers = new Map();
     let drag = null, pinch = null, engaged = false;
     ui.canvas.addEventListener('pointerdown', event => {
       if (!ready) return;
+      stopLookInertia();
       engaged = true;
       wheelHeld = true;
       dismissHint(true);
       hideEnd();
       ui.canvas.setPointerCapture?.(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (pointers.size === 1) drag = { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: performance.now(), moved: 0 };
-      else if (pointers.size === 2) {
+      const now = performance.now();
+      if (pointers.size === 1) {
+        drag = {
+          x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, time: now, moved: 0,
+          samples: [{ t: now, yaw: state.yaw, pitch: state.pitch }],
+        };
+      } else if (pointers.size === 2) {
         const [a, b] = [...pointers.values()];
         pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom: state.zoom };
         drag = null;
       }
-      if (continuous === 0 && !benchmark) lastRender = performance.now();
+      if (continuous === 0 && !benchmark) lastRender = now;
       continuous++;
     });
     ui.canvas.addEventListener('pointermove', event => {
@@ -2001,6 +2213,9 @@
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
+        const now = performance.now();
+        drag.samples.push({ t: now, yaw: state.yaw, pitch: state.pitch });
+        while (drag.samples.length > 2 && now - drag.samples[0].t > LOOK_VELOCITY_WINDOW_MS) drag.samples.shift();
         applyCamera();
       }
     });
@@ -2008,9 +2223,23 @@
       if (!pointers.has(event.pointerId)) return;
       pointers.delete(event.pointerId);
       continuous = Math.max(0, continuous - 1);
+      const now = performance.now();
       // A finger wobbles: a short press that moved a little is still a tap.
       const touch = event.pointerType === 'touch' || event.pointerType === 'pen';
-      if (drag && event.type === 'pointerup' && drag.moved < (touch ? 16 : 8) && performance.now() - drag.time < (touch ? 600 : 450)) tapAt(event.clientX, event.clientY);
+      const isTap = Boolean(drag && event.type === 'pointerup' && drag.moved < (touch ? 16 : 8) && now - drag.time < (touch ? 600 : 450));
+      if (isTap) tapAt(event.clientX, event.clientY);
+      else if (drag && event.type === 'pointerup' && !reduced() && drag.samples.length >= 2) {
+        while (drag.samples.length > 2 && now - drag.samples[0].t > LOOK_VELOCITY_WINDOW_MS) drag.samples.shift();
+        const first = drag.samples[0], last = drag.samples[drag.samples.length - 1];
+        const staleMs = now - last.t;
+        const spanMs = last.t - first.t;
+        if (staleMs <= 60 && spanMs >= 1) {
+          const dtSec = Math.max(0.012, spanMs / 1000);
+          startLookInertia((last.yaw - first.yaw) / dtSec, (last.pitch - first.pitch) / dtSec);
+        }
+      } else if (event.type === 'pointercancel') {
+        stopLookInertia();
+      }
       if (pointers.size < 2) pinch = null;
       drag = null;
     };
@@ -2031,6 +2260,7 @@
       if (!ready) return;
       if (framed ? (!event.ctrlKey || !engaged) : (!event.ctrlKey && !wheelHeld && !isFull() && pageScrolls())) return;
       event.preventDefault();
+      stopLookInertia();
       state.zoom = clamp(state.zoom * Math.exp(event.deltaY * 0.01), 0.55, 1.3);
       applyCamera();
     }, { passive: false });
@@ -2038,7 +2268,7 @@
       if (!ready || event.altKey || event.metaKey || event.ctrlKey) return;
       engaged = true;
       const key = event.key;
-      const handled = () => { event.preventDefault(); wheelHeld = true; dismissHint(true); };
+      const handled = () => { event.preventDefault(); stopLookInertia(); wheelHeld = true; dismissHint(true); };
       if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'a' || key === 'A' || key === 'd' || key === 'D') {
         handled();
         const left = key === 'ArrowLeft' || key === 'a' || key === 'A';
@@ -2081,6 +2311,7 @@
     function startAutoTour() {
       if (!ready || manifest.stops.length < 2) return;
       if (autoTimer) { stopAutoTour(true); return; }
+      stopLookInertia();
       dismissHint(true);
       hideEnd();
       ui.autoTour.replaceChildren(icon('pause'));
@@ -2101,10 +2332,10 @@
     ui.autoTour.hidden = manifest.stops.length < 2;
     ui.autoTour.addEventListener('click', () => startAutoTour());
     ui.viewToggle.addEventListener('click', () => toggleViewControls());
-    ui.lookLeft.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.yaw += 15; applyCamera(); });
-    ui.lookRight.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.yaw -= 15; applyCamera(); });
-    ui.zoomIn.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom * 0.88, 0.55, 1.3); applyCamera(); });
-    ui.zoomOut.addEventListener('click', () => { if (!ready) return; stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom / 0.88, 0.55, 1.3); applyCamera(); });
+    ui.lookLeft.addEventListener('click', () => { if (!ready) return; stopLookInertia(); stopAutoTour(false); engaged = true; dismissHint(true); state.yaw += 15; applyCamera(); });
+    ui.lookRight.addEventListener('click', () => { if (!ready) return; stopLookInertia(); stopAutoTour(false); engaged = true; dismissHint(true); state.yaw -= 15; applyCamera(); });
+    ui.zoomIn.addEventListener('click', () => { if (!ready) return; stopLookInertia(); stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom * 0.88, 0.55, 1.3); applyCamera(); });
+    ui.zoomOut.addEventListener('click', () => { if (!ready) return; stopLookInertia(); stopAutoTour(false); engaged = true; dismissHint(true); state.zoom = clamp(state.zoom / 0.88, 0.55, 1.3); applyCamera(); });
     ui.root.addEventListener('pointerdown', event => {
       dismissHint(true);
       if (autoTimer && !ui.autoTour.contains(event.target)) stopAutoTour(false);
@@ -2547,7 +2778,7 @@
     device.on?.('devicerestored', restored);
     ui.canvas.addEventListener('webglcontextlost', lost);
     ui.canvas.addEventListener('webglcontextrestored', restored);
-    const visibility = () => { if (!document.hidden) requestRender(); };
+    const visibility = () => { if (document.hidden) stopLookInertia(); else requestRender(); };
     document.addEventListener('visibilitychange', visibility);
 
     buildRoomPills();
@@ -2608,6 +2839,7 @@
         return { state: { ...state, position: [...state.position] }, discs, ready, move: lastMove && { ...lastMove, moving: false } };
       },
       benchmark(seconds = 5, degreesPerSecond = 30) {
+        stopLookInertia();
         if (hasPanos) setSplatPaused(false);
         stats.frames = [];
         return new Promise(resolve => {
@@ -2630,6 +2862,7 @@
   window.VeyletPlayerV2 = {
     FORMAT, PlayerError, PACKAGE_ORIGINS,
     resolveBase, validateManifest, deviceProfile, createGovernor, stopLabel, visitNumber, stopAtNumber, roomFootprint, stepStop, lookAngles, forwardOf,
+    stepLookInertia,
     fieldOfView, posterFor, decodeWalkable, corridorRoute, nearestStop, medianFps, detailLevel, storeysOf, levelAt,
     chunkHops, chunkPlan, chunkAt, finestChunkLevel,
     parseViewHash, roomsFromManifest, panoBlendState, PANO_FADE_MS,

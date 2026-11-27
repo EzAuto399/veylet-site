@@ -18,6 +18,7 @@
   --v2-radius: 12px;
   --v2-radius-card: 16px;
   --v2-muted: rgba(244, 241, 233, 0.78);
+  --v2-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   position: absolute;
   inset: 0;
   color: var(--v2-paper);
@@ -69,19 +70,19 @@
 }
 .v2-preview { filter: blur(10px); transform: scale(1.04); opacity: 0; }
 .v2[data-preview="shown"] .v2-preview { opacity: 1; }
-.v2-poster { opacity: 0; transition: opacity 0.2s ease-out; }
+.v2-poster { opacity: 0; transition: opacity 180ms var(--v2-ease-out); }
 .v2[data-poster="shown"] .v2-poster { opacity: 1; }
 .v2[data-state="ready"] .v2-preview,
 .v2[data-state="ready"] .v2-poster {
   opacity: 0;
-  transition: opacity 0.3s ease-out;
+  transition: opacity 200ms var(--v2-ease-out);
 }
 .v2-canvas {
   display: block;
   touch-action: none;
   outline: none;
   cursor: grab;
-  transition: opacity 0.2s ease-out;
+  transition: opacity 180ms var(--v2-ease-out);
 }
 /* Laid out from the start (the engine sizes itself to it) but unseen until the
    first level of detail has drawn: until then the poster is what shows. */
@@ -119,8 +120,10 @@
   font-weight: 500;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out), color 160ms var(--v2-ease-out);
 }
 .v2-hotspot:hover span { background: rgba(198, 220, 201, 0.55); color: var(--v2-ink); }
+.v2-hotspot:active span { transform: scale(0.95); }
 
 /* Where you are: always visible, with the short truth line. */
 .v2-top {
@@ -159,6 +162,7 @@
   border: 1px solid var(--v2-edge);
   border-radius: var(--v2-radius);
   background: var(--v2-panel);
+  transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out);
 }
 .v2-icon[aria-pressed="true"],
 .v2-icon[aria-expanded="true"],
@@ -178,11 +182,20 @@
   color: var(--v2-ink) !important;
   font-size: 14px;
   font-weight: 500;
+  transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out);
 }
 .v2-primary:hover { background: #d7e8da; }
 .v2-next { flex-direction: row-reverse; }
 .v2-icon:hover,
 .v2-stops-toggle:hover { background: rgba(16, 35, 29, 0.97); }
+.v2-icon:active,
+.v2-stops-toggle:active,
+.v2-primary:active,
+.v2-quiet:active,
+.v2-room-pill:active,
+.v2-map-mode:active {
+  transform: scale(0.97);
+}
 
 /* Controls sit at the bottom, where a thumb already is. */
 .v2-bar {
@@ -245,7 +258,7 @@
   height: 100%;
   background: var(--v2-sage);
   transform-origin: left center;
-  transition: transform 0.2s linear;
+  transition: transform 180ms linear;
 }
 /* With nothing to count, the bar creeps to its half over the usual wait, so it never sits still. */
 .v2-progress-wait span { animation: v2-wait 14s cubic-bezier(0.1, 0.6, 0.3, 1) forwards; }
@@ -286,17 +299,98 @@
   top: 68px;
   right: 12px;
   width: min(34%, 220px);
-  padding: 6px 6px 4px;
+  padding: 8px 8px 6px;
   border: 1px solid var(--v2-edge);
   border-radius: var(--v2-radius);
   background: var(--v2-panel);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.16);
+  transform-origin: top right;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 180ms var(--v2-ease-out), transform 180ms var(--v2-ease-out);
+}
+@starting-style {
+  .v2-map {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+.v2-map[data-map-mode="floorplan"] {
+  width: min(44%, 280px);
 }
 .v2[data-panel="open"] .v2-map,
 .v2[data-panel="open"] .v2-bar > .v2-status,
 .v2[data-panel="open"] .v2-hint { display: none; }
 .v2-map svg { display: block; width: 100%; height: auto; aspect-ratio: 1; stroke: none; }
-.v2-map figcaption { font-size: 11px; color: var(--v2-muted); text-align: center; padding-top: 2px; }
-.v2-map-floor { fill: rgba(244, 241, 233, 0.24); }
+.v2-map figcaption { font-size: 11px; color: var(--v2-muted); text-align: center; padding-top: 4px; letter-spacing: 0.01em; }
+.v2-map-floor { fill: rgba(244, 241, 233, 0.18); }
+.v2-map-walls {
+  fill: none;
+  stroke: rgba(244, 241, 233, 0.82);
+  stroke-width: 1.75px;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+}
+.v2-map-room-label {
+  fill: var(--v2-paper);
+  stroke: rgba(16, 35, 29, 0.92);
+  stroke-width: 3px;
+  paint-order: stroke;
+  vector-effect: non-scaling-stroke;
+  text-anchor: middle;
+  font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.v2-map-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgba(244, 241, 233, 0.08);
+}
+.v2-map-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out);
+}
+.v2-map-mode:hover { color: var(--v2-paper); }
+.v2-map-mode[aria-pressed="true"] {
+  background: var(--v2-sage);
+  border-color: var(--v2-sage);
+  color: var(--v2-ink);
+}
+.v2-map-floorplan {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--v2-paper);
+}
+.v2-map-floorplan-error {
+  padding: 16px 8px;
+  font-size: 12px;
+  color: var(--v2-muted);
+  text-align: center;
+}
 .v2-map-stop { cursor: pointer; }
 .v2-map-stop circle { fill: var(--v2-ink); stroke: var(--v2-paper); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 .v2-map-stop text { fill: var(--v2-paper); text-anchor: middle; font-family: Outfit, ui-sans-serif, system-ui, sans-serif; font-weight: 500; }
@@ -318,15 +412,26 @@
   border: 1px solid var(--v2-edge);
   border-radius: var(--v2-radius-card);
   background: #10231d;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+  transform-origin: bottom right;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 180ms var(--v2-ease-out), transform 180ms var(--v2-ease-out);
   user-select: text;
   -webkit-user-select: text;
+}
+@starting-style {
+  .v2-panel {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 @media (min-height: 360px) {
   .v2-panel {
     max-height: min(calc(100% - var(--v2-bar, 44px) - 88px), max(calc(100% - 136px), min(calc(100% - 80px), 220px)));
   }
 }
-.v2-about { top: 68px; bottom: auto; max-height: min(calc(100% - 148px), calc(100% - var(--v2-bar, 44px) - 88px)); }
+.v2-about { top: 68px; bottom: auto; transform-origin: top right; max-height: min(calc(100% - 148px), calc(100% - var(--v2-bar, 44px) - 88px)); }
 .v2-panel-head {
   position: sticky;
   top: -8px;
@@ -430,6 +535,7 @@
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
+  transition: transform 140ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out);
 }
 .v2-quiet:hover { border-color: var(--v2-sage); }
 .v2-quiet:focus-visible { outline: 3px solid var(--v2-sage); outline-offset: 2px; }
@@ -490,8 +596,15 @@
     width: auto;
     max-width: min(56%, 210px);
     max-height: calc(100% - var(--v2-bar, 44px) - 88px);
+    transform-origin: bottom right;
   }
+  .v2-map[data-map-mode="floorplan"] {
+    width: auto;
+    max-width: min(74%, 260px);
+  }
+  .v2-map-modes { width: 100%; }
   .v2-map svg { width: auto; height: auto; max-width: 100%; max-height: 100%; min-height: 0; flex: 1 1 auto; }
+  .v2-map-floorplan { max-height: 180px; }
   .v2-map figcaption { flex-shrink: 0; }
   .v2-panel { left: 12px; right: 12px; width: auto; }
   .v2:has(.v2-bar > .v2-status:not(:empty)) .v2-hint { display: none; }
@@ -552,9 +665,25 @@
 
 @media (prefers-reduced-motion: reduce) {
   .v2 *,
+  .v2-map,
+  .v2-panel,
   .v2-poster,
   .v2-preview,
-  .v2-progress span { transition: none !important; }
+  .v2-progress span {
+    transition: none !important;
+    animation: none !important;
+  }
+  .v2 button:active,
+  .v2-hotspot:active span {
+    transform: none !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .v2-map {
+    background: var(--v2-ink);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* The floor switcher (stops[].floor_id: Ground / Level 1 …); its buttons reuse .v2-icon and its pressed state. */
@@ -605,7 +734,7 @@
   line-height: 1.2;
   white-space: nowrap;
   flex: none;
-  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out), color 160ms var(--v2-ease-out);
 }
 .v2-view-bar {
   flex: 1 1 100%;
@@ -613,6 +742,16 @@
   justify-content: flex-end;
   gap: 6px;
   pointer-events: auto;
+  transform-origin: bottom right;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 160ms var(--v2-ease-out), transform 160ms var(--v2-ease-out);
+}
+@starting-style {
+  .v2-view-bar {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }
 .v2-view-bar[hidden] { display: none; }
 .v2-room-pill:hover {
