@@ -138,6 +138,7 @@
   min-height: 44px;
   padding: 4px 0;
   overflow-x: auto;
+  scroll-padding-inline: 12px;
   touch-action: pan-x;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -224,16 +225,16 @@
     flex: 0 1 auto;
     max-width: calc(100% - 440px);
     margin-inline: auto;
-    padding: 0;
+    padding: 3px 4px;
     gap: 1px;
-    border: 1px solid rgba(244, 241, 233, 0.24);
-    border-radius: 10px;
+    border: 1px solid rgba(244, 241, 233, 0.16);
+    border-radius: 8px;
     background: rgba(16, 35, 29, 0.78);
   }
   .v2-stage .v2-rooms .v2-room-pill {
     padding: 0 12px;
     border-color: transparent;
-    border-radius: 9px;
+    border-radius: 7px;
     background: transparent;
     font-size: 12.5px;
   }

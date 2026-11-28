@@ -363,3 +363,77 @@ test('deep link #stop=N&yaw=D&pitch=P and visit.startAt objects wire initial cam
   const chunkPills = chunked.stage.querySelectorAll('.v2-room-pill');
   assert.deepEqual(chunkPills.map(p => p.dataset.visited ?? null), [null, null, 'true']);
 });
+
+test('rightmost active room pill scrolls with 10px clearance after layout/resize via rAF and pillsMore uses > 6px threshold', async () => {
+  const rafQueue = [];
+  const resizeCallbacks = [];
+  const document = createDocument({
+    onImage: node => setImmediate(() => node.dispatch('load')),
+    onHeadAppend: node => { if (node.tagName === 'LINK') setImmediate(() => node.onload && node.onload()); },
+  });
+  document.documentElement = document.createElement('html');
+  const window = { matchMedia: () => ({ matches: true }), screen: { width: 1280, height: 800 }, devicePixelRatio: 2 };
+  const files = { 'manifest.json': multiRoomManifest() };
+  const context = {
+    window, document, performance, setTimeout, clearTimeout, setImmediate, URL, atob, AbortController, console,
+    requestAnimationFrame: fn => { rafQueue.push(fn); return rafQueue.length; },
+    cancelAnimationFrame: () => {},
+    location: { href: 'https://veylet.com/handoff#stop=5', origin: 'https://veylet.com', hash: '#stop=5', reload() {} },
+    navigator: {}, localStorage: { getItem: () => '1', setItem() {} },
+    ResizeObserver: class { constructor(cb) { resizeCallbacks.push(cb); } observe() {} disconnect() {} },
+    fetch: async url => {
+      const name = url.replace('https://veylet.com/pkg/', '');
+      if (!(name in files)) return { ok: false, status: 404, headers: { get: () => null }, text: async () => '' };
+      return { ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(files[name]) };
+    },
+  };
+  vm.runInNewContext(playerSource, context);
+  const stage = document.createElement('div');
+  stage.clientWidth = 900; stage.clientHeight = 640;
+  document.body.append(stage);
+  const engine = fakeEngine();
+  const pending = window.VeyletPlayerV2.start(stage, {
+    base: 'https://veylet.com/pkg/',
+    env: desktop,
+    framed: false,
+    page: { href: 'https://veylet.com/handoff#stop=5', origin: 'https://veylet.com', hash: '#stop=5' },
+    loadEngine: async () => engine,
+  });
+  for (let i = 0; i < 12; i++) await tick();
+  // Bar is still hidden before ready so clientWidth is 0 until layout settles.
+  const nav = stage.querySelector('.v2-rooms');
+  const pills = nav.querySelectorAll('.v2-room-pill');
+  nav.clientWidth = 0;
+  nav.scrollWidth = 360;
+  nav.scrollLeft = 0;
+  pills[0].offsetLeft = 4; pills[0].offsetWidth = 100;
+  pills[1].offsetLeft = 110; pills[1].offsetWidth = 100;
+  pills[2].offsetLeft = 220; pills[2].offsetWidth = 126;
+
+  engine.apps[0].systems.gsplat.fire('frame:ready', null, null, false, 1);
+  engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+
+  assert.ok(rafQueue.length >= 1, 'schedules post-ready rAF to settle active pill scroll');
+  // Simulate layout settling on the next animation frame: Kitchen (rightmost) scrolls with 10px clearance.
+  nav.clientWidth = 220;
+  while (rafQueue.length) rafQueue.shift()();
+  // r = 220 + 126 + 10 = 356; scrollLeft = 356 - 220 = 136; remaining = 360 - 220 - 136 = 4 <= 6 -> no right fade!
+  assert.equal(nav.scrollLeft, 136);
+  assert.equal(nav.dataset.more, undefined, '6px threshold avoids fading the rightmost active pill');
+  assert.equal(nav.dataset.moreLeft, 'true');
+
+  // ResizeObserver also schedules rAF re-centering when stage shrinks.
+  nav.clientWidth = 180;
+  resizeCallbacks[0]();
+  assert.ok(rafQueue.length >= 1, 'ResizeObserver queues rAF to keep active pill unclipped');
+  while (rafQueue.length) rafQueue.shift()();
+  assert.equal(nav.scrollLeft, 176);
+
+  // CSS rules enforce scroll-padding-inline and wide-dock padding in both stylesheets.
+  const playerCss = read('tour-player-v2.css');
+  assert.match(playerCss, /\.v2-rooms,\s*\n\.v2-room-pills\s*\{[^}]*scroll-padding-inline:\s*12px;/);
+  assert.match(playerCss, /@container\s*\(min-width:\s*760px\)[\s\S]*?\.v2-rooms,\s*\n\s*\.v2-room-pills\s*\{[^}]*padding:\s*3px 4px;/);
+  assert.match(stageCss, /\.v2-stage\s+\.v2-rooms\s*\{[^}]*scroll-padding-inline:\s*12px;/);
+  assert.match(stageCss, /@container\s*\(min-width:\s*760px\)[\s\S]*?\.v2-stage\s+\.v2-rooms\s*\{[^}]*padding:\s*3px 4px;/);
+});

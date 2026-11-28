@@ -307,19 +307,21 @@
     // Save-Data: the coarsest level only, and no automatic upgrade.
     const saveData = Boolean(env.saveData);
     const peakPixelRatio = saveData || modest ? maxPixelRatio : Math.min(dpr, 2);
-    return { kind, api, budget, maxBudget: budget, minBudget: 150_000, maxPixelRatio, peakPixelRatio, minPixelRatio: Math.min(1, dpr), saveData };
+    const peakBudget = kind === 'phone' && api === 'webgpu' && !saveData && !modest ? Math.max(budget, 750_000) : budget;
+    return { kind, api, budget, maxBudget: budget, peakBudget, minBudget: 150_000, maxPixelRatio, peakPixelRatio, minPixelRatio: Math.min(1, dpr), saveData };
   }
 
   /**
    * Keeps motion at 30 fps or better. Pixel ratio goes first (cheapest to give
    * back), then the splat budget. Budget returns first; pixels recover gradually
    * after five seconds of sustained headroom, up to the original device ceiling
-   * (and up to peakPixelRatio when sustained >55 fps headroom proves capacity).
+   * (and up to peakPixelRatio / peakBudget when sustained headroom proves capacity).
    */
   function createGovernor(profile) {
     let samples = [], elapsed = 0, headroomMs = 0, lastChange = -Infinity;
     const state = { budget: profile.budget, pixelRatio: profile.maxPixelRatio };
     const peakPixelRatio = profile.peakPixelRatio ?? profile.maxPixelRatio;
+    const peakBudget = profile.peakBudget ?? profile.maxBudget;
     return {
       state,
       // Decide on 45 frames or 1.5 s of frames, whichever comes first, so a
@@ -364,6 +366,12 @@
           headroomMs = 0;
           state.pixelRatio = Math.min(peakPixelRatio, Math.round(state.pixelRatio * 1.1 * 100) / 100);
           return { pixelRatio: state.pixelRatio, fps };
+        }
+        if (fps > 56 && state.pixelRatio >= peakPixelRatio && state.budget < peakBudget && headroomMs >= 5000 && now - lastChange >= 5000) {
+          lastChange = now;
+          headroomMs = 0;
+          state.budget = Math.min(peakBudget, Math.round(state.budget * 1.5));
+          return { budget: state.budget, fps };
         }
         return null;
       },
@@ -1467,7 +1475,7 @@
       const saved = JSON.parse(sessionStorage.getItem(RESUME_KEY) || 'null');
       if (saved && saved.base === base) { resume = saved; sessionStorage.removeItem(RESUME_KEY); }
     } catch { resume = null; }
-    if (resume) profile.budget = profile.maxBudget = Math.max(profile.minBudget, Math.round(profile.budget / 2));
+    if (resume) profile.budget = profile.maxBudget = profile.peakBudget = Math.max(profile.minBudget, Math.round(profile.budget / 2));
     const governor = createGovernor(profile);
     device.maxPixelRatio = governor.state.pixelRatio;
     let saveData = profile.saveData; // until the visitor asks for full detail
@@ -1640,9 +1648,9 @@
     // More room names than fit: fade scrolled edges subtly so pills never clip abruptly.
     function pillsMore() {
       const row = ui.roomsBar;
-      if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 4) row.dataset.more = 'true';
+      if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 6) row.dataset.more = 'true';
       else delete row.dataset.more;
-      if (!row.hidden && row.scrollLeft > 4) row.dataset.moreLeft = 'true';
+      if (!row.hidden && row.scrollLeft > 6) row.dataset.moreLeft = 'true';
       else delete row.dataset.moreLeft;
     }
 
@@ -1687,8 +1695,9 @@
           pill.setAttribute('aria-current', 'true');
           const cw = ui.roomsBar.clientWidth || 0;
           if (!ui.roomsBar.hidden && cw > 0 && pill.offsetWidth) {
-            const l = pill.offsetLeft;
-            const r = l + pill.offsetWidth;
+            const pad = 10;
+            const l = Math.max(0, pill.offsetLeft - pad);
+            const r = pill.offsetLeft + pill.offsetWidth + pad;
             if (l < ui.roomsBar.scrollLeft) ui.roomsBar.scrollLeft = l;
             else if (r > ui.roomsBar.scrollLeft + cw) ui.roomsBar.scrollLeft = r - cw;
           }
@@ -1900,7 +1909,7 @@
       // Framed on the stops, with the floor around them for context.
       const xs = manifest.stops.map(stop => stop.floor[0]), zs = manifest.stops.map(stop => stop.floor[2]);
       const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-      const half = Math.max(2, Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 1.2);
+      const half = Math.max(2, Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs)) / 2 + 1.4);
       const svg = document.createElementNS(ns, 'svg');
       svg.setAttribute('viewBox', `${-half} ${-half} ${half * 2} ${half * 2}`);
       svg.setAttribute('aria-hidden', 'true');
@@ -1957,18 +1966,40 @@
         const level = storeys ? levelOf[index] : 0;
         const key = `${level}:${stop.room}`;
         let entry = roomCenters.get(key);
-        if (!entry) { entry = { name: roomName, level, xs: [], zs: [] }; roomCenters.set(key, entry); }
+        if (!entry) { entry = { room: stop.room, name: roomName, level, xs: [], zs: [] }; roomCenters.set(key, entry); }
         entry.xs.push(stop.floor[0]);
         entry.zs.push(stop.floor[2]);
       });
+      const labelRad = (-mapTurn) * Math.PI / 180;
+      const labelCos = Math.cos(labelRad), labelSin = Math.sin(labelRad);
+      const placedLabels = [];
+      const labelOffsets = [[0, half * 0.22], [0, -half * 0.18], [half * 0.24, half * 0.04], [-half * 0.24, half * 0.04]];
       for (const entry of roomCenters.values()) {
         const rx = entry.xs.reduce((a, b) => a + b, 0) / entry.xs.length;
         const rz = entry.zs.reduce((a, b) => a + b, 0) / entry.zs.length;
+        let chosen = null;
+        for (const [ox, oy] of labelOffsets) {
+          const lx = rx + ox * labelCos - oy * labelSin;
+          const lz = rz + ox * labelSin + oy * labelCos;
+          const hitsStop = manifest.stops.some((stop, index) => {
+            if (stop.room === entry.room) return false;
+            if (storeys && levelOf[index] !== entry.level) return false;
+            return Math.hypot(lx - stop.floor[0], lz - stop.floor[2]) < half * 0.26;
+          });
+          if (hitsStop) continue;
+          const hitsLabel = placedLabels.some(prev => prev.level === entry.level && Math.hypot(lx - prev.x, lz - prev.z) < half * 0.34);
+          if (hitsLabel) continue;
+          chosen = { ox, oy, lx, lz };
+          break;
+        }
+        if (!chosen) continue;
+        placedLabels.push({ level: entry.level, x: chosen.lx, z: chosen.lz });
         const roomText = document.createElementNS(ns, 'text');
         roomText.setAttribute('class', 'v2-map-room-label');
         roomText.setAttribute('transform', `translate(${rx.toFixed(3)} ${rz.toFixed(3)}) rotate(${-mapTurn})`);
-        roomText.setAttribute('y', String((half * 0.21).toFixed(3)));
-        roomText.setAttribute('font-size', String((half * 0.095).toFixed(3)));
+        if (chosen.ox) roomText.setAttribute('x', chosen.ox.toFixed(3));
+        roomText.setAttribute('y', chosen.oy.toFixed(3));
+        roomText.setAttribute('font-size', String((half * 0.082).toFixed(3)));
         roomText.textContent = entry.name;
         mapGroup.append(roomText);
         if (storeys) mapParts.push([roomText, entry.level]);
@@ -2337,6 +2368,13 @@
       const yaw = orientation && orientation.yaw !== null && orientation.yaw !== undefined ? orientation.yaw : look.yaw;
       const pitch = orientation && orientation.pitch !== null && orientation.pitch !== undefined ? orientation.pitch : look.pitch;
       Object.assign(state, { position: [...stop.position], yaw, pitch });
+      if (storeys) {
+        const destLevel = levelOf[index];
+        const levelChanged = viewerLevel !== destLevel || mapShownFor !== destLevel;
+        viewerLevel = destLevel;
+        mapShownFor = destLevel;
+        if (mapLevel !== destLevel || levelChanged) showMapLevel(destLevel);
+      }
       if (typeof onStopTransition === 'function') onStopTransition(index, true);
       applyCamera();
       // The jump itself stays instant (the camera is already there); a moved-by-hand jump fades in from dark.
@@ -2423,7 +2461,7 @@
       const next = stepLookInertia(
         { yaw: state.yaw, pitch: state.pitch, vyaw: lookInertia.vyaw, vpitch: lookInertia.vpitch },
         dt,
-        { reducedMotion: reduced() },
+        { minPitch: -62, maxPitch: 62, reducedMotion: reduced() },
       );
       state.yaw = next.yaw;
       state.pitch = next.pitch;
@@ -2488,7 +2526,7 @@
         if (drag.moved > 6) ui.root.dataset.looking = 'true';
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
         state.yaw += dx * perPixel;
-        state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
+        state.pitch = clamp(state.pitch + dy * perPixel, -62, 62);
         const now = performance.now();
         drag.samples.push({ t: now, yaw: state.yaw, pitch: state.pitch });
         while (drag.samples.length > 2 && now - drag.samples[0].t > LOOK_VELOCITY_WINDOW_MS) drag.samples.shift();
@@ -2557,7 +2595,7 @@
         const forward = key === 'ArrowUp' || key === 'w' || key === 'W';
         stepForward(forward ? 1 : -1);
       }
-      else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -80, 80); applyCamera(); }
+      else if (key === 'PageUp' || key === 'PageDown') { handled(); state.pitch = clamp(state.pitch + (key === 'PageUp' ? 8 : -8), -62, 62); applyCamera(); }
       else if (key === 'n' || key === 'N' || key === ']') { handled(); goToStop(stepStop(hereStop(), 1, manifest.stops.length)); }
       else if (key === 'p' || key === 'P' || key === '[') { handled(); goToStop(stepStop(hereStop(), -1, manifest.stops.length)); }
       else if (/^[1-9]$/.test(key) && Number(key) <= manifest.stops.length) { handled(); goToStop(stopAtNumber(manifest, Number(key))); }
@@ -2947,6 +2985,7 @@
         ui.canvas.hidden = false;
         ui.bar.hidden = false;
         fitBar();
+        if (!ui.roomsBar.hidden && typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { if (!torndown) markCurrent(false); });
         // From here the status hangs from the top edge of the controls (tour-player-v2.css), so no row of room
         // names, wrapped or not, can cover it.
         ui.bar.append(ui.status);
@@ -3029,6 +3068,7 @@
       posterSpec = ready ? posterFor(manifest, aspect()) : posterSpec;
       app.updateCanvasSize();
       applyCamera();
+      if (ready && !ui.roomsBar.hidden && typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { if (!torndown) markCurrent(false); });
     });
     observer.observe(stage);
     // A lost graphics context (iOS reclaims it when another app opens) usually comes back: wait 5 s of visible

@@ -2309,5 +2309,80 @@ test('architectural map renders walkable wall outline, room labels, and optional
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/, 'respects prefers-reduced-motion');
   const durations = [...css.matchAll(/transition:[^;]*?(\d+(?:\.\d+)?)(m?s)/g)].map(([, n, unit]) => unit === 'ms' ? Number(n) : Number(n) * 1000);
   assert.ok(durations.length > 0 && durations.every(ms => ms < 220), `all CSS transition durations stay under 220ms: ${durations.join(', ')}`);
+  // /minimalist-ui crisp architectural tokens, flat matte map, muted floor switcher, and hairline map mode strip.
+  assert.match(css, /--v2-radius:\s*8px;/);
+  assert.match(css, /--v2-radius-card:\s*10px;/);
+  assert.match(css, /--v2-edge:\s*rgba\(244,\s*241,\s*233,\s*0\.16\);/);
+  assert.match(css, /\.v2-map\s*\{[^}]*background:\s*rgba\(14,\s*29,\s*24,\s*0\.92\);/);
+  assert.doesNotMatch(css, /box-shadow\s*:/, 'flat matte surfaces with zero drop shadows');
+  assert.match(css, /\.v2-floors\s+\.v2-floor\[aria-pressed="true"\][\s\S]*?background:\s*rgba\(198,\s*220,\s*201,\s*0\.18\);/);
+  assert.match(css, /\.v2-map-mode\[aria-pressed="true"\]\s*\{[^}]*border-bottom:\s*1\.5px solid var\(--v2-sage\);/);
+  assert.match(css, /\.v2-map-room-label\s*\{[^}]*stroke-width:\s*2\.5px;/);
+});
+
+test('Stops map prevents overlapping room labels, interactive pitch clamps to [-62, 62], and WebGPU phone governor steps up to peakBudget 750K', async () => {
+  // 1. Dense cluster of rooms: buildMap nudges or skips colliding room labels instead of overlapping circles or text.
+  const denseManifest = manifest({
+    rooms: [
+      { id: 'r1', name: 'Entry' },
+      { id: 'r2', name: 'Hall' },
+      { id: 'r3', name: 'Bath' },
+      { id: 'r4', name: 'Lounge' },
+    ],
+    stops: [
+      { id: 's1', room: 'r1', position: [0, 0, 0], target: [0, 0, -2], floor: [0, -1.4, 0], floor_measured: true },
+      { id: 's2', room: 'r2', position: [0.1, 0, 0.1], target: [0.1, 0, -2], floor: [0.1, -1.4, 0.1], floor_measured: true },
+      { id: 's3', room: 'r3', position: [0.2, 0, 0.2], target: [0.2, 0, -2], floor: [0.2, -1.4, 0.2], floor_measured: true },
+      { id: 's4', room: 'r4', position: [6, 0, 0], target: [6, 0, -2], floor: [6, -1.4, 0], floor_measured: true },
+    ],
+  });
+  const x = await readyPlayer({ manifest: denseManifest, size: [1000, 700] });
+  const map = byClass(x.stage, 'v2-map');
+  const roomLabels = map.querySelectorAll('.v2-map-room-label');
+  assert.ok(roomLabels.some(n => n.textContent === 'Lounge'), 'well-separated room keeps its label');
+  assert.ok(roomLabels.length < 4, 'overlapping labels in tight cluster are suppressed rather than stacked');
+  // Font size uses cleaner half * 0.082 scale and viewBox uses + 1.4 padding.
+  const vb = map.querySelector('svg').getAttribute('viewBox').split(' ').map(Number);
+  const half = vb[2] / 2;
+  assert.ok(Math.abs(half - (Math.hypot(6, 0.2) / 2 + 1.4)) < 1e-3, 'viewBox uses + 1.4 breathing padding');
+  assert.ok(Math.abs(Number(roomLabels[0].getAttribute('font-size')) - half * 0.082) < 1e-2, 'uses half * 0.082 typography');
+
+  // 2. Interactive pointer drag and PageUp/PageDown clamp pitch to [-62, 62] (preventing -80° grazing floor needles).
+  x.canvas.clientWidth = 1000;
+  x.canvas.clientHeight = 700;
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 500, clientY: 350 });
+  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 500, clientY: -2000 });
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 500, clientY: -2000 });
+  assert.equal(x.window.VeyletPlayerV2.current.view().pitch, -62, 'drag down clamps at -62°');
+  x.canvas.dispatch('pointerdown', { pointerId: 2, clientX: 500, clientY: 350 });
+  x.canvas.dispatch('pointermove', { pointerId: 2, clientX: 500, clientY: 3000 });
+  x.canvas.dispatch('pointerup', { pointerId: 2, clientX: 500, clientY: 3000 });
+  assert.equal(x.window.VeyletPlayerV2.current.view().pitch, 62, 'drag up clamps at +62°');
+  for (let i = 0; i < 20; i++) x.canvas.dispatch('keydown', { key: 'PageDown' });
+  assert.equal(x.window.VeyletPlayerV2.current.view().pitch, -62, 'PageDown clamps at -62°');
+  for (let i = 0; i < 25; i++) x.canvas.dispatch('keydown', { key: 'PageUp' });
+  assert.equal(x.window.VeyletPlayerV2.current.view().pitch, 62, 'PageUp clamps at +62°');
+
+  // 3. WebGPU phone profile exposes peakBudget 750K while keeping initial budget 500K; governor steps up after DPR 2.0.
+  const { player } = load();
+  const webgpuPhone = player.deviceProfile({ ...phoneWebgl2, webgpu: true });
+  assert.equal(webgpuPhone.budget, 500_000);
+  assert.equal(webgpuPhone.maxBudget, 500_000);
+  assert.equal(webgpuPhone.peakBudget, 750_000);
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true, saveData: true }).peakBudget, 500_000);
+  assert.equal(player.deviceProfile({ ...phoneWebgl2, webgpu: true, memory: 4 }).peakBudget, 350_000);
+  assert.equal(player.deviceProfile(phoneWebgl2).peakBudget, 500_000);
+
+  const gov = player.createGovernor(webgpuPhone);
+  let now = 1000;
+  let steppedBudget = false;
+  for (const end = now + 45_000; now < end;) {
+    now += 14; // ~71 fps (> 56 fps)
+    const change = gov.sample(14, now);
+    if (change?.budget) steppedBudget = true;
+  }
+  assert.equal(gov.state.pixelRatio, 2, 'reaches peakPixelRatio 2.0 first');
+  assert.equal(steppedBudget, true, 'governor emits budget upgrade after sustained >56 fps at peakPixelRatio');
+  assert.equal(gov.state.budget, 750_000, 'WebGPU phone steps up to 750K peakBudget for crisp LOD 0');
 });
 

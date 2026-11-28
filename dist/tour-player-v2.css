@@ -14,9 +14,9 @@
   --v2-paper: #f4f1e9;
   --v2-sage: #c6dcc9;
   --v2-panel: rgba(16, 35, 29, 0.8);
-  --v2-edge: rgba(244, 241, 233, 0.24);
-  --v2-radius: 10px;
-  --v2-radius-card: 12px;
+  --v2-edge: rgba(244, 241, 233, 0.16);
+  --v2-radius: 8px;
+  --v2-radius-card: 10px;
   --v2-muted: rgba(244, 241, 233, 0.78);
   --v2-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   position: absolute;
@@ -233,7 +233,7 @@
 }
 :is(.v2-moves, .v2-tools) :is(.v2-icon, .v2-stops-toggle) {
   border-color: transparent;
-  border-radius: 9px;
+  border-radius: 7px;
   background: transparent;
 }
 :is(.v2-moves, .v2-tools) :is(.v2-icon, .v2-stops-toggle):hover {
@@ -245,7 +245,7 @@
   color: var(--v2-sage);
 }
 .v2-moves .v2-primary {
-  border-radius: 9px;
+  border-radius: 7px;
 }
 /* Longer words (a translated page, larger text) shorten the stop count, never push the tools off the stage. */
 .v2-moves { min-width: 0; }
@@ -338,7 +338,7 @@
   padding: 5px;
   border: 1px solid var(--v2-edge);
   border-radius: var(--v2-radius);
-  background: rgba(16, 35, 29, 0.9);
+  background: rgba(14, 29, 24, 0.92);
   transform-origin: top right;
   opacity: 1;
   transform: scale(1);
@@ -369,8 +369,8 @@
 }
 .v2-map-room-label {
   fill: var(--v2-paper);
-  stroke: rgba(16, 35, 29, 0.92);
-  stroke-width: 3px;
+  stroke: rgba(14, 29, 24, 0.92);
+  stroke-width: 2.5px;
   paint-order: stroke;
   vector-effect: non-scaling-stroke;
   text-anchor: middle;
@@ -397,7 +397,7 @@
   margin-bottom: -1px;
   padding: 2px 6px 4px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1.5px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--v2-muted);
@@ -409,7 +409,7 @@
 .v2-map-mode:hover { color: var(--v2-paper); }
 .v2-map-mode[aria-pressed="true"] {
   background: transparent;
-  border-color: var(--v2-sage);
+  border-bottom: 1.5px solid var(--v2-sage);
   color: var(--v2-paper);
 }
 .v2-fp-wrap {
@@ -886,8 +886,8 @@
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border-radius: 8px;
-  background: rgba(244, 241, 233, 0.07);
+  border-radius: 6px;
+  background: rgba(244, 241, 233, 0.06);
   overflow-x: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -910,7 +910,7 @@
   min-height: 24px;
   padding: 1px 6px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   background: transparent;
   color: var(--v2-muted);
   font-size: 11px;
@@ -931,9 +931,9 @@
 }
 .v2-floors .v2-floor[aria-pressed="true"],
 .v2-fp-lightbox-floors .v2-floor[aria-pressed="true"] {
-  background: var(--v2-sage);
-  border-color: var(--v2-sage);
-  color: var(--v2-ink);
+  background: rgba(198, 220, 201, 0.18);
+  border-color: rgba(198, 220, 201, 0.48);
+  color: var(--v2-paper);
 }
 .v2-floors .v2-floor:active,
 .v2-fp-lightbox-floors .v2-floor:active {
@@ -955,6 +955,7 @@
   min-height: 44px;
   padding: 4px 0;
   overflow-x: auto;
+  scroll-padding-inline: 12px;
   touch-action: pan-x;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -990,12 +991,13 @@
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  border-radius: 5px;
+  border-radius: 4px;
   background: rgba(244, 241, 233, 0.14);
   color: var(--v2-muted);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1080,7 +1082,7 @@
     flex: 0 1 auto;
     max-width: calc(100% - 390px);
     margin-inline: auto;
-    padding: 2px;
+    padding: 3px 4px;
     gap: 1px;
     border: 1px solid var(--v2-edge);
     border-radius: var(--v2-radius);
@@ -1089,7 +1091,7 @@
   .v2-rooms .v2-room-pill {
     padding: 0 10px;
     border-color: transparent;
-    border-radius: 9px;
+    border-radius: 7px;
     background: transparent;
     font-size: 12.5px;
   }

@@ -486,3 +486,80 @@ test('stairs room pill uses connector tag, expand button sits inside fpWrap, and
   assert.equal(roomsBar.dataset.more, undefined);
   assert.equal(roomsBar.dataset.moreLeft, 'true');
 });
+
+test('jumping between two stops on Level 1 after manually inspecting Ground on the map syncs the map back to Level 1', async () => {
+  const rooms = [
+    { id: 'r1', name: 'Living room' },
+    { id: 'r2', name: 'Kitchen' },
+    { id: 'r3', name: 'Main bedroom' },
+    { id: 'r4', name: 'Study' },
+  ];
+  const stops = [
+    stopAt('s1', 'r1', 0, 0, -1.4, 'f1'),
+    stopAt('s2', 'r1', 0, -2, -1.4, 'f1'),
+    stopAt('s3', 'r2', 1, -3, -1.1, 'f2'),
+    stopAt('s4', 'r3', 0, -3, 1.4, 'f3'),
+    stopAt('s5', 'r4', 1.5, -5, 1.4, 'f3'),
+  ];
+  const multiFp = {
+    path: 'floorplan.webp',
+    width: 1400,
+    height: 1800,
+    levels: [
+      { name: 'Ground', path: 'floorplan-level-0.webp', width: 1400, height: 1000, bounds: [-2, -6, 4, 2] },
+      { name: 'Level 1', path: 'floorplan-level-1.webp', width: 1200, height: 900, bounds: [-2, -6, 4, 2] },
+    ],
+  };
+  const run = load();
+  const files = { 'manifest.json': manifest(stops, rooms, null, multiFp), 'walkable.json': null };
+  run.context.fetch = async url => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(files[url.replace('https://veylet.com/pkg/', '')]) });
+  const stage = run.document.createElement('div');
+  stage.clientWidth = 1000; stage.clientHeight = 640;
+  run.document.body.append(stage);
+  const engine = fakeEngine();
+  const pending = run.player.start(stage, { base: 'https://veylet.com/pkg/', env: desktop, framed: false,
+    page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+  for (let i = 0; i < 12; i++) await tick();
+  const canvas = stage.querySelector('.v2-canvas');
+  canvas.clientWidth = 1000; canvas.clientHeight = 640;
+  for (let i = 0; i < 31; i++) engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+
+  const map = stage.querySelector('.v2-map');
+  const shown = node => node.getAttribute('display') !== 'none';
+  const floors = () => map.querySelectorAll('.v2-floor').map(b => [b.textContent, b.getAttribute('aria-pressed')]);
+  const dots = () => map.querySelectorAll('.v2-map-stop').filter(shown).map(n => n.textContent);
+  const youShown = () => shown(map.querySelector('.v2-map-you'));
+
+  stage.querySelector('.v2-map-toggle').click();
+  // Move to Main bedroom (stop 4, Level 1).
+  const pills = stage.querySelectorAll('.v2-room-pill');
+  pills[2].click();
+  assert.equal(stage.querySelector('.v2-room').textContent, 'Main bedroom');
+  assert.deepEqual(floors(), [['Ground', 'false'], ['Level 1', 'true']]);
+  assert.equal(youShown(), true);
+
+  // Manually click Ground on the map while standing on Level 1.
+  map.querySelectorAll('.v2-floor')[0].click();
+  assert.deepEqual(floors(), [['Ground', 'true'], ['Level 1', 'false']]);
+  assert.deepEqual(dots(), ['1', '2', '3']);
+  assert.equal(youShown(), false);
+
+  // Jump from Main bedroom (L1) to Study (L1): map must immediately sync back to Level 1.
+  pills[3].click();
+  assert.equal(stage.querySelector('.v2-room').textContent, 'Study');
+  assert.deepEqual(floors(), [['Ground', 'false'], ['Level 1', 'true']]);
+  assert.deepEqual(dots(), ['4', '5']);
+  assert.equal(youShown(), true);
+
+  // Repeat in Floorplan mode: switch to Ground, jump back to Main bedroom (L1) -> image & switcher sync to Level 1.
+  map.querySelector('[data-map-mode="floorplan"]').click();
+  const fpImg = map.querySelector('.v2-map-floorplan');
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-1.webp');
+  map.querySelectorAll('.v2-floor')[0].click();
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  pills[2].click();
+  assert.equal(stage.querySelector('.v2-room').textContent, 'Main bedroom');
+  assert.deepEqual(floors(), [['Ground', 'false'], ['Level 1', 'true']]);
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-1.webp');
+});
