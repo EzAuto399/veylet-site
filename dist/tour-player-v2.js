@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=5489f74309d22322';
+  const STYLE_URL = '/tour-player-v2.css?v=c5de9642243d92c4';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -131,7 +131,13 @@
       if (fpRev && (!safePath(fpPath) || fpRev !== sceneRevision)) bad('floorplan');
       const { width, height } = json.floorplan;
       if (!Number.isInteger(width) || width < 256 || width > 4096 || !Number.isInteger(height) || height < 256 || height > 4096) bad('floorplan');
-      floorplan = { path: fpPath, width, height };
+      let fpBounds = null;
+      if (json.floorplan.bounds !== undefined && json.floorplan.bounds !== null) {
+        const b = json.floorplan.bounds;
+        if (!Array.isArray(b) || b.length !== 4 || !b.every(v => typeof v === 'number' && Number.isFinite(v)) || b[2] <= b[0] || b[3] <= b[1]) bad('floorplan');
+        fpBounds = [b[0], b[1], b[2], b[3]];
+      }
+      floorplan = { path: fpPath, width, height, ...(fpBounds ? { bounds: fpBounds } : {}) };
     }
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
     // Point to point (12 Nov 2026): a package's walked path (path) and floor_measured are older free-walk data. They
@@ -1711,6 +1717,75 @@
     // Map of stops: floor from the walkable mask, turned so the opening view points up.
     const mapTurn = lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target).yaw;
     let mapMarker = null, mapHeading = null, mapGroup = null;
+    const fpOverlays = [];
+    let fpLightbox = null, fpExpandBtn = null;
+    function fpProject(wx, wz) {
+      const fp = manifest.floorplan;
+      if (!fp?.bounds) return null;
+      const [bx0, bz0, bx1, bz1] = fp.bounds;
+      return [((wx - bx0) / (bx1 - bx0)) * fp.width, ((wz - bz0) / (bz1 - bz0)) * fp.height];
+    }
+    function buildFpOverlay(ns, fp, { interactive = true, onStopPicked = null } = {}) {
+      if (!fp.bounds) return null;
+      const overlay = document.createElementNS(ns, 'svg');
+      overlay.setAttribute('class', 'v2-fp-overlay');
+      overlay.setAttribute('viewBox', `0 0 ${fp.width} ${fp.height}`);
+      overlay.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+      const stopNodes = [];
+      const rScale = Math.max(1, fp.width / 1000);
+      manifest.stops.forEach((stop, index) => {
+        const pt = fpProject(stop.floor[0], stop.floor[2]);
+        if (!pt) return;
+        const g = document.createElementNS(ns, 'g');
+        g.setAttribute('class', 'v2-fp-stop');
+        g.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)})`);
+        if (interactive) {
+          g.setAttribute('role', 'button');
+          g.setAttribute('tabindex', '0');
+          g.setAttribute('data-fp-stop', String(index));
+          const lbl = stopLabel(manifest, index);
+          g.setAttribute('aria-label', 'Go to ' + (lbl.room ? `${lbl.room}, ${lbl.stop}` : lbl.stop));
+          const pick = event => {
+            event.stopPropagation();
+            goToStop(index);
+            onStopPicked?.(index);
+          };
+          g.addEventListener('click', pick);
+          g.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); pick(event); }
+          });
+        }
+        const hit = document.createElementNS(ns, 'circle');
+        hit.setAttribute('class', 'v2-fp-hit');
+        hit.setAttribute('r', String((34 * rScale).toFixed(1)));
+        const dot = document.createElementNS(ns, 'circle');
+        dot.setAttribute('class', 'v2-fp-dot');
+        dot.setAttribute('r', String((16 * rScale).toFixed(1)));
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('font-size', String((16 * rScale).toFixed(1)));
+        label.setAttribute('dy', String((5.5 * rScale).toFixed(1)));
+        label.textContent = String(visitNumber(manifest, index));
+        g.append(hit, dot, label);
+        overlay.append(g);
+        stopNodes.push([g, index]);
+      });
+      const marker = document.createElementNS(ns, 'g');
+      marker.setAttribute('class', 'v2-fp-you');
+      const cone = document.createElementNS(ns, 'path');
+      const cr = 54 * rScale;
+      cone.setAttribute('d', `M0 0L${(-cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}A${cr.toFixed(1)} ${cr.toFixed(1)} 0 0 1 ${(cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}Z`);
+      const you = document.createElementNS(ns, 'circle');
+      you.setAttribute('r', String((7 * rScale).toFixed(1)));
+      marker.append(cone, you);
+      overlay.append(marker);
+      fpOverlays.push({ overlay, marker, stopNodes });
+      return overlay;
+    }
+    function closeFpLightbox() {
+      if (!fpLightbox || fpLightbox.hidden) return;
+      fpLightbox.hidden = true;
+      if (usableFocus(fpExpandBtn)) fpExpandBtn.focus();
+    }
     // With storeys: the level the map shows (it follows the viewer; a floor button picks another), each
     // level's drawn parts, and the floor buttons.
     let mapLevel = viewerLevel, mapShownFor = viewerLevel;
@@ -1826,6 +1901,7 @@
       const stopsBtn = el('button', { type: 'button', class: 'v2-map-mode', 'data-map-mode': 'stops', 'aria-pressed': 'true' }, 'Stops');
       const floorplanBtn = el('button', { type: 'button', class: 'v2-map-mode', 'data-map-mode': 'floorplan', 'aria-pressed': 'false' }, 'Floorplan');
       modes.append(stopsBtn, floorplanBtn);
+      const fpWrap = el('div', { class: 'v2-fp-wrap', hidden: true });
       const fpImg = el('img', {
         class: 'v2-map-floorplan',
         alt: '2D floor plan, not to scale',
@@ -1834,11 +1910,50 @@
         decoding: 'async',
         hidden: true,
       });
+      fpWrap.append(fpImg);
+      const miniOverlay = buildFpOverlay(ns, manifest.floorplan, { interactive: true });
+      if (miniOverlay) fpWrap.append(miniOverlay);
       const fpStatus = el('p', { class: 'v2-map-floorplan-error', hidden: true }, 'Floor plan couldn’t load.');
+      fpExpandBtn = el('button', { type: 'button', class: 'v2-fp-expand', hidden: true, 'aria-label': 'Open larger floor plan' }, 'Larger floor plan');
       let fpLoaded = false;
+      let lbImg = null;
+      const openFpLightbox = () => {
+        if (!fpLoaded) { fpLoaded = true; fpImg.src = base + manifest.floorplan.path; }
+        if (!fpLightbox) {
+          fpLightbox = el('div', { class: 'v2-fp-lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': '2D floor plan', hidden: true });
+          const card = el('div', { class: 'v2-fp-lightbox-card' });
+          const head = el('div', { class: 'v2-fp-lightbox-head' });
+          const closeBtn = el('button', { type: 'button', class: 'v2-fp-close', 'aria-label': 'Close floor plan' }, 'Close');
+          closeBtn.addEventListener('click', closeFpLightbox);
+          head.append(el('span', { class: 'v2-fp-lightbox-title' }, '2D floor plan · not to scale'), closeBtn);
+          const canvasBox = el('div', { class: 'v2-fp-lightbox-canvas' });
+          lbImg = el('img', {
+            class: 'v2-fp-lightbox-img',
+            alt: 'Larger 2D floor plan, not to scale',
+            width: String(manifest.floorplan.width),
+            height: String(manifest.floorplan.height),
+            decoding: 'async',
+          });
+          canvasBox.append(lbImg);
+          const lbOverlay = buildFpOverlay(ns, manifest.floorplan, { interactive: true, onStopPicked: closeFpLightbox });
+          if (lbOverlay) canvasBox.append(lbOverlay);
+          card.append(head, canvasBox);
+          fpLightbox.append(card);
+          fpLightbox.addEventListener('click', event => { if (event.target === fpLightbox) closeFpLightbox(); });
+          ui.root.append(fpLightbox);
+        }
+        if (lbImg && fpImg.src) lbImg.src = fpImg.src;
+        fpLightbox.hidden = false;
+        drawMapMarker();
+        fpLightbox.querySelector('.v2-fp-close')?.focus?.();
+      };
+      fpExpandBtn.addEventListener('click', openFpLightbox);
+      fpImg.addEventListener('click', openFpLightbox);
       fpImg.addEventListener('error', () => {
         if (torndown) return;
         fpImg.hidden = true;
+        fpWrap.hidden = true;
+        fpExpandBtn.hidden = true;
         if (ui.map.dataset.mapMode === 'floorplan') fpStatus.hidden = false;
       });
       const setMapMode = mode => {
@@ -1851,26 +1966,43 @@
         fpStatus.hidden = true;
         if (isFp) {
           if (!fpLoaded) { fpLoaded = true; fpImg.src = base + manifest.floorplan.path; }
+          fpWrap.hidden = false;
           fpImg.hidden = false;
+          fpExpandBtn.hidden = false;
           caption.textContent = '2D floor plan · not to scale';
+          drawMapMarker();
         } else {
+          fpWrap.hidden = true;
           fpImg.hidden = true;
+          fpExpandBtn.hidden = true;
           caption.textContent = 'Map of stops · not to scale';
         }
       };
       stopsBtn.addEventListener('click', () => setMapMode('stops'));
       floorplanBtn.addEventListener('click', () => setMapMode('floorplan'));
       ui.map.dataset.mapMode = 'stops';
-      const nodes = floorsGroup ? [floorsGroup, modes, svg, fpImg, fpStatus, caption] : [modes, svg, fpImg, fpStatus, caption];
+      const nodes = floorsGroup ? [floorsGroup, modes, svg, fpWrap, fpStatus, fpExpandBtn, caption] : [modes, svg, fpWrap, fpStatus, fpExpandBtn, caption];
       ui.map.replaceChildren(...nodes);
       if (storeys) showMapLevel(mapLevel);
     }
     function drawMapMarker() {
-      if (!mapMarker) return;
-      // Reaching another level brings the map with you; a level picked by hand stays until then.
-      if (storeys && viewerLevel !== mapShownFor) { mapShownFor = viewerLevel; showMapLevel(viewerLevel); }
-      // Heading in map space: yaw 0 looks toward -z, which is map-up before the turn.
-      mapMarker.setAttribute('transform', `translate(${state.position[0].toFixed(3)} ${state.position[2].toFixed(3)}) rotate(${(-state.yaw).toFixed(1)})`);
+      if (mapMarker) {
+        // Reaching another level brings the map with you; a level picked by hand stays until then.
+        if (storeys && viewerLevel !== mapShownFor) { mapShownFor = viewerLevel; showMapLevel(viewerLevel); }
+        // Heading in map space: yaw 0 looks toward -z, which is map-up before the turn.
+        mapMarker.setAttribute('transform', `translate(${state.position[0].toFixed(3)} ${state.position[2].toFixed(3)}) rotate(${(-state.yaw).toFixed(1)})`);
+      }
+      if (fpOverlays.length) {
+        const pt = fpProject(state.position[0], state.position[2]);
+        const cur = hereStop();
+        for (const item of fpOverlays) {
+          if (pt) item.marker.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)}) rotate(${(-state.yaw).toFixed(1)})`);
+          for (const [node, idx] of item.stopNodes) {
+            if (idx === cur) node.setAttribute('data-current', 'true');
+            else delete node.dataset.current;
+          }
+        }
+      }
     }
 
     function togglePanel(panel, toggle, open) {
@@ -2345,7 +2477,8 @@
     }, true);
     ui.root.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
-      if (autoTimer) { event.preventDefault(); stopAutoTour(true); }
+      if (fpLightbox && !fpLightbox.hidden) { event.preventDefault(); closeFpLightbox(); }
+      else if (autoTimer) { event.preventDefault(); stopAutoTour(true); }
       else if (!ui.viewBar.hidden) { event.preventDefault(); toggleViewControls(false); ui.viewToggle.focus?.(); }
       else if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
       else if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }

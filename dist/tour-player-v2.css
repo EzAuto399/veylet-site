@@ -409,14 +409,144 @@
   border-color: var(--v2-sage);
   color: var(--v2-ink);
 }
+.v2-fp-wrap {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #edeae2;
+}
 .v2-map-floorplan {
   display: block;
-  width: 100%;
+  width: auto;
   height: auto;
-  max-height: 176px;
-  object-fit: contain;
+  max-width: 100%;
+  max-height: 184px;
   border-radius: 6px;
+  cursor: zoom-in;
+}
+.v2-map svg.v2-fp-overlay,
+.v2-fp-lightbox-canvas svg.v2-fp-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  pointer-events: auto;
+}
+.v2-fp-hit { fill: transparent; stroke: none; pointer-events: all; }
+.v2-fp-dot {
+  fill: var(--v2-ink);
+  stroke: var(--v2-paper);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.v2-fp-stop { cursor: pointer; }
+.v2-fp-stop[data-current="true"] .v2-fp-dot { fill: var(--v2-sage); stroke: var(--v2-ink); }
+.v2-fp-stop text {
+  fill: var(--v2-paper);
+  stroke: none;
+  text-anchor: middle;
+  font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  pointer-events: none;
+}
+.v2-fp-stop[data-current="true"] text { fill: var(--v2-ink); }
+.v2-fp-stop:focus-visible .v2-fp-dot { stroke: var(--v2-sage); stroke-width: 3px; }
+.v2-fp-you { pointer-events: none; }
+.v2-fp-you path { fill: rgba(43, 91, 78, 0.35); stroke: none; }
+.v2-fp-you circle { fill: #2b5b4e; stroke: #faf9f6; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.v2-fp-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid rgba(244, 241, 233, 0.24);
+  border-radius: 7px;
+  background: rgba(244, 241, 233, 0.08);
+  color: var(--v2-paper);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: transform 140ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out);
+}
+.v2-fp-expand:hover { border-color: var(--v2-sage); background: rgba(244, 241, 233, 0.14); }
+.v2-fp-expand:active,
+.v2-fp-close:active { transform: scale(0.97); }
+.v2-fp-lightbox {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(16, 35, 29, 0.86);
+  opacity: 1;
+  transition: opacity 180ms var(--v2-ease-out);
+}
+@starting-style {
+  .v2-fp-lightbox { opacity: 0; }
+}
+.v2-fp-lightbox-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(92vw, 960px);
+  max-height: calc(100% - 16px);
+  padding: 12px;
+  border: 1px solid var(--v2-edge);
+  border-radius: var(--v2-radius-card);
+  background: var(--v2-ink);
+  transform: scale(1);
+  transition: transform 180ms var(--v2-ease-out);
+}
+@starting-style {
+  .v2-fp-lightbox-card { transform: scale(0.96); }
+}
+.v2-fp-lightbox-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.v2-fp-lightbox-title { font-size: 13px; font-weight: 500; color: var(--v2-paper); }
+.v2-fp-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--v2-edge);
+  border-radius: var(--v2-radius);
+  background: rgba(244, 241, 233, 0.08);
+  color: var(--v2-paper);
+  font-size: 13px;
+  font-weight: 500;
+  transition: transform 140ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out);
+}
+.v2-fp-close:hover { border-color: var(--v2-sage); }
+.v2-fp-lightbox-canvas {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 0;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: 8px;
   background: #edeae2;
+}
+.v2-fp-lightbox-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100vh - 140px);
 }
 .v2-map-floorplan-error {
   padding: 16px 8px;
@@ -706,11 +836,15 @@
   .v2-panel,
   .v2-poster,
   .v2-preview,
+  .v2-fp-lightbox,
+  .v2-fp-lightbox-card,
   .v2-progress span {
     transition: none !important;
     animation: none !important;
   }
   .v2 button:active,
+  .v2-fp-expand:active,
+  .v2-fp-close:active,
   .v2-hotspot:active span {
     transform: none !important;
   }

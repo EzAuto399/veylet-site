@@ -2020,6 +2020,12 @@ test('validateManifest accepts optional manifest.floorplan, enforces safe .webp/
   for (const [w, h] of [[255, 1000], [4097, 1000], [1400.5, 1000], [1400, 255], [1400, 4097], [1400, 999.2], ['1400', 1000]]) {
     badFp({ path: 'floorplan.webp', width: w, height: h });
   }
+  const withBounds = player.validateManifest(manifest({
+    floorplan: { path: 'floorplan.webp', width: 1400, height: 1000, bounds: [-2, -3, 6, 5] },
+  }));
+  assert.deepEqual(plain(withBounds.floorplan), { path: 'floorplan.webp', width: 1400, height: 1000, bounds: [-2, -3, 6, 5] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, bounds: [2, 0, 2, 5] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, bounds: [0, 0, 5] });
   assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: 'r/fedcba9876543210/floorplan.webp', width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
   assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: `r/${REV}/r/${REV}/floorplan.webp`, width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
 });
@@ -2156,7 +2162,7 @@ test('look-drag velocity handoff runs via rAF only after a drag, cancels on ever
 test('architectural map renders walkable wall outline, room labels, and optional floorplan.webp toggle + Emil CSS craft rules', async () => {
   const fpManifest = manifest({
     walkable: { path: 'walkable.json' },
-    floorplan: { path: 'floorplan.webp', width: 1400, height: 1000 },
+    floorplan: { path: 'floorplan.webp', width: 1400, height: 1000, bounds: [-1, -2, 6, 5] },
     rooms: [{ id: 'r1', name: 'Living area' }, { id: 'r2', name: 'Kitchen' }],
     stops: [
       { id: 's1', room: 'r1', position: [0.5, 0, 0.5], target: [0.5, -0.3, -1.5], floor: [0.5, -1.4, 0.5], floor_measured: true },
@@ -2204,6 +2210,30 @@ test('architectural map renders walkable wall outline, room labels, and optional
   assert.equal(fpImg.hidden, false);
   assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan.webp');
   assert.equal(map.querySelector('figcaption').textContent, '2D floor plan · not to scale');
+
+  // Interactive floorplan overlay pins & heading cone + expandable Lightbox.
+  const fpPins = map.querySelectorAll('.v2-fp-stop');
+  assert.equal(fpPins.length, 2, 'clickable floorplan pins for every stop when bounds present');
+  assert.equal(fpPins[0].dataset.current, 'true');
+  fpPins[1].click();
+  assert.equal(x.stopLine(), 'Stop 2 of 2', 'clicking a floorplan stop pin moves to that stop');
+  assert.equal(fpPins[0].dataset.current, undefined);
+  assert.equal(fpPins[1].dataset.current, 'true');
+
+  const expandBtn = map.querySelector('.v2-fp-expand');
+  assert.ok(expandBtn && expandBtn.hidden === false);
+  expandBtn.click();
+  const lightbox = byClass(x.stage, 'v2-fp-lightbox');
+  assert.ok(lightbox && lightbox.hidden === false, 'Larger floor plan button opens lightbox');
+  assert.equal(lightbox.querySelectorAll('.v2-fp-stop').length, 2);
+  lightbox.querySelectorAll('.v2-fp-stop')[0].click();
+  assert.equal(x.stopLine(), 'Stop 1 of 2', 'clicking a pin inside lightbox teleports and closes');
+  assert.equal(lightbox.hidden, true);
+  expandBtn.click();
+  assert.equal(lightbox.hidden, false);
+  byClass(x.stage, 'v2').dispatch('keydown', { key: 'Escape' });
+  assert.equal(lightbox.hidden, true, 'Escape closes an open floorplan lightbox first');
+  assert.equal(map.hidden, false);
 
   // Switching back restores the stop map, and Escape dismisses it.
   stopsBtn.click();
