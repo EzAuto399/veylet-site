@@ -335,7 +335,7 @@
   top: 62px;
   right: 12px;
   width: min(26%, 176px);
-  padding: 6px;
+  padding: 5px;
   border: 1px solid var(--v2-edge);
   border-radius: var(--v2-radius);
   background: rgba(16, 35, 29, 0.9);
@@ -351,13 +351,13 @@
   }
 }
 .v2-map[data-map-mode="floorplan"] {
-  width: min(32%, 220px);
+  width: min(30%, 208px);
 }
 .v2[data-panel="open"] .v2-map,
 .v2[data-panel="open"] .v2-bar > .v2-status,
 .v2[data-panel="open"] .v2-hint { display: none; }
 .v2-map svg { display: block; width: 100%; height: auto; aspect-ratio: 1; stroke: none; }
-.v2-map figcaption { font-size: 10.5px; line-height: 1.25; color: var(--v2-muted); text-align: center; padding-top: 4px; letter-spacing: 0.01em; }
+.v2-map figcaption { font-size: 10px; line-height: 1.25; color: var(--v2-muted); opacity: 0.78; text-align: center; padding-top: 3px; letter-spacing: 0.01em; }
 .v2-map-floor { fill: rgba(244, 241, 233, 0.18); }
 .v2-map-walls {
   fill: none;
@@ -382,32 +382,35 @@
 .v2-map-modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2px;
-  margin: 0 0 5px;
-  padding: 2px;
-  border-radius: 8px;
-  background: rgba(244, 241, 233, 0.07);
+  gap: 0;
+  margin: 0 0 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid rgba(244, 241, 233, 0.14);
 }
 .v2-map-mode {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  padding: 2px 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  min-height: 24px;
+  margin-bottom: -1px;
+  padding: 2px 6px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: var(--v2-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
   transition: transform 140ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out), color 160ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out);
 }
 .v2-map-mode:hover { color: var(--v2-paper); }
 .v2-map-mode[aria-pressed="true"] {
-  background: var(--v2-sage);
+  background: transparent;
   border-color: var(--v2-sage);
-  color: var(--v2-ink);
+  color: var(--v2-paper);
 }
 .v2-fp-wrap {
   position: relative;
@@ -440,7 +443,7 @@
 .v2-fp-dot {
   fill: var(--v2-ink);
   stroke: var(--v2-paper);
-  stroke-width: 1.5px;
+  stroke-width: 1.25px;
   vector-effect: non-scaling-stroke;
 }
 .v2-fp-stop { cursor: pointer; }
@@ -459,22 +462,31 @@
 .v2-fp-you path { fill: rgba(43, 91, 78, 0.35); stroke: none; }
 .v2-fp-you circle { fill: #2b5b4e; stroke: #faf9f6; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 .v2-fp-expand {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 36px;
-  margin-top: 4px;
-  padding: 4px 8px;
-  border: 1px solid rgba(244, 241, 233, 0.24);
-  border-radius: 7px;
-  background: rgba(244, 241, 233, 0.08);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(244, 241, 233, 0.28);
+  border-radius: 6px;
+  background: rgba(16, 35, 29, 0.82);
   color: var(--v2-paper);
-  font-size: 11.5px;
-  font-weight: 500;
   transition: transform 140ms var(--v2-ease-out), border-color 160ms var(--v2-ease-out), background-color 160ms var(--v2-ease-out);
 }
-.v2-fp-expand:hover { border-color: var(--v2-sage); background: rgba(244, 241, 233, 0.14); }
+.v2-fp-expand svg {
+  width: 14px;
+  height: 14px;
+  aspect-ratio: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.v2-fp-expand:hover { border-color: var(--v2-sage); background: rgba(16, 35, 29, 0.94); }
 .v2-fp-expand:active,
 .v2-fp-close:active { transform: scale(0.97); }
 .v2-fp-lightbox {
@@ -643,8 +655,16 @@
 /* Keys are for a keyboard: a touch screen does not list them. */
 @media (pointer: coarse) { .v2-keys { display: none; } }
 .v2-room-pills[data-more] {
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.v2-room-pills[data-more-left] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 28px);
+  mask-image: linear-gradient(to right, transparent, #000 28px);
+}
+.v2-room-pills[data-more][data-more-left] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
 }
 .v2-credits a { color: var(--v2-paper); text-decoration: underline; text-underline-offset: 3px; }
 
@@ -768,11 +788,11 @@
   }
   .v2-map[data-map-mode="floorplan"] {
     width: auto;
-    max-width: min(68%, 228px);
+    max-width: min(64%, 212px);
   }
   .v2-map-modes { width: 100%; }
   .v2-map svg { width: auto; height: auto; max-width: 100%; max-height: 100%; min-height: 0; flex: 1 1 auto; }
-  .v2-map-floorplan { max-height: 168px; }
+  .v2-map-floorplan { max-height: 152px; }
   .v2-map figcaption { flex-shrink: 0; }
   .v2-panel { left: 12px; right: 12px; width: auto; }
   .v2:has(.v2-bar > .v2-status:not(:empty)) .v2-hint { display: none; }
@@ -877,7 +897,8 @@
 .v2-floors {
   width: 100%;
   box-sizing: border-box;
-  margin: 0 0 5px;
+  margin: 0 0 3px;
+  padding: 2px;
 }
 .v2-floors .v2-floor,
 .v2-fp-lightbox-floors .v2-floor {
@@ -886,13 +907,13 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 28px;
-  padding: 2px 8px;
+  min-height: 24px;
+  padding: 1px 6px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--v2-muted);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
@@ -1057,16 +1078,16 @@
   .v2-room-pills {
     order: 2;
     flex: 0 1 auto;
-    max-width: calc(100% - 440px);
+    max-width: calc(100% - 390px);
     margin-inline: auto;
-    padding: 0;
+    padding: 2px;
     gap: 1px;
     border: 1px solid var(--v2-edge);
     border-radius: var(--v2-radius);
     background: rgba(16, 35, 29, 0.78);
   }
   .v2-rooms .v2-room-pill {
-    padding: 0 12px;
+    padding: 0 10px;
     border-color: transparent;
     border-radius: 9px;
     background: transparent;

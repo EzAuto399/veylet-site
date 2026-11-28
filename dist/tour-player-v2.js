@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=0cf79ff07c662ea1';
+  const STYLE_URL = '/tour-player-v2.css?v=ef9c97f6a02eeafb';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -742,6 +742,8 @@
 
   // Floors more than this apart are different storeys, as package_tour_v2.mjs decides (STOREY_METRES).
   const STOREY_METRES = 1.5;
+  const STAIRS_WORDS = new Set(['stairs', 'stair', 'staircase', 'stairway', 'stairwell']);
+  const isStairsRoom = name => typeof name === 'string' && name.toLowerCase().split(/[^a-z]+/).some(word => STAIRS_WORDS.has(word));
   const median = values => { const sorted = [...values].sort((a, b) => a - b); return sorted[Math.floor((sorted.length - 1) / 2)]; };
 
   /**
@@ -881,6 +883,7 @@
     view: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z M12 9v6 M9 12h6',
     zoomIn: 'M12 6v12 M6 12h12',
     zoomOut: 'M6 12h12',
+    expand: 'M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7',
   };
   function icon(name) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1612,14 +1615,21 @@
       for (const entry of roomEntries) {
         const footprint = roomFootprint(manifest, entry.id);
         const pill = el('button', { type: 'button', class: 'v2-room-pill', 'data-room': entry.id }, entry.name);
+        const titleParts = [entry.name];
         if (storeys) {
-          const lvl = levelOf[entry.firstStop];
-          pill.dataset.levelTag = lvl === 0 ? 'G' : 'L' + lvl;
+          if (isStairsRoom(entry.name)) {
+            pill.dataset.levelTag = '↕';
+            titleParts.push('Connects levels');
+          } else {
+            const lvl = levelOf[entry.firstStop];
+            pill.dataset.levelTag = lvl === 0 ? 'G' : 'L' + lvl;
+          }
         }
         if (footprint) {
           pill.dataset.dimensions = footprint.label;
-          pill.title = [entry.name, footprint.label].filter(Boolean).join(' · ');
+          titleParts.push(footprint.label);
         }
+        if (titleParts.length > 1) pill.title = titleParts.join(' · ');
         pill.addEventListener('click', () => goToStop(entry.firstStop));
         roomPills.push({ pill, id: entry.id, key: entry.name.toLowerCase() });
         ui.roomsBar.append(pill);
@@ -1627,11 +1637,13 @@
       ui.roomsBar.hidden = roomPills.length < 2;
       ui.roomsBar.addEventListener('scroll', pillsMore, { passive: true });
     }
-    // More room names than fit: the row fades at its right edge until it is scrolled to the end.
+    // More room names than fit: fade scrolled edges subtly so pills never clip abruptly.
     function pillsMore() {
       const row = ui.roomsBar;
       if (!row.hidden && row.scrollWidth - row.clientWidth - row.scrollLeft > 4) row.dataset.more = 'true';
       else delete row.dataset.more;
+      if (!row.hidden && row.scrollLeft > 4) row.dataset.moreLeft = 'true';
+      else delete row.dataset.moreLeft;
     }
 
     function buildStopsPanel() {
@@ -1794,9 +1806,9 @@
           if (pt) g.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)})`);
         }
         hit.setAttribute('r', String((34 * rScale).toFixed(1)));
-        dot.setAttribute('r', String((16 * rScale).toFixed(1)));
-        label.setAttribute('font-size', String((16 * rScale).toFixed(1)));
-        label.setAttribute('dy', String((5.5 * rScale).toFixed(1)));
+        dot.setAttribute('r', String((13 * rScale).toFixed(1)));
+        label.setAttribute('font-size', String((13.5 * rScale).toFixed(1)));
+        label.setAttribute('dy', String((4.7 * rScale).toFixed(1)));
         if (index === cur) g.setAttribute('data-current', 'true');
         else delete g.dataset.current;
       }
@@ -1997,7 +2009,9 @@
       const miniOverlay = buildFpOverlay(ns, initFp, { interactive: true });
       if (miniOverlay) fpWrap.append(miniOverlay);
       const fpStatus = el('p', { class: 'v2-map-floorplan-error', hidden: true }, 'Floor plan couldn’t load.');
-      fpExpandBtn = el('button', { type: 'button', class: 'v2-fp-expand', hidden: true, 'aria-label': 'Open larger floor plan' }, 'Larger floor plan');
+      fpExpandBtn = el('button', { type: 'button', class: 'v2-fp-expand', hidden: true, 'aria-label': 'Open larger floor plan', title: 'Larger floor plan' });
+      fpExpandBtn.append(icon('expand'));
+      fpWrap.append(fpExpandBtn);
       let fpLoaded = false;
       let lbImg = null;
       syncFloorplanUI = () => {
@@ -2076,7 +2090,7 @@
         drawMapMarker();
         fpLightbox.querySelector('.v2-fp-close')?.focus?.();
       };
-      fpExpandBtn.addEventListener('click', openFpLightbox);
+      fpExpandBtn.addEventListener('click', event => { event.stopPropagation(); openFpLightbox(); });
       fpImg.addEventListener('click', openFpLightbox);
       fpImg.addEventListener('error', () => {
         if (torndown) return;
@@ -2117,7 +2131,7 @@
       stopsBtn.addEventListener('click', () => setMapMode('stops'));
       floorplanBtn.addEventListener('click', () => setMapMode('floorplan'));
       ui.map.dataset.mapMode = 'stops';
-      const nodes = floorsGroup ? [floorsGroup, modes, svg, fpWrap, fpStatus, fpExpandBtn, caption] : [modes, svg, fpWrap, fpStatus, fpExpandBtn, caption];
+      const nodes = floorsGroup ? [floorsGroup, modes, svg, fpWrap, fpStatus, caption] : [modes, svg, fpWrap, fpStatus, caption];
       ui.map.replaceChildren(...nodes);
       if (storeys) showMapLevel(mapLevel);
     }

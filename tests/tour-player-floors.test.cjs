@@ -405,8 +405,84 @@ test('two-storey home with single-image floorplan (no levels) hides floorsGroup 
   const one = await ready(ONE_FLOOR);
   assert.ok(one.stage.querySelectorAll('.v2-room-pill').every(p => p.dataset.levelTag === undefined));
 
-  // CSS carries minimalist segmented floor switcher and pure-CSS room level tag rules.
+  // CSS carries minimalist segmented floor switcher, floating corner expand button, bidirectional pill fade, and pure-CSS room level tag rules.
   const css = fs.readFileSync(path.join(__dirname, '../dist/tour-player-v2.css'), 'utf8');
   assert.match(css, /\.v2-floors,\s*\n\.v2-fp-lightbox-floors\s*\{/);
   assert.match(css, /\.v2-room-pill\[data-level-tag\]::before\s*\{[^}]*content:\s*attr\(data-level-tag\)/);
+  assert.match(css, /\.v2-room-pills\[data-more\]\[data-more-left\]/);
+  assert.match(css, /\.v2-fp-expand\s*\{[^}]*position:\s*absolute;/);
+});
+
+test('stairs room pill uses connector tag, expand button sits inside fpWrap, and pillsMore sets bidirectional edge fades', async () => {
+  const multiFp = {
+    path: 'floorplan.webp',
+    width: 1400,
+    height: 1000,
+    levels: [
+      { name: 'Ground', path: 'floorplan-level-0.webp', width: 1400, height: 1000, bounds: [-2, -5, 4, 2] },
+      { name: 'Level 1', path: 'floorplan-level-1.webp', width: 1400, height: 1000, bounds: [-2, -5, 4, 2] },
+    ],
+  };
+  const stops = [
+    stopAt('s1', 'r1', 0, 0, -1.4, 'f1'),
+    stopAt('s2', 'r2', 1, -2, 0.0, undefined),
+    stopAt('s3', 'r3', 0.5, -4, 1.4, 'f2'),
+  ];
+  const rooms = [
+    { id: 'r1', name: 'Living room' },
+    { id: 'r2', name: 'Stairs' },
+    { id: 'r3', name: 'Main bedroom' },
+  ];
+  const run = load();
+  const files = { 'manifest.json': manifest(stops, rooms, null, multiFp), 'walkable.json': null };
+  run.context.fetch = async url => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(files[url.replace('https://veylet.com/pkg/', '')]) });
+  const stage = run.document.createElement('div');
+  stage.clientWidth = 1000; stage.clientHeight = 640;
+  run.document.body.append(stage);
+  const engine = fakeEngine();
+  const pending = run.player.start(stage, { base: 'https://veylet.com/pkg/', env: desktop, framed: false,
+    page: { href: 'https://veylet.com/handoff', origin: 'https://veylet.com' }, loadEngine: async () => engine });
+  for (let i = 0; i < 12; i++) await tick();
+  const canvas = stage.querySelector('.v2-canvas');
+  canvas.clientWidth = 1000; canvas.clientHeight = 640;
+  for (let i = 0; i < 31; i++) engine.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
+  await pending;
+
+  const pills = stage.querySelectorAll('.v2-room-pill');
+  assert.deepEqual(pills.map(p => [p.textContent, p.dataset.levelTag]), [
+    ['Living room', 'G'],
+    ['Stairs', '↕'],
+    ['Main bedroom', 'L1'],
+  ]);
+  assert.ok(pills[1].title.includes('Connects levels'));
+
+  // Floating corner expand button sits inside .v2-fp-wrap, hidden until Floorplan mode, and opens lightbox.
+  const map = stage.querySelector('.v2-map');
+  const fpWrap = map.querySelector('.v2-fp-wrap');
+  const expandBtn = fpWrap.querySelector('.v2-fp-expand');
+  assert.ok(expandBtn, 'expand icon button lives inside .v2-fp-wrap');
+  assert.equal(expandBtn.hidden, true);
+  stage.querySelector('.v2-map-toggle').click();
+  assert.equal(expandBtn.hidden, true, 'expand stays hidden in Stops mode');
+  map.querySelector('[data-map-mode="floorplan"]').click();
+  assert.equal(expandBtn.hidden, false);
+  expandBtn.click();
+  assert.equal(stage.querySelector('.v2-fp-lightbox').hidden, false);
+
+  // Bidirectional overflow fade on horizontal scroll of .v2-room-pills.
+  const roomsBar = stage.querySelector('.v2-room-pills');
+  roomsBar.scrollWidth = 500;
+  roomsBar.clientWidth = 260;
+  roomsBar.scrollLeft = 0;
+  roomsBar.dispatch('scroll');
+  assert.equal(roomsBar.dataset.more, 'true');
+  assert.equal(roomsBar.dataset.moreLeft, undefined);
+  roomsBar.scrollLeft = 40;
+  roomsBar.dispatch('scroll');
+  assert.equal(roomsBar.dataset.more, 'true');
+  assert.equal(roomsBar.dataset.moreLeft, 'true');
+  roomsBar.scrollLeft = 240;
+  roomsBar.dispatch('scroll');
+  assert.equal(roomsBar.dataset.more, undefined);
+  assert.equal(roomsBar.dataset.moreLeft, 'true');
 });

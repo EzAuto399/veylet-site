@@ -4,7 +4,7 @@
 // shows intent: hover or keyboard focus on Explore preloads the player and engine, a press starts them.
 // The sample itself (package, posters, video, size) is named once, on [data-hero-stage] in index.html.
 (() => {
-  const PLAYER_URL = '/tour-player-v2.js?v=5339223cbdb83fcf';
+  const PLAYER_URL = '/tour-player-v2.js?v=725222b5645698ce';
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
   const SLOW_MS = 10000;
   const GIVE_UP_MS = 45000;
