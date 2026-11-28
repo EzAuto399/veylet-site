@@ -4,7 +4,7 @@
 // steps. Motion runs only through gsap.matchMedia, never under reduced motion, and every loop
 // stops off screen and while the tab is hidden.
 (() => {
-  const PLAYER_URL = '/tour-player-v2.js?v=725222b5645698ce';
+  const PLAYER_URL = '/tour-player-v2.js?v=6b1dda5d1986a9e8';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   const narrow = window.matchMedia('(max-width: 800px)');
   const hero = document.querySelector('[data-see-hero]');

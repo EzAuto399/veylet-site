@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=ef9c97f6a02eeafb';
+  const STYLE_URL = '/tour-player-v2.css?v=6f8775ccaaffe23e';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1894,6 +1894,14 @@
       syncFloorplanUI();
       drawMapMarker();
     }
+    function syncStoreyMapOnStop(index) {
+      if (!storeys) return;
+      const destLevel = levelOf[index];
+      const levelChanged = viewerLevel !== destLevel || mapShownFor !== destLevel;
+      viewerLevel = destLevel;
+      mapShownFor = destLevel;
+      if (mapLevel !== destLevel || levelChanged) showMapLevel(destLevel);
+    }
     function buildFloorButtons() {
       const group = el('div', { class: 'v2-floors', role: 'group', 'aria-label': 'Floors' });
       storeys.forEach((level, index) => {
@@ -2368,13 +2376,7 @@
       const yaw = orientation && orientation.yaw !== null && orientation.yaw !== undefined ? orientation.yaw : look.yaw;
       const pitch = orientation && orientation.pitch !== null && orientation.pitch !== undefined ? orientation.pitch : look.pitch;
       Object.assign(state, { position: [...stop.position], yaw, pitch });
-      if (storeys) {
-        const destLevel = levelOf[index];
-        const levelChanged = viewerLevel !== destLevel || mapShownFor !== destLevel;
-        viewerLevel = destLevel;
-        mapShownFor = destLevel;
-        if (mapLevel !== destLevel || levelChanged) showMapLevel(destLevel);
-      }
+      if (typeof syncStoreyMapOnStop === 'function') syncStoreyMapOnStop(index);
       if (typeof onStopTransition === 'function') onStopTransition(index, true);
       applyCamera();
       // The jump itself stays instant (the camera is already there); a moved-by-hand jump fades in from dark.
