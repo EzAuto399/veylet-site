@@ -2,7 +2,7 @@
 .conversion-home .hero-note { max-width: 48ch; }
 .conversion-home .hero-note a { display: block; margin-top: 8px; }
 .conversion-summary { padding-block: 44px 56px; border-top: 1px solid var(--line); }
-.conversion-heading h2 { line-height: 1.12; margin-top: 14px; }
+.conversion-heading h2 { line-height: 1.12; letter-spacing: -0.025em; margin-top: 14px; }
 /* The heading and pilot status sit left; the three commitments stack right.
    One asymmetric spread instead of three equal columns. */
 .conversion-summary { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(36px, 7vw, 112px); align-items: start; }
@@ -27,7 +27,7 @@
 .reply-preview h2 { line-height: 1.2; margin: 14px 0; }
 .reply-preview p:not(.eyebrow) { margin: 14px 0; color: var(--muted); line-height: 1.65; }
 .reply-preview > a { display: inline-block; padding-block: 8px; }
-.journey-note { margin-top: 22px; padding: 18px 20px; border: 1px solid var(--line); background: #eaece3; font-size: 15px; line-height: 1.6; }
+.journey-note { margin-top: 22px; padding: 18px 20px; border: 1px solid var(--hairline); border-radius: var(--radius-editorial-card, 6px); background: var(--surface); box-shadow: var(--e1); font-size: 15px; line-height: 1.6; }
 .setup-checklist { padding-left: 22px; max-width: 78ch; }
 .setup-checklist li { padding: 0 0 20px 10px; line-height: 1.65; }
 .setup-checklist strong { display: block; margin-bottom: 4px; }
@@ -102,7 +102,7 @@
 /* The qualifier wraps; the amount does not. Without this the nowrap inherited
    from .amount lets a long note squeeze the line's own description. */
 .amount-note { display: block; font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; margin-top: 3px; white-space: normal; max-width: 26ch; margin-left: auto; }
-.statement-lines > .line-paid { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); background: var(--sage); margin: 6px 0 0; padding: 12px 12px; }
+.statement-lines > .line-paid { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--line); border-radius: 6px; background: var(--sage); margin: 6px 0 0; padding: 12px 12px; }
 .statement-lines > .line-paid .amount { font-size: 32px; }
 /* Muted green falls to 4.3:1 on sage, so the paid line's qualifiers are ink. */
 .statement-lines > .line-paid .line-what,
@@ -142,7 +142,7 @@
 .offer-terms dt { font-size: 17px; font-weight: 500; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
 .offer-terms dd { margin: 0; color: var(--muted); line-height: 1.6; max-width: 48ch; min-width: 0; overflow-wrap: anywhere; }
 .offer-terms dd [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
-.tally { display: inline-block; background: var(--sage); padding: 2px 8px; margin: 0; }
+.tally { display: inline-block; background: var(--sage); border-radius: 4px; padding: 2px 8px; margin: 0; font-size: 13px; letter-spacing: 0.02em; }
 .offer-fine { font-size: 13px; color: var(--muted); margin-top: 24px; max-width: 72ch; line-height: 1.6; }
 /* Services keep the existing ledger grammar */
 .offer-list { margin: 0; display: grid; min-width: 0; }
@@ -217,7 +217,7 @@
 .offer-page .guide-section details [data-price] { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 /* Disclosures on this page use the site's drawn plus that settles to a minus. */
 /* The close: the incumbent deep-green surface */
-.offer-close { margin-top: 56px; background: var(--ink); color: var(--paper); padding: 64px 56px; }
+.offer-close { margin-top: 56px; background: var(--ink); color: var(--paper); border-radius: var(--radius-editorial-card, 6px); padding: 64px 56px; }
 .offer-close-inner { max-width: 62ch; }
 .offer-close h2 { font-size: clamp(30px, 4vw, 44px); margin: 0 0 18px; letter-spacing: -0.03em; }
 .offer-close p:not(.tour-actions-row) { color: var(--sage); line-height: 1.65; }
@@ -239,7 +239,7 @@
   .amount-note { max-width: 17ch; }
   .statement-lines > .line-paid .amount { font-size: 28px; }
   .statement-lines > .line-total .amount { font-size: 32px; }
-  .offer-close { margin-inline: -20px; padding: 40px 24px; }
+  .offer-close { margin-inline: -20px; border-radius: 0; padding: 40px 24px; }
 }
 
 /* The cost illustration uses native controls and the established ledger. */
@@ -250,7 +250,7 @@
 /* Offer 2026-09-29.2: the annual plan carries the same 36 walkthroughs as monthly for less, so its
    saving is tagged in dollars (over A$100, a dollar saving reads larger than a percentage). The billed
    yearly amount stays the largest figure. */
-.offer-plan .pill.offer-save { display: inline-block; max-width: 100%; overflow-wrap: anywhere; margin-left: 8px; vertical-align: 3px; border-color: rgba(16, 35, 29, 0.28); background: var(--sage); color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.offer-plan .pill.offer-save { display: inline-block; max-width: 100%; overflow-wrap: anywhere; margin-left: 8px; vertical-align: 3px; border-color: var(--hairline); background: var(--sage); color: var(--ink); font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
 @media (max-width: 640px) { .offer-plan .pill.offer-save { white-space: normal; } }
 @media (max-width: 700px) {
   /* offer hero order */
@@ -281,17 +281,29 @@
   gap: 14px;
   justify-items: start;
   padding: 28px;
-  border: 1px solid var(--line);
-  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface);
   color: var(--ink);
+  box-shadow: var(--e2);
 }
-.app-qr-title { margin: 0; font-size: 24px; line-height: 1.2; letter-spacing: -0.02em; }
+.app-qr-title { margin: 0; font-size: 24px; line-height: 1.15; letter-spacing: -0.025em; }
 .app-qr-note { margin: 0; font-size: 14px; line-height: 1.55; color: var(--muted); }
-.app-qr-code { width: min(220px, 100%); padding: 8px; border: 1px solid var(--line); background: #ffffff; }
+.app-qr-code { width: min(220px, 100%); padding: 8px; border: 1px solid var(--hairline); border-radius: 6px; background: #ffffff; }
 .app-qr-code svg { display: block; width: 100%; height: auto; }
 .app-qr-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; width: 100%; margin-top: 4px; }
 .app-qr-direct,
-.app-qr-close { min-height: 44px; min-width: 44px; }
+.app-qr-close {
+  min-height: 44px;
+  min-width: 44px;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 120ms var(--ease-press, cubic-bezier(0.23, 1, 0.32, 1));
+}
+.app-qr-direct:active,
+.app-qr-close:active { transform: scale(0.98); }
 @media (prefers-reduced-motion: reduce) {
   [data-app-qr-modal] { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .app-qr-direct,
+  .app-qr-close { transition: none; }
+  .app-qr-direct:active,
+  .app-qr-close:active { transform: none; }
 }

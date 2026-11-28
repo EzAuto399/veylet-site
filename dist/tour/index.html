@@ -83,13 +83,14 @@
         column-gap: 12px;
         row-gap: 2px;
         padding: max(8px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
+        border-bottom: 1px solid rgba(244, 241, 233, 0.1);
       }
       .tour-head h1 {
         margin: 0;
         font-size: clamp(15px, 2.2vw, 17px);
         font-weight: 500;
         line-height: 1.25;
-        letter-spacing: -0.015em;
+        letter-spacing: -0.02em;
         overflow-wrap: anywhere;
       }
       .tour-truth {
@@ -147,7 +148,8 @@
       .tour-notice[data-mode="loading"] > :not(#tour-status) { display: none; }
       .tour-notice[data-mode="loading"] #tour-status {
         padding: 10px 14px;
-        border-radius: 2px;
+        border: 1px solid rgba(244, 241, 233, 0.12);
+        border-radius: 6px;
         background: #10231d;
       }
       .tour-notice button {
@@ -155,7 +157,7 @@
         min-height: 44px;
         padding: 10px 16px;
         border: 1px solid #c6dcc9;
-        border-radius: 2px;
+        border-radius: 6px;
         background: #c6dcc9;
         color: #10231d;
         font: 500 15px/20px "Outfit", ui-sans-serif, system-ui, sans-serif;
@@ -211,6 +213,19 @@
         .tour-page .v2:not(.v2-research) .v2-truth { display: block; }
         .tour-foot:not([hidden]) { position: absolute; top: env(safe-area-inset-top, 0px); right: 0; padding-bottom: 0; background: #10231d; }
         .tour-page:has(.tour-foot:not([hidden])) .tour-head { padding-right: 170px; }
+      }
+      /* Non-interfering top-center QA fixture badge so it never overlaps bottom-left .v2-bar controls. */
+      body[data-qa-fixture="true"] > p:first-child {
+        top: 8px !important;
+        bottom: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        padding: 3px 8px !important;
+        border-radius: 4px !important;
+        font-size: 10.5px !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+        pointer-events: none !important;
       }
     </style>
   </head>
