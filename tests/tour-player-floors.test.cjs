@@ -153,7 +153,9 @@ test('levels: floors more than 1.5 m apart are storeys, lowest first as Ground, 
 
 test('a two-storey home: the map shows one level with a Ground / Level 1 switcher and follows the viewer upstairs', async () => {
   const x = await ready(TWO_FLOORS);
-  assert.equal(x.map.hidden, false, 'a wide stage on its own page opens with the map');
+  assert.equal(x.map.hidden, true, 'starts with the map closed so the 3D scene leads');
+  x.stage.querySelector('.v2-map-toggle').click();
+  assert.equal(x.map.hidden, false);
   const group = x.map.querySelector('.v2-floors');
   assert.ok(group, 'the floor switcher is on the map');
   assert.deepEqual([group.getAttribute('role'), group.getAttribute('aria-label')], ['group', 'Floors']);

@@ -29,12 +29,12 @@
     <link rel="preconnect" href="https://ntupgokxauegrnnvacqt.supabase.co" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" crossorigin />
     <link rel="preconnect" href="https://tours.veylet.com" />
-    <link rel="preload" href="/tour-player-v2.css?v=bd7c2510f4a42d53" as="style" />
-    <link rel="preload" href="/tour-player-v2.js?v=178769db327e73ee" as="script" />
+    <link rel="preload" href="/tour-player-v2.css?v=5489f74309d22322" as="style" />
+    <link rel="preload" href="/tour-player-v2.js?v=6bea96803ec4572d" as="script" />
     <link rel="modulepreload" href="/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49" />
     <script src="/supabase-public.js?v=67f9f1943ae2f979" defer></script>
     <script src="/vendor/supabase-js-2.116.0.min.js?v=84ee9bf45695c1dd" defer></script>
-    <script src="/tour-player.js?v=0f3b33b25fb71434" defer></script>
+    <script src="/tour-player.js?v=edead1969c10e366" defer></script>
     <script src="/site-lib.js?v=3762aa68c924c230" defer></script>
     <script src="/client-page.js?v=5838f5a98164abc2" defer></script>
     <script src="/tour-page.js?v=3976d0f2c9ae3d5e" defer></script>
@@ -70,28 +70,37 @@
       }
       [hidden] { display: none !important; }
       .tour-page {
+        position: relative;
         box-sizing: border-box;
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto;
         height: 100%;
       }
       .tour-head {
-        padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 12px;
+        row-gap: 2px;
+        padding: max(8px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
       }
       .tour-head h1 {
         margin: 0;
-        font-size: clamp(17px, 4.2vw, 21px);
+        font-size: clamp(15px, 2.2vw, 17px);
         font-weight: 500;
-        line-height: 1.3;
-        letter-spacing: -0.01em;
+        line-height: 1.25;
+        letter-spacing: -0.015em;
         overflow-wrap: anywhere;
       }
       .tour-truth {
-        margin: 2px 0 0;
-        font-size: 13px;
-        line-height: 1.4;
-        color: rgba(244, 241, 233, 0.78);
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.3;
+        color: rgba(244, 241, 233, 0.72);
       }
+      /* Keep truth line once when the page header already states it. */
+      .tour-page .v2:not(.v2-research) .v2-truth { display: none; }
+      .tour-page .v2-stage:is(.v2-filled, :fullscreen) .v2-truth { display: block; }
       .tour-body {
         position: relative;
         min-height: 0;
@@ -157,6 +166,16 @@
         justify-content: flex-end;
         padding: 0 max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px));
       }
+      .tour-foot:not([hidden]) {
+        position: absolute;
+        top: env(safe-area-inset-top, 0px);
+        right: 0;
+        z-index: 2;
+        padding: 0 max(16px, env(safe-area-inset-right, 0px)) 0 12px;
+      }
+      .tour-page:has(.tour-foot:not([hidden])) .tour-head {
+        padding-right: 168px;
+      }
       .tour-foot a {
         display: inline-flex;
         align-items: center;
@@ -189,6 +208,7 @@
         }
         .tour-head h1 { min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tour-truth { display: none; }
+        .tour-page .v2:not(.v2-research) .v2-truth { display: block; }
         .tour-foot:not([hidden]) { position: absolute; top: env(safe-area-inset-top, 0px); right: 0; padding-bottom: 0; background: #10231d; }
         .tour-page:has(.tour-foot:not([hidden])) .tour-head { padding-right: 170px; }
       }

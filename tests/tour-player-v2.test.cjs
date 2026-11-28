@@ -410,7 +410,7 @@ test('in someone else’s page the map starts closed and a pinch zooms only afte
   canvas.dispatch('pointercancel', { pointerId: 1 });
   const after = canvas.dispatch('wheel', { ctrlKey: true, deltaY: -10 });
   assert.equal(after.defaultPrevented, true);
-  // Not framed, the same wide stage opens with the map.
+  // Not framed: the walkthrough still opens with the map closed so the 3D scene leads, and the toggle opens it on demand.
   const ownRun = load({ files: { 'manifest.json': manifest() } });
   ownRun.stage.clientWidth = 1000;
   const engine2 = fakeEngine(ownRun.log);
@@ -418,6 +418,8 @@ test('in someone else’s page the map starts closed and a pinch zooms only afte
   for (let i = 0; i < 12; i++) await tick();
   for (let i = 0; i < 31; i++) engine2.apps[0].systems.gsplat.fire('frame:ready', null, null, true, 0);
   await pending2;
+  assert.equal(byClass(ownRun.stage, 'v2-map').hidden, true);
+  byClass(ownRun.stage, 'v2-map-toggle').click();
   assert.equal(byClass(ownRun.stage, 'v2-map').hidden, false);
 });
 
@@ -2163,7 +2165,17 @@ test('architectural map renders walkable wall outline, room labels, and optional
   });
   const x = await readyPlayer({ manifest: fpManifest, files: { 'walkable.json': room() }, size: [1000, 700] });
   const map = byClass(x.stage, 'v2-map');
+  assert.equal(map.hidden, true, 'map starts closed so 3D scene owns the viewport');
+  byClass(x.stage, 'v2-map-toggle').click();
   assert.equal(map.hidden, false);
+
+  // Dragging to look recedes overlays via data-looking and restores on pointerup.
+  const root = byClass(x.stage, 'v2');
+  x.canvas.dispatch('pointerdown', { pointerId: 1, clientX: 100, clientY: 200 });
+  x.canvas.dispatch('pointermove', { pointerId: 1, clientX: 124, clientY: 200 });
+  assert.equal(root.dataset.looking, 'true');
+  x.canvas.dispatch('pointerup', { pointerId: 1, clientX: 124, clientY: 200 });
+  assert.equal(root.dataset.looking, undefined);
 
   // Architectural wall outline and room labels inside the SVG map.
   const walls = map.querySelector('.v2-map-walls');
@@ -2193,12 +2205,14 @@ test('architectural map renders walkable wall outline, room labels, and optional
   assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan.webp');
   assert.equal(map.querySelector('figcaption').textContent, '2D floor plan · not to scale');
 
-  // Switching back restores the stop map.
+  // Switching back restores the stop map, and Escape dismisses it.
   stopsBtn.click();
   assert.equal(map.dataset.mapMode, 'stops');
   assert.equal(svg.hidden, false);
   assert.equal(fpImg.hidden, true);
   assert.equal(map.querySelector('figcaption').textContent, 'Map of stops · not to scale');
+  byClass(x.stage, 'v2').dispatch('keydown', { key: 'Escape' });
+  assert.equal(map.hidden, true, 'Escape closes an open map overlay');
 
   // Emil Kowalski & Apple CSS craft assertions on tour-player-v2.css.
   const css = read('tour-player-v2.css');

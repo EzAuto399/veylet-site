@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=bd7c2510f4a42d53';
+  const STYLE_URL = '/tour-player-v2.css?v=5489f74309d22322';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -1284,6 +1284,7 @@
     function teardown() {
       if (torndown) return;
       torndown = true;
+      delete ui.root.dataset.looking;
       cancelLookInertia();
       if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
       if (panoMoveTimer) { clearTimeout(panoMoveTimer); panoMoveTimer = null; }
@@ -1545,7 +1546,7 @@
         // A disc half off the edge is still worth a tap.
         if (screen.x < -12 || screen.y < -12 || screen.x > width + 12 || screen.y > height + 12) { button.hidden = true; return; }
         button.hidden = false;
-        const size = clamp(Math.round(260 / Math.max(distance, 0.8)), 28, 64);
+        const size = clamp(Math.round(200 / Math.max(distance, 0.85)), 26, 44);
         button.style.setProperty('--size', size + 'px');
         button.style.transform = `translate(${Math.round(screen.x)}px, ${Math.round(screen.y)}px)`;
       });
@@ -2210,6 +2211,7 @@
         const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
         drag.x = event.clientX; drag.y = event.clientY;
         drag.moved = Math.max(drag.moved, Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY));
+        if (drag.moved > 6) ui.root.dataset.looking = 'true';
         const perPixel = camera.camera.fov / Math.max(1, camera.camera.horizontalFov ? ui.canvas.clientWidth : ui.canvas.clientHeight);
         state.yaw += dx * perPixel;
         state.pitch = clamp(state.pitch + dy * perPixel, -80, 80);
@@ -2241,6 +2243,7 @@
         stopLookInertia();
       }
       if (pointers.size < 2) pinch = null;
+      if (pointers.size === 0) delete ui.root.dataset.looking;
       drag = null;
     };
     ui.canvas.addEventListener('pointerup', release);
@@ -2347,6 +2350,7 @@
       else if (!ui.end.hidden) { event.preventDefault(); hideEnd(); }
       else if (!ui.stopsPanel.hidden) { event.preventDefault(); togglePanel(ui.stopsPanel, ui.stopsToggle, false); }
       else if (!ui.aboutPanel.hidden) { event.preventDefault(); togglePanel(ui.aboutPanel, ui.about, false); }
+      else if (!ui.map.hidden) { event.preventDefault(); toggleMap(false); ui.mapToggle.focus?.(); }
     });
     const escapeFull = event => {
       if (!pseudo) return;
@@ -2795,9 +2799,8 @@
     app.start();
     if (chunked) for (const item of held.values()) item.asset.on('error', sceneFailed);
     else asset.on('error', sceneFailed);
-    // A wide screen has room for the map from the start; phones, and frames on
-    // someone else's page, open it on request.
-    toggleMap(stage.clientWidth >= 900 && !framed);
+    // Keep the first frame unobstructed so the walkthrough owns the screen; visitors open the map on demand.
+    toggleMap(false);
     fitBar();
 
     const originalDestroy = app.destroy.bind(app);

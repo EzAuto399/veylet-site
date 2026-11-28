@@ -165,7 +165,7 @@
   line-height: 1.2;
   white-space: nowrap;
   flex: none;
-  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  transition: background-color 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 160ms cubic-bezier(0.23, 1, 0.32, 1), color 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .v2-stage .v2-rooms .v2-room-pill:hover {
   background: rgba(16, 35, 29, 0.94);
@@ -206,5 +206,50 @@
 @container (max-width: 390px) {
   .v2-stage:not(.v2-filled, :fullscreen) .v2-rooms {
     display: none;
+  }
+}
+@container (min-width: 760px) {
+  .v2-stage .v2-bar {
+    align-items: center;
+  }
+  .v2-stage .v2-view-bar {
+    order: 0;
+    flex: 1 1 100%;
+  }
+  .v2-stage .v2-moves {
+    order: 1;
+  }
+  .v2-stage .v2-rooms {
+    order: 2;
+    flex: 0 1 auto;
+    max-width: calc(100% - 440px);
+    margin-inline: auto;
+    padding: 0;
+    gap: 1px;
+    border: 1px solid rgba(244, 241, 233, 0.24);
+    border-radius: 10px;
+    background: rgba(16, 35, 29, 0.78);
+  }
+  .v2-stage .v2-rooms .v2-room-pill {
+    padding: 0 12px;
+    border-color: transparent;
+    border-radius: 9px;
+    background: transparent;
+    font-size: 12.5px;
+  }
+  .v2-stage .v2-rooms .v2-room-pill:hover {
+    background: rgba(244, 241, 233, 0.09);
+    border-color: transparent;
+  }
+  .v2-stage .v2-rooms .v2-room-pill[data-visited="true"] {
+    border-color: transparent;
+  }
+  .v2-stage .v2-rooms .v2-room-pill[aria-current="true"] {
+    border-color: #c6dcc9;
+    background: #c6dcc9;
+    color: #10231d;
+  }
+  .v2-stage .v2-tools {
+    order: 3;
   }
 }
