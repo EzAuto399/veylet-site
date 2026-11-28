@@ -18,7 +18,7 @@ const playerSource = fs.readFileSync(path.join(__dirname, '../dist/tour-player-v
 const stopAt = (id, room, x, z, floorY, floorId) => ({ id, room, position: [x, floorY + 1.4, z], target: [x, floorY + 1.1, z - 2],
   floor: [x, floorY, z], floor_measured: true, ...(floorId === undefined ? {} : { floor_id: floorId }) });
 
-function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }], walkable = null) {
+function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2', name: 'Kitchen' }, { id: 'r3', name: 'Main bedroom' }], walkable = null, floorplan = null) {
   return {
     format: 'veylet.tour-package', package_format_version: 2, synthetic: true, captured_on: null,
     truth_label: 'Synthetic test scene. Not a captured property. Not to scale.', generative_model_used: false,
@@ -28,7 +28,7 @@ function manifest(stops, rooms = [{ id: 'r1', name: 'Living room' }, { id: 'r2',
       portrait: { path: 'poster-portrait.webp', width: 900, height: 1600, fov_degrees: 90 },
       preview: { path: 'preview.webp', width: 256, height: 144, fov_degrees: 70 },
     },
-    walkable, rooms, stops, start_stop: 0, files: [],
+    walkable, ...(floorplan ? { floorplan } : {}), rooms, stops, start_stop: 0, files: [],
   };
 }
 
@@ -92,9 +92,9 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const desktop = { screenWidth: 1280, screenHeight: 800, dpr: 1, coarse: false, touchPoints: 0, webgl2: true, webgpu: false };
 
 /** The player on a 1000 px stage of its own page (the map opens), ready, with reduced motion (moves are cuts). */
-async function ready(stops, { walkable = null } = {}) {
+async function ready(stops, { walkable = null, floorplan = null } = {}) {
   const run = load();
-  const files = { 'manifest.json': manifest(stops, undefined, walkable ? { path: 'walkable.json' } : null), 'walkable.json': walkable };
+  const files = { 'manifest.json': manifest(stops, undefined, walkable ? { path: 'walkable.json' } : null, floorplan), 'walkable.json': walkable };
   run.context.fetch = async url => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => JSON.stringify(files[url.replace('https://veylet.com/pkg/', '')]) });
   const stage = run.document.createElement('div');
   stage.clientWidth = 1000; stage.clientHeight = 640;
@@ -246,4 +246,167 @@ test('a tap or an arrow key only ever goes to a stop on the viewer\'s storey: it
   assert.deepEqual(x.floors(), [['Ground', 'false'], ['Level 1', 'true']]);
   // The next stop upstairs is still offered on the floor, although the ground mask has no say up here.
   assert.deepEqual(x.discs(), ['5']);
+});
+
+// Multi-storey walkable mask: open ground floor + upstairs floor split by a wall at z = -4.0 between s4 (z=-3) and s5 (z=-5).
+function twoStoreyMask({ blockUpstairs = false } = {}) {
+  const makeGrid = (floorY, wallRow) => {
+    const columns = 50, rows = 90;
+    const bits = new Uint8Array(Math.ceil(columns * rows / 8));
+    for (let r = 0; r < rows; r++) for (let c = 0; c < columns; c++) {
+      if (wallRow !== null && r >= wallRow && r < wallRow + 3) continue;
+      bits[(r * columns + c) >> 3] |= 1 << ((r * columns + c) & 7);
+    }
+    return { cell_metres: 0.1, origin: [-2, -7], columns, rows, floor_y: floorY, eye_height: 1.4, mask: Buffer.from(bits).toString('base64') };
+  };
+  const ground = makeGrid(-1.4, null);
+  const level1 = makeGrid(1.4, blockUpstairs ? 29 : null); // z = -7 + 29*0.1 = -4.1..-3.8
+  return {
+    version: 1,
+    ...ground,
+    storey_levels: [
+      { name: 'Ground', ...ground },
+      { name: 'Level 1', ...level1 },
+    ],
+  };
+}
+
+test('decodeWalkable decodes storey_levels, buildMap renders per-storey floor/walls, and stopReachable uses the active storey mask', async () => {
+  const { player } = load();
+  const decoded = player.decodeWalkable(twoStoreyMask({ blockUpstairs: true }));
+  assert.equal(decoded.floorY, -1.4);
+  assert.equal(decoded.storeyLevels.length, 2);
+  assert.equal(decoded.storeyLevels[0].floorY, -1.4);
+  assert.equal(decoded.storeyLevels[1].floorY, 1.4);
+  assert.ok(decoded.storeyLevels[1].walls.length > 0);
+  // Single-entry storey_levels is ignored while preserving root mask properties.
+  const singleEntry = player.decodeWalkable({ ...groundMask(), storey_levels: [groundMask()] });
+  assert.equal(singleEntry.storeyLevels, undefined);
+
+  const x = await ready(TWO_FLOORS, { walkable: twoStoreyMask({ blockUpstairs: true }) });
+  x.stage.querySelector('.v2-map-toggle').click();
+  const shown = node => node.getAttribute('display') !== 'none';
+  const floors = x.map.querySelectorAll('.v2-map-floor');
+  const walls = x.map.querySelectorAll('.v2-map-walls');
+  assert.equal(floors.length, 2, 'renders one .v2-map-floor per storey');
+  assert.equal(walls.length, 2, 'renders one .v2-map-walls per storey');
+  assert.deepEqual(floors.map(shown), [true, false]);
+  assert.deepEqual(walls.map(shown), [true, false]);
+
+  // Switching map to Level 1 swaps floor and wall paths to Level 1.
+  x.map.querySelectorAll('.v2-floor')[1].click();
+  assert.deepEqual(floors.map(shown), [false, true]);
+  assert.deepEqual(walls.map(shown), [false, true]);
+
+  // Walking upstairs to stop 4: the Level 1 mask has a sealed wall between stop 4 and stop 5, so stop 5's disc is hidden.
+  const next = x.stage.querySelector('.v2-next');
+  next.click(); next.click(); next.click();
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
+  assert.deepEqual(x.discs(), [], 'upstairs wall in storeyLevels[1] hides stop 5 behind the wall');
+});
+
+test('multi-storey 2D floorplan tab & lightbox sync per-level images, viewBoxes, pins, heading cone, and minimalist level tags', async () => {
+  const multiFp = {
+    path: 'floorplan.webp',
+    width: 1400,
+    height: 1800,
+    levels: [
+      { name: 'Ground', path: 'floorplan-level-0.webp', width: 1400, height: 1000, bounds: [-2, -5, 4, 2] },
+      { name: 'Level 1', path: 'floorplan-level-1.webp', width: 1200, height: 900, bounds: [-1, -6, 3, 0] },
+    ],
+  };
+  const x = await ready(TWO_FLOORS, { floorplan: multiFp });
+  const shown = node => node.getAttribute('display') !== 'none';
+  x.stage.querySelector('.v2-map-toggle').click();
+
+  const floorsGroup = x.map.querySelector('.v2-floors');
+  assert.equal(x.map.children[0], floorsGroup, 'floor switcher stays first child of map');
+  assert.equal(floorsGroup.style.display, undefined, 'no inline flex style on .v2-floors (styled in CSS)');
+
+  // Room pills carry CSS-rendered data-level-tag while keeping plain room names as textContent.
+  const pills = x.stage.querySelectorAll('.v2-room-pill');
+  assert.deepEqual(pills.map(p => p.textContent), ['Living room', 'Kitchen', 'Main bedroom']);
+  assert.deepEqual(pills.map(p => p.dataset.levelTag), ['G', 'G', 'L1']);
+
+  // Lazy load: floorplan image is untouched before toggling Floorplan mode.
+  const fpImg = x.map.querySelector('.v2-map-floorplan');
+  assert.equal(fpImg.src, '');
+
+  // Switch to Floorplan mode: floorsGroup stays visible because fpLevels matches storeys.
+  x.map.querySelector('[data-map-mode="floorplan"]').click();
+  assert.equal(floorsGroup.hidden, false, 'floors switcher stays visible in floorplan mode when per-level plans exist');
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  assert.deepEqual([fpImg.getAttribute('width'), fpImg.getAttribute('height')], ['1400', '1000']);
+  const miniOverlay = x.map.querySelector('.v2-fp-overlay');
+  assert.equal(miniOverlay.getAttribute('viewBox'), '0 0 1400 1000');
+  assert.deepEqual(miniOverlay.querySelectorAll('.v2-fp-stop').filter(shown).map(n => n.textContent), ['1', '2', '3']);
+  assert.equal(shown(miniOverlay.querySelector('.v2-fp-you')), true);
+
+  // Switch floor to Level 1 via map switcher: swaps image, dims, viewBox, pins, and hides "you" while viewer stays on Ground.
+  x.map.querySelectorAll('.v2-floor')[1].click();
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-1.webp');
+  assert.deepEqual([fpImg.getAttribute('width'), fpImg.getAttribute('height')], ['1200', '900']);
+  assert.equal(miniOverlay.getAttribute('viewBox'), '0 0 1200 900');
+  assert.deepEqual(miniOverlay.querySelectorAll('.v2-fp-stop').filter(shown).map(n => n.textContent), ['4', '5']);
+  assert.equal(shown(miniOverlay.querySelector('.v2-fp-you')), false);
+
+  // Open Lightbox: renders .v2-fp-lightbox-floors in .v2-fp-lightbox-head synced bidirectionally with map switcher.
+  x.map.querySelector('.v2-fp-expand').click();
+  const lightbox = x.stage.querySelector('.v2-fp-lightbox');
+  assert.equal(lightbox.hidden, false);
+  const lbHead = lightbox.querySelector('.v2-fp-lightbox-head');
+  const lbFloors = lbHead.querySelector('.v2-fp-lightbox-floors');
+  assert.ok(lbFloors, 'lightbox head carries .v2-fp-lightbox-floors switcher');
+  const lbBtns = lbFloors.querySelectorAll('.v2-floor');
+  assert.deepEqual(lbBtns.map(b => [b.textContent, b.getAttribute('aria-pressed')]), [['Ground', 'false'], ['Level 1', 'true']]);
+  const lbImg = lightbox.querySelector('.v2-fp-lightbox-img');
+  assert.equal(lbImg.src, 'https://veylet.com/pkg/floorplan-level-1.webp');
+  assert.deepEqual([lbImg.getAttribute('width'), lbImg.getAttribute('height')], ['1200', '900']);
+
+  // Click Ground inside Lightbox: syncs both lightbox and mini-map back to Ground.
+  lbBtns[0].click();
+  assert.deepEqual(x.floors(), [['Ground', 'true'], ['Level 1', 'false']]);
+  assert.deepEqual(lbBtns.map(b => b.getAttribute('aria-pressed')), ['true', 'false']);
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  assert.equal(lbImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  assert.equal(shown(lightbox.querySelector('.v2-fp-you')), true);
+
+  // Click Level 1 in Lightbox, then click Stop 4's pin: teleports upstairs, closes lightbox, and shows "you" on Level 1.
+  lbBtns[1].click();
+  const lbOverlay = lightbox.querySelector('.v2-fp-overlay');
+  assert.deepEqual(lbOverlay.querySelectorAll('.v2-fp-stop').filter(shown).map(n => n.textContent), ['4', '5']);
+  lbOverlay.querySelectorAll('.v2-fp-stop')[3].click();
+  assert.equal(lightbox.hidden, true);
+  assert.deepEqual(x.where(), ['Main bedroom', 'Stop 4 of 5']);
+  assert.equal(shown(miniOverlay.querySelector('.v2-fp-you')), true);
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-1.webp');
+
+  // Stepping back downstairs via Previous auto-syncs floorplan image and switchers back to Ground.
+  x.stage.querySelector('.v2-prev').click();
+  assert.deepEqual(x.where(), ['Kitchen', 'Stop 3 of 5']);
+  assert.equal(fpImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  assert.equal(lbImg.src, 'https://veylet.com/pkg/floorplan-level-0.webp');
+  assert.deepEqual(x.floors(), [['Ground', 'true'], ['Level 1', 'false']]);
+  assert.deepEqual(lbBtns.map(b => b.getAttribute('aria-pressed')), ['true', 'false']);
+});
+
+test('two-storey home with single-image floorplan (no levels) hides floorsGroup in floorplan mode and filters pins to start storey; single-storey room pills omit levelTag', async () => {
+  const singleFp = { path: 'floorplan.webp', width: 1400, height: 1000, bounds: [-2, -5, 4, 2] };
+  const x = await ready(TWO_FLOORS, { floorplan: singleFp });
+  const shown = node => node.getAttribute('display') !== 'none';
+  x.stage.querySelector('.v2-map-toggle').click();
+  const floorsGroup = x.map.querySelector('.v2-floors');
+  x.map.querySelector('[data-map-mode="floorplan"]').click();
+  assert.equal(floorsGroup.hidden, true, 'floors switcher hides in floorplan mode when no per-level plans exist');
+  const miniOverlay = x.map.querySelector('.v2-fp-overlay');
+  assert.deepEqual(miniOverlay.querySelectorAll('.v2-fp-stop').filter(shown).map(n => n.textContent), ['1', '2', '3']);
+
+  // Single-storey home omits data-level-tag on room pills.
+  const one = await ready(ONE_FLOOR);
+  assert.ok(one.stage.querySelectorAll('.v2-room-pill').every(p => p.dataset.levelTag === undefined));
+
+  // CSS carries minimalist segmented floor switcher and pure-CSS room level tag rules.
+  const css = fs.readFileSync(path.join(__dirname, '../dist/tour-player-v2.css'), 'utf8');
+  assert.match(css, /\.v2-floors,\s*\n\.v2-fp-lightbox-floors\s*\{/);
+  assert.match(css, /\.v2-room-pill\[data-level-tag\]::before\s*\{[^}]*content:\s*attr\(data-level-tag\)/);
 });

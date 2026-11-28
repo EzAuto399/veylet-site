@@ -2028,6 +2028,61 @@ test('validateManifest accepts optional manifest.floorplan, enforces safe .webp/
   badFp({ path: 'floorplan.webp', width: 1400, height: 1000, bounds: [0, 0, 5] });
   assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: 'r/fedcba9876543210/floorplan.webp', width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
   assert.throws(() => player.validateManifest({ ...withRev, floorplan: { path: `r/${REV}/r/${REV}/floorplan.webp`, width: 1400, height: 1000 } }), /manifest-invalid:floorplan/);
+
+  // Multi-storey floorplan.levels: valid with omitted/null top-level bounds and optional per-level bounds.
+  const withLevels = player.validateManifest(manifest({
+    floorplan: {
+      path: 'floorplan.webp', width: 1400, height: 1800, bounds: null,
+      levels: [
+        { name: 'Ground', path: 'floorplan-level-0.webp', width: 1400, height: 1000, bounds: [-2, -3, 6, 5] },
+        { name: 'Level 1', path: 'floorplan-level-1.webp', width: 1200, height: 900 },
+      ],
+    },
+  }));
+  assert.deepEqual(plain(withLevels.floorplan), {
+    path: 'floorplan.webp', width: 1400, height: 1800,
+    levels: [
+      { name: 'Ground', path: 'floorplan-level-0.webp', width: 1400, height: 1000, bounds: [-2, -3, 6, 5] },
+      { name: 'Level 1', path: 'floorplan-level-1.webp', width: 1200, height: 900 },
+    ],
+  });
+  const revLevels = player.validateManifest({
+    ...withRev,
+    floorplan: {
+      path: `r/${REV}/floorplan.webp`, width: 1400, height: 1800,
+      levels: [
+        { name: 'Ground', path: `r/${REV}/floorplan-level-0.webp`, width: 1400, height: 1000, bounds: [0, 0, 5, 4] },
+        { name: 'Level 1', path: `r/${REV}/floorplan-level-1.webp`, width: 1400, height: 1000, bounds: [0, 0, 5, 4] },
+      ],
+    },
+  });
+  assert.equal(revLevels.floorplan.levels[1].path, `r/${REV}/floorplan-level-1.webp`);
+
+  const okLevel = (i = 0) => ({ name: `Level ${i}`, path: `floorplan-level-${i}.webp`, width: 1200, height: 900, bounds: [0, 0, 4, 3] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: 'bad' });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0)] }); // < 2
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: Array.from({ length: 17 }, (_, i) => okLevel(i)) }); // > 16
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), name: '   ' }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), name: 'x'.repeat(41) }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), path: '../x.webp' }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), path: 'floorplan-level-1.png' }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), width: 128 }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), height: 5000 }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), bounds: [4, 0, 4, 3] }] });
+  badFp({ path: 'floorplan.webp', width: 1400, height: 1000, levels: [okLevel(0), { ...okLevel(1), path: `r/${REV}/floorplan-level-1.webp` }] });
+  assert.throws(() => player.validateManifest({
+    ...withRev,
+    floorplan: {
+      path: `r/${REV}/floorplan.webp`, width: 1400, height: 1800,
+      levels: [
+        { name: 'Ground', path: `r/${REV}/floorplan-level-0.webp`, width: 1200, height: 900 },
+        { name: 'Level 1', path: 'r/fedcba9876543210/floorplan-level-1.webp', width: 1200, height: 900 },
+      ],
+    },
+  }), /manifest-invalid:floorplan/);
+
+  // Floorplan images load via img.src only: never add extra fetch(..., { credentials: 'omit' }) calls.
+  assert.equal((playerSource.match(/credentials:\s*'omit'/g) || []).length, 2);
 });
 
 test('stepLookInertia decays exponentially, is frame-rate independent, clamps pitch, stops cleanly below epsilon, and zeroes under reducedMotion', () => {

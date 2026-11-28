@@ -12,7 +12,7 @@
  */
 (() => {
   const ENGINE_URL = '/vendor/playcanvas-2.23.2.min.js?v=dc5be7cc192c8e49';
-  const STYLE_URL = '/tour-player-v2.css?v=c5de9642243d92c4';
+  const STYLE_URL = '/tour-player-v2.css?v=0cf79ff07c662ea1';
   const FORMAT = 2;
   // Released tours are served from the tour host; previews and QA from this origin.
   const PACKAGE_ORIGINS = Object.freeze(['https://tours.veylet.com']);
@@ -124,20 +124,39 @@
     let floorplan = null;
     if (json.floorplan !== undefined && json.floorplan !== null) {
       if (typeof json.floorplan !== 'object' || Array.isArray(json.floorplan)) bad('floorplan');
-      const fpPath = json.floorplan.path;
-      if (typeof fpPath !== 'string') bad('floorplan');
-      const [fpRev, fpRel] = revisionOf(fpPath);
-      if (REVISION.test(fpRel) || /^r\//i.test(fpRel) || !safePath(fpRel) || !fpRel.endsWith('.webp')) bad('floorplan');
-      if (fpRev && (!safePath(fpPath) || fpRev !== sceneRevision)) bad('floorplan');
-      const { width, height } = json.floorplan;
-      if (!Number.isInteger(width) || width < 256 || width > 4096 || !Number.isInteger(height) || height < 256 || height > 4096) bad('floorplan');
-      let fpBounds = null;
-      if (json.floorplan.bounds !== undefined && json.floorplan.bounds !== null) {
-        const b = json.floorplan.bounds;
+      const readFpPath = raw => {
+        if (typeof raw !== 'string') bad('floorplan');
+        const [rev, rel] = revisionOf(raw);
+        if (REVISION.test(rel) || /^r\//i.test(rel) || !safePath(rel) || !rel.endsWith('.webp')) bad('floorplan');
+        if (rev && (!safePath(raw) || rev !== sceneRevision)) bad('floorplan');
+        return raw;
+      };
+      const readFpDims = obj => {
+        const { width, height } = obj;
+        if (!Number.isInteger(width) || width < 256 || width > 4096 || !Number.isInteger(height) || height < 256 || height > 4096) bad('floorplan');
+        return { width, height };
+      };
+      const readFpBounds = b => {
+        if (b === undefined || b === null) return null;
         if (!Array.isArray(b) || b.length !== 4 || !b.every(v => typeof v === 'number' && Number.isFinite(v)) || b[2] <= b[0] || b[3] <= b[1]) bad('floorplan');
-        fpBounds = [b[0], b[1], b[2], b[3]];
+        return [b[0], b[1], b[2], b[3]];
+      };
+      const fpPath = readFpPath(json.floorplan.path);
+      const { width, height } = readFpDims(json.floorplan);
+      const fpBounds = readFpBounds(json.floorplan.bounds);
+      let fpLevels = null;
+      if (json.floorplan.levels !== undefined && json.floorplan.levels !== null) {
+        if (!Array.isArray(json.floorplan.levels) || json.floorplan.levels.length < 2 || json.floorplan.levels.length > 16) bad('floorplan');
+        fpLevels = json.floorplan.levels.map(lvl => {
+          if (!lvl || typeof lvl !== 'object' || Array.isArray(lvl)) bad('floorplan');
+          if (typeof lvl.name !== 'string' || !lvl.name.trim() || lvl.name.length > 40) bad('floorplan');
+          const lvlPath = readFpPath(lvl.path);
+          const lvlDims = readFpDims(lvl);
+          const lvlBounds = readFpBounds(lvl.bounds);
+          return { name: lvl.name, path: lvlPath, width: lvlDims.width, height: lvlDims.height, ...(lvlBounds ? { bounds: lvlBounds } : {}) };
+        });
       }
-      floorplan = { path: fpPath, width, height, ...(fpBounds ? { bounds: fpBounds } : {}) };
+      floorplan = { path: fpPath, width, height, ...(fpBounds ? { bounds: fpBounds } : {}), ...(fpLevels ? { levels: fpLevels } : {}) };
     }
     const chunked = scene.layout === undefined && scene.chunks === undefined ? null : readChunks(json, scene, rooms, stops, bad);
     // Point to point (12 Nov 2026): a package's walked path (path) and floor_measured are older free-walk data. They
@@ -593,68 +612,84 @@
    * circles of stops behind a wall (stopReachable) and draws the floor on the map.
    */
   function decodeWalkable(json) {
-    if (!json || json.version !== 1 || !Number.isFinite(json.cell_metres) || json.cell_metres <= 0 || json.cell_metres > 1
-        || !Array.isArray(json.origin) || json.origin.length !== 2 || !json.origin.every(Number.isFinite)
-        || !Number.isInteger(json.columns) || !Number.isInteger(json.rows) || json.columns < 1 || json.rows < 1 || json.columns * json.rows > 4_000_000
-        || !Number.isFinite(json.floor_y) || !Number.isFinite(json.eye_height) || typeof json.mask !== 'string') {
-      throw new PlayerError('walkable-invalid');
-    }
-    const binary = atob(json.mask);
-    if (binary.length !== Math.ceil(json.columns * json.rows / 8)) throw new PlayerError('walkable-invalid');
-    const bits = Uint8Array.from(binary, ch => ch.charCodeAt(0));
-    const { columns, rows } = json, cell = json.cell_metres, [x0, z0] = json.origin;
-    const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
-    const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
-    // Every sample on the straight line must be floor: nothing seen through walls.
-    // `skip` metres from the start are not checked, so a viewer standing a hair
-    // off the mask (a stop at the edge of the floor) still sees the stops around it.
-    const clear = (from, to, skip = 0) => {
-      const dx = to[0] - from[0], dz = to[1] - from[1];
-      const length = Math.hypot(dx, dz);
-      const steps = Math.max(1, Math.ceil(length / (cell / 2)));
-      for (let i = 0; i <= steps; i++) {
-        if (length * i / steps < skip) continue;
-        if (!walkable(from[0] + dx * i / steps, from[1] + dz * i / steps)) return false;
+    if (!json || json.version !== 1) throw new PlayerError('walkable-invalid');
+    function decodeMaskGrid(obj) {
+      if (!obj || typeof obj !== 'object' || !Number.isFinite(obj.cell_metres) || obj.cell_metres <= 0 || obj.cell_metres > 1
+          || !Array.isArray(obj.origin) || obj.origin.length !== 2 || !obj.origin.every(Number.isFinite)
+          || !Number.isInteger(obj.columns) || !Number.isInteger(obj.rows) || obj.columns < 1 || obj.rows < 1 || obj.columns * obj.rows > 4_000_000
+          || !Number.isFinite(obj.floor_y) || !Number.isFinite(obj.eye_height) || typeof obj.mask !== 'string') {
+        throw new PlayerError('walkable-invalid');
       }
-      return true;
-    };
-    const runs = [];
-    for (let r = 0; r < rows; r++) {
-      let start = -1;
-      for (let c = 0; c <= columns; c++) {
-        const lit = c < columns && on(c, r);
-        if (lit && start < 0) start = c;
-        if (!lit && start >= 0) { runs.push([x0 + start * cell, z0 + r * cell, (c - start) * cell, cell]); start = -1; }
-      }
-    }
-    const wallSegs = [];
-    for (let r = 0; r < rows; r++) {
-      for (const [dr, zOff] of [[-1, 0], [1, cell]]) {
+      const binary = atob(obj.mask);
+      if (binary.length !== Math.ceil(obj.columns * obj.rows / 8)) throw new PlayerError('walkable-invalid');
+      const bits = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+      const { columns, rows } = obj, cell = obj.cell_metres, [x0, z0] = obj.origin;
+      const on = (c, r) => c >= 0 && r >= 0 && c < columns && r < rows && ((bits[(r * columns + c) >> 3] >> ((r * columns + c) & 7)) & 1) === 1;
+      const walkable = (x, z) => on(Math.floor((x - x0) / cell), Math.floor((z - z0) / cell));
+      // Every sample on the straight line must be floor: nothing seen through walls.
+      // `skip` metres from the start are not checked, so a viewer standing a hair
+      // off the mask (a stop at the edge of the floor) still sees the stops around it.
+      const clear = (from, to, skip = 0) => {
+        const dx = to[0] - from[0], dz = to[1] - from[1];
+        const length = Math.hypot(dx, dz);
+        const steps = Math.max(1, Math.ceil(length / (cell / 2)));
+        for (let i = 0; i <= steps; i++) {
+          if (length * i / steps < skip) continue;
+          if (!walkable(from[0] + dx * i / steps, from[1] + dz * i / steps)) return false;
+        }
+        return true;
+      };
+      const runs = [];
+      for (let r = 0; r < rows; r++) {
         let start = -1;
         for (let c = 0; c <= columns; c++) {
-          const edge = c < columns && on(c, r) && !on(c, r + dr);
-          if (edge && start < 0) start = c;
-          if (!edge && start >= 0) {
-            wallSegs.push(`M${(x0 + start * cell).toFixed(2)} ${(z0 + r * cell + zOff).toFixed(2)}h${((c - start) * cell).toFixed(2)}`);
-            start = -1;
+          const lit = c < columns && on(c, r);
+          if (lit && start < 0) start = c;
+          if (!lit && start >= 0) { runs.push([x0 + start * cell, z0 + r * cell, (c - start) * cell, cell]); start = -1; }
+        }
+      }
+      const wallSegs = [];
+      for (let r = 0; r < rows; r++) {
+        for (const [dr, zOff] of [[-1, 0], [1, cell]]) {
+          let start = -1;
+          for (let c = 0; c <= columns; c++) {
+            const edge = c < columns && on(c, r) && !on(c, r + dr);
+            if (edge && start < 0) start = c;
+            if (!edge && start >= 0) {
+              wallSegs.push(`M${(x0 + start * cell).toFixed(2)} ${(z0 + r * cell + zOff).toFixed(2)}h${((c - start) * cell).toFixed(2)}`);
+              start = -1;
+            }
           }
         }
       }
-    }
-    for (let c = 0; c < columns; c++) {
-      for (const [dc, xOff] of [[-1, 0], [1, cell]]) {
-        let start = -1;
-        for (let r = 0; r <= rows; r++) {
-          const edge = r < rows && on(c, r) && !on(c + dc, r);
-          if (edge && start < 0) start = r;
-          if (!edge && start >= 0) {
-            wallSegs.push(`M${(x0 + c * cell + xOff).toFixed(2)} ${(z0 + start * cell).toFixed(2)}v${((r - start) * cell).toFixed(2)}`);
-            start = -1;
+      for (let c = 0; c < columns; c++) {
+        for (const [dc, xOff] of [[-1, 0], [1, cell]]) {
+          let start = -1;
+          for (let r = 0; r <= rows; r++) {
+            const edge = r < rows && on(c, r) && !on(c + dc, r);
+            if (edge && start < 0) start = r;
+            if (!edge && start >= 0) {
+              wallSegs.push(`M${(x0 + c * cell + xOff).toFixed(2)} ${(z0 + start * cell).toFixed(2)}v${((r - start) * cell).toFixed(2)}`);
+              start = -1;
+            }
           }
         }
       }
+      return { cell, origin: [x0, z0], columns, rows, floorY: obj.floor_y, eyeHeight: obj.eye_height, walkable, clear, on, runs, walls: wallSegs.join('') };
     }
-    return { cell, origin: [x0, z0], columns, rows, floorY: json.floor_y, eyeHeight: json.eye_height, walkable, clear, on, runs, walls: wallSegs.join('') };
+    const root = decodeMaskGrid(json);
+    let storeyLevels = null;
+    if (Array.isArray(json.storey_levels) && json.storey_levels.length >= 2) {
+      try {
+        storeyLevels = json.storey_levels.map(lvl => {
+          const grid = decodeMaskGrid(lvl);
+          return typeof lvl.name === 'string' ? { ...grid, name: lvl.name } : grid;
+        });
+      } catch {
+        storeyLevels = null;
+      }
+    }
+    return storeyLevels ? { ...root, storeyLevels } : root;
   }
 
   /**
@@ -1517,11 +1552,13 @@
     const screen = new pc.Vec3(), world = new pc.Vec3();
     /** Whether a stop on the viewer's level can be offered from here: the one rule for circles and keys. */
     function stopReachable(stop, level) {
-      // The mask says nothing about a storey it was not carved for.
-      if (!walkable || (storeys && level !== levelOf[manifest.start])) return true;
+      // Prefer the per-storey mask when present; otherwise the root mask only covers the opening storey.
+      const mask = (storeys && walkable?.storeyLevels?.[level])
+        || (!walkable || (storeys && level !== levelOf[manifest.start]) ? null : walkable);
+      if (!mask) return true;
       const levelStops = storeys ? manifest.stops.filter((_, i) => levelOf[i] === level) : manifest.stops;
-      return walkable.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
-        || Boolean(corridorRoute(walkable, [state.position[0], walkable.floorY, state.position[2]], stop.floor, levelStops));
+      return mask.clear([state.position[0], state.position[2]], [stop.floor[0], stop.floor[2]])
+        || Boolean(corridorRoute(mask, [state.position[0], mask.floorY, state.position[2]], stop.floor, levelStops));
     }
     function placeHotspots() {
       if (!ready) return;
@@ -1575,6 +1612,10 @@
       for (const entry of roomEntries) {
         const footprint = roomFootprint(manifest, entry.id);
         const pill = el('button', { type: 'button', class: 'v2-room-pill', 'data-room': entry.id }, entry.name);
+        if (storeys) {
+          const lvl = levelOf[entry.firstStop];
+          pill.dataset.levelTag = lvl === 0 ? 'G' : 'L' + lvl;
+        }
         if (footprint) {
           pill.dataset.dimensions = footprint.label;
           pill.title = [entry.name, footprint.label].filter(Boolean).join(' · ');
@@ -1717,28 +1758,70 @@
     // Map of stops: floor from the walkable mask, turned so the opening view points up.
     const mapTurn = lookAngles(manifest.stops[manifest.start].position, manifest.stops[manifest.start].target).yaw;
     let mapMarker = null, mapHeading = null, mapGroup = null;
+    // With storeys: the level the map shows (it follows the viewer; a floor button picks another), each
+    // level's drawn parts, and the floor buttons.
+    let mapLevel = viewerLevel, mapShownFor = viewerLevel;
+    const mapParts = [], floorButtons = [], lbFloorButtons = [];
     const fpOverlays = [];
+    const fpLevels = storeys && manifest.floorplan?.levels?.length === storeys.length ? manifest.floorplan.levels : null;
+    const activeFp = () => (fpLevels && fpLevels[mapLevel]) || manifest.floorplan;
     let fpLightbox = null, fpExpandBtn = null;
-    function fpProject(wx, wz) {
-      const fp = manifest.floorplan;
+    let syncFloorplanUI = () => {};
+    function fpProject(wx, wz, fp = activeFp()) {
       if (!fp?.bounds) return null;
       const [bx0, bz0, bx1, bz1] = fp.bounds;
       return [((wx - bx0) / (bx1 - bx0)) * fp.width, ((wz - bz0) / (bz1 - bz0)) * fp.height];
     }
+    function syncFpOverlay(item) {
+      const fp = activeFp();
+      if (!fp?.bounds) {
+        item.overlay.setAttribute('display', 'none');
+        return;
+      }
+      item.overlay.removeAttribute('display');
+      item.overlay.setAttribute('viewBox', `0 0 ${fp.width} ${fp.height}`);
+      const rScale = Math.max(1, fp.width / 1000);
+      const pinLevel = fpLevels ? mapLevel : (storeys ? levelOf[manifest.start] : null);
+      const cur = hereStop();
+      for (const { g, hit, dot, label, index } of item.stopNodes) {
+        const stop = manifest.stops[index];
+        const visible = pinLevel === null || levelOf[index] === pinLevel;
+        if (!visible) {
+          g.setAttribute('display', 'none');
+        } else {
+          g.removeAttribute('display');
+          const pt = fpProject(stop.floor[0], stop.floor[2], fp);
+          if (pt) g.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)})`);
+        }
+        hit.setAttribute('r', String((34 * rScale).toFixed(1)));
+        dot.setAttribute('r', String((16 * rScale).toFixed(1)));
+        label.setAttribute('font-size', String((16 * rScale).toFixed(1)));
+        label.setAttribute('dy', String((5.5 * rScale).toFixed(1)));
+        if (index === cur) g.setAttribute('data-current', 'true');
+        else delete g.dataset.current;
+      }
+      const cr = 54 * rScale;
+      item.cone.setAttribute('d', `M0 0L${(-cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}A${cr.toFixed(1)} ${cr.toFixed(1)} 0 0 1 ${(cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}Z`);
+      item.you.setAttribute('r', String((7 * rScale).toFixed(1)));
+      const showYou = !storeys || (mapLevel === viewerLevel && (fpLevels || viewerLevel === levelOf[manifest.start]));
+      const pt = showYou ? fpProject(state.position[0], state.position[2], fp) : null;
+      if (pt) {
+        item.marker.removeAttribute('display');
+        item.marker.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)}) rotate(${(-state.yaw).toFixed(1)})`);
+      } else {
+        item.marker.setAttribute('display', 'none');
+      }
+    }
     function buildFpOverlay(ns, fp, { interactive = true, onStopPicked = null } = {}) {
-      if (!fp.bounds) return null;
+      const hasBounds = fpLevels ? fpLevels.some(lv => Boolean(lv.bounds)) : Boolean(fp?.bounds);
+      if (!hasBounds) return null;
       const overlay = document.createElementNS(ns, 'svg');
       overlay.setAttribute('class', 'v2-fp-overlay');
-      overlay.setAttribute('viewBox', `0 0 ${fp.width} ${fp.height}`);
       overlay.setAttribute('preserveAspectRatio', 'xMidYMid meet');
       const stopNodes = [];
-      const rScale = Math.max(1, fp.width / 1000);
       manifest.stops.forEach((stop, index) => {
-        const pt = fpProject(stop.floor[0], stop.floor[2]);
-        if (!pt) return;
         const g = document.createElementNS(ns, 'g');
         g.setAttribute('class', 'v2-fp-stop');
-        g.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)})`);
         if (interactive) {
           g.setAttribute('role', 'button');
           g.setAttribute('tabindex', '0');
@@ -1757,28 +1840,23 @@
         }
         const hit = document.createElementNS(ns, 'circle');
         hit.setAttribute('class', 'v2-fp-hit');
-        hit.setAttribute('r', String((34 * rScale).toFixed(1)));
         const dot = document.createElementNS(ns, 'circle');
         dot.setAttribute('class', 'v2-fp-dot');
-        dot.setAttribute('r', String((16 * rScale).toFixed(1)));
         const label = document.createElementNS(ns, 'text');
-        label.setAttribute('font-size', String((16 * rScale).toFixed(1)));
-        label.setAttribute('dy', String((5.5 * rScale).toFixed(1)));
         label.textContent = String(visitNumber(manifest, index));
         g.append(hit, dot, label);
         overlay.append(g);
-        stopNodes.push([g, index]);
+        stopNodes.push({ g, hit, dot, label, index });
       });
       const marker = document.createElementNS(ns, 'g');
       marker.setAttribute('class', 'v2-fp-you');
       const cone = document.createElementNS(ns, 'path');
-      const cr = 54 * rScale;
-      cone.setAttribute('d', `M0 0L${(-cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}A${cr.toFixed(1)} ${cr.toFixed(1)} 0 0 1 ${(cr * 0.45).toFixed(1)} ${(-cr).toFixed(1)}Z`);
       const you = document.createElementNS(ns, 'circle');
-      you.setAttribute('r', String((7 * rScale).toFixed(1)));
       marker.append(cone, you);
       overlay.append(marker);
-      fpOverlays.push({ overlay, marker, stopNodes });
+      const item = { overlay, marker, cone, you, stopNodes };
+      fpOverlays.push(item);
+      syncFpOverlay(item);
       return overlay;
     }
     function closeFpLightbox() {
@@ -1786,20 +1864,17 @@
       fpLightbox.hidden = true;
       if (usableFocus(fpExpandBtn)) fpExpandBtn.focus();
     }
-    // With storeys: the level the map shows (it follows the viewer; a floor button picks another), each
-    // level's drawn parts, and the floor buttons.
-    let mapLevel = viewerLevel, mapShownFor = viewerLevel;
-    const mapParts = [], floorButtons = [];
     function showMapLevel(level) {
       mapLevel = level;
       for (const [node, on] of mapParts) { if (on === level) node.removeAttribute('display'); else node.setAttribute('display', 'none'); }
       floorButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(index === level)));
+      lbFloorButtons.forEach((button, index) => button.setAttribute('aria-pressed', String(index === level)));
       if (mapMarker) { if (level === viewerLevel) mapMarker.removeAttribute('display'); else mapMarker.setAttribute('display', 'none'); }
+      syncFloorplanUI();
+      drawMapMarker();
     }
     function buildFloorButtons() {
-      // Layout here until tour-player-v2.css carries .v2-floors (the buttons reuse .v2-icon and its pressed state).
       const group = el('div', { class: 'v2-floors', role: 'group', 'aria-label': 'Floors' });
-      Object.assign(group.style, { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '6px', margin: '0 0 6px' });
       storeys.forEach((level, index) => {
         const button = el('button', { type: 'button', class: 'v2-icon v2-floor', 'aria-pressed': 'false' }, level.name);
         button.addEventListener('click', () => showMapLevel(index));
@@ -1821,18 +1896,25 @@
       // Map x right, z down; turned so the opening view faces up.
       mapGroup.setAttribute('transform', `rotate(${mapTurn}) translate(${-cx} ${-cz})`);
       if (walkable) {
-        const floor = document.createElementNS(ns, 'path');
-        floor.setAttribute('class', 'v2-map-floor');
-        floor.setAttribute('d', walkable.runs.map(([x, z, w, h]) => `M${x.toFixed(2)} ${z.toFixed(2)}h${w.toFixed(2)}v${h.toFixed(2)}h${(-w).toFixed(2)}z`).join(''));
-        mapGroup.append(floor);
-        // The walkable floor is carved for the opening stop's level only.
-        if (storeys) mapParts.push([floor, levelOf[manifest.start]]);
-        if (walkable.walls) {
-          const walls = document.createElementNS(ns, 'path');
-          walls.setAttribute('class', 'v2-map-walls');
-          walls.setAttribute('d', walkable.walls);
-          mapGroup.append(walls);
-          if (storeys) mapParts.push([walls, levelOf[manifest.start]]);
+        const renderGrid = (grid, sIdx) => {
+          const floor = document.createElementNS(ns, 'path');
+          floor.setAttribute('class', 'v2-map-floor');
+          floor.setAttribute('d', grid.runs.map(([x, z, w, h]) => `M${x.toFixed(2)} ${z.toFixed(2)}h${w.toFixed(2)}v${h.toFixed(2)}h${(-w).toFixed(2)}z`).join(''));
+          mapGroup.append(floor);
+          if (sIdx !== null) mapParts.push([floor, sIdx]);
+          if (grid.walls) {
+            const walls = document.createElementNS(ns, 'path');
+            walls.setAttribute('class', 'v2-map-walls');
+            walls.setAttribute('d', grid.walls);
+            mapGroup.append(walls);
+            if (sIdx !== null) mapParts.push([walls, sIdx]);
+          }
+        };
+        if (storeys && walkable.storeyLevels?.length === storeys.length) {
+          walkable.storeyLevels.forEach((grid, sIdx) => renderGrid(grid, sIdx));
+        } else {
+          // The root walkable floor is carved for the opening stop's level only.
+          renderGrid(walkable, storeys ? levelOf[manifest.start] : null);
         }
       }
       manifest.stops.forEach((stop, index) => {
@@ -1902,47 +1984,94 @@
       const floorplanBtn = el('button', { type: 'button', class: 'v2-map-mode', 'data-map-mode': 'floorplan', 'aria-pressed': 'false' }, 'Floorplan');
       modes.append(stopsBtn, floorplanBtn);
       const fpWrap = el('div', { class: 'v2-fp-wrap', hidden: true });
+      const initFp = activeFp();
       const fpImg = el('img', {
         class: 'v2-map-floorplan',
         alt: '2D floor plan, not to scale',
-        width: String(manifest.floorplan.width),
-        height: String(manifest.floorplan.height),
+        width: String(initFp.width),
+        height: String(initFp.height),
         decoding: 'async',
         hidden: true,
       });
       fpWrap.append(fpImg);
-      const miniOverlay = buildFpOverlay(ns, manifest.floorplan, { interactive: true });
+      const miniOverlay = buildFpOverlay(ns, initFp, { interactive: true });
       if (miniOverlay) fpWrap.append(miniOverlay);
       const fpStatus = el('p', { class: 'v2-map-floorplan-error', hidden: true }, 'Floor plan couldn’t load.');
       fpExpandBtn = el('button', { type: 'button', class: 'v2-fp-expand', hidden: true, 'aria-label': 'Open larger floor plan' }, 'Larger floor plan');
       let fpLoaded = false;
       let lbImg = null;
+      syncFloorplanUI = () => {
+        const fp = activeFp();
+        if (!fp) return;
+        fpImg.setAttribute('width', String(fp.width));
+        fpImg.setAttribute('height', String(fp.height));
+        const nextSrc = base + fp.path;
+        if (fpLoaded && fpImg.src !== nextSrc) {
+          fpStatus.hidden = true;
+          if (ui.map.dataset.mapMode === 'floorplan') {
+            fpWrap.hidden = false;
+            fpImg.hidden = false;
+            fpExpandBtn.hidden = false;
+          }
+          fpImg.src = nextSrc;
+        }
+        if (lbImg) {
+          lbImg.setAttribute('width', String(fp.width));
+          lbImg.setAttribute('height', String(fp.height));
+          if ((fpLoaded || (fpLightbox && !fpLightbox.hidden)) && lbImg.src !== nextSrc) {
+            lbImg.src = nextSrc;
+          }
+        }
+      };
       const openFpLightbox = () => {
-        if (!fpLoaded) { fpLoaded = true; fpImg.src = base + manifest.floorplan.path; }
+        const fp = activeFp();
+        const src = base + fp.path;
+        if (!fpLoaded || fpImg.src !== src) {
+          fpLoaded = true;
+          fpImg.setAttribute('width', String(fp.width));
+          fpImg.setAttribute('height', String(fp.height));
+          fpImg.src = src;
+        }
         if (!fpLightbox) {
           fpLightbox = el('div', { class: 'v2-fp-lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': '2D floor plan', hidden: true });
           const card = el('div', { class: 'v2-fp-lightbox-card' });
           const head = el('div', { class: 'v2-fp-lightbox-head' });
           const closeBtn = el('button', { type: 'button', class: 'v2-fp-close', 'aria-label': 'Close floor plan' }, 'Close');
           closeBtn.addEventListener('click', closeFpLightbox);
-          head.append(el('span', { class: 'v2-fp-lightbox-title' }, '2D floor plan · not to scale'), closeBtn);
+          head.append(el('span', { class: 'v2-fp-lightbox-title' }, '2D floor plan · not to scale'));
+          if (fpLevels) {
+            const lbFloors = el('div', { class: 'v2-fp-lightbox-floors', role: 'group', 'aria-label': 'Floors' });
+            storeys.forEach((level, index) => {
+              const btn = el('button', { type: 'button', class: 'v2-floor', 'aria-pressed': String(index === mapLevel) }, fpLevels[index].name || level.name);
+              btn.addEventListener('click', () => showMapLevel(index));
+              lbFloorButtons.push(btn);
+              lbFloors.append(btn);
+            });
+            head.append(lbFloors);
+          }
+          head.append(closeBtn);
           const canvasBox = el('div', { class: 'v2-fp-lightbox-canvas' });
           lbImg = el('img', {
             class: 'v2-fp-lightbox-img',
             alt: 'Larger 2D floor plan, not to scale',
-            width: String(manifest.floorplan.width),
-            height: String(manifest.floorplan.height),
+            width: String(fp.width),
+            height: String(fp.height),
             decoding: 'async',
           });
           canvasBox.append(lbImg);
-          const lbOverlay = buildFpOverlay(ns, manifest.floorplan, { interactive: true, onStopPicked: closeFpLightbox });
+          const lbOverlay = buildFpOverlay(ns, fp, { interactive: true, onStopPicked: closeFpLightbox });
           if (lbOverlay) canvasBox.append(lbOverlay);
           card.append(head, canvasBox);
           fpLightbox.append(card);
           fpLightbox.addEventListener('click', event => { if (event.target === fpLightbox) closeFpLightbox(); });
           ui.root.append(fpLightbox);
         }
-        if (lbImg && fpImg.src) lbImg.src = fpImg.src;
+        if (lbImg) {
+          lbImg.setAttribute('width', String(fp.width));
+          lbImg.setAttribute('height', String(fp.height));
+          if (lbImg.src !== src) lbImg.src = src;
+        }
+        lbFloorButtons.forEach((btn, index) => btn.setAttribute('aria-pressed', String(index === mapLevel)));
         fpLightbox.hidden = false;
         drawMapMarker();
         fpLightbox.querySelector('.v2-fp-close')?.focus?.();
@@ -1962,10 +2091,17 @@
         stopsBtn.setAttribute('aria-pressed', String(!isFp));
         floorplanBtn.setAttribute('aria-pressed', String(isFp));
         if (isFp) svg.setAttribute('hidden', ''); else svg.removeAttribute('hidden');
-        if (floorsGroup) floorsGroup.hidden = isFp;
+        if (floorsGroup) floorsGroup.hidden = isFp && !fpLevels;
         fpStatus.hidden = true;
         if (isFp) {
-          if (!fpLoaded) { fpLoaded = true; fpImg.src = base + manifest.floorplan.path; }
+          const fp = activeFp();
+          const src = base + fp.path;
+          if (!fpLoaded || fpImg.src !== src) {
+            fpLoaded = true;
+            fpImg.setAttribute('width', String(fp.width));
+            fpImg.setAttribute('height', String(fp.height));
+            fpImg.src = src;
+          }
           fpWrap.hidden = false;
           fpImg.hidden = false;
           fpExpandBtn.hidden = false;
@@ -1993,15 +2129,7 @@
         mapMarker.setAttribute('transform', `translate(${state.position[0].toFixed(3)} ${state.position[2].toFixed(3)}) rotate(${(-state.yaw).toFixed(1)})`);
       }
       if (fpOverlays.length) {
-        const pt = fpProject(state.position[0], state.position[2]);
-        const cur = hereStop();
-        for (const item of fpOverlays) {
-          if (pt) item.marker.setAttribute('transform', `translate(${pt[0].toFixed(1)} ${pt[1].toFixed(1)}) rotate(${(-state.yaw).toFixed(1)})`);
-          for (const [node, idx] of item.stopNodes) {
-            if (idx === cur) node.setAttribute('data-current', 'true');
-            else delete node.dataset.current;
-          }
-        }
+        for (const item of fpOverlays) syncFpOverlay(item);
       }
     }
 
