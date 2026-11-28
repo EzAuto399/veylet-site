@@ -89,13 +89,17 @@
 .refined-home h2 {
   font-size: var(--display-2);
   line-height: 1.12;
+  letter-spacing: -0.025em;
   text-wrap: pretty;
 }
 .refined-home .conversion-heading h2 {
   margin-top: 0;
 }
 .refined-home .pilot-note {
-  border: 1px solid var(--line);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-editorial-card, 6px);
+  background: var(--surface);
+  box-shadow: var(--e1);
   padding: 18px 20px;
   margin-top: 28px;
   max-width: 56ch;
@@ -227,9 +231,11 @@
   justify-content: center;
   width: 48px;
   height: 48px;
+  border-radius: 6px;
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--field-line);
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 120ms var(--ease-press, cubic-bezier(0.23, 1, 0.32, 1));
 }
 .refined-home .study-controls button:disabled {
   opacity: 0.35;
@@ -238,6 +244,9 @@
 .refined-home .study-controls button:not(:disabled):hover {
   background: var(--ink);
   color: var(--paper);
+}
+.refined-home .study-controls button:not(:disabled):active {
+  transform: scale(0.98);
 }
 .refined-home .study-controls button:first-child .icon-arrow {
   rotate: 180deg;
@@ -264,7 +273,10 @@
   display: block;
   height: auto;
   overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-editorial-card, 6px);
   background: transparent;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 .refined-home .study-rail > li img {
   display: block;
@@ -274,11 +286,15 @@
   object-fit: contain;
   filter: none;
   opacity: 1;
-  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 200ms var(--ease-reveal, cubic-bezier(0.16, 1, 0.3, 1));
 }
 @media (hover: hover) {
+  .refined-home .study-rail > li > a:hover {
+    border-color: var(--control);
+    box-shadow: var(--e2);
+  }
   .refined-home .study-rail a:hover img {
-    transform: scale(1.025);
+    transform: scale(1.02);
   }
 }
 .refined-home .study-caption {
@@ -360,7 +376,10 @@
 }
 .intake-fields {
   grid-area: fields;
-  border: 1px solid var(--line);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--e1);
   padding: clamp(24px, 3vw, 42px);
   min-width: 0;
 }
@@ -517,6 +536,9 @@
   .intake-fields {
     padding: 0;
     border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
   .intake-page .reply-preview {
     border-top: 1px solid var(--line);
@@ -617,9 +639,14 @@
     position: static;
   }
   .refined-home .study-rail img,
+  .refined-home .study-rail > li > a,
   .refined-marketing .button,
   .refined-home .study-controls button {
     transition: none;
+  }
+  .refined-home .study-rail a:hover img,
+  .refined-home .study-controls button:active {
+    transform: none;
   }
 }
 
